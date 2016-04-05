@@ -54,7 +54,7 @@ MODULE qs_interactions
 
 ! *** Public subroutines ***
 
-   PUBLIC :: init_interaction_radii, init_se_nlradius
+   PUBLIC :: init_interaction_radii, init_se_nlradius, init_interaction_radii_orb_basis
 
    PUBLIC :: write_paw_radii, write_ppnl_radii, write_ppl_radii, write_core_charge_radii, &
              write_pgf_orb_radii
@@ -84,9 +84,7 @@ CONTAINS
                                                             lprj_ppnl, maxl, maxnset, nexp_lpot, &
                                                             nexp_lsd, nexp_ppl, nkind
       INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nprj, nprj_ppnl
-      LOGICAL                                            :: llsd, lpot, p_aux, p_ccr, p_gem, p_lri, &
-                                                            p_orb, p_paw, p_ppl, p_ppnl, p_soft, &
-                                                            paw_atom
+      LOGICAL                                            :: llsd, lpot, paw_atom
       REAL(KIND=dp)                                      :: alpha_core_charge, alpha_ppl, &
                                                             ccore_charge, cerf_ppl, &
                                                             core_charge_radius, ppl_radius, &
@@ -98,25 +96,16 @@ CONTAINS
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: aux_basis_set, aux_fit_basis_set, &
-                                                            lri_basis, orb_basis_set, soft_basis
+                                                            lri_basis, mao_basis, orb_basis_set, &
+                                                            soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
 
       CALL timeset(routineN, handle)
 
       NULLIFY (all_potential, gth_potential, orb_basis_set, aux_basis_set, soft_basis, &
-               lri_basis, paw_proj_set)
+               lri_basis, mao_basis, paw_proj_set)
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
-
-      p_orb = .FALSE.
-      p_aux = .FALSE.
-      p_ccr = .FALSE.
-      p_ppl = .FALSE.
-      p_ppnl = .FALSE.
-      p_soft = .FALSE.
-      p_paw = .FALSE.
-      p_gem = .FALSE.
-      p_lri = .FALSE.
 
       nkind = SIZE(atomic_kind_set)
       CALL get_qs_kind_set(qs_kind_set, maxnset=maxnset)
@@ -129,6 +118,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis, basis_type="LRI")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=mao_basis, basis_type="MAO")
          CALL get_qs_kind(qs_kind_set(ikind), soft_basis_set=soft_basis)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
@@ -142,7 +132,6 @@ CONTAINS
          ! Indeed, there the radii of the GTO primitives are needed
          IF (ASSOCIATED(orb_basis_set)) THEN
 
-            p_orb = .TRUE.
             CALL init_interaction_radii_orb_basis(orb_basis_set, qs_control%eps_pgf_orb, &
                                                   qs_control%eps_kg_orb)
 
@@ -150,7 +139,6 @@ CONTAINS
 
          IF (ASSOCIATED(all_potential)) THEN
 
-            p_ccr = .TRUE.
             CALL get_potential(potential=all_potential, &
                                alpha_core_charge=alpha_core_charge, &
                                ccore_charge=ccore_charge)
@@ -166,8 +154,6 @@ CONTAINS
 
          ELSE IF (ASSOCIATED(gth_potential)) THEN
 
-            p_ccr = .TRUE.
-            p_ppl = .TRUE.
             CALL get_potential(potential=gth_potential, &
                                alpha_core_charge=alpha_core_charge, &
                                ccore_charge=ccore_charge, &
@@ -234,8 +220,6 @@ CONTAINS
 
             ppnl_radius = 0.0_dp
 
-            p_ppnl = (lppnl >= 0)
-
             DO l = 0, lppnl
                DO iprj_ppnl = 1, nprj_ppnl(l)
                   lprj_ppnl = l+2*(iprj_ppnl-1)
@@ -257,7 +241,6 @@ CONTAINS
 
          IF (ASSOCIATED(aux_fit_basis_set)) THEN
 
-            p_orb = .TRUE.
             CALL init_interaction_radii_orb_basis(aux_fit_basis_set, qs_control%eps_pgf_orb, &
                                                   qs_control%eps_kg_orb)
 
@@ -271,12 +254,19 @@ CONTAINS
 
          END IF
 
+         ! Calculate the MAO orbital basis function radii
+
+         IF (ASSOCIATED(mao_basis)) THEN
+
+            CALL init_interaction_radii_orb_basis(mao_basis, qs_control%eps_pgf_orb)
+
+         END IF
+
          ! Calculate the soft orbital basis function radii
 
          IF (ASSOCIATED(soft_basis)) THEN
 
             IF (paw_atom) THEN
-               p_soft = .TRUE.
                CALL init_interaction_radii_orb_basis(soft_basis, qs_control%eps_pgf_orb)
 
             END IF
@@ -284,7 +274,6 @@ CONTAINS
 
          ! Calculate the lri basis function radii
          IF (ASSOCIATED(lri_basis)) THEN
-            p_lri = .TRUE.
             CALL init_interaction_radii_orb_basis(lri_basis, qs_control%eps_pgf_orb)
          END IF
 
@@ -292,7 +281,6 @@ CONTAINS
 
          IF (ASSOCIATED(paw_proj_set)) THEN
 
-            p_paw = .TRUE.
             CALL get_paw_proj_set(paw_proj_set=paw_proj_set, &
                                   nprj=nprj, &
                                   maxl=maxl, &

@@ -21,7 +21,8 @@ MODULE lapack
    ! API
    PUBLIC :: lapack_ssyev, lapack_chpev, &
              lapack_sgesvd, lapack_cgesvd, &
-             lapack_sgesv, lapack_sgelss
+             lapack_sgesv, lapack_sgelss, &
+             lapack_ssygv
 
    INTERFACE lapack_ssyev
 ! **************************************************************************************************

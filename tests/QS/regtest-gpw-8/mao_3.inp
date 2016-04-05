@@ -1,0 +1,65 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC 
+      EPS_SCF 1.0E-5
+      &OT ON
+        PRECONDITIONER FULL_ALL
+        MINIMIZER DIIS
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+       &MAO_ANALYSIS
+           REFERENCE_BASIS EXTERNAL
+           PRINT_BASIS F
+           MAX_ITER  10
+           EPS_GRAD  1.e-4
+           EPS_FUNCTION  1.e-6
+           NEGLECT_ABC F
+           AB_THRESHOLD 1.e-2
+           ABC_THRESHOLD 1.e-4
+           ANALYZE_UNASSIGNED_CHARGE T
+       &END
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+    &COORD
+    O     0.000000     0.000000     0.000000    H2O1
+    H     0.000000     0.000000     1.000000    H2O1
+    H     0.942809     0.000000    -0.333333    H2O1
+    O    -1.617979    -0.948062    -2.341650    H2O2
+    H    -2.529195    -1.296822    -2.122437    H2O2
+    H    -1.534288    -0.833088    -3.331486    H2O2
+    &END COORD
+    &KIND H
+      BASIS_SET ORB DZV-GTH-PADE
+      BASIS_SET MAO TZVDD3DF3PD-GTH-BLYP
+      POTENTIAL GTH-PADE-q1
+      MAO 1
+    &END KIND
+    &KIND O
+      BASIS_SET ORB DZVP-GTH-PADE
+      BASIS_SET MAO TZVDD3DF3PD-GTH-BLYP
+      POTENTIAL GTH-PADE-q6
+      MAO 4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL

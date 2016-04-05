@@ -21,7 +21,8 @@ MODULE qs_overlap
    USE ai_overlap,                      ONLY: overlap_ab
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE block_p_types,                   ONLY: block_p_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -86,7 +87,8 @@ MODULE qs_overlap
 
 ! *** Public subroutines ***
 
-   PUBLIC :: build_overlap_matrix, build_overlap_force, create_sab_matrix
+   PUBLIC :: build_overlap_matrix, build_overlap_matrix_simple, &
+             build_overlap_force, create_sab_matrix
 
 CONTAINS
 
@@ -506,6 +508,207 @@ CONTAINS
    END SUBROUTINE build_overlap_matrix
 
 ! **************************************************************************************************
+!> \brief   Calculation of the overlap matrix over Cartesian Gaussian functions.
+!> \param   ks_env the QS env
+!> \param   matrix_s The overlap matrix to be calculated
+!> \param   basis_set_list_a basis set list to be used for bra in <a|b>
+!> \param   basis_set_list_b basis set list to be used for ket in <a|b>
+!> \param   sab_nl pair list (must be consistent with basis sets!)
+!> \date    11.03.2016
+!> \par     History
+!>          Simplified version of build_overlap_matrix
+!> \author  MK
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE build_overlap_matrix_simple(ks_env, matrix_s, &
+                                          basis_set_list_a, basis_set_list_b, sab_nl)
+
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix_simple', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, inode, irow, iset, jatom, jkind, &
+         jset, ldsab, m1, m2, mepos, n1, n2, natom, ncoa, ncob, nkind, nseta, nsetb, nthread, &
+         sgfa, sgfb
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: do_symmetric, found, trans
+      REAL(KIND=dp)                                      :: dab, rab2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, scon_a, scon_b, zeta, zetb
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: sint
+      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      NULLIFY (dft_control)
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (atomic_kind_set)
+      CALL get_ks_env(ks_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      natom=natom, &
+                      qs_kind_set=qs_kind_set, &
+                      dbcsr_dist=dbcsr_dist, &
+                      dft_control=dft_control)
+
+      ! check for symmetry
+      CPASSERT(SIZE(sab_nl) > 0)
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
+
+      nkind = SIZE(qs_kind_set)
+
+      ALLOCATE (atom_of_kind(natom))
+      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
+
+      CALL cp_dbcsr_allocate_matrix_set(matrix_s, 1)
+      CALL create_sab_matrix(ks_env, matrix_s, "Matrix", basis_set_list_a, basis_set_list_b, &
+                             sab_nl, do_symmetric)
+
+      ldsab = 0
+      DO ikind = 1, nkind
+         basis_set_a => basis_set_list_a(ikind)%gto_basis_set
+         CALL get_gto_basis_set(gto_basis_set=basis_set_a, maxco=m1, nsgf=m2)
+         ldsab = MAX(m1, m2, ldsab)
+         basis_set_b => basis_set_list_b(ikind)%gto_basis_set
+         CALL get_gto_basis_set(gto_basis_set=basis_set_b, maxco=m1, nsgf=m2)
+         ldsab = MAX(m1, m2, ldsab)
+      END DO
+
+      nthread = 1
+!$    nthread = omp_get_max_threads()
+      CALL neighbor_list_iterator_create(nl_iterator, sab_nl, nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (nthread,ldsab,nl_iterator,do_symmetric,ncoset,&
+!$OMP         matrix_s,basis_set_list_a,basis_set_list_b,atom_of_kind)  &
+!$OMP PRIVATE (mepos,oint,owork,sint,ikind,jkind,inode,iatom,jatom,rab,basis_set_a,basis_set_b,atom_a,atom_b,&
+!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, &
+!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, dab, &
+!$OMP          zetb, scon_a, scon_b, irow, icol, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset )
+
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+
+      ALLOCATE (oint(ldsab, ldsab, 1), owork(ldsab, ldsab))
+      ALLOCATE (sint(1))
+      NULLIFY (sint(1)%block)
+
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
+         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, inode=inode, &
+                                iatom=iatom, jatom=jatom, r=rab)
+         basis_set_a => basis_set_list_a(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list_b(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         atom_a = atom_of_kind(iatom)
+         atom_b = atom_of_kind(jatom)
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         scon_a => basis_set_a%scon
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         scon_b => basis_set_b%scon
+         zetb => basis_set_b%zet
+
+         IF (do_symmetric) THEN
+            IF (iatom <= jatom) THEN
+               irow = iatom
+               icol = jatom
+            ELSE
+               irow = jatom
+               icol = iatom
+            END IF
+         ELSE
+            irow = iatom
+            icol = jatom
+         END IF
+
+         NULLIFY (sint(1)%block)
+         CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix, &
+                                   row=irow, col=icol, BLOCK=sint(1)%block, found=found)
+         CPASSERT(found)
+         trans = do_symmetric .AND. (iatom > jatom)
+
+         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         dab = SQRT(rab2)
+
+         DO iset = 1, nseta
+
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            n1 = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
+            sgfa = first_sgfa(1, iset)
+
+            DO jset = 1, nsetb
+
+               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               n2 = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
+               sgfb = first_sgfb(1, jset)
+
+               ! calculate integrals and derivatives
+               CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                               lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                               rab, sab=oint(:, :, 1))
+               ! Contraction
+               CALL contraction(oint(:, :, 1), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
+                                cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=1.0_dp, trans=trans)
+!$OMP CRITICAL(blockadd)
+               CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(1)%block, &
+                              sgfa, sgfb, trans=trans)
+!$OMP END CRITICAL(blockadd)
+
+            END DO
+         END DO
+
+      END DO
+      DEALLOCATE (oint, owork)
+      DEALLOCATE (sint)
+!$OMP END PARALLEL
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL cp_dbcsr_finalize(matrix_s(1)%matrix)
+      CALL cp_dbcsr_filter(matrix_s(1)%matrix, dft_control%qs_control%eps_filter_matrix)
+
+      ! *** Release work storage ***
+      DEALLOCATE (atom_of_kind)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_overlap_matrix_simple
+
+! **************************************************************************************************
 
 !> \brief   Calculation of the force contribution from an overlap matrix
 !>          over Cartesian Gaussian functions.
@@ -823,7 +1026,7 @@ CONTAINS
       CHARACTER(LEN=12)                                  :: cgfsym
       CHARACTER(LEN=32)                                  :: symmetry_string
       CHARACTER(LEN=default_string_length)               :: mname, name
-      INTEGER                                            :: i1, i2, maxs1, maxs2, natom
+      INTEGER                                            :: i1, i2, natom
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -840,9 +1043,6 @@ CONTAINS
          mname = "DUMMY"
       END IF
 
-      maxs1 = SIZE(matrix_s, 1)
-      maxs2 = SIZE(matrix_s, 2)
-
       ALLOCATE (row_blk_sizes(natom), col_blk_sizes(natom))
 
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
@@ -857,8 +1057,8 @@ CONTAINS
          symmetry_string = dbcsr_type_no_symmetry
       END IF
 
-      DO i2 = 1, maxs2
-         DO i1 = 1, maxs1
+      DO i2 = 1, SIZE(matrix_s, 2)
+         DO i1 = 1, SIZE(matrix_s, 1)
             IF (symmetric) THEN
                IF (ndod(i1) == 1) THEN
                   ! odd derivatives are anti-symmetric

@@ -20,6 +20,7 @@ MODULE qs_neighbor_lists
                                               get_atomic_kind,&
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
@@ -116,7 +117,7 @@ MODULE qs_neighbor_lists
    ! Public subroutines
    PUBLIC :: build_qs_neighbor_lists, local_atoms_type, atom2d_cleanup, &
              atom2d_build, build_neighbor_lists, pair_radius_setup, &
-             write_neighbor_lists
+             setup_neighbor_list, write_neighbor_lists
 CONTAINS
 
 ! **************************************************************************************************
@@ -599,7 +600,6 @@ CONTAINS
       ! Build orbital-orbital list containing all the pairs, to be used with
       ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
       ! might be not optimal. It should be verified for each operator.
-      ! right now only used for linear response (e.g. nmr). Should be computed more sparingly
       IF (.NOT. (nddo .OR. dftb .OR. scptb)) THEN
          CALL build_neighbor_lists(sab_all, particle_set, atom2d, cell, pair_radius, &
                                    mic=mic, symmetric=.FALSE., subcells=subcells, molecular=molecule_only, name="sab_all")
@@ -1303,6 +1303,135 @@ CONTAINS
    END SUBROUTINE build_neighbor_lists
 
 ! **************************************************************************************************
+!> \brief Build a neighborlist
+!> \param ab_list ...
+!> \param basis_set_a ...
+!> \param basis_set_b ...
+!> \param qs_env ...
+!> \param mic ...
+!> \param symmetric ...
+!> \param molecular ...
+!> \param dftb ...
+!> \param operator_type ...
+!> \date    14.03.2016
+!> \author  JGH
+! **************************************************************************************************
+   SUBROUTINE setup_neighbor_list(ab_list, basis_set_a, basis_set_b, qs_env, &
+                                  mic, symmetric, molecular, dftb, operator_type)
+
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: ab_list
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_a
+      TYPE(gto_basis_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: basis_set_b
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: mic, symmetric, molecular, dftb
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: operator_type
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'setup_neighbor_list', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=4)                                   :: otype
+      INTEGER                                            :: ikind, nkind
+      LOGICAL                                            :: my_dftb, my_mic, my_molecular, &
+                                                            my_symmetric
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: a_present, b_present, orb_present
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: a_radius, b_radius, orb_radius
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(distribution_1d_type), POINTER                :: distribution_1d
+      TYPE(distribution_2d_type), POINTER                :: distribution_2d
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_a, basis_b
+      TYPE(gto_basis_set_type), POINTER                  :: abas, bbas
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      basis_a => basis_set_a
+      IF (PRESENT(basis_set_b)) THEN
+         basis_b => basis_set_b
+         my_symmetric = .FALSE.
+      ELSE
+         basis_b => basis_set_a
+         my_symmetric = .TRUE.
+      END IF
+      IF (PRESENT(symmetric)) my_symmetric = symmetric
+
+      IF (PRESENT(mic)) THEN
+         my_mic = mic
+      ELSE
+         my_mic = .FALSE.
+      END IF
+
+      IF (PRESENT(molecular)) THEN
+         my_molecular = molecular
+      ELSE
+         my_molecular = .FALSE.
+      END IF
+
+      IF (PRESENT(dftb)) THEN
+         my_dftb = dftb
+      ELSE
+         my_dftb = .FALSE.
+      END IF
+
+      IF (PRESENT(operator_type)) THEN
+         otype = operator_type
+      ELSE
+         ! default is a simple AB neighbor list
+         otype = "AB"
+      END IF
+
+      nkind = SIZE(basis_a)
+      ALLOCATE (a_present(nkind), b_present(nkind))
+      a_present = .FALSE.
+      b_present = .FALSE.
+      ALLOCATE (a_radius(nkind), b_radius(nkind))
+      a_radius = 0.0_dp
+      b_radius = 0.0_dp
+      DO ikind = 1, nkind
+         IF (ASSOCIATED(basis_a(ikind)%gto_basis_set)) THEN
+            a_present(ikind) = .TRUE.
+            abas => basis_a(ikind)%gto_basis_set
+            CALL get_gto_basis_set(gto_basis_set=abas, kind_radius=a_radius(ikind))
+         END IF
+         IF (ASSOCIATED(basis_b(ikind)%gto_basis_set)) THEN
+            b_present(ikind) = .TRUE.
+            bbas => basis_b(ikind)%gto_basis_set
+            CALL get_gto_basis_set(gto_basis_set=bbas, kind_radius=b_radius(ikind))
+         END IF
+      END DO
+
+      ALLOCATE (pair_radius(nkind, nkind))
+      pair_radius = 0.0_dp
+      CALL pair_radius_setup(a_present, b_present, a_radius, b_radius, pair_radius)
+
+      CALL get_qs_env(qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      distribution_2d=distribution_2d, &
+                      local_particles=distribution_1d, &
+                      particle_set=particle_set, &
+                      molecule_set=molecule_set)
+
+      ALLOCATE (atom2d(nkind))
+      ALLOCATE (orb_radius(nkind), orb_present(nkind))
+      CALL atom2d_build(atom2d, orb_radius, orb_present, distribution_1d, distribution_2d, &
+                        atomic_kind_set, qs_kind_set, molecule_set, my_molecular, &
+                        dftb=my_dftb, particle_set=particle_set)
+      CALL build_neighbor_lists(ab_list, particle_set, atom2d, cell, pair_radius, &
+                                mic=my_mic, symmetric=my_symmetric, molecular=my_molecular, &
+                                subcells=2.0_dp, name="AUX_NL")
+
+      CALL atom2d_cleanup(atom2d)
+
+      DEALLOCATE (orb_radius, orb_present)
+      DEALLOCATE (a_present, b_present, a_radius, b_radius, pair_radius, atom2d)
+
+   END SUBROUTINE setup_neighbor_list
 
 ! **************************************************************************************************
 !> \brief ...

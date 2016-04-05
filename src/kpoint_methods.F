@@ -620,8 +620,8 @@ CONTAINS
    SUBROUTINE rskp_transform(rmatrix, cmatrix, rsmat, ispin, &
                              xkp, cell_to_index, sab_nl)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: rmatrix
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: cmatrix
+      TYPE(cp_dbcsr_type)                                :: rmatrix
+      TYPE(cp_dbcsr_type), OPTIONAL                      :: cmatrix
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rsmat
       INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
@@ -670,6 +670,9 @@ CONTAINS
          sinkl = fsym*SIN(twopi*arg)
 
          ic = cell_to_index(cell(1), cell(2), cell(3))
+         IF (.NOT. do_symmetric .AND. ic < 1) ic = cell_to_index(-cell(1), -cell(2), -cell(3))
+         CPASSERT(ic > 0)
+
          CALL cp_dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
                                    block=rsblock, found=found)
          CPASSERT(found)
@@ -832,8 +835,6 @@ CONTAINS
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
 
-! which type of density matrix
-
       CALL timeset(routineN, handle)
 
       IF (PRESENT(energy_weighted)) THEN
@@ -911,7 +912,7 @@ CONTAINS
    END SUBROUTINE kpoint_density_matrices
 
 ! **************************************************************************************************
-!> \brief generate real space desnity matrices in DBCSR format
+!> \brief generate real space density matrices in DBCSR format
 !> \param kpoint  Kpoint environment
 !> \param denmat  Real space (DBCSR) density matrices
 !> \param wtype   True = energy weighted density matrix

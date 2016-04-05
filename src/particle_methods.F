@@ -84,6 +84,7 @@ CONTAINS
 !> \param first_sgf ...
 !> \param last_sgf ...
 !> \param nsgf ...
+!> \param nmao ...
 !> \param basis ...
 !> \date    14.01.2002
 !> \par History
@@ -93,11 +94,11 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_particle_set(particle_set, qs_kind_set, first_sgf, last_sgf, nsgf, &
-                               basis)
+                               nmao, basis)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: first_sgf, last_sgf, nsgf
+      INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: first_sgf, last_sgf, nsgf, nmao
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: basis
 
@@ -118,6 +119,9 @@ CONTAINS
       IF (PRESENT(nsgf)) THEN
          CPASSERT(SIZE(nsgf) >= nparticle)
       END IF
+      IF (PRESENT(nmao)) THEN
+         CPASSERT(SIZE(nmao) >= nparticle)
+      END IF
 
       IF (PRESENT(first_sgf) .OR. PRESENT(last_sgf) .OR. PRESENT(nsgf)) THEN
          isgf = 0
@@ -134,8 +138,17 @@ CONTAINS
             IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
          END DO
       END IF
+
       IF (PRESENT(first_sgf)) THEN
          IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf+1
+      END IF
+
+      IF (PRESENT(nmao)) THEN
+         DO iparticle = 1, nparticle
+            CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
+            CALL get_qs_kind(qs_kind_set(ikind), mao=ns)
+            nmao(iparticle) = ns
+         END DO
       END IF
 
    END SUBROUTINE get_particle_set

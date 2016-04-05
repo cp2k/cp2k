@@ -12,12 +12,13 @@
 MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
         Andreussi2012, Avezac2005, BaniHashemian2016, Bengtsson1999, Blochl1995, Brelaz1979, &
-        Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Elstner1998, Fattebert2002, Guidon2010, &
-        Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, &
-        Krack2002, Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, Repasky2002, &
-        Rocha2006, Schenter2008, Schiffmann2015, Seifert1996, Souza2002, Stengel2009, Stewart1982, &
-        Stewart1989, Stewart2007, Thiel1992, Tozer1996, Umari2002, VandeVondele2003, &
-        VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
+        Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, Elstner1998, Fattebert2002, &
+        Guidon2010, Heinzmann1976, Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
+        Kolafa2004, Krack2000, Krack2002, Kunert2003, Lippert1997, Lippert1999, Perdew1981, &
+        Porezag1995, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Seifert1996, Souza2002, &
+        Stengel2009, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Tozer1996, Umari2002, &
+        VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
+        Zhao1994, Zhechkov2005
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -50,32 +51,33 @@ MODULE input_cp2k_dft
         do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
         ehrenfest, gaussian, gaussian_env, general_roks, high_spin_roks, history_guess, &
         kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, &
-        ls_gold, ls_none, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, oe_lb, &
-        oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, &
-        orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
-        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
-        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_direct, &
-        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_becke_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
-        pw_interp, ramp_env, random_guess, real_time_propagation, ref_charge_atomic, &
-        ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
-        rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        restart_guess, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
-        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
-        shape_function_gaussian, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, smear_energy_window, smear_fermi_dirac, smear_list, &
-        sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
-        tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, &
-        use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit, &
-        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
-        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
-        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, &
-        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        ls_gold, ls_none, mao_basis_ext, mao_basis_orb, mao_basis_prim, mopac_guess, &
+        no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
+        op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, &
+        orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update, outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_s2_constraint, plus_u_lowdin, &
+        plus_u_mulliken, plus_u_mulliken_charges, pw_interp, ramp_env, random_guess, &
+        real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, &
+        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, &
+        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+        sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, spline3_nopbc_interp, &
+        spline3_pbc_interp, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
+        tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, &
+        use_scf_wfn, weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
+        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
+        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
+        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
+        xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
+        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
@@ -1576,6 +1578,79 @@ CONTAINS
                           enum_c_vals=s2a("ATOMIC", "MULLIKEN"), &
                           enum_desc=s2a("Use atomic core charges", "Calculate Mulliken charges"), &
                           enum_i_vals=(/ref_charge_atomic, ref_charge_mulliken/))
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! MAO (modified atomic orbital) analysis
+      CALL cp_print_key_section_create(print_key, "MAO_ANALYSIS", &
+                                       description="Controls the printing of the MAO (modified atomic orbital) analysis", &
+                                       print_level=debug_print_level, filename="__STD_OUT__", &
+                                       common_iter_levels=1, &
+                                       citations=(/Heinzmann1976, Ehrhardt1985/))
+      CALL keyword_create(keyword=keyword, name="EPS_FILTER", &
+                          description="Threshold for matrix elements in MAO determination.", &
+                          usage="EPS_FILTER reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=1.e-8_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="REFERENCE_BASIS", &
+                          description="Basis set used to construct MAO's.", &
+                          usage="REFERENCE_BASIS {ORBITAL,PRIMITIVE,EXTERNAL}", repeats=.FALSE., n_var=1, &
+                          default_i_val=mao_basis_orb, &
+                          enum_c_vals=s2a("ORBITAL", "PRIMITIVE", "EXTERNAL"), &
+                          enum_desc=s2a("Use standard orbital basis set", "Construct basis from primitives of the orbital basis", &
+                                        "Read external basis (MAO)"), &
+                          enum_i_vals=(/mao_basis_orb, mao_basis_prim, mao_basis_ext/))
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="PRINT_BASIS", &
+                          description="Print out MAO reference basis.", &
+                          usage="PRINT_BASIS {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="EPS_GRAD", &
+                          description="Threshold for gradient in MAO optimization.", &
+                          usage="EPS_GRAD reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=1.e-4_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="EPS_FUNCTION", &
+                          description="Threshold for electron defect in MAO optimization.", &
+                          usage="EPS_FUNCTION feps", repeats=.FALSE., n_var=1, &
+                          default_r_val=1.e-3_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="MAX_ITER", &
+                          description="Maximum allowed iterations for MAO optimization.", &
+                          usage="MAX_ITER iter", repeats=.FALSE., n_var=1, &
+                          default_i_val=0, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="NEGLECT_ABC", &
+                          description="Neglect 3 atom terms in MAO analysis.", &
+                          usage="NEGLECT_ABC {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="AB_THRESHOLD", &
+                          description="Threshold for printing of AB shared electron numbers.", &
+                          usage="AB_THRESHOLD thr", repeats=.FALSE., n_var=1, &
+                          default_r_val=1.e-2_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="ABC_THRESHOLD", &
+                          description="Threshold for printing of ABC shared electron numbers.", &
+                          usage="ABC_THRESHOLD thr", repeats=.FALSE., n_var=1, &
+                          default_r_val=1.e-5_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="ANALYZE_UNASSIGNED_CHARGE", &
+                          description="Calculate atomic contributions to the unassigned charge.", &
+                          usage="ANALYZE_UNASSIGNED_CHARGE {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)

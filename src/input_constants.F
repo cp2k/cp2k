@@ -582,6 +582,11 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: ref_charge_atomic = 100, &
                                                ref_charge_mulliken = 200
 
+   ! MAO
+   INTEGER, PARAMETER, PUBLIC               :: mao_basis_orb = 2000, &
+                                               mao_basis_prim = 2001, &
+                                               mao_basis_ext = 2002
+
    ! X-Ray spectra Calculation
    INTEGER, PARAMETER, PUBLIC               :: xas_none = 0, &
                                                xas_tp_hh = 1, &

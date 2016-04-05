@@ -257,6 +257,7 @@ CONTAINS
 !> \brief allocate the blocks of a dbcsr based on the neighbor list
 !> \param matrix        the matrix
 !> \param sab_orb       the corresponding neighbor list
+!> \param desymmetrize  Allocate all block of a non-symmetric matrix from a symmetric list
 !> \par History
 !>      11.2009 created vw
 !>      01.2014 moved here from cp_dbcsr_operations (Ole Schuett)
@@ -264,20 +265,21 @@ CONTAINS
 !> \note
 ! **************************************************************************************************
 
-   SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix, sab_orb)
+   SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix, sab_orb, desymmetrize)
 
       TYPE(cp_dbcsr_type)                                :: matrix
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
+      LOGICAL, INTENT(IN), OPTIONAL                      :: desymmetrize
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_alloc_block_from_nbl', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=1)                                   :: symmetry
       INTEGER                                            :: blk_cnt, handle, iatom, icol, inode, &
-                                                            irow, jatom, last_jatom
+                                                            irow, jatom, last_jatom, nadd
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows, tmp
-      LOGICAL                                            :: new_atom_b
+      LOGICAL                                            :: alloc_full, is_symmetric, new_atom_b
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 
@@ -287,9 +289,19 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(sab_orb))
 
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_orb, symmetric=is_symmetric)
+      alloc_full = .FALSE.
+      IF (PRESENT(desymmetrize)) THEN
+         IF (desymmetrize .AND. (symmetry == dbcsr_type_no_symmetry)) THEN
+            IF (is_symmetric) alloc_full = .TRUE.
+         END IF
+      END IF
+
       CALL cp_dbcsr_finalize(matrix)
       ALLOCATE (rows(1), cols(1))
       blk_cnt = 0
+      nadd = 1
+      IF (alloc_full) nadd = 2
 
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -302,32 +314,43 @@ CONTAINS
             new_atom_b = .FALSE.
             CYCLE
          END IF
-         IF (blk_cnt+1 .GT. SIZE(rows)) THEN
+         IF (blk_cnt+nadd .GT. SIZE(rows)) THEN
             ALLOCATE (tmp(blk_cnt))
             tmp(:) = rows(:)
             DEALLOCATE (rows)
-            ALLOCATE (rows((blk_cnt+1)*2))
+            ALLOCATE (rows((blk_cnt+nadd)*2))
             rows(1:blk_cnt) = tmp(1:blk_cnt)
             tmp(:) = cols(:)
             DEALLOCATE (cols)
-            ALLOCATE (cols((blk_cnt+1)*2))
+            ALLOCATE (cols((blk_cnt+nadd)*2))
             cols(1:blk_cnt) = tmp(1:blk_cnt)
             DEALLOCATE (tmp)
          ENDIF
-         blk_cnt = blk_cnt+1
-         IF (symmetry == dbcsr_type_no_symmetry) THEN
+         IF (alloc_full) THEN
+            blk_cnt = blk_cnt+1
             rows(blk_cnt) = iatom
             cols(blk_cnt) = jatom
-         ELSE
-            IF (iatom <= jatom) THEN
-               irow = iatom
-               icol = jatom
-            ELSE
-               irow = jatom
-               icol = iatom
+            IF (iatom /= jatom) THEN
+               blk_cnt = blk_cnt+1
+               rows(blk_cnt) = jatom
+               cols(blk_cnt) = iatom
             END IF
-            rows(blk_cnt) = irow
-            cols(blk_cnt) = icol
+         ELSE
+            blk_cnt = blk_cnt+1
+            IF (symmetry == dbcsr_type_no_symmetry) THEN
+               rows(blk_cnt) = iatom
+               cols(blk_cnt) = jatom
+            ELSE
+               IF (iatom <= jatom) THEN
+                  irow = iatom
+                  icol = jatom
+               ELSE
+                  irow = jatom
+                  icol = iatom
+               END IF
+               rows(blk_cnt) = irow
+               cols(blk_cnt) = icol
+            END IF
          END IF
 
       END DO

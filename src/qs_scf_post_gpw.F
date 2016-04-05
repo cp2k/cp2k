@@ -83,6 +83,7 @@ MODULE qs_scf_post_gpw
                                               default_string_length,&
                                               dp
    USE lapack,                          ONLY: lapack_sgesv
+   USE mao_methods,                     ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_sum
@@ -2721,6 +2722,15 @@ CONTAINS
             CALL hirshfeld_charges(qs_env, print_key, unit_nr)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%HIRSHFELD")
          END IF
+      END IF
+
+      ! MAO analysis
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MAO_ANALYSIS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MAO_ANALYSIS", extension=".mao", &
+                                        middle_name="", log_filename=.FALSE.)
+         CALL mao_analysis(qs_env, print_key, unit_nr)
+         CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MAO_ANALYSIS")
       END IF
 
       CALL timestop(handle)

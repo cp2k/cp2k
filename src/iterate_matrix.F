@@ -53,18 +53,20 @@ CONTAINS
 !> \param use_inv_as_guess logical whether input can be used as guess for inverse
 !> \param norm_convergence convergence threshold for the 2-norm, useful for approximate solutions
 !> \param filter_eps filter_eps for matrix multiplications, if not passed nothing is filteres
+!> \param silent ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !>       2011.10 guess option added [Rustam Z Khaliullin]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE invert_Hotelling(matrix_inverse, matrix, threshold, use_inv_as_guess, &
-                               norm_convergence, filter_eps)
+                               norm_convergence, filter_eps, silent)
 
       TYPE(cp_dbcsr_type), INTENT(INOUT), TARGET         :: matrix_inverse, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_inv_as_guess
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: norm_convergence, filter_eps
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
          routineP = moduleN//':'//routineN
@@ -91,6 +93,9 @@ CONTAINS
       ELSE
          unit_nr = -1
       ENDIF
+      IF (PRESENT(silent)) THEN
+         IF (silent) unit_nr = -1
+      END IF
 
       convergence = threshold
       IF (PRESENT(norm_convergence)) convergence = norm_convergence

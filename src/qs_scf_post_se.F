@@ -576,6 +576,12 @@ CONTAINS
          CPWARN("Hirshfeld charges not available for semi-empirical calculations!")
       END IF
 
+      ! MAO
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MAO_ANALYSIS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         CPWARN("MAO analysis not available for semi-empirical calculations!")
+      END IF
+
    END SUBROUTINE qs_scf_post_charges
 
 ! **************************************************************************************************

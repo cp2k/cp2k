@@ -48,6 +48,7 @@ MODULE basis_set_types
    USE string_utilities,                ONLY: integer_to_string,&
                                               remove_word,&
                                               uppercase
+   USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -114,6 +115,7 @@ MODULE basis_set_types
              init_orb_basis_set, &
              read_gto_basis_set, &
              copy_gto_basis_set, &
+             create_primitive_basis_set, &
              combine_basis_sets, &
              set_gto_basis_set, &
              write_gto_basis_set, &
@@ -308,6 +310,177 @@ CONTAINS
       bout%gcc = bin%gcc
 
    END SUBROUTINE copy_gto_basis_set
+
+! **************************************************************************************************
+!> \brief ...
+!> \param basis_set ...
+!> \param pbasis ...
+! **************************************************************************************************
+   SUBROUTINE create_primitive_basis_set(basis_set, pbasis)
+
+      ! Create a primitives only basis set
+
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set, pbasis
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_primitive_basis_set', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, ico, ip, ipgf, iset, ishell, l, lm, &
+                                                            lshell, m, maxco, mpgf, nc, ncgf, ns, &
+                                                            nset, nsgf
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nindex, nprim
+      REAL(KIND=dp)                                      :: zet0
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zet, zeta
+
+      CPASSERT(ASSOCIATED(basis_set))
+
+      mpgf = SUM(basis_set%npgf)
+      lm = MAXVAL(basis_set%lmax)
+      ALLOCATE (zet(mpgf, 0:lm), zeta(mpgf, lm+1), nindex(mpgf), nprim(0:lm))
+      zet = 0.0_dp
+      zeta = 0.0_dp
+      DO l = 0, lm
+         ip = 0
+         DO iset = 1, basis_set%nset
+            IF (basis_set%lmin(iset) <= l .AND. basis_set%lmax(iset) >= l) THEN
+               DO ipgf = 1, basis_set%npgf(iset)
+                  ip = ip+1
+                  zet(ip, l) = basis_set%zet(ipgf, iset)
+               END DO
+            END IF
+         END DO
+         nprim(l) = ip
+      END DO
+
+      ! sort exponents
+      DO l = 0, lm
+         zet(1:nprim(l), l) = -zet(1:nprim(l), l)
+         CALL sort(zet(1:nprim(l), l), nprim(l), nindex)
+         ! remove duplicates
+         ip = 0
+         zet0 = 0.0_dp
+         DO i = 1, nprim(l)
+            IF (ABS(zet0-zet(i, l)) > 1.e-6_dp) THEN
+               ip = ip+1
+               zeta(ip, l+1) = zet(i, l)
+            END IF
+         END DO
+         nprim(l) = ip
+         !
+         zeta(1:ip, l+1) = -zeta(1:ip, l+1)
+      END DO
+
+      CALL allocate_gto_basis_set(pbasis)
+
+      pbasis%name = basis_set%name//"_primitive"
+      pbasis%kind_radius = basis_set%kind_radius
+      pbasis%short_kind_radius = basis_set%short_kind_radius
+      pbasis%norm_type = basis_set%norm_type
+      nset = lm+1
+      pbasis%nset = nset
+      ALLOCATE (pbasis%lmax(nset), pbasis%lmin(nset), pbasis%npgf(nset), pbasis%nshell(nset))
+      DO iset = 1, nset
+         pbasis%lmax(iset) = iset-1
+         pbasis%lmin(iset) = iset-1
+         pbasis%npgf(iset) = nprim(iset-1)
+         pbasis%nshell(iset) = nprim(iset-1)
+      END DO
+      pbasis%ncgf = 0
+      pbasis%nsgf = 0
+      DO l = 0, lm
+         pbasis%ncgf = pbasis%ncgf+nprim(l)*((l+1)*(l+2))/2
+         pbasis%nsgf = pbasis%nsgf+nprim(l)*(2*l+1)
+      END DO
+      mpgf = MAXVAL(nprim)
+      ALLOCATE (pbasis%zet(mpgf, nset))
+      pbasis%zet(1:mpgf, 1:nset) = zeta(1:mpgf, 1:nset)
+
+      ALLOCATE (pbasis%l(mpgf, nset), pbasis%n(mpgf, nset))
+      DO iset = 1, nset
+         DO ip = 1, nprim(iset-1)
+            pbasis%l(ip, iset) = iset-1
+            pbasis%n(ip, iset) = iset+ip-1
+         END DO
+      END DO
+
+      ALLOCATE (pbasis%cgf_symbol(pbasis%ncgf))
+      ALLOCATE (pbasis%lx(pbasis%ncgf))
+      ALLOCATE (pbasis%ly(pbasis%ncgf))
+      ALLOCATE (pbasis%lz(pbasis%ncgf))
+      ALLOCATE (pbasis%m(pbasis%nsgf))
+      ALLOCATE (pbasis%sgf_symbol(pbasis%nsgf))
+      ALLOCATE (pbasis%ncgf_set(nset), pbasis%nsgf_set(nset))
+
+      ncgf = 0
+      nsgf = 0
+      DO iset = 1, nset
+         l = iset-1
+         pbasis%ncgf_set(iset) = nprim(l)*((l+1)*(l+2))/2
+         pbasis%nsgf_set(iset) = nprim(l)*(2*l+1)
+         DO ishell = 1, pbasis%nshell(iset)
+            lshell = pbasis%l(ishell, iset)
+            DO ico = ncoset(lshell-1)+1, ncoset(lshell)
+               ncgf = ncgf+1
+               pbasis%lx(ncgf) = indco(1, ico)
+               pbasis%ly(ncgf) = indco(2, ico)
+               pbasis%lz(ncgf) = indco(3, ico)
+               pbasis%cgf_symbol(ncgf) = &
+                  cgf_symbol(pbasis%n(ishell, iset), (/pbasis%lx(ncgf), pbasis%ly(ncgf), pbasis%lz(ncgf)/))
+            END DO
+            DO m = -lshell, lshell
+               nsgf = nsgf+1
+               pbasis%m(nsgf) = m
+               pbasis%sgf_symbol(nsgf) = sgf_symbol(pbasis%n(ishell, iset), lshell, m)
+            END DO
+         END DO
+      END DO
+      CPASSERT(ncgf == pbasis%ncgf)
+      CPASSERT(nsgf == pbasis%nsgf)
+
+      ALLOCATE (pbasis%gcc(mpgf, mpgf, nset))
+      pbasis%gcc = 0.0_dp
+      DO iset = 1, nset
+         DO i = 1, mpgf
+            pbasis%gcc(i, i, iset) = 1.0_dp
+         END DO
+      END DO
+
+      ALLOCATE (pbasis%first_cgf(mpgf, nset))
+      ALLOCATE (pbasis%first_sgf(mpgf, nset))
+      ALLOCATE (pbasis%last_cgf(mpgf, nset))
+      ALLOCATE (pbasis%last_sgf(mpgf, nset))
+      nc = 0
+      ns = 0
+      maxco = 0
+      DO iset = 1, nset
+         DO ishell = 1, pbasis%nshell(iset)
+            lshell = pbasis%l(ishell, iset)
+            pbasis%first_cgf(ishell, iset) = nc+1
+            nc = nc+nco(lshell)
+            pbasis%last_cgf(ishell, iset) = nc
+            pbasis%first_sgf(ishell, iset) = ns+1
+            ns = ns+nso(lshell)
+            pbasis%last_sgf(ishell, iset) = ns
+         END DO
+         maxco = MAX(maxco, pbasis%npgf(iset)*ncoset(pbasis%lmax(iset)))
+      END DO
+
+      ALLOCATE (pbasis%norm_cgf(ncgf))
+      ALLOCATE (pbasis%cphi(maxco, ncgf))
+      pbasis%cphi = 0.0_dp
+      ALLOCATE (pbasis%sphi(maxco, ncgf))
+      pbasis%sphi = 0.0_dp
+      ALLOCATE (pbasis%scon(maxco, ncgf))
+      pbasis%scon = 0.0_dp
+      ALLOCATE (pbasis%set_radius(nset))
+      ALLOCATE (pbasis%pgf_radius(mpgf, nset))
+      pbasis%pgf_radius = 0.0_dp
+
+      CALL init_orb_basis_set(pbasis)
+
+      DEALLOCATE (zet, zeta, nindex, nprim)
+
+   END SUBROUTINE create_primitive_basis_set
 
 ! **************************************************************************************************
 !> \brief ...

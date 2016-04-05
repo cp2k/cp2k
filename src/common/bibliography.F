@@ -76,7 +76,8 @@ MODULE bibliography
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
-                            Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, Kapil2016
+                            Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
+                            Kapil2016, Heinzmann1976, Ehrhardt1985
 
 CONTAINS
 
@@ -3370,6 +3371,34 @@ CONTAINS
                          "PM 26851912", &
                          "ER"), &
                          DOI="10.1063/1.4941091")
+
+      CALL add_reference(key=Heinzmann1976, ISI_record=s2a( &
+                         "AU Heinzmann, R", &
+                         "   Ahlrichs, R", &
+                         "TI Population analysis based on occupation numbers of modified atomic orbitals (MAOs)", &
+                         "SO Theoret. Chim. Acta", &
+                         "PY 1976", &
+                         "VL 42", &
+                         "IS 1", &
+                         "BP 33", &
+                         "EP 45", &
+                         "ER"), &
+                         DOI="10.1007/BF00548289")
+
+      CALL add_reference(key=Ehrhardt1985, ISI_record=s2a( &
+                         "AU Ehrhardt, C", &
+                         "   Ahlrichs, R", &
+                         "TI Population analysis based on occupation numbers II. ", &
+                         "   Relationship between shared electron numbers and bond energies and", &
+                         "   characterization of hypervalent contributions", &
+                         "SO Theoret. Chim. Acta", &
+                         "PY 1985", &
+                         "VL 68", &
+                         "IS 3", &
+                         "BP 231", &
+                         "EP 245", &
+                         "ER"), &
+                         DOI="10.1007/BF00526774")
 
    END SUBROUTINE add_all_references
 
