@@ -162,6 +162,7 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "N_KPOINTS", i_val=transport_env%params%n_kpoint)
       CALL section_vals_val_get(transport_section, "NUM_INTERVAL", i_val=transport_env%params%num_interval)
       CALL section_vals_val_get(transport_section, "TASKS_PER_POINT", i_val=transport_env%params%tasks_per_point)
+      CALL section_vals_val_get(transport_section, "GPUS_PER_POINT", i_val=transport_env%params%gpus_per_point)
       CALL section_vals_val_get(transport_section, "COLZERO_THRESHOLD", r_val=transport_env%params%colzero_threshold)
       CALL section_vals_val_get(transport_section, "EPS_LIMIT", r_val=transport_env%params%eps_limit)
       CALL section_vals_val_get(transport_section, "EPS_LIMIT_CC", r_val=transport_env%params%eps_limit_cc)
@@ -302,6 +303,8 @@ CONTAINS
 
       CALL cp_csr_create(transport_env%ks_matrix, transport_env%s_matrix)
       CALL cp_csr_create(transport_env%p_matrix, transport_env%s_matrix)
+
+      CALL transport_eval_blocks(transport_env)
 
       CALL timestop(handle)
 
@@ -592,6 +595,29 @@ CONTAINS
       END DO
 
    END SUBROUTINE transport_set_contact_params
+
+! **************************************************************************************************
+!> \brief ...
+!> \param[inout] transport_env transport environment
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+   SUBROUTINE transport_eval_blocks(transport_env)
+      TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'transport_eval_blocks', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      ! TO BE IMPLIMENTED ...
+      transport_env%params%n_blocks = 0
+      transport_env%params%tridiag_blocks = C_NULL_PTR
+
+      CALL timestop(handle)
+
+   END SUBROUTINE transport_eval_blocks
 
 END MODULE transport
 

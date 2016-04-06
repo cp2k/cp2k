@@ -53,6 +53,8 @@ MODULE transport_env_types
       INTEGER(C_INT)  :: num_interval
       INTEGER(C_INT)  :: num_contacts
       INTEGER(C_INT)  :: tasks_per_point
+      INTEGER(C_INT)  :: gpus_per_point
+      INTEGER(C_INT)  :: n_blocks
       INTEGER(C_INT)  :: n_points_beyn
       INTEGER(C_INT)  :: ncrc_beyn
       INTEGER(C_INT)  :: cutout(2)
@@ -73,6 +75,7 @@ MODULE transport_env_types
       TYPE(C_PTR)     :: contacts_data
       TYPE(C_PTR)     :: nsgf
       TYPE(C_PTR)     :: zeff
+      TYPE(C_PTR)     :: tridiag_blocks
       LOGICAL(C_BOOL) :: extra_scf
    END TYPE cp2k_transport_parameters
 
@@ -86,6 +89,7 @@ MODULE transport_env_types
       TYPE(csr_type)                   :: ks_matrix
       TYPE(csr_type)                   :: p_matrix
       LOGICAL                          :: csr_screening
+      INTEGER, DIMENSION(:), POINTER   :: tridiag_blocks => NULL()
       INTEGER, DIMENSION(:), POINTER   :: contacts_data => NULL()
       INTEGER, DIMENSION(:), POINTER   :: nsgf => NULL()
       REAL(dp), DIMENSION(:), POINTER  :: zeff => NULL()
@@ -138,6 +142,7 @@ CONTAINS
 
       transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 
+      IF (ASSOCIATED(transport_env%tridiag_blocks)) DEALLOCATE (transport_env%tridiag_blocks)
       IF (ASSOCIATED(transport_env%contacts_data)) DEALLOCATE (transport_env%contacts_data)
       IF (ASSOCIATED(transport_env%nsgf)) DEALLOCATE (transport_env%nsgf)
       IF (ASSOCIATED(transport_env%zeff)) DEALLOCATE (transport_env%zeff)

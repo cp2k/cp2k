@@ -14,10 +14,11 @@
 MODULE input_cp2k_transport
    USE bibliography,                    ONLY: Bruck2014
    USE input_constants,                 ONLY: &
-        injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_mumps, &
-        linsolver_splitsolve, linsolver_superlu, rlaxisint_GaussChebyshev, rlaxisint_readfromfile, &
-        rlaxisint_trapezoidal, transport_diagscalapack, transport_localscf, transport_negf, &
-        transport_transmission, transport_writeout
+        injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_banded, &
+        linsolver_full, linsolver_mumps, linsolver_splitsolve, linsolver_superlu, &
+        rlaxisint_GaussChebyshev, rlaxisint_readfromfile, rlaxisint_trapezoidal, &
+        transport_diagscalapack, transport_localscf, transport_negf, transport_transmission, &
+        transport_writeout
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -57,7 +58,7 @@ CONTAINS
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also http://www.nano-tcad.ethz.ch/ ", &
                           citations=(/Bruck2014/), &
-                          n_keywords=21, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=22, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -98,6 +99,12 @@ CONTAINS
       CALL keyword_create(keyword, name="TASKS_PER_POINT", &
                           description="Minimum number of tasks per energy point.", &
                           usage="TASKS_PER_POINT <integer>", default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="GPUS_PER_POINT", &
+                          description="Number of GPUs per energy point for SplitSolve. Needs to be a power of two", &
+                          usage="GPUS_PER_POINT <integer>", default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -174,12 +181,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LINEAR_SOLVER", &
-                          description="Solver to solve the linear system of equations.", &
-                          usage="LINEAR_SOLVER <solver>", &
-                          default_i_val=linsolver_superlu, &
-                          enum_c_vals=s2a("SplitSolve", "SuperLU", "MUMPS"), &
-                          enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps/))
+      CALL keyword_create( &
+         keyword, name="LINEAR_SOLVER", &
+         description="Solver to solve the linear system of equations.", &
+         usage="LINEAR_SOLVER <solver>", &
+         default_i_val=linsolver_superlu, &
+         enum_c_vals=s2a("SplitSolve", "SuperLU", "MUMPS", "Full", "Banded"), &
+         enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps, linsolver_full, linsolver_banded/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -248,7 +256,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="BANDWIDTH", &
                           description="The number of neighboring unit cells that one unit cell interacts with.", &
-                          usage="BANDWIDTH <integer>", default_i_val=2)
+                          usage="BANDWIDTH <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

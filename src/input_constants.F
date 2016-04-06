@@ -964,6 +964,8 @@ MODULE input_constants
                                                linsolver_splitsolve = 11, &
                                                linsolver_superlu = 12, &
                                                linsolver_mumps = 13, &
+                                               linsolver_full = 14, &
+                                               linsolver_banded = 15, &
                                                injmethod_evp = 21, &
                                                injmethod_beyn = 22, &
                                                injsign_positive = 1, &
