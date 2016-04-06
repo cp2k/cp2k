@@ -13,9 +13,6 @@
 ! **************************************************************************************************
 MODULE input_cp2k_transport
    USE bibliography,                    ONLY: Bruck2014
-   USE cp_dbcsr_interface,              ONLY: csr_dbcsr_blkrow_dist,&
-                                              csr_eqrow_ceil_dist,&
-                                              csr_eqrow_floor_dist
    USE input_constants,                 ONLY: &
         injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_mumps, &
         linsolver_splitsolve, linsolver_superlu, rlaxisint_GaussChebyshev, rlaxisint_readfromfile, &
@@ -60,22 +57,23 @@ CONTAINS
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also http://www.nano-tcad.ethz.ch/ ", &
                           citations=(/Bruck2014/), &
-                          n_keywords=19, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=21, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="TRANSPORT_METHOD", &
-                          description="Preferred method for transport calculations.", &
-                          usage="TRANSPORT_METHOD <method>", &
-                          default_i_val=transport_negf, &
-                          enum_c_vals=s2a("DIAG", "TRANSPORT", "LOCAL_SCF", "TRANSMISSION", "WRITEOUT"), &
-                          enum_desc=s2a("standard diagonalization using ScaLapack routines", &
-                                        "self-consistent CP2K and OMEN transport calculations", &
-                                        "CP2K valence Hamiltonian + OMEN self-consistent calculations on conduction electrons", &
-                                        "self-consistent transmission calculations without applied bias voltage", &
-                                        "write out the Hamiltonian and overlap matrices"), &
-                          enum_i_vals=(/transport_diagscalapack, transport_negf, transport_localscf, &
-                                        transport_transmission, transport_writeout/))
+      CALL keyword_create( &
+         keyword, name="TRANSPORT_METHOD", &
+         description="Preferred method for transport calculations.", &
+         usage="TRANSPORT_METHOD <method>", &
+         default_i_val=transport_negf, &
+         enum_c_vals=s2a("DIAG", "TRANSPORT", "LOCAL_SCF", "TRANSMISSION", "WRITEOUT"), &
+         enum_desc=s2a("standard diagonalization using ScaLapack routines", &
+                       "self-consistent CP2K and OMEN transport calculations", &
+                       "CP2K valence Hamiltonian + OMEN self-consistent calculations on conduction electrons", &
+                       "self-consistent transmission calculations without applied bias voltage", &
+                       "write out the Hamiltonian and overlap matrices"), &
+         enum_i_vals=(/transport_diagscalapack, transport_negf, transport_localscf, &
+                       transport_transmission, transport_writeout/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -167,18 +165,6 @@ CONTAINS
       CALL keyword_create(keyword, name="TEMPERATURE", &
                           description="Temperature.", &
                           usage="TEMPERATURE [K] 300.0", default_r_val=300.0_dp, unit_str="K")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, name="ROW_DISTRIBUTION", &
-         description="How to distribute matrix rows over tasks.", &
-         enum_c_vals=s2a("DBCSR", "CEILING", "FLOOR"), &
-         enum_desc=s2a("Each task holds floor(N_BLOCK/TASKS_PER_POINT) DBCSR block rows for a total of N_BLOCK block rows", &
-                       "Each task holds ceiling(N/TASKS_PER_POINT) rows for a total of N matrix rows", &
-                       "Each task holds floor(N/TASKS_PER_POINT) rows for a total of N matrix rows"), &
-         enum_i_vals=(/csr_dbcsr_blkrow_dist, csr_eqrow_ceil_dist, csr_eqrow_floor_dist/), &
-         default_i_val=csr_eqrow_floor_dist)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

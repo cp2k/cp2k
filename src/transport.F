@@ -30,7 +30,7 @@ MODULE transport
         cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, cp_csr_create_from_dbcsr, &
         cp_csr_print_sparsity, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
         cp_dbcsr_desymmetrize, cp_dbcsr_has_symmetry, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
-        csr_type, dbcsr_type_real_8
+        csr_eqrow_ceil_dist, csr_type, dbcsr_type_real_8
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -112,7 +112,6 @@ CONTAINS
       ALLOCATE (transport_env)
       CALL transport_init_read_input(input, transport_env)
       CALL transport_set_contact_params(qs_env, transport_env)
-      CALL transport_set_cutout_indices(transport_env)
       CALL cp_dbcsr_init(transport_env%template_matrix_sym)
       CALL cp_dbcsr_init(transport_env%template_matrix_nosym)
       CALL cp_dbcsr_init(transport_env%csr_sparsity)
@@ -138,7 +137,7 @@ CONTAINS
 
       INTEGER                                            :: contact_bandwidth, contact_injsign, &
                                                             contact_natoms, contact_start, handle, &
-                                                            i, n_contacts
+                                                            i, n_contacts, stride_contacts
       INTEGER, DIMENSION(:), POINTER                     :: i_vals
       LOGICAL                                            :: contact_explicit, injecting_contact, &
                                                             one_circle
@@ -175,8 +174,6 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "ENERGY_INTERVAL", r_val=transport_env%params%energy_interval)
       CALL section_vals_val_get(transport_section, "MIN_INTERVAL", r_val=transport_env%params%min_interval)
       CALL section_vals_val_get(transport_section, "TEMPERATURE", r_val=transport_env%params%temperature)
-
-      CALL section_vals_val_get(transport_section, "ROW_DISTRIBUTION", i_val=transport_env%row_dist)
       CALL section_vals_val_get(transport_section, "CSR_SCREENING", l_val=transport_env%csr_screening)
 
       CALL section_vals_val_get(transport_section, "CUTOUT", i_vals=i_vals)
@@ -195,7 +192,9 @@ CONTAINS
 
       IF (contact_explicit) THEN
          transport_env%params%num_contacts = n_contacts
-         ALLOCATE (transport_env%contacts_data(5*n_contacts))
+         stride_contacts = 6; 
+         ALLOCATE (transport_env%contacts_data(stride_contacts*n_contacts))
+
          DO i = 1, n_contacts
             CALL section_vals_val_get(contact_section, "BANDWIDTH", i_rep_section=i, i_val=contact_bandwidth)
             CALL section_vals_val_get(contact_section, "START", i_rep_section=i, i_val=contact_start)
@@ -203,15 +202,19 @@ CONTAINS
             CALL section_vals_val_get(contact_section, "INJECTION_SIGN", i_rep_section=i, i_val=contact_injsign)
             CALL section_vals_val_get(contact_section, "INJECTING_CONTACT", i_rep_section=i, l_val=injecting_contact)
 
-            transport_env%contacts_data((i-1)*5+1) = contact_bandwidth
-            transport_env%contacts_data((i-1)*5+2) = contact_start-1 ! C indexing
-            transport_env%contacts_data((i-1)*5+3) = contact_natoms
-            transport_env%contacts_data((i-1)*5+4) = contact_injsign
+            IF (contact_natoms .LE. 0) CPABORT("Number of atoms in contact region needs to be defined.")
+
+            transport_env%contacts_data((i-1)*stride_contacts+1) = contact_bandwidth
+            transport_env%contacts_data((i-1)*stride_contacts+2) = contact_start-1 ! C indexing
+            transport_env%contacts_data((i-1)*stride_contacts+3) = contact_natoms
+            transport_env%contacts_data((i-1)*stride_contacts+4) = contact_injsign
+
             IF (injecting_contact) THEN
-               transport_env%contacts_data((i-1)*5+5) = 1
+               transport_env%contacts_data((i-1)*stride_contacts+5) = 1
             ELSE
-               transport_env%contacts_data((i-1)*5+5) = 0
+               transport_env%contacts_data((i-1)*stride_contacts+5) = 0
             END IF
+            transport_env%contacts_data((i-1)*stride_contacts+6) = contact_bandwidth*contact_natoms
          END DO
          transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1))
       ELSE
@@ -289,11 +292,9 @@ CONTAINS
       IF (.NOT. transport_env%csr_screening) CALL cp_dbcsr_set(transport_env%csr_sparsity, 1.0)
       CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
                                     transport_env%s_matrix, &
-                                    transport_env%row_dist, &
+                                    csr_eqrow_ceil_dist, &
                                     csr_sparsity=transport_env%csr_sparsity, &
-                                    numnodes=transport_env%params%tasks_per_point, &
-                                    start_cut_row=transport_env%cutout_indices(1), &
-                                    end_cut_row=transport_env%cutout_indices(2))
+                                    numnodes=numnodes)
 
       CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr)
 
@@ -543,7 +544,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_contact_params', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iat, ikind, natom, nkind
+      INTEGER                                            :: i, iat, ikind, natom, nkind, &
+                                                            stride_contacts
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       REAL(KIND=dp)                                      :: zeff
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -574,34 +576,22 @@ CONTAINS
       transport_env%params%nsgf = C_LOC(transport_env%nsgf(1))
       transport_env%params%zeff = C_LOC(transport_env%zeff(1))
 
+      stride_contacts = 6
+      DO i = 1, transport_env%params%num_contacts
+         IF (transport_env%contacts_data((i-1)*stride_contacts+2) .LT. 0) THEN
+            IF (transport_env%contacts_data((i-1)*stride_contacts+5) .EQ. 0) THEN
+               transport_env%contacts_data((i-1)*stride_contacts+2) = natom/2; 
+            ELSE IF (transport_env%contacts_data((i-1)*stride_contacts+4) .EQ. -1) THEN
+               transport_env%contacts_data((i-1)*stride_contacts+2) = &
+                  natom-transport_env%contacts_data((i-1)*stride_contacts+3)-transport_env%params%cutout(2)
+            ELSE
+               transport_env%contacts_data((i-1)*stride_contacts+2) = &
+                  transport_env%params%cutout(1)
+            END IF
+         END IF
+      END DO
+
    END SUBROUTINE transport_set_contact_params
-
-! **************************************************************************************************
-!> \brief sets matrix cutout indices
-!> \param[inout] transport_env transport environment
-!> \author Mohammad Hossein Bani-Hashemian
-! **************************************************************************************************
-   SUBROUTINE transport_set_cutout_indices(transport_env)
-      TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_cutout_indices', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: natom
-      INTEGER, DIMENSION(2)                              :: co_natom
-      LOGICAL                                            :: invalid_cutout
-
-      natom = SIZE(transport_env%nsgf)
-      co_natom = transport_env%params%cutout
-
-      invalid_cutout = (co_natom(1) .LT. 0) .OR. (co_natom(1) .GT. natom) .OR. &
-                       (co_natom(2) .LT. 0) .OR. (co_natom(2) .GT. natom)
-      IF (invalid_cutout) CPABORT("Invalid cutout.")
-
-      transport_env%cutout_indices(1) = SUM(transport_env%nsgf(1:co_natom(1)))
-      transport_env%cutout_indices(2) = SUM(transport_env%nsgf(natom-co_natom(2)+1:natom))
-
-   END SUBROUTINE transport_set_cutout_indices
 
 END MODULE transport
 
