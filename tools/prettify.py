@@ -5,6 +5,7 @@ import re
 import tempfile
 import os
 import os.path
+import tempfile
 
 try:
     from hashlib import md5
@@ -15,6 +16,7 @@ from formatting import normalizeFortranFile
 from formatting import replacer
 from formatting import addSynopsis
 from formatting import reformatFortranFile
+from formatting import selftest
 
 
 operatorsStr = r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
@@ -222,7 +224,7 @@ def prettfyInplace(fileName, bkDir, **kwargs):
     outfile.close()
 
 
-def main():
+def main(argv):
     # future defaults
     defaultsDict = {'upcase': 1, 'normalize-use': 1, 'omp-upcase': 1,
                     'decl-linelength': 100, 'decl-offset': 50,
@@ -230,7 +232,7 @@ def main():
                     'replace': 1, 'interface-dir': None,
                     'backup-dir': 'preprettify'}
 
-    usageDesc = ("usage:\n" + sys.argv[0] + """
+    usageDesc = ("usage:\n" + argv[0] + """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]omp-upcase] [--[no-]replace]
     [--[no-]reformat] --indent=3 --whitespace=1 [--interface-dir=~/cp2k/obj/platform/target] [--help]
     [--backup-dir=bk_dir] file1 [file2 ...]
@@ -262,11 +264,11 @@ def main():
     """ + str(defaultsDict))
 
     replace = None
-    if "--help" in sys.argv:
+    if "--help" in argv:
         print(usageDesc)
-        sys.exit(0)
+        return(0)
     args = []
-    for arg in sys.argv[1:]:
+    for arg in argv[1:]:
         m = re.match(
             r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat)", arg)
         if m:
@@ -329,13 +331,45 @@ def main():
                         sys.stdout.write('-' * 60 + "\n")
                         sys.stdout.write(
                             "Processing file '" + fileName + "'\n")
-            sys.exit(failure > 0)
+            return(failure > 0)
 
+#=========================================================================
+def run_selftest():
+    # create temporary file
+    fh, fn = tempfile.mkstemp(suffix=".F")
+    mod_name = os.path.basename(fn)[:-2]
+
+    # fill file with example code
+    ref = selftest.content
+    ref = ref.replace("module_name", mod_name)
+    f = open(fn, "w")
+    f.write(ref)
+    f.close()
+
+    # call prettify
+    rtn = main([sys.argv[0], fn])
+    assert(rtn==0)
+
+    # check if file was altered
+    result = open(fn).read()
+    for i, (l1, l2) in enumerate(zip(result.split("\n"), ref.split("\n"))):
+        if(l1 != l2):
+            print("Error: Line %d is not invariant."%i)
+            print("before: "+l1)
+            print("after : "+l2)
+            os.remove(fn)
+            return(1)
+
+    os.remove(fn)
+    print("Prettify selftest passed.")
+    return(0)
 
 #=========================================================================
 if(__name__ == '__main__'):
     if(len(sys.argv) == 2 and sys.argv[-1] == "--selftest"):
-        pass  # TODO implement selftest
+        rtn = run_selftest()
     else:
-        main()
+        rtn = main(sys.argv)
+
+    sys.exit(rtn)
 # EOF
