@@ -14,7 +14,6 @@ except ImportError:
 
 from formatting import normalizeFortranFile
 from formatting import replacer
-from formatting import addSynopsis
 from formatting import reformatFortranFile
 from formatting import selftest
 
@@ -82,13 +81,11 @@ def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stdout):
 
 def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
                  reformat, indent, whitespace, upcase_keywords,
-                 upcase_omp, interfaces_dir, replace, logFile):
+                 upcase_omp, replace, logFile):
     """prettifyes the fortran source in infile into a temporary file that is
     returned. It can be the same as infile.
     if normalize_use normalizes the use statements (defaults to true)
     if upcase_keywords upcases the keywords (defaults to true)
-    if interfaces_dir is defined (and contains the directory with the
-    interfaces) updates the synopsis
     if replace does the replacements contained in replacer.py (defaults
     to false)
 
@@ -141,28 +138,6 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
                     tmpfile.close()
                 tmpfile = tmpfile2
                 ifile = tmpfile
-            if interfaces_dir:
-                fileName = os.path.basename(infile.name)
-                fileName = fileName[:fileName.rfind(".")]
-                try:
-                    interfaceFile = open(os.path.join(interfaces_dir,
-                                                      fileName + ".int"), "r")
-                except:
-                    logFile.write("error opening file " +
-                                  os.path.join(interfaces_dir,
-                                               fileName + ".int") + "\n")
-                    logFile.write(
-                        "skipping addSynopsis step for " + fileName + "\n")
-                    interfaceFile = None
-                if interfaceFile:
-                    tmpfile2 = os.tmpfile()
-                    addSynopsis.addSynopsisToFile(interfaceFile, ifile,
-                                                  tmpfile2, logFile=logFile)
-                    tmpfile2.seek(0)
-                    if tmpfile:
-                        tmpfile.close()
-                    tmpfile = tmpfile2
-                    ifile = tmpfile
             hash_next = md5()
             hash_next.update(ifile.read())
             ifile.seek(0)
@@ -229,12 +204,12 @@ def main(argv):
     defaultsDict = {'upcase': 1, 'normalize-use': 1, 'omp-upcase': 1,
                     'decl-linelength': 100, 'decl-offset': 50,
                     'reformat': 1, 'indent': 3, 'whitespace': 1,
-                    'replace': 1, 'interface-dir': None,
+                    'replace': 1,
                     'backup-dir': 'preprettify'}
 
     usageDesc = ("usage:\n" + argv[0] + """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]omp-upcase] [--[no-]replace]
-    [--[no-]reformat] --indent=3 --whitespace=1 [--interface-dir=~/cp2k/obj/platform/target] [--help]
+    [--[no-]reformat] --indent=3 --whitespace=1 [--help]
     [--backup-dir=bk_dir] file1 [file2 ...]
 
     Auto-format F90 source file1, file2, ...:
@@ -256,9 +231,7 @@ def main(argv):
     --omp-upcase
              Upcasing OMP directives.
     --replace
-             If requested the replacements performed by the replacer.py script are also performed. (FIXME: ???)
-    --interface-dir
-             If the interface direcory is given updates also the synopsis. (FIXME: ???)
+             If requested the replacements performed by the replacer.py script are also performed. (FIXME: what replacements?)
 
     Defaults:
     """ + str(defaultsDict))
@@ -279,7 +252,7 @@ def main(argv):
             if m:
                 defaultsDict[m.groups()[0]] = int(m.groups()[1])
             else:
-                m = re.match(r"--(interface-dir|backup-dir)=(.*)", arg)
+                m = re.match(r"--(backup-dir)=(.*)", arg)
                 if m:
                     path = os.path.abspath(os.path.expanduser(m.groups()[1]))
                     defaultsDict[m.groups()[0]] = path
@@ -320,8 +293,6 @@ def main(argv):
                                        whitespace=defaultsDict['whitespace'],
                                        upcase_keywords=defaultsDict['upcase'],
                                        upcase_omp=defaultsDict['omp-upcase'],
-                                       interfaces_dir=defaultsDict[
-                                           'interface-dir'],
                                        replace=defaultsDict['replace'])
                     except:
                         failure += 1
