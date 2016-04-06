@@ -58,7 +58,7 @@ MODULE population_analyses
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'population_analyses'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'population_analyses'
 
    PUBLIC :: lowdin_population_analysis, &
              mulliken_population_analysis

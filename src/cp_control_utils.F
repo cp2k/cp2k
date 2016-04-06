@@ -58,7 +58,7 @@ MODULE cp_control_utils
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_utils'
 
    PUBLIC :: read_dft_control, &
              read_mgrid_section, &

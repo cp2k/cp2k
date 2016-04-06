@@ -30,7 +30,7 @@ MODULE scptb_parameters
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_parameters'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_parameters'
 
    INTEGER, PARAMETER, PRIVATE :: nelem = 106
 

@@ -39,7 +39,7 @@ MODULE dimer_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_types'
    INTEGER, PRIVATE, SAVE :: last_dimer_id = 0
 
    PUBLIC :: dimer_env_type, &

@@ -46,7 +46,7 @@ MODULE pw_spline_utils
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_spline_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_spline_utils'
 
    INTEGER, PARAMETER, PUBLIC               :: no_precond = 0, &
                                                precond_spl3_aint = 1, &

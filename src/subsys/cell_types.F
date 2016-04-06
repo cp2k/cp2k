@@ -25,7 +25,7 @@ MODULE cell_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_types'
 
    INTEGER, SAVE, PRIVATE :: last_cell_id = 0
 

@@ -41,7 +41,7 @@ MODULE glbopt_mincrawl
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_mincrawl'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_mincrawl'
 
    PUBLIC :: mincrawl_type
    PUBLIC :: mincrawl_init, mincrawl_finalize

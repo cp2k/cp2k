@@ -40,7 +40,7 @@ MODULE qs_fb_hash_table_types
              fb_hash_table_nullify, &
              fb_hash_table_release
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_hash_table_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_hash_table_types'
    INTEGER, PRIVATE, SAVE :: last_fb_hash_table_id = 0
 
 ! key value indicating an empty slot

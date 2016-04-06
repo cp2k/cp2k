@@ -47,7 +47,7 @@ MODULE ewald_spline_util
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_spline_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_spline_util'
    PUBLIC :: Setup_Ewald_Spline
 
 CONTAINS

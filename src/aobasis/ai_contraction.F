@@ -20,7 +20,7 @@ MODULE ai_contraction
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_contraction'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_contraction'
 
    PRIVATE
 

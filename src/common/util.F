@@ -18,7 +18,7 @@ MODULE util
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'util'
    PUBLIC :: sort, &
              get_limit, &
              locate, &

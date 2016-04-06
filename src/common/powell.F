@@ -11,7 +11,7 @@ MODULE powell
 
   IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'powell'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'powell'
 
   TYPE opt_state_type
     INTEGER            :: state

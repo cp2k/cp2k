@@ -23,7 +23,7 @@ MODULE tmc_analysis_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_analysis_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_analysis_types'
 
    PUBLIC :: tmc_analysis_env, tmc_ana_list_type
    PUBLIC :: tmc_ana_env_create, tmc_ana_env_release

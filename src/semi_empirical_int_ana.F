@@ -55,7 +55,7 @@ MODULE semi_empirical_int_ana
 #include "semi_empirical_int_debug.h"
 #include "semi_empirical_int_args.h"
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    PUBLIC :: rotnuc_ana, rotint_ana, corecore_ana, corecore_el_ana
 

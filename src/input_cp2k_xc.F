@@ -53,7 +53,7 @@ MODULE input_cp2k_xc
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_xc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_xc'
 
    PUBLIC :: create_xc_section
 

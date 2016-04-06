@@ -77,7 +77,7 @@ MODULE qs_electric_field_gradient
    PRIVATE
    PUBLIC :: qs_efg_calc
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_electric_field_gradient'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_electric_field_gradient'
 
 CONTAINS
 

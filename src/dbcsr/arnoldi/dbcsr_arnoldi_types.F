@@ -94,7 +94,7 @@ MODULE dbcsr_arnoldi_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_types'
 
    PUBLIC :: dbcsr_arnoldi_data, m_x_v_vectors, get_data_d, get_data_s, get_sel_ind, &
              get_data_z, get_data_c, get_control, has_s_real, has_d_real, arnoldi_control, &

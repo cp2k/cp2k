@@ -122,7 +122,7 @@ MODULE input_cp2k_dft
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
 
    PUBLIC :: create_dft_section
    PUBLIC :: create_bsse_section, create_qs_section

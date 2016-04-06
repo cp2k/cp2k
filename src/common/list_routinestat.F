@@ -29,7 +29,7 @@ MODULE list_routinestat
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list_routinestat'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list_routinestat'
 
    !this is an internal type
    TYPE private_item_type

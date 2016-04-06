@@ -53,7 +53,7 @@ MODULE colvar_utils
              get_clv_force, &
              post_process_colvar
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_utils'
 
 CONTAINS
 

@@ -23,7 +23,7 @@ MODULE colvar_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_types'
 
    INTEGER, PARAMETER, PUBLIC               :: plane_def_atoms = 0, &
                                                plane_def_vec = 1

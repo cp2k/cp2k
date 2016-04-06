@@ -58,7 +58,7 @@ MODULE fist_nonbond_force
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_force'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_force'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
    PUBLIC :: force_nonbond, &

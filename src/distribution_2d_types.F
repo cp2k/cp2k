@@ -26,7 +26,7 @@ MODULE distribution_2d_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_2d_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_2d_types'
    INTEGER, SAVE, PRIVATE :: last_distribution_2d_id = 0
 
    PUBLIC :: distribution_2d_type

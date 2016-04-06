@@ -29,7 +29,7 @@ MODULE hfx_compression_methods
 
 #define CACHE_SIZE 1024
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_compression_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_compression_methods'
 
    INTEGER(kind=int_8), PARAMETER :: ugly_duck = ISHFT(1_int_8, 63)
    INTEGER(int_8), PARAMETER :: shifts(0:63) = &

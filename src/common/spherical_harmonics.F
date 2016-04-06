@@ -52,7 +52,7 @@ MODULE spherical_harmonics
       MODULE PROCEDURE getm
    END INTERFACE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'spherical_harmonics'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'spherical_harmonics'
 
    REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: cg_table
    INTEGER :: lmax = -1

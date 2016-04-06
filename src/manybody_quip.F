@@ -35,7 +35,7 @@ USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
 
    PUBLIC quip_energy_store_force_virial, quip_add_force_virial
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_quip'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_quip'
 
 CONTAINS
 

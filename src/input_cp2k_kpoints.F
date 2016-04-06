@@ -27,7 +27,7 @@ MODULE input_cp2k_kpoints
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_kpoints'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_kpoints'
 
    INTEGER, PARAMETER                      :: use_real_wfn = 101, &
                                               use_complex_wfn = 100

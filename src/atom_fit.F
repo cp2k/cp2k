@@ -44,7 +44,7 @@ MODULE atom_fit
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_fit'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_fit'
 
    PUBLIC :: atom_fit_density, atom_fit_basis, atom_fit_pseudo, atom_fit_kgpot
 

@@ -22,7 +22,7 @@ MODULE input_cp2k_restarts_util
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts_util'
 
    PUBLIC :: section_velocity_val_set
 

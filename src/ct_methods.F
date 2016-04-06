@@ -40,7 +40,7 @@ MODULE ct_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ct_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ct_methods'
 
    ! Public subroutines
    PUBLIC :: ct_step_execute, analytic_line_search, diagonalize_diagonal_blocks

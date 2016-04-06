@@ -45,7 +45,7 @@ MODULE qs_external_potential
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_external_potential'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_external_potential'
 
 ! *** Public subroutines ***
    PUBLIC :: external_e_potential, &

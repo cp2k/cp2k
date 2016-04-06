@@ -133,7 +133,7 @@ MODULE qs_linres_current
    ! *** Public subroutines ***
    PUBLIC :: current_build_current, current_build_chi, calculate_jrho_resp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 
    TYPE box_type
       INTEGER :: n

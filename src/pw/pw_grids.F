@@ -69,7 +69,7 @@ MODULE pw_grids
    PUBLIC :: pw_grid_change
 
    INTEGER :: grid_tag = 0
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
 
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
    INTERFACE

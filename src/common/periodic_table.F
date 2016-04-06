@@ -45,7 +45,7 @@ MODULE periodic_table
       INTEGER           :: gyrom_ratio_isotope ! isotope number corresponding to gyrom_ratio
    END TYPE atom
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'periodic_table'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'periodic_table'
    REAL(KIND=dp), PARAMETER             :: z = 0.0_dp
    INTEGER, PARAMETER                   :: nelem = 118
 

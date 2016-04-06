@@ -106,7 +106,7 @@ MODULE qs_loc_methods
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
 
 ! *** Public ***
    PUBLIC ::  qs_loc_driver, qs_print_cubes

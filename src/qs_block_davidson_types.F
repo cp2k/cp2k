@@ -28,7 +28,7 @@ MODULE qs_block_davidson_types
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_block_davidson_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_block_davidson_types'
 
    PUBLIC :: block_davidson_allocate, block_davidson_deallocate, block_davidson_release, &
              block_davidson_env_create, davidson_type

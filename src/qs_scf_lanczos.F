@@ -37,7 +37,7 @@ MODULE qs_scf_lanczos
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_lanczos'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_lanczos'
 
    PUBLIC :: krylov_space_allocate, lanczos_refinement, lanczos_refinement_2v
 

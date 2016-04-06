@@ -76,7 +76,7 @@ MODULE qs_dispersion_pairpot
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_pairpot'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_pairpot'
 
    PUBLIC :: qs_dispersion_pairpot_init, calculate_dispersion_pairpot, &
              qs_scaling_init, qs_scaling_dftd3, qs_scaling_dftd3bj

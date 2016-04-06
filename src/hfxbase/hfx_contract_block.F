@@ -16,7 +16,7 @@ MODULE hfx_contract_block
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_contract_block'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_contract_block'
    PUBLIC :: contract_block
 CONTAINS
 ! **************************************************************************************************

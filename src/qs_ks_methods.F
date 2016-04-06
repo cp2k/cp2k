@@ -164,7 +164,7 @@ MODULE qs_ks_methods
    END INTERFACE
 
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
    PUBLIC :: calc_rho_tot_gspace, qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
              calculate_w_matrix, calculate_w_matrix_ot, qs_ks_allocate_basics

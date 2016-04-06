@@ -66,7 +66,7 @@ MODULE tmc_analysis
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_analysis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_analysis'
 
    PUBLIC :: tmc_read_ana_input
    PUBLIC :: analysis_init, do_tmc_analysis, analyze_file_configurations, finalize_tmc_analysis

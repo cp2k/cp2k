@@ -106,7 +106,7 @@ MODULE environment
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'environment'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'environment'
 
    ! *** Public subroutines ***
    PUBLIC :: cp2k_finalize, cp2k_init, cp2k_read, cp2k_setup, cp2k_get_walltime

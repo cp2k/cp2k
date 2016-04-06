@@ -78,7 +78,7 @@ MODULE dbcsr_vector_operations_low
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_vector_operations_low'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_vector_operations_low'
 
    PUBLIC :: dbcsr_matrix_colvec_multiply_low, &
              create_col_vec_from_matrix, &

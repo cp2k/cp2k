@@ -25,7 +25,7 @@ MODULE pair_potential_util
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_util'
    REAL(KIND=dp), PARAMETER, PRIVATE    :: MIN_HICUT_VALUE = 1.0E-15_dp, &
                                            DEFAULT_HICUT_VALUE = 1.0E3_dp
 

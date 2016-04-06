@@ -28,7 +28,7 @@ MODULE swarm_input
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_input'
 
    PUBLIC :: create_swarm_section
 

@@ -21,7 +21,7 @@ MODULE cp_iter_types
              cp_iteration_info_release, &
              cp_iteration_info_copy_iter
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_iter_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_iter_types'
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .FALSE.
    INTEGER, SAVE, PRIVATE               :: last_it_info_id = 0
 

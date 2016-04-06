@@ -44,7 +44,7 @@ MODULE dbcsr_iterator_operations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_iterator_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_iterator_operations'
 
    INTEGER, PRIVATE, POINTER, SAVE      :: common_int_pointer
 

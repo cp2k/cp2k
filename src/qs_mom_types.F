@@ -24,7 +24,7 @@ MODULE qs_mom_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mom_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mom_types'
 
    PUBLIC :: create_mom_section
 

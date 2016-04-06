@@ -44,7 +44,7 @@ MODULE molecule_kind_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_kind_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_kind_types'
 
 ! *** Define the derived structure types ***
 

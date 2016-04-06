@@ -24,7 +24,7 @@ MODULE fparser
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fparser'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fparser'
 
    !------- -------- --------- --------- --------- --------- --------- --------- -------
    PUBLIC :: initf, & ! Initialize function parser for n functions

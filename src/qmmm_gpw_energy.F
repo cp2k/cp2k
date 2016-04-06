@@ -74,7 +74,7 @@ MODULE qmmm_gpw_energy
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_energy'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_energy'
 
    PUBLIC :: qmmm_el_coupling
    PUBLIC :: qmmm_elec_with_gaussian, &

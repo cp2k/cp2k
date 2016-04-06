@@ -57,7 +57,7 @@ MODULE xas_control
       REAL(dp)                            :: nel_tot, xas_core_occupation
    END TYPE xas_control_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
 
 ! *** Public data types ***
 

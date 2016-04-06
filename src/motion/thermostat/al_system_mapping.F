@@ -33,7 +33,7 @@ MODULE al_system_mapping
 
    ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_mapping'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_mapping'
 
    PUBLIC :: al_to_particle_mapping
 

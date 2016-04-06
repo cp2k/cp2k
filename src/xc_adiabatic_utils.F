@@ -44,7 +44,7 @@ MODULE xc_adiabatic_utils
    ! *** Public subroutines ***
    PUBLIC :: rescale_xc_potential
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_adiabatic_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_adiabatic_utils'
 
 CONTAINS
 

@@ -98,7 +98,7 @@ MODULE qs_resp
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_resp'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_resp'
 
    PUBLIC :: resp_fit
 

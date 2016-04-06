@@ -79,7 +79,7 @@ MODULE extended_system_types
       TYPE(map_info_type), POINTER            :: map_info
    END TYPE lnhc_parameters_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'
 
 CONTAINS
 

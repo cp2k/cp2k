@@ -16,7 +16,7 @@ MODULE orbital_symbols
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
 #include "../base/base_uses.f90"
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_symbols'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_symbols'
    PRIVATE
 
    CHARACTER(LEN=1), PARAMETER, DIMENSION(0:11) :: l_sym = (/"s", "p", "d", &

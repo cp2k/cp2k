@@ -27,7 +27,7 @@ MODULE cp_result_methods
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_result_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_result_methods'
 
    PUBLIC :: put_results, &
              test_for_result, &

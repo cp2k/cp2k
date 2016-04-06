@@ -18,7 +18,7 @@ MODULE pao_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_types'
 
    PUBLIC :: pao_env_type
 

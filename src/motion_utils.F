@@ -54,7 +54,7 @@ MODULE motion_utils
    PUBLIC :: write_trajectory, write_stress_tensor, write_simulation_cell, &
              get_output_format, rot_ana
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'motion_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'motion_utils'
    REAL(KIND=dp), PARAMETER, PUBLIC     :: thrs_motion = 1.0E4_dp*EPSILON(0.0_dp)
 
 CONTAINS

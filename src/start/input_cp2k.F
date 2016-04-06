@@ -59,7 +59,7 @@ MODULE input_cp2k
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k'
 
    PUBLIC :: create_cp2k_root_section
 

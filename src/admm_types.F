@@ -35,7 +35,7 @@ MODULE admm_types
    PRIVATE
    PUBLIC :: admm_env_create, admm_env_release, admm_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
    TYPE eigvals_type
       REAL(dp), DIMENSION(:), POINTER          :: DATA

@@ -39,7 +39,7 @@ MODULE eri_mme_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_types'
 
    INTEGER, PARAMETER, PUBLIC :: lmax = 6
    REAL(KIND=dp), PARAMETER, PUBLIC :: lattice_sum_prec = 1.0E-20_dp ! truncation threshold for summing PGFs

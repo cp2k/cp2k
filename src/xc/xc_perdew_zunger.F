@@ -46,7 +46,7 @@ MODULE xc_perdew_zunger
    REAL(KIND=dp) :: eps_rho
 
    PUBLIC :: pz_info, pz_lda_eval, pz_lsd_eval
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_zunger'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_zunger'
 
 CONTAINS
 

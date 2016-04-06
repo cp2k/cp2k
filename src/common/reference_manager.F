@@ -37,7 +37,7 @@ MODULE reference_manager
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reference_manager'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reference_manager'
 
   ! maximum number of reference that can be added
   INTEGER, PARAMETER :: max_reference=1024

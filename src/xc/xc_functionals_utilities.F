@@ -27,7 +27,7 @@ MODULE xc_functionals_utilities
                                f53 = 5.0_dp*f13
    REAL(KIND=dp), PARAMETER :: fxfac = 1.923661050931536319759455_dp ! 1/(2^(4/3) - 2)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_functionals_utilities'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_functionals_utilities'
 
    PUBLIC :: set_util, setup_calculation, calc_rs, calc_fx, &
              calc_wave_vector, calc_z, calc_rs_pw, calc_srs_pw

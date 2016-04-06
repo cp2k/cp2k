@@ -29,7 +29,7 @@ MODULE tmc_tree_search
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_search'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_search'
 
    PUBLIC :: most_prob_end
    PUBLIC :: search_next_energy_calc

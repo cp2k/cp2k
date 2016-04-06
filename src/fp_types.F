@@ -29,7 +29,7 @@ MODULE fp_types
    PUBLIC :: fp_type
    PUBLIC :: fp_env_create, fp_env_release, fp_env_retain, fp_env_read, fp_env_write
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fp_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fp_types'
 
 ! **************************************************************************************************
    TYPE fp_type

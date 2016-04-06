@@ -55,7 +55,7 @@ MODULE thermal_region_utils
              print_thermal_regions_temperature, &
              print_thermal_regions_langevin
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_utils'
 
 CONTAINS
 

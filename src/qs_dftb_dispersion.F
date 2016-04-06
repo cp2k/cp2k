@@ -45,7 +45,7 @@ MODULE qs_dftb_dispersion
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_dispersion'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_dispersion'
 
    PUBLIC :: calculate_dftb_dispersion
 

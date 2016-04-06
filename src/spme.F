@@ -56,7 +56,7 @@ MODULE spme
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'spme'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'spme'
 
    PRIVATE
    PUBLIC :: spme_evaluate, spme_potential, spme_forces, get_patch

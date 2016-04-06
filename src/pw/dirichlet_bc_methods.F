@@ -48,7 +48,7 @@ MODULE dirichlet_bc_methods
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dirichlet_bc_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dirichlet_bc_methods'
 
    PUBLIC dirichlet_boundary_region_setup
 

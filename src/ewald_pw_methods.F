@@ -47,7 +47,7 @@ MODULE ewald_pw_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_methods'
 
    PUBLIC :: ewald_pw_grid_update
 

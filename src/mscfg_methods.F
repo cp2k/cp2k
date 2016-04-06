@@ -58,7 +58,7 @@ MODULE mscfg_methods
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mscfg_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mscfg_methods'
 
    PUBLIC :: loop_over_molecules, do_mol_loop
 

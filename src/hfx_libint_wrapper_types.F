@@ -25,7 +25,7 @@ MODULE hfx_libint_wrapper_types
              libint_max_am, &
              libderiv_max_am1
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper_types'
 
 ! *** Set default libint parameters if not specified via arch file
 

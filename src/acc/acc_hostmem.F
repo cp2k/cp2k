@@ -29,7 +29,7 @@ MODULE acc_hostmem
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_hostmem'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_hostmem'
 
    LOGICAL, PARAMETER :: careful_mod = .TRUE.
 

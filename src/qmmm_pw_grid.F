@@ -34,7 +34,7 @@ MODULE qmmm_pw_grid
 
    PRIVATE
    PUBLIC :: qmmm_pw_grid_init
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_pw_grid'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_pw_grid'
    INTEGER :: qmmm_grid_tag = 0
 
 CONTAINS

@@ -42,7 +42,7 @@ MODULE ai_elec_field
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_elec_field'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_elec_field'
    PRIVATE
 
    ! *** Public subroutines ***

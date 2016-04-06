@@ -64,7 +64,7 @@ MODULE dbcsr_dist_operations
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_operations'
 
   INTEGER :: idid = 0
 

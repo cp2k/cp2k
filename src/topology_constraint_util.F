@@ -62,7 +62,7 @@ MODULE topology_constraint_util
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_constraint_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_constraint_util'
 
    PRIVATE
    PUBLIC :: topology_constraint_pack

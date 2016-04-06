@@ -17,7 +17,7 @@ MODULE whittaker
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'whittaker'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'whittaker'
    REAL(KIND=dp), PARAMETER :: epsilon = 1.e-2_dp
 
    PRIVATE

@@ -29,7 +29,7 @@ MODULE qs_fb_buffer_types
              fb_buffer_nullify, &
              fb_buffer_replace
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_buffer_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_buffer_types'
    INTEGER, PRIVATE, SAVE :: last_fb_buffer_i_id = 0
    INTEGER, PRIVATE, SAVE :: last_fb_buffer_d_id = 0
 

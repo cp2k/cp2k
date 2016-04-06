@@ -58,7 +58,7 @@ MODULE qs_kinetic
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kinetic'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kinetic'
 
 ! *** Public subroutines ***
 

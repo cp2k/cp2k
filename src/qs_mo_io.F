@@ -83,7 +83,7 @@ MODULE qs_mo_io
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_io'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_io'
 
    PUBLIC :: wfn_restart_file_name, &
              read_mo_set, &

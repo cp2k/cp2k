@@ -28,7 +28,7 @@ MODULE ai_shg_overlap
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_shg_overlap'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_shg_overlap'
 
 ! *** Public subroutines ***
    PUBLIC :: get_dW_matrix, get_W_matrix, get_real_scaled_solid_harmonic, &

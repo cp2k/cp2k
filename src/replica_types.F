@@ -44,7 +44,7 @@ MODULE replica_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    LOGICAL, SAVE, PRIVATE :: module_initialized = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'replica_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'replica_types'
 
    PUBLIC :: replica_env_type
    PUBLIC :: rep_env_release

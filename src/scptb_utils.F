@@ -51,7 +51,7 @@ MODULE scptb_utils
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_utils'
 
    PUBLIC :: scptb_parameter_init
 

@@ -16,7 +16,7 @@ MODULE tmc_stati
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_stati'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_stati'
 
    ! IO
    CHARACTER(LEN=*), PARAMETER, &

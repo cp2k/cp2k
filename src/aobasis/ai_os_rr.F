@@ -11,7 +11,7 @@ MODULE ai_os_rr
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_os_rr'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_os_rr'
    PRIVATE
 
    ! *** Public subroutines ***

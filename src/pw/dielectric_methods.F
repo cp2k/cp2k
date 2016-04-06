@@ -45,7 +45,7 @@ MODULE dielectric_methods
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_methods'
 
    PUBLIC dielectric_create, dielectric_compute
 

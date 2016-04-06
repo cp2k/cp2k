@@ -28,7 +28,7 @@ MODULE scptb_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_types'
 
 ! **************************************************************************************************
    TYPE scptb_parameter_type

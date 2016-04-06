@@ -32,7 +32,7 @@ MODULE iterate_matrix
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'iterate_matrix'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'iterate_matrix'
 
    INTERFACE purify_mcweeny
       MODULE PROCEDURE purify_mcweeny_orth, purify_mcweeny_nonorth

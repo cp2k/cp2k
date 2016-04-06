@@ -36,7 +36,7 @@ MODULE mc_environment_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_environment_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_environment_types'
    INTEGER, SAVE, PRIVATE :: last_mc_env_id = 0
 
 CONTAINS

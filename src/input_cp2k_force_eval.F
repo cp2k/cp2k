@@ -47,7 +47,7 @@ MODULE input_cp2k_force_eval
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_force_eval'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_force_eval'
 
    PUBLIC :: create_force_eval_section
 

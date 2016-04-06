@@ -17,7 +17,7 @@ MODULE dbcsr_mm_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_types'
 
    PUBLIC :: stack_descriptor_type
 

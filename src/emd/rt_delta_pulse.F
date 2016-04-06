@@ -59,7 +59,7 @@ MODULE rt_delta_pulse
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_delta_pulse'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_delta_pulse'
 
    PUBLIC :: apply_delta_pulse_periodic, &
              apply_delta_pulse

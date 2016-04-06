@@ -24,7 +24,7 @@ MODULE cp_error_handling
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
    !API public routines
    PUBLIC :: cp_error_handling_setup

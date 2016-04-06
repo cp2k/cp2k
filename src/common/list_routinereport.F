@@ -29,7 +29,7 @@ MODULE list_routinereport
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list_routinereport'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list_routinereport'
 
    !this is an internal type
    TYPE private_item_type

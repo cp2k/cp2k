@@ -38,7 +38,7 @@ MODULE qmmm_elpot
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_elpot'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_elpot'
    PUBLIC :: qmmm_potential_init
 
 CONTAINS

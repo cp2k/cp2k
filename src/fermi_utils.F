@@ -20,7 +20,7 @@ MODULE fermi_utils
 
    PUBLIC :: Fermi, FermiFixed, FermiFixedDeriv, Fermikp, Fermikp2
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
 
 CONTAINS
 ! **************************************************************************************************

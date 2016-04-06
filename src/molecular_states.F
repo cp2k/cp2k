@@ -63,7 +63,7 @@ MODULE molecular_states
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecular_states'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecular_states'
 
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 

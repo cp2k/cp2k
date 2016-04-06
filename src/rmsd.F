@@ -18,7 +18,7 @@ MODULE rmsd
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rmsd'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rmsd'
    REAL(KIND=dp), PARAMETER, PRIVATE    :: Epsi = EPSILON(0.0_dp)*1.0E4_dp
 
    PUBLIC :: rmsd3

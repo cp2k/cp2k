@@ -30,7 +30,7 @@ MODULE xc_xbecke88
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke88'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke88'
    REAL(kind=dp), PARAMETER :: beta = 0.0042_dp
 
    PUBLIC :: xb88_lda_info, xb88_lsd_info, xb88_lda_eval, xb88_lsd_eval

@@ -45,7 +45,7 @@ MODULE cp_ddapc_forces
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_forces'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_forces'
    PUBLIC :: ewald_ddapc_force, &
              reset_ch_pulay, &
              evaluate_restraint_functional, &

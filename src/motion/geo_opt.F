@@ -40,7 +40,7 @@ MODULE geo_opt
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
 
    PUBLIC :: cp_geo_opt, cp_rot_opt
 

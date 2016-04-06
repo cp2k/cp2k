@@ -21,7 +21,7 @@ MODULE atomic_charges
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_charges'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_charges'
 
    PUBLIC :: print_atomic_charges
 

@@ -196,7 +196,7 @@ MODULE qs_ot_types
       REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_x
    END TYPE qs_ot_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_types'
 
 CONTAINS
 

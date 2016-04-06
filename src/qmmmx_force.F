@@ -42,7 +42,7 @@ MODULE qmmmx_force
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmmx_force'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmmx_force'
 
    PUBLIC :: qmmmx_calc_energy_force
 

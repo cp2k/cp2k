@@ -26,7 +26,7 @@ MODULE termination
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'termination'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'termination'
 
    PUBLIC :: print_message
    PUBLIC :: stop_memory

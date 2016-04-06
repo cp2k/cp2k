@@ -33,7 +33,7 @@ MODULE rt_hfx_utils
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_hfx_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_hfx_utils'
 
    PUBLIC :: rtp_hfx_rebuild
 

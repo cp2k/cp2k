@@ -50,7 +50,7 @@ MODULE kg_tnadd_mat
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_tnadd_mat'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_tnadd_mat'
 
    PUBLIC :: build_tnadd_mat
 

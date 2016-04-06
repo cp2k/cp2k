@@ -25,7 +25,7 @@ MODULE qs_harmonics_atom
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harmonics_atom'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harmonics_atom'
 
    TYPE harmonics_atom_type
       INTEGER                                :: max_s_harm, llmax, &

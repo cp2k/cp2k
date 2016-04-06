@@ -19,7 +19,7 @@ MODULE ai_overlap_debug
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap_debug'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap_debug'
 
    INTEGER, PARAMETER            :: lmax = 5
 

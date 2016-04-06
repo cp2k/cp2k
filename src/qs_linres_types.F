@@ -207,7 +207,7 @@ MODULE qs_linres_types
          POINTER                               :: jrho_b_h_iii, jrho_b_s_iii
    END TYPE jrho_atom_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
 
 ! *** Public data types ***
 

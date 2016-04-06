@@ -83,7 +83,7 @@ MODULE kpoint_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_methods'
 
    PUBLIC :: kpoint_initialize, kpoint_env_initialize, kpoint_initialize_mos
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation

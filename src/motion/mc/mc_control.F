@@ -59,7 +59,7 @@ MODULE mc_control
    PRIVATE
    ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_control'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_control'
 
    PUBLIC :: write_mc_restart, read_mc_restart, mc_create_force_env, &
              mc_create_bias_force_env

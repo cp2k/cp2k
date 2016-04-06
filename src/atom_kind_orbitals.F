@@ -53,7 +53,7 @@ MODULE atom_kind_orbitals
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_kind_orbitals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_kind_orbitals'
 
    PUBLIC :: calculate_atomic_orbitals, calculate_atomic_density, &
              calculate_atomic_relkin

@@ -54,7 +54,7 @@ MODULE qs_tddfpt_module
    PRIVATE
    PUBLIC :: tddfpt_calculation
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_module'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_module'
 
 CONTAINS
 

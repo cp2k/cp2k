@@ -69,7 +69,7 @@ MODULE rpa_ri_gpw
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_ri_gpw'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_ri_gpw'
 
    PUBLIC :: rpa_ri_compute_en
 

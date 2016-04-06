@@ -73,7 +73,7 @@ MODULE input_cp2k_qmmm
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_qmmm'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_qmmm'
 
    PUBLIC :: create_qmmm_section
 

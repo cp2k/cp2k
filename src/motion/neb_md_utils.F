@@ -37,7 +37,7 @@ MODULE neb_md_utils
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_md_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_md_utils'
 
    PUBLIC :: neb_initialize_velocity, &
              control_vels_a, &

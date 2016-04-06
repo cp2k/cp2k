@@ -21,7 +21,7 @@ MODULE basis_set_container_types
 
    ! Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'basis_set_container_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'basis_set_container_types'
 
 ! **************************************************************************************************
    INTEGER, PARAMETER                       :: unknown_basis = 100, &

@@ -15,7 +15,7 @@ MODULE xc_rho_cflags_types
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_cflags_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_cflags_types'
 
    PUBLIC :: xc_rho_cflags_type
    PUBLIC :: xc_rho_cflags_setall, &

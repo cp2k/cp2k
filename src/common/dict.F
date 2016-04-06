@@ -24,7 +24,7 @@ MODULE dict
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dict'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dict'
 
    PUBLIC :: dict_init, dict_items, dict_haskey, &
              dict_set, dict_get, dict_size, dict_destroy

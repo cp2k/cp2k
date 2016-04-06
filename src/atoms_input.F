@@ -52,7 +52,7 @@ MODULE atoms_input
 
    PRIVATE
    PUBLIC :: read_atoms_input, read_shell_coord_input
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atoms_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atoms_input'
 
 CONTAINS
 

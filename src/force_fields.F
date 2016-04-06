@@ -55,7 +55,7 @@ MODULE force_fields
 
   IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields'
 
   PRIVATE
   PUBLIC :: force_field_control

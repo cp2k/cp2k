@@ -47,7 +47,7 @@ MODULE cell_opt_utils
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
    PUBLIC :: get_ut_cell_matrix, get_dg_dh, gopt_new_logger_create, &
              gopt_new_logger_release, read_external_press_tensor

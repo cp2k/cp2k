@@ -53,7 +53,7 @@ MODULE restraint
 
    PRIVATE
    PUBLIC :: restraint_control
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'restraint'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'restraint'
 
 CONTAINS
 

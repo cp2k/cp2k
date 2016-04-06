@@ -35,7 +35,7 @@ MODULE orbital_transformation_matrices
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_transformation_matrices'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_transformation_matrices'
 
 ! **************************************************************************************************
    TYPE orbtramat_type

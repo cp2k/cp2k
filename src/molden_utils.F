@@ -20,7 +20,7 @@ MODULE molden_utils
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molden_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molden_utils'
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
 
    PUBLIC :: molden_out

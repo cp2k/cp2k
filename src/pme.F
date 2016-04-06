@@ -63,7 +63,7 @@ MODULE pme
 
    PRIVATE
    PUBLIC :: pme_evaluate
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme'
 
 CONTAINS
 

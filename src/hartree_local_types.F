@@ -15,7 +15,7 @@ MODULE hartree_local_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_types'
 
 ! *** Define the ecoul_1center_type ***
 

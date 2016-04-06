@@ -75,7 +75,7 @@ MODULE qs_linres_atom_current
    PUBLIC :: calculate_jrho_atom_rad, calculate_jrho_atom, calculate_jrho_atom_coeff
 
    ! *** Global parameters (only in this module)
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_atom_current'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_atom_current'
 
 CONTAINS
 

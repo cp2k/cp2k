@@ -25,7 +25,7 @@ MODULE gamma
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gamma'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gamma'
    REAL(KIND=dp), PARAMETER  :: teps = 1.0E-13_dp
 
 ! *** Maximum n value of the tabulated F_n(t) function values ***

@@ -88,7 +88,7 @@ MODULE mao_methods
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: mat
    END TYPE block_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mao_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mao_methods'
 
    PUBLIC ::  mao_analysis
 

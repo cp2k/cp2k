@@ -18,7 +18,7 @@ MODULE qs_grid_atom
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_grid_atom'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_grid_atom'
 
    TYPE grid_atom_type
 

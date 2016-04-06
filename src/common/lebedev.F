@@ -62,7 +62,7 @@ MODULE lebedev
    SAVE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lebedev'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lebedev'
 
    INTEGER, PARAMETER  :: na1 = 6, &
                           na2 = 12, &

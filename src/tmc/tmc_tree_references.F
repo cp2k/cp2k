@@ -30,7 +30,7 @@ MODULE tmc_tree_references
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_references'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_references'
 
    PUBLIC :: add_to_references
    PUBLIC :: search_and_remove_reference_in_list

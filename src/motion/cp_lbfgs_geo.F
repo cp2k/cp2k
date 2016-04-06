@@ -41,7 +41,7 @@ MODULE cp_lbfgs_geo
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_geo'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_geo'
 
    PUBLIC :: geoopt_lbfgs
 

@@ -63,7 +63,7 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_diag'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_diag'
 
    ! these saved variables are DIAGONALIZATION global
    INTEGER, SAVE :: diag_type = 0

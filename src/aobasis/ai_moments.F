@@ -41,7 +41,7 @@ MODULE ai_moments
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
 
    PUBLIC :: cossin, moment, diffop, diff_momop, contract_cossin, dipole_force
 

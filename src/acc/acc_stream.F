@@ -18,7 +18,7 @@ MODULE acc_stream
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_stream'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_stream'
 
    PUBLIC :: acc_stream_type
    PUBLIC :: acc_stream_create, acc_stream_destroy

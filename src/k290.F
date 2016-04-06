@@ -19,7 +19,7 @@ MODULE k290
   PUBLIC :: csym_type, pgrp, pgrd
   PUBLIC :: kp_sym_gen, release_csym_type, print_crys_symmetry
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'k290'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'k290'
 
 ! **************************************************************************************************
 !> \brief CSM type

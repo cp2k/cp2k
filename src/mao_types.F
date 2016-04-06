@@ -15,7 +15,7 @@ MODULE mao_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mao_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mao_types'
 
    PUBLIC :: mao_type
    PUBLIC :: create_mao_type, release_mao_type

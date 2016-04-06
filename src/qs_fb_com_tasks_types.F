@@ -59,7 +59,7 @@ MODULE qs_fb_com_tasks_types
              fb_com_atom_pairs_gather_blks, &
              fb_com_atom_pairs_distribute_blks
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_com_tasks_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_com_tasks_types'
    INTEGER, PRIVATE, SAVE :: last_fb_com_tasks_id = 0
    INTEGER, PRIVATE, SAVE :: last_fb_com_atom_pairs_id = 0
 

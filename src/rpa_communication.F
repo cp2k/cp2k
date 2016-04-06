@@ -29,7 +29,7 @@ MODULE rpa_communication
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_communication'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_communication'
 
    PUBLIC :: initialize_buffer, &
              fm_redistribute, &

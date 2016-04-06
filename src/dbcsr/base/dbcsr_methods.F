@@ -43,7 +43,7 @@ MODULE dbcsr_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
 
    INTEGER, PUBLIC, SAVE :: dbcsr_matrix_counter = 111111
 

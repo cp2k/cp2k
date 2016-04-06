@@ -56,7 +56,7 @@ MODULE qs_dispersion_nonloc
 
    REAL(KIND=dp), PARAMETER :: epsr = 1.e-12_dp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_nonloc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_nonloc'
 
    PUBLIC :: qs_dispersion_nonloc_init, calculate_dispersion_nonloc
 

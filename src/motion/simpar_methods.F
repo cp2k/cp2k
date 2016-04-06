@@ -45,7 +45,7 @@ MODULE simpar_methods
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'simpar_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'simpar_methods'
    PUBLIC :: read_md_section
 
 CONTAINS

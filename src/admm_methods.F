@@ -92,7 +92,7 @@ MODULE admm_methods
 
    PUBLIC :: admm_fit_mo_coeffs
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
 
 CONTAINS
 

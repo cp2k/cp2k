@@ -49,7 +49,7 @@ MODULE dbcsr_data_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_methods'
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
    INTEGER, SAVE                        :: id = 0

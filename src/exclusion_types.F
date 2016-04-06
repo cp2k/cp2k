@@ -25,7 +25,7 @@ MODULE exclusion_types
    PUBLIC :: exclusion_type, &
              exclusion_release
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'exclusion_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'exclusion_types'
 
 CONTAINS
 

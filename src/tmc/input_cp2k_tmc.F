@@ -31,7 +31,7 @@ MODULE input_cp2k_tmc
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_tmc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_tmc'
 
    PUBLIC :: create_TMC_section
 

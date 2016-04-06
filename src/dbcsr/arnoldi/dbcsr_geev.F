@@ -19,7 +19,7 @@ MODULE dbcsr_geev
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_geev'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_geev'
 
    PUBLIC :: dbcsr_general_local_diag, dbcsr_tridiag_local_diag, dbcsr_symm_local_diag
 

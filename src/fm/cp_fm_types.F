@@ -45,7 +45,7 @@ MODULE cp_fm_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_types'
    LOGICAL, PARAMETER          :: debug_this_module = .TRUE.
 
    INTEGER, SAVE :: last_fm_id_nr = 0

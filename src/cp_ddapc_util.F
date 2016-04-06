@@ -64,7 +64,7 @@ MODULE cp_ddapc_util
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_util'
    PUBLIC :: get_ddapc, &
              restraint_functional_potential, &
              modify_hartree_pot, &

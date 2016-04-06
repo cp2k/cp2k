@@ -40,7 +40,7 @@ MODULE semi_empirical_utils
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_utils'
 
    PUBLIC :: init_se_param, se_param_set_default, get_se_type, &
              initialize_se_taper, finalize_se_taper, se_cutoff_compatible

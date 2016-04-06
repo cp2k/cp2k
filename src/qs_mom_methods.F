@@ -45,7 +45,7 @@ MODULE qs_mom_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mom_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mom_methods'
 
    PUBLIC  :: do_mom_guess, do_mom_diag
    PRIVATE :: mom_is_unique_orbital_indices, mom_reoccupy_orbitals

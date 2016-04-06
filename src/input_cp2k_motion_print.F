@@ -36,7 +36,7 @@ MODULE input_cp2k_motion_print
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_motion_print'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_motion_print'
 
    PUBLIC :: create_motion_print_section, add_format_keyword
 

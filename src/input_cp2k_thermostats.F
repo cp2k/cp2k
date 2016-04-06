@@ -43,7 +43,7 @@ MODULE input_cp2k_thermostats
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_thermostats'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_thermostats'
 
    PUBLIC :: create_thermostat_section, &
              create_thermo_fast_section, &

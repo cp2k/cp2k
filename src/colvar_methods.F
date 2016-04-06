@@ -100,7 +100,7 @@ MODULE colvar_methods
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
    REAL(KIND=dp), PRIVATE, PARAMETER    :: tolerance_acos = 1.0E-5_dp
 
    PUBLIC :: colvar_read, &

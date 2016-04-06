@@ -69,7 +69,7 @@ MODULE xray_diffraction
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xray_diffraction'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xray_diffraction'
 
    PUBLIC :: calculate_rhotot_elec_gspace, &
              xray_diffraction_spectrum

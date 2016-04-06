@@ -20,7 +20,7 @@ MODULE qs_fb_input
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_input'
 
    PUBLIC :: create_filtermatrix_section
 

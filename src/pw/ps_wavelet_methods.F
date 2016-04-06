@@ -34,7 +34,7 @@ MODULE ps_wavelet_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_methods'
 
 ! *** Public data types ***
 

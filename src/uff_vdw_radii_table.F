@@ -21,7 +21,7 @@ MODULE uff_vdw_radii_table
 
    PUBLIC :: get_uff_vdw_radius
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'uff_vdw_radii_table'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'uff_vdw_radii_table'
 
    INTEGER, PARAMETER :: NELEMENTS = 118
    REAL(KIND=dp), PARAMETER ::  NAN = -1.0_dp

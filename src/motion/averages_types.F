@@ -63,7 +63,7 @@ MODULE averages_types
              retain_averages, compute_averages
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'averages_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'averages_types'
    INTEGER, SAVE, PRIVATE :: last_avg_env_id = 0
 
 CONTAINS

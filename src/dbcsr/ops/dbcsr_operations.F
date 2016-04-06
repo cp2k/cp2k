@@ -103,7 +103,7 @@ MODULE dbcsr_operations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
    ! prettify protection
    CHARACTER, PARAMETER :: xa = dbcsr_type_hermitian, xb = dbcsr_type_antihermitian, &

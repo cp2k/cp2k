@@ -26,7 +26,7 @@ MODULE qs_ks_qmmm_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_types'
 
    PUBLIC :: qs_ks_qmmm_env_type
    PUBLIC :: qs_ks_qmmm_release, qs_ks_qmmm_retain

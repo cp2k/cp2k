@@ -94,7 +94,7 @@ MODULE qs_energy_utils
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy_utils'
 
    PUBLIC :: qs_energies_init, &
              qs_energies_compute_matrix_w, &

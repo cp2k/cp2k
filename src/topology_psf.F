@@ -51,7 +51,7 @@ MODULE topology_psf
 
   IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_psf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_psf'
 
   PRIVATE
   PUBLIC :: read_topology_psf,&

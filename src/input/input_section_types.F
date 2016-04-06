@@ -53,7 +53,7 @@ MODULE input_section_types
 
    INTEGER, SAVE, PRIVATE :: last_section_id = 0, last_section_vals_id = 0
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_section_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_section_types'
 
    PUBLIC :: section_type
    PUBLIC :: section_create, section_release, section_describe, &

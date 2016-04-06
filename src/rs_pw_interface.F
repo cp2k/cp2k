@@ -44,7 +44,7 @@ MODULE rs_pw_interface
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rs_pw_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rs_pw_interface'
 ! *** Public subroutines ***
 
    PUBLIC :: density_rs2pw, &

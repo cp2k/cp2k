@@ -57,7 +57,7 @@ MODULE basis_set_types
 
    ! Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'basis_set_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'basis_set_types'
 
 ! **************************************************************************************************
    ! Define the Gaussian-type orbital basis set type

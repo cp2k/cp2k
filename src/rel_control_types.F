@@ -25,7 +25,7 @@ MODULE rel_control_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rel_control_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rel_control_types'
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
    ! Public data types

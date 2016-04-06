@@ -86,7 +86,7 @@ MODULE force_fields_all
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_all'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_all'
 
    PRIVATE
    PUBLIC :: force_field_unique_bond, &

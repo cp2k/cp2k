@@ -36,7 +36,7 @@ MODULE csvr_system_mapping
 
    ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_mapping'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_mapping'
 
    PUBLIC :: csvr_to_particle_mapping, csvr_to_barostat_mapping, &
              csvr_to_shell_mapping

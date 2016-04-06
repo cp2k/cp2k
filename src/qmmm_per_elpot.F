@@ -51,7 +51,7 @@ MODULE qmmm_per_elpot
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_per_elpot'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_per_elpot'
    PUBLIC :: qmmm_per_potential_init, qmmm_ewald_potential_init
 
 CONTAINS

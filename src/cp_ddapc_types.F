@@ -40,7 +40,7 @@ MODULE cp_ddapc_types
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'
    INTEGER, PRIVATE, SAVE               :: last_cp_ddapc_id = 0
 
    PUBLIC :: cp_ddapc_type, cp_ddapc_create, cp_ddapc_retain, cp_ddapc_release

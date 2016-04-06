@@ -65,7 +65,7 @@ MODULE force_fields_input
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_input'
 
    PRIVATE
    PUBLIC :: read_force_field_section, &

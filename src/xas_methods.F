@@ -124,7 +124,7 @@ MODULE xas_methods
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_methods'
 
 ! *** Public subroutines ***
 

@@ -26,7 +26,7 @@ MODULE xc_optx
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_optx'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_optx'
 
    PUBLIC :: optx_lda_info, optx_lda_eval, optx_lsd_info, optx_lsd_eval
 CONTAINS

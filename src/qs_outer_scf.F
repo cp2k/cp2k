@@ -35,7 +35,7 @@ MODULE qs_outer_scf
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_outer_scf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_outer_scf'
 
 ! *** Public subroutines ***
 

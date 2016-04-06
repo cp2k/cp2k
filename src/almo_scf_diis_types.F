@@ -39,7 +39,7 @@ MODULE almo_scf_diis_types
    INTEGER, PARAMETER :: diis_env_dbcsr = 1
    INTEGER, PARAMETER :: diis_env_domain = 2
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_diis_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_diis_types'
 
    PUBLIC :: almo_scf_diis_type, &
              almo_scf_diis_init, almo_scf_diis_release, almo_scf_diis_push, &

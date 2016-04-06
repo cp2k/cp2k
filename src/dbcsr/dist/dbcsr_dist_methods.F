@@ -47,7 +47,7 @@ MODULE dbcsr_dist_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_methods'
 
    PUBLIC :: dbcsr_distribution_new, dbcsr_distribution_hold, &
              dbcsr_distribution_release, dbcsr_distribution_init, &

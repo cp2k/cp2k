@@ -41,7 +41,7 @@ MODULE swarm
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm'
 
    PUBLIC :: run_swarm
 

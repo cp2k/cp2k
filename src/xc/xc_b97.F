@@ -43,7 +43,7 @@ MODULE xc_b97
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_b97'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_b97'
 
    PUBLIC :: b97_lda_info, b97_lsd_info, b97_lda_eval, b97_lsd_eval
 

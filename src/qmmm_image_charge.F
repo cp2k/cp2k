@@ -76,7 +76,7 @@ MODULE qmmm_image_charge
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_image_charge'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_image_charge'
 
    PUBLIC :: calculate_image_pot, &
              integrate_potential_devga_rspace, &

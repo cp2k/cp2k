@@ -95,7 +95,7 @@ MODULE qs_wf_history_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_methods'
    INTEGER, SAVE, PRIVATE :: last_wfs_id = 0, last_wfi_id = 0
 
    PUBLIC :: wfi_create, wfi_update, wfi_create_for_kp, &

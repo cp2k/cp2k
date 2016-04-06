@@ -39,7 +39,7 @@ MODULE cell_opt
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt'
 
    PUBLIC :: cp_cell_opt
 

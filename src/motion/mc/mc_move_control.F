@@ -29,7 +29,7 @@ MODULE mc_move_control
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_move_control'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_move_control'
 
   PUBLIC :: init_mc_moves, &
            mc_move_update,move_q_reinit,q_move_accept,mc_moves_release,&

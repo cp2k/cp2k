@@ -20,7 +20,7 @@ MODULE acc_event
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_event'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_event'
 
    PUBLIC :: acc_event_type
    PUBLIC :: acc_event_create, acc_event_destroy

@@ -111,7 +111,7 @@ MODULE qs_ks_utils
    PRIVATE
 
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_utils'
 
    PUBLIC :: low_spin_roks, sic_explicit_orbitals, calc_v_sic_rspace, print_densities, &
              print_detailed_energy, compute_matrix_vxc, sum_up_and_integrate, &

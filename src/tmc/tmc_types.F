@@ -47,7 +47,7 @@ MODULE tmc_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_types'
 
    PUBLIC :: tmc_env_type, tmc_comp_set_type, tmc_param_type
    PUBLIC :: tmc_env_create, tmc_env_release, &

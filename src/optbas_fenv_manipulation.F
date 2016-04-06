@@ -76,7 +76,7 @@ MODULE optbas_fenv_manipulation
              calculate_ks_matrix, &
              calculate_overlap_inverse
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_fenv_manipulation'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_fenv_manipulation'
 
 CONTAINS
 

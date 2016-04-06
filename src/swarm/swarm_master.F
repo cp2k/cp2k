@@ -40,7 +40,7 @@ MODULE swarm_master
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_master'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_master'
 
    PUBLIC :: swarm_master_type
    PUBLIC :: swarm_master_init, swarm_master_finalize

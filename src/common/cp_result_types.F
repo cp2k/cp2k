@@ -23,7 +23,7 @@ MODULE cp_result_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_result_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_result_types'
 
    INTEGER, PARAMETER, PUBLIC :: result_type_logical = 1, &
                                  result_type_integer = 2, &

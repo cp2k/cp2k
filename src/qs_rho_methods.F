@@ -56,7 +56,7 @@ MODULE qs_rho_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_methods'
 
    PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, duplicate_rho_type
 

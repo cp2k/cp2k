@@ -22,7 +22,7 @@ MODULE dbcsr_data_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_types'
 
    PUBLIC :: dbcsr_data_obj, dbcsr_data_area_type, dbcsr_scalar_type
    PUBLIC :: dbcsr_datatype_sizeof

@@ -62,7 +62,7 @@ MODULE input_parsing
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_parsing'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_parsing'
 
    PUBLIC :: section_vals_parse
 !***

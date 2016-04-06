@@ -34,7 +34,7 @@ MODULE manybody_eam
 
    PRIVATE
    PUBLIC :: get_force_eam, density_nonbond
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_eam'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_eam'
 
 CONTAINS
 

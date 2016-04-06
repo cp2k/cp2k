@@ -56,7 +56,7 @@ MODULE cp_dbcsr_operations
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
    PUBLIC :: cp_dbcsr_multiply_local
 

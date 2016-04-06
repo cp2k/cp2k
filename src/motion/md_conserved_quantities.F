@@ -52,7 +52,7 @@ MODULE md_conserved_quantities
    PRIVATE
 
    PUBLIC :: compute_conserved_quantity, calc_nfree_qm
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_conserved_quantities'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_conserved_quantities'
 
 CONTAINS
 

@@ -48,7 +48,7 @@ MODULE qs_loc_molecules
    ! *** Public ***
    PUBLIC :: wfc_to_molecule
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_molecules'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_molecules'
 
 CONTAINS
 

@@ -32,7 +32,7 @@ MODULE mixed_main
    PRIVATE
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_main'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_main'
 
    PUBLIC :: mixed_create_force_env
 

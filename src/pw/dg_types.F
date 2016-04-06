@@ -31,7 +31,7 @@ MODULE dg_types
       TYPE(dg_type), POINTER :: dg
    END TYPE dg_p_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_types'
    INTEGER, SAVE, PRIVATE :: last_dg_id = 0
 
    PRIVATE

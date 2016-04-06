@@ -40,7 +40,7 @@ MODULE qs_external_density
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_external_density'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_external_density'
 
    PUBLIC :: external_read_density
 

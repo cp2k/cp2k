@@ -38,7 +38,7 @@ MODULE external_potential_methods
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'external_potential_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'external_potential_methods'
    PUBLIC :: add_external_potential
 
 CONTAINS

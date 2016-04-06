@@ -37,7 +37,7 @@ MODULE xc_derivative_desc
 
    LOGICAL, PARAMETER :: debug_this_module = .FALSE.
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_desc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_desc'
 
    PUBLIC :: MAX_DERIVATIVE_DESC_LENGTH, MAX_LABEL_LENGTH, &
              standardize_derivative_desc, &

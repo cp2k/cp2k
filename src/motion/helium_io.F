@@ -65,7 +65,7 @@ MODULE helium_io
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_io'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_io'
 
    CHARACTER(len=*), DIMENSION(6), PARAMETER, PRIVATE :: m_dist_name = (/ &
                                                          "SINGLEV    ", &

@@ -57,7 +57,7 @@ MODULE metadynamics_utils
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_utils'
 
    PUBLIC :: metadyn_read, &
              synchronize_multiple_walkers, &

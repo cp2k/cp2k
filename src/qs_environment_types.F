@@ -156,7 +156,7 @@ MODULE qs_environment_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_types'
    INTEGER, PRIVATE, SAVE :: last_qs_env_id_nr = 0
 
 ! *** Public data types ***

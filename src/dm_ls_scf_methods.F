@@ -45,7 +45,7 @@ MODULE dm_ls_scf_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_methods'
 
    PUBLIC :: ls_scf_init_matrix_S
    PUBLIC :: density_matrix_sign, density_matrix_sign_fixed_mu

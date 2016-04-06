@@ -82,7 +82,7 @@ MODULE qs_linres_op
    PUBLIC :: current_operators, issc_operators, fac_vecp, ind_m2, set_vecp, set_vecp_rev, &
              fm_scale_by_pbc_AC, polar_operators
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_op'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_op'
 
 CONTAINS
 

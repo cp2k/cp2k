@@ -67,7 +67,7 @@ MODULE se_core_matrix
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_core_matrix'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_core_matrix'
 
    PUBLIC :: build_se_core_matrix
 

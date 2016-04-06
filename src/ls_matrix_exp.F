@@ -24,7 +24,7 @@ MODULE ls_matrix_exp
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ls_matrix_exp'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ls_matrix_exp'
 
    PUBLIC :: taylor_only_imaginary_dbcsr, &
              taylor_full_complex_dbcsr, &

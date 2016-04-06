@@ -44,7 +44,7 @@ MODULE eip_silicon
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_silicon'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_silicon'
 
   ! *** Public subroutines ***
   PUBLIC :: eip_bazant, eip_lenosky

@@ -18,7 +18,7 @@ MODULE fist_neighbor_list_types
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_list_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_list_types'
 
 ! **************************************************************************************************
    TYPE neighbor_kind_pairs_type

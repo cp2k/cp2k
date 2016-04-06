@@ -76,7 +76,7 @@ MODULE rt_propagation_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_methods'
 
    PUBLIC :: propagation_step, &
              s_matrices_create, &

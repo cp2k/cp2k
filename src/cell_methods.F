@@ -48,7 +48,7 @@ MODULE cell_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_methods'
 
    ! Public subroutines
    PUBLIC :: read_cell, write_cell

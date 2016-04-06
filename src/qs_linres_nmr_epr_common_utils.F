@@ -34,7 +34,7 @@ MODULE qs_linres_nmr_epr_common_utils
    ! *** Public subroutines ***
    PUBLIC :: mult_G_ov_G2_grid
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_epr_common_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_epr_common_utils'
 
 CONTAINS
 

@@ -43,7 +43,7 @@ MODULE mc_coordinates
              check_for_overlap, &
              rotate_molecule
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_coordinates'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_coordinates'
 
 CONTAINS
 

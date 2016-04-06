@@ -36,7 +36,7 @@ MODULE barostat_utils
    PUBLIC ::  get_baro_energies, print_barostat_status
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'barostat_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'barostat_utils'
 
 CONTAINS
 ! **************************************************************************************************

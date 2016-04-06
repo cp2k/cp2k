@@ -43,7 +43,7 @@ MODULE tmc_file_io
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_file_io'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_file_io'
 
    ! filename manipulation
    PUBLIC :: expand_file_name_char, expand_file_name_temp, expand_file_name_int

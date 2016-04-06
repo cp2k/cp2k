@@ -32,7 +32,7 @@ MODULE cp_dbcsr_cholesky
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_cholesky'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_cholesky'
 
    PUBLIC :: cp_dbcsr_cholesky_decompose, cp_dbcsr_cholesky_invert, &
              cp_dbcsr_cholesky_restore

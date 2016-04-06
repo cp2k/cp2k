@@ -63,7 +63,7 @@ MODULE dbcsr_performance_multiply
 
    PUBLIC :: dbcsr_perf_multiply
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_performance_multiply'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_performance_multiply'
 
 CONTAINS
 

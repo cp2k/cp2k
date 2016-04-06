@@ -23,7 +23,7 @@ MODULE mdctrl_methods
 
    PUBLIC :: mdctrl_callback
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mdctrl_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mdctrl_methods'
 
 CONTAINS
 

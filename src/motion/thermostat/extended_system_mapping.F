@@ -38,7 +38,7 @@ MODULE extended_system_mapping
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_mapping'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_mapping'
 
    PUBLIC :: nhc_to_particle_mapping, nhc_to_barostat_mapping, &
              nhc_to_shell_mapping, nhc_to_particle_mapping_fast, &

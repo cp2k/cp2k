@@ -17,7 +17,7 @@ MODULE splines_types
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'splines_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'splines_types'
    INTEGER, PRIVATE, SAVE :: last_spline_env_id_nr = 0
    INTEGER, PRIVATE, SAVE :: last_spline_data_id_nr = 0
 

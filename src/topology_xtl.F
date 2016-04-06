@@ -44,7 +44,7 @@ MODULE topology_xtl
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_xtl'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_xtl'
 
    PRIVATE
    PUBLIC :: read_coordinate_xtl

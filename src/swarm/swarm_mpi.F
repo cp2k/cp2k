@@ -45,7 +45,7 @@ MODULE swarm_mpi
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_mpi'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_mpi'
 
    PUBLIC :: swarm_mpi_type, swarm_mpi_init, swarm_mpi_finalize
    PUBLIC :: swarm_mpi_send_report, swarm_mpi_recv_report

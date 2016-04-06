@@ -13,7 +13,7 @@ MODULE qmmm_ff_fist
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_ff_fist'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_ff_fist'
 
    PUBLIC :: qmmm_ff_precond_only_qm
 

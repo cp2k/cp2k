@@ -47,7 +47,7 @@ MODULE hfx_load_balance_methods
              hfx_update_load_balance, &
              collect_load_balance_info, cost_model, p1_energy, p2_energy, p3_energy
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
 
    REAL(KIND=dp), PARAMETER :: p1_energy(12) = (/2.9461408209700424_dp, 1.0624718662999657_dp, &
                                                  -1.91570128356921242E-002_dp, -1.6668495454436603_dp, &

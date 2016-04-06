@@ -74,7 +74,7 @@ MODULE qs_ks_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_types'
 
    PUBLIC :: qs_ks_env_type, qs_ks_env_create, qs_ks_did_change
    PUBLIC :: qs_ks_release, qs_ks_retain, get_ks_env, set_ks_env

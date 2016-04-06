@@ -32,7 +32,7 @@ MODULE dbcsr_array_sort_d
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_array_sort_d'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_array_sort_d'
 
    PUBLIC :: dbcsr_1d_d_sort
 

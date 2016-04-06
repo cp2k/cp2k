@@ -57,7 +57,7 @@ MODULE dbcsr_test_add
 
    PUBLIC :: dbcsr_test_adds
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_add'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_add'
 
 CONTAINS
 

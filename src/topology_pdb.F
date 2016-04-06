@@ -81,7 +81,7 @@ MODULE topology_pdb
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_pdb'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_pdb'
 
    PRIVATE
    PUBLIC :: read_coordinate_pdb, write_coordinate_pdb

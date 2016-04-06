@@ -46,7 +46,7 @@ MODULE qs_dftb3_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb3_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb3_methods'
 
    PUBLIC :: build_dftb3_diagonal
 

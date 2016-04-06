@@ -31,7 +31,7 @@ MODULE semi_empirical_par_utils
 
    INTEGER, PARAMETER, PRIVATE :: nelem = 106
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_par_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_par_utils'
 
 !                STANDARD MOPAC PARAMETERS USED FOR AM1, RM1, MNDO, PM3, PM6
 !

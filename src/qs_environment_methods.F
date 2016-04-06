@@ -84,7 +84,7 @@ MODULE qs_environment_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_methods'
 
    PUBLIC :: qs_env_update_s_mstruct, &
              qs_env_rebuild_pw_env, &

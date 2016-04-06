@@ -37,7 +37,7 @@ MODULE pw_env_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_env_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_env_types'
 
    PUBLIC :: pw_env_type
    PUBLIC :: pw_env_retain, pw_env_release, pw_env_get

@@ -54,7 +54,7 @@ MODULE mode_selective
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mode_selective'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mode_selective'
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
 
    TYPE ms_vib_type

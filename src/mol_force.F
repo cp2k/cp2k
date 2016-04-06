@@ -20,7 +20,7 @@ MODULE mol_force
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_force'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_force'
    PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions, force_opbends
    PUBLIC :: get_pv_bond, get_pv_bend, get_pv_torsion
 

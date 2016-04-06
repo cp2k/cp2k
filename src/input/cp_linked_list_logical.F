@@ -49,7 +49,7 @@ MODULE cp_linked_list_logical
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_logical'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_logical'
 
 !API type
    PUBLIC :: cp_sll_logical_type, cp_sll_logical_p_type

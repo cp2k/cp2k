@@ -29,7 +29,7 @@ MODULE al_system_init
    PRIVATE
    PUBLIC :: initialize_al_part
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_init'
 
 CONTAINS
 

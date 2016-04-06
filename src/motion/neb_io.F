@@ -70,7 +70,7 @@ MODULE neb_io
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_io'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_io'
 
    PUBLIC :: read_neb_section, &
              dump_neb_info, &

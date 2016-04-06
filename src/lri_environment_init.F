@@ -41,7 +41,7 @@ MODULE lri_environment_init
 
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_init'
 
    PUBLIC :: lri_env_init, lri_basis_init
 

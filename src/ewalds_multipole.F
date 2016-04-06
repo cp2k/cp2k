@@ -60,7 +60,7 @@ MODULE ewalds_multipole
    LOGICAL, PRIVATE, PARAMETER :: debug_g_space = .FALSE.
    LOGICAL, PRIVATE, PARAMETER :: debug_e_field = .FALSE.
    LOGICAL, PRIVATE, PARAMETER :: debug_e_field_en = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewalds_multipole'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewalds_multipole'
 
    PUBLIC :: ewald_multipole_evaluate
 

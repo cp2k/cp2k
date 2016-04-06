@@ -23,7 +23,7 @@ MODULE md_util
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_util'
 
    PUBLIC :: md_output
 

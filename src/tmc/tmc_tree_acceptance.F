@@ -46,7 +46,7 @@ MODULE tmc_tree_acceptance
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_acceptance'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_acceptance'
 
    PUBLIC :: acceptance_check
    PUBLIC :: check_acceptance_of_depending_subtree_nodes, &

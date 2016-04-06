@@ -43,7 +43,7 @@ MODULE xc_thomas_fermi
    REAL(KIND=dp) :: cf, flda, flsd
    REAL(KIND=dp) :: eps_rho
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_thomas_fermi'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_thomas_fermi'
 
 CONTAINS
 

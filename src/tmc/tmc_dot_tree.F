@@ -34,7 +34,7 @@ MODULE tmc_dot_tree
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_dot_tree'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_dot_tree'
 
    PUBLIC :: init_draw_trees, finalize_draw_tree
    PUBLIC :: create_dot_color, create_global_tree_dot_color

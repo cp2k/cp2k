@@ -87,7 +87,7 @@ MODULE cp_dbcsr_interface
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_interface'
 
    !
    ! Interface to libdbcsr (contains cp2k timing and error)

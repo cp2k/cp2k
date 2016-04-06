@@ -39,7 +39,7 @@ MODULE pexsi_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pexsi_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pexsi_types'
 
    LOGICAL, PARAMETER, PRIVATE          :: careful_mod = .FALSE.
 

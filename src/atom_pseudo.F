@@ -47,7 +47,7 @@ MODULE atom_pseudo
    PRIVATE
    PUBLIC  :: atom_pseudo_opt
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_pseudo'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_pseudo'
 
 ! **************************************************************************************************
 

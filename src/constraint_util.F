@@ -45,7 +45,7 @@ MODULE constraint_util
              restore_temporary_set, &
              update_temporary_set
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_util'
 
 CONTAINS
 

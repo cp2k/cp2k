@@ -87,7 +87,7 @@ MODULE simpar_types
    PUBLIC :: simpar_type, &
              create_simpar_type, &
              release_simpar_type
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'simpar_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'simpar_types'
 
 CONTAINS
 ! **************************************************************************************************

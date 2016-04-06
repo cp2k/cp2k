@@ -39,7 +39,7 @@ MODULE pw_poisson_read_input
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_read_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_read_input'
 
    PUBLIC :: pw_poisson_read_parameters
 

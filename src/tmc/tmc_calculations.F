@@ -43,7 +43,7 @@ MODULE tmc_calculations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_calculations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_calculations'
 
    PUBLIC :: calc_potential_energy
    PUBLIC :: get_scaled_cell, get_cell_scaling

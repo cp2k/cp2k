@@ -95,7 +95,7 @@ MODULE tmc_worker
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_worker'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_worker'
 
    PUBLIC :: do_tmc_worker
    PUBLIC :: get_initial_conf, get_atom_kinds_and_cell

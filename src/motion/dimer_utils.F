@@ -24,7 +24,7 @@ MODULE dimer_utils
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_utils'
 
    PUBLIC :: rotate_dimer, update_dimer_vec, get_theta
    REAL(KIND=dp), PARAMETER, PUBLIC     :: dimer_thrs = EPSILON(0.0_dp)*1.0E4_dp

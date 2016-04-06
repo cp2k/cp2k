@@ -30,7 +30,7 @@ MODULE input_cp2k_read
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_read'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_read'
 
    PUBLIC :: read_input, empty_initial_variables
 

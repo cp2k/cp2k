@@ -23,7 +23,7 @@ MODULE lri_optimize_ri_basis_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_optimize_ri_basis_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_optimize_ri_basis_types'
    PUBLIC :: lri_opt_type
    PUBLIC :: create_lri_opt, deallocate_lri_opt, get_original_gcc, &
              orthonormalize_gcc

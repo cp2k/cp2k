@@ -46,7 +46,7 @@ MODULE core_ae
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ae'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ae'
 
    PUBLIC :: build_core_ae
 

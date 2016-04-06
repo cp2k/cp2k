@@ -26,7 +26,7 @@ MODULE molsym
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molsym'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molsym'
 
    INTEGER, PARAMETER :: maxcn = 20, &
                          maxsec = maxcn+1, &

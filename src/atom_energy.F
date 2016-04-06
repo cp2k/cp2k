@@ -67,7 +67,7 @@ MODULE atom_energy
    PRIVATE
    PUBLIC  :: atom_energy_opt
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_energy'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_energy'
 
 ! **************************************************************************************************
 

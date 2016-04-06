@@ -34,7 +34,7 @@ MODULE distribution_1d_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_1d_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_1d_types'
    INTEGER, SAVE, PRIVATE :: distribution_1d_last_id_nr = 0
 
    PUBLIC :: distribution_1d_type

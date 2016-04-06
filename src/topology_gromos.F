@@ -33,7 +33,7 @@ MODULE topology_gromos
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_gromos'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_gromos'
 
    PRIVATE
    PUBLIC :: read_topology_gromos, read_coordinate_g96

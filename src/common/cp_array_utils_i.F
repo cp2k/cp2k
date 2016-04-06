@@ -48,7 +48,7 @@ MODULE cp_array_utils_i
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_utils_i'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_utils_i'
 
    ! types
    PUBLIC :: cp_1d_i_p_type, cp_2d_i_p_type, cp_3d_i_p_type

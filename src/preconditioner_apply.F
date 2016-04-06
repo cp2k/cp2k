@@ -36,7 +36,7 @@ MODULE preconditioner_apply
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_apply'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_apply'
 
    PUBLIC :: apply_preconditioner_fm, apply_preconditioner_dbcsr
 

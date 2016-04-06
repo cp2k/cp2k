@@ -29,7 +29,7 @@ MODULE acc_devmem
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_devmem'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_devmem'
 
    PUBLIC :: acc_devmem_type
    PUBLIC :: acc_devmem_allocate_bytes, acc_devmem_deallocate

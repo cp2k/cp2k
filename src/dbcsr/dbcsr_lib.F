@@ -28,7 +28,7 @@ MODULE dbcsr_lib
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_lib'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_lib'
 
    PUBLIC :: dbcsr_init_lib, dbcsr_finalize_lib, dbcsr_clear_mempools
 

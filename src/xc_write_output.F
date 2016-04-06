@@ -23,7 +23,7 @@ MODULE xc_write_output
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_write_output'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_write_output'
 
    PUBLIC :: xc_write
 

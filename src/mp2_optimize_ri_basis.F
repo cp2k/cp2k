@@ -63,7 +63,7 @@ MODULE mp2_optimize_ri_basis
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_optimize_ri_basis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_optimize_ri_basis'
 
    PUBLIC :: optimize_ri_basis_main
 

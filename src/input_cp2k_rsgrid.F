@@ -26,7 +26,7 @@ MODULE input_cp2k_rsgrid
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_rsgrid'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_rsgrid'
 
    PUBLIC :: create_rsgrid_section
 

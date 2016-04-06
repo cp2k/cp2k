@@ -27,7 +27,7 @@ MODULE eigenvalueproblems
 
    PUBLIC :: diagonalise
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eigenvalueproblems'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eigenvalueproblems'
 
    INTERFACE diagonalise
       MODULE PROCEDURE diagonalise_ssyev

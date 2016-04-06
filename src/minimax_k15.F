@@ -22,7 +22,7 @@ MODULE minimax_k15
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_k15'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_k15'
 
    PUBLIC :: get_minimax_coeff_k15, check_range_k15, get_minimax_numerical_error
 

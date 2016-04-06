@@ -61,7 +61,7 @@ MODULE rt_propagator_init
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagator_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagator_init'
 
    PUBLIC :: init_propagators, &
              rt_initialize_rho_from_ks, &

@@ -37,7 +37,7 @@ MODULE qs_fb_distribution_methods
 
    PUBLIC :: fb_distribution_build
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_distribution_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_distribution_methods'
 
 ! **************************************************************************************************
 !> \brief derived type containing cost data used for process distribution

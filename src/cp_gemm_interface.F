@@ -29,7 +29,7 @@ MODULE cp_gemm_interface
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_gemm_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_gemm_interface'
 
    PUBLIC :: cp_gemm
 

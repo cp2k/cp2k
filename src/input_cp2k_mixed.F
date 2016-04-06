@@ -39,7 +39,7 @@ MODULE input_cp2k_mixed
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mixed'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mixed'
 
    PUBLIC :: create_mix_section
 

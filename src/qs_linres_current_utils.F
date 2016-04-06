@@ -115,7 +115,7 @@ MODULE qs_linres_current_utils
    PRIVATE
    PUBLIC :: current_response, current_env_cleanup, current_env_init
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current_utils'
 
 CONTAINS
 

@@ -18,7 +18,7 @@ MODULE semi_empirical_mpole_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_mpole_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_mpole_types'
 
 ! **************************************************************************************************
 !> \brief Semi-empirical integral multipole expansion type

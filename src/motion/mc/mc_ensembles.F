@@ -89,7 +89,7 @@ MODULE mc_ensembles
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_ensembles'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_ensembles'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
    PUBLIC :: mc_run_ensemble, mc_compute_virial

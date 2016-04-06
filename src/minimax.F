@@ -44,7 +44,7 @@ MODULE minimax
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax'
 
    INTEGER, PARAMETER :: mm_k15 = 0, mm_k53 = 1
 

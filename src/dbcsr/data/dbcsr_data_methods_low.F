@@ -44,7 +44,7 @@ MODULE dbcsr_data_methods_low
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_methods_low'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_methods_low'
 
    PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
    PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero, &

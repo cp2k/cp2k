@@ -100,7 +100,7 @@ MODULE scptb_ks_matrix
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_ks_matrix'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_ks_matrix'
 
    PUBLIC :: build_scptb_ks_matrix
 

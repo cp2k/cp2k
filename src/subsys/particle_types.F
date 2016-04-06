@@ -26,7 +26,7 @@ MODULE particle_types
 
    ! Global parameters (in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_types'
 
    ! Data types
 ! **************************************************************************************************

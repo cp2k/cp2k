@@ -42,7 +42,7 @@ MODULE topology_connectivity_util
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_connectivity_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_connectivity_util'
 
    PRIVATE
    PUBLIC :: topology_connectivity_pack, topology_conn_multiple

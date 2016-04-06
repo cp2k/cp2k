@@ -23,7 +23,7 @@ MODULE statistical_methods
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'statistical_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'statistical_methods'
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
    INTEGER, PARAMETER, PUBLIC           :: min_sample_size = 20
    PUBLIC :: sw_test, &

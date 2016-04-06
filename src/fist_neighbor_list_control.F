@@ -45,7 +45,7 @@ MODULE fist_neighbor_list_control
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_list_control'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_list_control'
 
    PUBLIC :: list_control
 

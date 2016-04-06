@@ -42,7 +42,7 @@ MODULE dbcsr_ptr_util
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_ptr_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_ptr_util'
 
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 

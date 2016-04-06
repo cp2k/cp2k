@@ -18,7 +18,7 @@ MODULE force_field_kind_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_field_kind_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_field_kind_types'
 
    INTEGER, PARAMETER, PUBLIC               :: do_ff_undef = 0, &
                                                do_ff_quartic = 1, &

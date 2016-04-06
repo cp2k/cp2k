@@ -59,7 +59,7 @@ MODULE scptb_core_matrix
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_core_matrix'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_core_matrix'
 
    PUBLIC :: build_scptb_core_matrix
 

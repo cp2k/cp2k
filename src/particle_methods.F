@@ -73,7 +73,7 @@ MODULE particle_methods
              get_particle_set, &
              write_particle_matrix
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_methods'
 
 CONTAINS
 

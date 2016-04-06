@@ -36,7 +36,7 @@ MODULE cp_ddapc_methods
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_methods'
    PUBLIC :: ddapc_eval_gfunc, &
              build_b_vector, &
              build_der_b_vector, &

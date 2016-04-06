@@ -19,7 +19,7 @@ MODULE tmc_move_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_move_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_move_types'
 
    !-- list of available move types
    INTEGER, PARAMETER, PUBLIC :: mv_type_none = 0

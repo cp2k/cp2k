@@ -42,7 +42,7 @@ MODULE input_cp2k_constraints
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_constraints'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_constraints'
 
    PUBLIC :: create_constraint_section
 

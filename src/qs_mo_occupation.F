@@ -34,7 +34,7 @@ MODULE qs_mo_occupation
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_occupation'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_occupation'
 
    PUBLIC :: set_mo_occupation
 

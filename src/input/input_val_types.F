@@ -30,7 +30,7 @@ MODULE input_val_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_val_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_val_types'
 
    INTEGER, SAVE, PRIVATE :: last_val_id = 0
 

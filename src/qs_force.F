@@ -86,7 +86,7 @@ MODULE qs_force
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force'
 
 ! *** Public subroutines ***
 

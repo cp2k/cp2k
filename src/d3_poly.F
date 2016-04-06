@@ -44,7 +44,7 @@ MODULE d3_poly
 #define IF_CHECK(x,y) y
 #endif
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'd3_poly'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'd3_poly'
 ! maximum grad for cached values
    INTEGER, PUBLIC, PARAMETER :: max_grad2 = 5
    INTEGER, PUBLIC, PARAMETER :: max_grad3 = 3

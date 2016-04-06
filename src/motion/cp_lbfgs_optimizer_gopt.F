@@ -43,7 +43,7 @@ MODULE cp_lbfgs_optimizer_gopt
 #include "gopt_f77_methods.h"
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
    INTEGER, PRIVATE, SAVE :: last_lbfgs_optimizer_id = 0
 
    ! types

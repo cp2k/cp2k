@@ -24,7 +24,7 @@ MODULE admm_dm_types
    PUBLIC :: admm_dm_type, mcweeny_history_type
    PUBLIC :: admm_dm_create, admm_dm_release
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_dm_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_dm_types'
 
    TYPE mcweeny_history_type
       TYPE(cp_dbcsr_type)                        :: m

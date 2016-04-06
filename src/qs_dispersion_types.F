@@ -20,7 +20,7 @@ MODULE qs_dispersion_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_types'
 
 ! **************************************************************************************************
    INTEGER, PARAMETER                       :: dftd2_pp = 1

@@ -31,7 +31,7 @@ MODULE lri_debug_integrals
 
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_debug_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_debug_integrals'
 
    PUBLIC :: overlap_ab_test, overlap_abc_test, overlap_aabb_test
 

@@ -104,7 +104,7 @@ MODULE xas_tp_scf
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tp_scf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tp_scf'
 
    ! *** Public subroutines ***
 

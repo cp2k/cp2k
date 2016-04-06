@@ -66,7 +66,7 @@ MODULE stm_images
    PRIVATE
 
    ! Global parameters
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'stm_images'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'stm_images'
    PUBLIC :: th_stm_image
 
 CONTAINS

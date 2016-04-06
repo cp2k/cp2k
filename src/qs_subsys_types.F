@@ -43,7 +43,7 @@ MODULE qs_subsys_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_subsys_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_subsys_types'
 
    PUBLIC :: qs_subsys_type
 

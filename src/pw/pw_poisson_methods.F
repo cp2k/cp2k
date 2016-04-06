@@ -66,7 +66,7 @@ MODULE pw_poisson_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_methods'
 
    PUBLIC :: pw_poisson_rebuild, &
              pw_poisson_solve, pw_poisson_set

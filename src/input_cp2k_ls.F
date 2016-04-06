@@ -40,7 +40,7 @@ MODULE input_cp2k_ls
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_ls'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_ls'
 
    PUBLIC :: create_ls_scf_section
 

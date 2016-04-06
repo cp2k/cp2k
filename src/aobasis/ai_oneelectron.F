@@ -40,7 +40,7 @@ MODULE ai_oneelectron
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_oneelectron'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_oneelectron'
 
 ! *** Public subroutines ***
 

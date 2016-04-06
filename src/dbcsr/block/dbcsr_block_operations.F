@@ -42,7 +42,7 @@ MODULE dbcsr_block_operations
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_operations'
 
    PUBLIC :: dbcsr_block_transpose, dbcsr_block_transpose_aa, dbcsr_data_set
    PUBLIC :: dbcsr_block_copy_aa, dbcsr_block_partial_copy

@@ -45,7 +45,7 @@ MODULE input_cp2k_mp2
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mp2'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mp2'
 
    PUBLIC :: create_mp2_section
 

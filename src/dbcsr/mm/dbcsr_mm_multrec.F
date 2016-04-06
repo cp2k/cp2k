@@ -55,7 +55,7 @@ MODULE dbcsr_mm_multrec
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_multrec'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_multrec'
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 ! **************************************************************************************************

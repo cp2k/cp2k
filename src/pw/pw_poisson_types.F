@@ -60,7 +60,7 @@ MODULE pw_poisson_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_types'
 
    PUBLIC :: pw_poisson_type
    PUBLIC :: pw_poisson_create, pw_poisson_retain, &

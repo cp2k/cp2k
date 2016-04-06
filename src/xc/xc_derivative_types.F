@@ -24,7 +24,7 @@ MODULE xc_derivative_types
 
    INTEGER, SAVE :: derivative_id_nr = 1
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_types'
 
    PUBLIC :: xc_derivative_type, xc_derivative_p_type
    PUBLIC :: xc_derivative_create, xc_derivative_release, &

@@ -32,7 +32,7 @@ MODULE input_cp2k_almo
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_almo'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_almo'
 
    INTEGER, PARAMETER, PRIVATE :: optimizer_block_diagonal_diis = 1
    INTEGER, PARAMETER, PRIVATE :: optimizer_block_diagonal_pcg = 2

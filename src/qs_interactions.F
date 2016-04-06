@@ -50,7 +50,7 @@ MODULE qs_interactions
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_interactions'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_interactions'
 
 ! *** Public subroutines ***
 

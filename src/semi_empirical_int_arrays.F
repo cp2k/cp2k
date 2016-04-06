@@ -21,7 +21,7 @@ MODULE semi_empirical_int_arrays
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_arrays'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_arrays'
    REAL(KINd=dp), PARAMETER, PUBLIC     :: rij_threshold = 0.00002_dp
 
    ! Mapping index for orbital ordering

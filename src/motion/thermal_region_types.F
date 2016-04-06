@@ -40,7 +40,7 @@ MODULE thermal_region_types
       REAL(KIND=dp) :: ekin, temperature, temp_expected, temp_tol
    END TYPE thermal_region_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_types'
 CONTAINS
 
 ! **************************************************************************************************

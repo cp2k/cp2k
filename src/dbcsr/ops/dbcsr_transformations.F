@@ -107,7 +107,7 @@ MODULE dbcsr_transformations
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_transformations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_transformations'
 
   LOGICAL, PARAMETER, PRIVATE          :: careful_mod = .FALSE.
 

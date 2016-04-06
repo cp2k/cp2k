@@ -91,7 +91,7 @@ MODULE qs_kpp1_env_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_methods'
    INTEGER, PRIVATE, SAVE :: last_kpp1_id_nr = 0
 
    PUBLIC :: kpp1_create, &

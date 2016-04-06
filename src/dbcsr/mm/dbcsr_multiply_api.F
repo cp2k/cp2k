@@ -29,7 +29,7 @@ MODULE dbcsr_multiply_api
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_multiply_api'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_multiply_api'
 
    PUBLIC :: dbcsr_multiply
    PUBLIC :: dbcsr_multiply_clear_mempools

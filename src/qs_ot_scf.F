@@ -47,7 +47,7 @@ MODULE qs_ot_scf
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_scf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_scf'
    ! *** Public subroutines ***
 
    PUBLIC :: ot_scf_init

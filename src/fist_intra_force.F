@@ -37,7 +37,7 @@ MODULE fist_intra_force
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_intra_force'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_intra_force'
    PUBLIC :: force_intra_control
 
 CONTAINS

@@ -28,7 +28,7 @@ MODULE qs_wf_history_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_types'
 
    PUBLIC :: qs_wf_snapshot_type, &
              qs_wf_history_type, qs_wf_history_p_type

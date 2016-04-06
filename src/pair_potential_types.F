@@ -25,7 +25,7 @@ MODULE pair_potential_types
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_types'
 
    PRIVATE
    ! when adding a new nonbonedd potential please update also the list_pot

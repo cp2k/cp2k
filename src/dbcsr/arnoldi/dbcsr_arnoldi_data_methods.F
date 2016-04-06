@@ -42,7 +42,7 @@ MODULE dbcsr_arnoldi_data_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_data_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_data_methods'
 
    PUBLIC :: select_evals, get_selected_ritz_val, arnoldi_is_converged, &
              dbcsr_arnoldi_data, get_nrestart, set_arnoldi_initial_vector, &

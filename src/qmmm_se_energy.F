@@ -69,7 +69,7 @@ MODULE qmmm_se_energy
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_se_energy'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_se_energy'
 
    PUBLIC :: build_se_qmmm_matrix
 

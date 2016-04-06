@@ -34,7 +34,7 @@ MODULE input_cp2k_transport
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_transport'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_transport'
 
    PUBLIC :: create_transport_section
 

@@ -39,7 +39,7 @@ MODULE qs_density_mixing_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_density_mixing_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_density_mixing_types'
 
    INTEGER, PARAMETER, PUBLIC :: no_mixing_nr = 0, direct_mixing_nr = 1, &
                                  gspace_mixing_nr = 2, pulay_mixing_nr = 3, &

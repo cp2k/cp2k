@@ -42,7 +42,7 @@ MODULE atom_electronic_structure
    PRIVATE
    PUBLIC  :: calculate_atom
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_electronic_structure'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_electronic_structure'
 
 ! **************************************************************************************************
 

@@ -31,7 +31,7 @@ MODULE semi_empirical_store_int_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_store_int_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_store_int_types'
 
 ! **************************************************************************************************
 !> \brief Semi-empirical store integrals type

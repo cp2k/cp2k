@@ -61,7 +61,7 @@ MODULE dbcsr_test_multiply
 
    PUBLIC :: dbcsr_test_multiplies
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_multiply'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_multiply'
 
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
 

@@ -45,7 +45,7 @@ MODULE manybody_siepmann
    PUBLIC :: setup_siepmann_arrays, destroy_siepmann_arrays, &
              siepmann_energy, siepmann_forces_v2, siepmann_forces_v3, &
              print_nr_ions_siepmann
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_siepmann'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_siepmann'
 
 CONTAINS
 

@@ -140,7 +140,7 @@ MODULE tamc_run
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tamc_run'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tamc_run'
 
    PUBLIC :: qs_tamc
 

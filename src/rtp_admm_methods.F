@@ -64,7 +64,7 @@ MODULE rtp_admm_methods
    ! *** Public subroutines ***
    PUBLIC :: rtp_admm_calc_rho_aux, rtp_admm_merge_ks_matrix
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rtp_admm_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rtp_admm_methods'
 
 CONTAINS
 

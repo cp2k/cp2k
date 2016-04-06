@@ -18,7 +18,7 @@ MODULE damping_dipole_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'damping_dipole_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'damping_dipole_types'
 
 ! *** Global public parameters
 

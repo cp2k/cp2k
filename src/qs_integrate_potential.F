@@ -31,7 +31,7 @@ MODULE qs_integrate_potential
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential'
 
 ! *** Public subroutines ***
 

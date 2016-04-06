@@ -54,7 +54,7 @@ MODULE qmmmx_util
    PRIVATE
 
    LOGICAL, PRIVATE :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmmx_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmmx_util'
 
    PUBLIC :: setup_force_mixing_qmmm_sections, update_force_mixing_labels, &
              apply_qmmmx_translate

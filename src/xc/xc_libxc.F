@@ -95,7 +95,7 @@ MODULE xc_libxc
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc'
 
    PUBLIC :: libxc_lda_info, libxc_lda_eval, libxc_lsd_info, libxc_lsd_eval, &
              libxc_version_info

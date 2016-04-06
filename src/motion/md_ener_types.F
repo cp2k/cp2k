@@ -50,7 +50,7 @@ MODULE md_ener_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_ener_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_ener_types'
    INTEGER, SAVE, PRIVATE :: last_md_ener_id = 0
 
 CONTAINS

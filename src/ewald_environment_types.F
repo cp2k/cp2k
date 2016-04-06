@@ -95,7 +95,7 @@ MODULE ewald_environment_types
              ewald_env_release, &
              read_ewald_section
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_environment_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_environment_types'
    INTEGER, PRIVATE, SAVE :: last_ewald_env_id_nr = 0
 
 CONTAINS

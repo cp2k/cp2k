@@ -15,7 +15,7 @@ MODULE acc_device
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_device'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_device'
 
 #if defined (__ACC)
    INTERFACE

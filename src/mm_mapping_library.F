@@ -21,7 +21,7 @@ MODULE mm_mapping_library
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mm_mapping_library'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mm_mapping_library'
 
 ! **************************************************************************************************
    TYPE ff_map_type

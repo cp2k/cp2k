@@ -24,7 +24,7 @@ MODULE pw_grid_info
    PRIVATE
    PUBLIC :: pw_find_cutoff, pw_grid_init_setup, pw_grid_bounds_from_n
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grid_info'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grid_info'
 
 CONTAINS
 

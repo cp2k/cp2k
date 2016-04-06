@@ -28,7 +28,7 @@ MODULE dg_rho0_types
    PUBLIC:: dg_rho0_type, dg_rho0_init, dg_rho0_set, dg_rho0_get, &
             dg_rho0_create, dg_rho0_retain, dg_rho0_release
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_rho0_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_rho0_types'
    INTEGER, PRIVATE, SAVE :: last_dg_rho0_id_nr = 0
 
 ! **************************************************************************************************

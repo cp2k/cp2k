@@ -24,7 +24,7 @@ MODULE qmmm_links_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_links_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_links_methods'
    PUBLIC ::  qmmm_link_Imomm_coord, &
              qmmm_link_Imomm_forces, &
              qmmm_added_chrg_coord, &

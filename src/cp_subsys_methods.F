@@ -70,7 +70,7 @@ MODULE cp_subsys_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_methods'
 
    PUBLIC :: create_small_subsys, cp_subsys_create
 

@@ -30,7 +30,7 @@ MODULE semi_empirical_int_utils
 
    PRIVATE
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
 
    PUBLIC ::   ijkl_sp, ijkl_d, rotmat, rot_2el_2c_first, store_2el_2c_diag, &
              d_ijkl_sp, d_ijkl_d

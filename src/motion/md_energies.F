@@ -84,7 +84,7 @@ MODULE md_energies
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_energies'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_energies'
 
    PUBLIC :: initialize_md_ener, &
              md_energy, &

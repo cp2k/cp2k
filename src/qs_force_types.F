@@ -17,7 +17,7 @@ MODULE qs_force_types
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force_types'
    PRIVATE
 
    TYPE qs_force_type

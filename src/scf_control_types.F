@@ -47,7 +47,7 @@ MODULE scf_control_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scf_control_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scf_control_types'
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
    INTEGER, SAVE :: last_scf_c_id_nr = 0

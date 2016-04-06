@@ -53,7 +53,7 @@ MODULE qs_fermi_contact
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fermi_contact'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fermi_contact'
 
 ! *** Public subroutines ***
 

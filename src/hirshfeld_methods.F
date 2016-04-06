@@ -61,7 +61,7 @@ MODULE hirshfeld_methods
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirshfeld_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirshfeld_methods'
 
    PUBLIC :: create_shape_function, comp_hirshfeld_charges, &
              comp_hirshfeld_i_charges, write_hirshfeld_charges

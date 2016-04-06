@@ -50,7 +50,7 @@ MODULE qs_oce_methods
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_methods'
 
 ! *** Public subroutines ***
 

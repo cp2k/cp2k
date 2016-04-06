@@ -32,7 +32,7 @@ MODULE pao_linpot_rotinv
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_linpot_rotinv'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_linpot_rotinv'
 
    PUBLIC :: linpot_rotinv_count_terms, linpot_rotinv_calc_term
 

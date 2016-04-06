@@ -25,7 +25,7 @@ MODULE dbcsr_config
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_config'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_config'
 
    PUBLIC :: dbcsr_set_default_config
 

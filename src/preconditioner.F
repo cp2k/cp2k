@@ -50,7 +50,7 @@ MODULE preconditioner
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
 
    PUBLIC :: make_preconditioner, restart_preconditioner
    PUBLIC :: apply_preconditioner, prepare_preconditioner

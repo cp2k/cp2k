@@ -41,7 +41,7 @@ MODULE cp_dbcsr_diag
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_diag'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_diag'
 
    ! Public subroutines
 

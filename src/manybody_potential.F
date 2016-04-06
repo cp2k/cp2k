@@ -52,7 +52,7 @@ MODULE manybody_potential
    PRIVATE
    PUBLIC :: energy_manybody
    PUBLIC :: force_nonbond_manybody
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_potential'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_potential'
 
 CONTAINS
 

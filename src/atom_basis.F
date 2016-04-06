@@ -42,7 +42,7 @@ MODULE atom_basis
    PRIVATE
    PUBLIC  :: atom_basis_opt, atom_basis_condnum
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_basis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_basis'
 
 ! **************************************************************************************************
 

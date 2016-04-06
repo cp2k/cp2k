@@ -29,7 +29,7 @@ MODULE manybody_tersoff
    PRIVATE
    PUBLIC :: setup_tersoff_arrays, destroy_tersoff_arrays, &
              tersoff_forces, tersoff_energy
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_tersoff'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_tersoff'
 
 CONTAINS
 

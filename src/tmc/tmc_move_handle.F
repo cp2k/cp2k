@@ -51,7 +51,7 @@ MODULE tmc_move_handle
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_move_handle'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_move_handle'
 
    PUBLIC :: finalize_mv_types, print_move_types, read_init_move_types
    PUBLIC :: check_moves

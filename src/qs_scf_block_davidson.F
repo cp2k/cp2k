@@ -60,7 +60,7 @@ MODULE qs_scf_block_davidson
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_block_davidson'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_block_davidson'
 
    PUBLIC :: generate_extended_space, generate_extended_space_sparse
 

@@ -22,7 +22,7 @@ MODULE mathlib
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mathlib'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mathlib'
    REAL(KIND=dp), PARAMETER             :: eps_geo = 1.0E-6_dp
 
    ! Public subroutines

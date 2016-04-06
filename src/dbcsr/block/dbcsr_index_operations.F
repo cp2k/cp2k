@@ -56,7 +56,7 @@ MODULE dbcsr_index_operations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_index_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_index_operations'
 
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
    LOGICAL, PARAMETER :: debug_mod = .FALSE.

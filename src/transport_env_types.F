@@ -33,7 +33,7 @@ MODULE transport_env_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'transport_env_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'transport_env_types'
 
    PUBLIC :: transport_env_type, cp2k_transport_parameters
    PUBLIC :: cp2k_csr_interop_type

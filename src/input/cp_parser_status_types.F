@@ -30,7 +30,7 @@ MODULE cp_parser_status_types
    END TYPE status_type
 
    PUBLIC :: status_type, create_status_type, release_status_type
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_status_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_status_types'
 
 CONTAINS
 

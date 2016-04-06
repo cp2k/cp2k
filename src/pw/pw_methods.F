@@ -62,7 +62,7 @@ MODULE pw_methods
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
    INTERFACE pw_gather

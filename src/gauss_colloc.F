@@ -34,7 +34,7 @@ MODULE gauss_colloc
 #define IF_CHECK(x,y) y
 #endif
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gauss_colloc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gauss_colloc'
 
    REAL(dp), PARAMETER :: small = TINY(1.0_dp)
 

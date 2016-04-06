@@ -41,7 +41,7 @@ MODULE fist_pol_scf
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE                     :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_pol_scf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_pol_scf'
 
    PUBLIC :: fist_pol_evaluate
 

@@ -82,7 +82,7 @@ MODULE xc
              xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
 
 CONTAINS
 

@@ -43,7 +43,7 @@ MODULE glbopt_worker
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_worker'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_worker'
 
    PUBLIC :: glbopt_worker_init, glbopt_worker_finalize
    PUBLIC :: glbopt_worker_execute

@@ -32,7 +32,7 @@ MODULE mp2_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
 
    PUBLIC :: mp2_type, &
              integ_mat_buffer_type, &

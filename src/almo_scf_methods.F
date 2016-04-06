@@ -47,7 +47,7 @@ MODULE almo_scf_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_methods'
 
    PUBLIC almo_scf_ks_to_ks_blk, almo_scf_p_blk_to_t_blk, &
       almo_scf_t_blk_to_p, almo_scf_t_blk_to_t_blk_orthonormal, &

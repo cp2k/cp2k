@@ -52,7 +52,7 @@ MODULE rt_propagation_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_types'
 
    TYPE rtp_rho_type
       TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: new

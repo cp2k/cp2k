@@ -109,7 +109,7 @@ MODULE qs_neighbor_lists
    END TYPE local_atoms_type
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_lists'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_lists'
 
    ! private counter, used to version qs neighbor lists
    INTEGER, SAVE, PRIVATE :: last_qs_neighbor_list_id_nr = 0

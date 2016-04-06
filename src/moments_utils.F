@@ -36,7 +36,7 @@ MODULE moments_utils
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'moments_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'moments_utils'
 
 ! *** Public subroutines ***
 

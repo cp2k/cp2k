@@ -53,7 +53,7 @@ MODULE pexsi_methods
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pexsi_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pexsi_methods'
 
    LOGICAL, PARAMETER, PRIVATE          :: careful_mod = .FALSE.
 

@@ -27,7 +27,7 @@ MODULE cp_cfm_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_types'
 
    INTEGER, SAVE, PRIVATE :: last_cfm_id_nr = 0
 

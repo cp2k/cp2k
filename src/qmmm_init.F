@@ -74,7 +74,7 @@ MODULE qmmm_init
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_init'
 
    PUBLIC :: assign_mm_charges_and_radius, &
              print_qmmm_charges, &

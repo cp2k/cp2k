@@ -56,7 +56,7 @@ MODULE qs_dftb_parameters
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_parameters'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_parameters'
 
   REAL(dp), PARAMETER                  :: slako_d0 = 1._dp
 

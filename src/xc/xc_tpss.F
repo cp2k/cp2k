@@ -34,7 +34,7 @@ MODULE xc_tpss
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tpss'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tpss'
 
    PUBLIC :: tpss_lda_info, tpss_lda_eval, tpss_lsd_info, tpss_lsd_eval
 

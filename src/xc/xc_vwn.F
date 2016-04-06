@@ -47,7 +47,7 @@ MODULE xc_vwn
 
    PUBLIC :: vwn_lda_info, vwn_lda_eval, vwn_lsd_eval
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn'
 
    REAL(KIND=dp) :: eps_rho, b, c, x0, bf, cf, x0f, ba, ca, x0a
 

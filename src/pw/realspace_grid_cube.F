@@ -26,7 +26,7 @@ MODULE realspace_grid_cube
 
    PUBLIC :: pw_to_cube, cube_to_pw
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_cube'
 
 CONTAINS
 

@@ -45,7 +45,7 @@ MODULE eri_mme_methods
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_methods'
 
    PUBLIC :: eri_mme_set_params, &
              eri_mme_2c_integrate

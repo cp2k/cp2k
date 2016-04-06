@@ -24,7 +24,7 @@ MODULE dbcsr_mp_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mp_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mp_methods'
 
    PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release, &
              dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group, &

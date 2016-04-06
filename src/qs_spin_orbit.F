@@ -52,7 +52,7 @@ MODULE qs_spin_orbit
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_spin_orbit'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_spin_orbit'
 
 ! *** Public subroutines ***
 

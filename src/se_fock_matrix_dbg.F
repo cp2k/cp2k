@@ -18,7 +18,7 @@ MODULE se_fock_matrix_dbg
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_dbg'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_dbg'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
    PUBLIC :: dbg_energy_coulomb_lr

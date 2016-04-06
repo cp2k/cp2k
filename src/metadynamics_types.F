@@ -25,7 +25,7 @@ MODULE metadynamics_types
    PRIVATE
 
    INTEGER, SAVE, PRIVATE               :: last_meta_env_id = 0
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
 
    PUBLIC :: metadyn_create, &
              hills_env_type, &

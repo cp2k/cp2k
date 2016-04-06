@@ -101,7 +101,7 @@ MODULE qs_sccs
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_sccs'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_sccs'
 
    PUBLIC :: sccs
 

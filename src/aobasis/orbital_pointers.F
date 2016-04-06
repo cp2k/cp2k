@@ -35,7 +35,7 @@ MODULE orbital_pointers
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_pointers'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_pointers'
 
    INTEGER, SAVE :: current_maxl = -1
 

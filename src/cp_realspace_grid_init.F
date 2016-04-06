@@ -26,7 +26,7 @@ MODULE cp_realspace_grid_init
 
    PUBLIC :: init_input_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_realspace_grid_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_realspace_grid_init'
 
 CONTAINS
 

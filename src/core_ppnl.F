@@ -52,7 +52,7 @@ MODULE core_ppnl
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ppnl'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ppnl'
 
    PUBLIC :: build_core_ppnl
 

@@ -48,7 +48,7 @@ MODULE constraint_fxd
              create_local_fixd_list, &
              release_local_fixd_list
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_fxd'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_fxd'
 
 CONTAINS
 

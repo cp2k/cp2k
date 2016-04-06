@@ -90,7 +90,7 @@ MODULE se_fock_matrix_coulomb
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_coulomb'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_coulomb'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
    PUBLIC :: build_fock_matrix_coulomb, build_fock_matrix_coulomb_lr, &

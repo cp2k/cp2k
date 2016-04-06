@@ -59,7 +59,7 @@ MODULE cp2k_debug
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_debug'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_debug'
    REAL(KIND=dp), PRIVATE, PARAMETER :: maxerr = 5.0_dp
 
    PUBLIC :: cp2k_debug_energy_and_forces

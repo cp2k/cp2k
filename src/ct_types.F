@@ -24,7 +24,7 @@ MODULE ct_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ct_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ct_types'
 
    ! Public types
    PUBLIC :: ct_step_env_type

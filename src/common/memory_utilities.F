@@ -26,7 +26,7 @@ MODULE memory_utilities
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'memory_utilities'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'memory_utilities'
 
    PUBLIC :: reallocate
 

@@ -105,7 +105,7 @@ MODULE pw_env_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_env_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_env_methods'
 
    PUBLIC :: pw_env_create, pw_env_rebuild
 !***

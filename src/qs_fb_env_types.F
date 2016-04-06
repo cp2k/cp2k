@@ -35,7 +35,7 @@ MODULE qs_fb_env_types
              fb_env_get, &
              fb_env_set
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_env_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_env_types'
    INTEGER, PRIVATE, SAVE :: last_fb_env_id = 0
 
 ! **********************************************************************

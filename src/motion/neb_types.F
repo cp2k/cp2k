@@ -27,7 +27,7 @@ MODULE neb_types
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_types'
 
    PUBLIC :: neb_type, &
              neb_var_type, &

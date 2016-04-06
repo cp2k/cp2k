@@ -16,7 +16,7 @@ MODULE atom_optimization
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_optimization'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_optimization'
 
    TYPE hmat_type
       REAL(dp), DIMENSION(:, :, :), POINTER     :: emat

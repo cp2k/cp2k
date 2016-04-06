@@ -33,7 +33,7 @@ MODULE input_optimize_basis
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_optimize_basis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_optimize_basis'
    PUBLIC :: create_optimize_basis_section
 
 CONTAINS

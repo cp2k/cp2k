@@ -32,7 +32,7 @@ MODULE xc_xbecke88_long_range
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke88_long_range'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke88_long_range'
    REAL(kind=dp), PARAMETER :: beta = 0.0042_dp
 
    PUBLIC :: xb88_lr_lda_info, xb88_lr_lsd_info, xb88_lr_lda_eval, xb88_lr_lsd_eval

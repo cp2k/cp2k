@@ -62,7 +62,7 @@ MODULE qs_vxc
    ! *** Public subroutines ***
    PUBLIC :: qs_vxc_create
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc'
 
 CONTAINS
 

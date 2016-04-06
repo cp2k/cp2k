@@ -101,7 +101,7 @@ MODULE mixed_environment_types
              mixed_env_release, &
              mixed_env_retain
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment_types'
    INTEGER, PRIVATE, SAVE :: last_mixed_env_id_nr = 0
 
 CONTAINS

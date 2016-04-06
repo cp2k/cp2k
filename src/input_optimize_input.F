@@ -30,7 +30,7 @@ MODULE input_optimize_input
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_optimize_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_optimize_input'
    PUBLIC :: create_optimize_input_section
 
 CONTAINS

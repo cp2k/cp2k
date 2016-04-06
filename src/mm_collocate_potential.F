@@ -23,7 +23,7 @@ MODULE mm_collocate_potential
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mm_collocate_potential'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mm_collocate_potential'
 
    PUBLIC :: collocate_gf_rspace_NoPBC, &
              integrate_gf_rspace_NoPBC

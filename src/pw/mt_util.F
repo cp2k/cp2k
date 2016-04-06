@@ -32,7 +32,7 @@ MODULE mt_util
 
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mt_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mt_util'
 
    INTEGER, PARAMETER, PUBLIC               :: MT2D = 1101, &
                                                MT1D = 1102, &

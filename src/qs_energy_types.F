@@ -21,7 +21,7 @@ MODULE qs_energy_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy_types'
 
    TYPE qs_energy_type
       REAL(KIND=dp) :: core, &

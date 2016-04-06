@@ -48,7 +48,7 @@ MODULE qs_operators_ao
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_operators_ao'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_operators_ao'
 
 ! *** Public subroutines ***
 

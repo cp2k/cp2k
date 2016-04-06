@@ -22,7 +22,7 @@ MODULE ps_wavelet_util
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_util'
 
    ! *** Public data types ***
 

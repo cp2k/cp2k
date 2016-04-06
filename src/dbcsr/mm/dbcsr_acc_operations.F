@@ -27,7 +27,7 @@ MODULE dbcsr_acc_operations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_acc_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_acc_operations'
 
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 

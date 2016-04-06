@@ -23,7 +23,7 @@ MODULE dielectric_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_types'
 
    TYPE dielectric_parameters
       LOGICAL                                :: dielec_core_correction

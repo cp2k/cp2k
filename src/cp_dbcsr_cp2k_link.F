@@ -59,7 +59,7 @@ MODULE cp_dbcsr_cp2k_link
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_cp2k_link'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_cp2k_link'
 
    PUBLIC :: cp_dbcsr_config
    PUBLIC :: cp_dbcsr_print_config

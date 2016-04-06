@@ -47,7 +47,7 @@ MODULE eip_environment
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_environment'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_environment'
 
 ! *** Public subroutines ***
 

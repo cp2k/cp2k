@@ -90,7 +90,7 @@ MODULE mp2_ri_grad
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad'
 
    PUBLIC :: calc_ri_mp2_nonsep
 

@@ -34,7 +34,7 @@ MODULE xc_xbecke_roussel
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke_roussel'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke_roussel'
 
    REAL(dp), PARAMETER, PRIVATE  :: br_a1 = 1.5255251812009530_dp, &
                                     br_a2 = 0.4576575543602858_dp, &

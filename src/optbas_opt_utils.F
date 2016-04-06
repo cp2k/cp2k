@@ -25,7 +25,7 @@ MODULE optbas_opt_utils
 
    PUBLIC :: evaluate_fval, evaluate_energy
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_opt_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optbas_opt_utils'
 
 CONTAINS
 

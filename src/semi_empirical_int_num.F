@@ -49,7 +49,7 @@ MODULE semi_empirical_int_num
 #include "semi_empirical_int_args.h"
 
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
    PUBLIC :: rotint_num, rotnuc_num, corecore_num, &
              drotint_num, drotnuc_num, dcorecore_num, &
              ssss_nucint_num, core_nucint_num, terep_num, &

@@ -23,7 +23,7 @@ MODULE input_cp2k_atprop
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_atprop'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_atprop'
 
    PUBLIC :: create_atprop_section
 

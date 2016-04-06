@@ -104,7 +104,7 @@ MODULE integrator
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
 
   PUBLIC :: isokin, langevin, nve, nvt, npt_i, npt_f, nve_respa
   PUBLIC :: nph_uniaxial_damped, nph_uniaxial, nvt_adiabatic, reftraj

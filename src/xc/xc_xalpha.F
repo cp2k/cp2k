@@ -44,7 +44,7 @@ MODULE xc_xalpha
 
    REAL(KIND=dp) :: xparam, flda, flsd
    REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xalpha'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xalpha'
 
 CONTAINS
 

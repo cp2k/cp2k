@@ -20,7 +20,7 @@ MODULE semi_empirical_int3_utils
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int3_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int3_utils'
 
    PUBLIC ::   ijkl_low_3, charg_int_3, dcharg_int_3, coeff_int_3
 

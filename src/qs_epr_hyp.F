@@ -67,7 +67,7 @@ MODULE qs_epr_hyp
    PRIVATE
    PUBLIC :: qs_epr_hyp_calc
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_epr_hyp'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_epr_hyp'
 
 CONTAINS
 

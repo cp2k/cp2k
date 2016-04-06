@@ -27,7 +27,7 @@ MODULE helium_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_types'
 
    REAL(KIND=dp), PARAMETER, PUBLIC :: he_mass = 4.00263037059764_dp !< 4He mass in [u]
 

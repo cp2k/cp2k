@@ -26,7 +26,7 @@ MODULE cp_parser_ilist_types
    END TYPE ilist_type
 
    PUBLIC :: ilist_type, create_ilist_type, release_ilist_type
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_ilist_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_ilist_types'
 
 CONTAINS
 

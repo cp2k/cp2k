@@ -43,7 +43,7 @@ MODULE input_cp2k_vib
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_vib'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_vib'
 
    PUBLIC :: create_vib_section
 CONTAINS

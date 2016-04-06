@@ -46,7 +46,7 @@ MODULE preconditioner_solvers
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_solvers'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_solvers'
 
    PUBLIC :: solve_preconditioner, transfer_fm_to_dbcsr, transfer_dbcsr_to_fm
 

@@ -232,7 +232,7 @@ MODULE mc_types
    END TYPE mc_moves_p_type
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_types'
 
 CONTAINS
 

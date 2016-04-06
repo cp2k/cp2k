@@ -84,7 +84,7 @@ MODULE qs_pdos
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_pdos'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_pdos'
 
 ! **************************************************************************************************
    ! *** Public subroutines ***

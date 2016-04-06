@@ -33,7 +33,7 @@ MODULE dct
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dct'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dct'
 
    TYPE :: dct_type
       INTEGER, DIMENSION(:), POINTER     :: dests_expand => NULL()

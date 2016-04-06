@@ -44,7 +44,7 @@ MODULE shell_opt
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: optimize_shell_core
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'shell_opt'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'shell_opt'
 
 CONTAINS
 

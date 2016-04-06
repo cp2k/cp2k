@@ -82,7 +82,7 @@ MODULE qs_integrate_potential_product
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential_product'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential_product'
 
 ! *** Public subroutines ***
 ! *** Don't include this routines directly, use the interface to

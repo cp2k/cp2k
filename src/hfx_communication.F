@@ -44,7 +44,7 @@ MODULE hfx_communication
              distribute_ks_matrix, &
              scale_and_add_fock_to_ks_matrix, &
              get_atomic_block_maps
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_communication'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_communication'
 
 !***
 

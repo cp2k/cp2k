@@ -60,7 +60,7 @@ MODULE dbcsr_util
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_util'
 
   ! Main
   PUBLIC :: dbcsr_checksum, dbcsr_verify_matrix,&

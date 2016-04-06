@@ -81,7 +81,7 @@ MODULE dbcsr_test_methods
              dbcsr_make_random_block_sizes, compx_to_dbcsr_scalar, &
              dbcsr_test_read_args, atoi, atol, ator
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
 
 CONTAINS
 

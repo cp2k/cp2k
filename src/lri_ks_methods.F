@@ -63,7 +63,7 @@ MODULE lri_ks_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_ks_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_ks_methods'
 
    PUBLIC :: calculate_lri_ks_matrix
 

@@ -52,7 +52,7 @@ MODULE ewald_pw_types
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_types'
    INTEGER, PRIVATE, SAVE :: last_ewald_pw_id_nr = 0
    PUBLIC :: ewald_pw_type, ewald_pw_release, &
              ewald_pw_retain, ewald_pw_create, &

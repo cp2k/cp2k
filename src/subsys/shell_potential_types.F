@@ -18,7 +18,7 @@ MODULE shell_potential_types
 
 ! Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'shell_potential_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'shell_potential_types'
 
 ! **************************************************************************************************
 !> \brief Define the shell type

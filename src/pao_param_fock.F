@@ -29,7 +29,7 @@ MODULE pao_param_fock
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_fock'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_fock'
 
    PUBLIC :: pao_param_init_fock, pao_param_finalize_fock, pao_calc_U_block_fock
 

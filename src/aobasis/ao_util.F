@@ -30,7 +30,7 @@ MODULE ao_util
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ao_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ao_util'
 
    !MK sqrt* constants moved to mathconstants
 

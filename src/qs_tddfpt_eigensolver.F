@@ -54,7 +54,7 @@ MODULE qs_tddfpt_eigensolver
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_eigensolver'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_eigensolver'
 
    PRIVATE
 

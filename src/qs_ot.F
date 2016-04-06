@@ -52,7 +52,7 @@ MODULE qs_ot
    PRIVATE :: qs_ot_refine
    PRIVATE :: qs_ot_on_the_fly_localize
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
 
 CONTAINS
 

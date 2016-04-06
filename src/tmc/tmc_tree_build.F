@@ -78,7 +78,7 @@ MODULE tmc_tree_build
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_build'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_build'
 
    PUBLIC :: allocate_new_sub_tree_node, deallocate_sub_tree_node
    PUBLIC :: init_tree_mod, finalize_init

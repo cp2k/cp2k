@@ -63,7 +63,7 @@ MODULE qs_fb_atomic_halo_types
              fb_atomic_halo_list_write_info, &
              fb_build_pair_radii
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_halo_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_halo_types'
    INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_id = 0
    INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_list_id = 0
 

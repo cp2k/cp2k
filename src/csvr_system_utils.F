@@ -21,7 +21,7 @@ MODULE csvr_system_utils
 
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
    PUBLIC                               :: rescaling_factor
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_utils'
 
 CONTAINS
 

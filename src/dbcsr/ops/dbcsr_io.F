@@ -58,7 +58,7 @@ MODULE dbcsr_io
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_io'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_io'
 
    ! Main
    PUBLIC :: dbcsr_print

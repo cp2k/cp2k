@@ -67,7 +67,7 @@ MODULE almo_scf
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf'
 
    PUBLIC :: almo_entry_scf
 

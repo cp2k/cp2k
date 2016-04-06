@@ -63,7 +63,7 @@ MODULE se_fock_matrix
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    LOGICAL, PARAMETER, PRIVATE          :: debug_energy_coulomb_lr = .FALSE.
 

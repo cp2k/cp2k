@@ -87,7 +87,7 @@ MODULE xc_xwpbe
                                r3 = 3.0_dp, r4 = 4.0_dp, r16 = 16.0_dp, r8 = 8.0_dp, &
                                r6 = 6.0_dp, r2 = 2.0_dp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xwpbe'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xwpbe'
 
 CONTAINS
 

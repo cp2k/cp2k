@@ -87,7 +87,7 @@ MODULE ai_verfc
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_verfc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_verfc'
    PRIVATE
 
 ! *** Public subroutines ***

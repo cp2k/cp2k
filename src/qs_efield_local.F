@@ -57,7 +57,7 @@ MODULE qs_efield_local
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_efield_local'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_efield_local'
 
    ! *** Public subroutines ***
 

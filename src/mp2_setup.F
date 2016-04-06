@@ -31,7 +31,7 @@ MODULE mp2_setup
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_setup'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_setup'
 
    PUBLIC :: read_mp2_section
 

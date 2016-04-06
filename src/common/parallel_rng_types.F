@@ -63,7 +63,7 @@ MODULE parallel_rng_types
 
    ! Global parameters in this module
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'parallel_rng_types', &
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'parallel_rng_types', &
                                            rng_record_format = "(A40,I2,3L2,ES25.16,18F20.1)"
    INTEGER, PARAMETER          :: rng_record_length = 433
 

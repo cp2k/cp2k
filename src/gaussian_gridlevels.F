@@ -26,7 +26,7 @@ MODULE gaussian_gridlevels
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gaussian_gridlevels'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gaussian_gridlevels'
 
 ! **************************************************************************************************
    TYPE gridlevel_info_type

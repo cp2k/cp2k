@@ -129,7 +129,7 @@ MODULE force_env_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_env_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_env_methods'
 
    PUBLIC :: force_env_create, &
              force_env_calc_energy_force, &

@@ -92,7 +92,7 @@ MODULE qs_kind_types
 
    ! Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kind_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kind_types'
 
 !> Input parameters for the DFT+U method
 ! **************************************************************************************************

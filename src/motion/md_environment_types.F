@@ -82,7 +82,7 @@ MODULE md_environment_types
              md_env_release, need_per_atom_wiener_process
 
    ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
    INTEGER, SAVE, PRIVATE :: last_md_env_id = 0
 
 CONTAINS

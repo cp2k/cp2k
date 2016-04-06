@@ -20,7 +20,7 @@ MODULE ps_wavelet_base
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_base'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_base'
 
    PUBLIC :: scramble_unpack, p_poissonsolver, s_poissonsolver, f_poissonsolver
 

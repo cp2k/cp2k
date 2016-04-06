@@ -38,7 +38,7 @@ MODULE qs_mo_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_types'
 
    TYPE mo_set_type
       ! the actual MO coefficients as a matrix

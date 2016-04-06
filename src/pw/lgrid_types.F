@@ -25,7 +25,7 @@ MODULE lgrid_types
 
    PUBLIC :: lgrid_type, lgrid_release, lgrid_create, lgrid_allocate_grid
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lgrid_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lgrid_types'
 
    TYPE lgrid_type
       INTEGER :: ldim, ref_count

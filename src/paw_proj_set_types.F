@@ -42,7 +42,7 @@ MODULE paw_proj_set_types
 
    ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'paw_proj_set_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'paw_proj_set_types'
 
    INTEGER, PARAMETER :: max_name_length = 60
 

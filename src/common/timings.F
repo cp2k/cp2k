@@ -58,7 +58,7 @@ MODULE timings
    PUBLIC :: timings_setup_tracing
 
    ! global variables
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
    TYPE(list_timerenv_type), SAVE, PRIVATE                  :: timers_stack
 
    !API (via pointer assignment to hook, PR67982, not meant to be called directly)

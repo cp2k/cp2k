@@ -64,7 +64,7 @@ MODULE force_env_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_env_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_env_types'
 
    INTEGER, PARAMETER, PUBLIC :: use_fist_force = 501, &
                                  use_qs_force = 502, &

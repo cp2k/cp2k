@@ -106,7 +106,7 @@ MODULE dbcsr_work_operations
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_work_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_work_operations'
 
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 

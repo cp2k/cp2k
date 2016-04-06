@@ -27,7 +27,7 @@ MODULE ps_implicit_types
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_implicit_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_implicit_types'
 
    TYPE :: ps_implicit_parameters
       INTEGER                           :: boundary_condition

@@ -59,7 +59,7 @@ MODULE cp_ddapc
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc'
 
    PUBLIC :: cp_ddapc_apply_CD, & ! Apply Coupling/Decoupling to Periodic Images
              qs_ks_ddapc

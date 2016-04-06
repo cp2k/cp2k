@@ -84,7 +84,7 @@ MODULE tmc_setup
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_setup'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_setup'
 
    PUBLIC  :: do_tmc, do_analyze_files
 

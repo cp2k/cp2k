@@ -18,7 +18,7 @@ MODULE qs_charges_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_charges_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_charges_types'
 
    PUBLIC :: qs_charges_type
    PUBLIC :: qs_charges_create, qs_charges_retain, qs_charges_release

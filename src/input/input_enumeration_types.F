@@ -21,7 +21,7 @@ MODULE input_enumeration_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_enumeration_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_enumeration_types'
    INTEGER, SAVE, PRIVATE :: last_enumeration_id = 0
 
    PUBLIC :: enumeration_type

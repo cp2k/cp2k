@@ -40,7 +40,7 @@ MODULE cp_parser_inpp_types
    END TYPE inpp_type
 
    PUBLIC :: inpp_type, create_inpp_type, release_inpp_type
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_types'
 
 CONTAINS
 

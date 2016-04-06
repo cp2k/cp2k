@@ -17,7 +17,7 @@ MODULE minimax_rpa
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_rpa'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_rpa'
 
    PUBLIC get_rpa_minimax_coeff
 

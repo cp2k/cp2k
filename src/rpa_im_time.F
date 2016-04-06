@@ -42,7 +42,7 @@ MODULE rpa_im_time
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_im_time'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_im_time'
 
    PUBLIC :: fill_fm_with_2d_array, &
              compute_fm_mat_Q_omega

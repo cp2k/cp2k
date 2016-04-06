@@ -56,7 +56,7 @@ MODULE qs_scf_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_methods'
    REAL(KIND=dp), PARAMETER    :: ratio = 0.25_dp
 
    PUBLIC :: combine_ks_matrices, &

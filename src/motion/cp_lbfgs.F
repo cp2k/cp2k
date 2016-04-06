@@ -25,7 +25,7 @@ MODULE cp_lbfgs
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs'
 
   PUBLIC :: setulb
 

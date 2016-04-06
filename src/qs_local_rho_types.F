@@ -28,7 +28,7 @@ MODULE qs_local_rho_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_local_rho_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_local_rho_types'
 
 ! *** Define rhoz and local_rho types ***
 

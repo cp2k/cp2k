@@ -21,7 +21,7 @@ MODULE cp_fm_cholesky
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_cholesky'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_cholesky'
 
    PUBLIC :: cp_fm_cholesky_decompose, cp_fm_cholesky_invert, &
              cp_fm_cholesky_reduce, cp_fm_cholesky_restore

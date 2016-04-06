@@ -42,7 +42,7 @@ MODULE xc_perdew_wang
       epsilon = 5.E-13_dp, &
       fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
    REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang'
 
    PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval
 

@@ -35,7 +35,7 @@ MODULE constraint_vsite
              shake_vsite_ext, &
              vsite_force_control
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_vsite'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_vsite'
 
 CONTAINS
 

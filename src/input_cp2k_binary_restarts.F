@@ -45,7 +45,7 @@ MODULE input_cp2k_binary_restarts
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_binary_restarts'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_binary_restarts'
 
    PUBLIC :: read_binary_coordinates, &
              read_binary_cs_coordinates, &

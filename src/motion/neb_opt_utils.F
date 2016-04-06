@@ -32,7 +32,7 @@ MODULE neb_opt_utils
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_opt_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_opt_utils'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
    PUBLIC :: accept_diis_step, &

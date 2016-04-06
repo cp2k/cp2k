@@ -30,7 +30,7 @@ MODULE cell_opt_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_types'
    INTEGER, PRIVATE, SAVE :: last_cell_opt_env_id = 0
 
    PUBLIC :: cell_opt_env_type, &

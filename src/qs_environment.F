@@ -186,7 +186,7 @@ MODULE qs_environment
    PRIVATE
 
    ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment'
 
    ! *** Public subroutines ***
    PUBLIC :: qs_init

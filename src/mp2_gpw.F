@@ -118,7 +118,7 @@ MODULE mp2_gpw
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_gpw'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_gpw'
 
    PUBLIC :: mp2_gpw_main
 

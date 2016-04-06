@@ -46,7 +46,7 @@ MODULE dbcsr_arnoldi
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi'
 
    PUBLIC :: dbcsr_arnoldi_ev, dbcsr_arnoldi_extremal
 

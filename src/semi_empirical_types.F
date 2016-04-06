@@ -46,7 +46,7 @@ MODULE semi_empirical_types
    PRIVATE
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_types'
 
 ! **************************************************************************************************
 !> \brief Semi-empirical type

@@ -30,7 +30,7 @@ MODULE subcell_types
       REAL(KIND=dp), DIMENSION(3, 8)  :: corners
    END TYPE subcell_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'subcell_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'subcell_types'
 
    PUBLIC :: subcell_type, allocate_subcell, deallocate_subcell
    PUBLIC :: reorder_atoms_subcell, give_ijk_subcell

@@ -32,7 +32,7 @@ MODULE dbcsr_vector_operations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_vector_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_vector_operations'
 
    PUBLIC :: dbcsr_matrix_colvec_multiply, &
              create_col_vec_from_matrix, &

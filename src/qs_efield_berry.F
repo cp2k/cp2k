@@ -83,7 +83,7 @@ MODULE qs_efield_berry
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_efield_berry'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_efield_berry'
 
    ! *** Public subroutines ***
 

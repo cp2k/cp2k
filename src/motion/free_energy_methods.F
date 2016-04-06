@@ -48,7 +48,7 @@ MODULE free_energy_methods
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'free_energy_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'free_energy_methods'
    PUBLIC :: free_energy_evaluate
 
 CONTAINS

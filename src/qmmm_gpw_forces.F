@@ -83,7 +83,7 @@ MODULE qmmm_gpw_forces
   LOGICAL,       PARAMETER, PRIVATE    :: debug_this_module=.FALSE.
   REAL(KIND=dp), PARAMETER, PRIVATE    :: Dx = 0.01_dp     ! Debug Variables
   REAL(KIND=dp), PARAMETER, PRIVATE    :: MaxErr = 10.0_dp ! Debug Variables
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_forces'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gpw_forces'
   PUBLIC :: qmmm_forces
 
 CONTAINS

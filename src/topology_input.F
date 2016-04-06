@@ -34,7 +34,7 @@ MODULE topology_input
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_input'
 
    PRIVATE
    PUBLIC :: read_topology_section, read_constraints_section

@@ -21,7 +21,7 @@ MODULE dirichlet_bc_types
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dirichlet_bc_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dirichlet_bc_types'
 
 ! main types
    TYPE :: dirichlet_bc_parameters

@@ -62,7 +62,7 @@ MODULE fist_neighbor_lists
    PRIVATE
 
    ! Global parameters (in this module)
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
 
    TYPE local_atoms_type
       INTEGER, DIMENSION(:), POINTER                   :: list, &

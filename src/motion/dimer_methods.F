@@ -38,7 +38,7 @@ MODULE dimer_methods
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_methods'
 
    PUBLIC :: cp_eval_at_ts
 

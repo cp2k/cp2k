@@ -97,7 +97,7 @@ MODULE qmmm_gaussian_input
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gaussian_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gaussian_input'
 
    PUBLIC  :: read_mm_potential, &
               set_mm_potential_swave, &

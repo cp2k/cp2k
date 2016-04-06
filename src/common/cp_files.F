@@ -30,7 +30,7 @@ MODULE cp_files
              file_exists, &
              get_data_dir
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
 
    INTEGER, PARAMETER :: max_preconnections = 10, &
                          max_unit_number = 999

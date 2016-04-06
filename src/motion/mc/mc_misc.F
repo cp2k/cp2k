@@ -30,7 +30,7 @@ MODULE mc_misc
    PUBLIC :: final_mc_write, mc_averages_create, mc_averages_release, &
              mc_make_dat_file_new
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_misc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_misc'
 
 CONTAINS
 

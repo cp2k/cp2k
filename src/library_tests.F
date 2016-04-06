@@ -116,7 +116,7 @@ MODULE library_tests
    INTEGER                  :: runtest(100)
    REAL(KIND=dp)           :: max_memory
    REAL(KIND=dp), PARAMETER :: threshold = 1.0E-8_dp
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'library_tests'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'library_tests'
 
 CONTAINS
 

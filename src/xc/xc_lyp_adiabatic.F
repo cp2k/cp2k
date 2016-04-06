@@ -34,7 +34,7 @@ MODULE xc_lyp_adiabatic
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_lyp_adiabatic'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_lyp_adiabatic'
    REAL(kind=dp), PARAMETER, PRIVATE :: a = 0.04918_dp, b = 0.132_dp, &
                                         c = 0.2533_dp, d = 0.349_dp
 

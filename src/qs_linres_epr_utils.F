@@ -67,7 +67,7 @@ MODULE qs_linres_epr_utils
 
    PUBLIC :: epr_env_cleanup, epr_env_init
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_utils'
 
 CONTAINS
 

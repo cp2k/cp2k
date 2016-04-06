@@ -13,7 +13,7 @@ MODULE optimize_basis_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_types'
 
    PUBLIC :: basis_optimization_type, subset_type, flex_basis_type, &
              derived_basis_info, deallocate_basis_optimization_type

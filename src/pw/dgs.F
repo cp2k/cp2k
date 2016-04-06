@@ -42,7 +42,7 @@ MODULE dgs
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dgs'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dgs'
 
    PUBLIC :: dg_get_patch
    PUBLIC :: dg_pme_grid_setup, &

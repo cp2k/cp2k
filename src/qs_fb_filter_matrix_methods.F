@@ -55,7 +55,7 @@ MODULE qs_fb_filter_matrix_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_filter_matrix_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_filter_matrix_methods'
 
    PUBLIC :: fb_fltrmat_build, &
              fb_fltrmat_build_2

@@ -37,7 +37,7 @@ MODULE atom_output
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_output'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_output'
 
    PUBLIC :: atom_print_state, atom_print_energies, atom_print_iteration, &
              atom_print_basis, atom_print_method, atom_print_info, atom_print_potential, &

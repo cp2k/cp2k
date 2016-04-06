@@ -61,7 +61,7 @@ MODULE mc_ge_moves
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_ge_moves'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_ge_moves'
 
    PUBLIC :: mc_ge_volume_move, mc_ge_swap_move, &
              mc_quickstep_move

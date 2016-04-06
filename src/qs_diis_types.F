@@ -21,7 +21,7 @@ MODULE qs_diis_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis_types'
 
    PUBLIC :: qs_diis_buffer_type
    PUBLIC :: qs_diis_b_release

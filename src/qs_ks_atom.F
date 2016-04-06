@@ -55,7 +55,7 @@ MODULE qs_ks_atom
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_atom'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_atom'
 
    PUBLIC :: update_ks_atom
 

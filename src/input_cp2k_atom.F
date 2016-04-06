@@ -42,7 +42,7 @@ MODULE input_cp2k_atom
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_atom'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_atom'
 
    PUBLIC :: create_atom_section
 

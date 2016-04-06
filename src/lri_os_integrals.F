@@ -30,7 +30,7 @@ MODULE lri_os_integrals
 
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_os_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_os_integrals'
 
    PUBLIC :: lri_int_ab, lri_int_aba, lri_int_abb, lri_int_aabb
 

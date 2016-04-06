@@ -25,7 +25,7 @@ MODULE fist_nonbond_env_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_env_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_env_types'
    INTEGER, PRIVATE, SAVE :: last_fist_nonbond_env_id_nr = 0
    PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
              fist_nonbond_env_get, fist_nonbond_env_create, &

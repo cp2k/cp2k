@@ -107,7 +107,7 @@ MODULE mp2
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2'
 
    PUBLIC :: mp2_main
 

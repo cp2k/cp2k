@@ -29,7 +29,7 @@ MODULE cp_external_control
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_external_control'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_external_control'
 
    PUBLIC :: external_control
    PUBLIC :: set_external_comm

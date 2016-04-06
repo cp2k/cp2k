@@ -21,7 +21,7 @@ MODULE cp_parser_ilist_methods
    PRIVATE
 
    PUBLIC :: ilist_setup, ilist_update, ilist_reset
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_ilist_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_ilist_methods'
 
 CONTAINS
 

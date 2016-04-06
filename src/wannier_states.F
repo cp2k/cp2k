@@ -44,7 +44,7 @@ MODULE wannier_states
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wannier_states'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wannier_states'
 
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .TRUE.
 

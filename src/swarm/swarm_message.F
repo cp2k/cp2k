@@ -25,7 +25,7 @@ MODULE swarm_message
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_message'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_message'
 
    TYPE swarm_message_type
       PRIVATE

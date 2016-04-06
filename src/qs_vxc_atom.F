@@ -61,7 +61,7 @@ MODULE qs_vxc_atom
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
 
    PUBLIC :: calculate_vxc_atom, &
              calculate_xc_2nd_deriv_atom, &

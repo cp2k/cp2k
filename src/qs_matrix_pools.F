@@ -33,7 +33,7 @@ MODULE qs_matrix_pools
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_matrix_pools'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_matrix_pools'
    INTEGER, SAVE, PRIVATE :: last_mpools_id = 0
 
    PUBLIC :: qs_matrix_pools_type

@@ -41,7 +41,7 @@ MODULE qs_scf_wfn_mix
    PRIVATE
 
    ! Global parameters
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_wfn_mix'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_wfn_mix'
    PUBLIC :: wfn_mix
 
 CONTAINS

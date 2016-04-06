@@ -66,7 +66,7 @@ MODULE qs_linres_polar_utils
    PRIVATE
    PUBLIC :: polar_env_cleanup, polar_env_init, polar_response, polar_polar, polar_print
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_polar_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_polar_utils'
 
 CONTAINS
 

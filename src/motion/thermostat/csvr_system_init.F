@@ -34,7 +34,7 @@ MODULE csvr_system_init
    PUBLIC :: initialize_csvr_part, initialize_csvr_baro, &
              initialize_csvr_shell
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_init'
 
 CONTAINS
 

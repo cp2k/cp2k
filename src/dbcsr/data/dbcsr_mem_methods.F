@@ -30,7 +30,7 @@ MODULE dbcsr_mem_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mem_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mem_methods'
 
    PUBLIC :: dbcsr_mempool_get, dbcsr_mempool_add, dbcsr_mempool_ensure_capacity
    PUBLIC :: dbcsr_mempool_destruct, dbcsr_mempool_clear

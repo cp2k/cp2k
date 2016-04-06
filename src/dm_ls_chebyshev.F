@@ -38,7 +38,7 @@ MODULE dm_ls_chebyshev
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_chebyshev'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_chebyshev'
 
    PUBLIC :: compute_chebyshev
 

@@ -45,7 +45,7 @@ MODULE dbcsr_data_operations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_data_operations'
 
    PUBLIC :: dbcsr_data_copyall, dbcsr_data_convert, &
              dbcsr_copy_sort_data, &

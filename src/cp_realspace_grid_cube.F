@@ -21,7 +21,7 @@ MODULE cp_realspace_grid_cube
 
    PUBLIC :: cp_pw_to_cube
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_realspace_grid_cube'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_realspace_grid_cube'
 
 CONTAINS
 

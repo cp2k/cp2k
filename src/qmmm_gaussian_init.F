@@ -41,7 +41,7 @@ MODULE qmmm_gaussian_init
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gaussian_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gaussian_init'
    PUBLIC :: qmmm_gaussian_initialize
 
 CONTAINS

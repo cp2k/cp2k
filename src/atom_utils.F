@@ -46,7 +46,7 @@ MODULE atom_utils
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_utils'
 
    PUBLIC :: atom_set_occupation, get_maxl_occ, get_maxn_occ
    PUBLIC :: atom_denmat, atom_density, atom_core_density

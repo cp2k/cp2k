@@ -33,7 +33,7 @@ MODULE global_types
 
    ! Global parameters
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
 
    INTEGER, PARAMETER :: SILENT = 0, &
                          LOW = 1, &

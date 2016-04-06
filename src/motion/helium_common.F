@@ -43,7 +43,7 @@ MODULE helium_common
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_common'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_common'
 
    PUBLIC :: helium_pbc
    PUBLIC :: helium_boxmean_3d

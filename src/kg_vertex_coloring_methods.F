@@ -52,7 +52,7 @@ MODULE kg_vertex_coloring_methods
       TYPE(vertex), POINTER :: vertex
    END TYPE vertex_p_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_vertex_coloring_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_vertex_coloring_methods'
 
    PUBLIC :: kg_vertex_coloring
 

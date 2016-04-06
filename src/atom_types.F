@@ -52,7 +52,7 @@ MODULE atom_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_types'
 
    INTEGER, PARAMETER                                 :: GTO_BASIS = 100, &
                                                          CGTO_BASIS = 101, &

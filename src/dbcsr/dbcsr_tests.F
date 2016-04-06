@@ -71,7 +71,7 @@ MODULE dbcsr_tests
 
    PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_test_binary_io
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tests'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tests'
 
    INTEGER, PARAMETER          :: dbcsr_test_mm = 1
    INTEGER, PARAMETER          :: dbcsr_test_arnoldi = 2

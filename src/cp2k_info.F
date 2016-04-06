@@ -75,7 +75,7 @@ MODULE cp2k_info
    CHARACTER(LEN=default_string_length), PUBLIC     :: r_host_name, r_user_name
    INTEGER, PUBLIC                                  :: r_pid
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_info'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_info'
 CONTAINS
 
 ! **************************************************************************************************

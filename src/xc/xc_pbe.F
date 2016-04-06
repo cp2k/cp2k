@@ -41,7 +41,7 @@ MODULE xc_pbe
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pbe'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pbe'
    REAL(kind=dp), PARAMETER, PRIVATE :: a = 0.04918_dp, b = 0.132_dp, &
                                         c = 0.2533_dp, d = 0.349_dp
 

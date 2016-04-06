@@ -27,7 +27,7 @@ MODULE qs_neighbor_list_types
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_list_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_list_types'
 
 ! *** Definition of the data types for a linked list of neighbors ***
 

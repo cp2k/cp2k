@@ -123,7 +123,7 @@ MODULE qs_dftb_matrices
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_matrices'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_matrices'
 
    PUBLIC :: build_dftb_matrices, build_dftb_ks_matrix, build_dftb_overlap
    PUBLIC :: build_dftb_qmmm_matrix, build_dftb_qmmm_matrix_zero, &

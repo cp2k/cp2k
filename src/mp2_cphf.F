@@ -94,7 +94,7 @@ MODULE mp2_cphf
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_cphf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_cphf'
 
    PUBLIC :: solve_z_vector_eq
 

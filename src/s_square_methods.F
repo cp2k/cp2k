@@ -39,7 +39,7 @@ MODULE s_square_methods
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 's_square_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 's_square_methods'
 
    PUBLIC :: compute_s_square, s2_restraint
 

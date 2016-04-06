@@ -51,7 +51,7 @@ MODULE csvr_system_types
    END TYPE csvr_system_type
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_types'
 
 CONTAINS
 

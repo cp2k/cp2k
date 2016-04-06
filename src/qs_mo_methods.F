@@ -55,7 +55,7 @@ MODULE qs_mo_methods
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_methods'
 
    PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
              make_basis_lowdin, calculate_density_matrix, calculate_subspace_eigenvalues, &

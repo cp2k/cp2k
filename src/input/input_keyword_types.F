@@ -38,7 +38,7 @@ MODULE input_keyword_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_keyword_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_keyword_types'
 
    INTEGER, PARAMETER, PUBLIC :: usage_string_length = default_string_length*2
    INTEGER, SAVE, PRIVATE :: last_keyword_id = 0

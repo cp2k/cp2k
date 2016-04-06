@@ -27,7 +27,7 @@ MODULE ai_kinetic
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_kinetic'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_kinetic'
 
 ! *** Public subroutines ***
 

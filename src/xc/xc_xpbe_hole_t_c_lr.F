@@ -65,7 +65,7 @@ MODULE xc_xpbe_hole_t_c_lr
 
    REAL(KIND=dp), PARAMETER :: EPS_RHO = 0.00000001_dp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xpbe_hole_t_c_lr'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xpbe_hole_t_c_lr'
 
 CONTAINS
 

@@ -91,7 +91,7 @@ MODULE hfx_types
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_types'
    INTEGER, PARAMETER, PUBLIC                 :: max_atom_block = 32
    INTEGER, PARAMETER, PUBLIC                 :: max_images = 27
    REAL(dp), PARAMETER, PUBLIC                :: log_zero = -1000.0_dp

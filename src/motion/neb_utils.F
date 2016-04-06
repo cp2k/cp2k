@@ -75,7 +75,7 @@ MODULE neb_utils
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_utils'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
    PUBLIC :: build_replica_coords, &

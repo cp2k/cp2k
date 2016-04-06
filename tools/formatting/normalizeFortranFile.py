@@ -1034,7 +1034,7 @@ def resetModuleN(moduleName, lines):
                            flags=re.IGNORECASE)
     for i in xrange(len(lines)):
         lines[i] = moduleNRe.sub(
-            "  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '" +
+            " "*indentSize + "CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '" +
             moduleName + "'",
             lines[i])
 

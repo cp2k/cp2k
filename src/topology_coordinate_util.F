@@ -54,7 +54,7 @@ MODULE topology_coordinate_util
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_coordinate_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_coordinate_util'
 
    PRIVATE
    PUBLIC :: topology_coordinate_pack

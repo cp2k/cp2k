@@ -29,7 +29,7 @@ MODULE cp_blacs_env
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_env'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_env'
 
    ! Blacs type of distribution
    INTEGER, PARAMETER, PUBLIC               :: BLACS_GRID_SQUARE = 1, &

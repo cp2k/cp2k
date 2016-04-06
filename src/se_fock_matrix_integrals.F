@@ -30,7 +30,7 @@ MODULE se_fock_matrix_integrals
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_integrals'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
    PUBLIC :: fock2_1el, dfock2_1el, fock1_2el, fock2_1el_ew, fock2C_ew, &

@@ -63,7 +63,7 @@ MODULE dbcsr_mm_sched
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_sched'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_sched'
 
    PUBLIC :: dbcsr_mm_sched_type
    PUBLIC :: dbcsr_mm_sched_lib_init, dbcsr_mm_sched_lib_finalize

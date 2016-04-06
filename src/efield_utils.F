@@ -38,7 +38,7 @@ MODULE efield_utils
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'efield_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'efield_utils'
 
 ! *** Public subroutines ***
 

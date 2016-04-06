@@ -39,7 +39,7 @@ MODULE input_cp2k_free_energy
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_free_energy'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_free_energy'
 
    PUBLIC :: create_metavar_section, &
              create_fe_section

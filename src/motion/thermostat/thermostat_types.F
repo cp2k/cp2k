@@ -93,7 +93,7 @@ MODULE thermostat_types
       INTEGER, POINTER, DIMENSION(:)       :: map_loc_thermo_gen
    END TYPE thermostat_info_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_types'
    INTEGER, PRIVATE, SAVE :: last_thermostat_id_nr = 0, &
                              last_thermostats_id_nr = 0
 

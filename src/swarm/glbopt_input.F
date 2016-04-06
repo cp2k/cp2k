@@ -30,7 +30,7 @@ MODULE glbopt_input
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_input'
 
    PUBLIC :: glbopt_declare_input
 

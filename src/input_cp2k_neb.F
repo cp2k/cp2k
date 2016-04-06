@@ -43,7 +43,7 @@ MODULE input_cp2k_neb
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_neb'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_neb'
 
    PUBLIC :: create_band_section
 

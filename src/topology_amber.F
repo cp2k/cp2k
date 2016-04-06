@@ -45,7 +45,7 @@ MODULE topology_amber
 
   IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_amber'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_amber'
   REAL(KIND=dp), PARAMETER, PRIVATE    :: amber_conv_factor = 20.4550_dp,&
                                           amber_conv_charge = 18.2223_dp
   INTEGER, PARAMETER, PRIVATE          :: buffer_size = 1

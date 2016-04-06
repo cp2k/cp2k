@@ -38,7 +38,7 @@ MODULE admm_dm_methods
 
    PUBLIC :: admm_dm_calc_rho_aux, admm_dm_merge_ks_matrix
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_dm_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_dm_methods'
 
 CONTAINS
 

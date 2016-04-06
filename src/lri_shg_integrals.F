@@ -31,7 +31,7 @@ MODULE lri_shg_integrals
 
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_shg_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_shg_integrals'
 
    PUBLIC :: precalc_angular_shg_part, lri_int_ab_shg, lri_int_aba_shg, &
              lri_int_abb_shg

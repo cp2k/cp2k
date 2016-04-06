@@ -27,7 +27,7 @@ MODULE qmmm_topology_util
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_topology_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_topology_util'
 
    PUBLIC :: qmmm_coordinate_control, &
              qmmm_connectivity_control

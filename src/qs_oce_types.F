@@ -18,7 +18,7 @@ MODULE qs_oce_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_types'
 
 ! *** Define a oce matrix type ***
 

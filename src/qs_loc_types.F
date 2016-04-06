@@ -47,7 +47,7 @@ MODULE qs_loc_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_types'
 
 !****t* qs_loc_types/qs_loc_env_new_type [1.0] *
 

@@ -29,7 +29,7 @@ MODULE helium_interactions
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_interactions'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_interactions'
 
    PUBLIC :: helium_calc_energy
    PUBLIC :: helium_solute_e_f

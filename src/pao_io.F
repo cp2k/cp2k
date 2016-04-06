@@ -43,7 +43,7 @@ MODULE pao_io
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_io'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_io'
 
    PUBLIC :: pao_read_restart, pao_write_restart
 

@@ -23,7 +23,7 @@ MODULE glbopt_callback
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_callback'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_callback'
 
    PUBLIC :: glbopt_md_callback
 

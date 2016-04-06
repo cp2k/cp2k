@@ -33,7 +33,7 @@ MODULE mdctrl_types
 
    PUBLIC :: mdctrl_type, glbopt_mdctrl_data_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mdctrl_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mdctrl_types'
 
 END MODULE mdctrl_types
 

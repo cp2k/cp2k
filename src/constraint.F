@@ -67,7 +67,7 @@ MODULE constraint
              rattle_roll_control, &
              shake_update_targets
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint'
    INTEGER, PARAMETER, PRIVATE :: Max_Shake_Iter = 1000
 
 CONTAINS

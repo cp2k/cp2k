@@ -66,7 +66,7 @@ MODULE vibrational_analysis
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'vibrational_analysis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'vibrational_analysis'
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
 
    PUBLIC :: vb_anal

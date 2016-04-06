@@ -19,7 +19,7 @@ MODULE task_list_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_types'
 
 ! **************************************************************************************************
    TYPE task_list_type

@@ -59,7 +59,7 @@ MODULE cp_subsys_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_types'
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
    PUBLIC :: cp_subsys_type, &

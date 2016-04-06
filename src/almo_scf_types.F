@@ -26,7 +26,7 @@ MODULE almo_scf_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_types'
 
    INTEGER, PARAMETER, PUBLIC   :: almo_mat_dim_aobasis = 1, &
                                    almo_mat_dim_occ = 2, &

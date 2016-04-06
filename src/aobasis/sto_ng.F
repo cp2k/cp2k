@@ -17,7 +17,7 @@ MODULE sto_ng
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sto_ng'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sto_ng'
 
    PUBLIC :: get_sto_ng
 

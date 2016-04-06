@@ -34,7 +34,7 @@ MODULE semi_empirical_expns3_types
    END TYPE semi_empirical_expns3_p_type
 
    ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_expns3_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_expns3_types'
 
    PUBLIC :: semi_empirical_expns3_p_type, &
              semi_empirical_expns3_create, &

@@ -70,7 +70,7 @@ MODULE pw_types
    INTEGER, SAVE, PRIVATE :: last_pw_id_nr = 0
    INTEGER, SAVE, PRIVATE :: allocated_pw_count = 0
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_types'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS

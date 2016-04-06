@@ -40,7 +40,7 @@ MODULE qs_fb_matrix_data_types
              fb_matrix_data_status, &
              fb_matrix_data_release
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_matrix_data_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_matrix_data_types'
    INTEGER, PRIVATE, SAVE :: last_fb_matrix_data_id = 0
 
    ! Parameters related to automatic resizing of matrix_data:

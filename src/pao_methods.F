@@ -53,7 +53,7 @@ MODULE pao_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_methods'
 
    PUBLIC :: pao_print_atom_info
    PUBLIC :: pao_build_orthogonalizer, pao_build_selector, pao_build_matrix_X

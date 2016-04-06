@@ -82,7 +82,7 @@ MODULE fist_force
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: fist_calc_energy_force
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
 ! **************************************************************************************************
    TYPE debug_variables_type

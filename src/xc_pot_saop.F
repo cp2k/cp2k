@@ -105,7 +105,7 @@ MODULE xc_pot_saop
 
    PUBLIC :: add_saop_pot
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pot_saop'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pot_saop'
 
    ! should be eliminated
    REAL(KIND=dp), PARAMETER :: alpha = 1.19_dp, beta = 0.01_dp, K_rho = 0.42_dp

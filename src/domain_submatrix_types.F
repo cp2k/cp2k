@@ -17,7 +17,7 @@ MODULE domain_submatrix_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'domain_submatrix_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'domain_submatrix_types'
 
    INTEGER, PARAMETER, PUBLIC           :: select_row_col = 1
    INTEGER, PARAMETER, PUBLIC           :: select_row = 2

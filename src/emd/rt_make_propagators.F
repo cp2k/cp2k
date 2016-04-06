@@ -48,7 +48,7 @@ MODULE rt_make_propagators
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_make_propagators'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_make_propagators'
 
    PUBLIC :: propagate_exp, &
              propagate_arnoldi, &

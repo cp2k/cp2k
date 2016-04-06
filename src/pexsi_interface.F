@@ -30,7 +30,7 @@ MODULE pexsi_interface
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pexsi_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pexsi_interface'
 
    PUBLIC :: cp_pexsi_options, cp_pexsi_plan_initialize, &
              cp_pexsi_load_real_symmetric_hs_matrix, cp_pexsi_dft_driver, &

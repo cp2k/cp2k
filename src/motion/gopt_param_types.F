@@ -27,7 +27,7 @@ MODULE gopt_param_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_param_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_param_types'
    INTEGER, PRIVATE, SAVE :: last_gopt_param_id = 0
 
    PUBLIC :: gopt_param_type

@@ -29,7 +29,7 @@ MODULE list_timerenv
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list_timerenv'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list_timerenv'
 
    !this is an internal type
    TYPE private_item_type

@@ -164,7 +164,7 @@ MODULE dbcsr_mm_cannon
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_cannon'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_cannon'
    CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
    LOGICAL, PARAMETER :: careful_mod = .FALSE.

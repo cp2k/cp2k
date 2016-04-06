@@ -35,7 +35,7 @@ MODULE tmc_tree_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_tree_types'
 
    PUBLIC :: tree_type, global_tree_type
    PUBLIC :: elem_list_type, elem_array_type, gt_elem_list_type

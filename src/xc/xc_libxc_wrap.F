@@ -145,7 +145,7 @@ MODULE xc_libxc_wrap
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc_wrap'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc_wrap'
 
    CHARACTER(LEN=*), PARAMETER, PUBLIC :: libxc_version = XC_VERSION
 

@@ -83,7 +83,7 @@ MODULE almo_scf_optimizer
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_optimizer'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_optimizer'
 
    PUBLIC :: almo_scf_block_diagonal, &
              almo_scf_xalmo_eigensolver, &

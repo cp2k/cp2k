@@ -45,7 +45,7 @@ MODULE qs_scf_types
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_types'
 
    INTEGER, PARAMETER, PUBLIC :: general_diag_method_nr = 1, &
                                  special_diag_method_nr = 2, &

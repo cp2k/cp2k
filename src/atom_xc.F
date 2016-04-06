@@ -48,7 +48,7 @@ MODULE atom_xc
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_xc'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_xc'
 
 ! ZMP added public subroutines calculate_atom_zmp, calculate_atom_ext_vxc
    PUBLIC :: calculate_atom_vxc_lda, calculate_atom_vxc_lsd, &

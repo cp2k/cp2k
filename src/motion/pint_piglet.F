@@ -49,7 +49,7 @@ MODULE pint_piglet
              pint_piglet_release, &
              pint_calc_piglet_energy
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_piglet'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_piglet'
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                           !

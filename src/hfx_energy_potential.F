@@ -100,7 +100,7 @@ MODULE hfx_energy_potential
 
    PUBLIC ::  integrate_four_center, coulomb4
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_energy_potential'
 
 !***
 

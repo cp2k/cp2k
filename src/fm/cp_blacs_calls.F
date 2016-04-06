@@ -19,7 +19,7 @@ MODULE cp_blacs_calls
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'
    PRIVATE
    ! setup / info calls
    PUBLIC :: cp_blacs_gridinit, cp_blacs_set, &

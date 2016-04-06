@@ -31,7 +31,7 @@ MODULE fist_main
    PRIVATE
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_main'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_main'
 
 ! *** Global variables ***
    PUBLIC :: fist_create_force_env

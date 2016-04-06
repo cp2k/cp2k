@@ -40,7 +40,7 @@ MODULE extended_system_dynamics
              lnhc_barostat, &
              lnhc_shells
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_dynamics'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_dynamics'
 
 CONTAINS
 

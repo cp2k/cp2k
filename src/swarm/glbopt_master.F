@@ -56,7 +56,7 @@ MODULE glbopt_master
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_master'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_master'
 
    PUBLIC :: glbopt_master_type
    PUBLIC :: glbopt_master_init, glbopt_master_finalize

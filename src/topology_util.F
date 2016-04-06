@@ -42,7 +42,7 @@ MODULE topology_util
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_util'
 
 ! **************************************************************************************************
    TYPE array1_list_type

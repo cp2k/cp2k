@@ -44,7 +44,7 @@ MODULE eip_environment_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_environment_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_environment_types'
    INTEGER, PRIVATE, SAVE :: last_eip_id = 0
 
    ! *** Public data types ***

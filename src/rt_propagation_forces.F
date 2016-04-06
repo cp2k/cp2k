@@ -53,7 +53,7 @@ MODULE rt_propagation_forces
    PUBLIC :: calc_c_mat_force, &
              rt_admm_force
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_forces'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_forces'
 
 CONTAINS
 

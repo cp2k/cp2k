@@ -138,7 +138,7 @@ MODULE cp2k_runs
 
    PRIVATE
    PUBLIC :: write_cp2k_html_manual, write_xml_file, run_input
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
 CONTAINS
 
 ! **************************************************************************************************

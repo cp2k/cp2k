@@ -76,7 +76,7 @@ MODULE qs_rho0_ggrid
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_ggrid'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_ggrid'
 
 ! *** Public subroutines ***
 

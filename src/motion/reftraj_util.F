@@ -61,7 +61,7 @@ MODULE reftraj_util
 
       PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_util'
 
       PUBLIC ::   initialize_reftraj, compute_msd_reftraj, write_output_reftraj
 

@@ -35,7 +35,7 @@ MODULE dm_ls_scf_curvy
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_curvy'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_curvy'
 
    PUBLIC :: dm_ls_curvy_optimization, deallocate_curvy_data
 

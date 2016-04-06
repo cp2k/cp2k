@@ -72,7 +72,7 @@ MODULE cp_log_handling
              cp_logger_set_log_level, cp_logger_generate_filename, &
              cp_to_string
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
    !! level of an error

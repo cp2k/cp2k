@@ -26,7 +26,7 @@ MODULE xc_hcth
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_hcth'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_hcth'
 
    PUBLIC :: hcth_lda_info, hcth_lda_eval
 CONTAINS

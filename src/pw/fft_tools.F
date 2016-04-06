@@ -51,7 +51,7 @@ MODULE fft_tools
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_tools'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_tools'
 
    ! Types for the pool of scratch data needed in FFT routines
    ! keep the subroutine "is_equal" up-to-date

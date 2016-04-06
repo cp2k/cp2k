@@ -19,7 +19,7 @@ MODULE qs_dftb_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_types'
 
 ! **************************************************************************************************
    TYPE qs_dftb_atom_type

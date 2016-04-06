@@ -71,7 +71,7 @@ MODULE neb_methods
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_methods'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    PUBLIC :: neb
 

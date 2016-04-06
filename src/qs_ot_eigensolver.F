@@ -42,7 +42,7 @@ MODULE qs_ot_eigensolver
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_eigensolver'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_eigensolver'
 
 ! *** Public subroutines ***
 

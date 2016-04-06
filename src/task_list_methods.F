@@ -71,7 +71,7 @@ MODULE task_list_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_methods'
 
    PUBLIC :: generate_qs_task_list, &
              task_list_inner_loop

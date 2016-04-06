@@ -107,7 +107,7 @@ MODULE qs_fb_env_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_env_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_env_methods'
 
    PUBLIC :: fb_env_do_diag, &
              fb_env_read_input, &

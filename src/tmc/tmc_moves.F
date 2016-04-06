@@ -43,7 +43,7 @@ MODULE tmc_moves
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_moves'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_moves'
 
    PUBLIC :: change_pos
    PUBLIC :: elements_in_new_subbox

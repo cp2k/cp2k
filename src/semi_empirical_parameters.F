@@ -61,7 +61,7 @@ MODULE semi_empirical_parameters
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_parameters'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_parameters'
 
    INTEGER, PARAMETER, PRIVATE :: nelem = 106
 

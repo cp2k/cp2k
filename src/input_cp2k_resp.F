@@ -40,7 +40,7 @@ MODULE input_cp2k_resp
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_resp'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_resp'
 
    PUBLIC :: create_resp_section
 

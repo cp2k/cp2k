@@ -25,7 +25,7 @@ MODULE qs_dftb_utils
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_utils'
 
    PUBLIC :: allocate_dftb_atom_param, &
              deallocate_dftb_atom_param, &

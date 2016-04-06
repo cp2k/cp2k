@@ -39,7 +39,7 @@ MODULE optimize_basis_utils
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_utils'
 
    PUBLIC :: optimize_basis_init_read_input, get_set_and_basis_id, &
              update_derived_basis_sets

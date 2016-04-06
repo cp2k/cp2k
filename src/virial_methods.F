@@ -28,7 +28,7 @@ MODULE virial_methods
    PRIVATE
    PUBLIC:: virial_evaluate, virial_pair_force, virial_update
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_methods'
 
 CONTAINS
 ! **************************************************************************************************

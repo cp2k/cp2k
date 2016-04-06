@@ -53,7 +53,7 @@ MODULE gle_system_types
       TYPE(map_info_type), POINTER            :: map_info
    END TYPE gle_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gle_system_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gle_system_types'
 
 CONTAINS
 

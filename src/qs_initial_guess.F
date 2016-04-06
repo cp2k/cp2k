@@ -92,7 +92,7 @@ MODULE qs_initial_guess
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_initial_guess'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_initial_guess'
 
    PUBLIC ::  calculate_first_density_matrix, calculate_atomic_block_dm, calculate_mopac_dm
    PUBLIC ::  calculate_atomic_fock_matrix

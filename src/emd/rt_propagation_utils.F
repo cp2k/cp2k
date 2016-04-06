@@ -70,7 +70,7 @@ MODULE rt_propagation_utils
              calc_update_rho_sparse, &
              calculate_P_imaginary
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
 CONTAINS
 

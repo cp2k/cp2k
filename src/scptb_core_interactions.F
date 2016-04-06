@@ -42,7 +42,7 @@ MODULE scptb_core_interactions
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_core_interactions'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_core_interactions'
 
    PUBLIC :: scptb_core_interaction
 

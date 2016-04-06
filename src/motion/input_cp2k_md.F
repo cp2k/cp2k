@@ -48,7 +48,7 @@ MODULE input_cp2k_md
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_md'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_md'
 
    PUBLIC :: create_md_section
 

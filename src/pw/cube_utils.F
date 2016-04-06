@@ -24,7 +24,7 @@ MODULE cube_utils
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cube_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cube_utils'
 
    PUBLIC :: cube_info_type
 

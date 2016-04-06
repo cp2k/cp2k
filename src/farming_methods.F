@@ -33,7 +33,7 @@ MODULE farming_methods
                                     do_wait = -2, &
                                     do_deadlock = -3
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'farming_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'farming_methods'
 
 CONTAINS
 

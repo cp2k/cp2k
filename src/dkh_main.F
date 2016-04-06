@@ -33,7 +33,7 @@ MODULE dkh_main
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dkh_main'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dkh_main'
 
    PUBLIC                               :: dkh_atom_transformation
 

@@ -30,7 +30,7 @@ MODULE preconditioner_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_types'
 
    PUBLIC  :: preconditioner_type, preconditioner_p_type
    PUBLIC  :: init_preconditioner

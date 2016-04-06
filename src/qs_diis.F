@@ -60,7 +60,7 @@ MODULE qs_diis
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis'
    INTEGER, SAVE               :: last_diis_b_id = 0
 
    ! Public subroutines

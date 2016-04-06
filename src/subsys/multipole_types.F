@@ -49,7 +49,7 @@ MODULE multipole_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: quadrupoles
    END TYPE multipole_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'multipole_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'multipole_types'
    INTEGER, PRIVATE, SAVE :: last_multipole_id_nr = 0
 
 CONTAINS

@@ -52,7 +52,7 @@ MODULE preconditioner_makes
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
 
    PUBLIC :: make_preconditioner_matrix
 

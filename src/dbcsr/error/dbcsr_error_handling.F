@@ -57,7 +57,7 @@ MODULE dbcsr_error_handling
    !! error number: not implemented
    INTEGER, PARAMETER :: dbcsr_unimplemented_error_nr = -1000
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_error_handling'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_error_handling'
 
 CONTAINS
 

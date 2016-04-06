@@ -17,7 +17,7 @@ MODULE atprop_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atprop_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atprop_types'
 
    PUBLIC :: atprop_type, atprop_create, atprop_release, atprop_init
    PUBLIC :: atprop_array_init, atprop_array_add

@@ -57,7 +57,7 @@ MODULE qs_linres_nmr_utils
    PRIVATE
    PUBLIC :: nmr_env_cleanup, nmr_env_init
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_utils'
 
 CONTAINS
 

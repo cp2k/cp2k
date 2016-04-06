@@ -34,7 +34,7 @@ MODULE molecule_types_new
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types_new'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types_new'
 
 ! *** Data types ***
 ! **************************************************************************************************

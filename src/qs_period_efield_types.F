@@ -22,7 +22,7 @@ MODULE qs_period_efield_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_period_efield_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_period_efield_types'
 
    PUBLIC :: efield_berry_type, efield_berry_release, init_efield_matrices, &
              set_efield_matrices

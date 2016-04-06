@@ -23,7 +23,7 @@ MODULE topology_multiple_unit_cell
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_multiple_unit_cell'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_multiple_unit_cell'
 
    PRIVATE
 

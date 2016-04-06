@@ -48,7 +48,7 @@ MODULE xc_cs1
                                c3 = 0.159068_dp, &
                                c4 = -0.007953_dp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_cs1'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_cs1'
 
 CONTAINS
 

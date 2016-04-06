@@ -63,7 +63,7 @@ MODULE kg_environment
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment'
 
    PUBLIC :: kg_env_create, kg_build_neighborlist, kg_build_subsets
 

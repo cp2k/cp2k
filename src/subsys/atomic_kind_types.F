@@ -38,7 +38,7 @@ MODULE atomic_kind_types
 
    ! Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
 !> Provides all information about an atomic kind
 ! **************************************************************************************************

@@ -30,7 +30,7 @@ MODULE swarm_worker
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_worker'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'swarm_worker'
 
    PUBLIC :: swarm_worker_init, swarm_worker_finalize
    PUBLIC :: swarm_worker_execute

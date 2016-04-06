@@ -186,7 +186,7 @@ MODULE qs_scf_post_gpw
    PRIVATE
 
    ! Global parameters
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_gpw'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_gpw'
    PUBLIC :: scf_post_calculation_gpw, &
              qs_scf_post_moments, &
              write_available_results, &

@@ -18,7 +18,7 @@ MODULE sap_kind_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sap_kind_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sap_kind_types'
 
    TYPE clist_type
       INTEGER                                    :: catom, nsgf_cnt

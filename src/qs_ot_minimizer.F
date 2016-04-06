@@ -37,7 +37,7 @@ MODULE qs_ot_minimizer
 
    PUBLIC  :: ot_mini
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
 
 CONTAINS
 !

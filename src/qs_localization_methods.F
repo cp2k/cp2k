@@ -66,7 +66,7 @@ MODULE qs_localization_methods
    PUBLIC :: initialize_weights, crazy_rotations, &
              direct_mini, rotate_orbitals, approx_l1_norm_sd, jacobi_rotations
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
 
    PRIVATE
 

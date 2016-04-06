@@ -31,7 +31,7 @@ MODULE cp_cfm_diag
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
    PUBLIC :: cp_cfm_heevd, cp_cfm_geeig, cp_cfm_geeig_canon
 

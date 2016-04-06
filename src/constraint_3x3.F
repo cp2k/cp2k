@@ -39,7 +39,7 @@ MODULE constraint_3x3
              shake_roll_3x3_ext, &
              rattle_roll_3x3_ext
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_3x3'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_3x3'
 
 CONTAINS
 

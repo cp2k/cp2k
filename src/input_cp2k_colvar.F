@@ -43,7 +43,7 @@ MODULE input_cp2k_colvar
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_colvar'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_colvar'
 
    PUBLIC :: create_colvar_section, &
              create_colvar_xyz_d_section, &

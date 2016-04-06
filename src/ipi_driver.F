@@ -51,7 +51,7 @@ MODULE ipi_driver
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ipi_driver'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ipi_driver'
 
    PUBLIC :: run_driver
 

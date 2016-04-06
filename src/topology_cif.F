@@ -49,7 +49,7 @@ MODULE topology_cif
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_cif'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_cif'
 
    PRIVATE
    PUBLIC :: read_coordinate_cif

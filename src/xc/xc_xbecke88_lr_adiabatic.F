@@ -38,7 +38,7 @@ MODULE xc_xbecke88_lr_adiabatic
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke88_lr_adiabatic'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke88_lr_adiabatic'
    REAL(kind=dp), PARAMETER :: beta = 0.0042_dp
 
    PUBLIC :: xb88_lr_adiabatic_lda_info, xb88_lr_adiabatic_lsd_info, &

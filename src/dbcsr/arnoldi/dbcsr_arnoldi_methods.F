@@ -41,7 +41,7 @@ MODULE dbcsr_arnoldi_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_methods'
 
    PUBLIC :: arnoldi_init, build_subspace, compute_evals, arnoldi_iram, &
              gev_arnoldi_init, gev_build_subspace, gev_update_data

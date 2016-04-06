@@ -51,7 +51,7 @@ MODULE dbcsr_mm_hostdrv
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_hostdrv'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_hostdrv'
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
 

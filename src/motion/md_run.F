@@ -103,7 +103,7 @@ MODULE md_run
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_run'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_run'
 
    PUBLIC :: qs_mol_dyn
 

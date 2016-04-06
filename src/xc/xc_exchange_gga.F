@@ -49,7 +49,7 @@ MODULE xc_exchange_gga
    REAL(KIND=dp) :: cx, flda, flsd, sfac, t13
    REAL(KIND=dp) :: fact, tact
    REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_exchange_gga'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_exchange_gga'
 
 CONTAINS
 

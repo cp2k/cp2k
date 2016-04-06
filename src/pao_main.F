@@ -48,7 +48,7 @@ MODULE pao_main
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_main'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_main'
 
    PUBLIC :: pao_init, pao_update, pao_finalize
 

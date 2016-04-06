@@ -52,7 +52,7 @@ MODULE input_cp2k_mm
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mm'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mm'
 
    PUBLIC :: create_mm_section, create_dipoles_section
    PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &

@@ -34,7 +34,7 @@ MODULE cp_parser_buffer_types
 
    PUBLIC :: buffer_type, create_buffer_type, release_buffer_type, copy_buffer_type, &
              initialize_sub_buffer, finalize_sub_buffer
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_buffer_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_buffer_types'
    INTEGER, PARAMETER, PRIVATE          :: buffer_size = 1000
 
 CONTAINS

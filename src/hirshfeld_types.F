@@ -21,7 +21,7 @@ MODULE hirshfeld_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirshfeld_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirshfeld_types'
 
    PUBLIC :: hirshfeld_type
    PUBLIC :: create_hirshfeld_type, release_hirshfeld_type

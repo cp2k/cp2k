@@ -79,7 +79,7 @@ MODULE thermostat_utils
              print_thermostats_status, &
              momentum_region_particles
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_utils'
 
 CONTAINS
 

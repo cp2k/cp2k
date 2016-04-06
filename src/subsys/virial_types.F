@@ -14,7 +14,7 @@ MODULE virial_types
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
    INTEGER, PRIVATE, SAVE :: last_virial_id_nr = 0
 
    PUBLIC :: virial_type, virial_p_type, virial_set, cp_virial, &

@@ -30,7 +30,7 @@ MODULE cp_fm_pool_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_pool_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_pool_types'
    INTEGER, SAVE, PRIVATE :: last_fm_pool_id_nr = 0
 
    PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type

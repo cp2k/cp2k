@@ -60,7 +60,7 @@ MODULE ps_implicit_methods
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_implicit_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_implicit_methods'
 
    PUBLIC ps_implicit_create, &
       implicit_poisson_solver_periodic, &

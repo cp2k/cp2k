@@ -82,7 +82,7 @@ MODULE dbcsr_block_access
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_access'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_access'
 
    PUBLIC :: dbcsr_get_block_p, &
              dbcsr_put_block, dbcsr_remove_block

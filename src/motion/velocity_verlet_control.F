@@ -27,7 +27,7 @@ MODULE velocity_verlet_control
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'velocity_verlet_control'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'velocity_verlet_control'
    PUBLIC :: velocity_verlet
 
 CONTAINS

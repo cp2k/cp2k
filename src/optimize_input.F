@@ -94,7 +94,7 @@ MODULE optimize_input
      REAL(KIND=dp) :: start_time,target_time
   END TYPE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_input'
 
 CONTAINS
 

@@ -40,7 +40,7 @@ MODULE cp_symmetry
 
    ! Global parameters (in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_symmetry'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_symmetry'
 
    PUBLIC :: write_symmetry
 

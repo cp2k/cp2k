@@ -92,7 +92,7 @@ MODULE qs_linres_epr_nablavks
    PRIVATE
    PUBLIC :: epr_nablavks
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_nablavks'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_nablavks'
 
 CONTAINS
 

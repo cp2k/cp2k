@@ -42,7 +42,7 @@ MODULE kpoint_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_types'
 
    PUBLIC :: kpoint_type
    PUBLIC :: kpoint_create, kpoint_release, get_kpoint_info

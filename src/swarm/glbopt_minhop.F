@@ -32,7 +32,7 @@ MODULE glbopt_minhop
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_minhop'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'glbopt_minhop'
 
    PUBLIC :: minhop_type
    PUBLIC :: minhop_init, minhop_finalize

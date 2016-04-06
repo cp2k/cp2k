@@ -41,7 +41,7 @@ MODULE atomic_kind_list_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_list_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_list_types'
    INTEGER, PRIVATE, SAVE :: last_atomic_kind_list_id = 0
 
    !API

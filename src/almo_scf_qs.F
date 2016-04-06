@@ -79,7 +79,7 @@ MODULE almo_scf_qs
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_qs'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_qs'
 
    PUBLIC :: almo_scf_init_qs, matrix_almo_create, matrix_qs_to_almo, &
              almo_scf_dm_to_ks, &

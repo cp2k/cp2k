@@ -52,7 +52,7 @@ MODULE mp2_ri_grad_util
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
 
    PUBLIC :: complete_gamma
 

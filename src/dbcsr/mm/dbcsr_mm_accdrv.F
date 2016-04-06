@@ -73,7 +73,7 @@ MODULE dbcsr_mm_accdrv
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_accdrv'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_accdrv'
 
    LOGICAL, PARAMETER, PRIVATE :: careful_mod = .FALSE.
 

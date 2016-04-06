@@ -25,7 +25,7 @@ MODULE semi_empirical_expns3_methods
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_expns3_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_expns3_methods'
 
    PUBLIC :: semi_empirical_expns3_setup
 

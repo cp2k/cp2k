@@ -33,7 +33,7 @@ MODULE cp_spline_utils
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_spline_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_spline_utils'
 
    PUBLIC ::  pw_prolongate_s3, pw_restrict_s3
 

@@ -44,7 +44,7 @@ MODULE cp_units
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_units'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_units'
    INTEGER, SAVE, PRIVATE               :: last_unit_id = 0, last_unit_set_id = 0
 
    INTEGER, PARAMETER, PUBLIC :: cp_ukind_none = 0, &

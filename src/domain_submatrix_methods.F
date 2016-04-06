@@ -36,7 +36,7 @@ MODULE domain_submatrix_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'domain_submatrix_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'domain_submatrix_methods'
 
    PUBLIC :: copy_submatrices, copy_submatrix_data, &
              release_submatrices, multiply_submatrices, add_submatrices, &

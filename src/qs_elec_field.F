@@ -53,7 +53,7 @@ MODULE qs_elec_field
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_elec_field'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_elec_field'
 
 ! *** Public subroutines ***
 

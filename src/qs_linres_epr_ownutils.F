@@ -85,7 +85,7 @@ MODULE qs_linres_epr_ownutils
    PRIVATE
    PUBLIC :: epr_g_print, epr_g_zke, epr_g_so, epr_g_soo, epr_ind_magnetic_field
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_ownutils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_ownutils'
 
 CONTAINS
 

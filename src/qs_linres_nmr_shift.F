@@ -86,7 +86,7 @@ MODULE qs_linres_nmr_shift
    PUBLIC :: nmr_shift_print, &
              nmr_shift
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
 
 ! **************
 

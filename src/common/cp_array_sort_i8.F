@@ -33,7 +33,7 @@ MODULE cp_array_sort_i8
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_sort_i8'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_sort_i8'
 
    PUBLIC :: cp_1d_i8_sort
 

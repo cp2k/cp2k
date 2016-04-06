@@ -22,7 +22,7 @@ MODULE input_restart_rng
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_restart_rng'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_restart_rng'
 
    PUBLIC :: section_rng_val_set
 

@@ -43,7 +43,7 @@ MODULE xc_xlda_hole_t_c_lr
                                D = 0.57786348_dp, &
                                E = -0.051955731_dp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xlda_hole_t_c_lr'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xlda_hole_t_c_lr'
 
 CONTAINS
 

@@ -132,7 +132,7 @@ MODULE qs_linres_methods
    PUBLIC :: linres_localize, linres_solver
    PUBLIC :: linres_write_restart, linres_read_restart
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
 CONTAINS
 

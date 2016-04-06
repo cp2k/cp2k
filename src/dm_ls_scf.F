@@ -107,7 +107,7 @@ MODULE dm_ls_scf
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf'
 
    PUBLIC :: ls_scf, ls_scf_create
 

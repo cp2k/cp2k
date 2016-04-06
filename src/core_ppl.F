@@ -51,7 +51,7 @@ MODULE core_ppl
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ppl'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ppl'
 
    PUBLIC :: build_core_ppl
 

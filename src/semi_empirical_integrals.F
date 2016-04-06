@@ -46,7 +46,7 @@ MODULE semi_empirical_integrals
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
    PUBLIC :: rotint, rotnuc, corecore, corecore_el, drotint, drotnuc, dcorecore, &
              dcorecore_el
 

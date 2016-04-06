@@ -18,7 +18,7 @@ MODULE qs_modify_pab_block
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_modify_pab_block'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_modify_pab_block'
 
 ! *** Public subroutines ***
 

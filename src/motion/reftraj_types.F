@@ -70,7 +70,7 @@ MODULE reftraj_types
       TYPE(reftraj_msd_type), POINTER          :: msd
    END TYPE reftraj_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_types'
 
 CONTAINS
 

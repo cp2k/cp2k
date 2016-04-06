@@ -68,7 +68,7 @@ MODULE qs_scf_post_dftb
    PRIVATE
 
    ! Global parameters
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_dftb'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_dftb'
    PUBLIC :: scf_post_calculation_dftb
 
 CONTAINS

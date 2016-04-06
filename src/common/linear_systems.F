@@ -23,7 +23,7 @@ MODULE linear_systems
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'linear_systems'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'linear_systems'
 
    PUBLIC :: solve_system
 

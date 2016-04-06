@@ -34,7 +34,7 @@ MODULE list
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'list'
 
    PUBLIC :: list_init, list_isready, list_push, list_pop, list_peek, &
              list_get, list_size, list_destroy

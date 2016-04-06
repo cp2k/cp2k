@@ -90,7 +90,7 @@ MODULE rt_propagation_output
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_output'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_output'
 
    PUBLIC :: rt_prop_output, &
              rt_convergence, &

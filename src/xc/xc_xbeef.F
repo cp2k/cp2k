@@ -32,7 +32,7 @@ MODULE xc_xbeef
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbeef'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbeef'
 
    PUBLIC :: xbeef_lda_info, xbeef_lsd_info, xbeef_lda_eval, xbeef_lsd_eval
 

@@ -45,7 +45,7 @@ MODULE eri_mme_test
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_test'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_test'
 
    PUBLIC :: create_eri_mme_test_section, eri_mme_perf_acc_test
 

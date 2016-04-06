@@ -38,7 +38,7 @@ MODULE qmmm_util
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_util'
    PUBLIC :: apply_qmmm_walls_reflective, &
              apply_qmmm_walls, &
              apply_qmmm_translate, &

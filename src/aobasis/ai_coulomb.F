@@ -46,7 +46,7 @@ MODULE ai_coulomb
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_coulomb'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_coulomb'
    PRIVATE
 
    ! *** Public subroutines ***

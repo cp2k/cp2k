@@ -33,7 +33,7 @@ MODULE rs_methods
 
    IMPLICIT NONE
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rs_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rs_methods'
 
    PUBLIC derive_fdm_cd3, &
       derive_fdm_cd5, &

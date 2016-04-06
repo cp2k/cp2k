@@ -16,7 +16,7 @@ MODULE ps_wavelet_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_types'
 
    INTEGER, PARAMETER, PUBLIC               :: WAVELET3D = 1400, &
                                                WAVELET2D = 1401, &

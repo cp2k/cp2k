@@ -96,7 +96,7 @@ MODULE qs_loc_utils
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
 
 ! *** Public ***
    PUBLIC :: jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart, &

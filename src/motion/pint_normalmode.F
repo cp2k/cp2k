@@ -28,7 +28,7 @@ MODULE pint_normalmode
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_normalmode'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_normalmode'
 
    INTEGER, SAVE, PRIVATE :: last_normalmode_id = 0
 

@@ -188,7 +188,7 @@ MODULE topology_types
              deallocate_topology, &
              pre_read_topology
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_types'
    PRIVATE
 
 CONTAINS

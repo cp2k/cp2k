@@ -41,7 +41,7 @@ MODULE kg_correction
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_correction'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_correction'
 
    PUBLIC :: kg_ekin_subset
 

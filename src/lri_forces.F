@@ -42,7 +42,7 @@ MODULE lri_forces
 
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_forces'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_forces'
 
    PUBLIC :: calculate_lri_forces
 

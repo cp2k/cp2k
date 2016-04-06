@@ -44,7 +44,7 @@ MODULE xc_rho_set_types
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_set_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_set_types'
    INTEGER, SAVE :: last_rho_set_id = 0
 
    PUBLIC :: xc_rho_set_type

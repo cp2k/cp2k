@@ -65,7 +65,7 @@ MODULE qs_rho0_methods
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_methods'
 
 ! *** Public subroutines ***
 

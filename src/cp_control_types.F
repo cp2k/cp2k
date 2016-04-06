@@ -423,7 +423,7 @@ MODULE cp_control_types
                                                     do_sccs
    END TYPE dft_control_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
    INTEGER, SAVE :: last_dft_control_id = 0
 
    ! Public data types

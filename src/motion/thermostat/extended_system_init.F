@@ -52,7 +52,7 @@ MODULE extended_system_init
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_init'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_init'
 
    PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
              initialize_nhc_shell, initialize_nhc_slow, initialize_nhc_fast

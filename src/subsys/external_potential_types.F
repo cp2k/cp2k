@@ -60,7 +60,7 @@ MODULE external_potential_types
 
    ! Global parameters
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'external_potential_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'external_potential_types'
 
    ! Define the all-electron potential type
 

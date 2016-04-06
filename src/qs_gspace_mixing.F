@@ -54,7 +54,7 @@ MODULE qs_gspace_mixing
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gspace_mixing'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gspace_mixing'
 
    PUBLIC :: gspace_mixing, &
              mixing_allocate, mixing_init, &

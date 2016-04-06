@@ -18,7 +18,7 @@ MODULE structure_factors
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'structure_factors'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'structure_factors'
 
    PRIVATE
    PUBLIC :: structure_factor_evaluate, structure_factor_allocate

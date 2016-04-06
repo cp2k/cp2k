@@ -82,7 +82,7 @@ MODULE input_cp2k_poisson
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_poisson'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_poisson'
 
    PUBLIC :: create_poisson_section, &
              create_gspace_interp_section, &

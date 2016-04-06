@@ -29,7 +29,7 @@ MODULE qs_rho0_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_types'
 
 ! *** Define multipole type ***
 

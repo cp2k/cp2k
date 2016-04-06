@@ -67,7 +67,7 @@ MODULE gopt_f_methods
 #include "gopt_f77_methods.h"
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
    PUBLIC :: gopt_f_create_x0, &
              print_geo_opt_header, print_geo_opt_nc, &

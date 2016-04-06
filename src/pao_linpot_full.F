@@ -20,7 +20,7 @@ MODULE pao_linpot_full
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_linpot_full'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_linpot_full'
 
    PUBLIC :: linpot_full_count_terms, linpot_full_calc_term
 

@@ -43,7 +43,7 @@ MODULE ewalds
 
    IMPLICIT NONE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewalds'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewalds'
 
    PRIVATE
    PUBLIC :: ewald_evaluate, ewald_self, ewald_self_atom, ewald_print

@@ -72,7 +72,7 @@ MODULE qs_rho_atom_methods
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_atom_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_atom_methods'
 
 ! *** Public subroutines ***
 

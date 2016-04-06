@@ -52,7 +52,7 @@ MODULE hartree_local_methods
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_methods'
 
    ! Public Subroutine
 

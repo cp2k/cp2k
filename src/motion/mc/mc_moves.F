@@ -67,7 +67,7 @@ MODULE mc_moves
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_moves'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_moves'
 
    PUBLIC :: mc_conformation_change, mc_molecule_translation, &
              mc_molecule_rotation, mc_volume_move, mc_avbmc_move, &

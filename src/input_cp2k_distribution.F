@@ -27,7 +27,7 @@ MODULE input_cp2k_distribution
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_distribution'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_distribution'
 
    PUBLIC :: create_distribution_section
 

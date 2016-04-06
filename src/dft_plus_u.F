@@ -78,7 +78,7 @@ MODULE dft_plus_u
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dft_plus_u'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dft_plus_u'
 
    PUBLIC :: plus_u
 

@@ -38,7 +38,7 @@ MODULE surface_dipole
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'surface_dipole'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'surface_dipole'
 
    PUBLIC :: calc_dipsurf_potential
 

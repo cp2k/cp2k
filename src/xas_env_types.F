@@ -37,7 +37,7 @@ MODULE xas_env_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_env_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_env_types'
 
 ! *** Public data types ***
 

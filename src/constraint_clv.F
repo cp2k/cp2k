@@ -46,7 +46,7 @@ MODULE constraint_clv
              shake_update_colv_int, &
              shake_update_colv_ext
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_clv'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_clv'
 
 CONTAINS
 

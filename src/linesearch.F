@@ -32,7 +32,7 @@ MODULE linesearch
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'linesearch'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'linesearch'
 
    PUBLIC :: linesearch_type
 

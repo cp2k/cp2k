@@ -114,7 +114,7 @@ MODULE qs_scf_initialization
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_initialization'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_initialization'
 
    PUBLIC:: qs_scf_env_initialize, qs_scf_compute_properties
 

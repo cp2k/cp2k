@@ -50,7 +50,7 @@ MODULE xc_xbr_pbe_lda_hole_t_c_lr
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbr_pbe_lda_hole_t_c_lr'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbr_pbe_lda_hole_t_c_lr'
 
    REAL(dp), PARAMETER, PRIVATE  :: br_a1 = 1.5255251812009530_dp, &
                                     br_a2 = 0.4576575543602858_dp, &

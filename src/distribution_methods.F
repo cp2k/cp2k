@@ -78,7 +78,7 @@ MODULE distribution_methods
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_methods'
 
 ! *** Public subroutines ***
 

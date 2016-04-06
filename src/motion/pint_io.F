@@ -51,7 +51,7 @@ MODULE pint_io
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_io'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_io'
 
    PUBLIC :: pint_write_line
    PUBLIC :: pint_write_centroids

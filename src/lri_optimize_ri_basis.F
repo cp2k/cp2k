@@ -74,7 +74,7 @@ MODULE lri_optimize_ri_basis
 
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_optimize_ri_basis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_optimize_ri_basis'
 
    PUBLIC :: optimize_lri_basis
 

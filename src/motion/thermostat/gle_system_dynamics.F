@@ -50,7 +50,7 @@ MODULE gle_system_dynamics
              gle_matrix_exp, &
              restart_gle
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gle_system_dynamics'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gle_system_dynamics'
 
 CONTAINS
 

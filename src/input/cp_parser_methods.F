@@ -46,7 +46,7 @@ MODULE cp_parser_methods
              parser_search_string, parser_get_next_line, parser_skip_space, &
              parser_read_line, read_float_object
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_methods'
 
    INTERFACE parser_get_object
       MODULE PROCEDURE parser_get_integer, &

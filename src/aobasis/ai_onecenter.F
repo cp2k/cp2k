@@ -38,7 +38,7 @@ MODULE ai_onecenter
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_onecenter'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_onecenter'
 
    PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot, &
              sg_proj_ol, sg_coulomb, sg_exchange, sg_kinnuc, &

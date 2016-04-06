@@ -31,7 +31,7 @@ MODULE semi_empirical_mpole_methods
 
 ! *** Global parameters ***
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_mpole_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_mpole_methods'
 
    PUBLIC :: semi_empirical_mpole_p_setup, &
              nddo_mpole_setup, &

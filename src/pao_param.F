@@ -44,7 +44,7 @@ MODULE pao_param
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param'
 
    PUBLIC :: pao_update_AB, pao_param_count, pao_param_initial_guess
    PUBLIC :: pao_param_init, pao_param_finalize, pao_calc_U

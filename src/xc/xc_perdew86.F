@@ -54,7 +54,7 @@ MODULE xc_perdew86
                                pc1 = 0.001667_dp, &
                                pc2 = 0.002568_dp, &
                                pci = pc1+pc2
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew86'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew86'
 
 CONTAINS
 

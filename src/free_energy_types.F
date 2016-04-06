@@ -24,7 +24,7 @@ MODULE free_energy_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'free_energy_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'free_energy_types'
 
    PUBLIC :: free_energy_type, &
              fe_env_release, &

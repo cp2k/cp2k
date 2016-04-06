@@ -37,7 +37,7 @@ MODULE pint_pile
              pint_pile_release, &
              pint_calc_pile_energy
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_pile'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_pile'
 
 CONTAINS
 

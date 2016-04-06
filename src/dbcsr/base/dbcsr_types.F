@@ -32,7 +32,7 @@ MODULE dbcsr_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_types'
 
    PUBLIC :: dbcsr_obj, &
              dbcsr_type, &

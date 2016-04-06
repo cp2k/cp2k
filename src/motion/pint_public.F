@@ -23,7 +23,7 @@ MODULE pint_public
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_public'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_public'
 
    PUBLIC :: pint_com_pos
    PUBLIC :: pint_levy_walk

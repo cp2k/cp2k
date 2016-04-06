@@ -133,7 +133,7 @@ MODULE f77_interface
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'f77_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'f77_interface'
 
 ! **************************************************************************************************
    TYPE f_env_p_type

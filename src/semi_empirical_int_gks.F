@@ -38,7 +38,7 @@ MODULE semi_empirical_int_gks
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_gks'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_gks'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
    PUBLIC :: corecore_gks, rotnuc_gks, drotnuc_gks, rotint_gks, drotint_gks

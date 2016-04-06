@@ -96,7 +96,7 @@ MODULE qs_linres_module
    PRIVATE
    PUBLIC :: linres_calculation, linres_calculation_low
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
 
 CONTAINS
 

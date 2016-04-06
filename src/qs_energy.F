@@ -31,7 +31,7 @@ MODULE qs_energy
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy'
 
    PUBLIC :: qs_energies
 

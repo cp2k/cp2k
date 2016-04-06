@@ -37,7 +37,7 @@ MODULE topology_cp2k
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_cp2k'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_cp2k'
 
    PRIVATE
    PUBLIC :: read_coordinate_cp2k

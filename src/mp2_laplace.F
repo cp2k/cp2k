@@ -30,7 +30,7 @@ MODULE mp2_laplace
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_laplace'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_laplace'
 
    PUBLIC :: laplace_minimax_approx
 

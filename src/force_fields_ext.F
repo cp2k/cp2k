@@ -47,7 +47,7 @@ MODULE force_fields_ext
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_ext'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_ext'
 
    PRIVATE
    PUBLIC :: read_force_field_charmm, &

@@ -39,7 +39,7 @@ MODULE mixed_environment
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment'
    PUBLIC :: mixed_init
 
 CONTAINS

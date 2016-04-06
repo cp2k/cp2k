@@ -23,7 +23,7 @@ MODULE qs_fb_trial_fns_types
              fb_trial_fns_get, &
              fb_trial_fns_set
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
    INTEGER, PRIVATE, SAVE :: last_fb_trial_fns_id = 0
 
 ! **************************************************************************************************

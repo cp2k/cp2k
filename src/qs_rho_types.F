@@ -31,7 +31,7 @@ MODULE qs_rho_types
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_types'
 
    PUBLIC :: qs_rho_p_type, qs_rho_type
    PUBLIC :: qs_rho_retain, qs_rho_release, &

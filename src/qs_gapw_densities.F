@@ -33,7 +33,7 @@ MODULE qs_gapw_densities
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gapw_densities'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gapw_densities'
 
    PUBLIC :: prepare_gapw_den
 

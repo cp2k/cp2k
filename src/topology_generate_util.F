@@ -63,7 +63,7 @@ MODULE topology_generate_util
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_generate_util'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_generate_util'
 
    PRIVATE
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.

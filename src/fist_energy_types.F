@@ -16,7 +16,7 @@ MODULE fist_energy_types
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_energy_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_energy_types'
 
    PRIVATE
 

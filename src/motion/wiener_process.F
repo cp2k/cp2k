@@ -43,7 +43,7 @@ MODULE wiener_process
    PRIVATE
 
    ! Global parameters in this module
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wiener_process'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wiener_process'
 
    ! Public subroutines
    PUBLIC :: create_wiener_process, create_wiener_process_cv

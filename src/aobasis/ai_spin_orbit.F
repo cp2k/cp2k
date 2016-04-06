@@ -41,7 +41,7 @@ MODULE ai_spin_orbit
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_spin_orbit'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_spin_orbit'
    PRIVATE
 
    ! *** Public subroutines ***

@@ -69,7 +69,7 @@ MODULE realspace_grid_types
                                                rsgrid_automatic = 2
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
    INTEGER, SAVE, PRIVATE :: last_rs_id = 0
    INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count = 0
    INTEGER, PARAMETER, PUBLIC :: rs2pw = 11, pw2rs = 12

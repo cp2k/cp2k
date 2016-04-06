@@ -32,7 +32,7 @@ MODULE mixed_environment_utils
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment_utils'
 
    PUBLIC :: mixed_map_forces, &
              get_subsys_map_index

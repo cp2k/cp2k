@@ -75,7 +75,7 @@ MODULE bfgs_optimizer
   PRIVATE
 #include "gopt_f77_methods.h"
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
   LOGICAL, PARAMETER                       :: debug_this_module=.TRUE.
 
   PUBLIC :: geoopt_bfgs

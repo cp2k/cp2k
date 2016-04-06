@@ -40,7 +40,7 @@ MODULE xc_tfw
 
    REAL(KIND=dp) :: cf, flda, flsd, fvw
    REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tfw'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tfw'
 
 CONTAINS
 

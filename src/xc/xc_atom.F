@@ -29,7 +29,7 @@ MODULE xc_atom
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_atom'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_atom'
 
    PUBLIC :: vxc_of_r_new, xc_rho_set_atom_update, xc_2nd_deriv_of_r, fill_rho_set
 

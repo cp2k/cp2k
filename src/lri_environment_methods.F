@@ -76,7 +76,7 @@ MODULE lri_environment_methods
 
 ! **************************************************************************************************
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_methods'
 
    PUBLIC :: build_lri_matrices, calculate_lri_densities, calculate_lri_integrals, &
              calculate_lri_overlap_aabb, calculate_avec

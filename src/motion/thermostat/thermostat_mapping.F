@@ -52,7 +52,7 @@ MODULE thermostat_mapping
              init_baro_map_info
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_mapping'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_mapping'
 
 CONTAINS
 ! **************************************************************************************************

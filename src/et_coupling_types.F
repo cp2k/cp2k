@@ -19,7 +19,7 @@ MODULE et_coupling_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling_types'
 
 ! *** Public data types ***
 

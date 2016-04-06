@@ -44,7 +44,7 @@ MODULE xc_ke_gga
    REAL(KIND=dp) :: fact, tact
    REAL(KIND=dp) :: eps_rho
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_ke_gga'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_ke_gga'
 
 CONTAINS
 

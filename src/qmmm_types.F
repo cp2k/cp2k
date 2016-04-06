@@ -25,7 +25,7 @@ MODULE qmmm_types
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types'
 
    PUBLIC :: qmmm_env_type, qmmm_env_retain, qmmm_env_release, qmmm_env_get
 

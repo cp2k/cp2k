@@ -31,7 +31,7 @@ MODULE pao_input
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_input'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_input'
 
    PUBLIC :: create_pao_section, parse_pao_section, id2str
 

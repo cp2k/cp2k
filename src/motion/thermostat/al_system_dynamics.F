@@ -32,7 +32,7 @@ MODULE al_system_dynamics
    LOGICAL, PARAMETER :: debug_this_module = .FALSE.
    PUBLIC :: al_particles
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_dynamics'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_dynamics'
 
 CONTAINS
 

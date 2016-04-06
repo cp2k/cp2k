@@ -45,7 +45,7 @@ MODULE dbcsr_mp_operations
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mp_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mp_operations'
 
    ! MP routines
    PUBLIC :: hybrid_alltoall_s1, hybrid_alltoall_d1, &

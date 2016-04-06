@@ -67,7 +67,7 @@ MODULE xas_restart
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_restart'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_restart'
 
 ! *** Public subroutines ***
 

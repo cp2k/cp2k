@@ -83,7 +83,7 @@ MODULE qs_moments
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_moments'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_moments'
 
 ! *** Public subroutines ***
 

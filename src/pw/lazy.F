@@ -16,7 +16,7 @@ MODULE lazy
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lazy'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lazy'
 
 ! *** Public data types ***
 

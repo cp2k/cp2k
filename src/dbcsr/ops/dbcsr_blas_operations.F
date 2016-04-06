@@ -24,7 +24,7 @@ MODULE dbcsr_blas_operations
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_blas_operations'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_blas_operations'
 
    PUBLIC :: dbcsr_lapack_larnv, set_larnv_seed
 

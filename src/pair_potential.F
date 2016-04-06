@@ -54,7 +54,7 @@ MODULE pair_potential
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential'
    REAL(KIND=dp), PARAMETER, PRIVATE    :: MIN_HICUT_VALUE = 1.0E-15_dp, &
                                            DEFAULT_HICUT_VALUE = 1.0E3_dp
    INTEGER, PARAMETER, PRIVATE          :: MAX_POINTS = 2000000

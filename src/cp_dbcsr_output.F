@@ -49,7 +49,7 @@ MODULE cp_dbcsr_output
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_output'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_output'
 
    PUBLIC :: cp_dbcsr_write_sparse_matrix
    PUBLIC :: cp_dbcsr_write_matrix_dist

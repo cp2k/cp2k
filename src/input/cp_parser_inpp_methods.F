@@ -29,7 +29,7 @@ MODULE cp_parser_inpp_methods
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_inpp_methods'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    INTEGER, PARAMETER, PRIVATE          :: max_message_length = 400
 

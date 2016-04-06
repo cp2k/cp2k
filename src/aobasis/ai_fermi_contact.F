@@ -36,7 +36,7 @@ MODULE ai_fermi_contact
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_fermi_contact'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_fermi_contact'
 
 ! *** Public subroutines ***
    PUBLIC :: fermi_contact

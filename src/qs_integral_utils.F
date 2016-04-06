@@ -25,7 +25,7 @@ MODULE qs_integral_utils
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integral_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integral_utils'
 
 ! *** Interfaces ***
 

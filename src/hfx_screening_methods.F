@@ -39,7 +39,7 @@ MODULE hfx_screening_methods
              calc_screening_functions, &
              calc_pair_dist_radii
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_screening_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_screening_methods'
 
 !***
 

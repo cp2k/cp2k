@@ -73,7 +73,7 @@ MODULE atom_upf
    PRIVATE
    PUBLIC  :: atom_read_upf, atom_upfpot_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_upf'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_upf'
 
 ! **************************************************************************************************
 

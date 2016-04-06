@@ -38,7 +38,7 @@ MODULE qmmm_types_low
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types_low'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types_low'
    INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr = 0
    INTEGER, PARAMETER, PUBLIC :: force_mixing_label_none = -1, &
                                  force_mixing_label_QM_core_list = 10, &

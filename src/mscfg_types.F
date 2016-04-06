@@ -32,7 +32,7 @@ MODULE mscfg_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mscfg_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mscfg_types'
 
    INTEGER, PARAMETER, PUBLIC               :: mscfg_max_moset_size = 2
 

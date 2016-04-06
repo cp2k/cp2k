@@ -50,7 +50,7 @@ MODULE qs_core_energies
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_energies'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_energies'
 
    PUBLIC :: calculate_ptrace, &
              calculate_ecore_overlap, &

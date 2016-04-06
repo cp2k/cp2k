@@ -22,7 +22,7 @@ MODULE ai_coulomb_test
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_coulomb_test'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_coulomb_test'
 
    REAL(KIND=dp), PARAMETER :: threshold = 1.0E-6_dp
 

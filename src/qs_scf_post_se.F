@@ -65,7 +65,7 @@ MODULE qs_scf_post_se
    PRIVATE
 
    ! Global parameters
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_se'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_se'
    PUBLIC :: scf_post_calculation_se
 
 CONTAINS

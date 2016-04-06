@@ -64,7 +64,7 @@ MODULE se_core_core
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_core_core'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_core_core'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
    PUBLIC :: se_core_core_interaction

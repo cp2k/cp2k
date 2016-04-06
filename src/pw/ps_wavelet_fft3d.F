@@ -13,7 +13,7 @@ MODULE ps_wavelet_fft3d
  IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_fft3d'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_fft3d'
 
   ! longest fft supported, must be equal to the lenght of the ctrig array
   INTEGER, PARAMETER :: ctrig_length=8192

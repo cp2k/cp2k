@@ -64,7 +64,7 @@ MODULE optimize_basis
 
    PUBLIC :: run_optimize_basis
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis'
 
 CONTAINS
 

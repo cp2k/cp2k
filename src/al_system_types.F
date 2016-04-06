@@ -46,7 +46,7 @@ MODULE al_system_types
    END TYPE al_system_type
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'al_system_types'
 
 CONTAINS
 

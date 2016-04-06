@@ -31,7 +31,7 @@ MODULE soft_basis_set
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soft_basis_set'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soft_basis_set'
 
    INTEGER, PARAMETER :: max_name_length = 60
 

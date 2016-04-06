@@ -42,7 +42,7 @@ MODULE qs_scf_post_scptb
    IMPLICIT NONE
    PRIVATE
    ! Global parameters
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_scptb'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_scptb'
    PUBLIC :: scf_post_calculation_scptb
 
 CONTAINS

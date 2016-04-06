@@ -15,7 +15,7 @@ MODULE pair_potential_coulomb
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_coulomb'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_coulomb'
 
    PUBLIC :: potential_coulomb
 

@@ -28,7 +28,7 @@ MODULE pao_param_exp
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_exp'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_exp'
 
    PUBLIC :: pao_param_init_exp, pao_param_finalize_exp, pao_calc_U_exp
    PUBLIC :: pao_param_count_exp, pao_param_initguess_exp

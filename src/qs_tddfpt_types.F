@@ -39,7 +39,7 @@ MODULE qs_tddfpt_types
          POINTER                                       :: ao_mo_fm_pools
    END TYPE tddfpt_env_type
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_types'
 
    PRIVATE
 

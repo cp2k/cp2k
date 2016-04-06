@@ -28,7 +28,7 @@ MODULE force_field_types
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_field_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_field_types'
 
 ! *** Define the derived structure types ***
 

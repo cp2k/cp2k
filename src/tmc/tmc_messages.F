@@ -55,7 +55,7 @@ MODULE tmc_messages
 
    INTEGER, PARAMETER                         :: DEBUG = 0
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_messages'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_messages'
 
    PUBLIC :: check_if_group_master
    PUBLIC :: tmc_message

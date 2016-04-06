@@ -43,7 +43,7 @@ MODULE input_cp2k_check
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_check'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_check'
 
    PUBLIC :: check_cp2k_input, xc_functionals_expand, remove_restart_info
 

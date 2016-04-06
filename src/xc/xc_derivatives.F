@@ -123,7 +123,7 @@ MODULE xc_derivatives
    PRIVATE
 
    LOGICAL, PARAMETER          :: debug_this_module = .FALSE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivatives'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivatives'
 
    PUBLIC :: xc_functional_get_info, xc_functionals_eval, xc_functionals_get_needs
 

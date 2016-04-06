@@ -108,7 +108,7 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mpi_character_size = 1
    INTEGER, PARAMETER, PUBLIC :: mpi_integer_size = 4
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
 
 #if defined(__parallel)
    ! internal reference counter used to debug communicator leaks

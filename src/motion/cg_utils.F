@@ -34,7 +34,7 @@ MODULE cg_utils
 
    PUBLIC :: cg_linmin, get_conjugate_direction
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_utils'
 
 CONTAINS
 

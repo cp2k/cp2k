@@ -26,7 +26,7 @@ MODULE mulliken
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mulliken'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mulliken'
 
 ! *** Public subroutines ***
 

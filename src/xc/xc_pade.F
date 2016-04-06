@@ -56,7 +56,7 @@ MODULE xc_pade
                                db3 = 0.2052004607777787E+0_dp, &
                                db4 = 0.4200005045691381E-2_dp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pade'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pade'
 
    PUBLIC :: pade_lda_pw_eval, pade_lsd_pw_eval, pade_info, pade_init
 

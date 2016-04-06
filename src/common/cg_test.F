@@ -28,7 +28,7 @@ MODULE cg_test
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_test'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_test'
    PUBLIC :: clebsch_gordon_test
 
 CONTAINS

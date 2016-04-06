@@ -60,7 +60,7 @@ MODULE input_cp2k_global
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_global'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_global'
 
    PUBLIC :: create_global_section
 

@@ -53,7 +53,7 @@ MODULE cp_parser_types
    CHARACTER(LEN=default_path_length), DIMENSION(2, 1:0) :: empty_initial_variables
 
 ! *** Private parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_types'
    INTEGER, SAVE, PRIVATE               :: last_parser_id = 0
 
 ! *** Global variables ***

@@ -71,7 +71,7 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger
    IMPLICIT NONE
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics'
 
    PUBLIC :: metadyn_forces, metadyn_integrator
    PUBLIC :: metadyn_velocities_colvar, metadyn_write_colvar

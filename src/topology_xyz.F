@@ -28,7 +28,7 @@ MODULE topology_xyz
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_xyz'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_xyz'
 
    PRIVATE
    PUBLIC :: read_coordinate_xyz

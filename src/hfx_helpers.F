@@ -17,7 +17,7 @@ MODULE hfx_helpers
    PUBLIC :: count_cells_perd, &
              next_image_cell_perd
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_helpers'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_helpers'
 
 !***
 

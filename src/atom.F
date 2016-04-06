@@ -29,7 +29,7 @@ MODULE atom
    PRIVATE
    PUBLIC  :: atom_code
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom'
 
 ! **************************************************************************************************
 

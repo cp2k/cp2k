@@ -54,7 +54,7 @@ MODULE bsse
    PRIVATE
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bsse'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bsse'
 
    PUBLIC :: do_bsse_calculation
 

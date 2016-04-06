@@ -59,7 +59,7 @@ MODULE et_coupling
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'et_coupling'
 
 ! *** Public subroutines ***
 

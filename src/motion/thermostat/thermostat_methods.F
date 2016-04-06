@@ -88,7 +88,7 @@ MODULE thermostat_methods
              apply_thermostat_particles, &
              apply_thermostat_shells
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_methods'
 
 CONTAINS
 

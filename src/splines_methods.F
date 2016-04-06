@@ -24,7 +24,7 @@ MODULE splines_methods
    IMPLICIT NONE
 
    PRIVATE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'splines_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'splines_methods'
 
    PUBLIC :: init_splinexy ! allocates x and y vectors for splines
    PUBLIC :: init_spline ! generate table for spline (allocates y2)

@@ -53,7 +53,7 @@ MODULE qs_scf_output
 
    PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_output'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_output'
 
    PUBLIC :: qs_scf_loop_info, &
              qs_scf_print_summary, &

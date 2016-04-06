@@ -89,7 +89,7 @@ MODULE topology
 
    IMPLICIT NONE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology'
 
    PRIVATE
 
