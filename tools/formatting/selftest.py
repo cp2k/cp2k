@@ -1,6 +1,6 @@
 
 content = """
-MODULE module_name
+MODULE prettify_selftest
    IMPLICIT NONE
    PRIVATE
    PUBLIC :: dp, test_routine, &

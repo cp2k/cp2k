@@ -306,13 +306,9 @@ def main(argv):
 
 #=========================================================================
 def run_selftest():
-    # create temporary file
-    fh, fn = tempfile.mkstemp(suffix=".F")
-    mod_name = os.path.basename(fn)[:-2]
-
-    # fill file with example code
+    # create temporary file with example code
+    fn = os.path.join(tempfile.gettempdir(), "prettify_selftest.F")
     ref = selftest.content
-    ref = ref.replace("module_name", mod_name)
     f = open(fn, "w")
     f.write(ref)
     f.close()
