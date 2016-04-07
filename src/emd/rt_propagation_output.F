@@ -709,7 +709,7 @@ CONTAINS
          CALL pw_zero(rs%pw)
          CALL pw_zero(gs%pw)
 
-         CALL calculate_jrho_resp(zero, P_im, zero, zero, dir, dir, rs, gs, qs_env, current_env, rtp=.TRUE.)
+         CALL calculate_jrho_resp(zero, P_im, zero, zero, dir, dir, rs, gs, qs_env, current_env, retain_rsgrid=.TRUE.)
 
          stride = section_get_ivals(dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT%STRIDE")
 

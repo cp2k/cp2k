@@ -549,7 +549,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param current_env ...
 !> \param soft_valid ...
-!> \param rtp If this subroutine is called form the rtp region
+!> \param retain_rsgrid ...
 !> \note
 !>       The collocate is done in three parts, one for each density matrix
 !>       In all cases the density matrices and therefore the collocation
@@ -574,14 +574,14 @@ CONTAINS
 !>       All the terms sum up to the same grid
 ! **************************************************************************************************
    SUBROUTINE calculate_jrho_resp(mat_d0, mat_jp, mat_jp_rii, mat_jp_riii, iB, idir, &
-                                  current_rs, current_gs, qs_env, current_env, soft_valid, rtp)
+                                  current_rs, current_gs, qs_env, current_env, soft_valid, retain_rsgrid)
 
       TYPE(cp_dbcsr_type), POINTER                       :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
       TYPE(pw_p_type), INTENT(INOUT)                     :: current_rs, current_gs
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(current_env_type)                             :: current_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, rtp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, retain_rsgrid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
          routineP = moduleN//':'//routineN
@@ -597,10 +597,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
                                                             npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: atom_pair_changed, den_found, &
-                                                            den_found_a, distributed_rs_grids, &
-                                                            do_igaim, map_consistent, my_rtp, &
-                                                            my_soft
+      LOGICAL :: atom_pair_changed, den_found, den_found_a, distributed_rs_grids, do_igaim, &
+         map_consistent, my_retain_rsgrid, my_soft
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_current, my_gauge, my_rho
       REAL(KIND=dp)                                      :: eps_rho_rspace, kind_radius_a, &
                                                             kind_radius_b, Lxo2, Lyo2, Lzo2, rab2, &
@@ -659,8 +657,8 @@ CONTAINS
       mat_c => mat_jp_riii
       IF (do_igaim) mat_d => mat_d0
 
-      my_rtp = .FALSE.
-      IF (PRESENT(rtp)) my_rtp = rtp
+      my_retain_rsgrid = .FALSE.
+      IF (PRESENT(retain_rsgrid)) my_retain_rsgrid = retain_rsgrid
 
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
@@ -917,12 +915,12 @@ CONTAINS
       DO igrid_level = 1, gridlevel_info%ngrid_levels
          ! Here we need to reallocate the distributed rs_grids, which may have been reordered
          ! by distribute_tasks
-         IF (rs_descs(igrid_level)%rs_desc%distributed .AND. .NOT. my_rtp) THEN
+         IF (rs_descs(igrid_level)%rs_desc%distributed .AND. .NOT. my_retain_rsgrid) THEN
             CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
             NULLIFY (rs_rho(igrid_level)%rs_grid)
             CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
          ELSE
-            IF (.NOT. my_rtp) CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
+            IF (.NOT. my_retain_rsgrid) CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
          ENDIF
          CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
          CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
@@ -1262,7 +1260,7 @@ CONTAINS
 
       CALL density_rs2pw(pw_env, rs_current, current_rs, current_gs)
 
-      IF (ASSOCIATED(rs_rho) .AND. .NOT. my_rtp) THEN !In emd/rtp we must not deallocate rs_rho
+      IF (ASSOCIATED(rs_rho) .AND. .NOT. my_retain_rsgrid) THEN
          DO i = 1, SIZE(rs_rho)
             CALL rs_grid_release(rs_rho(i)%rs_grid)
          END DO
