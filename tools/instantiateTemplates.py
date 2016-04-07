@@ -5,7 +5,6 @@ from sys import argv
 import prettify
 from formatting import normalizeFortranFile
 from formatting import replacer
-from formatting import addSynopsis
 
 def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
   import re
