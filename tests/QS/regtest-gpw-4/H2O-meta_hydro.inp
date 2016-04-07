@@ -76,10 +76,10 @@
       ROO 5.5
       ROH 2.2
       NH  2.2
-      PNH 8
-      QNH 16
-      PNO 8
-      QNO 16
+      POH 8
+      QOH 16
+      POO 8
+      QOO 16
       LAMBDA 10.
      &END HYDRONIUM
     &END COLVAR

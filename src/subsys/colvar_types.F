@@ -189,11 +189,11 @@ MODULE colvar_types
    TYPE hydronium_colvar_type
       INTEGER                         :: n_oxygens, &
                                          n_hydrogens, &
-                                         pnh, qnh, pno, qno, &
-                                         p, q
-      INTEGER, POINTER, DIMENSION(:) :: i_oxygens, &
-                                        i_hydrogens
-      REAL(KIND=dp)                   :: r_OO, r_OH, lambda, nh
+                                         poh, qoh, poo, qoo, &
+                                         pm, qm
+      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens, &
+                                         i_hydrogens
+      REAL(KIND=dp)                   :: roo, roh, lambda, nh
    END TYPE hydronium_colvar_type
 ! **************************************************************************************************
    TYPE acid_hyd_dist_colvar_type
@@ -201,8 +201,8 @@ MODULE colvar_types
                                          n_oxygens_acid, &
                                          n_hydrogens, &
                                          pwoh, qwoh, paoh, qaoh, pcut, qcut
-      INTEGER, POINTER, DIMENSION(:) :: i_oxygens_water, i_oxygens_acid, &
-                                        i_hydrogens
+      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens_water, i_oxygens_acid, &
+                                         i_hydrogens
       REAL(KIND=dp)                   :: rwoh, raoh, lambda, nc
    END TYPE acid_hyd_dist_colvar_type
 
@@ -213,8 +213,8 @@ MODULE colvar_types
                                          n_hydrogens, &
                                          pwoh, qwoh, paoh, qaoh, &
                                          poo, qoo, pcut, qcut, pm, qm
-      INTEGER, POINTER, DIMENSION(:) :: i_oxygens_water, i_oxygens_acid, &
-                                        i_hydrogens
+      INTEGER, POINTER, DIMENSION(:)  :: i_oxygens_water, i_oxygens_acid, &
+                                         i_hydrogens
       REAL(KIND=dp)                   :: rwoh, raoh, roo, lambda, nc, nh
    END TYPE acid_hyd_shell_colvar_type
 
@@ -798,6 +798,8 @@ CONTAINS
             idum = idum+1
             i = colvar%hydronium_param%i_oxygens(ii)
             list(idum) = i
+            IF (ANY(colvar%hydronium_param%i_hydrogens == i)) &
+               CPABORT("COLVAR: atoms doubled in OXYGENS and HYDROGENS list")
          ENDDO
          DO ii = 1, colvar%hydronium_param%n_hydrogens
             idum = idum+1
@@ -805,6 +807,16 @@ CONTAINS
             list(idum) = i
          ENDDO
          CPASSERT(idum == np)
+         DO i = 1, np
+            DO ii = i+1, np
+               IF (list(i) == list(ii)) THEN
+                  IF (i <= colvar%hydronium_param%n_oxygens) &
+                     CPABORT("atoms doubled in OXYGENS list")
+                  IF (i > colvar%hydronium_param%n_oxygens) &
+                     CPABORT("atoms doubled in HYDROGENS list")
+               ENDIF
+            ENDDO
+         ENDDO
       CASE (acid_hyd_dist_colvar_id)
          np = colvar%acid_hyd_dist_param%n_oxygens_water &
               +colvar%acid_hyd_dist_param%n_oxygens_acid &
@@ -1494,20 +1506,20 @@ CONTAINS
          colvar_out%hydronium_param%n_hydrogens = colvar_in%hydronium_param%n_hydrogens
          colvar_out%hydronium_param%n_oxygens = colvar_in%hydronium_param%n_oxygens
          colvar_out%hydronium_param%nh = colvar_in%hydronium_param%nh
-         colvar_out%hydronium_param%pnh = colvar_in%hydronium_param%pnh
-         colvar_out%hydronium_param%pno = colvar_in%hydronium_param%pno
-         colvar_out%hydronium_param%qnh = colvar_in%hydronium_param%qnh
-         colvar_out%hydronium_param%qno = colvar_in%hydronium_param%qno
-         colvar_out%hydronium_param%p = colvar_in%hydronium_param%p
-         colvar_out%hydronium_param%q = colvar_in%hydronium_param%q
-         colvar_out%hydronium_param%r_OO = colvar_in%hydronium_param%r_OO
-         colvar_out%hydronium_param%r_OH = colvar_in%hydronium_param%r_OH
+         colvar_out%hydronium_param%poh = colvar_in%hydronium_param%poh
+         colvar_out%hydronium_param%poo = colvar_in%hydronium_param%poo
+         colvar_out%hydronium_param%qoh = colvar_in%hydronium_param%qoh
+         colvar_out%hydronium_param%qoo = colvar_in%hydronium_param%qoo
+         colvar_out%hydronium_param%pm = colvar_in%hydronium_param%pm
+         colvar_out%hydronium_param%qm = colvar_in%hydronium_param%qm
+         colvar_out%hydronium_param%roo = colvar_in%hydronium_param%roo
+         colvar_out%hydronium_param%roh = colvar_in%hydronium_param%roh
          ndim = SIZE(colvar_in%hydronium_param%i_oxygens)
          ALLOCATE (colvar_out%hydronium_param%i_oxygens(ndim))
          ndim = SIZE(colvar_in%hydronium_param%i_hydrogens)
          ALLOCATE (colvar_out%hydronium_param%i_hydrogens(ndim))
          colvar_out%hydronium_param%i_oxygens = colvar_in%hydronium_param%i_oxygens+my_offset
-         colvar_out%hydronium_param%i_hydrogens = colvar_in%hydronium_param%i_oxygens+my_offset
+         colvar_out%hydronium_param%i_hydrogens = colvar_in%hydronium_param%i_hydrogens+my_offset
       CASE (acid_hyd_dist_colvar_id)
          colvar_out%acid_hyd_dist_param%n_hydrogens = colvar_in%acid_hyd_dist_param%n_hydrogens
          colvar_out%acid_hyd_dist_param%n_oxygens_water = colvar_in%acid_hyd_dist_param%n_oxygens_water

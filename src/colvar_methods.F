@@ -466,14 +466,14 @@ CONTAINS
          END DO
          colvar%hydronium_param%n_hydrogens = ndim
 
-         CALL section_vals_val_get(hydronium_section, "ROO", r_val=colvar%hydronium_param%r_OO)
-         CALL section_vals_val_get(hydronium_section, "ROH", r_val=colvar%hydronium_param%r_OH)
-         CALL section_vals_val_get(hydronium_section, "pNH", i_val=colvar%hydronium_param%pnh)
-         CALL section_vals_val_get(hydronium_section, "qNH", i_val=colvar%hydronium_param%qnh)
-         CALL section_vals_val_get(hydronium_section, "pNO", i_val=colvar%hydronium_param%pno)
-         CALL section_vals_val_get(hydronium_section, "qNO", i_val=colvar%hydronium_param%qno)
-         CALL section_vals_val_get(hydronium_section, "p", i_val=colvar%hydronium_param%p)
-         CALL section_vals_val_get(hydronium_section, "q", i_val=colvar%hydronium_param%q)
+         CALL section_vals_val_get(hydronium_section, "ROO", r_val=colvar%hydronium_param%roo)
+         CALL section_vals_val_get(hydronium_section, "ROH", r_val=colvar%hydronium_param%roh)
+         CALL section_vals_val_get(hydronium_section, "pOH", i_val=colvar%hydronium_param%poh)
+         CALL section_vals_val_get(hydronium_section, "qOH", i_val=colvar%hydronium_param%qoh)
+         CALL section_vals_val_get(hydronium_section, "pOO", i_val=colvar%hydronium_param%poo)
+         CALL section_vals_val_get(hydronium_section, "qOO", i_val=colvar%hydronium_param%qoo)
+         CALL section_vals_val_get(hydronium_section, "pM", i_val=colvar%hydronium_param%pm)
+         CALL section_vals_val_get(hydronium_section, "qM", i_val=colvar%hydronium_param%qm)
          CALL section_vals_val_get(hydronium_section, "NH", r_val=colvar%hydronium_param%nh)
          CALL section_vals_val_get(hydronium_section, "LAMBDA", r_val=colvar%hydronium_param%lambda)
       ELSE IF (my_subsection(10) .OR. my_subsection(16)) THEN
@@ -1229,7 +1229,14 @@ CONTAINS
          CASE (distance_from_path_colvar_id)
             CPWARN("Description header for REACTION_PATH COLVAR missing!!")
          CASE (hydronium_colvar_id)
-            CPWARN("Description header for HYDRONIUM COLVAR missing!!")
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| POH', colvar%hydronium_param%poh
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| QOH', colvar%hydronium_param%qoh
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| POO', colvar%hydronium_param%poo
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| QOO', colvar%hydronium_param%qoo
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ROO', colvar%hydronium_param%roo
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ROH', colvar%hydronium_param%roh
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| NH', colvar%hydronium_param%nh
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| LAMBDA', colvar%hydronium_param%lambda
          CASE (acid_hyd_dist_colvar_id)
             WRITE (iw, '( A,T71,I10)') ' COLVARS| PAOH', colvar%acid_hyd_dist_param%paoh
             WRITE (iw, '( A,T71,I10)') ' COLVARS| QAOH', colvar%acid_hyd_dist_param%qaoh
@@ -1468,7 +1475,7 @@ CONTAINS
          CALL section_vals_val_get(section, "LAMBDA", r_val=colvar%acid_hyd_shell_param%lambda)
       END SELECT
 
-   END SUBROUTINE
+   END SUBROUTINE read_acid_hydronium_colvars
 
 ! **************************************************************************************************
 !> \brief Check and setup about the use of geometrical points instead of atoms
@@ -3181,33 +3188,28 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_colvar', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ii, jj, n_hydrogens, n_oxygens, p, &
-                                                            pnh, pno, q, qnh, qno
-      REAL(dp)                                           :: fscalar, invden, lambda, nh, num, qtot, &
-                                                            r12, r_OH, r_OO, rdist, ss(3), xij(3)
-      REAL(dp), DIMENSION(3)                             :: xpi, xpj
-      REAL(dp), DIMENSION(:)                             :: M, nhcoord, no, qloc
-
-      ALLOCATABLE                              :: nhcoord, M, &
-         qloc, no
-      REAL(dp), DIMENSION(:, :, :)               :: dfunc_nh, dfunc_no, dM
-      ALLOCATABLE                              :: dfunc_nh, dfunc_no, dM
-      TYPE(particle_list_type), POINTER        :: particles_i
-      TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: my_particles
+      INTEGER                                            :: i, ii, j, jj, n_hydrogens, n_oxygens, &
+                                                            pm, poh, poo, qm, qoh, qoo
+      REAL(dp)                                           :: drji, fscalar, invden, lambda, nh, num, &
+                                                            qtot, rji(3), roh, roo, rrel
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: M, noh, noo, qloc
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: dM, dnoh, dnoo
+      REAL(dp), DIMENSION(3)                             :: rpi, rpj
+      TYPE(particle_list_type), POINTER                  :: particles_i
+      TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
 
       n_oxygens = colvar%hydronium_param%n_oxygens
       n_hydrogens = colvar%hydronium_param%n_hydrogens
       nh = colvar%hydronium_param%nh
-      pnh = colvar%hydronium_param%pnh
-      qnh = colvar%hydronium_param%qnh
-      pno = colvar%hydronium_param%pno
-      qno = colvar%hydronium_param%qno
-      r_OO = colvar%hydronium_param%r_OO
-      r_OH = colvar%hydronium_param%r_OH
+      poh = colvar%hydronium_param%poh
+      qoh = colvar%hydronium_param%qoh
+      poo = colvar%hydronium_param%poo
+      qoo = colvar%hydronium_param%qoo
+      roo = colvar%hydronium_param%roo
+      roh = colvar%hydronium_param%roh
       lambda = colvar%hydronium_param%lambda
-      p = colvar%hydronium_param%p
-      q = colvar%hydronium_param%q
+      pm = colvar%hydronium_param%pm
+      qm = colvar%hydronium_param%qm
 
       NULLIFY (particles_i)
       CPASSERT(colvar%type_id == hydronium_colvar_id)
@@ -3219,132 +3221,110 @@ CONTAINS
          my_particles => particles_i%els
       END IF
 
-      ALLOCATE (dfunc_nh(3, n_oxygens, n_hydrogens))
-      ALLOCATE (nhcoord(n_oxygens))
+      ALLOCATE (dnoh(3, n_hydrogens, n_oxygens))
+      ALLOCATE (noh(n_oxygens))
       ALLOCATE (M(n_oxygens))
-      ALLOCATE (dM(3, n_oxygens, n_hydrogens))
+      ALLOCATE (dM(3, n_hydrogens, n_oxygens))
 
-      ALLOCATE (dfunc_no(3, n_oxygens, n_oxygens))
-      ALLOCATE (no(n_oxygens))
+      ALLOCATE (dnoo(3, n_oxygens, n_oxygens))
+      ALLOCATE (noo(n_oxygens))
 
       ALLOCATE (qloc(n_oxygens))
 
       ! Zero Arrays:
-      dfunc_nh = 0._dp
-      dfunc_no = 0._dp
+      dnoh = 0._dp
+      dnoo = 0._dp
       M = 0._dp
       dM = 0._dp
-      no = 0._dp
+      noo = 0._dp
       qloc = 0._dp
-      nhcoord = 0._dp
+      noh = 0._dp
       DO ii = 1, n_oxygens
          i = colvar%hydronium_param%i_oxygens(ii)
-         xpi(:) = my_particles(i)%r(1:3)
+         rpi(:) = my_particles(i)%r(1:3)
          ! Computing M( n ( ii ) )
          DO jj = 1, n_hydrogens
-            i = colvar%hydronium_param%i_hydrogens(jj)
-            xpj(:) = my_particles(i)%r(1:3)
-            ss = MATMUL(cell%h_inv, xpi(:)-xpj(:))
-            ss = ss-NINT(ss)
-            xij = MATMUL(cell%hmat, ss)
-            r12 = SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-            rdist = r12/r_OH
-            num = (1.0_dp-rdist**pnh)
-            invden = 1.0_dp/(1.0_dp-rdist**qnh)
-            IF (ABS(invden) < 1.e-10_dp) invden = 1.e-10_dp
-            fscalar = ((-pnh*(rdist**(pnh-1))*invden) &
-                       +num*(invden)**2*qnh*(rdist**(qnh-1)))/(r12*r_OH)
-
-            dfunc_nh(1, ii, jj) = xij(1)*fscalar
-            dfunc_nh(2, ii, jj) = xij(2)*fscalar
-            dfunc_nh(3, ii, jj) = xij(3)*fscalar
-
-            nhcoord(ii) = nhcoord(ii)+num*invden
+            j = colvar%hydronium_param%i_hydrogens(jj)
+            rpj(:) = my_particles(j)%r(1:3)
+            rji = pbc(rpj, rpi, cell)
+            drji = SQRT(SUM(rji**2))
+            rrel = drji/roh
+            num = (1.0_dp-rrel**poh)
+            invden = 1.0_dp/(1.0_dp-rrel**qoh)
+            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
+               noh(ii) = noh(ii)+num*invden
+               fscalar = ((-poh*(rrel**(poh-1))*invden) &
+                          +num*(invden)**2*qoh*(rrel**(qoh-1)))/(drji*roh)
+               dnoh(1:3, jj, ii) = rji(1:3)*fscalar
+            ELSE
+               !correct limit if rji --> roh
+               noh(ii) = noh(ii)+REAL(poh, dp)/REAL(qoh, dp)
+               fscalar = REAL(poh*(poh-qoh), dp)/(REAL(2*qoh, dp)*roh*drji)
+               dnoh(1:3, jj, ii) = rji(1:3)*fscalar
+            ENDIF
          END DO
-         M(ii) = 1.0_dp-(1.0_dp-(nhcoord(ii)/nh)**p)/ &
-                 (1.0_dp-(nhcoord(ii)/nh)**q)
+         M(ii) = 1.0_dp-(1.0_dp-(noh(ii)/nh)**pm)/ &
+                 (1.0_dp-(noh(ii)/nh)**qm)
 
          ! Computing no ( ii )
          DO jj = 1, n_oxygens
-            i = colvar%hydronium_param%i_oxygens(jj)
-            xpj(:) = my_particles(i)%r(1:3)
-            ss = MATMUL(cell%h_inv, xpi(:)-xpj(:))
-            ss = ss-NINT(ss)
-            xij = MATMUL(cell%hmat, ss)
-            r12 = SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-            IF (r12 < 1.e-3_dp) CYCLE
-            rdist = r12/r_OO
-            num = (1.0_dp-rdist**pno)
-            invden = 1.0_dp/(1.0_dp-rdist**qno)
-            IF (ABS(invden) < 1.e-10_dp) invden = 1.e-10_dp
-            fscalar = ((-pno*(rdist**(pno-1))*invden) &
-                       +num*(invden)**2*qno*(rdist**(qno-1)))/(r12*r_OO)
-
-            dfunc_no(1, ii, jj) = xij(1)*fscalar
-            dfunc_no(2, ii, jj) = xij(2)*fscalar
-            dfunc_no(3, ii, jj) = xij(3)*fscalar
-
-            no(ii) = no(ii)+num*invden
+            IF (ii == jj) CYCLE
+            j = colvar%hydronium_param%i_oxygens(jj)
+            rpj(:) = my_particles(j)%r(1:3)
+            rji = pbc(rpj, rpi, cell)
+            drji = SQRT(SUM(rji**2))
+            rrel = drji/roo
+            num = (1.0_dp-rrel**poo)
+            invden = 1.0_dp/(1.0_dp-rrel**qoo)
+            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
+               noo(ii) = noo(ii)+num*invden
+               fscalar = ((-poo*(rrel**(poo-1))*invden) &
+                          +num*(invden)**2*qoo*(rrel**(qoo-1)))/(drji*roo)
+               dnoo(1:3, jj, ii) = rji(1:3)*fscalar
+            ELSE
+               !correct limit if rji --> roo
+               noo(ii) = noo(ii)+REAL(poo, dp)/REAL(qoo, dp)
+               fscalar = REAL(poo*(poo-qoo), dp)/(REAL(2*qoo, dp)*roo*drji)
+               dnoo(1:3, jj, ii) = rji(1:3)*fscalar
+            ENDIF
          END DO
       END DO
 
       ! computing qloc and Q
       qtot = 0._dp
       DO ii = 1, n_oxygens
-         qloc(ii) = EXP(lambda*M(ii)*no(ii))
+         qloc(ii) = EXP(lambda*M(ii)*noo(ii))
          qtot = qtot+qloc(ii)
       END DO
       ! compute forces
       DO ii = 1, n_oxygens
          ! Computing f_OH
          DO jj = 1, n_hydrogens
-            dM(1, ii, jj) = (p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(1, ii, jj))/nh/ &
-                            (1.0_dp-(nhcoord(ii)/nh)**q)- &
-                            (1.0_dp-(nhcoord(ii)/nh)**p)/ &
-                            ((1.0_dp-(nhcoord(ii)/nh)**q)**2)* &
-                            q*dfunc_nh(1, ii, jj)*(nhcoord(ii)/nh)**(q-1)/nh
-            dM(2, ii, jj) = (p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(2, ii, jj))/nh/ &
-                            (1.0_dp-(nhcoord(ii)/nh)**q)- &
-                            (1.0_dp-(nhcoord(ii)/nh)**p)/ &
-                            ((1.0_dp-(nhcoord(ii)/nh)**q)**2)* &
-                            q*dfunc_nh(2, ii, jj)*(nhcoord(ii)/nh)**(q-1)/nh
-            dM(3, ii, jj) = (p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(3, ii, jj))/nh/ &
-                            (1.0_dp-(nhcoord(ii)/nh)**q)- &
-                            (1.0_dp-(nhcoord(ii)/nh)**p)/ &
-                            ((1.0_dp-(nhcoord(ii)/nh)**q)**2)* &
-                            q*dfunc_nh(3, ii, jj)*(nhcoord(ii)/nh)**(q-1)/nh
+            dM(1:3, jj, ii) = (pm*((noh(ii)/nh)**(pm-1))*dnoh(1:3, jj, ii))/nh/ &
+                              (1.0_dp-(noh(ii)/nh)**qm)- &
+                              (1.0_dp-(noh(ii)/nh)**pm)/ &
+                              ((1.0_dp-(noh(ii)/nh)**qm)**2)* &
+                              qm*dnoh(1:3, jj, ii)*(noh(ii)/nh)**(qm-1)/nh
 
-            colvar%dsdr(1, ii) = colvar%dsdr(1, ii)+qloc(ii)*dM(1, ii, jj)*no(ii)/qtot
-            colvar%dsdr(1, n_oxygens+jj) = colvar%dsdr(1, n_oxygens+jj) &
-                                           -qloc(ii)*dM(1, ii, jj)*no(ii)/qtot
-            colvar%dsdr(2, ii) = colvar%dsdr(2, ii)+qloc(ii)*dM(2, ii, jj)*no(ii)/qtot
-            colvar%dsdr(2, n_oxygens+jj) = colvar%dsdr(2, n_oxygens+jj) &
-                                           -qloc(ii)*dM(2, ii, jj)*no(ii)/qtot
-            colvar%dsdr(3, ii) = colvar%dsdr(3, ii)+qloc(ii)*dM(3, ii, jj)*no(ii)/qtot
-            colvar%dsdr(3, n_oxygens+jj) = colvar%dsdr(3, n_oxygens+jj) &
-                                           -qloc(ii)*dM(3, ii, jj)*no(ii)/qtot
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii)+qloc(ii)*dM(1:3, jj, ii)*noo(ii)/qtot
+            colvar%dsdr(1:3, n_oxygens+jj) = colvar%dsdr(1:3, n_oxygens+jj) &
+                                             -qloc(ii)*dM(1:3, jj, ii)*noo(ii)/qtot
          END DO
          ! Computing f_OO
          DO jj = 1, n_oxygens
-            colvar%dsdr(1, ii) = colvar%dsdr(1, ii)+qloc(ii)*M(ii)*dfunc_no(1, ii, jj)/qtot
-            colvar%dsdr(1, jj) = colvar%dsdr(1, jj) &
-                                 -qloc(ii)*M(ii)*dfunc_no(1, ii, jj)/qtot
-            colvar%dsdr(2, ii) = colvar%dsdr(2, ii)+qloc(ii)*M(ii)*dfunc_no(2, ii, jj)/qtot
-            colvar%dsdr(2, jj) = colvar%dsdr(2, jj) &
-                                 -qloc(ii)*M(ii)*dfunc_no(2, ii, jj)/qtot
-            colvar%dsdr(3, ii) = colvar%dsdr(3, ii)+qloc(ii)*M(ii)*dfunc_no(3, ii, jj)/qtot
-            colvar%dsdr(3, jj) = colvar%dsdr(3, jj) &
-                                 -qloc(ii)*M(ii)*dfunc_no(3, ii, jj)/qtot
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii)+qloc(ii)*M(ii)*dnoo(1:3, jj, ii)/qtot
+            colvar%dsdr(1:3, jj) = colvar%dsdr(1:3, jj) &
+                                   -qloc(ii)*M(ii)*dnoo(1:3, jj, ii)/qtot
          END DO
       END DO
 
       colvar%ss = LOG(qtot)/lambda
-      DEALLOCATE (dfunc_nh)
-      DEALLOCATE (nhcoord)
+      DEALLOCATE (dnoh)
+      DEALLOCATE (noh)
       DEALLOCATE (M)
       DEALLOCATE (dM)
-      DEALLOCATE (dfunc_no)
-      DEALLOCATE (no)
+      DEALLOCATE (dnoo)
+      DEALLOCATE (noo)
       DEALLOCATE (qloc)
    END SUBROUTINE hydronium_colvar
 

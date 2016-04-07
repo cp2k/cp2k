@@ -1303,119 +1303,117 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="hydronium", &
-                          description="Section to define the formation of a hydronium as a collective variable.", &
+                          description="Section to define the formation of a hydronium as a"// &
+                          " collective variable. Number of oxygens in the 1st shell of the"// &
+                          " hydronium. Adapted from Equation (3) in Supplementary Info of"// &
+                          " J. Am. Chem. Soc.,128, 2006, 11318, i.e. omitting the cutoff function"// &
+                          " and summing only over the oxygens of water.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      NULLIFY (keyword, subsection)
+      NULLIFY (keyword)
 
       CALL keyword_create(keyword, name="OXYGENS", &
-                          description="Specify indexes of atoms building the coordination variable. ", &
+                          description="Specifies indexes of atoms building the coordination variable."// &
+                          " Oxygens of the water molecules.", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="HYDROGENS", &
-                          description="Specify indexes of atoms building the coordination variable. ", &
+                          description="Specifies indexes of atoms building the coordination variable."// &
+                          " Hydrogens of the water molecules.", &
                           usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ROO", &
-                          variants=(/"R_OO"/), &
-                          description="Specify the ROO parameter in the coordination function.", &
-                          usage="ROO {real}", default_r_val=3.0_dp, &
-                          n_var=1)
+                          description="Specifies the rc parameter in the coordination function:"// &
+                          " number of oxygens per water oxygen.", &
+                          usage="ROO {real}", default_r_val=cp_unit_to_cp2k(value=3.0_dp, &
+                                                                            unit_str="bohr"), unit_str="bohr", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pNO", &
+      CALL keyword_create(keyword, name="pOO", &
                           variants=(/"EXPON_NUMERATORA"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
-                          "in the coordination FUNCTION.", &
-                          usage="pNO {integer}", default_i_val=6, &
+                          " in the coordination function: number of oxygens per water oxygen.", &
+                          usage="pOO {integer}", default_i_val=6, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qNO", &
+      CALL keyword_create(keyword, name="qOO", &
                           variants=(/"EXPON_DENOMINATORA"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
-                          "in the coordination FUNCTION.", &
-                          usage="qNO {integer}", default_i_val=12, &
+                          " in the coordination function: number of oxygens per water oxygen.", &
+                          usage="qOO {integer}", default_i_val=12, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ROH", &
-                          variants=(/"R_OH"/), &
-                          description="Specify the ROH parameter in the coordination function.", &
-                          usage="ROH {real}", default_r_val=3.0_dp, &
-                          n_var=1)
+                          description="Specifies the rc parameter in the coordination function: "// &
+                          " number of hydrogens per water molecule.", &
+                          usage="ROH {real}", default_r_val=cp_unit_to_cp2k(value=3.0_dp, &
+                                                                            unit_str="bohr"), unit_str="bohr", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="pNH", &
+      CALL keyword_create(keyword, name="pOH", &
                           variants=(/"EXPON_NUMERATORB"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
-                          "in the coordination FUNCTION.", &
-                          usage="pNH {integer}", default_i_val=6, &
+                          " in the coordination function: number of hydrogens per water molecule.", &
+                          usage="pOH {integer}", default_i_val=6, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="qNH", &
+      CALL keyword_create(keyword, name="qOH", &
                           variants=(/"EXPON_DENOMINATORB"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
-                          "in the coordination FUNCTION.", &
-                          usage="qNH {integer}", default_i_val=12, &
+                          " in the coordination function: number of hydrogens per water molecule.", &
+                          usage="qOH {integer}", default_i_val=12, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="NH", &
-                          variants=(/"NHtest"/), &
-                          description="Specify the NH parameter in the hydronium function.", &
+                          description="Specifies the NH parameter in the M function.", &
                           usage="NH {real}", default_r_val=3.0_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="p", &
+      CALL keyword_create(keyword, name="pM", &
                           variants=(/"EXPON_NUMERATOR"/), &
                           description="Sets the value of the numerator of the exponential factor"// &
-                          "in the coordination FUNCTION.", &
-                          usage="p {integer}", default_i_val=8, &
+                          " in the M function.", &
+                          usage="pM {integer}", default_i_val=8, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="q", &
+      CALL keyword_create(keyword, name="qM", &
                           variants=(/"EXPON_DENOMINATOR"/), &
                           description="Sets the value of the denominator of the exponential factor"// &
-                          "in the coordination FUNCTION.", &
-                          usage="q {integer}", default_i_val=16, &
+                          " in the M function.", &
+                          usage="qM {integer}", default_i_val=16, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="LAMBDA", &
-                          variants=(/"LAMBDA"/), &
                           description="Specify the LAMBDA parameter in the hydronium function.", &
                           usage="LAMBDA {real}", default_r_val=10.0_dp, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-
-      ! Must be present in each colvar and handled properly
-      CALL create_point_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
 
    END SUBROUTINE create_colvar_hydronium_section
 
@@ -1445,7 +1443,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="OXYGENS_WATER", &
                           description="Specifies indexes of atoms building the coordination variable."// &
-                          " Oxygens of water molecules. ", &
+                          " Oxygens of the water molecules. ", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -1575,7 +1573,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="OXYGENS_WATER", &
                           description="Specifies indexes of atoms building the coordination variable."// &
-                          " Oxygens of water molecules. ", &
+                          " Oxygens of the water molecules. ", &
                           usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -1648,7 +1646,7 @@ CONTAINS
       CALL keyword_create(keyword, name="pOO", &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
-                          usage="pAOH {integer}", default_i_val=6, &
+                          usage="pOO {integer}", default_i_val=6, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1656,7 +1654,7 @@ CONTAINS
       CALL keyword_create(keyword, name="qOO", &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
-                          usage="qAOH {integer}", default_i_val=12, &
+                          usage="qOO {integer}", default_i_val=12, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1671,7 +1669,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="pM", &
                           description="Sets the value of the numerator of the exponential factor"// &
-                          " in M function.", &
+                          " in the M function.", &
                           usage="pM {integer}", default_i_val=8, &
                           n_var=1)
       CALL section_add_keyword(section, keyword)
