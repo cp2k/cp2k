@@ -17,4 +17,5 @@ LIBS     = -lreflapack -lrefblas
 
 FCLOGPIPE =  > $(notdir $<).ast
 
+export LC_ALL=C
 #EOF

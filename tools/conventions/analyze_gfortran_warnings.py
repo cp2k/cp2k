@@ -62,8 +62,8 @@ def check_warnings(fn):
         if("Creating array temporary" in warning): continue
         if("quality comparison" in warning): continue
         if("Unused" in warning):
-            if("‘error’" in warning): continue
-            if("‘routinep’" in warning): continue
+            if("'error'" in warning): continue
+            if("'routinep'" in warning): continue
             if(loc_short == "cp_common_uses.f90"): continue
         if("defined but not used" in warning): continue
         if("Removing call to function" in warning): continue
@@ -75,7 +75,7 @@ def check_warnings(fn):
         if("called with an implicit interface" in warning):
             parts = warning.split()
             assert(parts[0] == "Procedure")
-            routine = parts[1].strip("'‘’").upper()
+            routine = parts[1].strip("'").upper()
             if(may_call_implicit(loc, routine)): continue
             print("%s: Routine %s called with an implicit interface."%(loc_short, routine))
         else:

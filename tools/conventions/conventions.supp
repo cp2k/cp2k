@@ -1,3 +1,7 @@
+Data file BASIS_SET copied to tests/QMMM/QS
+Data file GTH_BASIS_SETS copied to tests/QMMM/QS
+Data file MM_POTENTIAL copied to tests/QMMM/QS
+Data file POTENTIAL copied to tests/QMMM/QS
 Flag FD_DEBUG not mentioned in INSTALL
 Flag FD_DEBUG not mentioned in cp2k_flags()
 Flag FLUSH_OPT not mentioned in INSTALL
@@ -54,8 +58,6 @@ Flag __HAS_smm_stt not mentioned in INSTALL
 Flag __HAS_smm_znt not mentioned in INSTALL
 Flag __HAS_smm_ztn not mentioned in INSTALL
 Flag __HAS_smm_ztt not mentioned in INSTALL
-Flag __LIBXSMM not mentioned in INSTALL
-Flag __LIBXSMM not mentioned in cp2k_flags()
 Flag __MIC__ not mentioned in INSTALL
 Flag __MIC__ not mentioned in cp2k_flags()
 Flag __MKL not mentioned in cp2k_flags()
@@ -72,6 +74,9 @@ almo_scf_methods.F: Found WRITE statement with hardcoded unit in "newton_grad_to
 almo_scf_methods.F: Found WRITE statement with hardcoded unit in "pseudo_invert_matrix"
 almo_scf_optimizer.F: Found WRITE statement with hardcoded unit in "almo_scf_xalmo_pcg"
 base_hooks.F: Found CALL m_abort in procedure "cp_abort"
+base_hooks.F: Found STOP statement in procedure "cp__a"
+base_hooks.F: Found STOP statement in procedure "cp__b"
+base_hooks.F: Found STOP statement in procedure "cp_abort"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort"
 base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
@@ -125,8 +130,8 @@ cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
 cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon"
-cp_fm_diag.F: Unused parameter ‘vl’ declared at (1) [-Wunused-parameter]
-cp_fm_diag.F: Unused parameter ‘vu’ declared at (1) [-Wunused-parameter]
+cp_fm_diag.F: Unused parameter 'vl' declared at (1) [-Wunused-parameter]
+cp_fm_diag.F: Unused parameter 'vu' declared at (1) [-Wunused-parameter]
 cp_gemm_interface.F: Found CALL cp_fm_gemm in procedure "cp_gemm"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "active"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "cauchy"
@@ -151,7 +156,6 @@ dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_res
 dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_int_assert"
 dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_logical_assert"
 dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_not_assert"
-dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_true_assert"
 dbcsr_example_1.F: Found WRITE statement with hardcoded unit in "dbcsr_example_1"
 dbcsr_example_2.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_example_2"
 dbcsr_example_2.F: Found WRITE statement with hardcoded unit in "dbcsr_example_2"
@@ -171,7 +175,6 @@ dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "cannon_multiply
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_make_images_dense"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_cannon_multiply"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "rec_sort_index"
-dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "setup_rec_index_1d"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "setup_rec_index_2d"
 dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "build_csr_index"
 dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_csr_multiply_low"
@@ -221,7 +224,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
-environment.F: Found READ with unchecked STAT in "cp2k_get_walltime"
 erf_fn.F: Found GOTO statement in procedure "calerf"
 ewalds_multipole_debug.F: Found WRITE statement with hardcoded unit in "debug_ewald_multipoles"
 ewalds_multipole_debug.F: Found WRITE statement with hardcoded unit in "debug_ewald_multipoles_fields"
@@ -231,7 +233,7 @@ extended_system_init.F: Found WRITE statement with hardcoded unit in "init_baros
 f77_int.h: Copyright banner malformed
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
-fft_lib.F: Unused parameter ‘dp’ which has been explicitly imported at (1) [-Wunused-parameter]
+fft_lib.F: Unused parameter 'dp' which has been explicitly imported at (1) [-Wunused-parameter]
 fparser.F: Copyright banner malformed
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc"
@@ -253,9 +255,6 @@ graph_utils.F: Copyright banner malformed
 graph_utils.F: Found WRITE statement with hardcoded unit in "get_val_res"
 graphcon.F: Found GOTO statement in procedure "all_permutations"
 graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph"
-helium_methods.F: Found WRITE statement with hardcoded unit in "helium_set_solute_cell"
-helium_methods.F: Found WRITE statement with hardcoded unit in "helium_set_solute_indices"
-helium_sampling.F: Found WRITE statement with hardcoded unit in "helium_slice_metro_cyclic"
 hfx_admm_utils.F: Found WRITE statement with hardcoded unit in "create_admm_xc_section"
 hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache"
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals"
@@ -275,6 +274,7 @@ library_tests.F: Routine PILAENV called with an implicit interface.
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_aabb_test_simple"
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_ab_test_simple"
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_abc_test_simple"
+machine.F: Found OPEN statement in procedure "m_cpuinfo"
 machine_internal.F: Found CALL m_abort in procedure "m_getarg"
 machine_internal.F: Found CALL m_abort in procedure "m_getcwd"
 machine_internal.F: Found CALL m_abort in procedure "m_hostnm"
@@ -299,13 +299,11 @@ mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit inte
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
 mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
 mp2_cphf.F: Found WRITE statement with hardcoded unit in "write_array"
-mp2_ri_gpw.F: Found WRITE statement with hardcoded unit in "calculate_lmin1"
 mp2_ri_gpw.F: Found WRITE statement with hardcoded unit in "write_array"
 mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "create_w_p"
 mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "write_array"
 mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "complete_gamma"
 mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "write_array"
-pint_methods.F: Found WRITE statement with hardcoded unit in "pint_create"
 powell.F: Found GOTO statement in procedure "newuob"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho"
@@ -437,11 +435,3 @@ xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_1 called with an implicit interface
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_2 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_3 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_4 called with an implicit interface.
-Data file MM_POTENTIAL copied to tests/QMMM/QS
-Data file BASIS_SET copied to tests/QMMM/QS
-Data file POTENTIAL copied to tests/QMMM/QS
-Data file GTH_BASIS_SETS copied to tests/QMMM/QS
-machine.F: Found OPEN statement in procedure "m_cpuinfo"
-base_hooks.F: Found STOP statement in procedure "cp__a"
-base_hooks.F: Found STOP statement in procedure "cp__b"
-base_hooks.F: Found STOP statement in procedure "cp_abort"

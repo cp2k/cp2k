@@ -949,7 +949,7 @@ gen_arch_file() {
     for __flag in $__flags ; do
         eval "__${__flag}=on"
     done
-    # geneate initial arch file
+    # generate initial arch file
     cat $ARCH_FILE_TEMPLATE > $__filename
     # add additional parts
     if [ "$__CUDA" = "on" ] ; then
@@ -963,6 +963,7 @@ EOF
         cat <<EOF >> $__filename
 #
 FCLOGPIPE   =  2> \\\$(notdir \\\$<).warn
+export LC_ALL=C
 EOF
     fi
     # replace variable values in output file using eval
