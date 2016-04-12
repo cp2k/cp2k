@@ -30,7 +30,7 @@ MODULE qs_ot_types
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: &
-        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
+        cholesky_reduce, ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
         ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
@@ -65,6 +65,7 @@ MODULE qs_ot_types
       CHARACTER(LEN=4)  :: line_search_method
       CHARACTER(LEN=20) :: preconditioner_name
       INTEGER           :: preconditioner_type
+      INTEGER           :: cholesky_type
       CHARACTER(LEN=20) :: precond_solver_name
       INTEGER           :: precond_solver_type
       LOGICAL           :: safer_diis
@@ -214,6 +215,7 @@ CONTAINS
       settings%diis_m = 7
       settings%preconditioner_name = "FULL_KINETIC"
       settings%preconditioner_type = ot_precond_full_kinetic
+      settings%cholesky_type = cholesky_reduce
       settings%precond_solver_name = "CHOLESKY_INVERSE"
       settings%precond_solver_type = ot_precond_solver_inv_chol
       settings%line_search_method = "2PNT"
@@ -894,6 +896,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("READ OTSCF PRECONDITIONER: Value unknown")
       END SELECT
+      CALL section_vals_val_get(ot_section, "CHOLESKY", i_val=settings%cholesky_type)
       CALL section_vals_val_get(ot_section, "EPS_TAYLOR", r_val=settings%eps_taylor)
       CALL section_vals_val_get(ot_section, "MAX_TAYLOR", i_val=settings%max_taylor)
       CALL section_vals_val_get(ot_section, "ROTATION", l_val=settings%do_rotation)

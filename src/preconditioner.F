@@ -19,7 +19,7 @@ MODULE preconditioner
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE input_constants,                 ONLY: ot_precond_full_all,&
+   USE input_constants,                 ONLY: cholesky_reduce, ot_precond_full_all,&
                                               ot_precond_full_kinetic,&
                                               ot_precond_full_single,&
                                               ot_precond_full_single_inverse,&
@@ -91,7 +91,7 @@ CONTAINS
 !>              sparse approximate inverse at rev 14341 [Florian Schiffmann]
 ! **************************************************************************************************
    SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
-                                  matrix_t, mo_set, energy_gap, mixed_precision, convert_precond_to_dbcsr)
+                                  matrix_t, mo_set, energy_gap, mixed_precision, convert_precond_to_dbcsr,chol_type)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       INTEGER, INTENT(IN)                                :: precon_type, solver_type
@@ -100,6 +100,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       REAL(KIND=dp)                                      :: energy_gap
       LOGICAL, INTENT(IN), OPTIONAL                      :: mixed_precision, convert_precond_to_dbcsr
+      INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner', &
          routineP = moduleN//':'//routineN
@@ -193,6 +194,14 @@ CONTAINS
       ! part where the preconditioner matrix gets created and solved.
       ! This will give the matrices for later use
       my_solver_type = solver_type
+      preconditioner_env%in_use = precon_type
+      preconditioner_env%cholesky_use = cholesky_reduce
+!dbg
+!      write(*,*) PRESENT(chol_type)
+!      IF(PRESENT(chol_type))  write(*,*) chol_type, cholesky_reduce
+!      stop
+!dbg
+      IF(PRESENT(chol_type)) preconditioner_env%cholesky_use = chol_type
       preconditioner_env%in_use = precon_type
       CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff, &
                                       energy_homo, eigenvalues_ot, energy_gap, &
@@ -295,7 +304,7 @@ CONTAINS
    SUBROUTINE prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, &
                                      ot_preconditioner, prec_type, solver_type, &
                                      energy_gap, nspins, has_unit_metric, mixed_precision, &
-                                     convert_to_dbcsr)
+                                     convert_to_dbcsr,chol_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -306,6 +315,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspins
       LOGICAL, INTENT(IN), OPTIONAL                      :: has_unit_metric, mixed_precision, &
                                                             convert_to_dbcsr
+      INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner', &
          routineP = moduleN//':'//routineN
@@ -331,6 +341,10 @@ CONTAINS
       my_convert_to_dbcsr = .TRUE.
       IF (PRESENT(convert_to_dbcsr)) my_convert_to_dbcsr = convert_to_dbcsr
 
+!dbg
+!    write(*,*) PRESENT(chol_type), "chol_type", chol_type
+!    stop
+!dbg
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       para_env=para_env, &
@@ -407,7 +421,7 @@ CONTAINS
                                         mo_set=mos(icall)%mo_set, &
                                         energy_gap=energy_gap, &
                                         mixed_precision=my_mixed_precision, &
-                                        convert_precond_to_dbcsr=my_convert_to_dbcsr)
+                                        convert_precond_to_dbcsr=my_convert_to_dbcsr,chol_type=chol_type)
             END IF
          END DO
       END SELECT

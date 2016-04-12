@@ -22,7 +22,7 @@ MODULE preconditioner_types
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE input_constants,                 ONLY: ot_precond_solver_default
+   USE input_constants,                 ONLY: cholesky_reduce, ot_precond_solver_default
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -48,7 +48,7 @@ MODULE preconditioner_types
       TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history
       TYPE(cp_para_env_type), POINTER   :: para_env
       TYPE(cp_blacs_env_type), POINTER   :: ctxt
-      INTEGER :: in_use, solver, ihistory
+      INTEGER :: in_use, solver, ihistory, cholesky_use
       REAL(KIND=dp), DIMENSION(:), POINTER :: occ_evals, full_evals
       REAL(KIND=dp) :: energy_gap
       REAL(KIND=dp) :: condition_num
@@ -156,6 +156,7 @@ CONTAINS
       CALL cp_blacs_env_release(preconditioner_env%ctxt)
 
       preconditioner_env%in_use = 0
+      preconditioner_env%cholesky_use = cholesky_reduce
 
       CALL timestop(handle)
 

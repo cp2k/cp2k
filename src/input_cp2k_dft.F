@@ -5871,6 +5871,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="CHOLESKY", &
+                          description="If FULL_ALL the cholesky decomposition of the S matrix is used. "// &
+                          "Options on the algorithm to be used.", &
+                          usage="CHOLESKY REDUCE", default_i_val=cholesky_reduce, &
+                          enum_c_vals=s2a("OFF", "REDUCE", "RESTORE", "INVERSE", "INVERSE_DBCSR"), &
+                          enum_desc=s2a("The cholesky algorithm is not used", "Reduce is called", &
+                                        "Reduce is replaced by two restore", &
+                                        "Restore uses operator multiply by inverse of the triangular matrix", &
+                                        "Like inverse, but matrix stored as dbcsr, sparce matrix algebra used when possible"), &
+                          enum_i_vals=(/cholesky_off, cholesky_reduce, cholesky_restore, cholesky_inverse, cholesky_dbcsr/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+
       CALL keyword_create( &
          keyword, name="PRECOND_SOLVER", &
          description="How the preconditioner is applied to the residual.", &

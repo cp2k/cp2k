@@ -671,7 +671,8 @@ CONTAINS
                                         scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                                         scf_env%qs_ot_env(1)%settings%energy_gap, dft_control%nspins, &
                                         has_unit_metric=has_unit_metric, &
-                                        mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision)
+                                        mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision, &
+                                        chol_type=scf_env%qs_ot_env(1)%settings%cholesky_type)
 
             CALL ot_scf_init(mo_array=mos, matrix_s=orthogonality_metric, &
                              broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma, &
