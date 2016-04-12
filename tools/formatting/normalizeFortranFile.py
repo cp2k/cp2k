@@ -890,7 +890,7 @@ def normalizeModules(modules):
     # orders modules
     modules.sort(lambda x, y: cmp(x['module'], y['module']))
     for i in range(len(modules) - 1, 0, -1):
-        if modules[i]['module'] == modules[i - 1]['module']:
+        if modules[i]['module'].lower() == modules[i - 1]['module'].lower():
             if not (modules[i - 1].has_key('only') and
                     modules[i].has_key('only')):
                 raise SyntaxError('rejoining of module ' +
@@ -903,7 +903,7 @@ def normalizeModules(modules):
         if m.has_key('only'):
             m['only'].sort()
             for i in range(len(m['only']) - 1, 0, -1):
-                if m['only'][i - 1] == m['only'][i]:
+                if m['only'][i - 1].lower() == m['only'][i].lower():
                     del m['only'][i]
 
 

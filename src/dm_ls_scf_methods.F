@@ -32,8 +32,7 @@ MODULE dm_ls_scf_methods
                                               ls_s_preconditioner_none
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sign_Newton_Schulz,&
-                                              matrix_sqrt_Newton_Schulz,&
-                                              matrix_sqrt_newton_schulz
+                                              matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
