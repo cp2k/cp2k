@@ -5884,7 +5884,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create( &
          keyword, name="PRECOND_SOLVER", &
          description="How the preconditioner is applied to the residual.", &

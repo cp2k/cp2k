@@ -22,7 +22,8 @@ MODULE preconditioner_types
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE input_constants,                 ONLY: cholesky_reduce, ot_precond_solver_default
+   USE input_constants,                 ONLY: cholesky_reduce,&
+                                              ot_precond_solver_default
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 

@@ -39,13 +39,10 @@ MODULE preconditioner_makes
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE input_constants,                 ONLY: cholesky_inverse, cholesky_reduce, ot_precond_full_all,&
-                                              ot_precond_full_kinetic,&
-                                              ot_precond_full_single,&
-                                              ot_precond_full_single_inverse,&
-                                              ot_precond_s_inverse,&
-                                              ot_precond_solver_default,&
-                                              ot_precond_solver_inv_chol
+   USE input_constants,                 ONLY: &
+        cholesky_inverse, cholesky_reduce, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: preconditioner_type
 #include "./base/base_uses.f90"
@@ -249,8 +246,8 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_s, fm_s)
       CALL cp_fm_cholesky_decompose(fm_s)
 
-      SELECT CASE(preconditioner_env%cholesky_use)
-      CASE(cholesky_inverse)
+      SELECT CASE (preconditioner_env%cholesky_use)
+      CASE (cholesky_inverse)
 ! if cho inverse
          CALL cp_fm_triangular_invert(fm_s)
          CALL cp_fm_upper_to_full(fm_h, fm)
@@ -259,7 +256,7 @@ CONTAINS
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
          CALL cp_fm_triangular_multiply(fm_s, fm_h, side="L", transpose_tr=.TRUE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
-      CASE(cholesky_reduce)
+      CASE (cholesky_reduce)
          CALL cp_fm_cholesky_reduce(fm_h, fm_s)
       CASE DEFAULT
          CPABORT("cholesky type not implemented")
@@ -267,15 +264,15 @@ CONTAINS
 
       CALL choose_eigv_solver(fm_h, fm, evals)
 
-      SELECT CASE(preconditioner_env%cholesky_use)
-      CASE(cholesky_inverse)
+      SELECT CASE (preconditioner_env%cholesky_use)
+      CASE (cholesky_inverse)
          CALL cp_fm_triangular_multiply(fm_s, fm, side="L", transpose_tr=.FALSE., &
-                                        invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp) 
+                                        invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
          DO i = 1, n
             evals(i) = 1.0_dp/MAX(evals(i)-energy_homo, energy_gap)
          ENDDO
-          CALL cp_fm_to_fm(fm, fm_h)
-      CASE(cholesky_reduce)
+         CALL cp_fm_to_fm(fm, fm_h)
+      CASE (cholesky_reduce)
          CALL cp_fm_cholesky_restore(fm, n, fm_s, fm_h, "SOLVE")
          DO i = 1, n
             evals(i) = 1.0_dp/MAX(evals(i)-energy_homo, energy_gap)
@@ -412,7 +409,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_s, ortho)
       CALL cp_fm_cholesky_decompose(ortho)
 ! if cho inverse
-      IF (preconditioner_env%cholesky_use==cholesky_inverse) THEN
+      IF (preconditioner_env%cholesky_use == cholesky_inverse) THEN
          CALL cp_fm_triangular_invert(ortho)
       END IF
       ! 1) Construct a new H matrix, which has the current C0 as eigenvectors,
@@ -429,13 +426,13 @@ CONTAINS
       ! An aside, try to estimate the error on the ritz values, we'll need it later on
       CALL cp_fm_create(matrix_shc0, matrix_c0%matrix_struct, name="shc0")
 
-      SELECT CASE(preconditioner_env%cholesky_use)
-      CASE(cholesky_inverse)
+      SELECT CASE (preconditioner_env%cholesky_use)
+      CASE (cholesky_inverse)
 ! if cho inverse
-         CALL cp_fm_to_fm(matrix_hc0,matrix_shc0)
+         CALL cp_fm_to_fm(matrix_hc0, matrix_shc0)
          CALL cp_fm_triangular_multiply(ortho, matrix_shc0, side="L", transpose_tr=.TRUE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=k, alpha=1.0_dp)
-      CASE(cholesky_reduce)
+      CASE (cholesky_reduce)
          CALL cp_fm_cholesky_restore(matrix_hc0, k, ortho, matrix_shc0, "SOLVE", transa="T")
       CASE DEFAULT
          CPABORT("cholesky type not implemented")
@@ -481,22 +478,22 @@ CONTAINS
       CALL cp_gemm('N', 'T', n, n, k, 1.0_dp, matrix_hc0, matrix_sc0, 1.0_dp, matrix_tmp)
 
       ! 2) diagonalize this operator
-      SELECT CASE(preconditioner_env%cholesky_use)
-      CASE(cholesky_inverse)
+      SELECT CASE (preconditioner_env%cholesky_use)
+      CASE (cholesky_inverse)
          CALL cp_fm_triangular_multiply(ortho, matrix_tmp, side="R", transpose_tr=.FALSE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
          CALL cp_fm_triangular_multiply(ortho, matrix_tmp, side="L", transpose_tr=.TRUE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
-      CASE(cholesky_reduce)
+      CASE (cholesky_reduce)
          CALL cp_fm_cholesky_reduce(matrix_tmp, ortho)
       END SELECT
       CALL choose_eigv_solver(matrix_tmp, matrix_pre, preconditioner_env%full_evals)
-      SELECT CASE(preconditioner_env%cholesky_use)
-      CASE(cholesky_inverse)
+      SELECT CASE (preconditioner_env%cholesky_use)
+      CASE (cholesky_inverse)
          CALL cp_fm_triangular_multiply(ortho, matrix_pre, side="L", transpose_tr=.FALSE., &
-                                        invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp) 
+                                        invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
          CALL cp_fm_to_fm(matrix_pre, matrix_tmp)
-      CASE(cholesky_reduce)
+      CASE (cholesky_reduce)
          CALL cp_fm_cholesky_restore(matrix_pre, n, ortho, matrix_tmp, "SOLVE")
          CALL cp_fm_to_fm(matrix_tmp, matrix_pre)
       END SELECT

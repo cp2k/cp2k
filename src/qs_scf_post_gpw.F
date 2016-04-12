@@ -659,23 +659,23 @@ CONTAINS
          IF (do_kpoints) THEN
             CPWARN("STM not implemented for k-point calculations!")
          ELSE
-            IF (nlumo_stm>0) THEN
+            IF (nlumo_stm > 0) THEN
                ALLOCATE (unoccupied_orbs_stm(dft_control%nspins))
                ALLOCATE (unoccupied_evals_stm(dft_control%nspins))
-               CALL make_lumo(qs_env,scf_env,unoccupied_orbs_stm,unoccupied_evals_stm,&
-                              nlumo_stm,nlumos)
+               CALL make_lumo(qs_env, scf_env, unoccupied_orbs_stm, unoccupied_evals_stm, &
+                              nlumo_stm, nlumos)
             END IF
 
             CALL th_stm_image(qs_env, stm_section, particles, unoccupied_orbs_stm, &
                               unoccupied_evals_stm)
 
-            IF (nlumo_stm>0) THEN
-               DO ispin=1,dft_control%nspins
-                  DEALLOCATE(unoccupied_evals_stm(ispin)%array)
+            IF (nlumo_stm > 0) THEN
+               DO ispin = 1, dft_control%nspins
+                  DEALLOCATE (unoccupied_evals_stm(ispin)%array)
                   CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
                ENDDO
-               DEALLOCATE(unoccupied_evals_stm)
-               DEALLOCATE(unoccupied_orbs_stm)
+               DEALLOCATE (unoccupied_evals_stm)
+               DEALLOCATE (unoccupied_orbs_stm)
             END IF
          END IF
       END IF

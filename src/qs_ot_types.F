@@ -30,9 +30,9 @@ MODULE qs_ot_types
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: &
-        cholesky_reduce, ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        cholesky_reduce, ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, ot_algo_taylor_or_diag, &
+        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
+        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
         ot_precond_solver_update
