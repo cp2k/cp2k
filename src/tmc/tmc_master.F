@@ -14,7 +14,7 @@
 !>        Master also checks for incomming results and update the tree and the
 !>        acceptance ratios.
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

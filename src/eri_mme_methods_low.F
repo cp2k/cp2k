@@ -856,7 +856,7 @@ CONTAINS
 !> \param cutoff    Best cutoff
 !> \param err_mm    Minimax error
 !> \param err_c     Cutoff error
-!> \param C_mm      Scaling constant to generalize AM–GM upper bound estimate to
+!> \param C_mm      Scaling constant to generalize AM-GM upper bound estimate to
 !>                  minimax approx.
 !> \param para_env ...
 ! **************************************************************************************************
@@ -1020,7 +1020,7 @@ CONTAINS
 !> \param minimax_aw Minimax coefficients
 !> \param err_mm     Minimax error
 !> \param err_ctff   Cutoff error
-!> \param C_mm       Scaling constant to generalize AM–GM upper bound estimate to
+!> \param C_mm       Scaling constant to generalize AM-GM upper bound estimate to
 !>                   minimax approx.
 !> \param min_cutoff Whether cutoff (in) is less than minimum cutoff (limited
 !>                   by minimax approx.). In this case cutoff (out) is minimum

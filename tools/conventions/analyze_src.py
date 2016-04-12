@@ -90,17 +90,29 @@ def main():
         for c in data_files.intersection(files):
             print("Data file %s copied to %s"%(c, d))
 
-    # check linebreaks
+    # check linebreaks and encoding
     for root, dirs, files in os.walk(cp2k_dir):
-        if(any([x in root for x in (".svn", "obj", "lib", "exe",)])):
+        if(any([x in root for x in (".svn", "obj", "lib", "exe", "regtesting",)])):
             continue
         for fn in files:
             absfn = path.join(root, fn)
+            shortfn = absfn[len(cp2k_dir):]
             content = open(absfn).read()
             if('\0' in content):
                 continue # skip binary files
             if("\r\n" in content):
-                print("Text file %s contains DOS linebreaks"%absfn[len(cp2k_dir):])
+                print("Text file %s contains DOS linebreaks"%shortfn)
+
+            # check for non-ascii chars
+            if(fn.endswith(".py") and "# -*- coding: utf-8 -*-" in content):
+                continue
+            if(not re.search("[\x80-\xFF]", content)):
+                continue
+            for lineno, line in enumerate(content.split("\n")):
+                m = re.search("[\x80-\xFF]", line)
+                if(m):
+                    print("Found non-ascii char in %s line %d at position %d"%(shortfn, lineno+1, m.start(0)+1))
+
 
 #===============================================================================
 if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):

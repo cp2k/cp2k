@@ -18,7 +18,7 @@
 !>        The probilities of the single move types (performed with the
 !>        approximate potential) are only compared within the NMC move
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

@@ -7,7 +7,7 @@
 !> \brief module for printing tree structures in GraphViz dot files
 !>        for visualizing the trees
 !> \par History
-!>      12.2012 created [Mandes Schönherr]
+!>      12.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 !----------------------------------------------------------------------!

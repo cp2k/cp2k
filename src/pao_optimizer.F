@@ -138,7 +138,7 @@ CONTAINS
          IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|CG| trace_D_Gnew", trace_D_Gnew
 
          IF (trace_G_prev /= 0.0_dp) THEN
-            beta = (trace_G_new-trace_G_mix)/trace_G_prev !Polak–Ribiere
+            beta = (trace_G_new-trace_G_mix)/trace_G_prev !Polak-Ribiere
          ENDIF
 
          IF (beta < 0.0_dp) THEN
@@ -162,7 +162,7 @@ CONTAINS
    END SUBROUTINE pao_opt_newdir_cg
 
 ! **************************************************************************************************
-!> \brief Broyden–Fletcher–Goldfarb–Shanno algorithm
+!> \brief Broyden-Fletcher-Goldfarb-Shanno algorithm
 !> \param pao ...
 !> \param icycle ...
 ! **************************************************************************************************

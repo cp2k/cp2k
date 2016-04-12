@@ -17,7 +17,7 @@
 !>        - the actual cancelation routine is implemented in master module and
 !>          communication is done using the message module
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

@@ -1403,7 +1403,7 @@ CONTAINS
          expint = EXP(-x)/x
       ELSE IF (x .EQ. 0.0_dp) THEN !Another special case.
          expint = 1.0_dp/nm1
-      ELSE IF (x .GT. 1.0_dp) THEN !Lentz's algorithm (§5.2).
+      ELSE IF (x .GT. 1.0_dp) THEN !Lentz's algorithm (5.2).
          b = x+n
          c = 1.0_dp/FPMIN
          d = 1.0_dp/b

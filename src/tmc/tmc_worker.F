@@ -21,7 +21,7 @@
 !>        Communication structure (master->worker, worker->master):
 !>        - message structure is defined in TMC message module
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

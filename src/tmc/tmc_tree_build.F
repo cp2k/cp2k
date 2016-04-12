@@ -26,7 +26,7 @@
 !>        - sub tree elements will be deleted only if no reference to
 !>          any global tree element exist anymore
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

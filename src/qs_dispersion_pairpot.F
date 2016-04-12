@@ -377,19 +377,19 @@ CONTAINS
          s8 = 1.868_dp
       CASE ("B2GPPLYP")
          ! L. Goerigk and S. Grimme
-         ! J. Chem. Theory Comput. 2011, 7, 291–309; doi:10.1021/ct100466k
+         ! J. Chem. Theory Comput. 2011, 7, 291-309; doi:10.1021/ct100466k
          s6 = 0.56_dp
          sr6 = 1.586_dp
          s8 = 0.760_dp
       CASE ("B2PLYP")
          ! L. Goerigk and S. Grimme
-         ! J. Chem. Theory Comput. 2011, 7, 291–309; doi:10.1021/ct100466k
+         ! J. Chem. Theory Comput. 2011, 7, 291-309; doi:10.1021/ct100466k
          s6 = 0.64_dp
          sr6 = 1.427_dp
          s8 = 1.022_dp
       CASE ("DSD-BLYP")
          ! L. Goerigk and S. Grimme
-         ! J. Chem. Theory Comput. 2011, 7, 291–309; doi:10.1021/ct100466k
+         ! J. Chem. Theory Comput. 2011, 7, 291-309; doi:10.1021/ct100466k
          s6 = 0.50_dp
          sr6 = 1.569_dp
          s8 = 0.705_dp

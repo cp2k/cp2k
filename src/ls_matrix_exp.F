@@ -348,7 +348,7 @@ CONTAINS
    END SUBROUTINE taylor_full_complex_dbcsr
 
 ! **************************************************************************************************
-!> \brief  The Baker–Campbell–Hausdorff expansion for a purely imaginary exponent (e.g. rtp)
+!> \brief  The Baker-Campbell-Hausdorff expansion for a purely imaginary exponent (e.g. rtp)
 !>         Works for a non unitary propagator, because the density matrix is hermitian
 !> \param propagator The exponent of the matrix exponential
 !> \param density_re Real part of the density matrix

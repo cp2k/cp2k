@@ -118,7 +118,7 @@ gen_${l}_${iopt}.exists: libtest.a generate.x
 #echo -e """
 #gen_${l}_${iopt}: libtest.a
 #
-#""" >> /dev/null # $makefile_name #/dev/null
+#""" >> /dev/null # $makefile_name #/dev/null
 
 icollo=0
  echo -e """

@@ -9,7 +9,7 @@
 !>        second the tree node acceptance handling, searching etc. and
 !>        than the acceptance probability handling
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

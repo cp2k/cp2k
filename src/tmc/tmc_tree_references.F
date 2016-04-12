@@ -13,7 +13,7 @@
 !>        Hence a list of all global tree nodes, using the related subtree node,
 !>            is created.
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

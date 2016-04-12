@@ -261,7 +261,7 @@ CONTAINS
    END SUBROUTINE propagate_arnoldi
 
 ! **************************************************************************************************
-!> \brief  Propagation using the Baker–Campbell–Hausdorff expansion,
+!> \brief  Propagation using the Baker-Campbell-Hausdorff expansion,
 !>         currently only works for rtp
 !> \param rtp ...
 !> \param rtp_control ...

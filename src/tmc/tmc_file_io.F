@@ -11,7 +11,7 @@
 !>        - futrthermore (by option) just the accepted configurations
 !>          are print out to reduce the file sizes
 !> \par History
-!>      12.2012 created [Mandes Schönherr]
+!>      12.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

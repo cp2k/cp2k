@@ -7,7 +7,7 @@
 !> \brief Tree Monte Carlo entry point, set up, CPU redistribution and
 !>      input reading
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

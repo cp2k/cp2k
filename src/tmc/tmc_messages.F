@@ -11,7 +11,7 @@
 !>      3: (if existing) a message with REAL values
 !>      submessages 2 and 3 include relevant data, e.g. positions, box sizes...
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 MODULE tmc_messages

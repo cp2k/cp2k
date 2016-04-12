@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief module provides variables for the TMC analysis tool
 !> \par History
-!>      02.2013 created [Mandes Schönherr]
+!>      02.2013 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

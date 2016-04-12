@@ -302,7 +302,7 @@ CONTAINS
                           enum_c_vals=s2a("CG", "BFGS"), &
                           enum_i_vals=(/pao_opt_cg, pao_opt_bfgs/), &
                           enum_desc=s2a("Conjugate gradient algorithm", &
-                                        "Broyden–Fletcher–Goldfarb–Shanno algorithm"), &
+                                        "Broyden-Fletcher-Goldfarb-Shanno algorithm"), &
                           default_i_val=pao_opt_cg)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

@@ -365,7 +365,7 @@
 2006-03-17 16:19  arthur
 
 	* [r66] svn2html.xsl: made anchors and links for each revision
-	  based on a patch by Tobias Schäfer <tobiasschaefer@gmx.de>
+	  based on a patch by Tobias Schaefer <tobiasschaefer@gmx.de>
 
 2006-02-11 15:29  arthur
 
@@ -428,7 +428,7 @@
 2005-12-27 15:45  arthur
 
 	* [r52] svn2html.xsl: replace line breaks in log message with <br/>
-	  tags, thanks to Tobias Schäfer <tobiasschaefer@gmx.de> for the
+	  tags, thanks to Tobias Schaefer <tobiasschaefer@gmx.de> for the
 	  code
 
 2005-12-27 15:23  arthur
@@ -439,7 +439,7 @@
 2005-12-27 11:15  arthur
 
 	* [r50] svn2cl.xsl: strim trailing and double spaces and add &#10;
-	  as newline instead of &#13;, thanks to Tobias Schäfer
+	  as newline instead of &#13;, thanks to Tobias Schaefer
 	  <tobiasschaefer@gmx.de>
 
 2005-12-25 22:57  arthur
@@ -450,7 +450,7 @@
 2005-12-25 17:12  arthur
 
 	* [r47] svn2cl.sh: shell portability improvements to get it working
-	  on all tested shell/sed combinations, thanks to Jörg Sommer
+	  on all tested shell/sed combinations, thanks to Joerg Sommer
 	  <joerg@alea.gnuu.de> for pointing this out
 
 2005-12-25 17:05  arthur
@@ -474,13 +474,13 @@
 
 2005-12-25 13:10  arthur
 
-	* [r42] svn2cl.sh: clear up usage string, thanks to Tobias Schäfer
+	* [r42] svn2cl.sh: clear up usage string, thanks to Tobias Schaefer
 	  <tobiasschaefer@gmx.de>
 
 2005-12-25 13:03  arthur
 
 	* [r41] NEWS, README: apply typo fixing and documentation improving
-	  patch by Tobias Schäfer <tobiasschaefer@gmx.de>
+	  patch by Tobias Schaefer <tobiasschaefer@gmx.de>
 
 2005-12-17 20:20  arthur
 

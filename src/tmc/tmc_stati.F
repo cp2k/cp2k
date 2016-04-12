@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief tree nodes creation, searching, deallocation, references etc.
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

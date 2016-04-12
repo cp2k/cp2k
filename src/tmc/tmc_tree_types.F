@@ -23,7 +23,7 @@
 !>      The structure element "conf" is an array related to the temperature
 !>        (sorted) and points to the subtree elements.
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

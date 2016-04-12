@@ -5073,12 +5073,12 @@ CONTAINS
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF +  Sigc(E_SCF) + Sigx - vxc'
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV. ΔSigc_fit is a very conservative'
+            WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV. Sigc_fit is a very conservative'
             WRITE (unit_nr, '(T3,A)') 'estimate of the statistical error of the correlation self-energy caused by the'
             WRITE (unit_nr, '(T3,A)') 'fitting.'
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T14,2A)') 'MO        E_SCF         Sigc', &
-               '    ΔSigc_fit     Sigx-vxc         E_GW'
+               '     Sigc_fit     Sigx-vxc         E_GW'
          END IF
 
          DO n_level_gw = 1, gw_corr_lev_tot
@@ -5122,11 +5122,11 @@ CONTAINS
          IF (unit_nr > 0 .AND. print_gw_details) THEN
             WRITE (unit_nr, '(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
             WRITE (unit_nr, '(T3,A)') ' '
-            WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV. ΔSigc_fit is a very conservative'
+            WRITE (unit_nr, '(T3,A)') 'The energy unit of the following table is eV.  Sigc_fit is a very conservative'
             WRITE (unit_nr, '(T3,2A)') 'estimate of the statistical error of the fitting.'
             WRITE (unit_nr, '(T3,A)') ' '
             WRITE (unit_nr, '(T13,2A)') 'MO      E_SCF       Sigc', &
-               '  ΔSigc_fit   Sigx-vxc          Z       E_GW'
+               '   Sigc_fit   Sigx-vxc          Z       E_GW'
          END IF
 
          DO n_level_gw = 1, gw_corr_lev_tot

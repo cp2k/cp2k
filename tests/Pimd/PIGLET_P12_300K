@@ -10,7 +10,7 @@
 # and shifted so that correspond to quantum fluctuations at 
 # T=300 K
 # and that they span a range up to 
-# ωmax=3575.9286092606667 cm^-1
+# omega_max=3575.9286092606667 cm^-1
 # Raw matrix format. 
 # A MATRIX: (picoseconds^-1)
 # Matrix for normal mode: 0

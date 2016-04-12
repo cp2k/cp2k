@@ -539,7 +539,7 @@ CONTAINS
       END SELECT
 
       !Computing the necessary intermediate variables. dX_dqi is the gradient
-      !of X with respect to the coördinates of particle i.
+      !of X with respect to the coordinates of particle i.
 
       dE_dq1(1) = (t42(2)*t43(3)-t43(2)*t42(3))
       dE_dq1(2) = (-t42(1)*t43(3)+t43(1)*t42(3))

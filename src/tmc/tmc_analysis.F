@@ -7,7 +7,7 @@
 !> \brief module analyses element of the TMC tree element structure
 !>        e.g. density, radial distribution function, dipole correlation,...
 !> \par History
-!>      02.2013 created [Mandes Schönherr]
+!>      02.2013 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief calculation section for TreeMonteCarlo
 !> \par History
-!>      11.2012 created [Mandes Schönherr]
+!>      11.2012 created [Mandes Schoenherr]
 !> \author Mandes
 ! **************************************************************************************************
 

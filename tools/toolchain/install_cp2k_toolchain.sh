@@ -55,7 +55,7 @@ OPTIONS:
                           processors you have and try to use all of the
                           processors.
 --no-check-certificate    If you encounter "certificate verification" errors
-                          from wget or ones saying that "common name doesn’t
+                          from wget or ones saying that "common name doesn't
                           match requested host name" while at tarball downloading
                           stage, then the recommended solution is to install
                           the newest wget release.  Alternatively, you can use
