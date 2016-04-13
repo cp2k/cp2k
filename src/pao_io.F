@@ -128,9 +128,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: kindname, label, str_in
-      INTEGER                                            :: i1, i2, i3, iatom, ikind, &
-                                                            pao_basis_size, pao_pot_maxl, &
-                                                            pao_pot_neighbors, z
+      INTEGER                                            :: i1, i2, i3, i4, iatom, ikind, &
+                                                            pao_basis_size, pao_pot_max_projector, &
+                                                            pao_pot_maxl, pao_pot_neighbors, &
+                                                            version, z
       REAL(dp)                                           :: diff, pao_pot_beta, r1
       REAL(dp), DIMENSION(3)                             :: pos_in
       REAL(dp), DIMENSION(3, 3)                          :: hmat_in
@@ -146,11 +147,15 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set)
 
+      version = -1
       DO WHILE (.TRUE.)
          READ (unit_nr, fmt=*) label
          BACKSPACE (unit_nr)
 
-         IF (TRIM(label) == "Parametrization") THEN
+         IF (TRIM(label) == "Version") THEN
+            READ (unit_nr, fmt=*) label, version
+
+         ELSE IF (TRIM(label) == "Parametrization") THEN
             READ (unit_nr, fmt=*) label, str_in
             IF (TRIM(str_in) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
                CPABORT("Restart PAO parametrization does not match")
@@ -176,17 +181,20 @@ CONTAINS
                CPABORT("Primary Basis set does not match")
 
          ELSE IF (TRIM(label) == "PaoBasis") THEN
-            READ (unit_nr, fmt=*) label, ikind, i1, i2, i3, r1
+            READ (unit_nr, fmt=*) label, ikind, i1, i2, i3, i4, r1
             CALL get_qs_kind(qs_kind_set(ikind), &
                              pao_basis_size=pao_basis_size, &
-                             pao_potential_maxl=pao_pot_maxl, &
-                             pao_potential_neighbors=pao_pot_neighbors, &
-                             pao_potential_beta=pao_pot_beta)
+                             pao_pot_maxl=pao_pot_maxl, &
+                             pao_pot_max_projector=pao_pot_max_projector, &
+                             pao_pot_neighbors=pao_pot_neighbors, &
+                             pao_pot_beta=pao_pot_beta)
             IF (i1 /= pao_basis_size) &
                CPABORT("PAO_BASIS_SIZE does not match")
             IF (i2 /= pao_pot_maxl) &
                CPABORT("PAO_POT_MAXL does not match")
-            IF (i3 /= pao_pot_neighbors) &
+            IF (i3 /= pao_pot_max_projector) &
+               CPABORT("PAO_POT_MAX_PROJECTOR does not match")
+            IF (i4 /= pao_pot_neighbors) &
                CPABORT("PAO_POT_NEIGHBORS does not match")
             IF (r1 /= pao_pot_beta) &
                CPABORT("PAO_POT_BETA does not match")
@@ -207,6 +215,8 @@ CONTAINS
             READ (unit_nr, fmt=*) label ! just read again and ignore
          ENDIF
       ENDDO
+
+      IF (version /= 1) CPABORT("Restart PAO file-format version is wrong")
    END SUBROUTINE read_restart_header
 
 ! **************************************************************************************************
@@ -308,7 +318,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: kindname
       INTEGER                                            :: iatom, ikind, nparams, pao_basis_size, &
-                                                            pao_pot_maxl, pao_pot_neighbors, z
+                                                            pao_pot_max_projector, pao_pot_maxl, &
+                                                            pao_pot_neighbors, z
       REAL(dp)                                           :: pao_pot_beta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -322,6 +333,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set)
 
+      WRITE (unit_nr, "(A,5X,I0)") "Version", 1
       WRITE (unit_nr, "(A,5X,F20.10)") "Energy", energy
       WRITE (unit_nr, "(A,5X,I0)") "Step", pao%istep
       WRITE (unit_nr, "(A,5X,A10)") "Parametrization", id2str(pao%parameterization)
@@ -332,15 +344,16 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind_set(ikind), name=kindname, z=z)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           pao_basis_size=pao_basis_size, &
-                          pao_potential_maxl=pao_pot_maxl, &
-                          pao_potential_neighbors=pao_pot_neighbors, &
-                          pao_potential_beta=pao_pot_beta, &
+                          pao_pot_maxl=pao_pot_maxl, &
+                          pao_pot_max_projector=pao_pot_max_projector, &
+                          pao_pot_neighbors=pao_pot_neighbors, &
+                          pao_pot_beta=pao_pot_beta, &
                           basis_set=basis_set)
          CALL pao_param_count(pao, qs_env, ikind, nparams)
          WRITE (unit_nr, "(A,5X,I10,1X,A,1X,I3)") "Kind", ikind, TRIM(kindname), z
          WRITE (unit_nr, "(A,5X,I10,1X,A)") "PrimBasis", ikind, TRIM(basis_set%name)
          WRITE (unit_nr, "(A,5X,I10,1X,I3,1X,I3)", advance='no') "PaoBasis", ikind, pao_basis_size, pao_pot_maxl
-         WRITE (unit_nr, "(1X,I3,1X,F20.16)") pao_pot_neighbors, pao_pot_beta
+         WRITE (unit_nr, "(1X,I3,1X,I3,1X,F20.16)") pao_pot_max_projector, pao_pot_neighbors, pao_pot_beta
          WRITE (unit_nr, "(A,5X,I10,1X,I3)") "NParams", ikind, nparams
       ENDDO
 

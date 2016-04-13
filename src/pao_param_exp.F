@@ -83,6 +83,9 @@ CONTAINS
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
 
+      IF (pao%precondition) &
+         CPABORT("PAO preconditioning not supported for selected parametrization.")
+
       CALL timestop(handle)
    END SUBROUTINE pao_param_init_exp
 
@@ -92,9 +95,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pao_param_finalize_exp(pao)
       TYPE(pao_env_type), POINTER                        :: pao
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_exp', &
-         routineP = moduleN//':'//routineN
 
       CALL cp_dbcsr_release(pao%matrix_U0)
 

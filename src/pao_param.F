@@ -9,10 +9,10 @@
 ! **************************************************************************************************
 MODULE pao_param
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
-        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
+        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
    USE kinds,                           ONLY: dp
@@ -178,6 +178,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initial_guess', &
          routineP = moduleN//':'//routineN
 
+      TYPE(cp_dbcsr_type)                                :: matrix_tmp
+
       SELECT CASE (pao%parameterization)
       CASE (pao_exp_param)
          CALL pao_param_initguess_exp(pao)
@@ -188,6 +190,15 @@ CONTAINS
       CASE DEFAULT
          CPABORT("PAO: unkown parametrization")
       END SELECT
+
+      IF (pao%precondition) THEN
+         !TODO: multiplying a matrix into itself while retaining sparsity seems to be broken
+         CALL cp_dbcsr_init(matrix_tmp)
+         CALL cp_dbcsr_copy(matrix_tmp, pao%matrix_X)
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, matrix_tmp, &
+                                0.0_dp, pao%matrix_X, retain_sparsity=.TRUE.)
+         CALL cp_dbcsr_release(matrix_tmp)
+      ENDIF
 
    END SUBROUTINE pao_param_initial_guess
 

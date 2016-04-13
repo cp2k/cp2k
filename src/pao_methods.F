@@ -307,8 +307,13 @@ CONTAINS
       time_diff = now-pao%step_start_time
       pao%step_start_time = now
 
-      norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
-      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| gradient norm:", norm_G
+      IF (pao%precondition) THEN
+         norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G_preconed)
+         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of preconditioned gradient:", norm_G
+      ELSE
+         norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
+         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of gradient:", norm_G
+      ENDIF
 
       IF (pao%istep > 1) THEN
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| energy improvement:", energy_diff

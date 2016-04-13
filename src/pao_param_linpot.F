@@ -110,6 +110,9 @@ CONTAINS
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 
+      IF (pao%precondition) &
+         CPABORT("PAO preconditioning not supported for selected parametrization.")
+
       CALL timestop(handle)
    END SUBROUTINE pao_param_init_linpot
 
@@ -122,8 +125,6 @@ CONTAINS
 
       CALL pao_param_finalize_fock(pao)
       CALL cp_dbcsr_release(pao%matrix_V_terms)
-
-      ! pao%matrix_X is kept for the next MD step
 
    END SUBROUTINE pao_param_finalize_linpot
 

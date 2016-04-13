@@ -81,6 +81,9 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PARAMETERIZATION", i_val=pao%parameterization)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "PARAMETERIZATION", id2str(pao%parameterization)
 
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PRECONDITION", l_val=pao%precondition)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,L10)") " PAO|", "PRECONDITION", pao%precondition
+
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PENALTY_DISTANCE", r_val=pao%penalty_dist)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "PENALTY_DISTANCE", pao%penalty_dist
       IF (pao%penalty_dist < 0.0_dp) CPABORT("PAO: PENALTY_DISTANCE < 0")
@@ -219,6 +222,12 @@ CONTAINS
       CALL keyword_create(keyword, name="PENALTY_STRENGTH", &
                           description="Strength of the penalty term which prevents degenerate eigenvalues.", &
                           default_r_val=0.005_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PRECONDITION", &
+                          description="Apply a preconditioner to the parametrization.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

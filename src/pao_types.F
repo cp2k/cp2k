@@ -51,6 +51,7 @@ MODULE pao_types
       REAL(KIND=dp)                    :: step_start_time = 0.0_dp
       TYPE(linesearch_type)            :: linesearch
       LOGICAL                          :: need_initial_scf = .FALSE.
+      LOGICAL                          :: precondition = .FALSE.
 
       ! matrices
       TYPE(cp_dbcsr_type)              :: matrix_X
@@ -64,8 +65,12 @@ MODULE pao_types
       TYPE(cp_dbcsr_type)              :: matrix_G
       TYPE(cp_dbcsr_type)              :: matrix_G_prev
       TYPE(cp_dbcsr_type)              :: matrix_D
+      TYPE(cp_dbcsr_type)              :: matrix_D_preconed
+      TYPE(cp_dbcsr_type)              :: matrix_G_preconed
       TYPE(cp_dbcsr_type)              :: matrix_V_terms
       TYPE(cp_dbcsr_type)              :: matrix_BFGS
+      TYPE(cp_dbcsr_type)              :: matrix_precon
+      TYPE(cp_dbcsr_type)              :: matrix_precon_inv
 
    END TYPE
 

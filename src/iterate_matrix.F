@@ -328,24 +328,26 @@ CONTAINS
 !> \param order ...
 !> \param eps_lanczos ...
 !> \param max_iter_lanczos ...
+!> \param converged ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, eps_lanczos, max_iter_lanczos)
-
+   SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, &
+                                        eps_lanczos, max_iter_lanczos, converged)
       TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_sqrt, matrix_sqrt_inv, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
+      LOGICAL, OPTIONAL                                  :: converged
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, unit_nr
       INTEGER(KIND=int_8)                                :: flop1, flop2, flop3, flop4, flop5
-      LOGICAL                                            :: converged
+      LOGICAL                                            :: arnoldi_converged
       REAL(KIND=dp)                                      :: a, b, c, conv, d, frob_matrix, &
                                                             frob_matrix_base, max_ev, min_ev, oa, &
                                                             ob, oc, occ_matrix, od, scaling, t1, t2
@@ -360,6 +362,8 @@ CONTAINS
       ELSE
          unit_nr = -1
       ENDIF
+
+      IF (PRESENT(converged)) converged = .FALSE.
 
       ! for stability symmetry can not be assumed
       CALL cp_dbcsr_init(tmp1)
@@ -378,10 +382,10 @@ CONTAINS
 
       ! scale the matrix to get into the convergence range
       CALL cp_dbcsr_arnoldi_extremal(matrix_sqrt, max_ev, min_ev, threshold=eps_lanczos, &
-                                     max_iter=max_iter_lanczos, converged=converged)
+                                     max_iter=max_iter_lanczos, converged=arnoldi_converged)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
-         WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", converged, " threshold:", eps_lanczos
+         WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", arnoldi_converged, " threshold:", eps_lanczos
          WRITE (unit_nr, '(T6,A,1X,E12.3,E12.3)') "Est. extremal eigenvalues:", max_ev, min_ev
          WRITE (unit_nr, '(T6,A,1X,E12.3)') "Est. condition number :", max_ev/MAX(min_ev, EPSILON(min_ev))
       ENDIF
@@ -496,7 +500,10 @@ CONTAINS
          IF (abnormal_value(conv)) &
             CPABORT("conv is an abnormal value (NaN/Inf).")
 
-         IF (conv < SQRT(threshold)) EXIT
+         IF (conv < SQRT(threshold)) THEN
+            IF (PRESENT(converged)) converged = .TRUE.
+            EXIT
+         ENDIF
 
       ENDDO
 

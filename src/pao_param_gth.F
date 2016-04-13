@@ -14,11 +14,14 @@ MODULE pao_param_gth
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
+        cp_dbcsr_arnoldi_extremal, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
+        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, &
         cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
         dbcsr_distribution_mp, dbcsr_mp_group
+   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
+   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gamma1
    USE mathlib,                         ONLY: multinomial
@@ -111,6 +114,9 @@ CONTAINS
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 
+      IF (pao%precondition) &
+         CALL pao_param_gth_preconditioner(pao, qs_env, nterms)
+
       DEALLOCATE (row_blk_size, col_blk_size, nterms)
       CALL timestop(handle)
    END SUBROUTINE pao_param_init_gth
@@ -124,10 +130,107 @@ CONTAINS
 
       CALL pao_param_finalize_fock(pao)
       CALL cp_dbcsr_release(pao%matrix_V_terms)
-
-      ! matrix_X is kept for the next MD step
+      IF (pao%precondition) THEN
+         CALL cp_dbcsr_release(pao%matrix_precon)
+         CALL cp_dbcsr_release(pao%matrix_precon_inv)
+      ENDIF
 
    END SUBROUTINE pao_param_finalize_gth
+
+! **************************************************************************************************
+!> \brief Builds the preconditioner matrix_precon and matrix_precon_inv
+!> \param pao ...
+!> \param qs_env ...
+!> \param nterms ...
+! **************************************************************************************************
+   SUBROUTINE pao_param_gth_preconditioner(pao, qs_env, nterms)
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, DIMENSION(:), POINTER                     :: nterms
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_gth_preconditioner'
+
+      INTEGER                                            :: acol, arow, group, handle, i, iatom, &
+                                                            ioffset, j, jatom, joffset, m, n, &
+                                                            natoms
+      LOGICAL                                            :: arnoldi_converged, converged, found
+      REAL(dp)                                           :: eval_max, eval_min
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block, block_overlap, block_V_term
+      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(cp_dbcsr_type)                                :: matrix_gth_overlap
+      TYPE(ls_scf_env_type), POINTER                     :: ls_scf_env
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
+      group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_V_terms)))
+      natoms = SIZE(nterms)
+
+      CALL cp_dbcsr_init(matrix_gth_overlap)
+      CALL cp_dbcsr_create(matrix_gth_overlap, &
+                           template=pao%matrix_V_terms, &
+                           matrix_type="N", &
+                           row_blk_size=nterms, &
+                           col_blk_size=nterms)
+      CALL cp_dbcsr_reserve_all_blocks(matrix_gth_overlap)
+      CALL cp_dbcsr_set(matrix_gth_overlap, 0.0_dp)
+
+      DO iatom = 1, natoms
+      DO jatom = 1, natoms
+         ioffset = SUM(nterms(1:iatom-1))
+         joffset = SUM(nterms(1:jatom-1))
+         n = nterms(iatom)
+         m = nterms(jatom)
+
+         ALLOCATE (block(n, m))
+         block = 0.0_dp
+
+         CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
+         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+            CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_term)
+            CPASSERT(arow == acol)
+            DO i = 1, n
+            DO j = 1, m
+               block(i, j) = block(i, j)+SUM(block_V_term(:, ioffset+i)*block_V_term(:, joffset+j))
+            ENDDO
+            ENDDO
+         ENDDO
+         CALL cp_dbcsr_iterator_stop(iter)
+
+         CALL mp_sum(block, group)
+
+         CALL cp_dbcsr_get_block_p(matrix=matrix_gth_overlap, row=iatom, col=jatom, block=block_overlap, found=found)
+         IF (ASSOCIATED(block_overlap)) &
+            block_overlap = block
+
+         DEALLOCATE (block)
+      ENDDO
+      ENDDO
+
+      !TODO: good setting for arnoldi?
+      CALL cp_dbcsr_arnoldi_extremal(matrix_gth_overlap, eval_max, eval_min, max_iter=100, &
+                                     threshold=1e-2_dp, converged=arnoldi_converged)
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| GTH-preconditioner converged, min, max, max/min:", &
+         arnoldi_converged, eval_min, eval_max, eval_max/eval_min
+
+      CALL cp_dbcsr_init(pao%matrix_precon)
+      CALL cp_dbcsr_create(pao%matrix_precon, template=matrix_gth_overlap)
+      CALL cp_dbcsr_init(pao%matrix_precon_inv)
+      CALL cp_dbcsr_create(pao%matrix_precon_inv, template=matrix_gth_overlap)
+
+      CALL matrix_sqrt_Newton_Schulz(pao%matrix_precon_inv, pao%matrix_precon, matrix_gth_overlap, &
+                                     threshold=ls_scf_env%eps_filter, &
+                                     order=ls_scf_env%sign_sqrt_order, &
+                                     max_iter_lanczos=ls_scf_env%max_iter_lanczos, &
+                                     eps_lanczos=ls_scf_env%eps_lanczos, &
+                                     converged=converged)
+      CALL cp_dbcsr_release(matrix_gth_overlap)
+
+      IF (.NOT. converged) &
+         CPABORT("PAO: Sqrt of GTH-preconditioner did not converge.")
+
+      CALL timestop(handle)
+   END SUBROUTINE pao_param_gth_preconditioner
 
 ! **************************************************************************************************
 !> \brief Calculate new matrix U and optinally its gradient G
@@ -249,19 +352,23 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nparams
 
-      INTEGER                                            :: maxl
+      INTEGER                                            :: max_projector, maxl, ncombis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
-      CALL get_qs_kind(qs_kind_set(ikind), pao_potential_maxl=maxl)
+      CALL get_qs_kind(qs_kind_set(ikind), pao_pot_maxl=maxl, pao_pot_max_projector=max_projector)
 
       IF (maxl < 0) &
          CPABORT("GTH parametrization requires non-negative PAO_POTENTIAL%MAXL")
 
+      IF (max_projector < 0) &
+         CPABORT("GTH parametrization requires non-negative PAO_POTENTIAL%MAX_PROJECTOR")
+
       IF (MOD(maxl, 2) /= 0) &
          CPABORT("GTH parametrization requires even-numbered PAO_POTENTIAL%MAXL")
 
-      nparams = 6*(maxl/2+1)
+      ncombis = (max_projector+1)*(max_projector+2)/2
+      nparams = ncombis*(maxl/2+1)
 
    END SUBROUTINE pao_param_count_gth
 
@@ -278,36 +385,29 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
       INTEGER, INTENT(IN)                                :: iatom, jatom, kterm
 
-      INTEGER                                            :: jkind, lpot, max_shell, min_shell, shells
+      INTEGER                                            :: c, jkind, lpot, max_shell, min_shell, &
+                                                            pot_max_projector, pot_maxl
       REAL(KIND=dp)                                      :: beta, norm2, pot_beta, R_vdw
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
       CALL get_atomic_kind(particle_set(jatom)%atomic_kind, rvdw=R_vdw, kind_number=jkind)
-      CALL get_qs_kind(qs_kind_set(jkind), pao_potential_beta=pot_beta)
+      CALL get_qs_kind(qs_kind_set(jkind), pao_pot_max_projector=pot_max_projector, pao_pot_maxl=pot_maxl)
+
+      c = 0
+      outer: &
+         DO lpot = 0, pot_maxl, 2
+      DO max_shell = 0, pot_max_projector
+      DO min_shell = 0, max_shell
+         c = c+1
+         IF (c == kterm) EXIT outer
+      ENDDO
+      ENDDO
+      ENDDO outer
+
+      CALL get_qs_kind(qs_kind_set(jkind), pao_pot_beta=pot_beta)
       beta = 0.5_dp/(R_vdw*pot_beta)**2
-
-      lpot = 2*((kterm-1)/6)
-      shells = MOD(kterm-1, 6)
-
-      ! TODO: generalize for higher shells
-      SELECT CASE (shells)
-      CASE (0)
-         min_shell = 0; max_shell = 0
-      CASE (1)
-         min_shell = 1; max_shell = 1
-      CASE (2)
-         min_shell = 2; max_shell = 2
-      CASE (3)
-         min_shell = 0; max_shell = 1
-      CASE (4)
-         min_shell = 0; max_shell = 2
-      CASE (5)
-         min_shell = 1; max_shell = 2
-      CASE DEFAULT
-         CPABORT("too many shells")
-      END SELECT
 
       CALL calc_gaussian(qs_env, block_V, iatom, jatom, lpot=lpot, beta=beta, &
                          min_shell=min_shell, max_shell=max_shell)
@@ -337,7 +437,7 @@ CONTAINS
 
          ! a simplistic guess, which at least makes the atom visible to others
          block_X = 0.0_dp
-         block_X(1, 1) = 1.0_dp
+         block_X(1, 1) = 0.01_dp
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 

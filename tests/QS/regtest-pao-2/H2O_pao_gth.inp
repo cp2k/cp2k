@@ -20,9 +20,10 @@
       EXTRAPOLATION_ORDER  1
       &PAO
         PREOPT_DM_FILE H2O_ref_LS_DM_SPIN_1_RESTART.dm
-        EPS_PAO    1.0E-6
+        EPS_PAO    1.0E-5
         MAX_PAO    3000
         PARAMETERIZATION GTH
+        PRECONDITION YES
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH
@@ -59,6 +60,7 @@
       &PAO_POTENTIAL
         MAXL 2
         BETA 0.5
+        MAX_PROJECTOR 1
       &END PAO_POTENTIAL
     &END KIND
     &TOPOLOGY

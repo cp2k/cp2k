@@ -63,8 +63,8 @@ CONTAINS
                       qs_kind_set=qs_kind_set)
 
       CALL get_qs_kind(qs_kind_set(ikind), &
-                       pao_potential_maxl=pot_maxl, &
-                       pao_potential_neighbors=pot_neighbors, &
+                       pao_pot_maxl=pot_maxl, &
+                       pao_pot_neighbors=pot_neighbors, &
                        basis_set=basis_set)
 
       pot_neighbors = MIN(pot_neighbors, natoms-1)
@@ -141,9 +141,9 @@ CONTAINS
 
       CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
       CALL get_qs_kind(qs_kind_set(ikind), &
-                       pao_potential_maxl=pot_maxl, &
-                       pao_potential_neighbors=pot_neighbors, &
-                       pao_potential_beta=pot_beta, &
+                       pao_pot_maxl=pot_maxl, &
+                       pao_pot_neighbors=pot_neighbors, &
+                       pao_pot_beta=pot_beta, &
                        basis_set=basis_set)
 
       ! avoid overflows

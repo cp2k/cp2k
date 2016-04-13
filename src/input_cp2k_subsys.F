@@ -1295,7 +1295,7 @@ CONTAINS
                           description="Settings of the PAO potentials, which are atomic kind specific.")
 
       CALL keyword_create(keyword, name="MAXL", &
-                          description="Maximum angular moment of the potential's zonal harmonic.", &
+                          description="Maximum angular moment of the potential.", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1304,6 +1304,12 @@ CONTAINS
                           description="Scaling factor of the potential's Gaussian Hull functions. "// &
                           "The exponent is given by pot_exp = 0.5/(R_vdw*pot_beta)**2.", &
                           default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_PROJECTOR", &
+                          description="Maximum angular moment of the potential's projectors.", &
+                          default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
