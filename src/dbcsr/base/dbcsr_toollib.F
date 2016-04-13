@@ -38,6 +38,7 @@ MODULE dbcsr_toollib
    PUBLIC :: gcd, lcm
    ! utility routines
    PUBLIC :: sort, joaat_hash
+   PUBLIC :: ordered_search
 
    INTERFACE swap
       MODULE PROCEDURE iswap, bswap
@@ -239,5 +240,52 @@ CONTAINS
       ! In fortran the rightmost (least significant) bit is in position 0
       hash_index = INT(IBCLR(hash, 31))
    END FUNCTION joaat_hash
+
+! **************************************************************************************************
+!> \brief search a value in an ordered array of indices
+!> \param array ...
+!> \param key ...
+!> \param loc ...
+!> \param found ...
+!> \param lb ...
+!> \param ub ...
+!> \retval hash_index ...
+!> \par History
+!>       04.2015 created [Alfio Lazzaro]
+! **************************************************************************************************
+   PURE SUBROUTINE ordered_search(array, key, loc, found, lb, ub)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: array
+      INTEGER, INTENT(IN)                                :: key
+      INTEGER, INTENT(OUT)                               :: loc
+      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER, INTENT(IN), OPTIONAL                      :: lb, ub
+
+      INTEGER                                            :: high, low, val
+
+      found = .FALSE.
+      IF (PRESENT(lb)) THEN
+         low = lb
+      ELSE
+         low = LBOUND(array, 1)
+      ENDIF
+      IF (PRESENT(ub)) THEN
+         high = ub
+      ELSE
+         high = UBOUND(array, 1)
+      ENDIF
+      loc = (low+high)/2
+      DO WHILE (loc .GE. low .AND. loc .LE. high)
+         val = array(loc)
+         IF (val .EQ. key) THEN
+            found = .TRUE.
+            EXIT
+         ELSEIF (val .LT. key) THEN
+            low = loc+1
+         ELSE
+            high = loc-1
+         ENDIF
+         loc = (low+high)/2
+      ENDDO
+   END SUBROUTINE ordered_search
 
 END MODULE dbcsr_toollib

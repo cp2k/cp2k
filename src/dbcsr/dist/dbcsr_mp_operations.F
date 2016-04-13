@@ -35,7 +35,7 @@ MODULE dbcsr_mp_operations
    USE kinds,                           ONLY: real_4,&
                                               real_8
    USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_ibcast, mp_igatherv, mp_irecv, mp_iscatter, mp_isend, &
+        mp_allgather, mp_alltoall, mp_gatherv, mp_ibcast, mp_irecv, mp_iscatter, mp_isend, &
         mp_rget, mp_sendrecv, mp_type_descriptor_type, mp_type_indexed_make_c, &
         mp_type_indexed_make_d, mp_type_indexed_make_r, mp_type_indexed_make_z, mp_type_make, &
         mp_waitall, mp_win_create
@@ -55,7 +55,7 @@ MODULE dbcsr_mp_operations
    PUBLIC :: dbcsr_sendrecv_any
    PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
    PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any, dbcsr_ibcast_any
-   PUBLIC :: dbcsr_iscatterv_any, dbcsr_igatherv_any
+   PUBLIC :: dbcsr_iscatterv_any, dbcsr_gatherv_any
    PUBLIC :: dbcsr_mp_type_indexed_make_any
    ! Type helpers
    PUBLIC :: dbcsr_mp_type_from_anytype
@@ -622,23 +622,21 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Gather function of encapsulated data.
 !> \param base ...
-!> \param sendcount ...
+!> \param ub_base ...
 !> \param msg ...
 !> \param counts ...
 !> \param displs ...
 !> \param root ...
 !> \param grp ...
-!> \param request ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_igatherv_any(base, sendcount, msg, counts, displs, root, grp, request)
+   SUBROUTINE dbcsr_gatherv_any(base, ub_base, msg, counts, displs, root, grp)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: base
-      INTEGER, INTENT(IN)                                :: sendcount
+      INTEGER, INTENT(IN)                                :: ub_base
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: msg
       INTEGER, DIMENSION(:), INTENT(IN)                  :: counts, displs
       INTEGER, INTENT(IN)                                :: root, grp
-      INTEGER, INTENT(INOUT)                             :: request
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_igatherv_any', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_gatherv_any', &
          routineP = moduleN//':'//routineN
 
       IF (dbcsr_data_get_type(base) .NE. dbcsr_data_get_type(msg)) &
@@ -646,17 +644,17 @@ CONTAINS
 
       SELECT CASE (dbcsr_data_get_type (base))
       CASE (dbcsr_type_real_4)
-         CALL mp_igatherv(base%d%r_sp, sendcount, msg%d%r_sp, counts, displs, root, grp, request)
+         CALL mp_gatherv(base%d%r_sp(:ub_base), msg%d%r_sp, counts, displs, root, grp)
       CASE (dbcsr_type_real_8)
-         CALL mp_igatherv(base%d%r_dp, sendcount, msg%d%r_dp, counts, displs, root, grp, request)
+         CALL mp_gatherv(base%d%r_dp(:ub_base), msg%d%r_dp, counts, displs, root, grp)
       CASE (dbcsr_type_complex_4)
-         CALL mp_igatherv(base%d%c_sp, sendcount, msg%d%c_sp, counts, displs, root, grp, request)
+         CALL mp_gatherv(base%d%c_sp(:ub_base), msg%d%c_sp, counts, displs, root, grp)
       CASE (dbcsr_type_complex_8)
-         CALL mp_igatherv(base%d%c_dp, sendcount, msg%d%c_dp, counts, displs, root, grp, request)
+         CALL mp_gatherv(base%d%c_dp(:ub_base), msg%d%c_dp, counts, displs, root, grp)
       CASE default
          CPABORT("Incorrect data type")
       END SELECT
-   END SUBROUTINE dbcsr_igatherv_any
+   END SUBROUTINE dbcsr_gatherv_any
 
 ! **************************************************************************************************
 !> \brief ...

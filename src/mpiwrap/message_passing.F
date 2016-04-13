@@ -314,13 +314,7 @@ MODULE message_passing
          mp_gatherv_rv, &
          mp_gatherv_dv, &
          mp_gatherv_cv, &
-         mp_gatherv_zv, &
-         mp_igatherv_iv, &
-         mp_igatherv_lv, &
-         mp_igatherv_rv, &
-         mp_igatherv_dv, &
-         mp_igatherv_cv, &
-         mp_igatherv_zv
+         mp_gatherv_zv
    END INTERFACE
 
    INTERFACE mp_igatherv

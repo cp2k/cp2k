@@ -43,6 +43,7 @@ MODULE dbcsr_dist_operations
                                               dbcsr_mp_release
    USE dbcsr_toollib,                   ONLY: gcd,&
                                               lcm,&
+                                              ordered_search,&
                                               sort,&
                                               swap
    USE dbcsr_types,                     ONLY: &
@@ -338,32 +339,45 @@ CONTAINS
 !> \param[out] found          whether the block was found
 !> \param[out] block_number   returns the block number of the row
 !>                            and column
+!> \param lb_row_col ...
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 !> \param[out] transposed     (optional) whether the block is stored transposed
 !>                            according to its position
 ! **************************************************************************************************
   PURE SUBROUTINE get_stored_block_info_type(matrix, row, column,&
-       found, block_number, data_offset, transposed)
+       found, block_number, lb_row_col, data_offset, transposed)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: row, column
       LOGICAL, INTENT(OUT)                               :: found
       INTEGER, INTENT(OUT)                               :: block_number
+      INTEGER, DIMENSION(2), INTENT(INOUT), OPTIONAL     :: lb_row_col
       INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
       LOGICAL, INTENT(OUT), OPTIONAL                     :: transposed
 
-      INTEGER                                            :: blk_last, offset
+      INTEGER                                            :: blk_last, blk_offset, offset
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (matrix%row_p)) THEN
        blk_last = matrix%row_p(row+1)
+       blk_offset = 0
        IF (blk_last .GT. 0) THEN
-          CALL dbcsr_find_column(column, matrix%row_p(row)+1, blk_last,&
+          IF (PRESENT(lb_row_col)) THEN
+             IF (lb_row_col(1).EQ.row) THEN
+                blk_offset = lb_row_col(2)
+             ENDIF
+          ENDIF
+          CALL dbcsr_find_column(column, matrix%row_p(row)+blk_offset+1, blk_last,&
                matrix%col_i, matrix%blk_p,&
                block_number, found)
+          blk_offset = block_number-matrix%row_p(row)
        ELSE
           found = .FALSE.
+       ENDIF
+       IF (PRESENT(lb_row_col)) THEN
+          lb_row_col(1) = row
+          lb_row_col(2) = blk_offset
        ENDIF
     ELSE
        found = .FALSE.
@@ -398,17 +412,19 @@ CONTAINS
 !> \param[out] found          whether the block was found
 !> \param[out] block_number   returns the block number of the row
 !>                            and column; 0 if nonexistent
+!> \param lb_row_col ...
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 !> \param[out] transposed     (optional) whether the block is stored transposed
 !>                            according to its position
 ! **************************************************************************************************
   PURE SUBROUTINE get_stored_block_info_obj(matrix, row, column,&
-       found, block_number, data_offset, transposed)
+       found, block_number, lb_row_col, data_offset, transposed)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       INTEGER, INTENT(IN)                                :: row, column
       LOGICAL, INTENT(OUT)                               :: found
       INTEGER, INTENT(OUT)                               :: block_number
+      INTEGER, DIMENSION(2), INTENT(INOUT), OPTIONAL     :: lb_row_col
       INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
       LOGICAL, INTENT(OUT), OPTIONAL                     :: transposed
 
@@ -417,18 +433,18 @@ CONTAINS
     IF (PRESENT (data_offset)) THEN
        IF (PRESENT (transposed)) THEN
           CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
-               block_number, data_offset, transposed)
+               block_number, lb_row_col, data_offset, transposed)
        ELSE
           CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
-               block_number, data_offset)
+               block_number, lb_row_col, data_offset)
        ENDIF
     ELSE
        IF (PRESENT (transposed)) THEN
           CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
-               block_number, transposed=transposed)
+               block_number, lb_row_col, transposed=transposed)
        ELSE
           CALL dbcsr_get_stored_block_info (matrix%m, row, column, found,&
-               block_number)
+               block_number, lb_row_col)
        ENDIF
     ENDIF
   END SUBROUTINE get_stored_block_info_obj
@@ -1678,24 +1694,11 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: blk
       LOGICAL, INTENT(OUT)                               :: found
 
-      INTEGER                                            :: col, high, low
+      CALL ordered_search(col_i,find_col,blk,found,frst_blk,last_blk)
+      IF (found) THEN
+         found =  blk_p(blk) .NE. 0
+      ENDIF
 
-    found = .FALSE.
-    low = frst_blk
-    high = last_blk
-    blk = (low + high) / 2
-    DO WHILE (blk .GE. low .AND. blk .LE. high)
-       col = col_i(blk)
-       IF(col.EQ.find_col) THEN
-          found =  blk_p(blk) .NE. 0
-          EXIT
-       ELSEIF (col .LT. find_col) THEN
-          low = blk+1
-       ELSE
-          high = blk-1
-       ENDIF
-       blk = (low + high) / 2
-    ENDDO
   END SUBROUTINE dbcsr_find_column
 
 ! **************************************************************************************************

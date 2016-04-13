@@ -105,10 +105,11 @@ MODULE dbcsr_mm_cannon
         dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
         dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
    USE dbcsr_mp_operations,             ONLY: &
-        dbcsr_ibcast_any, dbcsr_igatherv_any, dbcsr_irecv_any, dbcsr_iscatterv_any, &
+        dbcsr_gatherv_any, dbcsr_ibcast_any, dbcsr_irecv_any, dbcsr_iscatterv_any, &
         dbcsr_isend_any, dbcsr_rget_any, dbcsr_sendrecv_any, dbcsr_win_create_any, &
         hybrid_alltoall_any, hybrid_alltoall_i1
-   USE dbcsr_operations,                ONLY: dbcsr_conjg,&
+   USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                              dbcsr_conjg,&
                                               dbcsr_copy,&
                                               dbcsr_crop_matrix,&
                                               dbcsr_filter,&
@@ -116,7 +117,8 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_scale
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                               memory_copy
-   USE dbcsr_toollib,                   ONLY: uppercase
+   USE dbcsr_toollib,                   ONLY: ordered_search,&
+                                              uppercase
    USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
                                               dbcsr_make_dense_low,&
                                               dbcsr_make_undense,&
@@ -151,10 +153,10 @@ MODULE dbcsr_mm_cannon
    USE machine,                         ONLY: default_output_unit,&
                                               m_memory
    USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_gather, mp_iallgather, mp_ibcast, mp_igatherv, mp_irecv, &
-        mp_iscatter, mp_isend, mp_isum, mp_max, mp_min, mp_request_null, mp_rget, mp_sendrecv, &
-        mp_sum, mp_testall, mp_testany, mp_wait, mp_waitall, mp_win_create, mp_win_free, &
-        mp_win_lock_all, mp_win_unlock_all
+        mp_allgather, mp_alltoall, mp_bcast, mp_gather, mp_gatherv, mp_iallgather, mp_ibcast, &
+        mp_irecv, mp_iscatter, mp_isend, mp_isum, mp_max, mp_min, mp_request_null, mp_rget, &
+        mp_sendrecv, mp_sum, mp_testall, mp_testany, mp_wait, mp_waitall, mp_win_create, &
+        mp_win_free, mp_win_lock_all, mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
@@ -221,9 +223,10 @@ MODULE dbcsr_mm_cannon
                                                 ilocal_proc = 1, &
                                                 isym_proc = 2
 
-   TYPE(dbcsr_data_obj), SAVE, PRIVATE :: local_data_scatter
+   TYPE(dbcsr_data_obj), SAVE, PRIVATE :: local_data_scatter, local_data_product_scatter
    INTEGER, PRIVATE                    :: local_meta_size_scatter, local_data_size_scatter
-   INTEGER, DIMENSION(:), SAVE, POINTER :: meta_scatter => Null(), local_meta_scatter => Null()
+   INTEGER, DIMENSION(:), SAVE, POINTER :: meta_scatter => Null(), local_meta_scatter => Null(), &
+                                           local_meta_product_scatter => Null()
    INTEGER, ALLOCATABLE, DIMENSION(:), PRIVATE :: left_total_row_counts
    INTEGER, ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_no_empty_clusters, &
                                                           left_no_empty_clusters_displ, &
@@ -244,7 +247,8 @@ MODULE dbcsr_mm_cannon
    REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_max_norms, right_max_norms, &
                                                                 left_local_max_norms, right_local_max_norms
 
-   INTEGER, DIMENSION(9), PRIVATE  :: requests
+   INTEGER, PRIVATE                :: request_count_rows
+   INTEGER, DIMENSION(8), PRIVATE  :: requests
    INTEGER, DIMENSION(4), PRIVATE  :: requests_diag
    INTEGER, DIMENSION(2), PRIVATE  :: requests_scatter
    LOGICAL, PRIVATE                :: my_use_mpi_rma
@@ -988,10 +992,7 @@ CONTAINS
                                 memory_type=memtype_product_wm(ithread)%p)
 !$OMP END PARALLEL
       ENDIF
-      product_matrix%m%nze = 0
-      product_matrix%m%row_p(:) = 0
       CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
-      product_matrix%m%nblks = 0
       product_matrix%m%valid = .FALSE.
       !
       IF (my_use_mpi_rma) THEN
@@ -1009,6 +1010,9 @@ CONTAINS
                                      f_row, l_row, f_k, l_k, &
                                      PRESENT(filter_eps))
       ELSE
+         product_matrix%m%nblks = 0
+         product_matrix%m%nze = 0
+         product_matrix%m%row_p(:) = 0
          !
          ! Right images
          CALL make_m2s(matrix_right, m2s_right, rdist_right, dense_rdist_right, &
@@ -1044,16 +1048,19 @@ CONTAINS
                                       matrix_left, matrix_right, product_matrix, &
                                       retain_sparsity=retain_sparsity, &
                                       filter_eps=filter_eps, &
-                                      flop=my_flop)
+                                      flop=my_flop, &
+                                      keep_product_data=keep_product_data)
       ELSE
          CALL cannon_multiply_low(m2s_left, m2s_right, product_matrix, &
                                   retain_sparsity=retain_sparsity, &
                                   filter_eps=filter_eps, &
                                   flop=my_flop)
+         CALL dbcsr_finalize(product_matrix)
       ENDIF
       !
       IF (PRESENT(flop)) THEN
-         ! return the average number of flops per MPI rank. Variance (which is fairly large) could be computed as well.
+         ! return the average number of flops per MPI rank.
+         ! Variance (which is fairly large) could be computed as well.
          CALL timeset(routineN//"_mpsum_flop", handle2)
          comm = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(matrix_c)))
          numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(dbcsr_distribution(matrix_c)))
@@ -1061,8 +1068,6 @@ CONTAINS
          flop = (my_flop+numnodes-1)/numnodes
          CALL timestop(handle2)
       ENDIF
-      !
-      CALL dbcsr_finalize(product_matrix)
       !
       IF (new_left) CALL dbcsr_release(matrix_left)
       IF (new_right) CALL dbcsr_release(matrix_right)
@@ -1363,19 +1368,20 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: blk, blk_p, bp, col, col_img, col_size, data_size, data_size_diag, data_type, &
-         diag_no_empty_clusters, dst_proc, g2l_img_ref, grp, handle, iproc, irequests, it, &
-         ithread, local_no_empty_clusters, meta_size, meta_size_diag, meta_size_diag_scatter, &
-         mygrp, mygrp_scatter, mynode, mypcol, myprow, myt, nblkcols_local, nblkrows_local, &
-         nblocks, ncols_images, nimages_merged, nimages_unmerged, nprocs, nprocs_scatter, &
-         nrows_images, nsymmetries, nthreads, nze, pcol, pdiag, prow, request_data_size_diag, &
-         request_data_size_scatter, request_meta_size_diag, request_meta_size_scatter
-      INTEGER :: request_no_empty_clusters, row, row_img, row_size, scatter_clusters, &
-         scatter_clusters_proc, size_index_unmerged, stored_col, stored_row, sym_p, symmetry_i, &
-         total_no_empty_clusters, tr_col_size, tr_row_size
+         dst_proc, g2l_img_ref, grp, handle, iproc, irequests, it, ithread, &
+         local_no_empty_clusters, meta_size, meta_size_diag, meta_size_diag_scatter, mygrp, &
+         mygrp_scatter, mynode, mypcol, myprow, myt, nblkcols_local, nblkrows_local, nblocks, &
+         ncols_images, nimages_merged, nimages_unmerged, nprocs, nprocs_scatter, nrows_images, &
+         nsymmetries, nthreads, nze, pcol, pdiag, prow, request_data_size_diag, &
+         request_data_size_scatter, request_meta_size_diag, request_meta_size_scatter, &
+         request_no_empty_clusters, row
+      INTEGER :: row_img, row_size, scatter_clusters, scatter_clusters_proc, size_index_unmerged, &
+         stored_col, stored_row, sym_p, symmetry_i, total_no_empty_clusters, tr_col_size, &
+         tr_row_size
       INTEGER, ALLOCATABLE, DIMENSION(:) :: data_displ_scatter, data_size_scatter, g2l_map_cols, &
          g2l_map_cols_merge, g2l_map_rows, g2l_map_rows_merge, img_map, img_refs, img_refs_cols, &
-         img_refs_rows, meta_displ_cluster_scatter, meta_displ_scatter, meta_size_scatter, &
-         tmp_img_offset
+         img_refs_rows, meta_displ_cluster_scatter, meta_displ_scatter, meta_size_cluster_scatter, &
+         meta_size_scatter, tmp_img_offset
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: meta_recv, meta_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: local_refs_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: recv_refs
@@ -1498,7 +1504,6 @@ CONTAINS
          local_refs_displ_unmerged => left_local_refs_displ_unmerged
          mygrp = dbcsr_mp_my_row_group(mp_obj)
          requests(7) = mp_request_null
-         requests(9) = mp_request_null
          pdiag = myprow
          irequests = 1
          !
@@ -1518,12 +1523,7 @@ CONTAINS
          nimages_merged = ncols_images
          nimages_unmerged = nrows_images
          nprocs = dbcsr_mp_nprows(mp_obj)
-         ! Do not scatter data when there is a single cluster or single column proc
-         IF (nimages_unmerged .GT. 1) THEN
-            nprocs_scatter = dbcsr_mp_npcols(mp_obj)-1
-         ELSE
-            nprocs_scatter = 0
-         ENDIF
+         nprocs_scatter = dbcsr_mp_npcols(mp_obj)
          ALLOCATE (right_refs_meta_size(mypcol*nimages_merged:(mypcol+1)*nimages_merged-1, &
                                         0:nprocs*nimages_unmerged-1))
          ALLOCATE (right_local_refs_meta_size(nimages_merged, nimages_unmerged))
@@ -1554,9 +1554,11 @@ CONTAINS
             0, 0, &
             sm%nfullrows_local, &
             sm%nfullcols_local/)
-         do_scatter = nprocs_scatter .GT. 0 .AND. nimages_unmerged .GT. 1
+         ! Do not scatter data when there is a single cluster or single column proc
+         do_scatter = nprocs_scatter .GT. 1 .AND. nimages_unmerged .GT. 1
          IF (do_scatter .AND. is_diagonal) THEN
             ALLOCATE (meta_displ_cluster_scatter(nimages_unmerged))
+            ALLOCATE (meta_size_cluster_scatter(nimages_unmerged))
             meta_displ_cluster_scatter(1) = 0
          ENDIF
          local_meta_size_scatter = 0
@@ -1668,13 +1670,13 @@ CONTAINS
 !$OMP         left_total_row_counts,otf_filtering,meta_size_diag_scatter,&
 !$OMP         request_meta_size_diag,request_data_size_diag,&
 !$OMP         no_empty_clusters,local_no_empty_clusters,&
-!$OMP         request_no_empty_clusters,irequests,diag_no_empty_clusters,&
+!$OMP         request_no_empty_clusters,irequests,&
 !$OMP         meta_size_scatter,data_size_scatter,iproc,&
 !$OMP         scatter_clusters_proc,scatter_clusters,&
 !$OMP         request_meta_size_scatter,mygrp_scatter,do_scatter,&
 !$OMP         request_data_size_scatter,meta_displ_scatter,data_displ_scatter,&
 !$OMP         local_meta_size_scatter,local_data_size_scatter,&
-!$OMP         meta_displ_cluster_scatter,global_indices) &
+!$OMP         meta_displ_cluster_scatter,meta_size_cluster_scatter,global_indices) &
 !$OMP         REDUCTION(MAX : max_nblocks)
       ithread = 0
 !$    ithread = omp_get_thread_num()
@@ -1777,7 +1779,6 @@ CONTAINS
       !
       ! Take the displacements, taking in account the images merging
       ! Note that local diplacements refer to position 0
-      diag_no_empty_clusters = 0
       DO ui = 1, nimages_unmerged
          local_refs_displ_unmerged(imeta_displ, ui) = meta_size
          local_refs_displ_unmerged(idata_displ, ui) = data_size
@@ -1785,9 +1786,6 @@ CONTAINS
             IF (is_diagonal .AND. ui .EQ. mi) THEN
                local_refs_displ(imeta_displ, mi, ui) = meta_size_diag
                local_refs_displ(idata_displ, mi, ui) = data_size_diag
-               IF (.NOT. is_left .AND. nprocs_scatter .GT. 0) THEN
-                  meta_displ_cluster_scatter(mi) = meta_size_diag_scatter
-               ENDIF
             ELSE
                local_refs_displ(imeta_displ, mi, ui) = meta_size
                local_refs_displ(idata_displ, mi, ui) = data_size
@@ -1796,15 +1794,10 @@ CONTAINS
             local_no_empty_clusters = local_no_empty_clusters+1
             local_refs_data_size(local_no_empty_clusters) = local_refs_size(idata_size, mi, ui)
             ! Include stats slots
-            IF (do_scatter .AND. is_diagonal .AND. ui .EQ. mi) THEN
-               meta_size_diag_scatter = meta_size_diag_scatter+ &
-                                        local_refs_size(imeta_size, mi, ui)+dbcsr_num_slots
-            ENDIF
             local_refs_size(imeta_size, mi, ui) = local_refs_size(imeta_size, mi, ui)+ &
                                                   size_index_unmerged
             local_refs_meta_size(mi, ui) = local_refs_size(imeta_size, mi, ui)
             IF (is_diagonal .AND. ui .EQ. mi) THEN
-               diag_no_empty_clusters = diag_no_empty_clusters+1
                meta_size_diag = meta_size_diag+local_refs_size(imeta_size, mi, ui)
                data_size_diag = data_size_diag+local_refs_size(idata_size, mi, ui)
             ELSE
@@ -1817,18 +1810,16 @@ CONTAINS
       ! Evaluate diagonal clusters to send for the right matrix
       IF (do_scatter) THEN
          IF (is_diagonal) THEN
-            ALLOCATE (meta_size_scatter(0:nprocs_scatter), &
-                      data_size_scatter(0:nprocs_scatter), &
-                      meta_displ_scatter(0:nprocs_scatter), &
-                      data_displ_scatter(0:nprocs_scatter))
+            ALLOCATE (meta_size_scatter(0:nprocs_scatter-1), &
+                      data_size_scatter(0:nprocs_scatter-1), &
+                      meta_displ_scatter(0:nprocs_scatter-1), &
+                      data_displ_scatter(0:nprocs_scatter-1))
             meta_size_scatter(:) = 0; data_size_scatter(:) = 0
             meta_displ_scatter(0) = 0; data_displ_scatter(0) = 0
-            scatter_clusters_proc = diag_no_empty_clusters/nprocs_scatter+1
-            ui = MOD(diag_no_empty_clusters, nprocs_scatter)
-            ! Take in account diagonal to skip
-            IF (ui .GT. pdiag) ui = ui+1
+            scatter_clusters_proc = nimages_unmerged/nprocs_scatter+1
+            ui = MOD(nimages_unmerged, nprocs_scatter)
             mi = 0
-            DO iproc = 0, nprocs_scatter
+            DO iproc = 0, nprocs_scatter-1
                IF (iproc .GT. 0) THEN
                   meta_displ_scatter(iproc) = meta_displ_scatter(iproc-1)+ &
                                               meta_size_scatter(iproc-1)
@@ -1838,25 +1829,30 @@ CONTAINS
                IF (iproc .EQ. ui) THEN
                   scatter_clusters_proc = scatter_clusters_proc-1
                ENDIF
-               ! Skip diagonal proc
-               IF (iproc .EQ. pdiag) CYCLE
                scatter_clusters = 0
                DO WHILE (scatter_clusters .LT. scatter_clusters_proc)
                   mi = mi+1
-                  IF (local_refs_size(imeta_size, mi, mi) .EQ. 0) CYCLE
                   scatter_clusters = scatter_clusters+1
+                  meta_displ_cluster_scatter(mi) = meta_size_diag_scatter
+                  IF (local_refs_size(imeta_size, mi, mi) .EQ. 0) CYCLE
+                  IF (iproc .NE. pdiag) THEN
+                     meta_size_cluster_scatter(mi) = local_refs_size(imeta_size, mi, mi)+ &
+                                                     dbcsr_num_slots- &
+                                                     size_index_unmerged
+                  ELSE
+                     ! For diagonal procs the empty data to scatter are considered empty
+                     meta_size_cluster_scatter(mi) = dbcsr_num_slots
+                  ENDIF
+                  meta_size_diag_scatter = meta_size_diag_scatter+ &
+                                           meta_size_cluster_scatter(mi)
                   meta_size_scatter(iproc) = &
-                     meta_size_scatter(iproc)+local_refs_size(imeta_size, mi, mi)+ &
-                     dbcsr_num_slots-size_index_unmerged
+                     meta_size_scatter(iproc)+meta_size_cluster_scatter(mi)
                   data_size_scatter(iproc) = &
                      data_size_scatter(iproc)+local_refs_size(idata_size, mi, mi)
                ENDDO
-               ! Avoid zero size data to make MPI happy
-               IF (meta_size_scatter(iproc) .EQ. 0) THEN
-                  meta_size_scatter(iproc) = meta_size_scatter(iproc)+1
-                  data_size_scatter(iproc) = data_size_scatter(iproc)+1
-               ENDIF
             ENDDO
+            ! Skip diagonal proc
+            data_size_scatter(pdiag) = 0
             CALL ensure_array_size(meta_scatter, ub=meta_size_diag_scatter, &
                                    nocopy=.TRUE., memory_type=memtype_mpi_buffer)
          ENDIF
@@ -2144,8 +2140,7 @@ CONTAINS
                                meta_displ_cluster_scatter(mi)+dbcsr_num_slots), &
                   global_indices, dbcsr_num_slots)
                meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_size) = &
-                  meta_buffer_p(local_refs_displ(imeta_displ, mi, ui)+dbcsr_slot_size)+ &
-                  dbcsr_num_slots-size_index_unmerged
+                  meta_size_cluster_scatter(mi)
                meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_nblks) = &
                   meta_buffer_p(local_refs_displ(imeta_displ, mi, ui)+dbcsr_slot_nblks)
                meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_nze) = &
@@ -2156,17 +2151,21 @@ CONTAINS
                                      rowi=meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_home_rowi), &
                                      coli=meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_home_coli), &
                                      vprow=meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_home_vprow), &
-                                     vpcol=meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_home_vpcol), &
                                      myrowi=rowi, mycoli=coli, &
                                      shifting='0')
+               ! Considering merging of the rows
+               meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_home_vpcol) = &
+                  meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_home_pcol)
                meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_num_slots) = &
                   meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_size)
-               meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_num_slots+1: &
-                            meta_displ_cluster_scatter(mi)+ &
-                            meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_size)) = &
-                  meta_buffer_p(local_refs_displ(imeta_displ, mi, ui)+size_index_unmerged+1: &
-                                local_refs_displ(imeta_displ, mi, ui)+ &
-                                meta_buffer_p(local_refs_displ(imeta_displ, mi, ui)+dbcsr_slot_size))
+               IF (meta_size_cluster_scatter(mi) .GT. dbcsr_num_slots) THEN
+                  meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_num_slots+1: &
+                               meta_displ_cluster_scatter(mi)+ &
+                               meta_scatter(meta_displ_cluster_scatter(mi)+dbcsr_slot_size)) = &
+                     meta_buffer_p(local_refs_displ(imeta_displ, mi, ui)+size_index_unmerged+1: &
+                                   local_refs_displ(imeta_displ, mi, ui)+ &
+                                   meta_buffer_p(local_refs_displ(imeta_displ, mi, ui)+dbcsr_slot_size))
+               ENDIF
             ENDIF
          ENDDO
          !
@@ -2177,7 +2176,7 @@ CONTAINS
       DEALLOCATE (refs)
       !
       IF (is_left .AND. otf_filtering) THEN
-         CALL mp_isum(left_total_row_counts, mygrp, requests(9))
+         CALL mp_isum(left_total_row_counts, mygrp, request_count_rows)
       ENDIF
       !
       IF (nimages_merged .EQ. 1) THEN
@@ -2281,6 +2280,7 @@ CONTAINS
             CALL dbcsr_data_ensure_size(local_data_scatter, local_data_size_scatter, &
                                         nocopy=.TRUE.)
          ELSE
+            CALL dbcsr_data_init(local_data_scatter)
             CALL dbcsr_data_new(local_data_scatter, data_type=data_type, &
                                 data_size=local_data_size_scatter, memory_type=memtype_mpi_buffer)
             CALL dbcsr_data_set_size_referenced(local_data_scatter, local_data_size_scatter)
@@ -2294,7 +2294,7 @@ CONTAINS
                                   myprow, mygrp_scatter, requests_scatter(2))
          !
          IF (is_diagonal) THEN
-            DEALLOCATE (meta_displ_cluster_scatter)
+            DEALLOCATE (meta_displ_cluster_scatter, meta_size_cluster_scatter)
             DEALLOCATE (meta_size_scatter, data_size_scatter, &
                         meta_displ_scatter, data_displ_scatter)
          ENDIF
@@ -3823,41 +3823,42 @@ CONTAINS
 !>                                 existing product matrix; default is no
 !> \param filter_eps ...
 !> \param[out] flop                (optional) effective flop
+!> \param keep_product_data ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE cannon_multiply_low_rma(imgdist_left, imgdist_right, &
                                       matrix_left, matrix_right, &
                                       product_matrix, &
                                       retain_sparsity, &
-                                      filter_eps, flop)
+                                      filter_eps, flop, keep_product_data)
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist_left, imgdist_right
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_left, matrix_right
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: product_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
       REAL(kind=real_8), INTENT(IN), OPTIONAL            :: filter_eps
       INTEGER(KIND=int_8), INTENT(OUT)                   :: flop
+      LOGICAL, INTENT(IN)                                :: keep_product_data
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cannon_multiply_low_rma', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: blk, data_type, data_type_byte, grp_gather, grp_left, grp_right, handle, handle2, &
-         handle3, iget, index_row_max_epss, iproc, ithread, left_col_mult, left_col_nimages, &
-         left_data_offset, left_data_offset_diag, left_data_size, left_data_win, &
+      INTEGER :: blk, col, data_type, data_type_byte, grp_gather, grp_left, grp_right, handle, &
+         handle2, handle3, iget, index_row_max_epss, iproc, ithread, left_col_mult, &
+         left_col_nimages, left_data_offset, left_data_offset_diag, left_data_size, left_data_win, &
          left_max_data_size, left_max_meta_size, left_meta_offset, left_meta_offset_diag, &
          left_meta_size, left_meta_win, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
          left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, &
-         left_v_i, left_vcol, left_vrow, local_data_size_gather, local_meta_size_gather, &
-         meta_size_image
-      INTEGER :: meta_size_scatter, metronome, min_nimages, mynode, mypcol, myprow, &
-         nblkrows_local, nclusters_scatter, nsteps_k, nthreads, numnodes, nvirt_k, recv_vcol, &
-         recv_vcol_displ, recv_vrow, recv_vrow_displ, right_col_mult, right_col_nimages, &
-         right_data_offset, right_data_offset_diag, right_data_size, right_data_win, &
-         right_max_data_size, right_max_meta_size, right_meta_offset, right_meta_offset_diag, &
-         right_meta_size, right_meta_win, right_myfirstvcol, right_myfirstvrow, right_mypcol, &
-         right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
-         right_row_nimages, right_v_i
-      INTEGER :: right_vcol, right_vrow, row, size_guess, size_index_merged, size_index_unmerged, &
-         v_ci, v_ki, v_ri
+         left_v_i, left_vcol, left_vrow, local_data_size_gather, local_meta_size_gather
+      INTEGER :: meta_size_image, meta_size_scatter, metronome, min_nimages, mynode, mypcol, &
+         myprow, nblkrows_local, nclusters_scatter, nsteps_k, nthreads, numnodes, nvirt_k, &
+         recv_vcol, recv_vcol_displ, recv_vrow, recv_vrow_displ, request_product_matrix, &
+         right_col_mult, right_col_nimages, right_data_offset, right_data_offset_diag, &
+         right_data_size, right_data_win, right_max_data_size, right_max_meta_size, &
+         right_meta_offset, right_meta_offset_diag, right_meta_size, right_meta_win, &
+         right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
+         right_nprows, right_nrequests
+      INTEGER :: right_row_mult, right_row_nimages, right_v_i, right_vcol, right_vrow, row, &
+         size_guess, size_index_merged, size_index_unmerged, v_ci, v_k_loc, v_ki, v_ri
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:) :: data_displ_gather, data_size_gather, &
          indices_common_unmerged, left_displ_vunmerged, left_get_requests_images, &
@@ -3866,14 +3867,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: left_recv_filtered, left_vunmerged, &
                                                             right_recv_filtered, right_vunmerged
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: left_vmerged, right_vmerged
-      INTEGER, DIMENSION(2)                              :: request_gather
       INTEGER, DIMENSION(:), POINTER                     :: blk_p, col_i
       INTEGER, DIMENSION(dbcsr_slot_nblkrows_total:&
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
-      LOGICAL                                            :: do_diagonal, do_rec, do_scatter, &
-                                                            is_diagonal, keep_sparsity, &
-                                                            left_set_displ, otf_filtering, &
-                                                            right_set_displ
+      LOGICAL :: do_diagonal, do_k_scatter, do_rec, do_scatter, is_diagonal, keep_sparsity, &
+         left_set_displ, otf_filtering, right_set_displ
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: common_unmerged
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: left_nofiltered, right_nofiltered
       REAL(kind=sp)                                      :: filter_eps_sp, min_row_max_epss
@@ -4015,30 +4013,30 @@ CONTAINS
       !
       do_rec = min_nimages .EQ. 1
       !
-      ! Set RMA windows for the original data
-      CALL dbcsr_win_create_any(rma_buffers_orig%left%data, grp_left, left_data_win)
-      CALL mp_win_create(rma_buffers_orig%left%meta, grp_left, left_meta_win)
-      CALL dbcsr_win_create_any(rma_buffers_orig%right%data, grp_right, right_data_win)
-      CALL mp_win_create(rma_buffers_orig%right%meta, grp_right, right_meta_win)
-      CALL mp_win_lock_all(left_data_win)
-      CALL mp_win_lock_all(left_meta_win)
-      CALL mp_win_lock_all(right_data_win)
-      CALL mp_win_lock_all(right_meta_win)
-      !
-      ! Wait refs and max norms (sent in make_buffers_rma)
-      CALL mp_waitall(requests)
-      ! Delete buffers used for collectives
-      DEALLOCATE (right_local_refs_displ_unmerged, left_local_refs_displ_unmerged)
-      IF (otf_filtering .AND. use_mpi_filtering) THEN
-         DEALLOCATE (right_local_max_norms, left_local_max_norms)
+      ! Exchange product matrix blocks coodinates
+      IF (keep_sparsity .AND. right_npcols .GT. 1 .AND. right_row_nimages .GT. 1) THEN
+         IF (do_diagonal) THEN
+            meta_size_scatter = product_matrix%m%index(dbcsr_slot_size)
+         ENDIF
+         CALL mp_bcast(meta_size_scatter, right_myprow, grp_gather)
+         CALL ensure_array_size(local_meta_product_scatter, ub=meta_size_scatter, &
+                                nocopy=.TRUE., memory_type=memtype_mpi_buffer)
+         IF (do_diagonal) THEN
+            local_meta_product_scatter(1:meta_size_scatter) = &
+               product_matrix%m%index(1:meta_size_scatter)
+         ENDIF
+         CALL mp_ibcast(local_meta_product_scatter, right_myprow, &
+                        grp_gather, request_product_matrix)
       ENDIF
-      DEALLOCATE (right_local_refs_meta_size, left_local_refs_meta_size)
-      DEALLOCATE (right_local_refs_data_size, left_local_refs_data_size)
-      DEALLOCATE (right_no_empty_clusters, left_no_empty_clusters)
+      !
+      product_matrix%m%nblks = 0
+      product_matrix%m%nze = 0
+      product_matrix%m%row_p(:) = 0
       !
       ! Count the maximum possible multiplies per row for on-the-fly filtering
       IF (otf_filtering) THEN
-         !
+         ! Wait for counts (sent in make_buffers_rma)
+         CALL mp_wait(request_count_rows)
          nblkrows_local = SIZE(left_total_row_counts)
          ALLOCATE (row_max_epss(nblkrows_local))
          index_row_max_epss = 1
@@ -4063,37 +4061,155 @@ CONTAINS
          ALLOCATE (left_norms(0, min_nimages), right_norms(0, min_nimages), row_max_epss(0))
       ENDIF
       !
-      ALLOCATE (multrec(0:nthreads-1))
+      CALL timeset(routineN//"_scatter", handle2)
+      IF (right_npcols .GT. 1 .AND. right_row_nimages .GT. 1) THEN
+         CALL mp_waitall(requests_scatter)
+         IF (keep_sparsity) THEN
+            CALL mp_wait(request_product_matrix)
+         ENDIF
+      ENDIF
       !
       ! Prepare result matrix for scatter data
+      nclusters_scatter = 0
       IF (do_scatter .OR. do_diagonal) THEN
          CALL dbcsr_init(product_matrix_scatter)
+         !
+         ! Check scattered meta
+         IF (local_meta_size_scatter .GT. 1) THEN
+            ALLOCATE (v_k_scatter((right_row_nimages+right_npcols-1)/right_npcols))
+            meta_size_scatter = 0
+            DO WHILE (meta_size_scatter+dbcsr_num_slots .LE. local_meta_size_scatter)
+               nclusters_scatter = nclusters_scatter+1
+               v_k_scatter(nclusters_scatter) = local_meta_scatter(meta_size_scatter+dbcsr_slot_home_rowi)
+               meta_size_scatter = meta_size_scatter+local_meta_scatter(meta_size_scatter+dbcsr_slot_size)
+            ENDDO
+         ENDIF
       ENDIF
       IF (do_scatter) THEN
+         IF (.NOT. dbcsr_data_valid(local_data_product_scatter)) THEN
+            CALL dbcsr_data_init(local_data_product_scatter)
+            CALL dbcsr_data_new(local_data_product_scatter, data_type=data_type, &
+                                data_size=1, memory_type=memtype_mpi_buffer)
+         ENDIF
          CALL dbcsr_create(product_matrix_scatter, &
                            template=product_matrix, &
-                           name=TRIM("Scatter buffer of "//TRIM(product_matrix%m%name)))
+                           name=TRIM("Scatter buffer of "//TRIM(product_matrix%m%name)), &
+                           make_index=.NOT. keep_sparsity .OR. local_meta_size_scatter .LE. 1, &
+                           data_buffer=local_data_product_scatter)
          IF (local_meta_size_scatter .GT. 1) THEN
+            max_nblocks = MAX(max_nblocks, meta_size_scatter/3)
+            !
+            IF (keep_sparsity) THEN
+               product_matrix_scatter%m%index => local_meta_product_scatter
+               CALL dbcsr_data_ensure_size(product_matrix_scatter%m%data_area, &
+                                           product_matrix_scatter%m%index(dbcsr_slot_nze), &
+                                           zero_pad=.TRUE.)
+            ELSE
+               CALL dbcsr_data_set_size_referenced(product_matrix_scatter%m%data_area, 0)
+            ENDIF
+            !
             product_matrix_scatter%m%index(dbcsr_slot_home_pcol) = myprow
             CALL dbcsr_reset_locals(product_matrix_scatter)
+            CALL dbcsr_repoint_index(product_matrix_scatter%m)
+            product_matrix_scatter%m%valid = .FALSE.
+            ALLOCATE (multrec_scatter(0:nthreads-1))
+            !
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP          PRIVATE (size_guess, ithread) &
+!$OMP          SHARED (product_matrix_scatter, multrec_scatter, &
+!$OMP                  keep_sparsity, filter_eps, &
+!$OMP                  row_max_epss, max_nblocks, &
+!$OMP                  matrix_right, nthreads, &
+!$OMP                  memtype_product_wm_scatter, &
+!$OMP                  local_meta_size_scatter, &
+!$OMP                  keep_product_data)
+            !
+            ! Setup product work areas
+            !
+            ithread = 0
+!$          ithread = OMP_GET_THREAD_NUM()
+            !
+            IF (keep_product_data) THEN
+               CALL dbcsr_add_wm_from_matrix(product_matrix_scatter)
+            ELSE
+               CALL dbcsr_work_create(product_matrix_scatter, work_mutable=.FALSE., &
+                                      memory_type=memtype_product_wm_scatter(ithread)%p)
+            ENDIF
+!$OMP BARRIER
+            ! The work arrays have to be setup
+            size_guess = product_matrix_scatter%m%wms(ithread+1)%datasize ! Should be minimal
+            CALL dbcsr_data_ensure_size(product_matrix_scatter%m%wms(ithread+1)%data_area, &
+                                        size_guess)
+            CALL dbcsr_data_set_size_referenced(product_matrix_scatter%m%wms(ithread+1)%data_area, &
+                                                product_matrix_scatter%m%wms(ithread+1)%datasize)
+            CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%row_i, ub=1)
+            CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%col_i, ub=1)
+            CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%blk_p, ub=1)
+            ALLOCATE (multrec_scatter(ithread)%p)
+            CALL dbcsr_mm_multrec_init(multrec_scatter(ithread)%p, &
+                                       product=product_matrix_scatter%m, &
+                                       keep_sparsity=keep_sparsity, &
+                                       eps=filter_eps, &
+                                       row_max_epss=row_max_epss, &
+                                       block_estimate=max_nblocks/nthreads, &
+                                       right_row_blk_size=dbcsr_row_block_sizes(matrix_right))
+!$OMP END PARALLEL
             product_matrix_scatter%m%nblks = 0
             product_matrix_scatter%m%nze = 0
             product_matrix_scatter%m%row_p(:) = 0
-            CALL dbcsr_data_set_size_referenced(product_matrix_scatter%m%data_area, 0)
-            product_matrix_scatter%m%valid = .FALSE.
-            ALLOCATE (multrec_scatter(0:nthreads-1))
+            !
+            ! Set images with scatter data
+            CALL setup_buffer_matrices_images(buffer_scatter, nclusters_scatter, &
+                                              imgdist_right, matrix_right, &
+                                              data_buffer=local_data_scatter)
+            meta_size_scatter = 0
+            right_data_size = 0
+            DO v_ki = 1, nclusters_scatter
+               buffer_scatter%mats(v_ki)%m%index => local_meta_scatter(meta_size_scatter+dbcsr_slot_size: &
+                                                                       meta_size_scatter+ &
+                                                                       local_meta_scatter(meta_size_scatter+ &
+                                                                                          dbcsr_slot_size))
+               meta_size_scatter = meta_size_scatter+local_meta_scatter(meta_size_scatter+dbcsr_slot_size)
+               CALL dbcsr_reset_vlocals(buffer_scatter%mats(v_ki), imgdist_right, do_rows=.TRUE.)
+               ! Set local cols
+               CALL array_release(buffer_scatter%mats(v_ki)%m%local_cols)
+               buffer_scatter%mats(v_ki)%m%local_cols = product_matrix_scatter%m%local_cols
+               CALL array_hold(buffer_scatter%mats(v_ki)%m%local_cols)
+               buffer_scatter%mats(v_ki)%m%has_local_cols = .TRUE.
+               buffer_scatter%mats(v_ki)%m%nblkcols_local = product_matrix_scatter%m%nblkcols_local
+               buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_nblkcols_local) = &
+                  product_matrix_scatter%m%nblkcols_local
+               CALL dbcsr_repoint_index(buffer_scatter%mats(v_ki)%m)
+               buffer_scatter%mats(v_ki)%m%index(dbcsr_num_slots+3: &
+                                                 buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_size):3) = &
+                  buffer_scatter%mats(v_ki)%m%index(dbcsr_num_slots+3: &
+                                                    buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_size):3)+ &
+                  right_data_size
+               right_data_size = right_data_size+buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_nze)
+               buffer_scatter%mats(v_ki)%m%valid = .TRUE.
+            ENDDO
          ENDIF
       ENDIF
+      CALL timestop(handle2)
+      !
+      ! Set RMA windows for the original data
+      CALL dbcsr_win_create_any(rma_buffers_orig%left%data, grp_left, left_data_win)
+      CALL mp_win_create(rma_buffers_orig%left%meta, grp_left, left_meta_win)
+      CALL dbcsr_win_create_any(rma_buffers_orig%right%data, grp_right, right_data_win)
+      CALL mp_win_create(rma_buffers_orig%right%meta, grp_right, right_meta_win)
+      CALL mp_win_lock_all(left_data_win)
+      CALL mp_win_lock_all(left_meta_win)
+      CALL mp_win_lock_all(right_data_win)
+      CALL mp_win_lock_all(right_meta_win)
+      !
+      ALLOCATE (multrec(0:nthreads-1))
       !
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP          PRIVATE (size_guess, ithread) &
 !$OMP          SHARED (product_matrix, multrec, &
 !$OMP                  keep_sparsity, filter_eps, &
 !$OMP                  row_max_epss, max_nblocks, &
-!$OMP                  matrix_right, nthreads, &
-!$OMP                  do_scatter, memtype_product_wm_scatter, &
-!$OMP                  product_matrix_scatter, multrec_scatter, &
-!$OMP                  local_meta_size_scatter)
+!$OMP                  matrix_right, nthreads)
       !
       ! Setup product work areas
       !
@@ -4106,12 +4222,9 @@ CONTAINS
                                   size_guess)
       CALL dbcsr_data_set_size_referenced(product_matrix%m%wms(ithread+1)%data_area, &
                                           product_matrix%m%wms(ithread+1)%datasize)
-      ! XXXXXXX a quick fix right now, allocation with size 1 might actually not be needed at all,
-      !         but something expects this to be associated
       CALL ensure_array_size(product_matrix%m%wms(ithread+1)%row_i, ub=1)
       CALL ensure_array_size(product_matrix%m%wms(ithread+1)%col_i, ub=1)
       CALL ensure_array_size(product_matrix%m%wms(ithread+1)%blk_p, ub=1)
-      !
       ALLOCATE (multrec(ithread)%p)
       CALL dbcsr_mm_multrec_init(multrec(ithread)%p, &
                                  product=product_matrix%m, &
@@ -4120,27 +4233,6 @@ CONTAINS
                                  row_max_epss=row_max_epss, &
                                  block_estimate=max_nblocks/nthreads, &
                                  right_row_blk_size=dbcsr_row_block_sizes(matrix_right))
-      !
-      IF (do_scatter .AND. local_meta_size_scatter .GT. 1) THEN
-         CALL dbcsr_work_create(product_matrix_scatter, work_mutable=.FALSE., &
-                                memory_type=memtype_product_wm_scatter(ithread)%p)
-!$OMP BARRIER
-         CALL dbcsr_data_ensure_size(product_matrix_scatter%m%wms(ithread+1)%data_area, &
-                                     size_guess)
-         CALL dbcsr_data_set_size_referenced(product_matrix_scatter%m%wms(ithread+1)%data_area, &
-                                             product_matrix_scatter%m%wms(ithread+1)%datasize)
-         CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%row_i, ub=1)
-         CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%col_i, ub=1)
-         CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%blk_p, ub=1)
-         ALLOCATE (multrec_scatter(ithread)%p)
-         CALL dbcsr_mm_multrec_init(multrec_scatter(ithread)%p, &
-                                    product=product_matrix_scatter%m, &
-                                    keep_sparsity=keep_sparsity, &
-                                    eps=filter_eps, &
-                                    row_max_epss=row_max_epss, &
-                                    block_estimate=max_nblocks/nthreads, &
-                                    right_row_blk_size=dbcsr_row_block_sizes(matrix_right))
-      ENDIF
 !$OMP END PARALLEL
       !
       ! update capacity of memory-pools
@@ -4150,6 +4242,17 @@ CONTAINS
          CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
                                             capacity=left_col_nimages+right_row_nimages)
       ENDIF
+      !
+      ! Wait refs and max norms (sent in make_buffers_rma)
+      CALL mp_waitall(requests)
+      ! Delete buffers used for collectives
+      DEALLOCATE (right_local_refs_displ_unmerged, left_local_refs_displ_unmerged)
+      IF (otf_filtering .AND. use_mpi_filtering) THEN
+         DEALLOCATE (right_local_max_norms, left_local_max_norms)
+      ENDIF
+      DEALLOCATE (right_local_refs_meta_size, left_local_refs_meta_size)
+      DEALLOCATE (right_local_refs_data_size, left_local_refs_data_size)
+      DEALLOCATE (right_no_empty_clusters, left_no_empty_clusters)
       !
       ! Pre-CANNON execution: filtering and resize buffers for communications
       CALL timeset(routineN//"_precannon", handle2)
@@ -4191,11 +4294,13 @@ CONTAINS
 !$OMP         right_max_meta_size,left_max_meta_size,do_diagonal,&
 !$OMP         right_data_size,left_data_size,right_meta_size,left_meta_size,&
 !$OMP         size_index_unmerged,left_max_meta_size_merged,right_max_meta_size_merged,&
-!$OMP         right_vunmerged,left_vunmerged,right_nofiltered,left_nofiltered,&
+!$OMP         right_vunmerged,left_vunmerged,right_nofiltered,left_nofiltered,myprow,&
 !$OMP         right_vmerged,left_vmerged,left_displ_vunmerged,right_displ_vunmerged,&
-!$OMP         right_no_empty_clusters_displ,left_no_empty_clusters_displ) &
+!$OMP         right_no_empty_clusters_displ,left_no_empty_clusters_displ,do_scatter,&
+!$OMP         local_meta_size_scatter,v_k_scatter,nclusters_scatter) &
 !$OMP PRIVATE (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol,right_vrow,&
-!$OMP          right_vcol,left_vrow,left_vcol,meta_size_image,iproc)
+!$OMP          right_vcol,left_vrow,left_vcol,meta_size_image,iproc,v_k_loc,&
+!$OMP          do_k_scatter)
       !
 !$OMP DO
       DO iproc = 0, right_nprows-1
@@ -4250,6 +4355,7 @@ CONTAINS
                                vpcol_shift=metronome*min_nimages, &
                                shifting='L')
          !
+         v_k_loc = 0
 !$OMP DO REDUCTION(+:right_data_size,left_data_size,right_meta_size,left_meta_size) &
 !$OMP    schedule(dynamic)
          DO v_ki = 0, min_nimages-1
@@ -4270,6 +4376,13 @@ CONTAINS
                ENDIF
             ENDDO
             !
+            do_k_scatter = .FALSE.
+            IF ((do_diagonal .OR. do_scatter) .AND. &
+                local_meta_size_scatter .GT. 1 .AND. &
+                recv_vcol/min_nimages .EQ. myprow) THEN
+               CALL ordered_search(v_k_scatter, v_ki+1, v_k_loc, do_k_scatter, v_k_loc+1, nclusters_scatter)
+            ENDIF
+            !
             ! Max norms evaluation for filtering
             !
             ! By default all clusters are not communicated
@@ -4279,7 +4392,10 @@ CONTAINS
             ! multiplication of norms
             DO v_ri = 1, left_vunmerged(v_ki, metronome)
                DO v_ci = 1, right_vunmerged(v_ki, metronome)
-!!$                IF (do_diagonal.AND.right_vmerged(v_ci,v_ki,metronome).EQ.recv_vrow) CYCLE
+                  ! Do not calculate diagonal clusters for diagonal procs
+                  IF (do_diagonal .AND. &
+                      right_vmerged(v_ci, v_ki, metronome) .EQ. recv_vrow .AND. &
+                      .NOT. do_k_scatter) CYCLE
                   IF (otf_filtering .AND. use_mpi_filtering .AND. &
                       left_vmerged(v_ri, v_ki, metronome) .NE. recv_vcol .AND. &
                       right_vmerged(v_ci, v_ki, metronome) .NE. recv_vrow) THEN
@@ -4310,7 +4426,7 @@ CONTAINS
             !
             meta_size_image = 0
             DO v_ri = 1, left_vunmerged(v_ki, metronome)
-               IF (left_recv_filtered(v_ri, v_ki) .NE. 0) THEN
+               IF (left_recv_filtered(v_ri, v_ki) .NE. 0 .OR. do_k_scatter) THEN
                   left_nofiltered(v_ri, v_ki, metronome) = .TRUE.
                   left_data_size = left_data_size+ &
                                    left_refs_data_size(left_displ_vunmerged(recv_vcol)+v_ri)
@@ -4447,43 +4563,7 @@ CONTAINS
       ! Wait for diagonal clusters data
       CALL timeset(routineN//"_diag", handle2)
       CALL mp_waitall(requests_diag)
-      IF (right_npcols .GT. 1 .AND. right_row_nimages .GT. 1) THEN
-         CALL mp_waitall(requests_scatter)
-      ENDIF
       CALL timestop(handle2)
-      !
-      ! Check scattered data and prepare images
-      nclusters_scatter = 0
-      IF (do_scatter .AND. local_meta_size_scatter .GT. 1) THEN
-         ALLOCATE (v_k_scatter((right_row_nimages+right_npcols-2)/(right_npcols-1)))
-         meta_size_scatter = 0
-         DO WHILE (meta_size_scatter+dbcsr_num_slots .LT. local_meta_size_scatter)
-            nclusters_scatter = nclusters_scatter+1
-            v_k_scatter(nclusters_scatter) = local_meta_scatter(meta_size_scatter+dbcsr_slot_home_rowi)
-            meta_size_scatter = meta_size_scatter+local_meta_scatter(meta_size_scatter+dbcsr_slot_size)
-         ENDDO
-         ! Set images with scatter data
-         CALL setup_buffer_matrices_images(buffer_scatter, nclusters_scatter, &
-                                           imgdist_right, matrix_right, &
-                                           data_buffer=local_data_scatter)
-         meta_size_scatter = 0
-         DO v_ki = 1, nclusters_scatter
-            buffer_scatter%mats(v_ki)%m%index => local_meta_scatter(meta_size_scatter+dbcsr_slot_size: &
-                                                                    meta_size_scatter+ &
-                                                                    local_meta_scatter(meta_size_scatter+dbcsr_slot_size))
-            meta_size_scatter = meta_size_scatter+local_meta_scatter(meta_size_scatter+dbcsr_slot_size)
-            CALL dbcsr_reset_vlocals(buffer_scatter%mats(v_ki), imgdist_right, do_rows=.TRUE.)
-            ! Set local cols
-            CALL array_release(buffer_scatter%mats(v_ki)%m%local_cols)
-            buffer_scatter%mats(v_ki)%m%local_cols = product_matrix_scatter%m%local_cols
-            CALL array_hold(buffer_scatter%mats(v_ki)%m%local_cols)
-            buffer_scatter%mats(v_ki)%m%has_local_cols = .TRUE.
-            buffer_scatter%mats(v_ki)%m%nblkcols_local = product_matrix_scatter%m%nblkcols_local
-            buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_nblkcols_local) = product_matrix_scatter%m%nblkcols_local
-            CALL dbcsr_repoint_index(buffer_scatter%mats(v_ki)%m)
-            buffer_scatter%mats(v_ki)%m%valid = .TRUE.
-         ENDDO
-      ENDIF
       !
       ! Here is the main loop
       !
@@ -4576,9 +4656,7 @@ CONTAINS
          !
          ! Wait data, merge and do the multiplications.
          ! Exclude the first interation
-         wait_merge_calc: IF (metronome .GT. 0 .AND. &
-                              rma_buffers_calc%right%nrequests .GT. 0 .AND. &
-                              rma_buffers_calc%left%nrequests .GT. 0) THEN
+         wait_merge_calc: IF (metronome .GT. 0) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
             CALL timeset("mp_waitall_2", handle3)
@@ -4644,16 +4722,6 @@ CONTAINS
             !
             CALL timestop(handle3)
             !
-!!$          IF (has_acc) THEN
-!!$             CALL dbcsr_data_host2dev(rma_buffers_calc%right%data)
-!!$             CALL dbcsr_data_host2dev(rma_buffers_calc%left%data)
-!!$             DO v_ki = 1, min_nimages
-!!$                IF (rma_buffers_calc%right%buffer%mats(v_ki)%m%nblks.EQ.0) CYCLE
-!!$                CALL acc_transpose_blocks(rma_buffers_calc%right%buffer%mats(v_ki), &
-!!$                     rma_buffers_calc%trs_stackbuf)
-!!$             ENDDO
-!!$          ENDIF
-            !
             IF (debug_mod) THEN
                DO v_ki = 1, min_nimages
                   IF (rma_buffers_calc%right%buffer%mats(v_ki)%m%nblks .NE. 0) &
@@ -4668,11 +4736,12 @@ CONTAINS
          !
          ! Multiply scatter data
          IF (do_scatter .AND. local_meta_size_scatter .GT. 1 .AND. metronome .GT. 0 .AND. &
-             nclusters_scatter .GT. 0 .AND. rma_buffers_calc%left%nrequests .GT. 0 .AND. &
+             rma_buffers_calc%left%nrequests .GT. 0 .AND. &
              rma_buffers_calc%left%vpcol/min_nimages .EQ. myprow) THEN
             IF (otf_filtering) THEN
                CALL calculate_image_norms(buffer_scatter, &
-                                          data_type, right_norms, uf=1, ul=nclusters_scatter)
+                                          data_type, right_norms, &
+                                          uf=1, ul=nclusters_scatter)
             ENDIF
             CALL timeset("cannon_multiply_low_rma_multrec", handle3)
             !
@@ -4696,7 +4765,6 @@ CONTAINS
                                               do_rec=.FALSE.)
             ENDDO
 !$OMP END PARALLEL
-            !
             CALL timestop(handle3)
          ENDIF
          !
@@ -4767,24 +4835,40 @@ CONTAINS
       CALL dbcsr_destroy_array(rma_buffers_2%right%buffer)
       CALL dbcsr_destroy_array(rma_buffers_2%left%buffer)
       !
+      CALL dbcsr_finalize(product_matrix)
+      !
+      ! clean-up wins
+      CALL mp_win_unlock_all(right_data_win)
+      CALL mp_win_unlock_all(right_meta_win)
+      CALL mp_win_unlock_all(left_data_win)
+      CALL mp_win_unlock_all(left_meta_win)
+      CALL mp_win_free(right_data_win)
+      CALL mp_win_free(right_meta_win)
+      CALL mp_win_free(left_data_win)
+      CALL mp_win_free(left_meta_win)
+      !
       ! Gather data
       IF (do_scatter .OR. do_diagonal) THEN
-         CALL timeset("cannon_multiply_low_rma_gather", handle3)
+         CALL timeset("cannon_multiply_low_rma_gather", handle2)
          local_meta_size_gather = 1
          local_data_size_gather = 1
-         IF (do_scatter .AND. local_meta_size_scatter .GT. 1) THEN
-            DO v_ki = 1, nclusters_scatter
-               NULLIFY (buffer_scatter%mats(v_ki)%m%index)
-            ENDDO
-            CALL dbcsr_destroy_array(buffer_scatter)
-            DEALLOCATE (v_k_scatter, multrec_scatter)
-            CALL dbcsr_finalize(product_matrix_scatter)
-            IF (product_matrix_scatter%m%nblks .NE. 0) THEN
-               local_meta_size_gather = product_matrix_scatter%m%index(dbcsr_slot_size)
-               local_data_size_gather = product_matrix_scatter%m%index(dbcsr_slot_nze)
+         IF (local_meta_size_scatter .GT. 1) THEN
+            DEALLOCATE (v_k_scatter)
+            IF (do_scatter) THEN
+               DO v_ki = 1, nclusters_scatter
+                  NULLIFY (buffer_scatter%mats(v_ki)%m%index)
+               ENDDO
+               CALL dbcsr_destroy_array(buffer_scatter)
+               DEALLOCATE (multrec_scatter)
+               CALL dbcsr_finalize(product_matrix_scatter)
+               IF (product_matrix_scatter%m%nblks .NE. 0) THEN
+                  local_meta_size_gather = product_matrix_scatter%m%index(dbcsr_slot_size)
+                  local_data_size_gather = product_matrix_scatter%m%index(dbcsr_slot_nze)
+               ENDIF
             ENDIF
          ENDIF
          IF (do_diagonal) THEN
+            ! Gather sizes
             ALLOCATE (meta_size_gather(0:right_npcols-1), &
                       data_size_gather(0:right_npcols-1), &
                       meta_displ_gather(0:right_npcols-1), &
@@ -4816,49 +4900,39 @@ CONTAINS
             CALL dbcsr_create(product_matrix_scatter, &
                               template=product_matrix, &
                               name=TRIM("Gather buffer of "//TRIM(product_matrix%m%name)), &
+                              make_index=.NOT. keep_sparsity, &
                               data_buffer=local_data_scatter)
+            IF (keep_sparsity) THEN
+               product_matrix_scatter%m%index => local_meta_product_scatter
+               CALL dbcsr_repoint_index(product_matrix_scatter%m)
+            ENDIF
             CALL dbcsr_reset_locals(product_matrix_scatter)
             product_matrix_scatter%m%nblks = 0
             product_matrix_scatter%m%nze = 0
             product_matrix_scatter%m%row_p(:) = 0
             product_matrix_scatter%m%valid = .FALSE.
          ENDIF
-         CALL mp_igatherv(product_matrix_scatter%m%index(1:local_meta_size_gather), &
-                          local_meta_size_gather, &
-                          local_meta_scatter, meta_size_gather, meta_displ_gather, &
-                          right_myprow, grp_gather, request_gather(1))
+         CALL mp_gatherv(product_matrix_scatter%m%index(1:local_meta_size_gather), &
+                         local_meta_scatter, meta_size_gather, meta_displ_gather, &
+                         right_myprow, grp_gather)
          IF (do_diagonal) THEN
             ! Receiver
             ! Use a dummy buffer for the sender of the root proc to avoid overlap
             ! between send and receive buffers
-            CALL dbcsr_igatherv_any(rma_buffers_orig%right%data_diag, &
-                                    local_data_size_gather, product_matrix_scatter%m%data_area, &
-                                    data_size_gather, data_displ_gather, &
-                                    right_myprow, grp_gather, request_gather(2))
+            CALL dbcsr_gatherv_any(rma_buffers_orig%right%data_diag, &
+                                   local_data_size_gather, &
+                                   product_matrix_scatter%m%data_area, &
+                                   data_size_gather, data_displ_gather, &
+                                   right_myprow, grp_gather)
          ENDIF
          IF (do_scatter) THEN
             ! Sender
-            CALL dbcsr_igatherv_any(product_matrix_scatter%m%data_area, &
-                                    local_data_size_gather, product_matrix_scatter%m%data_area, &
-                                    data_size_gather, data_displ_gather, &
-                                    right_myprow, grp_gather, request_gather(2))
+            CALL dbcsr_gatherv_any(product_matrix_scatter%m%data_area, &
+                                   local_data_size_gather, &
+                                   product_matrix_scatter%m%data_area, &
+                                   data_size_gather, data_displ_gather, &
+                                   right_myprow, grp_gather)
          ENDIF
-         CALL timestop(handle3)
-      ENDIF
-      !
-      ! clean-up wins
-      CALL mp_win_unlock_all(right_data_win)
-      CALL mp_win_unlock_all(right_meta_win)
-      CALL mp_win_unlock_all(left_data_win)
-      CALL mp_win_unlock_all(left_meta_win)
-      CALL mp_win_free(right_data_win)
-      CALL mp_win_free(right_meta_win)
-      CALL mp_win_free(left_data_win)
-      CALL mp_win_free(left_meta_win)
-      !
-      IF (do_scatter .OR. do_diagonal) THEN
-         CALL timeset("cannon_multiply_low_rma_gather", handle3)
-         CALL mp_waitall(request_gather)
          IF (do_diagonal) THEN
             ! Merge gathered images
             DO iproc = 0, right_npcols-1
@@ -4869,13 +4943,14 @@ CONTAINS
                   product_matrix_scatter%m%index(dbcsr_slot_nze) = &
                      product_matrix_scatter%m%index(dbcsr_slot_nze)+ &
                      local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_nze)
-                  product_matrix_scatter%m%row_p(:) = product_matrix_scatter%m%row_p(:)+ &
-                                                      local_meta_scatter(meta_displ_gather(iproc)+ &
-                                                                         local_meta_scatter(meta_displ_gather(iproc)+ &
-                                                                                            dbcsr_slot_row_p): &
-                                                                         meta_displ_gather(iproc)+ &
-                                                                         local_meta_scatter(meta_displ_gather(iproc)+ &
-                                                                                            dbcsr_slot_row_p+1))
+                  product_matrix_scatter%m%row_p(:) = &
+                     product_matrix_scatter%m%row_p(:)+ &
+                     local_meta_scatter(meta_displ_gather(iproc)+ &
+                                        local_meta_scatter(meta_displ_gather(iproc)+ &
+                                                           dbcsr_slot_row_p): &
+                                        meta_displ_gather(iproc)+ &
+                                        local_meta_scatter(meta_displ_gather(iproc)+ &
+                                                           dbcsr_slot_row_p+1))
                ENDIF
             ENDDO
             product_matrix_scatter%m%index(dbcsr_slot_size) = &
@@ -4900,18 +4975,18 @@ CONTAINS
 !$OMP SHARED (product_matrix_scatter,meta_size_gather,&
 !$OMP         local_meta_scatter,right_npcols,meta_displ_gather,&
 !$OMP         data_displ_gather) &
-!$OMP PRIVATE (local_meta_size_gather,iproc,v_ci,v_ki,&
-!$OMP          col_i,blk_p)
+!$OMP PRIVATE (local_meta_size_gather,iproc,col,v_ki,&
+!$OMP          col_i,blk_p,row)
 !$OMP DO
-            DO v_ri = 0, SIZE(product_matrix_scatter%m%row_p)-2
-               local_meta_size_gather = product_matrix_scatter%m%row_p(v_ri+1)+1
+            DO row = 0, SIZE(product_matrix_scatter%m%row_p)-2
+               local_meta_size_gather = product_matrix_scatter%m%row_p(row+1)+1
                ! Skip empty rows
-               IF (local_meta_size_gather .GT. product_matrix_scatter%m%row_p(v_ri+2)) CYCLE
+               IF (local_meta_size_gather .GT. product_matrix_scatter%m%row_p(row+2)) CYCLE
                DO iproc = 0, right_npcols-1
                   IF (meta_size_gather(iproc) .GT. 1) THEN
-                     v_ci = meta_displ_gather(iproc)+ &
-                            local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_row_p)+v_ri
-                     v_ki = local_meta_scatter(v_ci+1)-local_meta_scatter(v_ci)
+                     col = meta_displ_gather(iproc)+ &
+                           local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_row_p)+row
+                     v_ki = local_meta_scatter(col+1)-local_meta_scatter(col)
                      ! Skip empty rows
                      IF (v_ki .LE. 0) CYCLE
                      col_i => local_meta_scatter(meta_displ_gather(iproc)+ &
@@ -4923,23 +4998,25 @@ CONTAINS
                                                  meta_displ_gather(iproc)+ &
                                                  local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_blk_p+1))
                      product_matrix_scatter%m%col_i(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
-                        col_i(local_meta_scatter(v_ci)+1:local_meta_scatter(v_ci+1))
+                        col_i(local_meta_scatter(col)+1:local_meta_scatter(col+1))
                      product_matrix_scatter%m%blk_p(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
-                        blk_p(local_meta_scatter(v_ci)+1:local_meta_scatter(v_ci+1))+ &
+                        blk_p(local_meta_scatter(col)+1:local_meta_scatter(col+1))+ &
                         data_displ_gather(iproc)
                      local_meta_size_gather = local_meta_size_gather+v_ki
                   ENDIF
                ENDDO
             ENDDO
 !$OMP END DO
-!$OMP END PARALLEL
             CALL dbcsr_finalize(product_matrix_scatter)
+!$OMP END PARALLEL
+            CALL dbcsr_add(product_matrix, product_matrix_scatter, flop=flop)
             DEALLOCATE (meta_size_gather, data_size_gather, &
                         meta_displ_gather, data_displ_gather)
          ENDIF
          CALL dbcsr_release_locals(product_matrix_scatter)
+         IF (keep_sparsity .AND. local_meta_size_scatter .GT. 1) NULLIFY (product_matrix_scatter%m%index)
          CALL dbcsr_release(product_matrix_scatter)
-         CALL timestop(handle3)
+         CALL timestop(handle2)
       ENDIF
       !
       CALL timestop(handle)
@@ -5042,7 +5119,8 @@ CONTAINS
                buffer%get_requests_map(2, buffer%nrequests) = v_ki+1
                CALL memory_copy(buffer%meta(meta_offset+1:meta_size), &
                                 buffer_orig%meta_diag(meta_offset_diag+1: &
-                                                      meta_offset_diag+refs_meta_size(vmerged(ui, v_ki), recv_vunmerged)), &
+                                                      meta_offset_diag+refs_meta_size(vmerged(ui, v_ki), &
+                                                                                      recv_vunmerged)), &
                                 refs_meta_size(vmerged(ui, v_ki), recv_vunmerged))
                meta_offset = meta_size
                buffer%get_requests(1, buffer%nrequests) = mp_request_null
@@ -6364,6 +6442,7 @@ CONTAINS
       IF (dbcsr_data_valid(buffer%data_diag)) THEN
          CALL dbcsr_data_ensure_size(buffer%data_diag, data_size_diag, nocopy=.TRUE.)
       ELSE
+         CALL dbcsr_data_init(buffer%data_diag)
          CALL dbcsr_data_new(buffer%data_diag, data_type=data_type, &
                              data_size=data_size_diag, memory_type=data_memory_type)
          CALL dbcsr_data_set_size_referenced(buffer%data_diag, data_size_diag)
@@ -6425,6 +6504,13 @@ CONTAINS
          DEALLOCATE (local_meta_scatter)
          NULLIFY (local_meta_scatter)
          CALL dbcsr_data_release(local_data_scatter)
+      ENDIF
+      IF (ASSOCIATED(local_meta_product_scatter)) THEN
+         DEALLOCATE (local_meta_product_scatter)
+         NULLIFY (local_meta_product_scatter)
+      ENDIF
+      IF (dbcsr_data_valid(local_data_product_scatter)) THEN
+         CALL dbcsr_data_release(local_data_product_scatter)
       ENDIF
    END SUBROUTINE rma_buffers_release
 

@@ -614,6 +614,7 @@ CONTAINS
       INTEGER                                            :: blk, col, data_type_a, data_type_b, &
                                                             handle, row, size_a, size_b
       INTEGER(KIND=int_8)                                :: my_flop
+      INTEGER, DIMENSION(2)                              :: lb_row_col
       LOGICAL                                            :: do_scale, tr
       TYPE(dbcsr_data_obj)                               :: data_block
       TYPE(dbcsr_iterator)                               :: iter
@@ -657,10 +658,11 @@ CONTAINS
          my_flop = 0
 !$OMP        PARALLEL DEFAULT (NONE) &
 !$OMP                 PRIVATE (iter, data_block) &
-!$OMP                 PRIVATE (row, col, tr, blk) &
+!$OMP                 PRIVATE (row, col, tr, blk, lb_row_col) &
 !$OMP                 SHARED (matrix_a, matrix_b, data_type_b, size_b, size_a) &
 !$OMP                 SHARED (do_scale, my_beta_scalar) &
 !$OMP                 REDUCTION (+ : my_flop)
+         lb_row_col(:) = 0
          IF (size_b .GT. size_a .AND. matrix_b%m%nblks .GT. matrix_a%m%nblks) THEN
             CALL dbcsr_work_create(matrix_a, &
                                    nblks_guess=matrix_b%m%nblks-matrix_a%m%nblks, &
@@ -682,10 +684,10 @@ CONTAINS
             CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
 
             IF (do_scale) THEN
-               CALL dbcsr_put_block(matrix_a, row, col, data_block, tr, &
+               CALL dbcsr_put_block(matrix_a, row, col, data_block, lb_row_col, tr, &
                                     summation=.TRUE., flop=my_flop)
             ELSE
-               CALL dbcsr_put_block(matrix_a, row, col, data_block, tr, &
+               CALL dbcsr_put_block(matrix_a, row, col, data_block, lb_row_col, tr, &
                                     summation=.TRUE., flop=my_flop, scale=my_beta_scalar)
             ENDIF
 
@@ -1074,7 +1076,7 @@ CONTAINS
                CASE (dbcsr_type_complex_8)
                   c_data%d%c_dp(1:nze) = a_data%d%c_dp(1:nze)*b_data%d%c_dp(1:nze)
                END SELECT
-               CALL dbcsr_put_block(matrix_c, row, col, c_data, tr_a, &
+               CALL dbcsr_put_block(matrix_c, row, col, c_data, transposed=tr_a, &
                                     summation=.FALSE.)
             ELSE
                IF (assume_blocks_in_b) THEN ! this makes not too much sense, to delete ?
@@ -1088,7 +1090,7 @@ CONTAINS
                   CASE (dbcsr_type_complex_8)
                      c_data%d%c_dp(1:nze) = a_data%d%c_dp(1:nze)*assumed_b_value
                   END SELECT
-                  CALL dbcsr_put_block(matrix_c, row, col, c_data, tr_a, &
+                  CALL dbcsr_put_block(matrix_c, row, col, c_data, transposed=tr_a, &
                                        summation=.FALSE.)
                ENDIF
             ENDIF
@@ -1299,7 +1301,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_a, tr, blk)
-         IF (row .EQ. col) CALL dbcsr_put_block(diag, row, col, data_a, tr)
+         IF (row .EQ. col) CALL dbcsr_put_block(diag, row, col, data_a, transposed=tr)
       ENDDO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_data_clear_pointer(data_a)

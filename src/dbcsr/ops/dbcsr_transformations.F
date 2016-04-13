@@ -648,7 +648,7 @@ CONTAINS
           tr = .FALSE.
           CALL dbcsr_get_stored_coordinates (matrix%m, row, col, p)
           IF (mynode .EQ. p) THEN
-             CALL dbcsr_put_block (distributed, row, col, r_dp, tr)
+             CALL dbcsr_put_block (distributed, row, col, r_dp, transposed=tr)
           ENDIF
        ENDDO
        CALL dbcsr_iterator_stop (iter)
@@ -1965,7 +1965,7 @@ CONTAINS
              IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
                   stored_row_new, stored_col_new
              CALL dbcsr_put_block(redist, stored_row_new, stored_col_new,&
-                  data_block, tr)
+                  data_block, transposed=tr)
              !DEALLOCATE (r2_dp)
           ELSE
              IF (.NOT. my_keep_sparsity .AND. dbg) &
@@ -2217,7 +2217,7 @@ CONTAINS
           !CALL dbcsr_put_block(redist, stored_row_new, stored_col_new, r_dp, tr)
           !### this should be changed to be like the make images (i.e., copy data in finalize, not here & now)
           data_block = pointer_view (data_block, recv_data, blk_ps, nze)
-          CALL dbcsr_put_block(redist, stored_row_new, stored_col_new, data_block, tr)
+          CALL dbcsr_put_block(redist, stored_row_new, stored_col_new, data_block, transposed=tr)
           blk_ps = blk_ps + nze
           blks = blks + 1
        ENDDO
@@ -2477,7 +2477,7 @@ CONTAINS
            blk_size = row_blk_size(stored_row_new) * col_blk_size(stored_col_new)
 
            data_block = pointer_view (data_block, recv_data, blk_ps, blk_size)
-           CALL dbcsr_put_block(new_matrix, stored_row_new, stored_col_new, data_block, tr)
+           CALL dbcsr_put_block(new_matrix, stored_row_new, stored_col_new, data_block, transposed=tr)
 
            blk_ps = blk_ps + blk_size
            blks = blks + 1

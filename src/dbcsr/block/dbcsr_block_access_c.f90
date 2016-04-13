@@ -257,11 +257,12 @@
 !>                            block to the old one instead of replacing it
 !> \param[in]  scale          (optional) scale the block being added
 ! **************************************************************************************************
-  SUBROUTINE dbcsr_put_block2d_c(matrix, row, col, block, transposed,&
+  SUBROUTINE dbcsr_put_block2d_c(matrix, row, col, block, lb_row_col, transposed,&
        summation, flop, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(IN)      :: block
+    INTEGER, DIMENSION(2), OPTIONAL, INTENT(INOUT) :: lb_row_col
     LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
     INTEGER(KIND=int_8), INTENT(INOUT), OPTIONAL :: flop
     COMPLEX(kind=real_4), INTENT(IN), OPTIONAL            :: scale
@@ -283,10 +284,10 @@
     ENDIF
     IF (PRESENT (scale)) THEN
        CALL dbcsr_put_block (matrix, row, col,&
-            RESHAPE (block, (/SIZE(block)/)), tr, do_sum, flop, scale)
+            RESHAPE (block, (/SIZE(block)/)), lb_row_col, tr, do_sum, flop, scale)
     ELSE
        CALL dbcsr_put_block (matrix, row, col,&
-            RESHAPE (block, (/SIZE(block)/)), tr, do_sum, flop)
+            RESHAPE (block, (/SIZE(block)/)), lb_row_col, tr, do_sum, flop)
     ENDIF
   END SUBROUTINE dbcsr_put_block2d_c
 
@@ -301,13 +302,14 @@
 !> \param[in]  transposed     (optional) the block is transposed
 !> \param[in]  summation      (optional) if block exists, then sum the new
 !>                            block to the old one instead of replacing it
-!> \param[in]  scale          (optional) scale the block being added
+!> \param[in]  scale          (optional) scale the OBblock being added
 ! **************************************************************************************************
-  SUBROUTINE dbcsr_put_block_c(matrix, row, col, block, transposed,&
+  SUBROUTINE dbcsr_put_block_c(matrix, row, col, block, lb_row_col, transposed,&
        summation, flop, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN)        :: block
+    INTEGER, DIMENSION(2), OPTIONAL, INTENT(INOUT) :: lb_row_col
     LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
     INTEGER(KIND=int_8), INTENT(INOUT), OPTIONAL :: flop
     COMPLEX(kind=real_4), INTENT(IN), OPTIONAL            :: scale
@@ -351,7 +353,7 @@
             dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__)
     ENDIF
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
-         found, blk, offset)
+         found, blk, lb_row_col, offset)
     IF(found) THEN
        ! let's copy the block
        offset = ABS (offset)
