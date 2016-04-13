@@ -48,7 +48,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: ff_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_ff_map', routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: amb_imax = 47, chm_imax = 108, &
+      INTEGER, PARAMETER                                 :: amb_imax = 66, chm_imax = 108, &
                                                             grm_imax = 22
 
       SELECT CASE (ff_type)
@@ -59,17 +59,21 @@ CONTAINS
          ALLOCATE (amber_map%element(amb_imax))
 
          amber_map%kind = (/ &
-                          "BR", "C ", "CA", "CB", "CC", "CK", "CM", "CN", "CQ", "CR", &
-                          "CT", "CV", "CW", "C*", "C0", "F ", "H ", "HC", "HA", "HO", &
-                          "HS", "HW", "HP", "I ", "IM", "IP", "IB", "MG", "N ", "NA", &
-                          "NB", "NC", "N ", "N*", "O ", "OW", "OH", "OS", "P ", "S ", &
-                          "SH", "CU", "FE", "Li", "K ", "Rb", "Cs"/)
+                          "BR", "C ", "CA", "CB", "CC", "CD", "CI", "CK", "CP", "CM", &
+                          "CS", "CN", "CQ", "CR", "CT", "CV", "CW", "C*", "CX", "CY", &
+                          "CZ", "CO", "TG", "2C", "3C", "C0", "F ", "H ", "HC", "HA", &
+                          "HO", "HS", "HW", "HP", "HZ", "I ", "IM", "IP", "IB", "MG", &
+                          "N ", "NA", "NB", "NC", "N*", "NT", "NY", "ND", "NL", "TN", &
+                          "OA", "O ", "OW", "OH", "OD", "OS", "OP", "P ", "S ", "SH", &
+                          "CU", "FE", "Li", "K ", "Rb", "Cs"/)
          amber_map%element = (/ &
                              "Br", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", &
-                             "C ", "C ", "C ", "C ", "C ", "F ", "H ", "H ", "H ", "H ", &
-                             "H ", "H ", "H ", "I ", "Cl", "Na", "Na", "Mg", "N ", "N ", &
-                             "N ", "N ", "N ", "N ", "O ", "O ", "O ", "O ", "P ", "S ", &
-                             "S ", "Cu", "Fe", "Li", "K ", "Rb", "Cs"/)
+                             "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", &
+                             "C ", "C ", "C ", "C ", "C ", "Ca", "F ", "H ", "H ", "H ", &
+                             "H ", "H ", "H ", "H ", "H ", "I ", "Cl", "Na", "Na", "Mg", &
+                             "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", &
+                             "O ", "O ", "O ", "O ", "O ", "O ", "O ", "P ", "S ", "S ", &
+                             "Cu", "Fe", "Li", "K ", "Rb", "Cs"/)
 
       CASE ("CHARMM")
          ALLOCATE (charmm_map)
