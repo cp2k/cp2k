@@ -1103,7 +1103,7 @@ def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, lo
                     inc_fn = commonUsesRe.match(
                         modulesDict['commonUses']).group(1)
                     inc_absfn = os.path.join(
-                        os.path.dirname(inFile.name), inc_fn)
+                        os.path.dirname(orig_filename), inc_fn)
                     f = file(inc_absfn)
                     implicitUsesRaw = parseUse(f)
                     f.close()
@@ -1130,7 +1130,7 @@ def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, lo
         traceback.print_exc(file=logFile)
         logFile.write('-' * 60 + "\n")
 
-        logFile.write("Processing file '" + inFile.name + "'\n")
+        logFile.write("Processing file '" + orig_filename + "'\n")
         raise
 
 # EOF
