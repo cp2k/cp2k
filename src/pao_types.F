@@ -35,6 +35,7 @@ MODULE pao_types
       INTEGER                          :: num_grad_order = -1
       INTEGER                          :: max_pao = -1
       INTEGER                          :: max_cycles = -1
+      INTEGER                          :: write_cycles = -1
       INTEGER                          :: parameterization = -1
       INTEGER                          :: optimizer = -1
       INTEGER                          :: cg_init_steps = -1

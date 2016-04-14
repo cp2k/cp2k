@@ -65,6 +65,8 @@ CONTAINS
       pao%iw = cp_print_key_unit_nr(logger, input, "DFT%LS_SCF%PAO%PRINT%RUN_INFO", extension=".paolog")
       pao%iw_opt = cp_print_key_unit_nr(logger, input, "DFT%LS_SCF%PAO%PRINT%OPT_INFO", extension=".paooptlog")
 
+      IF (pao%iw > 0) WRITE (pao%iw, *) "" ! an empty separator line
+
       ! parse input and print
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%EPS_PAO", r_val=pao%eps_pao)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "EPS_PAO", pao%eps_pao
@@ -121,6 +123,11 @@ CONTAINS
 
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%RESTART_FILE", c_val=pao%restart_file)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "RESTART_FILE ", TRIM(pao%restart_file)
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PRINT%RESTART%WRITE_CYCLES", i_val=pao%write_cycles)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "PRINT%RESTART%WRITE_CYCLES", pao%write_cycles
+
+      IF (pao%iw > 0) WRITE (pao%iw, *) "" ! an empty separator line
 
    END SUBROUTINE parse_pao_section
 
@@ -292,10 +299,17 @@ CONTAINS
       CALL cp_print_key_section_create(printkey, "RESTART", &
                                        description="Restart file of PAO basis", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
+
       CALL keyword_create(keyword, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=1)
+      CALL section_add_keyword(printkey, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="WRITE_CYCLES", &
+                          description="Maximum number of PAO line search cycles until a restart is written.", &
+                          default_i_val=100)
       CALL section_add_keyword(printkey, keyword)
       CALL keyword_release(keyword)
 

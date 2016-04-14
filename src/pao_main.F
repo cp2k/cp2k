@@ -228,6 +228,9 @@ CONTAINS
                pao_is_done = .FALSE.
                EXIT
             ENDIF
+
+            IF (MOD(icycle, pao%write_cycles) == 0) &
+               CALL pao_write_restart(pao, qs_env, energy) ! write an intermediate restart file
          ENDIF
 
          ! check for early abort without convergence?
