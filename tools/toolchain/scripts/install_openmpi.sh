@@ -31,6 +31,7 @@ case "$with_openmpi" in
                              https://www.cp2k.org/static/downloads/openmpi-${openmpi_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
             tar -xzf openmpi-${openmpi_ver}.tar.gz
             cd openmpi-${openmpi_ver}
             # can have issue with older glibc libraries, in which case

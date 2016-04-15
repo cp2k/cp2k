@@ -31,6 +31,7 @@ case "$with_reflapack" in
                              https://www.cp2k.org/static/downloads/lapack-${reflapack_ver}.tgz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d lapack-${reflapack_ver} ] && rm -rf lapack-${reflapack_ver}
             tar -xzf lapack-${reflapack_ver}.tgz
             cd lapack-${reflapack_ver}
             cat <<EOF > make.inc

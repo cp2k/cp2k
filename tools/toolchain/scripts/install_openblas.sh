@@ -31,6 +31,7 @@ case "$with_openblas" in
                              https://www.cp2k.org/static/downloads/OpenBLAS-${openblas_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
             tar -zxf OpenBLAS-${openblas_ver}.tar.gz
             cd OpenBLAS-${openblas_ver}
             # Originally we try to install both the serial and the omp

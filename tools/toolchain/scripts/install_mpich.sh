@@ -31,6 +31,7 @@ case "$with_mpich" in
                              https://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d mpich-${mpich_ver} ] && rm -rf mpich-${mpich_ver}
             tar -xzf mpich-${mpich_ver}.tar.gz
             cd mpich-${mpich_ver}
             (

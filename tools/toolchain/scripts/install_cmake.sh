@@ -28,6 +28,7 @@ case "$with_cmake" in
                              https://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d cmake-${cmake_ver} ] && rm -rf cmake-${cmake_ver}
             tar -xzf cmake-${cmake_ver}.tar.gz
             cd cmake-${cmake_ver}
             # on ARCHER (cray system), ccmake cannot compile without

@@ -31,6 +31,7 @@ case "$with_libxc" in
                              https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
             tar -xzf libxc-${libxc_ver}.tar.gz
             cd libxc-${libxc_ver}
             # patch buggy configure macro (fails with gcc trunk)

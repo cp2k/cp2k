@@ -35,6 +35,7 @@ EOF
                 download_pkg_no_checksum ${DOWNLOADER_FLAGS} \
                                          -o libxsmm-master.zip \
                                          https://github.com/hfp/libxsmm/archive/master.zip
+                [ -d libxsmm-master ] && rm -rf libxsmm-master
                 unzip -q -o libxsmm-master.zip
             else
                 if [ -f libxsmm-${libxsmm_ver}.tar.gz ] ; then
@@ -42,8 +43,9 @@ EOF
                 else
                     download_pkg ${DOWNLOADER_FLAGS} \
                                  https://www.cp2k.org/static/downloads/libxsmm-${libxsmm_ver}.tar.gz
-                    tar -xzf libxsmm-${libxsmm_ver}.tar.gz
                 fi
+                [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
+                tar -xzf libxsmm-${libxsmm_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
             # note that we do not have to set -L flags to ld for the

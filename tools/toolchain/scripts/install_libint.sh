@@ -31,6 +31,7 @@ case "$with_libint" in
                              https://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d libint-${libint_ver} ] && rm -rf libint-${libint_ver}
             tar -xzf libint-${libint_ver}.tar.gz
             cd libint-${libint_ver}
             # hack for -with-cc, needed for -fsanitize=thread that also

@@ -28,6 +28,7 @@ case "$with_make" in
                              https://ftp.gnu.org/gnu/make/make-${make_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d make-${make_ver} ] && rm -rf make-${make_ver}
             tar -xzf make-${make_ver}.tar.gz
             cd make-${make_ver}
             ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1

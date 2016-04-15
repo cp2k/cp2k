@@ -39,6 +39,7 @@ case "$with_quip" in
                 download_pkg ${DOWNLOADER_FLAGS} \
                              https://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
             fi
+            [ -d QUIP-${quip_ver} ] && rm -rf QUIP-${quip_ver}
             echo "Installing from scratch into ${pkg_install_dir}"
             unzip -q -o QUIP-${quip_ver}.zip
             cd QUIP-${quip_ver}

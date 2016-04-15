@@ -43,6 +43,7 @@ case "$with_elpa" in
                 download_pkg ${DOWNLOADER_FLAGS} \
                              https://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
             fi
+            [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
             echo "Installing from scratch into ${pkg_install_dir}"
             tar -xzf elpa-${elpa_ver}.tar.gz
 

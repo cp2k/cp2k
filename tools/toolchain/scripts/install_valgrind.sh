@@ -28,6 +28,7 @@ case "$with_valgrind" in
                              https://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d valgrind-${valgrind_ver} ] && rm -rf valgrind-${valgrind_ver}
             tar -xjf valgrind-${valgrind_ver}.tar.bz2
             cd valgrind-${valgrind_ver}
             ./configure --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1

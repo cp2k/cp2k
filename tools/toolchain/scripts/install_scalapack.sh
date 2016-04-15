@@ -32,6 +32,7 @@ case "$with_scalapack" in
                              https://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}
             tar -xzf scalapack-${scalapack_ver}.tgz
             cd scalapack-${scalapack_ver}
             cat << EOF > SLmake.inc

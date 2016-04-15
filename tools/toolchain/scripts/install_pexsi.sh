@@ -40,6 +40,7 @@ case "$with_pexsi" in
                              https://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d pexsi_v${pexsi_ver} ] && rm -rf pexsi_v${pexsi_ver}
             tar -xzf pexsi_v${pexsi_ver}.tar.gz
             cd pexsi_v${pexsi_ver}
             cat config/make.inc.linux.gnu | \

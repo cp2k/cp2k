@@ -25,10 +25,16 @@ case "$with_gcc" in
             echo "gcc-${gcc_ver} is already installed, skipping it."
         else
             if [ "${gcc_ver}" == "master" ]; then
+                [ -d gcc-master ] && rm -rf gcc-master
                 svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master > svn-gcc.log 2>&1
             else
-                download_pkg ${DOWNLOADER_FLAGS} \
-                             https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
+                if [ -f gcc-${gcc_ver}.tar.gz ] ; then
+                    echo "gcc-${gcc_ver}.tar.gz is found"
+                else
+                    download_pkg ${DOWNLOADER_FLAGS} \
+                                 https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
+                fi
+                [ -d gcc-${gcc_ver} ] && rm -rf gcc-${gcc_ver}
                 tar -xzf gcc-${gcc_ver}.tar.gz
             fi
             echo "Installing GCC from scratch into ${pkg_install_dir}"
@@ -110,6 +116,11 @@ fi
 if [ "$with_gcc" != "__DONTUSE__" ] ; then
     if [ "$with_gcc" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_gcc"
+export CC="${pkg_install_dir}/bin/gcc"
+export CXX="${pkg_install_dir}/bin/g++"
+export FC="${pkg_install_dir}/bin/gfortran"
+export F90="${pkg_install_dir}/bin/gfortran"
+export F77="${pkg_install_dir}/bin/gfortran"
 prepend_path PATH "${pkg_install_dir}/bin"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib64"

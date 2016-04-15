@@ -31,6 +31,7 @@ case "$with_parmetis" in
                              https://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d parmetis-${parmetis_ver} ] && rm -rf parmetis-${parmetis_ver}
             tar -xzf parmetis-${parmetis_ver}.tar.gz
             cd parmetis-${parmetis_ver}
             make config \

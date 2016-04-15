@@ -31,6 +31,7 @@ case "$with_scotch" in
                              https://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d scotch_${scotch_ver} ] && rm -rf scotch_${scotch_ver}
             tar -xzf scotch_${scotch_ver}.tar.gz
             cd scotch_${scotch_ver}/src
             cat Make.inc/Makefile.inc.x86-64_pc_linux2 | \

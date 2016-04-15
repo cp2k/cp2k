@@ -28,6 +28,7 @@ case "$with_lcov" in
                              https://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d lcov-${lcov_ver} ] && rm -rf lcov-${lcov_ver}
             tar -xzf lcov-${lcov_ver}.tar.gz
             cd lcov-${lcov_ver}
             # note.... this installs in ${INSTALLDIR}/usr/bin

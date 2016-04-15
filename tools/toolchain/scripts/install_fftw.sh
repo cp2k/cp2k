@@ -32,6 +32,7 @@ case "$with_fftw" in
                              https://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}
             tar -xzf fftw-${fftw_ver}.tar.gz
             cd fftw-${fftw_ver}
             ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp > configure.log 2>&1

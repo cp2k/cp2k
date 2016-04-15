@@ -28,6 +28,7 @@ case "$with_binutils" in
                              https://ftp.gnu.org/gnu/binutils/binutils-${binutils_ver}.tar.gz
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
+            [ -d binutils-${binutils_ver} ] && rm -rf binutils-${binutils_ver}
             tar -xzf binutils-${binutils_ver}.tar.gz
             cd binutils-${binutils_ver}
             ./configure --prefix="${pkg_install_dir}" \
