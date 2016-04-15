@@ -143,7 +143,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE alist_pre_align_blk(blk_in, ldin, blk_out, ldout, ilist, in, jlist, jn)
       INTEGER, INTENT(IN)                                :: in, ilist(*), ldout
-      REAL(dp), INTENT(OUT)                              :: blk_out(ldout, *)
+      REAL(dp), INTENT(INOUT)                            :: blk_out(ldout, *)
       INTEGER, INTENT(IN)                                :: ldin
       REAL(dp), INTENT(IN)                               :: blk_in(ldin, *)
       INTEGER, INTENT(IN)                                :: jlist(*), jn
@@ -184,7 +184,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE alist_post_align_blk(blk_in, ldin, blk_out, ldout, ilist, in, jlist, jn)
       INTEGER, INTENT(IN)                                :: in, ilist(*), ldout
-      REAL(dp), INTENT(OUT)                              :: blk_out(ldout, *)
+      REAL(dp), INTENT(INOUT)                            :: blk_out(ldout, *)
       INTEGER, INTENT(IN)                                :: ldin
       REAL(dp), INTENT(IN)                               :: blk_in(ldin, *)
       INTEGER, INTENT(IN)                                :: jlist(*), jn

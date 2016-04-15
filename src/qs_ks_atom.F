@@ -484,7 +484,7 @@ CONTAINS
                CALL DGEMM('N', 'N', nconta, nsp, nsp, factor, C_hh_a(1, 1, 1), SIZE(C_hh_a, 1), &
                           int_hard(1, 1), SIZE(int_hard, 1), 0.0_dp, coc(1), nconta)
                CALL DGEMM('N', 'N', nconta, nsp, nsp, -factor, C_ss_a(1, 1, 1), SIZE(C_hh_a, 1), &
-                          int_soft(1, 1), SIZE(int_hard, 1), 1.0_dp, coc(1), nconta)
+                          int_soft(1, 1), SIZE(int_soft, 1), 1.0_dp, coc(1), nconta)
                CALL DGEMM('N', 'T', nconta, ncontb, nsp, 1.0_dp, coc(1), nconta, &
                           C_hh_b(1, 1, 1), SIZE(C_hh_b, 1), 0.0_dp, a_matrix(1, 1), SIZE(a_matrix, 1))
             ELSE
