@@ -31,7 +31,9 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product, &
              cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply, &
              cp_cfm_triangular_invert, cp_cfm_axpy, cp_cfm_geadd, cp_cfm_transpose, &
-             cp_cfm_cholesky_invert, cp_cfm_lu_invert
+             cp_cfm_cholesky_invert, cp_cfm_lu_invert, cp_cfm_norm, cp_cfm_latra
+
+   REAL(KIND=dp), EXTERNAL :: zlange, pzlange, pzlatra
 
 ! **************************************************************************************************
 
@@ -836,12 +838,12 @@ CONTAINS
                    ipivot, work, lwork, iwork, liwork, info)
       DEALLOCATE (iwork)
 #else
-      CALL dgetri(nrows_global, mat, lda, &
+      CALL zgetri(nrows_global, mat, lda, &
                   ipivot, work, -1, info)
       lwork = INT(work(1))
       DEALLOCATE (work)
       ALLOCATE (work(lwork))
-      CALL dgetri(nrows_global, mat, lda, &
+      CALL zgetri(nrows_global, mat, lda, &
                   ipivot, work, lwork, info)
 #endif
       DEALLOCATE (work)
@@ -1217,5 +1219,123 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_transpose
+
+! **************************************************************************************************
+!> \brief norm of matrix using (p)zlange
+!> \param matrix   : input a general matrix
+!> \param mode     : 'M' max abs element value,
+!>                   '1' or 'O' one norm, i.e. maximum column sum
+!>                   'I' infinity norm, i.e. maximum row sum
+!>                   'F' or 'E' Frobenius norm, i.e. sqrt of sum of all squares of elements
+!> \retval res     : the norm according to mode
+!> \author Lianheng Tong
+! **************************************************************************************************
+   FUNCTION cp_cfm_norm(matrix, mode) RESULT(res)
+      TYPE(cp_cfm_type), POINTER :: matrix
+      CHARACTER, INTENT(IN) :: mode
+      REAL(KIND=dp) :: res
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_norm', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: nrows, ncols, handle, lwork, nrows_local, ncols_local
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: aa
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9) :: desca
+#else
+      INTEGER :: lda
+#endif
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix=matrix, &
+                           nrow_global=nrows, &
+                           ncol_global=ncols, &
+                           nrow_local=nrows_local, &
+                           ncol_local=ncols_local)
+      aa => matrix%local_data
+
+#if defined(__SCALAPACK)
+      desca = matrix%matrix_struct%descriptor
+      SELECT CASE (mode)
+      CASE ('M', 'm')
+         lwork = 1
+      CASE ('1', 'O', 'o')
+         lwork = ncols_local
+      CASE ('I', 'i')
+         lwork = nrows_local
+      CASE ('F', 'f', 'E', 'e')
+         lwork = 1
+      CASE DEFAULT
+         CPABORT("mode input is not valid")
+      END SELECT
+      ALLOCATE (work(lwork))
+      res = pzlange(mode, nrows, ncols, aa, 1, 1, desca, work)
+      DEALLOCATE (work)
+#else
+      SELECT CASE (mode)
+      CASE ('M', 'm')
+         lwork = 1
+      CASE ('1', 'O', 'o')
+         lwork = 1
+      CASE ('I', 'i')
+         lwork = nrows
+      CASE ('F', 'f', 'E', 'e')
+         lwork = 1
+      CASE DEFAULT
+         CPABORT("mode input is not valid")
+      END SELECT
+      ALLOCATE (work(lwork))
+      lda = SIZE(aa, 1)
+      res = zlange(mode, nrows, ncols, aa, lda, work)
+      DEALLOCATE (work)
+#endif
+
+      CALL timestop(handle)
+
+   END FUNCTION cp_cfm_norm
+
+! **************************************************************************************************
+!> \brief trace of a matrix using pzlatra
+!> \param matrix   : input a square matrix
+!> \retval res     : the trace
+!> \author Lianheng Tong
+! **************************************************************************************************
+   FUNCTION cp_cfm_latra(matrix) RESULT(res)
+      TYPE(cp_cfm_type), POINTER :: matrix
+      COMPLEX(KIND=dp) :: res
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_latra', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: nrows, ncols, handle
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: aa
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9) :: desca
+#else
+      INTEGER :: ii
+#endif
+
+      CALL timeset(routineN, handle)
+
+      nrows = matrix%matrix_struct%nrow_global
+      ncols = matrix%matrix_struct%ncol_global
+      CPASSERT(nrows .EQ. ncols)
+      aa => matrix%local_data
+
+#if defined(__SCALAPACK)
+      desca = matrix%matrix_struct%descriptor
+      res = pzlatra(nrows, aa, 1, 1, desca)
+#else
+      res = 0.0_dp
+      DO ii = 1, nrows
+         res = res+aa(ii, ii)
+      END DO
+#endif
+
+      CALL timestop(handle)
+
+   END FUNCTION cp_cfm_latra
 
 END MODULE cp_cfm_basic_linalg

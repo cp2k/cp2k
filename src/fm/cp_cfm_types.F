@@ -20,7 +20,8 @@ MODULE cp_cfm_types
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: cp2k_is_parallel
+   USE message_passing,                 ONLY: cp2k_is_parallel,&
+                                              mp_sum
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -36,6 +37,7 @@ MODULE cp_cfm_types
    PUBLIC :: cp_cfm_set_all, cp_cfm_get_info, cp_cfm_get_element
    PUBLIC :: cp_cfm_set_element, cp_cfm_to_cfm, cp_cfm_to_fm
    PUBLIC :: cp_cfm_set_submatrix, cp_cfm_to_cfm_triangular
+   PUBLIC :: cp_cfm_get_submatrix
 
    INTERFACE cp_cfm_to_cfm
       MODULE PROCEDURE cp_cfm_to_cfm_matrix, & ! a full matrix
@@ -237,6 +239,128 @@ CONTAINS
 #endif
 
    END SUBROUTINE cp_cfm_get_element
+
+! **************************************************************************************************
+!> \brief gets a submatrix of a full matrix
+!>       op(target_m)(1:n_rows,1:n_cols)
+!>       =fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!>      target_m is replicated on all cpus
+!>      using this call is expensive
+!> \param fm        : the full you want to get the info from
+!> \param target_m  : a replicated full matrix that will contain the result
+!> \param start_row : the starting row of b_matrix (defaults to 1)
+!> \param start_col : the starting col of b_matrix (defaults to 1)
+!> \param n_rows    : the number of row to change in b (defaults to
+!>                    size(op(new_values),1))
+!> \param n_cols    : the number of columns to change in b (defaults to
+!>                    size(op(new_values),2))
+!> \param transpose : if target_m should be transposed: if true
+!>                    op(target_m)=target_m^T, else op(target_m)=target_m
+!>                    (defaults to false)
+!> \par History
+!>      2016/04/05 created borrowing from Fawzi's cp_fm_get_submatrix
+!> \author Lianheng Tong
+!> \note
+!>      optimized for full column updates. Zeros out a little too much
+!>      of target_m
+!>      the target_m is replicated and valid on all cpus
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_get_submatrix(fm, &
+                                   target_m, &
+                                   start_row, &
+                                   start_col, &
+                                   n_rows, &
+                                   n_cols, &
+                                   transpose)
+      TYPE(cp_cfm_type), POINTER                         :: fm
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(out)     :: target_m
+      INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
+      LOGICAL, INTENT(in), OPTIONAL                      :: transpose
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_get_submatrix', &
+         routineP = moduleN//':'//routineN
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: full_block
+      INTEGER                                            :: handle, i, i0, j, j0, ncol, ncol_global, &
+                                                            ncol_local, nrow, nrow_global, &
+                                                            nrow_local, this_col, this_row
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: tr_a
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      i0 = 1
+      j0 = 1
+      tr_a = .FALSE.
+
+      CPASSERT(ASSOCIATED(fm))
+      CPASSERT(fm%ref_count .GT. 0)
+
+      IF (PRESENT(start_row)) i0 = start_row
+      IF (PRESENT(start_col)) j0 = start_col
+      IF (PRESENT(transpose)) tr_a = transpose
+      IF (tr_a) THEN
+         nrow = SIZE(target_m, 2)
+         ncol = SIZE(target_m, 1)
+      ELSE
+         nrow = SIZE(target_m, 1)
+         ncol = SIZE(target_m, 2)
+      END IF
+      IF (PRESENT(n_rows)) nrow = n_rows
+      IF (PRESENT(n_cols)) ncol = n_cols
+
+      para_env => fm%matrix_struct%para_env
+      full_block => fm%local_data
+
+#if defined(__SCALAPACK)
+      ! zero-out whole target_m
+      IF (SIZE(target_m, 1)*SIZE(target_m, 2) .NE. 0) THEN
+         CALL dcopy(SIZE(target_m, 1)*SIZE(target_m, 2), 0.0_dp, 0, target_m(1, 1), 1)
+      END IF
+#endif
+      CALL cp_cfm_get_info(matrix=fm, &
+                           nrow_global=nrow_global, ncol_global=ncol_global, &
+                           nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+      DO j = 1, ncol_local
+         this_col = col_indices(j)-j0+1
+         IF (this_col .GE. 1 .AND. this_col .LE. ncol) THEN
+            IF (tr_a) THEN
+               IF (i0 .EQ. 1 .AND. nrow_global .EQ. nrow) THEN
+                  DO i = 1, nrow_local
+                     target_m(this_col, row_indices(i)) = full_block(i, j)
+                  END DO
+               ELSE
+                  DO i = 1, nrow_local
+                     this_row = row_indices(i)-i0+1
+                     IF (this_row .GE. 1 .AND. this_row .LE. nrow) THEN
+                        target_m(this_col, this_row) = full_block(i, j)
+                     END IF
+                  END DO
+               END IF
+            ELSE
+               IF (i0 .EQ. 1 .AND. nrow_global .EQ. nrow) THEN
+                  DO i = 1, nrow_local
+                     target_m(row_indices(i), this_col) = full_block(i, j)
+                  END DO
+               ELSE
+                  DO i = 1, nrow_local
+                     this_row = row_indices(i)-i0+1
+                     IF (this_row .GE. 1 .AND. this_row .LE. nrow) THEN
+                        target_m(this_row, this_col) = full_block(i, j)
+                     END IF
+                  END DO
+               END IF
+            END IF
+         END IF
+      END DO
+
+      CALL mp_sum(target_m, para_env%group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_get_submatrix
 
 ! **************************************************************************************************
 !> \brief   Set the FULL matrix element (irow_global,icol_global) to alpha.

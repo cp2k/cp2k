@@ -32,6 +32,7 @@ MODULE cp_fm_basic_linalg
 
    PUBLIC :: cp_fm_scale, & ! scale a matrix
              cp_fm_scale_and_add, & ! scale and add two matrices
+             cp_fm_geadd, & ! similar to cp_fm_scale_and_add, but allows transpose
              cp_fm_column_scale, & ! scale colummns of a matrix
              cp_fm_trace, & ! trace of the transpose(A)*B
              cp_fm_schur_product, & ! schur product
@@ -46,7 +47,13 @@ MODULE cp_fm_basic_linalg
              cp_fm_frobenius_norm, & ! frobenius norm
              cp_fm_triangular_invert, & ! compute the reciprocal of a tirangular matrix
              cp_fm_qr_factorization, & ! compute the QR factorization of a rectangular matrix
-             cp_fm_solve ! solves the equation  A*B=C A and C are input
+             cp_fm_solve, & ! solves the equation  A*B=C A and C are input
+             cp_fm_lu_invert, & ! inverts a general matrix using LU factorisation
+             cp_fm_norm, & ! calculates norm of a matrix
+             cp_fm_latra ! calculates trace of a square matrix using (p)dlatra
+
+   REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
+   REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra
 
 CONTAINS
 
@@ -149,6 +156,87 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_scale_and_add
+
+! **************************************************************************************************
+!> \brief interface to BLACS geadd:
+!>                matrix_b = beta*matrix_b + alpha*opt(matrix_a)
+!>        where opt(matrix_a) can be either:
+!>              'N':  matrix_a
+!>              'T':  matrix_a^T
+!>              'C':  matrix_a^H (Hermitian conjugate)
+!>        note that this is a level three routine, use cp_fm_scale_and_add if that
+!>        is sufficient for your needs
+!> \param alpha  : complex scalar
+!> \param trans  : 'N' normal, 'T' transposed
+!> \param matrix_a : input matrix_a
+!> \param beta   : complex scalar
+!> \param matrix_b : input matrix_b, upon out put the updated matrix_b
+!> \author  Lianheng Tong
+! **************************************************************************************************
+   SUBROUTINE cp_fm_geadd(alpha, trans, matrix_a, beta, matrix_b)
+      REAL(KIND=dp), INTENT(IN) :: alpha, beta
+      CHARACTER, INTENT(IN) :: trans
+      TYPE(cp_fm_type), POINTER :: matrix_a, matrix_b
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geadd', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: nrow_global, ncol_global, handle
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa, bb
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9) :: desca, descb
+#else
+      INTEGER :: ii, jj
+#endif
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(matrix_a))
+      CPASSERT(ASSOCIATED(matrix_b))
+      nrow_global = matrix_a%matrix_struct%nrow_global
+      ncol_global = matrix_a%matrix_struct%ncol_global
+      CPASSERT(nrow_global .EQ. matrix_b%matrix_struct%nrow_global)
+      CPASSERT(ncol_global .EQ. matrix_b%matrix_struct%ncol_global)
+
+      aa => matrix_a%local_data
+      bb => matrix_b%local_data
+
+#if defined(__SCALAPACK)
+      desca = matrix_a%matrix_struct%descriptor
+      descb = matrix_b%matrix_struct%descriptor
+      CALL pdgeadd(trans, &
+                   nrow_global, &
+                   ncol_global, &
+                   alpha, &
+                   aa, &
+                   1, 1, &
+                   desca, &
+                   beta, &
+                   bb, &
+                   1, 1, &
+                   descb)
+#else
+      ! dgeadd is not a standard BLAS function, although is implemented
+      ! in some libraries like OpenBLAS, so not going to use it here
+      SELECT CASE (trans)
+      CASE ('T')
+         DO jj = 1, ncol_global
+            DO ii = 1, nrow_global
+               bb(ii, jj) = beta*bb(ii, jj)+alpha*aa(jj, ii)
+            END DO
+         END DO
+      CASE DEFAULT
+         DO jj = 1, ncol_global
+            DO ii = 1, nrow_global
+               bb(ii, jj) = beta*bb(ii, jj)+alpha*aa(ii, jj)
+            END DO
+         END DO
+      END SELECT
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_geadd
 
 ! **************************************************************************************************
 !> \brief Computes the LU-decomposition of the matrix, and the determinant of the matrix
@@ -1413,5 +1501,285 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_complex_fm_gemm
+
+! **************************************************************************************************
+!> \brief inverts a matrix using LU decomposition
+!>        the input matrix will be overwritten
+!> \param matrix   : input a general square non-singular matrix, outputs its inverse
+!> \param info_out : optional, if present outputs the info from (p)zgetri
+!> \author Lianheng Tong
+! **************************************************************************************************
+   SUBROUTINE cp_fm_lu_invert(matrix, info_out)
+      TYPE(cp_fm_type), POINTER                :: matrix
+      INTEGER, INTENT(OUT), OPTIONAL           :: info_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_invert', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: nrows_global, handle, info, lwork
+      INTEGER, DIMENSION(:), ALLOCATABLE       :: ipivot
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
+      REAL(KIND=sp), DIMENSION(:, :), POINTER  :: mat_sp
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work
+      REAL(KIND=sp), DIMENSION(:), ALLOCATABLE :: work_sp
+#if defined(__SCALAPACK)
+      INTEGER                                  :: liwork
+      INTEGER, DIMENSION(9)                    :: desca
+      INTEGER, DIMENSION(:), ALLOCATABLE       :: iwork
+#else
+      INTEGER                                  :: lda
+#endif
+
+      CALL timeset(routineN, handle)
+
+      mat => matrix%local_data
+      mat_sp => matrix%local_data_sp
+      nrows_global = matrix%matrix_struct%nrow_global
+      CPASSERT(nrows_global .EQ. matrix%matrix_struct%ncol_global)
+      ALLOCATE (ipivot(nrows_global))
+      ! do LU decomposition
+#if defined(__SCALAPACK)
+      desca = matrix%matrix_struct%descriptor
+      IF (matrix%use_sp) THEN
+         CALL psgetrf(nrows_global, nrows_global, &
+                      mat_sp, 1, 1, desca, ipivot, info)
+      ELSE
+         CALL pdgetrf(nrows_global, nrows_global, &
+                      mat, 1, 1, desca, ipivot, info)
+      END IF
+#else
+      lda = SIZE(mat, 1)
+      IF (matrix%use_sp) THEN
+         CALL sgetrf(nrows_global, nrows_global, &
+                     mat_sp, lda, ipivot, info)
+      ELSE
+         CALL dgetrf(nrows_global, nrows_global, &
+                     mat, lda, ipivot, info)
+      END IF
+#endif
+      IF (info /= 0) THEN
+         CALL cp_abort(__LOCATION__, "LU decomposition has failed")
+      END IF
+      ! do inversion
+      IF (matrix%use_sp) THEN
+         ALLOCATE (work(1))
+      ELSE
+         ALLOCATE (work_sp(1))
+      END IF
+#if defined(__SCALAPACK)
+      ALLOCATE (iwork(1))
+      IF (matrix%use_sp) THEN
+         CALL psgetri(nrows_global, mat_sp, 1, 1, desca, &
+                      ipivot, work_sp, -1, iwork, -1, info)
+         lwork = INT(work_sp(1))
+         DEALLOCATE (work_sp)
+         ALLOCATE (work_sp(lwork))
+      ELSE
+         CALL pdgetri(nrows_global, mat, 1, 1, desca, &
+                      ipivot, work, -1, iwork, -1, info)
+         lwork = INT(work(1))
+         DEALLOCATE (work)
+         ALLOCATE (work(lwork))
+      END IF
+      liwork = INT(iwork(1))
+      DEALLOCATE (iwork)
+      ALLOCATE (iwork(liwork))
+      IF (matrix%use_sp) THEN
+         CALL psgetri(nrows_global, mat_sp, 1, 1, desca, &
+                      ipivot, work_sp, lwork, iwork, liwork, info)
+      ELSE
+         CALL pdgetri(nrows_global, mat, 1, 1, desca, &
+                      ipivot, work, lwork, iwork, liwork, info)
+      END IF
+      DEALLOCATE (iwork)
+#else
+      IF (matrix%use_sp) THEN
+         CALL sgetri(nrows_global, mat_sp, lda, &
+                     ipivot, work_sp, -1, info)
+         lwork = INT(work_sp(1))
+         DEALLOCATE (work_sp)
+         ALLOCATE (work_sp(lwork))
+         CALL sgetri(nrows_global, mat_sp, lda, &
+                     ipivot, work_sp, lwork, info)
+      ELSE
+         CALL dgetri(nrows_global, mat, lda, &
+                     ipivot, work, -1, info)
+         lwork = INT(work(1))
+         DEALLOCATE (work)
+         ALLOCATE (work(lwork))
+         CALL dgetri(nrows_global, mat, lda, &
+                     ipivot, work, lwork, info)
+      END IF
+#endif
+      IF (matrix%use_sp) THEN
+         DEALLOCATE (work_sp)
+      ELSE
+         DEALLOCATE (work)
+      END IF
+      DEALLOCATE (ipivot)
+
+      IF (PRESENT(info_out)) THEN
+         info = info_out
+      ELSE
+         IF (info /= 0) &
+            CALL cp_abort(__LOCATION__, "LU inversion has failed")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_lu_invert
+
+! **************************************************************************************************
+!> \brief norm of matrix using (p)dlange
+!> \param matrix   : input a general matrix
+!> \param mode     : 'M' max abs element value,
+!>                   '1' or 'O' one norm, i.e. maximum column sum
+!>                   'I' infinity norm, i.e. maximum row sum
+!>                   'F' or 'E' Frobenius norm, i.e. sqrt of sum of all squares of elements
+!> \retval res     : the norm according to mode
+!> \author Lianheng Tong
+! **************************************************************************************************
+   FUNCTION cp_fm_norm(matrix, mode) RESULT(res)
+      TYPE(cp_fm_type), POINTER :: matrix
+      CHARACTER, INTENT(IN) :: mode
+      REAL(KIND=dp) :: res
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_norm', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: nrows, ncols, handle, lwork, nrows_local, ncols_local
+      REAL(KIND=sp) :: res_sp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa
+      REAL(KIND=sp), DIMENSION(:, :), POINTER :: aa_sp
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work
+      REAL(KIND=sp), DIMENSION(:), ALLOCATABLE :: work_sp
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9) :: desca
+#else
+      INTEGER :: lda
+#endif
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=matrix, &
+                          nrow_global=nrows, &
+                          ncol_global=ncols, &
+                          nrow_local=nrows_local, &
+                          ncol_local=ncols_local)
+      aa => matrix%local_data
+      aa_sp => matrix%local_data_sp
+
+#if defined(__SCALAPACK)
+      desca = matrix%matrix_struct%descriptor
+      SELECT CASE (mode)
+      CASE ('M', 'm')
+         lwork = 1
+      CASE ('1', 'O', 'o')
+         lwork = ncols_local
+      CASE ('I', 'i')
+         lwork = nrows_local
+      CASE ('F', 'f', 'E', 'e')
+         lwork = 1
+      CASE DEFAULT
+         CPABORT("mode input is not valid")
+      END SELECT
+      IF (matrix%use_sp) THEN
+         ALLOCATE (work_sp(lwork))
+         res_sp = pslange(mode, nrows, ncols, aa_sp, 1, 1, desca, work_sp)
+         DEALLOCATE (work_sp)
+         res = REAL(res_sp, KIND=dp)
+      ELSE
+         ALLOCATE (work(lwork))
+         res = pdlange(mode, nrows, ncols, aa, 1, 1, desca, work)
+         DEALLOCATE (work)
+      END IF
+#else
+      SELECT CASE (mode)
+      CASE ('M', 'm')
+         lwork = 1
+      CASE ('1', 'O', 'o')
+         lwork = 1
+      CASE ('I', 'i')
+         lwork = nrows
+      CASE ('F', 'f', 'E', 'e')
+         lwork = 1
+      CASE DEFAULT
+         CPABORT("mode input is not valid")
+      END SELECT
+      IF (matrix%use_sp) THEN
+         ALLOCATE (work_sp(lwork))
+         lda = SIZE(aa_sp, 1)
+         res_sp = slange(mode, nrows, ncols, aa_sp, lda, work_sp)
+         DEALLOCATE (work_sp)
+         res = REAL(res_sp, KIND=dp)
+      ELSE
+         ALLOCATE (work(lwork))
+         lda = SIZE(aa, 1)
+         res = dlange(mode, nrows, ncols, aa, lda, work)
+         DEALLOCATE (work)
+      END IF
+#endif
+
+      CALL timestop(handle)
+
+   END FUNCTION cp_fm_norm
+
+! **************************************************************************************************
+!> \brief trace of a matrix using pdlatra
+!> \param matrix   : input a square matrix
+!> \retval res     : the trace
+!> \author Lianheng Tong
+! **************************************************************************************************
+   FUNCTION cp_fm_latra(matrix) RESULT(res)
+      TYPE(cp_fm_type), POINTER :: matrix
+      REAL(KIND=dp) :: res
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_latra', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: nrows, ncols, handle
+      REAL(KIND=sp) :: res_sp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa
+      REAL(KIND=sp), DIMENSION(:, :), POINTER :: aa_sp
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9) :: desca
+#else
+      INTEGER :: ii
+#endif
+
+      CALL timeset(routineN, handle)
+
+      nrows = matrix%matrix_struct%nrow_global
+      ncols = matrix%matrix_struct%ncol_global
+      CPASSERT(nrows .EQ. ncols)
+      aa => matrix%local_data
+      aa_sp => matrix%local_data_sp
+
+#if defined(__SCALAPACK)
+      desca = matrix%matrix_struct%descriptor
+      IF (matrix%use_sp) THEN
+         res_sp = pslatra(nrows, aa_sp, 1, 1, desca)
+         res = REAL(res_sp, KIND=dp)
+      ELSE
+         res = pdlatra(nrows, aa, 1, 1, desca)
+      END IF
+#else
+      IF (matrix%use_sp) THEN
+         res_sp = 0.0_sp
+         DO ii = 1, nrows
+            res_sp = res_sp+aa_sp(ii, ii)
+         END DO
+         res = REAL(res_sp, KIND=dp)
+      ELSE
+         res = 0.0_dp
+         DO ii = 1, nrows
+            res = res+aa(ii, ii)
+         END DO
+      END IF
+#endif
+
+      CALL timestop(handle)
+
+   END FUNCTION cp_fm_latra
 
 END MODULE cp_fm_basic_linalg
