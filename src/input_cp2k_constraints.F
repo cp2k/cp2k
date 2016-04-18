@@ -355,7 +355,7 @@ CONTAINS
 
       ! Section Parameter
       CALL keyword_create(keyword, name="COMPONENTS_TO_FIX", &
-                          description="Specify which components (X,Y,Z or combinations) of the atoms specified in the section"// &
+                          description="Specify which components (X,Y,Z or combinations) of the atoms specified in the section "// &
                           "will be constrained/restrained.", &
                           usage="COMPONENTS_TO_FIX (x|y|z|xy|xz|yz|xyz)", &
                           default_i_val=use_perd_xyz, &
