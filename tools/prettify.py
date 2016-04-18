@@ -99,11 +99,11 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
     while True:
         n_pretty_iter += 1
         hash_prev = md5()
-        hash_prev.update(ifile.read())
+        hash_prev.update(ifile.read().encode("utf8"))
         ifile.seek(0)
         try:
             if replace:
-                tmpfile2 = os.tmpfile()
+                tmpfile2 = tempfile.TemporaryFile(mode="w+")
                 replacer.replaceWords(ifile, tmpfile2, logFile=logFile)
                 tmpfile2.seek(0)
                 if tmpfile:
@@ -111,7 +111,7 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
                 tmpfile = tmpfile2
                 ifile = tmpfile
             if reformat:  # reformat needs to be done first
-                tmpfile2 = os.tmpfile()
+                tmpfile2 = tempfile.TemporaryFile(mode="w+")
                 reformatFortranFile.reformat_ffile(ifile, tmpfile2, logFile=logFile,
                                                    indent_size=indent, whitespace=whitespace,
                                                    orig_filename=orig_filename)
@@ -121,7 +121,7 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
                 tmpfile = tmpfile2
                 ifile = tmpfile
             if normalize_use:
-                tmpfile2 = os.tmpfile()
+                tmpfile2 = tempfile.TemporaryFile(mode="w+")
                 normalizeFortranFile.rewriteFortranFile(ifile, tmpfile2, indent,
                                                         decl_linelength, decl_offset,
                                                         logFile, orig_filename=orig_filename)
@@ -131,7 +131,7 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
                 tmpfile = tmpfile2
                 ifile = tmpfile
             if upcase_keywords:
-                tmpfile2 = os.tmpfile()
+                tmpfile2 = tempfile.TemporaryFile(mode="w+")
                 upcaseKeywords(ifile, tmpfile2, upcase_omp, logFile)
                 tmpfile2.seek(0)
                 if tmpfile:
@@ -139,7 +139,7 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
                 tmpfile = tmpfile2
                 ifile = tmpfile
             hash_next = md5()
-            hash_next.update(ifile.read())
+            hash_next.update(ifile.read().encode("utf8"))
             ifile.seek(0)
             if hash_prev.digest() == hash_next.digest():
                 return ifile

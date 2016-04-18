@@ -32,7 +32,7 @@ def replaceWords(infile, outfile, replacements=repl,
 
         tokens = nonWordRe.split(line)
         for token in tokens:
-            if replacements.has_key(token):
+            if token in replacements.keys():
                 outfile.write(replacements[token])
             else:
                 outfile.write(token)

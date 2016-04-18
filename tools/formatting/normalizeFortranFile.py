@@ -41,8 +41,8 @@ class CharFilter(object):
         return self
 
     def __next__(self):
-        pos, char = self._it.next()
-
+        """ python 3 version"""
+        pos, char = next(self._it)
         if not self._instring and char == '!':
             raise StopIteration
 
@@ -58,9 +58,24 @@ class CharFilter(object):
 
         return (pos, char)
 
-    def next(self):
-        return self.__next__()
 
+    def next(self):
+        """ python 2 version"""
+        pos, char = self._it.next()
+        if not self._instring and char == '!':
+            raise StopIteration
+
+        # detect start/end of a string
+        if char == '"' or char == "'":
+            if self._instring == char:
+                self._instring = ''
+            elif not self._instring:
+                self._instring = char
+
+        if self._instring:
+            return self.next()
+
+        return (pos, char)
 
 class InputStream(object):
     """
@@ -439,8 +454,7 @@ def sortDeclarations(declarations):
     """sorts, compacts declarations and respects dependencies
     normalizedType has to be defined for the declarations"""
 
-    declarations.sort(lambda x, y: cmp(x['normalizedType'].lower(),
-                                       y['normalizedType'].lower()))
+    declarations.sort(key=lambda x: x['normalizedType'].lower())
 
     for i in range(len(declarations) - 1, 0, -1):
         if (declarations[i]['normalizedType'].lower() ==
@@ -449,7 +463,7 @@ def sortDeclarations(declarations):
             del declarations[i]
 
     for decl in declarations:
-        decl['vars'].sort(lambda x, y: cmp(x.lower(), y.lower()))
+        decl['vars'].sort(key=lambda x: x.lower())
     enforceDeclDependecies(declarations)
 
 
@@ -621,7 +635,7 @@ def cleanDeclarations(routine, logFile=sys.stdout):
             if d['parameters']:
                 d['normalizedType'] += d['parameters']
             if (d["attributes"]):
-                d['attributes'].sort(lambda x, y: cmp(x.lower(), y.lower()))
+                d['attributes'].sort(key=lambda x: x.lower())
                 d['normalizedType'] += ', '
                 d['normalizedType'] += ', '.join(d['attributes'])
             if "parameter" in map(str.lower, d['attributes']):
@@ -634,7 +648,7 @@ def cleanDeclarations(routine, logFile=sys.stdout):
         has_routinen = 0
         pos_routinep = -1
         for d in paramDecl:
-            for i in xrange(len(d['vars'])):
+            for i in range(len(d['vars'])):
                 v = d['vars'][i]
                 m = varRe.match(v)
                 lowerV = m.group("var").lower()
@@ -706,7 +720,7 @@ def cleanDeclarations(routine, logFile=sys.stdout):
         argDecl.extend(paramDecl)
         enforceDeclDependecies(argDecl)
         splitPos = 0
-        for i in xrange(len(argDecl) - 1, -1, -1):
+        for i in range(len(argDecl) - 1, -1, -1):
             if not 'parameter' in map(str.lower, argDecl[i]['attributes']):
                 splitPos = i + 1
                 break
@@ -715,7 +729,7 @@ def cleanDeclarations(routine, logFile=sys.stdout):
         paramDecl.extend(localDecl)
         enforceDeclDependecies(paramDecl)
         splitPos = 0
-        for i in xrange(len(paramDecl) - 1, -1, -1):
+        for i in range(len(paramDecl) - 1, -1, -1):
             if 'parameter' in map(str.lower, paramDecl[i]['attributes']):
                 splitPos = i + 1
                 break
@@ -776,7 +790,7 @@ def rmNullify(var, strings):
     nullify2Re = re.compile(
         r"(?P<nullif> *nullify *\()(?P<vars>[^()!&]+)\)", re.IGNORECASE)
 
-    for i in xrange(len(strings) - 1, -1, -1):
+    for i in range(len(strings) - 1, -1, -1):
         line = strings[i]
         comments = []
         if nullifyRe.match(line) and findWord(var, line) != -1:
@@ -803,7 +817,7 @@ def rmNullify(var, strings):
             vars = m.group("vars")
             v = map(string.strip, vars.split(","))
             removedNow = 0
-            for j in xrange(len(v) - 1, -1, -1):
+            for j in range(len(v) - 1, -1, -1):
                 if findWord(var, v[j].lower()) != -1:
                     del v[j]
                     removedNow = 1
@@ -814,7 +828,7 @@ def rmNullify(var, strings):
                     else:
                         strings[i] = "".join(comments)
                 else:
-                    for j in xrange(len(v) - 1):
+                    for j in range(len(v) - 1):
                         v[j] += ", "
                     v[-1] += ")"
                     newS = StringIO()
@@ -888,7 +902,7 @@ def normalizeModules(modules):
     """Sorts the modules and their export and removes duplicates.
     renames aren't sorted correctly"""
     # orders modules
-    modules.sort(lambda x, y: cmp(x['module'], y['module']))
+    modules.sort(key=lambda x: x['module'])
     for i in range(len(modules) - 1, 0, -1):
         if modules[i]['module'].lower() == modules[i - 1]['module'].lower():
             if not (modules[i - 1].has_key('only') and
@@ -1032,7 +1046,7 @@ def resetModuleN(moduleName, lines):
     "resets the moduleN variable to the module name in the lines lines"
     moduleNRe = re.compile(r".*:: *moduleN *= *(['\"])[a-zA-Z_0-9]+\1",
                            flags=re.IGNORECASE)
-    for i in xrange(len(lines)):
+    for i in range(len(lines)):
         lines[i] = moduleNRe.sub(
             " "*indentSize + "CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '" +
             moduleName + "'",
