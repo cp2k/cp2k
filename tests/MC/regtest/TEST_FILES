@@ -7,6 +7,8 @@
 #
 # QS MC test for volume moves and the ref_cell on water
 MC_QS.inp                                              6    1.0E-14                   -51.34321651
+# test restart mechanism
+MC_QS_restart.inp                                      6    1.0E-14                   -51.34299129
 # binary Ar/water GEMC constant pressure simulation...requires an input
 # file for each of the two simulation boxes...constant pressure means each
 # box can change volume independently...uses FIST and the biasing potential
