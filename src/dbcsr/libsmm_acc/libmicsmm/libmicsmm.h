@@ -40,5 +40,17 @@ typedef enum dbcsr_elem_type {
   DBCSR_ELEM_C32 = 5, DBCSR_ELEM_C64 = 7
 } dbcsr_elem_type;
 
+/** templates */
+template<typename T, bool Complex> struct dbcsr_elem  { static const dbcsr_elem_type type = DBCSR_ELEM_UNKNOWN;
+                                                        static const char* name() { return "unknown"; } };
+template<> struct dbcsr_elem<float,false>             { static const dbcsr_elem_type type = DBCSR_ELEM_F32;
+                                                        static const char* name() { return "f32"; } };
+template<> struct dbcsr_elem<double,false>            { static const dbcsr_elem_type type = DBCSR_ELEM_F64;
+                                                        static const char* name() { return "f64"; } };
+template<> struct dbcsr_elem<float,true>              { static const dbcsr_elem_type type = DBCSR_ELEM_C32;
+                                                        static const char* name() { return "c32"; } };
+template<> struct dbcsr_elem<double,true>             { static const dbcsr_elem_type type = DBCSR_ELEM_C64;
+                                                        static const char* name() { return "c64"; } };
+
 #endif // defined(__ACC) && defined(__ACC_MIC) && defined(__DBCSR_ACC)
 #endif // LIBMICSMM_H

@@ -9,7 +9,7 @@
 
 #if defined(__ACC) && defined(__ACC_MIC) && defined(__DBCSR_ACC)
 
-#include "libmicsmm.hpp"
+#include "libmicsmm.h"
 #include <cstdlib>
 #include <vector>
 
