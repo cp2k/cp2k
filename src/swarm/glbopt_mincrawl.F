@@ -388,10 +388,12 @@ CONTAINS
       IF (.NOT. minima_known) THEN
          this%n_minima = this%n_minima+1
          IF (this%n_minima > SIZE(this%minimas)) THEN
+            ALLOCATE (minimas_tmp(SIZE(this%minimas)))
             minimas_tmp(:) = this%minimas
             DEALLOCATE (this%minimas)
             ALLOCATE (this%minimas(SIZE(minimas_tmp)+1000))
             this%minimas(:SIZE(minimas_tmp)) = minimas_tmp
+            DEALLOCATE (minimas_tmp)
          ENDIF
 
          new_mid = this%n_minima
