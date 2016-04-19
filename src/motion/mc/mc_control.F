@@ -229,6 +229,7 @@ CONTAINS
       CALL mp_bcast(temperature, source, group)
       CALL mp_bcast(nunits_tot, source, group)
       CALL mp_bcast(ensemble, source, group)
+      CALL mp_bcast(nchains, source, group)
 
       ! do some checking
       IF (ABS(temperature-mc_temp) .GT. 0.01E0_dp) THEN
