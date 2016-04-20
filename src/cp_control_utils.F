@@ -1674,7 +1674,7 @@ CONTAINS
          END IF
          IF (efield%envelop_id == ramp_env) THEN
             ALLOCATE (efield%envelop_i_vars(4))
-            tmp_section => section_vals_get_subs_vals(efield_section, "CONSTANT_ENV", i_rep_section=i)
+            tmp_section => section_vals_get_subs_vals(efield_section, "RAMP_ENV", i_rep_section=i)
             CALL section_vals_val_get(tmp_section, "START_STEP_IN", &
                                       i_val=efield%envelop_i_vars(1))
             CALL section_vals_val_get(tmp_section, "END_STEP_IN", &
