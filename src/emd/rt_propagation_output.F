@@ -36,7 +36,8 @@ MODULE rt_propagation_output
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_p_file,&
+   USE cp_output_handling,              ONLY: cp_iter_string,&
+                                              cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
@@ -203,7 +204,11 @@ CONTAINS
             CALL get_rtp(rtp=rtp, rho_new=rho_new)
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                  dft_section, "REAL_TIME_PROPAGATION%PRINT%RESTART"), cp_p_file)) THEN
-               CALL write_rt_p_to_restart(rho_new)
+               CALL write_rt_p_to_restart(rho_new, .FALSE.)
+            ENDIF
+            IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                 dft_section, "REAL_TIME_PROPAGATION%PRINT%RESTART_HISTORY"), cp_p_file)) THEN
+               CALL write_rt_p_to_restart(rho_new, .TRUE.)
             ENDIF
             IF (.NOT. dft_control%qs_control%dftb) THEN
                !Not sure if these things could also work with dftb or not
@@ -600,12 +605,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Writes the density matrix and the atomic positions to a restart file
 !> \param rho_new ...
+!> \param history ...
 !> \author Samuel Andermatt (09.14)
 ! **************************************************************************************************
 
-   SUBROUTINE write_rt_p_to_restart(rho_new)
+   SUBROUTINE write_rt_p_to_restart(rho_new, history)
 
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_new
+      LOGICAL                                            :: history
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart', &
          routineP = moduleN//':'//routineN
@@ -627,13 +634,23 @@ CONTAINS
       DO ispin = 1, SIZE(rho_new)/2
          re = 2*ispin-1
          im = 2*ispin
-         WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE", ispin, "_RESTART.dm"
+         IF (history) THEN
+            WRITE (file_name, '(A,I0,A)') &
+               TRIM(project_name)//"_LS_DM_SPIN_RE", ispin, "_"//TRIM(cp_iter_string(logger%iter_info))//"_RESTART.dm"
+         ELSE
+            WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE", ispin, "_RESTART.dm"
+         ENDIF
          cs_pos = cp_dbcsr_checksum(rho_new(re)%matrix, pos=.TRUE.)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
          ENDIF
          CALL cp_dbcsr_binary_write(rho_new(re)%matrix, file_name)
-         WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM", ispin, "_RESTART.dm"
+         IF (history) THEN
+            WRITE (file_name, '(A,I0,A)') &
+               TRIM(project_name)//"_LS_DM_SPIN_IM", ispin, "_"//TRIM(cp_iter_string(logger%iter_info))//"_RESTART.dm"
+         ELSE
+            WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM", ispin, "_RESTART.dm"
+         ENDIF
          cs_pos = cp_dbcsr_checksum(rho_new(im)%matrix, pos=.TRUE.)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ", cs_pos

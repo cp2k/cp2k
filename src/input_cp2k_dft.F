@@ -6884,9 +6884,9 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "RESTART", &
-                                       description="Controls the dumping of the MO restart file during rtp."// &
+                                       description="Controls the dumping of the MO restart file during rtp. "// &
                                        "By default keeps a short history of three restarts."// &
-                                       "See also RESTART_HISTORY. In density propagation this controls the printing of P", &
+                                       "See also RESTART_HISTORY. In density propagation this controls the printing of P.", &
                                        print_level=low_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("MD"), each_iter_values=(/20/), &
                                        add_last=add_last_numeric, filename="RESTART")
@@ -6900,7 +6900,8 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, "RESTART_HISTORY", &
-                                       description="Dumps unique MO restart files during the run keeping all of them.", &
+                                       description="Dumps unique MO restart files during the run keeping all of them. "// &
+                                       "In density propagation it dumps the density matrix instead", &
                                        print_level=low_print_level, common_iter_levels=0, &
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/500/), &

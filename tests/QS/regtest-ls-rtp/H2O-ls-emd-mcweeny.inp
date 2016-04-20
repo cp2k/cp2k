@@ -17,6 +17,11 @@
              MD 1
            &END EACH
          &END RESTART
+         &RESTART_HISTORY
+           &EACH
+             MD 2
+           &END EACH
+         &END RESTART_HISTORY
        &END PRINT
     &END
     BASIS_SET_FILE_NAME BASIS_SET
