@@ -37,7 +37,7 @@ MODULE dbcsr_config
 
    PUBLIC :: dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
 
-   PUBLIC :: dbcsr_set_conf_use_mpi_rma, dbcsr_get_conf_use_mpi_rma
+   PUBLIC :: dbcsr_set_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_exp
    PUBLIC :: dbcsr_set_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_filtering
    PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
    PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
@@ -60,7 +60,7 @@ MODULE dbcsr_config
              mm_name_matmul, &
              mm_name_smm, &
              mm_name_xsmm
-   PUBLIC :: use_mpi_rma, use_mpi_filtering, use_comm_thread, comm_thread_load
+   PUBLIC :: use_mpi_exp, use_mpi_filtering, use_comm_thread, comm_thread_load
    PUBLIC :: max_elements_per_block, avg_elements_images
    !
    PUBLIC :: is_initialized
@@ -150,7 +150,7 @@ MODULE dbcsr_config
    INTEGER, SAVE :: nk_stacks = 3
 
    ! RMA algorithm
-   LOGICAL, SAVE :: use_mpi_rma = .FALSE.
+   LOGICAL, SAVE :: use_mpi_exp = .FALSE.
 
    ! RMA MPI filtering
    LOGICAL, SAVE :: use_mpi_filtering = .TRUE.
@@ -427,33 +427,33 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mpi_rma ...
+!> \param mpi_exp ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_set_conf_use_mpi_rma(mpi_rma)
-      LOGICAL, INTENT(IN)                                :: mpi_rma
+   SUBROUTINE dbcsr_set_conf_use_mpi_exp(mpi_exp)
+      LOGICAL, INTENT(IN)                                :: mpi_exp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_use_mpi_rma', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_use_mpi_exp', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: error_handle
 
       CALL timeset(routineN, error_handle)
-      use_mpi_rma = mpi_rma
+      use_mpi_exp = mpi_exp
       CALL timestop(error_handle)
-   END SUBROUTINE dbcsr_set_conf_use_mpi_rma
+   END SUBROUTINE dbcsr_set_conf_use_mpi_exp
 
 ! **************************************************************************************************
 !> \brief ...
-!> \retval mpi_rma ...
+!> \retval mpi_exp ...
 ! **************************************************************************************************
-   FUNCTION dbcsr_get_conf_use_mpi_rma() RESULT(mpi_rma)
-      LOGICAL                                            :: mpi_rma
+   FUNCTION dbcsr_get_conf_use_mpi_exp() RESULT(mpi_exp)
+      LOGICAL                                            :: mpi_exp
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_use_mpi_rma', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_use_mpi_exp', &
          routineP = moduleN//':'//routineN
 
-      mpi_rma = use_mpi_rma
-   END FUNCTION dbcsr_get_conf_use_mpi_rma
+      mpi_exp = use_mpi_exp
+   END FUNCTION dbcsr_get_conf_use_mpi_exp
 
 ! **************************************************************************************************
 !> \brief ...

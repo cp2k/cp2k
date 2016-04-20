@@ -35,15 +35,14 @@ MODULE dbcsr_api
         accdrv_priority_streams, dbcsr_get_conf_avg_elements_images, &
         dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
         dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-        dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, &
-        dbcsr_get_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_rma, &
-        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
-        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-        dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, &
-        dbcsr_set_conf_use_mpi_filtering, dbcsr_set_conf_use_mpi_rma, dbcsr_set_default_config, &
-        has_acc, has_mpi, mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
-        mm_driver_xsmm, mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, &
-        multrec_limit
+        dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
+        dbcsr_get_conf_use_mpi_filtering, dbcsr_set_conf_avg_elements_images, &
+        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, &
+        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
+        dbcsr_set_conf_use_mpi_filtering, dbcsr_set_default_config, has_acc, has_mpi, &
+        mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, &
+        mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
    USE dbcsr_csr_conversions,           ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_create_new, &
         csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
@@ -218,7 +217,7 @@ MODULE dbcsr_api
              dbcsr_get_conf_mm_stacksize, &
              dbcsr_get_conf_mpi_mem, &
              dbcsr_get_conf_nstacks, &
-             dbcsr_get_conf_use_mpi_rma, &
+             dbcsr_get_conf_use_mpi_exp, &
              dbcsr_get_conf_use_mpi_filtering, &
              dbcsr_get_conf_use_comm_thread, &
              dbcsr_get_data_p, &
@@ -292,7 +291,7 @@ MODULE dbcsr_api
              dbcsr_set_conf_mm_stacksize, &
              dbcsr_set_conf_avg_elements_images, &
              dbcsr_set_conf_nstacks, &
-             dbcsr_set_conf_use_mpi_rma, &
+             dbcsr_set_conf_use_mpi_exp, &
              dbcsr_set_conf_use_mpi_filtering, &
              dbcsr_set_conf_use_comm_thread, &
              dbcsr_set_diag, &

@@ -174,7 +174,7 @@
      THRESHOLD 0.000001
   &END
   &DBCSR
-    USE_MPI_RMA T
+    USE_MPI_EXP T
   &END
   ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 ! TRACE

@@ -44,27 +44,28 @@ MODULE cp_dbcsr_interface
         dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
         dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
         dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, dbcsr_get_conf_randmat_seed, &
-        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_filtering, &
-        dbcsr_get_conf_use_mpi_rma, dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_data_type, &
-        dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-        dbcsr_get_occupation, dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
-        dbcsr_has_symmetry, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_maxabs, dbcsr_mp_get_process, dbcsr_mp_group, dbcsr_mp_hold, &
-        dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-        dbcsr_mp_obj, dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-        dbcsr_no_transpose, dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, &
-        dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, &
-        dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_reserve_all_blocks, &
-        dbcsr_reserve_block2d, dbcsr_reserve_blocks, dbcsr_reserve_diag_blocks, dbcsr_run_tests, &
-        dbcsr_scalar, dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
+        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
+        dbcsr_get_conf_use_mpi_filtering, dbcsr_get_data_p, dbcsr_get_data_size, &
+        dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
+        dbcsr_hadamard_product, dbcsr_has_symmetry, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
+        dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_maxabs, dbcsr_mp_get_process, &
+        dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_npcols, &
+        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_release, dbcsr_multiply, &
+        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_new_transposed, &
+        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
+        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
+        dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, &
+        dbcsr_replicate_all, dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, &
+        dbcsr_reserve_blocks, dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
+        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
         dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, dbcsr_scale, &
         dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_conf_avg_elements_images, &
         dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
         dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, &
-        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_filtering, &
-        dbcsr_set_conf_use_mpi_rma, dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
+        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
+        dbcsr_set_conf_use_mpi_filtering, dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
         dbcsr_test_arnoldi, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, dbcsr_triu, &
         dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
         dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
@@ -95,10 +96,10 @@ MODULE cp_dbcsr_interface
              dbcsr_get_conf_avg_elements_images, &
              dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks, &
              dbcsr_set_conf_mm_stacksize, &
-             dbcsr_get_conf_use_mpi_rma, dbcsr_get_conf_use_mpi_filtering
+             dbcsr_get_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_filtering
    PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
              dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_use_comm_thread, &
-             has_mpi, dbcsr_set_conf_use_mpi_rma, dbcsr_set_conf_use_mpi_filtering
+             has_mpi, dbcsr_set_conf_use_mpi_exp, dbcsr_set_conf_use_mpi_filtering
    PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols, &
              dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows, &
              dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, &
@@ -1238,13 +1239,13 @@ CONTAINS
       END IF
 
       IF ((ASSOCIATED(row_dist_cluster2) .OR. ASSOCIATED(col_dist_cluster2)) .AND. &
-          .NOT. dbcsr_get_conf_use_mpi_rma()) THEN
+          .NOT. dbcsr_get_conf_use_mpi_exp()) THEN
          iunit = default_output_unit
          IF (PRESENT(unit_nr)) iunit = unit_nr
          IF (iunit > 0) THEN
             WRITE (iunit, *) "************************************************************"
             WRITE (iunit, *) "WARNING:: Cannot use cluster distribution without MPI RMA!!!"
-            WRITE (iunit, *) "          Set 'USE_MPI_RMA T' in DBCSR section."
+            WRITE (iunit, *) "          Set 'USE_MPI_EXP T' in DBCSR section."
             WRITE (iunit, *) "************************************************************"
          ENDIF
          NULLIFY (row_dist_cluster2, col_dist_cluster2)
