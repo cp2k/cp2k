@@ -195,7 +195,7 @@ MODULE dbcsr_mm_cannon
    ! ab-panels and streams are shared between all threads
 
    TYPE dbcsr_rma_buffer
-      TYPE(dbcsr_data_obj)               :: DATA, DATA_DIAG
+      TYPE(dbcsr_data_obj)               :: DATA, data_diag
       INTEGER                            :: vprow, vpcol
       INTEGER, DIMENSION(:), POINTER     :: meta => Null(), &
                                             meta_diag => Null()
@@ -715,7 +715,7 @@ CONTAINS
       IF (has_acc) use_dense_mult = .FALSE.
       !
       ! Temporary check for RMA algorithm
-      IF (has_acc .OR. new_right .OR. new_left .OR. &
+      IF (new_right .OR. new_left .OR. &
           dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_c%m%dist)) .NE. &
           dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_c%m%dist))) THEN
          my_use_mpi_exp = .FALSE.
@@ -992,12 +992,14 @@ CONTAINS
          CALL dbcsr_make_buffers(matrix_right, rdist_right, .FALSE., &
                                  f_k, l_k, f_col, l_col, &
                                  PRESENT(filter_eps), &
+                                 has_acc, &
                                  alpha)
          !
          ! Left buffer images
          CALL dbcsr_make_buffers(matrix_left, rdist_left, .TRUE., &
                                  f_row, l_row, f_k, l_k, &
-                                 PRESENT(filter_eps))
+                                 PRESENT(filter_eps), &
+                                 has_acc)
       ELSE
          product_matrix%m%nblks = 0
          product_matrix%m%nze = 0
@@ -1297,18 +1299,19 @@ CONTAINS
 !> \param f_col ...
 !> \param l_col ...
 !> \param otf_filtering ...
+!> \param has_acc ...
 !> \param alpha ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE dbcsr_make_buffers(matrix, imgdist, is_left, &
                                  f_row, l_row, f_col, l_col, &
-                                 otf_filtering, &
+                                 otf_filtering, has_acc, &
                                  alpha)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
-      LOGICAL, INTENT(IN)                                :: otf_filtering
+      LOGICAL, INTENT(IN)                                :: otf_filtering, has_acc
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: alpha
 
       LOGICAL                                            :: do_scale
@@ -1322,10 +1325,10 @@ CONTAINS
       !
       IF (do_scale) THEN
          CALL make_buffers(matrix, imgdist, is_left, &
-                           f_row, l_row, f_col, l_col, otf_filtering, alpha)
+                           f_row, l_row, f_col, l_col, otf_filtering, has_acc, alpha)
       ELSE
          CALL make_buffers(matrix, imgdist, is_left, &
-                           f_row, l_row, f_col, l_col, otf_filtering)
+                           f_row, l_row, f_col, l_col, otf_filtering, has_acc)
       ENDIF
    END SUBROUTINE dbcsr_make_buffers
 
@@ -1339,18 +1342,19 @@ CONTAINS
 !> \param f_col ...
 !> \param l_col ...
 !> \param otf_filtering ...
+!> \param has_acc ...
 !> \param scale_value ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE make_buffers(matrix, imgdist, is_left, &
                            f_row, l_row, f_col, l_col, &
-                           otf_filtering, &
+                           otf_filtering, has_acc, &
                            scale_value)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
-      LOGICAL, INTENT(IN)                                :: otf_filtering
+      LOGICAL, INTENT(IN)                                :: otf_filtering, has_acc
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: scale_value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_buffers', routineP = moduleN//':'//routineN
@@ -1539,7 +1543,7 @@ CONTAINS
             sm%nfullrows_local, &
             sm%nfullcols_local/)
          ! Do not scatter data when there is a single cluster or single column proc
-         do_scatter = nprocs_scatter .GT. 1 .AND. nimages_merged .GT. 1
+         do_scatter = nprocs_scatter .GT. 1 .AND. nimages_merged .GT. 1 .AND. .NOT. has_acc
          IF (do_scatter .AND. is_diagonal) THEN
             ALLOCATE (meta_displ_cluster_scatter(nimages_unmerged))
             ALLOCATE (meta_size_cluster_scatter(nimages_unmerged))
@@ -4009,8 +4013,10 @@ CONTAINS
       CALL dbcsr_mp_grid_setup(left_mp_obj)
       CALL dbcsr_mp_grid_setup(right_mp_obj)
       is_diagonal = myprow .EQ. mypcol
-      do_scatter = right_npcols .GT. 1 .AND. .NOT. is_diagonal .AND. right_col_nimages .GT. 1
-      do_diagonal = right_npcols .GT. 1 .AND. is_diagonal .AND. right_col_nimages .GT. 1
+      do_scatter = right_npcols .GT. 1 .AND. .NOT. is_diagonal .AND. &
+                   right_col_nimages .GT. 1 .AND. .NOT. has_acc
+      do_diagonal = right_npcols .GT. 1 .AND. is_diagonal .AND. &
+                    right_col_nimages .GT. 1 .AND. .NOT. has_acc
       !
       ! Dummy checks
       ! subcommunicators
@@ -4045,10 +4051,11 @@ CONTAINS
       nvirt_k = left_npcols*left_col_nimages
       nsteps_k = nvirt_k/min_nimages
       !
-      do_rec = min_nimages .EQ. 1
+      do_rec = right_col_nimages .EQ. 1 .AND. left_row_nimages .EQ. 1
       !
       ! Exchange product matrix blocks coodinates
-      IF (keep_sparsity .AND. right_npcols .GT. 1 .AND. right_col_nimages .GT. 1) THEN
+      IF (keep_sparsity .AND. right_npcols .GT. 1 .AND. &
+          right_col_nimages .GT. 1 .AND. .NOT. has_acc) THEN
          IF (do_diagonal) THEN
             meta_size_scatter = product_matrix%m%index(dbcsr_slot_size)
          ENDIF
@@ -4096,7 +4103,7 @@ CONTAINS
       ENDIF
       !
       CALL timeset(routineN//"_scatter", handle2)
-      IF (right_npcols .GT. 1 .AND. right_col_nimages .GT. 1) THEN
+      IF (right_npcols .GT. 1 .AND. right_col_nimages .GT. 1 .AND. .NOT. has_acc) THEN
          CALL mp_waitall(requests_scatter)
          IF (keep_sparsity) THEN
             CALL mp_wait(request_product_matrix)
@@ -4659,6 +4666,9 @@ CONTAINS
             left_v_i = 0
             rma_buffers_comm%right%offset(:, :) = 0
             rma_buffers_comm%left%offset(:, :) = 0
+            rma_buffers_comm%right%get_requests(:, :) = mp_request_null
+            rma_buffers_comm%left%get_requests(:, :) = mp_request_null
+            !
             DO v_ki = 0, min_nimages-1
                ! Right
                CALL cannon_transfer_rma(v_ki, rma_buffers_comm%right%vprow, rma_buffers_comm%right%vpcol, &
@@ -4687,6 +4697,11 @@ CONTAINS
                                         data_get, data_type_byte, rma_buffers_orig%left, &
                                         left_meta_offset_diag, left_data_offset_diag)
             ENDDO
+            ! Set the referenced sizes to the actual data moved via MPI
+            CALL dbcsr_data_set_size_referenced(rma_buffers_comm%right%data, &
+                                                rma_buffers_comm%right%offset(idata_size, right_v_i+1))
+            CALL dbcsr_data_set_size_referenced(rma_buffers_comm%left%data, &
+                                                rma_buffers_comm%left%offset(idata_size, left_v_i+1))
          ENDIF xfer
          !
          ! Wait data, merge and do the multiplications.
@@ -4694,24 +4709,10 @@ CONTAINS
          wait_merge_calc: IF (metronome .GT. 0) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
-            CALL timeset("mp_waitall_2", handle3)
-            !
-            ! Counting the requests per each unmerged image
-            right_get_requests_images(:) = 0
-            DO iget = 1, rma_buffers_calc%right%nrequests
-               right_get_requests_images(rma_buffers_calc%right%get_requests_map(:, iget)) = &
-                  right_get_requests_images(rma_buffers_calc%right%get_requests_map(:, iget))+1
-            ENDDO
-            left_get_requests_images(:) = 0
-            DO iget = 1, rma_buffers_calc%left%nrequests
-               left_get_requests_images(rma_buffers_calc%left%get_requests_map(:, iget)) = &
-                  left_get_requests_images(rma_buffers_calc%left%get_requests_map(:, iget))+1
-            ENDDO
-            !
             rma_buffers_calc%right%buffer%mats(:)%m%nblks = 0
             rma_buffers_calc%left%buffer%mats(:)%m%nblks = 0
             !
-            common_unmerged = .FALSE.
+            common_unmerged(:) = .FALSE.
             !
             IF (metronome == nsteps_k) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
@@ -4726,36 +4727,84 @@ CONTAINS
             !
             right_nrequests = rma_buffers_calc%right%nrequests
             left_nrequests = rma_buffers_calc%left%nrequests
-            DO WHILE (right_nrequests .GT. 0 .OR. &
-                      left_nrequests .GT. 0)
+            IF (min_nimages .EQ. 1 .OR. has_acc) THEN
                IF (right_nrequests .GT. 0) THEN
-                  CALL wait_merge_calc_low(rma_buffers_calc%right, &
-                                           rma_buffers_calc%left, &
-                                           right_nrequests, &
-                                           multrec, do_rec, flop, &
-                                           right_get_requests_images, &
-                                           imgdist_right, .FALSE., min_nimages, right_col_nimages, &
-                                           right_global_indices, right_vunmerged(:, metronome-1), &
-                                           right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                                           right_norms, left_norms, &
-                                           common_unmerged, indices_common_unmerged)
+                  CALL mp_waitall(rma_buffers_calc%right%get_requests(:, 1:right_nrequests))
+                  IF (has_acc) CALL dbcsr_data_host2dev(rma_buffers_calc%right%data)
+                  CALL merge_calc(rma_buffers_calc%right, &
+                                  rma_buffers_calc%left, &
+                                  multrec, do_rec, flop, &
+                                  imgdist_right, .FALSE., &
+                                  1, min_nimages, &
+                                  min_nimages, right_col_nimages, &
+                                  right_global_indices, right_vunmerged(:, metronome-1), &
+                                  right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
+                                  right_norms, left_norms, &
+                                  common_unmerged, indices_common_unmerged, has_acc)
                ENDIF
                IF (left_nrequests .GT. 0) THEN
-                  CALL wait_merge_calc_low(rma_buffers_calc%right, &
-                                           rma_buffers_calc%left, &
-                                           left_nrequests, &
-                                           multrec, do_rec, flop, &
-                                           left_get_requests_images, &
-                                           imgdist_left, .TRUE., left_row_nimages, min_nimages, &
-                                           left_global_indices, left_vunmerged(:, metronome-1), &
-                                           left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                                           right_norms, left_norms, &
-                                           common_unmerged, indices_common_unmerged, &
-                                           nthreads)
+                  CALL mp_waitall(rma_buffers_calc%left%get_requests(:, 1:left_nrequests))
+                  IF (has_acc) CALL dbcsr_data_host2dev(rma_buffers_calc%left%data)
+                  CALL merge_calc(rma_buffers_calc%right, &
+                                  rma_buffers_calc%left, &
+                                  multrec, do_rec, flop, &
+                                  imgdist_left, .TRUE., &
+                                  1, min_nimages, &
+                                  left_row_nimages, min_nimages, &
+                                  left_global_indices, left_vunmerged(:, metronome-1), &
+                                  left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
+                                  right_norms, left_norms, &
+                                  common_unmerged, indices_common_unmerged, &
+                                  has_acc, nthreads, rma_buffers_calc%trs_stackbuf)
                ENDIF
-            ENDDO
-            !
-            CALL timestop(handle3)
+            ELSE
+               !
+               ! Use async communication-computation over images
+               CALL timeset("mp_waitall_2", handle3)
+               !
+               ! Counting the requests per each unmerged image
+               right_get_requests_images(:) = 0
+               DO iget = 1, rma_buffers_calc%right%nrequests
+                  right_get_requests_images(rma_buffers_calc%right%get_requests_map(:, iget)) = &
+                     right_get_requests_images(rma_buffers_calc%right%get_requests_map(:, iget))+1
+               ENDDO
+               left_get_requests_images(:) = 0
+               DO iget = 1, rma_buffers_calc%left%nrequests
+                  left_get_requests_images(rma_buffers_calc%left%get_requests_map(:, iget)) = &
+                     left_get_requests_images(rma_buffers_calc%left%get_requests_map(:, iget))+1
+               ENDDO
+               !
+               DO WHILE (right_nrequests .GT. 0 .OR. &
+                         left_nrequests .GT. 0)
+                  IF (right_nrequests .GT. 0) THEN
+                     CALL wait_merge_calc_low(rma_buffers_calc%right, &
+                                              rma_buffers_calc%left, &
+                                              right_nrequests, &
+                                              multrec, do_rec, flop, &
+                                              right_get_requests_images, &
+                                              imgdist_right, .FALSE., min_nimages, right_col_nimages, &
+                                              right_global_indices, right_vunmerged(:, metronome-1), &
+                                              right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
+                                              right_norms, left_norms, &
+                                              common_unmerged, indices_common_unmerged)
+                  ENDIF
+                  IF (left_nrequests .GT. 0) THEN
+                     CALL wait_merge_calc_low(rma_buffers_calc%right, &
+                                              rma_buffers_calc%left, &
+                                              left_nrequests, &
+                                              multrec, do_rec, flop, &
+                                              left_get_requests_images, &
+                                              imgdist_left, .TRUE., left_row_nimages, min_nimages, &
+                                              left_global_indices, left_vunmerged(:, metronome-1), &
+                                              left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
+                                              right_norms, left_norms, &
+                                              common_unmerged, indices_common_unmerged, &
+                                              nthreads)
+                  ENDIF
+               ENDDO
+               !
+               CALL timestop(handle3)
+            ENDIF
             !
             IF (debug_mod) THEN
                DO v_ki = 1, min_nimages
@@ -5163,12 +5212,10 @@ CONTAINS
                                                                                       recv_vunmerged)), &
                                 refs_meta_size(vmerged(ui, v_ki), recv_vunmerged))
                meta_offset = meta_size
-               buffer%get_requests(1, buffer%nrequests) = mp_request_null
                CALL dbcsr_data_set(buffer%data, data_offset+1, &
                                    refs_data_size(displ_vunmerged(recv_vunmerged)+ui), &
                                    buffer_orig%data_diag, data_offset_diag+1)
                data_offset = data_size
-               buffer%get_requests(2, buffer%nrequests) = mp_request_null
             ELSE
                IF (set_displ) THEN
                   recv_vunmerged_displ = recv_vunmerged
@@ -5304,24 +5351,18 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: vmerged
       LOGICAL, INTENT(IN)                                :: otf_filtering
       INTEGER, INTENT(IN)                                :: data_type
-      REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT), &
-         TARGET                                          :: right_norms, left_norms
+      REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT)      :: right_norms, left_norms
       LOGICAL, DIMENSION(:), INTENT(INOUT)               :: common_unmerged
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: indices_common_unmerged
       INTEGER, INTENT(IN), OPTIONAL                      :: nthreads
 
-      INTEGER                                            :: handle, iget, ithread, &
-                                                            ncommons_unmerged, nrequests, uf, ui, &
-                                                            ul
-      REAL(kind=sp), DIMENSION(:, :), POINTER            :: norms
+      INTEGER                                            :: iget, nrequests, uf, ul
       TYPE(dbcsr_rma_buffer), POINTER                    :: buffer
 
       IF (is_left) THEN
          buffer => left_buffer
-         norms => left_norms
       ELSE
          buffer => right_buffer
-         norms => right_norms
       ENDIF
       nrequests = 0
       DO iget = 1, in_nrequests
@@ -5333,51 +5374,16 @@ CONTAINS
             ul = buffer%get_requests_map(2, iget)
             IF (get_requests_images(ul) .NE. 0) ul = ul-1
             IF (uf .LE. ul) THEN
-               !
-               ! Merge row-images/col-images of right/left matrices
-               ! Repoint indices of matrices
-               CALL merge_images(buffer%buffer, nrows_images, ncols_images, &
-                                 buffer%vprow, buffer%vpcol, &
-                                 buffer%offset, buffer%meta, &
-                                 uf=uf, ul=ul, &
-                                 imgdist=imgdist, do_merge_rows=is_left, &
-                                 global_indices=global_indices, &
-                                 vunmerged=vunmerged, &
-                                 vmerged=vmerged, &
-                                 common_unmerged=common_unmerged, &
-                                 indices_common_unmerged=indices_common_unmerged, &
-                                 ncommons_unmerged=ncommons_unmerged, &
-                                 nthreads=nthreads)
-               IF (otf_filtering) THEN
-                  CALL calculate_image_norms(buffer%buffer, &
-                                             data_type, norms, uf=uf, ul=ul)
-               ENDIF
-               !
-               IF (ncommons_unmerged .EQ. 0) CYCLE
-               CALL timeset("cannon_multiply_low_rma_multrec", handle)
-               !
-!$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (right_buffer,left_buffer, &
-!$OMP         left_norms,right_norms, &
-!$OMP         multrec,do_rec, &
-!$OMP         ncommons_unmerged,indices_common_unmerged) &
-!$OMP PRIVATE (ithread,ui) &
-!$OMP REDUCTION (+: flop)
-               ithread = 0
-!$             ithread = omp_get_thread_num()
-               !
-               DO ui = 1, ncommons_unmerged
-                  CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p, &
-                                                 left=left_buffer%buffer%mats(indices_common_unmerged(ui))%m, &
-                                                 right=right_buffer%buffer%mats(indices_common_unmerged(ui))%m, &
-                                                 flop=flop, &
-                                                 a_norms=left_norms(:, indices_common_unmerged(ui)), &
-                                                 b_norms=right_norms(:, indices_common_unmerged(ui)), &
-                                                 do_rec=do_rec)
-               ENDDO
-!$OMP END PARALLEL
-               !
-               CALL timestop(handle)
+               CALL merge_calc(right_buffer, left_buffer, &
+                               multrec, do_rec, flop, &
+                               imgdist, is_left, &
+                               uf, ul, &
+                               nrows_images, ncols_images, &
+                               global_indices, vunmerged, vmerged, &
+                               otf_filtering, data_type, &
+                               right_norms, left_norms, &
+                               common_unmerged, indices_common_unmerged, &
+                               .FALSE., nthreads)
             ENDIF
          ELSE
             nrequests = nrequests+1
@@ -5392,6 +5398,130 @@ CONTAINS
       !
       in_nrequests = nrequests
    END SUBROUTINE wait_merge_calc_low
+
+! **************************************************************************************************
+!> \brief ...
+!> \param right_buffer ...
+!> \param left_buffer ...
+!> \param multrec ...
+!> \param do_rec ...
+!> \param flop ...
+!> \param imgdist ...
+!> \param is_left ...
+!> \param uf ...
+!> \param ul ...
+!> \param nrows_images ...
+!> \param ncols_images ...
+!> \param global_indices ...
+!> \param vunmerged ...
+!> \param vmerged ...
+!> \param otf_filtering ...
+!> \param data_type ...
+!> \param right_norms ...
+!> \param left_norms ...
+!> \param common_unmerged ...
+!> \param indices_common_unmerged ...
+!> \param has_acc ...
+!> \param nthreads ...
+!> \param trs_stackbuf ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE merge_calc(right_buffer, left_buffer, &
+                         multrec, do_rec, flop, &
+                         imgdist, is_left, &
+                         uf, ul, &
+                         nrows_images, ncols_images, &
+                         global_indices, vunmerged, vmerged, &
+                         otf_filtering, data_type, &
+                         right_norms, left_norms, &
+                         common_unmerged, indices_common_unmerged, &
+                         has_acc, nthreads, trs_stackbuf)
+      TYPE(dbcsr_rma_buffer), INTENT(INOUT), TARGET      :: right_buffer, left_buffer
+      TYPE(dbcsr_mm_multrec_type_p), DIMENSION(0:), &
+         INTENT(INOUT)                                   :: multrec
+      LOGICAL, INTENT(IN)                                :: do_rec
+      INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
+      TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
+      LOGICAL, INTENT(IN)                                :: is_left
+      INTEGER, INTENT(IN)                                :: uf, ul, nrows_images, ncols_images
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: global_indices, vunmerged
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: vmerged
+      LOGICAL, INTENT(IN)                                :: otf_filtering
+      INTEGER, INTENT(IN)                                :: data_type
+      REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT), &
+         TARGET                                          :: right_norms, left_norms
+      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: common_unmerged
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: indices_common_unmerged
+      LOGICAL, INTENT(IN)                                :: has_acc
+      INTEGER, INTENT(IN), OPTIONAL                      :: nthreads
+      TYPE(dbcsr_data_obj), INTENT(INOUT), OPTIONAL      :: trs_stackbuf
+
+      INTEGER                                            :: handle, ithread, ncommons_unmerged, ui
+      REAL(kind=sp), DIMENSION(:, :), POINTER            :: norms
+      TYPE(dbcsr_rma_buffer), POINTER                    :: buffer
+
+      IF (is_left) THEN
+         buffer => left_buffer
+         norms => left_norms
+      ELSE
+         buffer => right_buffer
+         norms => right_norms
+      ENDIF
+      !
+      ! Merge row-images/col-images of right/left matrices
+      ! Repoint indices of matrices
+      CALL merge_images(buffer%buffer, nrows_images, ncols_images, &
+                        buffer%vprow, buffer%vpcol, &
+                        buffer%offset, buffer%meta, &
+                        uf=uf, ul=ul, &
+                        imgdist=imgdist, do_merge_rows=is_left, &
+                        global_indices=global_indices, &
+                        vunmerged=vunmerged, &
+                        vmerged=vmerged, &
+                        common_unmerged=common_unmerged, &
+                        indices_common_unmerged=indices_common_unmerged, &
+                        ncommons_unmerged=ncommons_unmerged, &
+                        nthreads=nthreads)
+      IF (otf_filtering) THEN
+         CALL calculate_image_norms(buffer%buffer, &
+                                    data_type, norms, uf=uf, ul=ul)
+      ENDIF
+      !
+      IF (ncommons_unmerged .GT. 0) THEN
+         !
+         IF (has_acc .AND. PRESENT(trs_stackbuf)) THEN
+            CALL acc_transpose_blocks_images(right_buffer%buffer, &
+                                             right_buffer%data, &
+                                             trs_stackbuf, &
+                                             indices_common_unmerged(1:ncommons_unmerged))
+         ENDIF
+         !
+         CALL timeset("cannon_multiply_low_rma_multrec", handle)
+         !
+!$OMP PARALLEL DEFAULT (NONE) &
+!$OMP SHARED (right_buffer,left_buffer, &
+!$OMP         left_norms,right_norms, &
+!$OMP         multrec,do_rec, &
+!$OMP         ncommons_unmerged,indices_common_unmerged) &
+!$OMP PRIVATE (ithread,ui) &
+!$OMP REDUCTION (+: flop)
+         ithread = 0
+!$       ithread = omp_get_thread_num()
+         !
+         DO ui = 1, ncommons_unmerged
+            CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p, &
+                                           left=left_buffer%buffer%mats(indices_common_unmerged(ui))%m, &
+                                           right=right_buffer%buffer%mats(indices_common_unmerged(ui))%m, &
+                                           flop=flop, &
+                                           a_norms=left_norms(:, indices_common_unmerged(ui)), &
+                                           b_norms=right_norms(:, indices_common_unmerged(ui)), &
+                                           do_rec=do_rec)
+         ENDDO
+!$OMP END PARALLEL
+         !
+         CALL timestop(handle)
+      ENDIF
+   END SUBROUTINE merge_calc
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6379,6 +6509,151 @@ CONTAINS
    END SUBROUTINE acc_transpose_blocks
 
 ! **************************************************************************************************
+!> \brief write out a stack for transposing the blocks
+!> \param matrices ...
+!> \param data ...
+!> \param trs_stackbuf ...
+!> \param indices ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE acc_transpose_blocks_images(matrices, DATA, trs_stackbuf, indices)
+      TYPE(dbcsr_1d_array_type), INTENT(IN)              :: matrices
+      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: DATA, trs_stackbuf
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: indices
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'acc_transpose_blocks_images', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: blk_p, col, handle, i, imat, m, mi, &
+                                                            mi_max, n, nblks, nblks_total, ni, &
+                                                            ni_max, offset, row, x
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: counters, filled, offsets, tmp_stack
+      INTEGER, DIMENSION(:), POINTER :: blk_index, col_blk_sizes, col_blk_sizes2enum, &
+         enum2col_blk_sizes, enum2row_blk_sizes, local2global_cols, local2global_rows, &
+         row_blk_sizes, row_blk_sizes2enum, trs_stack
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (row_blk_sizes2enum, enum2row_blk_sizes)
+      NULLIFY (col_blk_sizes2enum, enum2col_blk_sizes)
+      NULLIFY (local2global_rows, local2global_cols, trs_stack)
+
+      IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4) &
+         CPABORT("build_trs_stack: stac_buf has wrong datatype")
+
+      row_blk_sizes => array_data(matrices%mats(indices(1))%m%row_blk_size)
+      col_blk_sizes => array_data(matrices%mats(indices(1))%m%col_blk_size)
+
+      ! enumerate the blocksizes to keep the following 2D-arrays small.
+      CALL enumerate_blk_sizes(row_blk_sizes, row_blk_sizes2enum, enum2row_blk_sizes)
+      CALL enumerate_blk_sizes(col_blk_sizes, col_blk_sizes2enum, enum2col_blk_sizes)
+      mi_max = SIZE(enum2row_blk_sizes); ni_max = SIZE(enum2col_blk_sizes)
+      ALLOCATE (counters(mi_max, ni_max), offsets(mi_max, ni_max), filled(mi_max, ni_max))
+      counters(:, :) = 0; offsets(:, :) = 0; filled(:, :) = 0
+
+      ! make sure block-buffer is uploaded befor running the kernels
+      CALL acc_stream_wait_event(trs_stackbuf%d%memory_type%acc_stream, data%d%acc_ready)
+
+      nblks_total = 0
+      DO imat = 1, SIZE(indices)
+         nblks_total = nblks_total+matrices%mats(indices(imat))%m%nblks
+      ENDDO
+      ALLOCATE (tmp_stack(3, nblks_total))
+
+      nblks_total = 0
+      DO imat = 1, SIZE(indices)
+         blk_index => matrices%mats(indices(imat))%m%coo_l
+         local2global_rows => array_data(matrices%mats(indices(imat))%m%local_rows)
+         local2global_cols => array_data(matrices%mats(indices(imat))%m%local_cols)
+         nblks = matrices%mats(indices(imat))%m%nblks
+
+         ! collect block addresses and dimensions in a temporary stack
+         ! while doing so, also count number of blocks per block-dimensions
+         DO i = 1, nblks
+            row = blk_index(3*(i-1)+1)
+            col = blk_index(3*(i-1)+2)
+            blk_p = blk_index(3*(i-1)+3)
+            IF (blk_p == 0) CYCLE
+            row = local2global_rows(row)
+            col = local2global_cols(col)
+            m = row_blk_sizes(row)
+            n = col_blk_sizes(col)
+            mi = row_blk_sizes2enum(m)
+            ni = col_blk_sizes2enum(n)
+            tmp_stack(1, nblks_total+i) = mi
+            tmp_stack(2, nblks_total+i) = ni
+            tmp_stack(3, nblks_total+i) = blk_p-1
+            counters(mi, ni) = counters(mi, ni)+1
+         ENDDO
+         nblks_total = nblks_total+nblks
+      ENDDO
+
+      ! calculate offsets for first element of each sub-stack
+      offset = 0
+      DO mi = 1, mi_max
+         DO ni = 1, ni_max
+            offsets(mi, ni) = offset
+            offset = offset+counters(mi, ni)
+         ENDDO
+      ENDDO
+
+      ! make sure buffer from previous cannon-tick was uploaded
+      CALL acc_event_synchronize(trs_stackbuf%d%acc_ready)
+      CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks_total, nocopy=.TRUE.)
+      trs_stack => trs_stackbuf%d%i4
+
+      ! write all sub-stacks into the host-pinned buffer
+      DO i = 1, nblks_total
+         mi = tmp_stack(1, i)
+         ni = tmp_stack(2, i)
+         blk_p = tmp_stack(3, i)
+         x = offsets(mi, ni)+filled(mi, ni)+1
+         trs_stack(x) = blk_p
+         filled(mi, ni) = filled(mi, ni)+1
+      ENDDO
+
+      !sanity check
+      DO mi = 1, mi_max
+         DO ni = 1, ni_max
+            IF (filled(mi, ni) /= counters(mi, ni)) &
+               CPABORT("acc_transpose_blocks: bug")
+         END DO
+      END DO
+
+      !transfer all stacks
+      CALL dbcsr_data_host2dev(trs_stackbuf)
+
+      ! launch kernels
+      DO mi = 1, mi_max
+         DO ni = 1, ni_max
+            IF (counters(mi, ni) > 0) THEN
+               m = enum2row_blk_sizes(mi)
+               n = enum2col_blk_sizes(ni)
+               CALL dbcsr_acc_transpose( &
+                  trs_stack=trs_stackbuf%d%acc_devmem, &
+                  offset=offsets(mi, ni), &
+                  nblks=counters(mi, ni), &
+                  datatype=data%d%data_type, &
+                  buffer=data%d%acc_devmem, &
+                  m=m, n=n, &
+                  stream=trs_stackbuf%d%memory_type%acc_stream)
+            END IF
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (tmp_stack)
+
+      ! make sure block-buffer are not used until transpose kernels finished
+      CALL acc_event_record(trs_stackbuf%d%acc_ready, trs_stackbuf%d%memory_type%acc_stream)
+      CALL acc_stream_wait_event(data%d%memory_type%acc_stream, trs_stackbuf%d%acc_ready)
+      CALL acc_event_record(data%d%acc_ready, data%d%memory_type%acc_stream)
+
+      DEALLOCATE (row_blk_sizes2enum, enum2row_blk_sizes)
+      DEALLOCATE (col_blk_sizes2enum, enum2col_blk_sizes)
+      CALL timestop(handle)
+   END SUBROUTINE acc_transpose_blocks_images
+
+! **************************************************************************************************
 !> \brief Enumerate all occuring blocksizes
 !> \param blk_sizes ...
 !> \param enum ...
@@ -6727,7 +7002,7 @@ CONTAINS
                      offset_meta = offset_images(imeta_size, ioffset)
                      offset_data = offset_images(idata_size, ioffset)
                      ! Check for filtered images
-                     IF (offset_data .NE. offset_images(idata_size, ioffset+1)) THEN
+                     IF (offset_data .LT. offset_images(idata_size, ioffset+1)) THEN
                         unmerged_indices => meta_buffer(offset_meta+dbcsr_slot_size: &
                                                         offset_meta+meta_buffer(offset_meta+dbcsr_slot_size))
                         IF (ithread .EQ. 1) THEN
