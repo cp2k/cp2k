@@ -1691,10 +1691,10 @@ CONTAINS
             CALL section_vals_val_get(tmp_section, "EFIELD_FILE_NAME", c_val=file_name)
             CALL open_file(file_name=TRIM(file_name), file_action="READ", file_status="OLD", unit_number=unit_nr)
             !Determine the number of lines in file
-            n = -1
-            io = 0
-            DO WHILE (io == 0)
+            n = 0
+            DO WHILE (.TRUE.)
                READ (unit_nr, *, iostat=io)
+               IF (io /= 0) EXIT
                n = n+1
             END DO
             !Read the file
