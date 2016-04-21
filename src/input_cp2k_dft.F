@@ -29,11 +29,11 @@ MODULE input_cp2k_dft
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         atomic_guess, cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, &
-        cholesky_restore, constant_env, core_guess, diag_block_davidson, diag_block_krylov, &
-        diag_filter_matrix, diag_ot, diag_standard, dispersion_d3, dispersion_uff, &
-        do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
-        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_admm_basis_projection, &
-        do_admm_blocked_projection, do_admm_blocking_purify_full, &
+        cholesky_restore, constant_env, core_guess, custom_env, diag_block_davidson, &
+        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, dispersion_d3, &
+        dispersion_uff, do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
+        do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
+        do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
         do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
         do_admm_exch_scaling_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
         do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
@@ -5569,11 +5569,12 @@ CONTAINS
                           description="Shape of the efield pulse used in real-time propagation (RTP) calculations.", &
                           usage="ENVELOP CONSTANT", &
                           default_i_val=constant_env, &
-                          enum_c_vals=s2a("CONSTANT", "GAUSSIAN", "RAMP"), &
+                          enum_c_vals=s2a("CONSTANT", "GAUSSIAN", "RAMP", "CUSTOM"), &
                           enum_desc=s2a("No envelop function is applied to the strength", &
                                         "A Gaussian function is used as envelop ", &
-                                        "Linear tune in/out of the field"), &
-                          enum_i_vals=(/constant_env, gaussian_env, ramp_env/))
+                                        "Linear tune in/out of the field", &
+                                        "A custom field read from a file"), &
+                          enum_i_vals=(/constant_env, gaussian_env, ramp_env, custom_env/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -5581,11 +5582,15 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_gaussian_env_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_ramp_env_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_gaussian_env_section(subsection)
+      CALL create_custom_env_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -7014,6 +7019,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_gaussian_env_section
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param section ...
@@ -7062,6 +7068,34 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_ramp_env_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_custom_env_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_custom_env_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "CUSTOM_ENV", &
+                          description="Parameters for a custom efield", &
+                          n_keywords=6, n_subsections=1, repeats=.TRUE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="EFIELD_FILE_NAME", &
+                          description="Specify file that contains the electric field [V/m]", &
+                          usage="EFIELD_FILE_NAME filename", &
+                          n_var=1, type_of_var=char_t, default_c_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_custom_env_section
 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for the SCCS model

@@ -790,7 +790,8 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: constant_env = 1, &
                                                gaussian_env = 2, &
-                                               ramp_env = 3
+                                               ramp_env = 3, &
+                                               custom_env = 4
 
    ! how to solve polarizable force fields
    INTEGER, PARAMETER, PUBLIC               :: do_fist_pol_none = 1, &

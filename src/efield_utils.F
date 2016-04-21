@@ -16,6 +16,7 @@ MODULE efield_utils
                                               efield_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: constant_env,&
+                                              custom_env,&
                                               gaussian_env,&
                                               ramp_env
    USE kahan_sum,                       ONLY: accurate_sum
@@ -150,8 +151,7 @@ CONTAINS
                field = field+strength*COS(sim_time*nu*2.0_dp*pi+ &
                                           efield%phase_offset*pi)*pol(:)
             END IF
-         END IF
-         IF (efield%envelop_id == ramp_env) THEN
+         ELSE IF (efield%envelop_id == ramp_env) THEN
             IF (sim_step .GE. efield%envelop_i_vars(1) .AND. sim_step .LE. efield%envelop_i_vars(2)) &
                strength = strength*(sim_step-efield%envelop_i_vars(1))/(efield%envelop_i_vars(2)-efield%envelop_i_vars(1))
             IF (sim_step .GE. efield%envelop_i_vars(3) .AND. sim_step .LE. efield%envelop_i_vars(4)) &
@@ -160,11 +160,17 @@ CONTAINS
             IF (sim_step .LE. efield%envelop_i_vars(1)) strength = 0.0_dp
             field = field+strength*COS(sim_time*nu*2.0_dp*pi+ &
                                        efield%phase_offset*pi)*pol(:)
-         END IF
-         IF (efield%envelop_id == gaussian_env) THEN
+         ELSE IF (efield%envelop_id == gaussian_env) THEN
             env = EXP(-0.5_dp*((sim_time-efield%envelop_r_vars(1))/efield%envelop_r_vars(2))**2.0_dp)
             field = field+strength*env*COS(sim_time*nu*2.0_dp*pi+ &
                                            efield%phase_offset*pi)*pol(:)
+         ELSE IF (efield%envelop_id == custom_env) THEN
+            IF (sim_step .LE. SIZE(efield%envelop_r_vars)) THEN
+               strength = efield%envelop_r_vars(sim_step)
+            ELSE
+               strength = 0.0_dp
+            ENDIF
+            field = field+strength*pol(:)
          END IF
       END DO
 

@@ -16,13 +16,16 @@ MODULE cp_control_utils
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, qs_control_type, sccs_control_create, &
         tddfpt_control_create, tddfpt_control_type
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
+                                              cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        constant_env, do_admm_basis_projection, do_admm_blocked_projection, &
+        constant_env, custom_env, do_admm_basis_projection, do_admm_blocked_projection, &
         do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
         do_admm_exch_scaling_merlot, do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
         do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_none_dm, &
@@ -1633,7 +1636,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'read_efield_sections', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i
+      CHARACTER(len=default_path_length)                 :: file_name
+      INTEGER                                            :: i, io, j, n, unit_nr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_vals
       TYPE(efield_type), POINTER                         :: efield
       TYPE(section_vals_type), POINTER                   :: tmp_section
@@ -1656,6 +1660,7 @@ CONTAINS
                                    i_val=efield%envelop_id)
          CALL section_vals_val_get(efield_section, "WAVELENGTH", i_rep_section=i, &
                                    r_val=efield%wavelength)
+
          IF (efield%envelop_id == constant_env) THEN
             ALLOCATE (efield%envelop_i_vars(2))
             tmp_section => section_vals_get_subs_vals(efield_section, "CONSTANT_ENV", i_rep_section=i)
@@ -1663,16 +1668,14 @@ CONTAINS
                                       i_val=efield%envelop_i_vars(1))
             CALL section_vals_val_get(tmp_section, "END_STEP", &
                                       i_val=efield%envelop_i_vars(2))
-         END IF
-         IF (efield%envelop_id == gaussian_env) THEN
+         ELSE IF (efield%envelop_id == gaussian_env) THEN
             ALLOCATE (efield%envelop_r_vars(2))
             tmp_section => section_vals_get_subs_vals(efield_section, "GAUSSIAN_ENV", i_rep_section=i)
             CALL section_vals_val_get(tmp_section, "T0", &
                                       r_val=efield%envelop_r_vars(1))
             CALL section_vals_val_get(tmp_section, "SIGMA", &
                                       r_val=efield%envelop_r_vars(2))
-         END IF
-         IF (efield%envelop_id == ramp_env) THEN
+         ELSE IF (efield%envelop_id == ramp_env) THEN
             ALLOCATE (efield%envelop_i_vars(4))
             tmp_section => section_vals_get_subs_vals(efield_section, "RAMP_ENV", i_rep_section=i)
             CALL section_vals_val_get(tmp_section, "START_STEP_IN", &
@@ -1683,6 +1686,25 @@ CONTAINS
                                       i_val=efield%envelop_i_vars(3))
             CALL section_vals_val_get(tmp_section, "END_STEP_OUT", &
                                       i_val=efield%envelop_i_vars(4))
+         ELSE IF (efield%envelop_id == custom_env) THEN
+            tmp_section => section_vals_get_subs_vals(efield_section, "CUSTOM_ENV", i_rep_section=i)
+            CALL section_vals_val_get(tmp_section, "EFIELD_FILE_NAME", c_val=file_name)
+            CALL open_file(file_name=TRIM(file_name), file_action="READ", file_status="OLD", unit_number=unit_nr)
+            !Determine the number of lines in file
+            n = -1
+            io = 0
+            DO WHILE (io == 0)
+               READ (unit_nr, *, iostat=io)
+               n = n+1
+            END DO
+            !Read the file
+            REWIND (unit_nr)
+            ALLOCATE (efield%envelop_r_vars(n))
+            DO j = 1, n
+               READ (unit_nr, *) efield%envelop_r_vars(j)
+               efield%envelop_r_vars(j) = cp_unit_to_cp2k(cp_unit_to_cp2k(efield%envelop_r_vars(j), "hartree"), "m", power=-1)
+            END DO
+            CALL close_file(unit_nr)
          END IF
       END DO
    END SUBROUTINE read_efield_sections
