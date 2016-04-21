@@ -4657,6 +4657,8 @@ CONTAINS
             left_set_displ = .TRUE.
             right_v_i = 0
             left_v_i = 0
+            rma_buffers_comm%right%offset(:, :) = 0
+            rma_buffers_comm%left%offset(:, :) = 0
             DO v_ki = 0, min_nimages-1
                ! Right
                CALL cannon_transfer_rma(v_ki, rma_buffers_comm%right%vprow, rma_buffers_comm%right%vpcol, &
