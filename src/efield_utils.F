@@ -152,12 +152,12 @@ CONTAINS
             END IF
          END IF
          IF (efield%envelop_id == ramp_env) THEN
-! check this part, it seems to be wrong
-            IF (sim_step .GE. efield%envelop_i_vars(1) .AND. sim_step .GE. efield%envelop_i_vars(2)) &
+            IF (sim_step .GE. efield%envelop_i_vars(1) .AND. sim_step .LE. efield%envelop_i_vars(2)) &
                strength = strength*(sim_step-efield%envelop_i_vars(1))/(efield%envelop_i_vars(2)-efield%envelop_i_vars(1))
-            IF (sim_step .GE. efield%envelop_i_vars(3) .AND. sim_step .GE. efield%envelop_i_vars(4)) &
+            IF (sim_step .GE. efield%envelop_i_vars(3) .AND. sim_step .LE. efield%envelop_i_vars(4)) &
                strength = strength*(efield%envelop_i_vars(4)-sim_step)/(efield%envelop_i_vars(4)-efield%envelop_i_vars(3))
             IF (sim_step .GT. efield%envelop_i_vars(4) .AND. efield%envelop_i_vars(4) .GT. 0) strength = 0.0_dp
+            IF (sim_step .LE. efield%envelop_i_vars(1)) strength = 0.0_dp
             field = field+strength*COS(sim_time*nu*2.0_dp*pi+ &
                                        efield%phase_offset*pi)*pol(:)
          END IF
