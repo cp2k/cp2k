@@ -169,8 +169,8 @@ CONTAINS
             dt = efield%envelop_r_vars(1)
             IF (sim_time .LT. (SIZE(efield%envelop_r_vars)-2)*dt) THEN
                !make a linear interpolation between the two next points
-               upper = CEILING(sim_time/dt)
                lower = FLOOR(sim_time/dt)
+               upper = lower+1
                strength = (efield%envelop_r_vars(lower+2)*(upper*dt-sim_time)+efield%envelop_r_vars(upper+2)*(sim_time-lower*dt))/dt
             ELSE
                strength = 0.0_dp
