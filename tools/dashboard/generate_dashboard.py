@@ -153,7 +153,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     output += '</table>\n'
     output += '<div id="dummybox"></div></div>\n' # complete flex-container
     output += html_footer()
-    write_file(outdir+"index.html", output)
+    write_file(outdir+"index.html", output.encode("utf8"))
     write_file(status_fn, pformat(status))
 
 #===============================================================================
@@ -218,7 +218,7 @@ def gen_archive(config, log, outdir, full_archive=False):
         archive_output += '</table>\n'
         archive_output += other_index_link
         archive_output += html_footer()
-        write_file(outdir+"archive/%s/%s"%(s,out_fn), archive_output)
+        write_file(outdir+"archive/%s/%s"%(s,out_fn), archive_output.encode("utf8"))
 
     out_fn = "list_full.txt" if (full_archive) else "list_recent.txt"
     write_file(outdir+"archive/"+out_fn, url_list)
