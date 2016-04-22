@@ -1704,7 +1704,7 @@ CONTAINS
             !Read the file
             DO j = 2, n
                READ (unit_nr, *) efield%envelop_r_vars(j)
-               efield%envelop_r_vars(j) = cp_unit_to_cp2k(cp_unit_to_cp2k(efield%envelop_r_vars(j), "hartree"), "m", power=-1)
+               efield%envelop_r_vars(j) = cp_unit_to_cp2k(efield%envelop_r_vars(j), "volt/m")
             END DO
             CALL close_file(unit_nr)
          END IF
