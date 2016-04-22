@@ -7084,14 +7084,22 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "CUSTOM_ENV", &
                           description="Parameters for a custom efield", &
-                          n_keywords=6, n_subsections=1, repeats=.TRUE.)
+                          n_keywords=2, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, name="EFIELD_FILE_NAME", &
-                          description="Specify file that contains the electric field [V/m]", &
+                          description="Specify file that contains the electric field [V/m].", &
                           usage="EFIELD_FILE_NAME filename", &
                           n_var=1, type_of_var=char_t, default_c_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TIMESTEP", &
+                          description="The time step between the entries in the list with the electric field.", &
+                          usage="TIME_STEP 1", &
+                          unit_str="fs", &
+                          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -1697,10 +1697,12 @@ CONTAINS
                IF (io /= 0) EXIT
                n = n+1
             END DO
-            !Read the file
             REWIND (unit_nr)
-            ALLOCATE (efield%envelop_r_vars(n))
-            DO j = 1, n
+            ALLOCATE (efield%envelop_r_vars(n+1))
+            !Store the timestep of the list in the first entry of the r_vars
+            CALL section_vals_val_get(tmp_section, "TIMESTEP", r_val=efield%envelop_r_vars(1))
+            !Read the file
+            DO j = 2, n
                READ (unit_nr, *) efield%envelop_r_vars(j)
                efield%envelop_r_vars(j) = cp_unit_to_cp2k(cp_unit_to_cp2k(efield%envelop_r_vars(j), "hartree"), "m", power=-1)
             END DO

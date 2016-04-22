@@ -12,6 +12,7 @@
        ENVELOP CUSTOM
        &CUSTOM_ENV
          EFIELD_FILE_NAME field.txt
+         TIMESTEP [au_t] 0.2
        &END
     &END
     BASIS_SET_FILE_NAME BASIS_SET
