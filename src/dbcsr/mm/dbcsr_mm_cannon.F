@@ -225,8 +225,8 @@ MODULE dbcsr_mm_cannon
 
    TYPE(dbcsr_data_obj), SAVE, PRIVATE :: local_data_scatter, local_data_product_scatter
    INTEGER, PRIVATE                    :: local_meta_size_scatter, local_data_size_scatter
-   INTEGER, DIMENSION(:), SAVE, POINTER :: meta_scatter => Null(), local_meta_scatter => Null(), &
-                                           local_meta_product_scatter => Null()
+   INTEGER, DIMENSION(:), SAVE, PRIVATE, POINTER :: meta_scatter => Null(), local_meta_scatter => Null(), &
+                                                    local_meta_product_scatter => Null()
    INTEGER, ALLOCATABLE, DIMENSION(:), PRIVATE :: left_total_row_counts
    INTEGER, ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_no_empty_images, &
                                                           left_no_empty_images_displ, &
@@ -250,6 +250,7 @@ MODULE dbcsr_mm_cannon
    INTEGER, PRIVATE                :: request_count_rows
    INTEGER, DIMENSION(8), PRIVATE  :: requests
    INTEGER, DIMENSION(4), PRIVATE  :: requests_diag
+   LOGICAL, PARAMETER, PRIVATE     :: do_diag = .FALSE.
    INTEGER, DIMENSION(2), PRIVATE  :: requests_scatter
    LOGICAL, PRIVATE                :: my_use_mpi_exp
 
@@ -1387,7 +1388,8 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: global_indices
       INTEGER, POINTER                                   :: coli, rowi
       INTEGER, TARGET                                    :: mi, ui
-      LOGICAL                                            :: do_scatter, do_symmetry, is_diagonal, tr
+      LOGICAL                                            :: do_bcast, do_scatter, do_symmetry, &
+                                                            is_diagonal, tr
       REAL(kind=sp), DIMENSION(:), POINTER               :: local_max_norms, max_norms
       TYPE(dbcsr_data_obj), POINTER                      :: data_buffer_p
       TYPE(dbcsr_data_obj), TARGET                       :: data_recv, data_send
@@ -1553,6 +1555,8 @@ CONTAINS
          local_data_size_scatter = 0
       ENDIF
       !
+      do_bcast = nimages_merged .GT. 1 .OR. do_diag
+      !
       ALLOCATE (local_refs_size(idata_size:imeta_size, nimages_merged, nimages_unmerged))
       local_refs_size(:, :, :) = 0
       !
@@ -1700,7 +1704,7 @@ CONTAINS
 !$OMP         local_refs_meta_size,local_refs_data_size,&
 !$OMP         local_refs_displ,nprocs_scatter,meta_scatter,&
 !$OMP         left_refs_displ_unmerged,right_refs_displ_unmerged,&
-!$OMP         local_refs_displ_unmerged,requests,is_diagonal,&
+!$OMP         local_refs_displ_unmerged,requests,is_diagonal,do_bcast,&
 !$OMP         g2l_map_cols_merge,g2l_map_rows_merge,&
 !$OMP         meta_size_diag,data_size_diag,pdiag,buffer,&
 !$OMP         left_total_row_counts,otf_filtering,meta_size_diag_scatter,&
@@ -1773,7 +1777,7 @@ CONTAINS
                IF (blacs2mpi(prow, pcol) .EQ. mynode .OR. is_diagonal) THEN
                   dst_proc = ilocal_proc
                ELSE
-                  ! Move data to remove symmetric proc
+                  ! Move data to remote symmetric proc
                   dst_proc = isym_proc
                ENDIF
             ENDIF
@@ -1819,7 +1823,8 @@ CONTAINS
          local_refs_displ_unmerged(imeta_displ, ui) = meta_size
          local_refs_displ_unmerged(idata_displ, ui) = data_size
          DO mi = 1, nimages_merged
-            IF (is_diagonal .AND. (ui .EQ. mi .OR. nimages_merged .EQ. 1)) THEN
+            IF (is_diagonal .AND. do_bcast .AND. &
+                (ui .EQ. mi .OR. nimages_merged .EQ. 1)) THEN
                local_refs_displ(imeta_displ, mi, ui) = meta_size_diag
                local_refs_displ(idata_displ, mi, ui) = data_size_diag
             ELSE
@@ -1833,7 +1838,8 @@ CONTAINS
             local_refs_size(imeta_size, mi, ui) = local_refs_size(imeta_size, mi, ui)+ &
                                                   size_index_unmerged
             local_refs_meta_size(mi, ui) = local_refs_size(imeta_size, mi, ui)
-            IF (is_diagonal .AND. (ui .EQ. mi .OR. nimages_merged .EQ. 1)) THEN
+            IF (is_diagonal .AND. do_bcast .AND. &
+                (ui .EQ. mi .OR. nimages_merged .EQ. 1)) THEN
                meta_size_diag = meta_size_diag+local_refs_size(imeta_size, mi, ui)
                data_size_diag = data_size_diag+local_refs_size(idata_size, mi, ui)
             ELSE
@@ -1901,8 +1907,10 @@ CONTAINS
       ENDIF
       !
       ! Bcast the diagonal sizes
-      CALL mp_ibcast(meta_size_diag, pdiag, mygrp, request_meta_size_diag)
-      CALL mp_ibcast(data_size_diag, pdiag, mygrp, request_data_size_diag)
+      IF (do_bcast) THEN
+         CALL mp_ibcast(meta_size_diag, pdiag, mygrp, request_meta_size_diag)
+         CALL mp_ibcast(data_size_diag, pdiag, mygrp, request_data_size_diag)
+      ENDIF
       !
       ! Exchange refs
       IF (is_left) THEN
@@ -1918,7 +1926,7 @@ CONTAINS
       CALL rma_buffer_init(buffer, data_type, &
                            data_size, meta_size, &
                            data_memory_type=memtype_mpi_buffer)
-      IF (is_diagonal) THEN
+      IF (is_diagonal .AND. do_bcast) THEN
          CALL resize_buffer_diag(buffer, data_type, &
                                  data_size_diag, meta_size_diag, &
                                  data_memory_type=memtype_mpi_buffer)
@@ -2004,7 +2012,7 @@ CONTAINS
                                   shifting='0')
             IF (do_symmetry .OR. is_diagonal) THEN
                IF (is_diagonal) THEN
-                  IF (ui .EQ. mi .OR. nimages_merged .EQ. 1) THEN
+                  IF (do_bcast .AND. (ui .EQ. mi .OR. nimages_merged .EQ. 1)) THEN
                      data_buffer_p => buffer%data_diag
                      meta_buffer_p => buffer%meta_diag
                   ELSE
@@ -2141,7 +2149,7 @@ CONTAINS
                ENDIF
             ENDIF
             IF (is_diagonal) THEN
-               IF (ui .EQ. mi .OR. nimages_merged .EQ. 1) THEN
+               IF (do_bcast .AND. (ui .EQ. mi .OR. nimages_merged .EQ. 1)) THEN
                   meta_buffer_p => buffer%meta_diag
                ELSE
                   meta_buffer_p => buffer%meta
@@ -2216,7 +2224,7 @@ CONTAINS
       ENDIF
       !
       IF (nimages_merged .EQ. 1) THEN
-         IF (is_diagonal) THEN
+         IF (is_diagonal .AND. do_bcast) THEN
             meta_buffer_p => buffer%meta_diag
          ELSE
             meta_buffer_p => buffer%meta
@@ -2281,7 +2289,7 @@ CONTAINS
                                         local_cols, &
                                         size_index_unmerged+1, &
                                         local_max_norms, is_left, &
-                                        .NOT. is_diagonal)
+                                        .NOT. (is_diagonal .AND. do_bcast))
          CALL mp_iallgather(local_max_norms, max_norms, &
                             no_empty_images, no_empty_images_displ, &
                             mygrp, requests(6+irequests))
@@ -2294,17 +2302,19 @@ CONTAINS
       DEALLOCATE (img_refs_rows)
       DEALLOCATE (local_refs_size)
       !
-      CALL mp_wait(request_meta_size_diag)
-      CALL mp_wait(request_data_size_diag)
-      IF (.NOT. is_diagonal) THEN
-         CALL resize_buffer_diag(buffer, data_type, &
-                                 data_size_diag, meta_size_diag, &
-                                 data_memory_type=memtype_mpi_buffer)
+      IF (do_bcast) THEN
+         CALL mp_wait(request_meta_size_diag)
+         CALL mp_wait(request_data_size_diag)
+         IF (.NOT. is_diagonal) THEN
+            CALL resize_buffer_diag(buffer, data_type, &
+                                    data_size_diag, meta_size_diag, &
+                                    data_memory_type=memtype_mpi_buffer)
+         ENDIF
+         !
+         ! Bcast the diagonal data
+         CALL mp_ibcast(buffer%meta_diag, pdiag, mygrp, requests_diag(irequests))
+         CALL dbcsr_ibcast_any(buffer%data_diag, pdiag, mygrp, requests_diag(2+irequests))
       ENDIF
-      !
-      ! Bcast the diagonal data
-      CALL mp_ibcast(buffer%meta_diag, pdiag, mygrp, requests_diag(irequests))
-      CALL dbcsr_ibcast_any(buffer%data_diag, pdiag, mygrp, requests_diag(2+irequests))
       !
       ! Scatter the diagonal data
       IF (do_scatter) THEN
@@ -3908,8 +3918,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: blk_p, col_i
       INTEGER, DIMENSION(dbcsr_slot_nblkrows_total:&
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
-      LOGICAL :: do_diagonal, do_k_scatter, do_rec, do_scatter, is_diagonal, keep_sparsity, &
-         left_set_displ, otf_filtering, right_set_displ
+      LOGICAL :: do_bcast, do_diagonal, do_k_scatter, do_rec, do_scatter, is_diagonal, &
+         keep_sparsity, left_set_displ, otf_filtering, right_set_displ
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: common_unmerged
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: left_nofiltered, right_nofiltered
       REAL(kind=sp)                                      :: filter_eps_sp, min_row_max_epss
@@ -4012,6 +4022,7 @@ CONTAINS
       CALL dbcsr_mp_grid_setup(product_mp_obj)
       CALL dbcsr_mp_grid_setup(left_mp_obj)
       CALL dbcsr_mp_grid_setup(right_mp_obj)
+      do_bcast = (right_col_nimages .NE. 1 .AND. left_row_nimages .NE. 1) .OR. do_diag
       is_diagonal = myprow .EQ. mypcol
       do_scatter = right_npcols .GT. 1 .AND. .NOT. is_diagonal .AND. &
                    right_col_nimages .GT. 1 .AND. .NOT. has_acc
@@ -4599,9 +4610,11 @@ CONTAINS
       ALLOCATE (indices_common_unmerged(min_nimages))
       !
       ! Wait for diagonal images data
-      CALL timeset(routineN//"_diag", handle2)
-      CALL mp_waitall(requests_diag)
-      CALL timestop(handle2)
+      IF (do_bcast) THEN
+         CALL timeset(routineN//"_diag", handle2)
+         CALL mp_waitall(requests_diag)
+         CALL timestop(handle2)
+      ENDIF
       !
       ! Here is the main loop
       !
@@ -5202,7 +5215,7 @@ CONTAINS
             !
             ! Check for diagonal images and do the local copy
             IF ((merged_nimages .GT. 1 .AND. vmerged(ui, v_ki) .EQ. recv_vunmerged) .OR. &
-                (merged_nimages .EQ. 1 .AND. recv_punmerged .EQ. vpmerged)) THEN
+                (do_diag .AND. merged_nimages .EQ. 1 .AND. recv_punmerged .EQ. vpmerged)) THEN
                buffer%nrequests = buffer%nrequests+1
                buffer%get_requests_map(1, buffer%nrequests) = v_ki+1
                buffer%get_requests_map(2, buffer%nrequests) = v_ki+1
@@ -5285,7 +5298,7 @@ CONTAINS
             dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
          ENDIF
          IF ((merged_nimages .GT. 1 .AND. vmerged(ui, v_ki) .EQ. recv_vunmerged) .OR. &
-             (merged_nimages .EQ. 1 .AND. recv_punmerged .EQ. vpmerged)) THEN
+             (do_diag .AND. merged_nimages .EQ. 1 .AND. recv_punmerged .EQ. vpmerged)) THEN
             meta_offset_diag = meta_offset_diag+ &
                                refs_meta_size(vmerged(ui, v_ki), recv_vunmerged)
             data_offset_diag = data_offset_diag+ &
