@@ -658,7 +658,7 @@ CONTAINS
                       natom=natom, &
                       para_env=para_env)
 
-      ALLOCATE (loc_atom_pairs_big(2*natom))
+      ALLOCATE (loc_atom_pairs_big(2*natom*natom))
       num_loc_atom_pairs = 0
 
       nkind = SIZE(qs_kind_set)
