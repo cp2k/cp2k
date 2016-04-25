@@ -139,7 +139,7 @@ CONTAINS
       nfield = SIZE(dft_control%efield_fields)
       DO i = 1, nfield
          efield => dft_control%efield_fields(i)%efield
-         nu = c/(efield%wavelength)
+         IF(.NOT.efield%envelop_id == custom_env) nu = c/(efield%wavelength) !in case of a custom efield we do not need nu
          strength = SQRT(efield%strength/(3.50944_dp*10.0_dp**16))
          IF (DOT_PRODUCT(efield%polarisation, efield%polarisation) == 0) THEN
             pol(:) = 1.0_dp/3.0_dp
