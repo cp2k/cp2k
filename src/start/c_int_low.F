@@ -151,7 +151,6 @@ END SUBROUTINE cp_destroy_fenv
 !> \param ierr ...
 ! **************************************************************************************************
 SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr) BIND(C, name="cp_c_set_pos")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: sp => set_pos
   USE               ISO_C_BINDING,     ONLY: c_int, c_double
 
@@ -171,7 +170,6 @@ END SUBROUTINE cp_set_pos
 !> \param ierr ...
 ! **************************************************************************************************
 SUBROUTINE cp_set_vel(env_id, new_vel, n_el, ierr) BIND(C, name="cp_c_set_vel")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: sv => set_vel
   USE               ISO_C_BINDING,     ONLY: c_int, c_double
 
@@ -192,7 +190,7 @@ END SUBROUTINE cp_set_vel
 !> \param ierr ...
 ! **************************************************************************************************
 SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr) BIND(C, name="cp_c_get_result_r1")
-  USE kinds,                           ONLY: dp, default_string_length
+  USE kinds,                           ONLY: default_string_length
   USE f77_interface,                   ONLY: get_result_r1
   USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_double, c_null_char
 
@@ -259,7 +257,6 @@ END SUBROUTINE cp_get_nparticle
 !> \param ierr ...
 ! **************************************************************************************************
 SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr) BIND(C, name="cp_c_get_pos")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: gp => get_pos
   USE               ISO_C_BINDING,     ONLY: c_int, c_double
 
@@ -279,7 +276,6 @@ END SUBROUTINE cp_get_pos
 !> \param ierr ...
 ! **************************************************************************************************
 SUBROUTINE cp_get_force(env_id, force, n_el, ierr) BIND(C, name="cp_c_get_force")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: gf => get_force
   USE               ISO_C_BINDING,     ONLY: c_int, c_double
 
@@ -337,7 +333,6 @@ END SUBROUTINE cp_calc_energy_force
 !> \param ierr ...
 ! **************************************************************************************************
 RECURSIVE SUBROUTINE cp_calc_energy(env_id, pos, n_el, e_pot, ierr) BIND(C, name="cp_c_calc_energy")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: ce => calc_energy
   USE               ISO_C_BINDING,     ONLY: c_int, c_double
 
@@ -362,7 +357,6 @@ END SUBROUTINE cp_calc_energy
 ! **************************************************************************************************
 SUBROUTINE cp_calc_force(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr) &
    BIND(C, name="cp_c_calc_force")
-  USE kinds,                           ONLY: dp
   USE f77_interface,                   ONLY: cf => calc_force
   USE               ISO_C_BINDING,     ONLY: c_int, c_double
 
