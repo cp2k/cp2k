@@ -1684,7 +1684,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key_section=print_key, &
                                        name="ELECTRIC_FIELD_GRADIENT", &
-                                       description="Calculate and print the electric field gradients"// &
+                                       description="Calculate and print the electric field gradients "// &
                                        "at atomic positions", &
                                        print_level=debug_print_level, &
                                        filename="__STD_OUT__")
