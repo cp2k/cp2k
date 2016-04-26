@@ -2,12 +2,35 @@
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2016  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
+
+! **************************************************************************************************
+!> \brief Copy the content of a \0-terminated C-string to a finite-length Fortran string
+!>
+!> The content of the new string may be truncated if the number of characters before the '\0'
+!> in the source string exceed the length of the destination string.
+!> \param fstring destination string
+!> \param cstring source string
+! **************************************************************************************************
+SUBROUTINE strncpy_c2f(fstring, cstring)
+   USE ISO_C_BINDING, ONLY: c_char, c_null_char
+
+   IMPLICIT NONE
+
+   CHARACTER(len=1, kind=c_char), INTENT(IN) :: cstring(*)
+   CHARACTER(len=*), INTENT(OUT)             :: fstring
+   INTEGER                                   :: i
+
+   DO i = 1, LEN(fstring)
+      IF (cstring(i) == c_null_char) EXIT
+      fstring(i:i) = cstring(i)
+   END DO
+END SUBROUTINE
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param init_mpi ...
 !> \param ierr ...
 ! **************************************************************************************************
-
 SUBROUTINE cp_init_cp2k(init_mpi, ierr) BIND(C, name="cp_c_init_cp2k")
   USE f77_interface,                   ONLY: icp => init_cp2k
   USE               ISO_C_BINDING,     ONLY: c_int
@@ -54,23 +77,15 @@ SUBROUTINE cp_create_fenv(new_env_id, input_file_path, output_file_path, &
 
    IMPLICIT NONE
 
-   TYPE(section_type), POINTER          :: input_declaration
-   CHARACTER(len=1, kind=c_char)         :: input_file_path(*), output_file_path(*)
-   INTEGER(c_int)                       :: new_env_id, ierr
-   CHARACTER(len=default_path_length)   :: ifp
-   CHARACTER(len=default_path_length)   :: ofp
-   INTEGER                              :: i, j
+   TYPE(section_type), POINTER        :: input_declaration
+   CHARACTER(len=1, kind=c_char)      :: input_file_path(*), output_file_path(*)
+   INTEGER(c_int)                     :: new_env_id, ierr
+   CHARACTER(len=default_path_length) :: ifp
+   CHARACTER(len=default_path_length) :: ofp
 
    ifp = " "; ofp = " "
-   i = 1; j = 1
-   DO WHILE (input_file_path(i) .NE. c_null_char)
-      ifp(i:i) = input_file_path(i)
-      i = i+1
-   END DO
-   DO WHILE (output_file_path(j) .NE. c_null_char)
-      ofp(j:j) = output_file_path(j)
-      j = j+1
-   END DO
+   CALL strncpy_c2f(ifp, input_file_path)
+   CALL strncpy_c2f(ofp, output_file_path)
 
    NULLIFY (input_declaration)
    CALL create_cp2k_root_section(input_declaration)
@@ -101,18 +116,10 @@ SUBROUTINE cp_create_fenv_comm(new_env_id, input_file_path, output_file_path, &
    INTEGER(c_int)                       :: new_env_id, mpi_comm, ierr
    CHARACTER(len=default_path_length)   :: ifp
    CHARACTER(len=default_path_length)   :: ofp
-   INTEGER                              :: i, j
 
    ifp = " "; ofp = " "
-   i = 1; j = 1
-   DO WHILE (input_file_path(i) .NE. c_null_char)
-      ifp(i:i) = input_file_path(i)
-      i = i+1
-   END DO
-   DO WHILE (output_file_path(j) .NE. c_null_char)
-      ofp(j:j) = output_file_path(j)
-      j = j+1
-   END DO
+   CALL strncpy_c2f(ifp, input_file_path)
+   CALL strncpy_c2f(ofp, output_file_path)
 
    NULLIFY (input_declaration)
    CALL create_cp2k_root_section(input_declaration)
@@ -150,12 +157,10 @@ SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr) BIND(C, name="cp_c_set_pos")
 
    IMPLICIT NONE
 
-   INTEGER(c_int)                       :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(0:n_el-1)  :: new_pos
-   REAL(dp), DIMENSION(1:n_el)          :: fortran_new_pos
+   INTEGER(c_int)                    :: n_el, env_id, ierr
+   REAL(c_double), DIMENSION(1:n_el) :: new_pos
 
-   fortran_new_pos = new_pos
-   CALL sp(env_id, fortran_new_pos, n_el, ierr)
+   CALL sp(env_id, new_pos, n_el, ierr)
 END SUBROUTINE cp_set_pos
 
 ! **************************************************************************************************
@@ -172,12 +177,10 @@ SUBROUTINE cp_set_vel(env_id, new_vel, n_el, ierr) BIND(C, name="cp_c_set_vel")
 
    IMPLICIT NONE
 
-   INTEGER(c_int)                       :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(0:n_el-1)  :: new_vel
-   REAL(dp), DIMENSION(1:n_el)          :: fortran_new_vel
+   INTEGER(c_int)                    :: n_el, env_id, ierr
+   REAL(c_double), DIMENSION(1:n_el) :: new_vel
 
-   fortran_new_vel = new_vel
-   CALL sv(env_id, fortran_new_vel, n_el, ierr)
+   CALL sv(env_id, new_vel, n_el, ierr)
 END SUBROUTINE cp_set_vel
 
 ! **************************************************************************************************
@@ -197,8 +200,7 @@ SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr) BIND(C, name="
 
    CHARACTER(len=1, kind=c_char)         :: description(*)
    INTEGER(c_int)                       :: N
-   REAL(c_double), DIMENSION(0:N-1)     :: RESULT
-   REAL(dp), DIMENSION(1:N)             :: fortran_RESULT
+   REAL(c_double), DIMENSION(1:N)       :: RESULT
    INTEGER(c_int)                       :: env_id, ierr
 !  CHARACTER(LEN=default_string_length) :: description_low
    CHARACTER(len=default_string_length) :: desc_low
@@ -212,8 +214,7 @@ SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr) BIND(C, name="
       i = i+1
    END DO
 
-   CALL get_result_r1(env_id, desc_low, N, fortran_RESULT, ierr=ierr)
-   RESULT = fortran_RESULT
+   CALL get_result_r1(env_id, desc_low, N, RESULT, ierr=ierr)
 END SUBROUTINE cp_get_result_r1
 
 ! **************************************************************************************************
@@ -264,12 +265,10 @@ SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr) BIND(C, name="cp_c_get_pos")
 
    IMPLICIT NONE
 
-   INTEGER(c_int)                       :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(0:n_el-1)  :: pos
-   REAL(dp), DIMENSION(1:n_el)          :: fortran_pos
+   INTEGER(c_int)                    :: n_el, env_id, ierr
+   REAL(c_double), DIMENSION(1:n_el) :: pos
 
-   CALL gp(env_id, fortran_pos, n_el, ierr)
-   pos = fortran_pos
+   CALL gp(env_id, pos, n_el, ierr)
 END SUBROUTINE cp_get_pos
 
 ! **************************************************************************************************
@@ -286,12 +285,10 @@ SUBROUTINE cp_get_force(env_id, force, n_el, ierr) BIND(C, name="cp_c_get_force"
 
    IMPLICIT NONE
 
-   INTEGER(c_int)                       :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(0:n_el-1)  :: force
-   REAL(dp), DIMENSION(1:n_el)          :: fortran_force
+   INTEGER(c_int)                    :: n_el, env_id, ierr
+   REAL(c_double), DIMENSION(1:n_el) :: force
 
-   CALL gf(env_id, fortran_force, n_el, ierr)
-   force = fortran_force
+   CALL gf(env_id, force, n_el, ierr)
 END SUBROUTINE cp_get_force
 
 ! **************************************************************************************************
@@ -324,13 +321,11 @@ RECURSIVE SUBROUTINE cp_calc_energy_force(env_id, calc_force, ierr) BIND(C, name
 
    IMPLICIT NONE
 
-   INTEGER(c_int)                       :: calc_force, env_id, ierr
-   LOGICAL(c_bool)                      :: cf
-   LOGICAL                              :: fortran_cf
+   INTEGER(c_int) :: calc_force, env_id, ierr
+   LOGICAL        :: cf
 
    cf = (calc_force /= 0)
-   fortran_cf = cf
-   CALL cef(env_id, fortran_cf, ierr)
+   CALL cef(env_id, cf, ierr)
 END SUBROUTINE cp_calc_energy_force
 
 ! **************************************************************************************************
@@ -348,13 +343,11 @@ RECURSIVE SUBROUTINE cp_calc_energy(env_id, pos, n_el, e_pot, ierr) BIND(C, name
 
    IMPLICIT NONE
 
-   INTEGER(c_int)                       :: env_id, ierr, n_el
-   REAL(c_double)                       :: e_pot
-   REAL(c_double), DIMENSION(0:n_el-1)  :: pos
-   REAL(dp), DIMENSION(1:n_el)          :: fortran_pos
+   INTEGER(c_int)                    :: env_id, ierr, n_el
+   REAL(c_double)                    :: e_pot
+   REAL(c_double), DIMENSION(1:n_el) :: pos
 
-   fortran_pos = pos
-   CALL ce(env_id, fortran_pos, n_el, e_pot, ierr)
+   CALL ce(env_id, pos, n_el, e_pot, ierr)
 END SUBROUTINE cp_calc_energy
 
 ! **************************************************************************************************
@@ -375,17 +368,12 @@ SUBROUTINE cp_calc_force(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr) 
 
    IMPLICIT NONE
 
-   INTEGER(c_int)                       :: env_id, ierr, n_el_pos, n_el_force
-   REAL(c_double)                       :: e_pot
-   REAL(c_double), DIMENSION(0:n_el_pos-1)   :: pos
-   REAL(c_double), DIMENSION(0:n_el_force-1) :: force
-   REAL(dp), DIMENSION(1:n_el_pos)      :: fortran_pos
-   REAL(dp), DIMENSION(1:n_el_force)    :: fortran_force
+   INTEGER(c_int)                          :: env_id, ierr, n_el_pos, n_el_force
+   REAL(c_double)                          :: e_pot
+   REAL(c_double), DIMENSION(1:n_el_pos)   :: pos
+   REAL(c_double), DIMENSION(1:n_el_force) :: force
 
-   fortran_pos = pos
-   fortran_force = force
-   CALL cf(env_id, fortran_pos, n_el_pos, e_pot, fortran_force, n_el_force, ierr)
-   force = fortran_force
+   CALL cf(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr)
 END SUBROUTINE cp_calc_force
 
 ! **************************************************************************************************
@@ -403,23 +391,15 @@ SUBROUTINE cp_run_input(input_file_path, output_file_path, ierr) BIND(C, name="c
 
    IMPLICIT NONE
 
-   TYPE(section_type), POINTER          :: input_declaration
-   CHARACTER(len=1, kind=c_char)         :: input_file_path(*), output_file_path(*)
-   INTEGER(c_int)                       :: ierr
-   CHARACTER(len=default_path_length)   :: ifp
-   CHARACTER(len=default_path_length)   :: ofp
-   INTEGER                              :: i, j
+   TYPE(section_type), POINTER        :: input_declaration
+   CHARACTER(len=1, kind=c_char)      :: input_file_path(*), output_file_path(*)
+   INTEGER(c_int)                     :: ierr
+   CHARACTER(len=default_path_length) :: ifp
+   CHARACTER(len=default_path_length) :: ofp
 
    ifp = " "; ofp = " "
-   i = 1; j = 1
-   DO WHILE (input_file_path(i) .NE. c_null_char)
-      ifp(i:i) = input_file_path(i)
-      i = i+1
-   END DO
-   DO WHILE (output_file_path(j) .NE. c_null_char)
-      ofp(j:j) = output_file_path(j)
-      j = j+1
-   END DO
+   CALL strncpy_c2f(ifp, input_file_path)
+   CALL strncpy_c2f(ofp, output_file_path)
 
    NULLIFY (input_declaration)
    CALL create_cp2k_root_section(input_declaration)
@@ -449,18 +429,10 @@ RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path, output_file_path, &
    INTEGER(c_int)                       :: mpi_comm, ierr
    CHARACTER(len=default_path_length)   :: ifp
    CHARACTER(len=default_path_length)   :: ofp
-   INTEGER                              :: i, j
 
    ifp = " "; ofp = " "
-   i = 1; j = 1
-   DO WHILE (input_file_path(i) .NE. c_null_char)
-      ifp(i:i) = input_file_path(i)
-      i = i+1
-   END DO
-   DO WHILE (output_file_path(j) .NE. c_null_char)
-      ofp(j:j) = output_file_path(j)
-      j = j+1
-   END DO
+   CALL strncpy_c2f(ifp, input_file_path)
+   CALL strncpy_c2f(ofp, output_file_path)
 
    NULLIFY (input_declaration)
    CALL create_cp2k_root_section(input_declaration)
