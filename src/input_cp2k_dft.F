@@ -1165,7 +1165,7 @@ CONTAINS
 
       CALL cp_print_key_section_create( &
          print_key, "MO", &
-         description="Controls the printing of the molecular orbitals."// &
+         description="Controls the printing of the molecular orbitals. "// &
          "Note that this is only functional with diagonalization based methods, in particular not with OT (see MO_CUBES)", &
          print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, name="Cartesian", &
