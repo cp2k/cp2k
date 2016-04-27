@@ -116,6 +116,7 @@ fi
 if [ "$with_gcc" != "__DONTUSE__" ] ; then
     if [ "$with_gcc" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_gcc"
+# needs full path for mpich/openmpi builds, triggers openblas bug
 export CC="${pkg_install_dir}/bin/gcc"
 export CXX="${pkg_install_dir}/bin/g++"
 export FC="${pkg_install_dir}/bin/gfortran"

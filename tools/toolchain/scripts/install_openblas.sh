@@ -42,10 +42,13 @@ case "$with_openblas" in
             # First attempt to make openblas using auto detected
             # TARGET, if this fails, then make with forced
             # TARGET=NEHALEM
+            #
+            # basename : see https://github.com/xianyi/OpenBLAS/issues/857
+            #
             ( make -j $NPROCS \
                    USE_THREAD=0 \
-                   CC=${CC} \
-                   FC=${FC} \
+                   CC=$(basename $CC) \
+                   FC=$(basename $FC) \
                    PREFIX="${pkg_install_dir}" \
                    > make.serial.log 2>&1 \
             ) || ( \
@@ -53,15 +56,15 @@ case "$with_openblas" in
                 make -j $NPROCS \
                      TARGET=NEHALEM \
                      USE_THREAD=0 \
-                     CC=${CC} \
-                     FC=${FC} \
+                     CC=$(basename $CC) \
+                     FC=$(basename $FC) \
                      PREFIX="${pkg_install_dir}" \
                      > make.serial.log 2>&1 \
             )
             make -j $NPROCS \
                  USE_THREAD=0 \
-                 CC=${CC} \
-                 FC=${FC} \
+                 CC=$(basename $CC) \
+                 FC=$(basename $FC) \
                  PREFIX="${pkg_install_dir}" \
                  install > install.serial.log 2>&1
             # make clean > clean.log 2>&1
@@ -69,16 +72,16 @@ case "$with_openblas" in
             #      USE_THREAD=1 \
             #      USE_OPENMP=1 \
             #      LIBNAMESUFFIX=omp \
-            #      CC=${CC} \
-            #      FC=${FC} \
+            #      CC=$(basename $CC) \
+            #      FC=$(basename $FC) \
             #      PREFIX="${pkg_install_dir}" \
             #      > make.omp.log 2>&1
             # make -j $nprocs \
             #      USE_THREAD=1 \
             #      USE_OPENMP=1 \
             #      LIBNAMESUFFIX=omp \
-            #      CC=${CC} \
-            #      FC=${FC} \
+            #      CC=$(basename $CC) \
+            #      FC=$(basename $FC) \
             #      PREFIX="${pkg_install_dir}" \
             #      install > install.omp.log 2>&1
             cd ..
