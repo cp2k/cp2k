@@ -893,7 +893,7 @@ CONTAINS
          CALL compress(string)
          WRITE (UNIT=unit_number, FMT="(A)") &
             REPEAT(" ", l1)//"<DEFAULT_VALUE>"// &
-            TRIM(ADJUSTL(string))//"</DEFAULT_VALUE>"
+            TRIM(ADJUSTL(substitute_special_xml_tokens(string)))//"</DEFAULT_VALUE>"
       END IF
 
       IF (ASSOCIATED(keyword%unit)) THEN
@@ -909,7 +909,7 @@ CONTAINS
                                  string=string)
          WRITE (UNIT=unit_number, FMT="(A)") &
             REPEAT(" ", l1)//"<LONE_KEYWORD_VALUE>"// &
-            TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
+            TRIM(ADJUSTL(substitute_special_xml_tokens(string)))//"</LONE_KEYWORD_VALUE>"
       END IF
 
       IF (ASSOCIATED(keyword%citations)) THEN
