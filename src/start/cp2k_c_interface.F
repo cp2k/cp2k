@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2016  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
+
 ! **************************************************************************************************
 !> \brief CP2K C/C++ interface
 !> \par History
@@ -9,18 +10,18 @@
 !>       04.2016 restructured [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-MODULE c_int_low
+MODULE cp2k_c_interface
    USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_DOUBLE,&
                                               C_FUNPTR,&
                                               C_INT,&
                                               C_NULL_CHAR
+   USE cp2k_info,                       ONLY: cp2k_version
    USE cp2k_runs,                       ONLY: run_input
    USE f77_interface,                   ONLY: &
-        ce => calc_energy, cef => calc_energy_force, cf => calc_force, create_force_env, &
-        dfe => destroy_force_env, do_shake, f_env_add_defaults, f_env_rm_defaults, f_env_type, &
-        ge => get_energy, get_result_r1, gf => get_force, gna => get_natom, gnp => get_nparticle, &
-        gp => get_pos, icp => init_cp2k, kcp => finalize_cp2k, sp => set_pos, sv => set_vel
+        calc_energy, calc_energy_force, calc_force, create_force_env, destroy_force_env, do_shake, &
+        f_env_add_defaults, f_env_rm_defaults, f_env_type, finalize_cp2k, get_energy, get_force, &
+        get_natom, get_nparticle, get_pos, get_result_r1, init_cp2k, set_pos, set_vel
    USE force_env_types,                 ONLY: force_env_get,&
                                               use_qs_force
    USE input_cp2k,                      ONLY: create_cp2k_root_section
@@ -28,8 +29,11 @@ MODULE c_int_low
                                               section_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
+
+   PRIVATE
 
 CONTAINS
 
@@ -52,7 +56,28 @@ CONTAINS
          IF (cstring(i) == C_NULL_CHAR) EXIT
          fstring(i:i) = cstring(i)
       END DO
-   END SUBROUTINE
+   END SUBROUTINE strncpy_c2f
+
+! **************************************************************************************************
+!> \brief ...
+!> \param version_str ...
+!> \param str_length ...
+! **************************************************************************************************
+   SUBROUTINE cp_c_get_version(version_str, str_length) BIND(C)
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(INOUT)       :: version_str(*)
+      INTEGER(C_INT), VALUE                              :: str_length
+
+      INTEGER                                            :: i, n
+
+      n = LEN_TRIM(cp2k_version)
+      CPASSERT(str_length > n+1)
+
+      ! copy string
+      DO i = 1, n
+         version_str(i) = cp2k_version(i:i)
+      ENDDO
+      version_str(n+1) = C_NULL_CHAR
+   END SUBROUTINE cp_c_get_version
 
 ! **************************************************************************************************
 !> \brief ...
@@ -65,7 +90,7 @@ CONTAINS
       LOGICAL                                            :: i_mpi
 
       i_mpi = init_mpi /= 0
-      CALL icp(i_mpi, ierr)
+      CALL init_cp2k(i_mpi, ierr)
    END SUBROUTINE cp_init_cp2k
 
 ! **************************************************************************************************
@@ -79,7 +104,7 @@ CONTAINS
       LOGICAL                                            :: f_mpi
 
       f_mpi = finalize_mpi /= 0
-      CALL kcp(f_mpi, ierr)
+      CALL finalize_cp2k(f_mpi, ierr)
    END SUBROUTINE cp_finalize_cp2k
 
 ! **************************************************************************************************
@@ -143,7 +168,7 @@ CONTAINS
    RECURSIVE SUBROUTINE cp_destroy_fenv(env_id, ierr) BIND(C, name="cp_c_destroy_fenv")
       INTEGER(C_INT)                                     :: env_id, ierr
 
-      CALL dfe(env_id, ierr)
+      CALL destroy_force_env(env_id, ierr)
    END SUBROUTINE cp_destroy_fenv
 
 ! **************************************************************************************************
@@ -158,7 +183,7 @@ CONTAINS
       REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: new_pos
       INTEGER(C_INT)                                     :: ierr
 
-      CALL sp(env_id, new_pos, n_el, ierr)
+      CALL set_pos(env_id, new_pos, n_el, ierr)
    END SUBROUTINE cp_set_pos
 
 ! **************************************************************************************************
@@ -173,7 +198,7 @@ CONTAINS
       REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: new_vel
       INTEGER(C_INT)                                     :: ierr
 
-      CALL sv(env_id, new_vel, n_el, ierr)
+      CALL set_vel(env_id, new_vel, n_el, ierr)
    END SUBROUTINE cp_set_vel
 
 ! **************************************************************************************************
@@ -208,7 +233,7 @@ CONTAINS
    SUBROUTINE cp_get_natom(env_id, natom, ierr) BIND(C, name="cp_c_get_natom")
       INTEGER(C_INT)                                     :: env_id, natom, ierr
 
-      CALL gna(env_id, natom, ierr)
+      CALL get_natom(env_id, natom, ierr)
    END SUBROUTINE cp_get_natom
 
 ! **************************************************************************************************
@@ -220,7 +245,7 @@ CONTAINS
    SUBROUTINE cp_get_nparticle(env_id, nparticle, ierr) BIND(C, name="cp_c_get_nparticle")
       INTEGER(C_INT)                                     :: env_id, nparticle, ierr
 
-      CALL gnp(env_id, nparticle, ierr)
+      CALL get_nparticle(env_id, nparticle, ierr)
    END SUBROUTINE cp_get_nparticle
 
 ! **************************************************************************************************
@@ -235,7 +260,7 @@ CONTAINS
       REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: pos
       INTEGER(C_INT)                                     :: ierr
 
-      CALL gp(env_id, pos, n_el, ierr)
+      CALL get_pos(env_id, pos, n_el, ierr)
    END SUBROUTINE cp_get_pos
 
 ! **************************************************************************************************
@@ -250,7 +275,7 @@ CONTAINS
       REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: force
       INTEGER(C_INT)                                     :: ierr
 
-      CALL gf(env_id, force, n_el, ierr)
+      CALL get_force(env_id, force, n_el, ierr)
    END SUBROUTINE cp_get_force
 
 ! **************************************************************************************************
@@ -264,7 +289,7 @@ CONTAINS
       REAL(C_DOUBLE)                                     :: e_pot
       INTEGER(C_INT)                                     :: ierr
 
-      CALL ge(env_id, e_pot, ierr)
+      CALL get_energy(env_id, e_pot, ierr)
    END SUBROUTINE cp_get_energy
 
 ! **************************************************************************************************
@@ -279,7 +304,7 @@ CONTAINS
       LOGICAL                                            :: cf
 
       cf = (calc_force /= 0)
-      CALL cef(env_id, cf, ierr)
+      CALL calc_energy_force(env_id, cf, ierr)
    END SUBROUTINE cp_calc_energy_force
 
 ! **************************************************************************************************
@@ -296,7 +321,7 @@ CONTAINS
       REAL(C_DOUBLE)                                     :: e_pot
       INTEGER(C_INT)                                     :: ierr
 
-      CALL ce(env_id, pos, n_el, e_pot, ierr)
+      CALL calc_energy(env_id, pos, n_el, e_pot, ierr)
    END SUBROUTINE cp_calc_energy
 
 ! **************************************************************************************************
@@ -318,7 +343,7 @@ CONTAINS
       REAL(C_DOUBLE), DIMENSION(1:n_el_force)            :: force
       INTEGER(C_INT)                                     :: ierr
 
-      CALL cf(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr)
+      CALL calc_force(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr)
    END SUBROUTINE cp_calc_force
 
 ! **************************************************************************************************
@@ -376,13 +401,13 @@ CONTAINS
 !> \param shake_tol ...
 !> \param ierr ...
 ! **************************************************************************************************
-   SUBROUTINE cp_do_shake(f_env_id, dt, shake_tol, ierr) BIND(C, name="cp_c_do_shake")
+   SUBROUTINE cp_c_do_shake(f_env_id, dt, shake_tol, ierr) BIND(C)
       INTEGER(C_INT)                                     :: f_env_id
       REAL(C_DOUBLE)                                     :: dt, shake_tol
       INTEGER(C_INT)                                     :: ierr
 
       CALL do_shake(f_env_id, dt, shake_tol, ierr)
-   END SUBROUTINE cp_do_shake
+   END SUBROUTINE cp_c_do_shake
 
 ! **************************************************************************************************
 !> \brief Gets a function pointer pointing to a routine defined in C/C++ and
@@ -411,5 +436,5 @@ CONTAINS
       CALL f_env_rm_defaults(f_env, ierr)
    END SUBROUTINE cp_c_ext_method_set_ptr
 
-END MODULE c_int_low
+END MODULE cp2k_c_interface
 
