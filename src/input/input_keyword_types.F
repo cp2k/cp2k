@@ -853,7 +853,7 @@ CONTAINS
             WRITE (UNIT=unit_number, FMT="(A)") &
                REPEAT(" ", l3)//"<ITEM>", &
                REPEAT(" ", l4)//"<NAME>"// &
-               TRIM(ADJUSTL(keyword%enum%c_vals(i)))//"</NAME>", &
+               TRIM(ADJUSTL(substitute_special_xml_tokens(keyword%enum%c_vals(i))))//"</NAME>", &
                REPEAT(" ", l4)//"<DESCRIPTION>"// &
                TRIM(ADJUSTL(substitute_special_xml_tokens(a2s(keyword%enum%desc(i)%chars)))) &
                //"</DESCRIPTION>", REPEAT(" ", l3)//"</ITEM>"
