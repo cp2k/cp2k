@@ -147,6 +147,7 @@ CONTAINS
 
 ! initialize the random numbers
       CALL create_rng_stream(rng_stream=rng_stream, &
+                             last_rng_stream=force_env_1%globenv%gaussian_rng_stream, &
                              name="first", &
                              distribution_type=UNIFORM)
 
