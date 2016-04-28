@@ -157,6 +157,7 @@ CONTAINS
 
          DO i = 1, SIZE(eri_env%eri)
             CALL cp_csr_destroy(eri_env%eri(i)%csr_mat)
+            DEALLOCATE (eri_env%eri(i)%csr_mat)
          END DO
          DEALLOCATE (eri_env%eri)
 
