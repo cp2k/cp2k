@@ -1,0 +1,66 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC 
+      MAX_SCF 4
+      ADDED_MOS  4
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+       &ACTIVE_SPACE
+          ACTIVE_ELECTRONS 4
+          ACTIVE_ORBITALS  6
+          ORBITAL_SELECTION CANONICAL
+          &ERI
+             METHOD   FULL_GPW
+             OPERATOR <1/R>
+          &END
+          &ERI_GPW
+             STORE_WFN T
+             PRINT_LEVEL MEDIUM
+          &END
+          &PRINT_ORBITAL_CUBES
+             ALIST 3 4 1
+             BLIST
+             STRIDE 3
+             FILENAME  Active_orbital
+          &END
+          &FCIDUMP
+          &END
+       &END ACTIVE_SPACE
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+     H   0.000000   -0.757136    0.520545
+     O   0.000000    0.000000   -0.065587
+     H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET ORB DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET ORB DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+  PROJECT h2o
+&END GLOBAL

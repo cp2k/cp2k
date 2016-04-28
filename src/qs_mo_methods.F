@@ -497,7 +497,7 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                          :: orbitals
       TYPE(cp_dbcsr_type), POINTER                       :: ks_matrix
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: evals_arg
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: evals_arg
       LOGICAL, INTENT(IN), OPTIONAL                      :: ionode
       INTEGER, INTENT(IN), OPTIONAL                      :: scr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rotation
@@ -639,7 +639,7 @@ CONTAINS
                                             do_rotation, co_rotate, para_env, blacs_env)
 
       TYPE(cp_dbcsr_type), POINTER                       :: orbitals, ks_matrix
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: evals_arg
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: evals_arg
       LOGICAL, INTENT(IN), OPTIONAL                      :: ionode
       INTEGER, INTENT(IN), OPTIONAL                      :: scr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rotation

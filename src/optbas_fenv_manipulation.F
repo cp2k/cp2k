@@ -190,7 +190,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff)) THEN
             CALL init_mo_set(mos(ispin)%mo_set, &
-                             ao_mo_fm_pools(ispin)%pool, &
+                             fm_pool=ao_mo_fm_pools(ispin)%pool, &
                              name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
                              "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF
@@ -204,7 +204,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          IF (.NOT. ASSOCIATED(mos_aux_fit(ispin)%mo_set%mo_coeff)) THEN
             CALL init_mo_set(mos_aux_fit(ispin)%mo_set, &
-                             ao_mo_fm_pools_aux_fit(ispin)%pool, &
+                             fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
                              name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
                              "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF

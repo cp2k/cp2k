@@ -79,6 +79,8 @@ MODULE qs_environment_types
                                               pw_release,&
                                               pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
+   USE qs_active_space_types,           ONLY: active_space_type,&
+                                              release_active_space_type
    USE qs_charges_types,                ONLY: qs_charges_release,&
                                               qs_charges_retain,&
                                               qs_charges_type
@@ -216,9 +218,9 @@ MODULE qs_environment_types
       LOGICAL :: do_transport
       REAL(KIND=dp)                                         :: sim_time
       REAL(KIND=dp) :: start_time, target_time
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                  :: image_matrix
-      REAL(KIND=dp), DIMENSION(:), POINTER                    :: image_coeff
-      INTEGER, DIMENSION(:), POINTER                          :: ipiv
+      REAL(KIND=dp), DIMENSION(:, :), POINTER               :: image_matrix
+      REAL(KIND=dp), DIMENSION(:), POINTER                  :: image_coeff
+      INTEGER, DIMENSION(:), POINTER                        :: ipiv
       INTEGER                                               :: sim_step
       TYPE(ls_scf_env_type), POINTER                        :: ls_scf_env
       TYPE(transport_env_type), POINTER                     :: transport_env
@@ -236,45 +238,46 @@ MODULE qs_environment_types
       TYPE(qs_charges_type), POINTER                        :: qs_charges
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
-      TYPE(qmmm_env_qm_type), POINTER                        :: qmmm_env_qm
+      TYPE(qmmm_env_qm_type), POINTER                       :: qmmm_env_qm
       TYPE(qs_wf_history_type), POINTER                     :: wf_history
       TYPE(qs_scf_env_type), POINTER                        :: scf_env
       TYPE(qs_matrix_pools_type), POINTER                   :: mpools
       TYPE(qs_matrix_pools_type), POINTER                   :: mpools_aux_fit
       TYPE(oce_matrix_type), POINTER                        :: oce
       TYPE(local_rho_type), POINTER                         :: local_rho_set
-      TYPE(hartree_local_type), POINTER                    :: hartree_local
+      TYPE(hartree_local_type), POINTER                     :: hartree_local
       TYPE(section_vals_type), POINTER                      :: input
       TYPE(linres_control_type), POINTER                    :: linres_control
       TYPE(xas_environment_type), POINTER                   :: xas_env
       TYPE(cp_ddapc_type), POINTER                          :: cp_ddapc_env
       TYPE(cp_ddapc_ewald_type), POINTER                    :: cp_ddapc_ewald
-      REAL(KIND=dp), DIMENSION(:, :), POINTER              :: outer_scf_history
+      REAL(KIND=dp), DIMENSION(:, :), POINTER               :: outer_scf_history
       INTEGER                                               :: outer_scf_ihistory
-      TYPE(hfx_type), DIMENSION(:, :), POINTER                :: x_data
-      TYPE(et_coupling_type), POINTER                        :: et_coupling
-      TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), POINTER   :: dftb_potential
+      TYPE(hfx_type), DIMENSION(:, :), POINTER              :: x_data
+      TYPE(et_coupling_type), POINTER                       :: et_coupling
+      TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), POINTER  :: dftb_potential
       TYPE(admm_type), POINTER                              :: admm_env
+      TYPE(active_space_type), POINTER                      :: active_space
       ! LRI
       TYPE(lri_environment_type), POINTER                   :: lri_env
       TYPE(lri_density_type), POINTER                       :: lri_density
       ! Empirical dispersion
       TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
       ! Semi-empirical and DFTB types
-      TYPE(ewald_environment_type), POINTER                  :: ewald_env
-      TYPE(ewald_pw_type), POINTER                           :: ewald_pw
+      TYPE(ewald_environment_type), POINTER                 :: ewald_env
+      TYPE(ewald_pw_type), POINTER                          :: ewald_pw
       ! Semi-empirical types
       TYPE(se_taper_type), POINTER                          :: se_taper
-      TYPE(semi_empirical_si_type), POINTER                  :: se_store_int_env
+      TYPE(semi_empirical_si_type), POINTER                 :: se_store_int_env
       TYPE(nddo_mpole_type), POINTER                        :: se_nddo_mpole
       TYPE(fist_nonbond_env_type), POINTER                  :: se_nonbond_env
-      TYPE(rt_prop_type), POINTER                            :: rtp
-      TYPE(efield_berry_type), POINTER                       :: efield
+      TYPE(rt_prop_type), POINTER                           :: rtp
+      TYPE(efield_berry_type), POINTER                      :: efield
       ! a history for the broyden ot
-      REAL(KIND=dp)                                       :: broyden_adaptive_sigma
+      REAL(KIND=dp)                                         :: broyden_adaptive_sigma
       TYPE(mp2_type), POINTER                               :: mp2_env
       TYPE(kg_environment_type), POINTER                    :: kg_env
-      TYPE(wannier_centres_type), POINTER, DIMENSION(:)      :: WannierCentres => NULL()
+      TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
       TYPE(molecular_scf_guess_env_type)                    :: molecular_scf_guess_env
    END TYPE qs_environment_type
 
@@ -357,6 +360,7 @@ CONTAINS
 !> \param pw_env ...
 !> \param ewald_env ...
 !> \param ewald_pw ...
+!> \param active_space ...
 !> \param mpools ...
 !> \param mpools_aux_fit ...
 !> \param input ...
@@ -456,7 +460,7 @@ CONTAINS
                          matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
                          matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, matrix_p_mp2, &
                          gamma_matrix, rho, rho_aux_fit, rho_aux_fit_buffer, &
-                         rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
+                         rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, mpools_aux_fit, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, id_nr, local_particles, &
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
@@ -515,6 +519,7 @@ CONTAINS
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
+      TYPE(active_space_type), OPTIONAL, POINTER         :: active_space
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools, mpools_aux_fit
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
@@ -654,6 +659,7 @@ CONTAINS
       IF (PRESENT(do_transport)) do_transport = qs_env%do_transport
       IF (PRESENT(transport_env)) transport_env => qs_env%transport_env
       IF (PRESENT(mscfg_env)) mscfg_env => qs_env%molecular_scf_guess_env
+      IF (PRESENT(active_space)) active_space => qs_env%active_space
 
       IF (PRESENT(rho_atom_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -829,6 +835,7 @@ CONTAINS
       NULLIFY (qs_env%x_data)
       NULLIFY (qs_env%et_coupling)
       NULLIFY (qs_env%dftb_potential)
+      NULLIFY (qs_env%active_space)
 
       NULLIFY (qs_env%se_taper)
       NULLIFY (qs_env%se_store_int_env)
@@ -895,6 +902,7 @@ CONTAINS
 !> \param ks_qmmm_env ...
 !> \param wf_history ...
 !> \param scf_env ...
+!> \param active_space ...
 !> \param input ...
 !> \param oce ...
 !> \param rho_atom_set ...
@@ -943,7 +951,7 @@ CONTAINS
                          ewald_env, ewald_pw, mpools, mpools_aux_fit, &
                          rho_external, external_vxc, mask, &
                          scf_control, rel_control, qs_charges, ks_env, &
-                         ks_qmmm_env, wf_history, scf_env, &
+                         ks_qmmm_env, wf_history, scf_env, active_space, &
                          input, oce, rho_atom_set, rho0_atom_set, rho0_mpole, run_rtp, rtp, &
                          rhoz_set, rhoz_tot, ecoul_1c, has_unit_metric, requires_mo_derivs, mo_derivs, &
                          mo_derivs_aux_fit, mo_loc_history, efield, &
@@ -970,6 +978,7 @@ CONTAINS
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history
       TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
+      TYPE(active_space_type), OPTIONAL, POINTER         :: active_space
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
       TYPE(oce_matrix_type), OPTIONAL, POINTER           :: oce
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
@@ -1048,6 +1057,7 @@ CONTAINS
       IF (PRESENT(run_rtp)) qs_env%run_rtp = run_rtp
       IF (PRESENT(rtp)) qs_env%rtp => rtp
       IF (PRESENT(efield)) qs_env%efield => efield
+      IF (PRESENT(active_space)) qs_env%active_space => active_space
 
       IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
          CALL ewald_env_retain(ewald_env)
@@ -1322,6 +1332,9 @@ CONTAINS
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
+            ENDIF
+            IF (ASSOCIATED(qs_env%active_space)) THEN
+               CALL release_active_space_type(qs_env%active_space)
             ENDIF
 
             CALL qs_charges_release(qs_env%qs_charges)

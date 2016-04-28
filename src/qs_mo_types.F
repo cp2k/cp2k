@@ -195,15 +195,17 @@ CONTAINS
 !>      after this call.
 !> \param mo_set the mo_set to initialize
 !> \param fm_pool a pool out which you initialize the mo_set
+!> \param fm_ref  a reference  matrix from which you initialize the mo_set
 !> \param name ...
 !> \par History
 !>      11.2002 rewamped [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE init_mo_set(mo_set, fm_pool, name)
+   SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, name)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_pool_type), POINTER                     :: fm_pool
+      TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: fm_pool
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_ref
       CHARACTER(LEN=*), INTENT(in)                       :: name
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_mo_set', routineP = moduleN//':'//routineN
@@ -211,12 +213,18 @@ CONTAINS
       INTEGER                                            :: nao, nmo, nomo
 
       CPASSERT(ASSOCIATED(mo_set))
-      CPASSERT(ASSOCIATED(fm_pool))
       CPASSERT(.NOT. ASSOCIATED(mo_set%eigenvalues))
       CPASSERT(.NOT. ASSOCIATED(mo_set%occupation_numbers))
       CPASSERT(.NOT. ASSOCIATED(mo_set%mo_coeff))
 
-      CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
+      CPASSERT(PRESENT(fm_pool) .OR. PRESENT(fm_ref))
+      IF (PRESENT(fm_pool)) THEN
+         CPASSERT(ASSOCIATED(fm_pool))
+         CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
+      ELSE IF (PRESENT(fm_ref)) THEN
+         CPASSERT(ASSOCIATED(fm_ref))
+         CALL cp_fm_create(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
+      END IF
       CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, ncol_global=nmo)
       CPASSERT(nao >= mo_set%nao)
       CPASSERT(nmo >= mo_set%nmo)

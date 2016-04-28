@@ -172,7 +172,11 @@ MODULE dbcsr_csr_conversions
       LOGICAL                                  :: has_indices = .FALSE.
    ENDTYPE csr_type
 
-   PUBLIC :: csr_type, convert_csr_to_dbcsr, &
+   TYPE csr_p_type
+      TYPE(csr_type), POINTER                  :: csr_mat
+   END TYPE csr_p_type
+
+   PUBLIC :: csr_type, csr_p_type, convert_csr_to_dbcsr, &
              csr_create_from_dbcsr, &
              csr_destroy, csr_conversion_test, &
              convert_dbcsr_to_csr, &

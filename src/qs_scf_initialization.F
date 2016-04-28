@@ -459,7 +459,7 @@ CONTAINS
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
          IF (.NOT. ASSOCIATED(mo_coeff)) THEN
             CALL init_mo_set(mos(ispin)%mo_set, &
-                             ao_mo_fm_pools(ispin)%pool, &
+                             fm_pool=ao_mo_fm_pools(ispin)%pool, &
                              name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
                              "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          END IF
@@ -502,7 +502,7 @@ CONTAINS
             CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
             IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
                CALL init_mo_set(mos_aux_fit(ispin)%mo_set, &
-                                ao_mo_fm_pools_aux_fit(ispin)%pool, &
+                                fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
                                 name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
                                 "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
             END IF
@@ -541,7 +541,8 @@ CONTAINS
                DO ic = 1, SIZE(mos_k, 1)
                   CALL get_mo_set(mos_k(ic, ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
                   IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                     CALL init_mo_set(mos_k(ic, ispin)%mo_set, ao_mo_fm_pools(ispin)%pool, &
+                     CALL init_mo_set(mos_k(ic, ispin)%mo_set, &
+                                      fm_pool=ao_mo_fm_pools(ispin)%pool, &
                                       name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &
                                       "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
                   END IF

@@ -28,10 +28,10 @@ MODULE input_cp2k_dft
                                               silent_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        atomic_guess, cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, &
-        cholesky_restore, constant_env, core_guess, custom_env, diag_block_davidson, &
-        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, dispersion_d3, &
-        dispersion_uff, do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
+        atomic_guess, casci_canonical, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
+        cholesky_reduce, cholesky_restore, constant_env, core_guess, custom_env, &
+        diag_block_davidson, diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, &
+        dispersion_d3, dispersion_uff, do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
         do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
         do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
         do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
@@ -49,35 +49,36 @@ MODULE input_cp2k_dft
         do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
         do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
         do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
-        ehrenfest, gaussian, gaussian_env, general_roks, high_spin_roks, history_guess, &
-        kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, &
-        ls_gold, ls_none, mao_basis_ext, mao_basis_orb, mao_basis_prim, mopac_guess, &
-        no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
-        op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, &
-        orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
-        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
-        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update, outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
-        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
-        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_s2_constraint, plus_u_lowdin, &
-        plus_u_mulliken, plus_u_mulliken_charges, pw_interp, ramp_env, random_guess, &
-        real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, &
-        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
-        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, spline3_nopbc_interp, &
-        spline3_pbc_interp, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
-        tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, &
-        use_scf_wfn, weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
-        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
-        xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
-        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, eri_operator_erf, &
+        eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, gaussian_env, &
+        general_roks, high_spin_roks, history_guess, kg_color_dsatur, kg_color_greedy, &
+        kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, &
+        mao_basis_orb, mao_basis_prim, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
+        oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, &
+        orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
+        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
+        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_direct, &
+        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_becke_constraint, &
+        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
+        pw_interp, ramp_env, random_guess, real_time_propagation, ref_charge_atomic, &
+        ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
+        rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
+        restart_guess, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
+        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
+        shape_function_gaussian, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
+        sic_mauri_us, sic_none, slater, smear_energy_window, smear_fermi_dirac, smear_list, &
+        sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
+        tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, &
+        use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit, &
+        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
+        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, &
+        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
@@ -501,7 +502,6 @@ CONTAINS
       CALL section_create(section, name="CENTER", &
                           description="Defines the center of the sphere.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE.)
-
       CALL keyword_create(keyword, name="XYZ", &
                           description="Coordinates of the center of the sphere", &
                           usage="XYZ <REAL> <REAL> <REAL>", &
@@ -1217,6 +1217,10 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL create_wfn_mix_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_active_space_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -7360,6 +7364,293 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_sccs_section
+
+! **************************************************************************************************
+!> \brief      Create CP2K input section for the calculation of an active space Hamiltonian
+!> \param section ...
+!> \par History:
+!>      - Creation 06.04.2016
+!> \author     JHU
+! **************************************************************************************************
+   SUBROUTINE create_active_space_section(section)
+
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_active_space_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, name="ACTIVE_SPACE", &
+                          description="Define parameters and method to calculate an electronic active space", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword, subsection, print_key)
+
+      CALL keyword_create(keyword, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the ACTIVE_SPACE section", &
+                          usage="&ACTIVE_SPACE ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ACTIVE_ELECTRONS", &
+                          description="The number of active electrons in the CAS space", &
+                          usage="ACTIVE_ELECTRONS 4", n_var=1, default_i_val=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="INACTIVE_ELECTRONS", &
+                          description="The number of inactive electrons in the CAS space", &
+                          usage="INACTIVE_ELECTRONS 2 {2}", n_var=-1, default_i_vals=(/-1, -1/), &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ACTIVE_ORBITALS", &
+                          description="The number of active orbitals defining the CAS space.", &
+                          usage="ACTIVE_ORBITALS 2 {2}", n_var=-1, default_i_vals=(/-1, -1/), &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="INACTIVE_ORBITALS", &
+                          description="The number of nactive orbitals.", &
+                          usage="INACTIVE_ORBITALS 2 {2}", n_var=-1, default_i_vals=(/-1, -1/), &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ISOLATED_SYSTEM", &
+                          description="System is treated without any periodic boundary conditions.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL cp_print_key_section_create(print_key, "FCIDUMP", &
+                                       description="Controls the writing of a file in FCIDUMP format.", &
+                                       print_level=high_print_level, filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL keyword_create(keyword, &
+                          name="ORBITAL_SELECTION", &
+                          description="Method used to select active space orbitals.", &
+                          usage="ORBITAL_SELECTION CANONICAL", &
+                          default_i_val=casci_canonical, &
+                          enum_c_vals=s2a("CANONICAL"), &
+                          enum_i_vals=(/casci_canonical/), &
+                          enum_desc=s2a("Select orbitals using energy ordering of canoncial orbitals"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL create_print_orb_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_eri_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_eri_gpw(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_active_space_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_print_orb_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_print_orb_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "PRINT_ORBITAL_CUBES", &
+                          description="Controls printing of active orbital cube files.", &
+                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="FILENAME", &
+                          description="Body of Filename for the cube files.", &
+                          usage="FILENAME {name}", default_c_val="ActiveOrbital", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ALIST", &
+                          description="List of alpha orbitals to be printed. -1 defaults to all values", &
+                          usage="ALIST {1 2 3 ...}", n_var=-1, default_i_vals=(/-1/), &
+                          lone_keyword_i_val=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="BLIST", &
+                          description="List of beta orbitals to be printed. -1 defaults to all values", &
+                          usage="ALIST {1 2 3 ...}", n_var=-1, default_i_vals=(/-1/), &
+                          lone_keyword_i_val=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file"// &
+                          "(larger values result in smaller cube files)."// &
+                          " You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components", &
+                          usage="STRIDE {2 2 2}", n_var=-1, default_i_vals=(/2, 2, 2/), &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_print_orb_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_eri_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_eri_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "ERI", &
+                          description="Parameters for the electron repulsion integrals.", &
+                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="METHOD", &
+                          description="Method used in ERI calculation.", &
+                          usage="METHOD FULL_GPW", &
+                          enum_c_vals=s2a("FULL_GPW", "GPW_HALF_TRANSFORM"), &
+                          enum_i_vals=(/eri_method_full_gpw, eri_method_gpw_ht/), &
+                          enum_desc=s2a("Use the GPW approach with MOs", &
+                                        "Use the GPW approach for half-transformed MO ERIs"), &
+                          default_i_val=eri_method_gpw_ht)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OPERATOR", &
+                          description="Operator used in ERI calculation.", &
+                          usage="OPERATOR <1/R>", &
+                          enum_c_vals=s2a("<1/R>", "<EXP(-A*R)/R>", "<ERF(A*R)/R>", &
+                                          "<ERFC(A*R)/R>", "<EXP(-A*R2)/R>"), &
+                          enum_i_vals=(/eri_operator_coulomb, eri_operator_yukawa, &
+                                        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian/), &
+                          enum_desc=s2a("Coulomb operator", &
+                                        "Yukawa potential operator", &
+                                        "Error function potential operator", &
+                                        "Complementary error function potential operator", &
+                                        "Gaussian potential operator"), &
+                          default_i_val=eri_operator_coulomb)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OPERATOR_PARAMETER", &
+                          description="Range parameter for ERI operator.", &
+                          usage="OPERATOR_PARAMETER 4.0", type_of_var=real_t, &
+                          default_r_val=8.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PERIODICITY", &
+                          description="Periodicity used for operators in ERI calclulation.", &
+                          usage="PERIODICITY {1 1 1}", n_var=-1, default_i_vals=(/1, 1, 1/), &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CUTOFF_RADIUS", &
+                          description="Radius of operator interactions in non-periodic cases.", &
+                          usage="CUTOFF_RADIUS 20", type_of_var=real_t, &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="EPS_INTEGRAL", &
+         description="Accuracy of ERIs that will be stored.", &
+         usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
+         default_r_val=1.0E-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_eri_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_eri_gpw(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_eri_gpw', routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "ERI_GPW", &
+                          description="Parameters for the GPW approach to electron repulsion integrals.", &
+                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="EPS_GRID", &
+                          description="Determines a threshold for the GPW based integration", &
+                          usage="EPS_GRID 1.0E-9 ", type_of_var=real_t, &
+                          default_r_val=1.0E-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="CUTOFF", &
+                          description="The cutoff of the finest grid level in the GPW integration.", &
+                          usage="CUTOFF 300", type_of_var=real_t, &
+                          default_r_val=300.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="REL_CUTOFF", &
+                          variants=(/"RELATIVE_CUTOFF"/), &
+                          description="Determines the grid at which a Gaussian is mapped.", &
+                          usage="REL_CUTOFF 50", type_of_var=real_t, &
+                          default_r_val=50.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="STORE_WFN", &
+                          variants=(/"STORE_WAVEFUNCTION"/), &
+                          description="Strore wavefunction in real space representation for integration.", &
+                          usage="STORE_WFN  T", type_of_var=logical_t, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PRINT_LEVEL", &
+                          variants=(/"IOLEVEL"/), &
+                          description="How much output is written by the individual groups.", &
+                          usage="PRINT_LEVEL HIGH", &
+                          default_i_val=silent_print_level, enum_c_vals= &
+                          s2a("SILENT", "LOW", "MEDIUM", "HIGH", "DEBUG"), &
+                          enum_desc=s2a("Almost no output", &
+                                        "Little output", "Quite some output", "Lots of output", &
+                                        "Everything is written out, useful for debugging purposes only"), &
+                          enum_i_vals=(/silent_print_level, low_print_level, medium_print_level, &
+                                        high_print_level, debug_print_level/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_eri_gpw
 
 ! **************************************************************************************************
 !> \brief Creates the section for cube files related to the implicit Poisson solver.

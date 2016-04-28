@@ -975,4 +975,14 @@ MODULE input_constants
                                                rlaxisint_trapezoidal = 32, &
                                                rlaxisint_readfromfile = 33
 
+   ! Active Space Section: orbital selection methods
+   INTEGER, PARAMETER, PUBLIC               :: casci_canonical = 100
+   INTEGER, PARAMETER, PUBLIC               :: eri_method_full_gpw = 1, &
+                                               eri_method_gpw_ht = 2
+   INTEGER, PARAMETER, PUBLIC               :: eri_operator_coulomb = 1, &
+                                               eri_operator_yukawa = 2, &
+                                               eri_operator_erf = 3, &
+                                               eri_operator_erfc = 4, &
+                                               eri_operator_gaussian = 5
+
 END MODULE input_constants

@@ -426,7 +426,7 @@ CONTAINS
 
          ! setup matrix pools for the molecular orbitals
          CALL init_mo_set(mos_filtered(ispin)%mo_set, &
-                          my_mpools%ao_mo_fm_pools(ispin)%pool, &
+                          fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
                           name="FILTERED_MOS")
 
          ! now diagonalise

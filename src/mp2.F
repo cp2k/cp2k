@@ -331,7 +331,7 @@ CONTAINS
          END IF
 
          CALL init_mo_set(mos_mp2(ispin)%mo_set, &
-                          my_mpools%ao_mo_fm_pools(ispin)%pool, &
+                          fm_pool=my_mpools%ao_mo_fm_pools(ispin)%pool, &
                           name="mp2_mos")
 
          ! diagonalize KS matrix

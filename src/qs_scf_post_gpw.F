@@ -125,6 +125,7 @@ MODULE qs_scf_post_gpw
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
                                               pw_type
+   USE qs_active_space_methods,         ONLY: active_space_main
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction
    USE qs_core_energies,                ONLY: calculate_ptrace
@@ -697,6 +698,9 @@ CONTAINS
 
       ! Calculate ELF
       CALL qs_scf_post_elf(input, logger, qs_env)
+
+      ! Do active space calculation
+      CALL active_space_main(input, logger, qs_env)
 
       CALL timestop(handle)
 
