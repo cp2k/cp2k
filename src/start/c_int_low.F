@@ -2,6 +2,36 @@
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2016  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
+! **************************************************************************************************
+!> \brief CP2K C/C++ interface
+!> \par History
+!>       12.2012 created [Hossein Bani-Hashemian]
+!>       04.2016 restructured [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! **************************************************************************************************
+MODULE c_int_low
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_DOUBLE,&
+                                              C_FUNPTR,&
+                                              C_INT,&
+                                              C_NULL_CHAR
+   USE cp2k_runs,                       ONLY: run_input
+   USE f77_interface,                   ONLY: &
+        ce => calc_energy, cef => calc_energy_force, cf => calc_force, create_force_env, &
+        dfe => destroy_force_env, do_shake, f_env_add_defaults, f_env_rm_defaults, f_env_type, &
+        ge => get_energy, get_result_r1, gf => get_force, gna => get_natom, gnp => get_nparticle, &
+        gp => get_pos, icp => init_cp2k, kcp => finalize_cp2k, sp => set_pos, sv => set_vel
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              use_qs_force
+   USE input_cp2k,                      ONLY: create_cp2k_root_section
+   USE input_section_types,             ONLY: section_release,&
+                                              section_type
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length
+
+   IMPLICIT NONE
+
+CONTAINS
 
 ! **************************************************************************************************
 !> \brief Copy the content of a \0-terminated C-string to a finite-length Fortran string
@@ -10,55 +40,47 @@
 !> in the source string exceed the length of the destination string.
 !> \param fstring destination string
 !> \param cstring source string
+!> \author Tiziano Mueller
 ! **************************************************************************************************
-SUBROUTINE strncpy_c2f(fstring, cstring)
-   USE ISO_C_BINDING, ONLY: c_char, c_null_char
+   SUBROUTINE strncpy_c2f(fstring, cstring)
+      CHARACTER(LEN=*), INTENT(OUT)                      :: fstring
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: cstring(*)
 
-   IMPLICIT NONE
+      INTEGER                                            :: i
 
-   CHARACTER(len=1, kind=c_char), INTENT(IN) :: cstring(*)
-   CHARACTER(len=*), INTENT(OUT)             :: fstring
-   INTEGER                                   :: i
-
-   DO i = 1, LEN(fstring)
-      IF (cstring(i) == c_null_char) EXIT
-      fstring(i:i) = cstring(i)
-   END DO
-END SUBROUTINE
+      DO i = 1, LEN(fstring)
+         IF (cstring(i) == C_NULL_CHAR) EXIT
+         fstring(i:i) = cstring(i)
+      END DO
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param init_mpi ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_init_cp2k(init_mpi, ierr) BIND(C, name="cp_c_init_cp2k")
-  USE f77_interface,                   ONLY: icp => init_cp2k
-  USE               ISO_C_BINDING,     ONLY: c_int
+   SUBROUTINE cp_init_cp2k(init_mpi, ierr) BIND(C, name="cp_c_init_cp2k")
+      INTEGER(C_INT)                                     :: init_mpi, ierr
 
-   IMPLICIT NONE
+      LOGICAL                                            :: i_mpi
 
-   INTEGER(c_int)                       :: init_mpi, ierr
-   LOGICAL                              :: i_mpi
-   i_mpi = init_mpi /= 0
-   CALL icp(i_mpi, ierr)
-END SUBROUTINE cp_init_cp2k
+      i_mpi = init_mpi /= 0
+      CALL icp(i_mpi, ierr)
+   END SUBROUTINE cp_init_cp2k
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param finalize_mpi ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_finalize_cp2k(finalize_mpi, ierr) BIND(C, name="cp_c_finalize_cp2k")
-  USE f77_interface,                   ONLY: kcp => finalize_cp2k
-  USE               ISO_C_BINDING,     ONLY: c_int
+   SUBROUTINE cp_finalize_cp2k(finalize_mpi, ierr) BIND(C, name="cp_c_finalize_cp2k")
+      INTEGER(C_INT)                                     :: finalize_mpi, ierr
 
-   IMPLICIT NONE
+      LOGICAL                                            :: f_mpi
 
-   INTEGER(c_int)                       :: finalize_mpi, ierr
-   LOGICAL                              :: f_mpi
-   f_mpi = finalize_mpi /= 0
-   CALL kcp(f_mpi, ierr)
-END SUBROUTINE cp_finalize_cp2k
+      f_mpi = finalize_mpi /= 0
+      CALL kcp(f_mpi, ierr)
+   END SUBROUTINE cp_finalize_cp2k
 
 ! **************************************************************************************************
 !> \brief ...
@@ -67,31 +89,24 @@ END SUBROUTINE cp_finalize_cp2k
 !> \param output_file_path ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_create_fenv(new_env_id, input_file_path, output_file_path, &
-                          ierr) BIND(C, name="cp_c_create_fenv")
-  USE f77_interface,                   ONLY: create_force_env
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_section_types,             ONLY: section_type, section_release
-  USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
-  USE kinds,                           ONLY: default_path_length
+   SUBROUTINE cp_create_fenv(new_env_id, input_file_path, output_file_path, &
+                             ierr) BIND(C, name="cp_c_create_fenv")
+      INTEGER(C_INT)                                     :: new_env_id
+      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
+      CHARACTER(LEN=default_path_length)                 :: ifp, ofp
+      TYPE(section_type), POINTER                        :: input_declaration
 
-   TYPE(section_type), POINTER        :: input_declaration
-   CHARACTER(len=1, kind=c_char)      :: input_file_path(*), output_file_path(*)
-   INTEGER(c_int)                     :: new_env_id, ierr
-   CHARACTER(len=default_path_length) :: ifp
-   CHARACTER(len=default_path_length) :: ofp
+      ifp = " "; ofp = " "
+      CALL strncpy_c2f(ifp, input_file_path)
+      CALL strncpy_c2f(ofp, output_file_path)
 
-   ifp = " "; ofp = " "
-   CALL strncpy_c2f(ifp, input_file_path)
-   CALL strncpy_c2f(ofp, output_file_path)
-
-   NULLIFY (input_declaration)
-   CALL create_cp2k_root_section(input_declaration)
-   CALL create_force_env(new_env_id, input_declaration, ifp, ofp, ierr=ierr)
-   CALL section_release(input_declaration)
-END SUBROUTINE cp_create_fenv
+      NULLIFY (input_declaration)
+      CALL create_cp2k_root_section(input_declaration)
+      CALL create_force_env(new_env_id, input_declaration, ifp, ofp, ierr=ierr)
+      CALL section_release(input_declaration)
+   END SUBROUTINE cp_create_fenv
 
 ! **************************************************************************************************
 !> \brief ...
@@ -101,47 +116,35 @@ END SUBROUTINE cp_create_fenv
 !> \param mpi_comm ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_create_fenv_comm(new_env_id, input_file_path, output_file_path, &
-                               mpi_comm, ierr) BIND(C, name="cp_c_create_fenv_comm")
-  USE f77_interface,                   ONLY: create_force_env
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_section_types,             ONLY: section_type, section_release
-  USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
-  USE kinds,                           ONLY: default_path_length
+   SUBROUTINE cp_create_fenv_comm(new_env_id, input_file_path, output_file_path, &
+                                  mpi_comm, ierr) BIND(C, name="cp_c_create_fenv_comm")
+      INTEGER(C_INT)                                     :: new_env_id
+      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      INTEGER(C_INT)                                     :: mpi_comm, ierr
 
-   IMPLICIT NONE
+      CHARACTER(LEN=default_path_length)                 :: ifp, ofp
+      TYPE(section_type), POINTER                        :: input_declaration
 
-   TYPE(section_type), POINTER          :: input_declaration
-   CHARACTER(len=1, kind=c_char)         :: input_file_path(*), output_file_path(*)
-   INTEGER(c_int)                       :: new_env_id, mpi_comm, ierr
-   CHARACTER(len=default_path_length)   :: ifp
-   CHARACTER(len=default_path_length)   :: ofp
+      ifp = " "; ofp = " "
+      CALL strncpy_c2f(ifp, input_file_path)
+      CALL strncpy_c2f(ofp, output_file_path)
 
-   ifp = " "; ofp = " "
-   CALL strncpy_c2f(ifp, input_file_path)
-   CALL strncpy_c2f(ofp, output_file_path)
-
-   NULLIFY (input_declaration)
-   CALL create_cp2k_root_section(input_declaration)
-   CALL create_force_env(new_env_id, input_declaration, ifp, ofp, mpi_comm, ierr=ierr)
-   CALL section_release(input_declaration)
-END SUBROUTINE cp_create_fenv_comm
+      NULLIFY (input_declaration)
+      CALL create_cp2k_root_section(input_declaration)
+      CALL create_force_env(new_env_id, input_declaration, ifp, ofp, mpi_comm, ierr=ierr)
+      CALL section_release(input_declaration)
+   END SUBROUTINE cp_create_fenv_comm
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param env_id ...
 !> \param ierr ...
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE cp_destroy_fenv(env_id, ierr) BIND(C, name="cp_c_destroy_fenv")
-  USE f77_interface,                   ONLY: dfe => destroy_force_env
-  USE               ISO_C_BINDING,     ONLY: c_int
+   RECURSIVE SUBROUTINE cp_destroy_fenv(env_id, ierr) BIND(C, name="cp_c_destroy_fenv")
+      INTEGER(C_INT)                                     :: env_id, ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                       :: env_id, ierr
-
-   CALL dfe(env_id, ierr)
-END SUBROUTINE cp_destroy_fenv
+      CALL dfe(env_id, ierr)
+   END SUBROUTINE cp_destroy_fenv
 
 ! **************************************************************************************************
 !> \brief ...
@@ -150,17 +153,13 @@ END SUBROUTINE cp_destroy_fenv
 !> \param n_el ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr) BIND(C, name="cp_c_set_pos")
-  USE f77_interface,                   ONLY: sp => set_pos
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr) BIND(C, name="cp_c_set_pos")
+      INTEGER(C_INT)                                     :: env_id, n_el
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: new_pos
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                    :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(1:n_el) :: new_pos
-
-   CALL sp(env_id, new_pos, n_el, ierr)
-END SUBROUTINE cp_set_pos
+      CALL sp(env_id, new_pos, n_el, ierr)
+   END SUBROUTINE cp_set_pos
 
 ! **************************************************************************************************
 !> \brief ...
@@ -169,17 +168,13 @@ END SUBROUTINE cp_set_pos
 !> \param n_el ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_set_vel(env_id, new_vel, n_el, ierr) BIND(C, name="cp_c_set_vel")
-  USE f77_interface,                   ONLY: sv => set_vel
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   SUBROUTINE cp_set_vel(env_id, new_vel, n_el, ierr) BIND(C, name="cp_c_set_vel")
+      INTEGER(C_INT)                                     :: env_id, n_el
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: new_vel
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                    :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(1:n_el) :: new_vel
-
-   CALL sv(env_id, new_vel, n_el, ierr)
-END SUBROUTINE cp_set_vel
+      CALL sv(env_id, new_vel, n_el, ierr)
+   END SUBROUTINE cp_set_vel
 
 ! **************************************************************************************************
 !> \brief ...
@@ -189,31 +184,20 @@ END SUBROUTINE cp_set_vel
 !> \param RESULT ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr) BIND(C, name="cp_c_get_result_r1")
-  USE kinds,                           ONLY: default_string_length
-  USE f77_interface,                   ONLY: get_result_r1
-  USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_double, c_null_char
+   SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr) BIND(C, name="cp_c_get_result_r1")
+      INTEGER(C_INT)                                     :: env_id
+      CHARACTER(LEN=1, KIND=C_CHAR)                      :: description(*)
+      INTEGER(C_INT)                                     :: N
+      REAL(C_DOUBLE), DIMENSION(1:N)                     :: RESULT
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
+      CHARACTER(LEN=default_string_length)               :: desc_low
 
-   CHARACTER(len=1, kind=c_char)         :: description(*)
-   INTEGER(c_int)                       :: N
-   REAL(c_double), DIMENSION(1:N)       :: RESULT
-   INTEGER(c_int)                       :: env_id, ierr
-!  CHARACTER(LEN=default_string_length) :: description_low
-   CHARACTER(len=default_string_length) :: desc_low
-   INTEGER  :: i
+      desc_low = " "
+      CALL strncpy_c2f(desc_low, description)
 
-!  description_low=description
-   desc_low = " "
-   i = 1
-   DO WHILE (description(i) .NE. c_null_char)
-      desc_low(i:i) = description(i)
-      i = i+1
-   END DO
-
-   CALL get_result_r1(env_id, desc_low, N, RESULT, ierr=ierr)
-END SUBROUTINE cp_get_result_r1
+      CALL get_result_r1(env_id, desc_low, N, RESULT, ierr=ierr)
+   END SUBROUTINE cp_get_result_r1
 
 ! **************************************************************************************************
 !> \brief ...
@@ -221,16 +205,11 @@ END SUBROUTINE cp_get_result_r1
 !> \param natom ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_get_natom(env_id, natom, ierr) BIND(C, name="cp_c_get_natom")
-  USE f77_interface,                   ONLY: gna => get_natom
-  USE               ISO_C_BINDING,     ONLY: c_int
+   SUBROUTINE cp_get_natom(env_id, natom, ierr) BIND(C, name="cp_c_get_natom")
+      INTEGER(C_INT)                                     :: env_id, natom, ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                       :: natom, env_id, ierr
-
-   CALL gna(env_id, natom, ierr)
-END SUBROUTINE cp_get_natom
+      CALL gna(env_id, natom, ierr)
+   END SUBROUTINE cp_get_natom
 
 ! **************************************************************************************************
 !> \brief ...
@@ -238,16 +217,11 @@ END SUBROUTINE cp_get_natom
 !> \param nparticle ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_get_nparticle(env_id, nparticle, ierr) BIND(C, name="cp_c_get_nparticle")
-  USE f77_interface,                   ONLY: gnp => get_nparticle
-  USE               ISO_C_BINDING,     ONLY: c_int
+   SUBROUTINE cp_get_nparticle(env_id, nparticle, ierr) BIND(C, name="cp_c_get_nparticle")
+      INTEGER(C_INT)                                     :: env_id, nparticle, ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                       :: nparticle, env_id, ierr
-
-   CALL gnp(env_id, nparticle, ierr)
-END SUBROUTINE cp_get_nparticle
+      CALL gnp(env_id, nparticle, ierr)
+   END SUBROUTINE cp_get_nparticle
 
 ! **************************************************************************************************
 !> \brief ...
@@ -256,17 +230,13 @@ END SUBROUTINE cp_get_nparticle
 !> \param n_el ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr) BIND(C, name="cp_c_get_pos")
-  USE f77_interface,                   ONLY: gp => get_pos
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr) BIND(C, name="cp_c_get_pos")
+      INTEGER(C_INT)                                     :: env_id, n_el
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: pos
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                    :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(1:n_el) :: pos
-
-   CALL gp(env_id, pos, n_el, ierr)
-END SUBROUTINE cp_get_pos
+      CALL gp(env_id, pos, n_el, ierr)
+   END SUBROUTINE cp_get_pos
 
 ! **************************************************************************************************
 !> \brief ...
@@ -275,17 +245,13 @@ END SUBROUTINE cp_get_pos
 !> \param n_el ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_get_force(env_id, force, n_el, ierr) BIND(C, name="cp_c_get_force")
-  USE f77_interface,                   ONLY: gf => get_force
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   SUBROUTINE cp_get_force(env_id, force, n_el, ierr) BIND(C, name="cp_c_get_force")
+      INTEGER(C_INT)                                     :: env_id, n_el
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: force
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                    :: n_el, env_id, ierr
-   REAL(c_double), DIMENSION(1:n_el) :: force
-
-   CALL gf(env_id, force, n_el, ierr)
-END SUBROUTINE cp_get_force
+      CALL gf(env_id, force, n_el, ierr)
+   END SUBROUTINE cp_get_force
 
 ! **************************************************************************************************
 !> \brief ...
@@ -293,17 +259,13 @@ END SUBROUTINE cp_get_force
 !> \param e_pot ...
 !> \param ierr ...
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE cp_get_energy(env_id, e_pot, ierr) BIND(C, name="cp_c_get_energy")
-  USE f77_interface,                   ONLY: ge => get_energy
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   RECURSIVE SUBROUTINE cp_get_energy(env_id, e_pot, ierr) BIND(C, name="cp_c_get_energy")
+      INTEGER(C_INT)                                     :: env_id
+      REAL(C_DOUBLE)                                     :: e_pot
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                       :: env_id, ierr
-   REAL(c_double)                       :: e_pot
-
-   CALL ge(env_id, e_pot, ierr)
-END SUBROUTINE cp_get_energy
+      CALL ge(env_id, e_pot, ierr)
+   END SUBROUTINE cp_get_energy
 
 ! **************************************************************************************************
 !> \brief ...
@@ -311,18 +273,14 @@ END SUBROUTINE cp_get_energy
 !> \param calc_force ...
 !> \param ierr ...
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE cp_calc_energy_force(env_id, calc_force, ierr) BIND(C, name="cp_c_calc_energy_force")
-  USE f77_interface,                   ONLY: cef => calc_energy_force
-  USE               ISO_C_BINDING,     ONLY: c_int, c_bool
+   RECURSIVE SUBROUTINE cp_calc_energy_force(env_id, calc_force, ierr) BIND(C, name="cp_c_calc_energy_force")
+      INTEGER(C_INT)                                     :: env_id, calc_force, ierr
 
-   IMPLICIT NONE
+      LOGICAL                                            :: cf
 
-   INTEGER(c_int) :: calc_force, env_id, ierr
-   LOGICAL        :: cf
-
-   cf = (calc_force /= 0)
-   CALL cef(env_id, cf, ierr)
-END SUBROUTINE cp_calc_energy_force
+      cf = (calc_force /= 0)
+      CALL cef(env_id, cf, ierr)
+   END SUBROUTINE cp_calc_energy_force
 
 ! **************************************************************************************************
 !> \brief ...
@@ -332,18 +290,14 @@ END SUBROUTINE cp_calc_energy_force
 !> \param e_pot ...
 !> \param ierr ...
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE cp_calc_energy(env_id, pos, n_el, e_pot, ierr) BIND(C, name="cp_c_calc_energy")
-  USE f77_interface,                   ONLY: ce => calc_energy
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   RECURSIVE SUBROUTINE cp_calc_energy(env_id, pos, n_el, e_pot, ierr) BIND(C, name="cp_c_calc_energy")
+      INTEGER(C_INT)                                     :: env_id, n_el
+      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: pos
+      REAL(C_DOUBLE)                                     :: e_pot
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                    :: env_id, ierr, n_el
-   REAL(c_double)                    :: e_pot
-   REAL(c_double), DIMENSION(1:n_el) :: pos
-
-   CALL ce(env_id, pos, n_el, e_pot, ierr)
-END SUBROUTINE cp_calc_energy
+      CALL ce(env_id, pos, n_el, e_pot, ierr)
+   END SUBROUTINE cp_calc_energy
 
 ! **************************************************************************************************
 !> \brief ...
@@ -355,20 +309,17 @@ END SUBROUTINE cp_calc_energy
 !> \param n_el_force ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_calc_force(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr) &
-   BIND(C, name="cp_c_calc_force")
-  USE f77_interface,                   ONLY: cf => calc_force
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   SUBROUTINE cp_calc_force(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr) &
+      BIND(C, name="cp_c_calc_force")
+      INTEGER(C_INT)                                     :: env_id, n_el_pos
+      REAL(C_DOUBLE), DIMENSION(1:n_el_pos)              :: pos
+      REAL(C_DOUBLE)                                     :: e_pot
+      INTEGER(C_INT)                                     :: n_el_force
+      REAL(C_DOUBLE), DIMENSION(1:n_el_force)            :: force
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                          :: env_id, ierr, n_el_pos, n_el_force
-   REAL(c_double)                          :: e_pot
-   REAL(c_double), DIMENSION(1:n_el_pos)   :: pos
-   REAL(c_double), DIMENSION(1:n_el_force) :: force
-
-   CALL cf(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr)
-END SUBROUTINE cp_calc_force
+      CALL cf(env_id, pos, n_el_pos, e_pot, force, n_el_force, ierr)
+   END SUBROUTINE cp_calc_force
 
 ! **************************************************************************************************
 !> \brief ...
@@ -376,30 +327,22 @@ END SUBROUTINE cp_calc_force
 !> \param output_file_path ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_run_input(input_file_path, output_file_path, ierr) BIND(C, name="cp_c_run_input")
-  USE cp2k_runs,                       ONLY: run_input
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_section_types,             ONLY: section_type, section_release
-  USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
-  USE kinds,                           ONLY: default_path_length
+   SUBROUTINE cp_run_input(input_file_path, output_file_path, ierr) BIND(C, name="cp_c_run_input")
+      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
+      CHARACTER(LEN=default_path_length)                 :: ifp, ofp
+      TYPE(section_type), POINTER                        :: input_declaration
 
-   TYPE(section_type), POINTER        :: input_declaration
-   CHARACTER(len=1, kind=c_char)      :: input_file_path(*), output_file_path(*)
-   INTEGER(c_int)                     :: ierr
-   CHARACTER(len=default_path_length) :: ifp
-   CHARACTER(len=default_path_length) :: ofp
+      ifp = " "; ofp = " "
+      CALL strncpy_c2f(ifp, input_file_path)
+      CALL strncpy_c2f(ofp, output_file_path)
 
-   ifp = " "; ofp = " "
-   CALL strncpy_c2f(ifp, input_file_path)
-   CALL strncpy_c2f(ofp, output_file_path)
-
-   NULLIFY (input_declaration)
-   CALL create_cp2k_root_section(input_declaration)
-   CALL run_input(input_declaration, ifp, ofp, ierr=ierr)
-   CALL section_release(input_declaration)
-END SUBROUTINE cp_run_input
+      NULLIFY (input_declaration)
+      CALL create_cp2k_root_section(input_declaration)
+      CALL run_input(input_declaration, ifp, ofp, ierr=ierr)
+      CALL section_release(input_declaration)
+   END SUBROUTINE cp_run_input
 
 ! **************************************************************************************************
 !> \brief ...
@@ -408,31 +351,23 @@ END SUBROUTINE cp_run_input
 !> \param mpi_comm ...
 !> \param ierr ...
 ! **************************************************************************************************
-RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path, output_file_path, &
-                                       mpi_comm, ierr) BIND(C, name="cp_c_run_input_comm")
-  USE cp2k_runs,                       ONLY: run_input
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_section_types,             ONLY: section_type, section_release
-  USE               ISO_C_BINDING,     ONLY: c_int, c_char, c_null_char
-  USE kinds,                           ONLY: default_path_length
+   RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path, output_file_path, &
+                                          mpi_comm, ierr) BIND(C, name="cp_c_run_input_comm")
+      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      INTEGER(C_INT)                                     :: mpi_comm, ierr
 
-   IMPLICIT NONE
+      CHARACTER(LEN=default_path_length)                 :: ifp, ofp
+      TYPE(section_type), POINTER                        :: input_declaration
 
-   TYPE(section_type), POINTER          :: input_declaration
-   CHARACTER(len=1, kind=c_char)         :: input_file_path(*), output_file_path(*)
-   INTEGER(c_int)                       :: mpi_comm, ierr
-   CHARACTER(len=default_path_length)   :: ifp
-   CHARACTER(len=default_path_length)   :: ofp
+      ifp = " "; ofp = " "
+      CALL strncpy_c2f(ifp, input_file_path)
+      CALL strncpy_c2f(ofp, output_file_path)
 
-   ifp = " "; ofp = " "
-   CALL strncpy_c2f(ifp, input_file_path)
-   CALL strncpy_c2f(ofp, output_file_path)
-
-   NULLIFY (input_declaration)
-   CALL create_cp2k_root_section(input_declaration)
-   CALL run_input(input_declaration, ifp, ofp, ierr, mpi_comm)
-   CALL section_release(input_declaration)
-END SUBROUTINE cp_run_input_comm
+      NULLIFY (input_declaration)
+      CALL create_cp2k_root_section(input_declaration)
+      CALL run_input(input_declaration, ifp, ofp, ierr, mpi_comm)
+      CALL section_release(input_declaration)
+   END SUBROUTINE cp_run_input_comm
 
 ! **************************************************************************************************
 !> \brief ...
@@ -441,17 +376,13 @@ END SUBROUTINE cp_run_input_comm
 !> \param shake_tol ...
 !> \param ierr ...
 ! **************************************************************************************************
-SUBROUTINE cp_do_shake(f_env_id, dt, shake_tol, ierr) BIND(C, name="cp_c_do_shake")
-  USE f77_interface,                   ONLY: do_shake
-  USE               ISO_C_BINDING,     ONLY: c_int, c_double
+   SUBROUTINE cp_do_shake(f_env_id, dt, shake_tol, ierr) BIND(C, name="cp_c_do_shake")
+      INTEGER(C_INT)                                     :: f_env_id
+      REAL(C_DOUBLE)                                     :: dt, shake_tol
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
-
-   INTEGER(c_int)                       :: f_env_id, ierr
-   REAL(c_double)                       :: dt, shake_tol
-
-   CALL do_shake(f_env_id, dt, shake_tol, ierr)
-END SUBROUTINE cp_do_shake
+      CALL do_shake(f_env_id, dt, shake_tol, ierr)
+   END SUBROUTINE cp_do_shake
 
 ! **************************************************************************************************
 !> \brief Gets a function pointer pointing to a routine defined in C/C++ and
@@ -463,25 +394,22 @@ END SUBROUTINE cp_do_shake
 !>      12.2012 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-SUBROUTINE cp_c_ext_method_set_ptr(f_env_id, func, ierr) BIND(C, name="cp_c_ext_method_set_ptr")
-  USE               ISO_C_BINDING,     ONLY: c_int, c_funptr
-  USE f77_interface,                   ONLY: f_env_add_defaults, f_env_rm_defaults, f_env_type
-  USE force_env_types,                 ONLY: force_env_get, use_qs_force
+   SUBROUTINE cp_c_ext_method_set_ptr(f_env_id, func, ierr) BIND(C, name="cp_c_ext_method_set_ptr")
+      INTEGER(C_INT)                                     :: f_env_id
+      TYPE(C_FUNPTR), VALUE                              :: func
+      INTEGER(C_INT)                                     :: ierr
 
-   IMPLICIT NONE
+      INTEGER                                            :: in_use
+      TYPE(f_env_type), POINTER                          :: f_env
 
-   TYPE(c_funptr), VALUE                :: func
-   INTEGER(c_int)                       :: ierr
-   INTEGER(c_int)                       :: f_env_id
-   TYPE(f_env_type), POINTER            :: f_env
-   INTEGER                              :: in_use
+      NULLIFY (f_env)
+      CALL f_env_add_defaults(f_env_id, f_env)
+      CALL force_env_get(f_env%force_env, in_use=in_use)
+      IF (in_use .EQ. use_qs_force) THEN
+         f_env%force_env%qs_env%transport_env%ext_c_method_ptr = func
+      END IF
+      CALL f_env_rm_defaults(f_env, ierr)
+   END SUBROUTINE cp_c_ext_method_set_ptr
 
-   NULLIFY (f_env)
-   CALL f_env_add_defaults(f_env_id, f_env)
-   CALL force_env_get(f_env%force_env, in_use=in_use)
-   IF (in_use .EQ. use_qs_force) THEN
-      f_env%force_env%qs_env%transport_env%ext_c_method_ptr = func
-   END IF
-   CALL f_env_rm_defaults(f_env, ierr)
-END SUBROUTINE cp_c_ext_method_set_ptr
+END MODULE c_int_low
 
