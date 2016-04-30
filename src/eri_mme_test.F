@@ -17,7 +17,6 @@ MODULE eri_mme_test
                                               eri_mme_init_read_input,&
                                               eri_mme_param,&
                                               eri_mme_release,&
-                                              lmax,&
                                               rec_lattice_space
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -153,7 +152,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: count_ab, i, iab, irep, izet, jab, kab, &
-                                                            l, lmax, nab, nab_min, nab_xyz, nrep, &
+                                                            l, l_max, nab, nab_min, nab_xyz, nrep, &
                                                             nzet
       LOGICAL                                            :: acc_check, test_accuracy
       REAL(KIND=dp)                                      :: acc_G, acc_R, G_res, t0, t1, t2, &
@@ -176,14 +175,14 @@ CONTAINS
       CALL section_vals_val_get(eri_mme_test_section, "NAB_MIN", i_val=nab_min)
       CALL section_vals_val_get(eri_mme_test_section, "NREP", i_val=nrep)
       CALL section_vals_val_get(eri_mme_test_section, "CHECK_ACCURACY", l_val=test_accuracy)
-      CALL section_vals_val_get(eri_mme_test_section, "LMAX", i_val=lmax)
+      CALL section_vals_val_get(eri_mme_test_section, "LMAX", i_val=l_max)
       CALL section_vals_val_get(eri_mme_test_section, "ZET_MIN", r_val=zetmin)
       CALL section_vals_val_get(eri_mme_test_section, "ZET_MAX", r_val=zetmax)
       CALL section_vals_val_get(eri_mme_test_section, "NZET", i_val=nzet)
       IF (nzet .LE. 0) &
          CPABORT("Number of exponents NZET must be greater than 0.")
 
-      CALL init_orbital_pointers(lmax)
+      CALL init_orbital_pointers(l_max)
 
       ! Create ranges of zet to be tested
       ALLOCATE (zet(nzet))
@@ -220,7 +219,7 @@ CONTAINS
       CALL init_cell(box)
 
       ! initialize MME method
-      CALL eri_mme_set_params(param, box, MINVAL(zet), [MAXVAL(zet)], [lmax], lmax, para_env)
+      CALL eri_mme_set_params(param, box, MINVAL(zet), [MAXVAL(zet)], [l_max], l_max, para_env)
       IF (iw > 0) CALL m_flush(iw)
 
       ! Calculate reference values (Exact expression in G space converged to high precision)
@@ -228,12 +227,12 @@ CONTAINS
          ht = twopi*TRANSPOSE(param%h_inv)
          G_res = 0.5_dp*param%G_min
 
-         ALLOCATE (I_ref(ncoset(lmax), ncoset(lmax), nab, nzet))
+         ALLOCATE (I_ref(ncoset(l_max), ncoset(l_max), nab, nzet))
          I_ref(:, :, :, :) = 0.0_dp
 
          DO izet = 1, nzet
             DO iab = 1, nab
-               CALL eri_mme_2c_integrate_low(param, 0, lmax, 0, lmax, zet(izet), zet(izet), rab(:, iab), &
+               CALL eri_mme_2c_integrate_low(param, 0, l_max, 0, l_max, zet(izet), zet(izet), rab(:, iab), &
                                              I_ref(:, :, iab, izet), 0, 0, normalize=.TRUE., exact_method=.TRUE.)
 
             ENDDO
@@ -241,14 +240,14 @@ CONTAINS
       ENDIF
 
       ! test performance and accuracy of MME method
-      ALLOCATE (I_test_G(ncoset(lmax), ncoset(lmax), nab, nzet))
-      ALLOCATE (I_test_R(ncoset(lmax), ncoset(lmax), nab, nzet))
-      ALLOCATE (I_diff_G(ncoset(lmax), ncoset(lmax), nab, nzet))
-      ALLOCATE (I_diff_R(ncoset(lmax), ncoset(lmax), nab, nzet))
+      ALLOCATE (I_test_G(ncoset(l_max), ncoset(l_max), nab, nzet))
+      ALLOCATE (I_test_R(ncoset(l_max), ncoset(l_max), nab, nzet))
+      ALLOCATE (I_diff_G(ncoset(l_max), ncoset(l_max), nab, nzet))
+      ALLOCATE (I_diff_R(ncoset(l_max), ncoset(l_max), nab, nzet))
 
-      ALLOCATE (time_G(0:lmax, nzet))
-      ALLOCATE (time_R(0:lmax, nzet))
-      DO l = 0, lmax
+      ALLOCATE (time_G(0:l_max, nzet))
+      ALLOCATE (time_R(0:l_max, nzet))
+      DO l = 0, l_max
          DO izet = 1, nzet
             CALL CPU_TIME(t0)
             DO irep = 1, nrep
@@ -285,7 +284,7 @@ CONTAINS
          WRITE (iw, '(/T2, A)') "ERI_MME| Test results for time and accuracy in G and R space"
          WRITE (iw, '(T11, A)') "l, zet, cpu time G, cpu time R, accuracy G, accuracy R"
 
-         DO l = 0, lmax
+         DO l = 0, l_max
             DO izet = 1, nzet
                IF (test_accuracy) THEN
                   acc_G = MAXVAL(I_diff_G(ncoset(l-1)+1:ncoset(l), ncoset(l-1)+1:ncoset(l), :, izet))

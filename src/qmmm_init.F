@@ -843,7 +843,7 @@ CONTAINS
                                     qm_cell_small, &
                                     zet_err_minimax=qmmm_env%image_charge_pot%eta, &
                                     zet_err_cutoff=[qmmm_env%image_charge_pot%eta], &
-                                    lmax=0, &
+                                    l_max=0, &
                                     para_env=para_env)
 
          ENDIF

@@ -188,10 +188,10 @@ CONTAINS
       CALL error_est_pgf_params_from_basis(qs_kind_set, basis_type, &
                                            zet_err_minimax, zet_err_cutoff, l_err_cutoff)
 
-      param%lmax = MAXVAL(l_err_cutoff)
+      param%l_max = MAXVAL(l_err_cutoff)
       CALL eri_mme_set_params_low(param, cell, &
                                   zet_err_minimax, zet_err_cutoff, l_err_cutoff, &
-                                  param%lmax, para_env)
+                                  param%l_max, para_env)
 
       CALL timestop(handle)
    END SUBROUTINE eri_mme_set_params_from_basis

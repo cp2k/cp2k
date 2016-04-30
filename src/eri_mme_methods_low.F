@@ -24,8 +24,6 @@ MODULE eri_mme_methods_low
    USE eri_mme_types,                   ONLY: dynamic_lattice_space,&
                                               eri_mme_param,&
                                               lattice_sum_prec,&
-                                              lmax,&
-                                              min_Rc,&
                                               rec_lattice_space
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gamma1,&
@@ -175,11 +173,7 @@ CONTAINS
                ! perform sum in R or G space. Either choose the space in which less summands are required for convergence
                ! or use autocalibrated exponents to switch between spaces.
                IF (gr_space .EQ. dynamic_lattice_space) THEN
-                  IF (param%do_calib_alpha) THEN
-                     do_g_sum = alpha_G .GE. param%alpha_c(l_max, i_xyz)
-                  ELSE
-                     do_g_sum = (2*G_bound+1) < R_bound2-R_bound1
-                  ENDIF
+                  do_g_sum = (2*G_bound+1) < R_bound2-R_bound1
                ELSE
                   do_g_sum = gr_space .EQ. rec_lattice_space
                ENDIF
@@ -639,24 +633,24 @@ CONTAINS
 !> \param zet_err_cutoff  Exponents used to estimate error of finite cutoff.
 !> \param l_err_cutoff    Total ang. mom. quantum numbers l to be combined with exponents in
 !>                        zet_err_cutoff.
-!> \param lmax            Maximum total angular momentum quantum number
+!> \param l_max            Maximum total angular momentum quantum number
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_set_params_low(param, cell, zet_err_minimax, zet_err_cutoff, l_err_cutoff, lmax, para_env)
+   SUBROUTINE eri_mme_set_params_low(param, cell, zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max, para_env)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       TYPE(cell_type), INTENT(IN)                        :: cell
       REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_err_cutoff
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: l_err_cutoff
-      INTEGER, INTENT(IN)                                :: lmax
+      INTEGER, INTENT(IN)                                :: l_max
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_set_params_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, l, l_mm, unit_nr
+      INTEGER                                            :: handle, l_mm, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: l_c
-      LOGICAL                                            :: calib_failed, min_cutoff, s_only
+      LOGICAL                                            :: s_only
       REAL(KIND=dp)                                      :: C_mm, cutoff, E_mm, err_c, err_mm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet_c
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -667,8 +661,8 @@ CONTAINS
       unit_nr = cp_print_key_unit_nr(logger, param%mme_section, "ERI_MME_INFO", &
                                      extension=".eri_mme")
 
-      s_only = lmax .EQ. 0
-      param%lmax = lmax
+      s_only = l_max .EQ. 0
+      param%l_max = l_max
 
       CPASSERT(ASSOCIATED(param%mme_section))
       CPASSERT(PRESENT(l_err_cutoff) .OR. s_only)
@@ -698,7 +692,6 @@ CONTAINS
 
       ! cutoff calibration not yet implemented for general cell
       IF (.NOT. param%is_ortho) THEN
-         param%do_calib_alpha = .FALSE.
          param%do_calib_cutoff = .FALSE.
       ENDIF
 
@@ -715,12 +708,12 @@ CONTAINS
       ELSE IF (param%is_ortho) THEN
          CALL cutoff_minimax_error(param%cutoff, param%hmat, param%h_inv, param%vol, param%G_min, &
                                    zet_err_minimax, l_mm, zet_err_cutoff, l_c, param%n_minimax, &
-                                   param%minimax_aw, err_mm, err_c, C_mm, min_cutoff, para_env)
+                                   param%minimax_aw, err_mm, err_c, C_mm, para_env)
          param%error_tot = err_mm+err_c
       ENDIF
 
       CALL get_minimax_coeff_v_gspace(param%n_minimax, param%cutoff, param%G_min, param%minimax_aw, &
-                                      E_mm, min_cutoff)
+                                      E_mm)
 
       IF (unit_nr > 0) WRITE (unit_nr, '(T2, A, T71, F10.1)') "ERI_MME| Cutoff for ERIs [a.u.]:", param%cutoff
       IF (param%is_ortho) THEN
@@ -731,29 +724,6 @@ CONTAINS
             WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", err_mm+err_c
             IF (param%print_calib) &
                WRITE (unit_nr, '(T2, A, T68, F13.10)') "ERI_MME|   Minimax scaling constant in AM-GM estimate:", C_mm
-         ENDIF
-      ENDIF
-
-      ! Calibration for switching between G and R space representation
-      calib_failed = .FALSE.
-      IF (param%do_calib_alpha) THEN
-         CALL calibrate_gr_switch(param%alpha_c, param%hmat, param%h_inv, &
-                                  lmax, calib_failed, para_env)
-         param%do_calib_alpha = .NOT. calib_failed
-      ENDIF
-      IF (calib_failed) THEN
-         CALL cp_warn(__LOCATION__, "GR-switch calibration FAILED. "// &
-                      "Default switching between G-space and R-space will be applied")
-      ENDIF
-
-      IF (param%do_calib_alpha .AND. param%print_calib) THEN
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(/T2, A)') "ERI_MME| Calibrated exponents for switching between R- and G-space evaluation"
-            WRITE (unit_nr, '(T11, A)') "l, alpha(x), alpha(y), alpha(z)"
-            DO l = 0, lmax
-               WRITE (unit_nr, '(T11, I2, 1X, ES9.2, 1X, ES9.2, 1X, ES9.2)') l, &
-                  param%alpha_c(l, 1), param%alpha_c(l, 2), param%alpha_c(l, 3)
-            ENDDO
          ENDIF
       ENDIF
 
@@ -880,8 +850,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, iter1, iter2, max_iter, unit_nr
-      LOGICAL                                            :: do_print, min_cutoff, use_min_cutoff, &
-                                                            valid_initial
+      LOGICAL                                            :: do_print, valid_initial
       REAL(KIND=dp)                                      :: cutoff_mid, delta_c_mid, delta_mm_mid
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: minimax_aw
       REAL(KIND=dp), DIMENSION(2)                        :: cutoff_lr, delta_c, delta_mm
@@ -927,71 +896,61 @@ CONTAINS
       ! 1) find valid initial values for bisection
       DO iter1 = 1, max_iter+1
          IF (iter1 .GT. max_iter) &
-            CALL cp_abort(__LOCATION__, "Maximum number of iterations in bisection to determine initial "// &
+            CALL cp_abort(__LOCATION__, &
+                          "Maximum number of iterations in bisection to determine initial "// &
                           "cutoff interval has been exceeded.")
 
          cutoff_lr(1) = MAX(cutoff_lr(1), 0.5_dp*G_min**2)
-         use_min_cutoff = .FALSE. ! Flag to stop bisection in case minimum cutoff (limited by minimax
          ! approx.) is hit
 
          DO i = 1, 2
             CALL cutoff_minimax_error(cutoff_lr(i), hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
-                                      n_minimax, minimax_aw, delta_mm(i), delta_c(i), C_mm, min_cutoff, para_env)
-            IF (min_cutoff) use_min_cutoff = .TRUE.
+                                      n_minimax, minimax_aw, delta_mm(i), delta_c(i), C_mm, para_env)
          ENDDO
 
          valid_initial = .TRUE.
          IF ((delta_mm(1)-delta_c(1)) .GT. 0) THEN
             cutoff_lr(1) = cutoff_lr(1)*(1.0_dp-ABS(delta))
             valid_initial = .FALSE.
-         ELSE
-            use_min_cutoff = .FALSE.
          ENDIF
          IF ((delta_mm(2)-delta_c(2)) .LT. 0) THEN
             cutoff_lr(2) = cutoff_lr(2)*(1.0_dp+ABS(delta))
             valid_initial = .FALSE.
          ENDIF
 
-         IF (valid_initial .OR. use_min_cutoff) EXIT
+         IF (valid_initial) EXIT
       ENDDO
 
       ! 2) bisection to find cutoff s.t. err_minimax(cutoff) - err_cutoff(cutoff) = 0
-      IF (use_min_cutoff) THEN
-         cutoff = cutoff_lr(1)
-         CALL cutoff_minimax_error(cutoff, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
-                                   n_minimax, minimax_aw, err_mm, err_c, C_mm, min_cutoff, para_env)
-         iter2 = 1
-      ELSE
-         IF (do_print) WRITE (unit_nr, '(/T2, A)') &
-            "ERI_MME| Step, cutoff (min, max, mid), err(minimax), err(cutoff), err diff"
+      IF (do_print) WRITE (unit_nr, '(/T2, A)') &
+         "ERI_MME| Step, cutoff (min, max, mid), err(minimax), err(cutoff), err diff"
 
-         DO iter2 = 1, max_iter+1
-            IF (iter2 .GT. max_iter) &
-               CALL cp_abort(__LOCATION__, &
-                             "Maximum number of iterations in bisection to determine cutoff has been exceeded")
+      DO iter2 = 1, max_iter+1
+         IF (iter2 .GT. max_iter) &
+            CALL cp_abort(__LOCATION__, &
+                          "Maximum number of iterations in bisection to determine cutoff has been exceeded")
 
-            cutoff_mid = 0.5_dp*(cutoff_lr(1)+cutoff_lr(2))
-            CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
-                                      n_minimax, minimax_aw, delta_mm_mid, delta_c_mid, C_mm, min_cutoff, para_env)
-            IF (do_print) WRITE (unit_nr, '(T11, I2, F11.1, F11.1, F11.1, 3X, ES9.2, 3X, ES9.2, 3X, ES9.2)') &
-               iter2, cutoff_lr(1), cutoff_lr(2), cutoff_mid, &
-               delta_mm_mid, delta_c_mid, delta_mm_mid-delta_c_mid
+         cutoff_mid = 0.5_dp*(cutoff_lr(1)+cutoff_lr(2))
+         CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
+                                   n_minimax, minimax_aw, delta_mm_mid, delta_c_mid, C_mm, para_env)
+         IF (do_print) WRITE (unit_nr, '(T11, I2, F11.1, F11.1, F11.1, 3X, ES9.2, 3X, ES9.2, 3X, ES9.2)') &
+            iter2, cutoff_lr(1), cutoff_lr(2), cutoff_mid, &
+            delta_mm_mid, delta_c_mid, delta_mm_mid-delta_c_mid
 
-            IF ((cutoff_lr(2)-cutoff_lr(1))/cutoff_mid .LT. tol) EXIT
-            IF (delta_mm_mid-delta_c_mid .GT. 0) THEN
-               cutoff_lr(2) = cutoff_mid
-               delta_mm(2) = delta_mm_mid
-               delta_c(2) = delta_c_mid
-            ELSE
-               cutoff_lr(1) = cutoff_mid
-               delta_mm(1) = delta_mm_mid
-               delta_c(1) = delta_c_mid
-            ENDIF
-         ENDDO
-         err_mm = delta_mm_mid
-         err_c = delta_c_mid
-         cutoff = cutoff_mid
-      ENDIF
+         IF ((cutoff_lr(2)-cutoff_lr(1))/cutoff_mid .LT. tol) EXIT
+         IF (delta_mm_mid-delta_c_mid .GT. 0) THEN
+            cutoff_lr(2) = cutoff_mid
+            delta_mm(2) = delta_mm_mid
+            delta_c(2) = delta_c_mid
+         ELSE
+            cutoff_lr(1) = cutoff_mid
+            delta_mm(1) = delta_mm_mid
+            delta_c(1) = delta_c_mid
+         ENDIF
+      ENDDO
+      err_mm = delta_mm_mid
+      err_c = delta_c_mid
+      cutoff = cutoff_mid
 
       IF (do_print) THEN
          WRITE (unit_nr, '(/T2, A)') "ERI_MME| Cutoff calibration number of steps:"
@@ -1022,13 +981,10 @@ CONTAINS
 !> \param err_ctff   Cutoff error
 !> \param C_mm       Scaling constant to generalize AM-GM upper bound estimate to
 !>                   minimax approx.
-!> \param min_cutoff Whether cutoff (in) is less than minimum cutoff (limited
-!>                   by minimax approx.). In this case cutoff (out) is minimum
-!>                   cutoff.
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE cutoff_minimax_error(cutoff, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_ctff, l_ctff, &
-                                   n_minimax, minimax_aw, err_mm, err_ctff, C_mm, min_cutoff, para_env)
+                                   n_minimax, minimax_aw, err_mm, err_ctff, C_mm, para_env)
       REAL(KIND=dp), INTENT(INOUT)                       :: cutoff
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
       REAL(KIND=dp), INTENT(IN)                          :: vol, G_min, zet_mm
@@ -1038,7 +994,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_minimax
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: minimax_aw
       REAL(KIND=dp), INTENT(OUT)                         :: err_mm, err_ctff, C_mm
-      LOGICAL, INTENT(OUT)                               :: min_cutoff
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cutoff_minimax_error', &
@@ -1062,7 +1017,7 @@ CONTAINS
       ALLOCATE (zet_ctff_tmp(SIZE(zet_ctff)))
       zet_ctff_tmp(:) = zet_ctff(:)
 
-      CALL get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw(:), E_mm, min_cutoff)
+      CALL get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw(:), E_mm)
       G_c = SQRT(2.0*cutoff)
 
       ! 1) Minimax error, simple analytical formula
@@ -1289,17 +1244,13 @@ CONTAINS
 !> \param G_min       Minimum absolute value of G
 !> \param minimax_aw  Minimax coefficients a_i, w_i
 !> \param err_minimax Maximum error MAX (|1/G^2-\sum_i w_i exp(-a_i G^2)|)
-!> \param min_cutoff  Whether cutoff (in) is less than minimum cutoff (limited
-!>                    by minimax approx.). In this case cutoff (out) is minimum
-!>                    cutoff.
 ! **************************************************************************************************
-   SUBROUTINE get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, err_minimax, min_cutoff)
+   SUBROUTINE get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, err_minimax)
       INTEGER, INTENT(IN)                                :: n_minimax
       REAL(KIND=dp), INTENT(INOUT)                       :: cutoff
       REAL(KIND=dp), INTENT(IN)                          :: G_min
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: minimax_aw
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: err_minimax
-      LOGICAL, INTENT(OUT)                               :: min_cutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_v_gspace', &
          routineP = moduleN//':'//routineN
@@ -1307,7 +1258,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dG, G_max, minimax_Rc
 
       dG = 1.0E-3 ! Resolution in G to determine error of minimax approximation
-      min_cutoff = .FALSE.
+      !min_cutoff = .FALSE.
 
       ! Note: G_c = SQRT(2*cutoff) cutoff in 1 cartesian direction
       ! G_max = SQRT(3*G_c**2) maximum absolute value of G vector
@@ -1316,11 +1267,6 @@ CONTAINS
       ! 1) compute minimax coefficients
       G_max = SQRT(3.0_dp*2.0_dp*cutoff)
       minimax_Rc = (G_max/G_min)**2
-      IF (minimax_Rc .LE. min_Rc) THEN
-         min_cutoff = .TRUE.
-         minimax_Rc = min_Rc
-         cutoff = min_Rc*G_min**2/(3.0_dp*2.0_dp)
-      ENDIF
 
       G_max = SQRT(3.0_dp*2.0_dp*cutoff)
       CPASSERT(G_max .GT. G_min)
@@ -1331,147 +1277,6 @@ CONTAINS
       IF (PRESENT(err_minimax)) err_minimax = err_minimax/G_min**2
 
    END SUBROUTINE get_minimax_coeff_v_gspace
-
-! **************************************************************************************************
-!> \brief Find compound exponent at which G and R space representation
-!>        need the same execution time (for each cartesian component of l).
-!>        This works only for orthorhombic cells.
-!> \param alpha_c ...
-!> \param hmat ...
-!> \param h_inv ...
-!> \param lmax ...
-!> \param failed ...
-!> \param para_env ...
-!> \note  should not be needed anymore except for testing purposes since
-!>        switching between R and G space representation based on number of
-!>        summands works well enough.
-! **************************************************************************************************
-   SUBROUTINE calibrate_gr_switch(alpha_c, hmat, h_inv, lmax, failed, para_env)
-      REAL(KIND=dp), DIMENSION(0:, :), INTENT(INOUT)     :: alpha_c
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
-      INTEGER, INTENT(IN)                                :: lmax
-      LOGICAL, INTENT(OUT)                               :: failed
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calibrate_gr_switch', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: G_bound, i, i_xyz, iter, l, max_iter, &
-                                                            n_points, n_start, R_bound
-      REAL(KIND=dp)                                      :: alpha, alpha_eps, dt_G, dt_R, G_rad, &
-                                                            G_res, inv_lgth, lgth, R_rad, R_res, &
-                                                            t_0, t_1, t_2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha_start, S_G, S_R
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: R
-      REAL(KIND=dp), DIMENSION(2)                        :: alpha_lr
-
-      failed = .FALSE.
-      alpha_eps = 1.0E-2 ! tolerance
-      n_points = 10000 ! number of values for R (atomic distances) per process
-      max_iter = 100
-
-      ! define set of exponents alpha from which to select starting values
-      n_start = 13
-      ALLOCATE (alpha_start(n_start))
-      alpha_start(:) = [1.0E-6_dp, 1.0E-5_dp, 1.0E-4_dp, 1.0E-3_dp, 1.0E-2_dp, 1.0E-1_dp, 1.0E0_dp, &
-                        1.0E1_dp, 1.0E2_dp, 1.0E3_dp, 1.0E4_dp, 1.0E5_dp, 1.0E6_dp]
-
-      CPASSERT(SIZE(alpha_c, 2) .EQ. 3)
-      alpha_c = 0.0_dp
-
-      ALLOCATE (R(n_points, 3)) ! n_points values of R are tested for each x, y, z
-      DO i_xyz = 1, 3
-         R(:, i_xyz) = (/(i*ABS(hmat(i_xyz, i_xyz))/n_points, i=1, n_points)/)
-      ENDDO
-
-      ! Resolution for screening
-      G_res = 0.5_dp*G_abs_min(h_inv)
-      R_res = 0.5_dp*R_abs_min(hmat)
-
-      outerloop: DO i_xyz = 1, 3
-         lgth = ABS(hmat(i_xyz, i_xyz))
-         inv_lgth = ABS(h_inv(i_xyz, i_xyz))
-         DO l = 0, lmax
-            ALLOCATE (S_G(0:l), S_R(0:l))
-
-            ! 1) Sample to find initial interval for exponent
-            DO iter = 1, n_start+1
-               IF (iter .GT. n_start) THEN
-                  failed = .TRUE.
-                  CPWARN("GR-switch calibration FAILED: No valid initial interval was found.")
-                  EXIT outerloop
-               ENDIF
-               alpha = alpha_start(iter)
-               G_rad = exp_radius(l, alpha, lattice_sum_prec, 1.0_dp, epsin=G_res)
-               R_rad = exp_radius(l, 0.25_dp/alpha, lattice_sum_prec, 1.0_dp, epsin=R_res)
-               G_bound = FLOOR(G_rad/(inv_lgth*twopi))
-               R_bound = FLOOR(R_rad/lgth)+1
-               IF ((G_bound .GT. 100) .OR. (R_bound .GT. 100)) CYCLE
-               CALL CPU_TIME(t_0)
-               DO i = 1, n_points
-                  CALL pgf_sum_gspace_1d(S_G, R(i, i_xyz), alpha, inv_lgth, -G_bound, G_bound)
-               ENDDO
-               CALL CPU_TIME(t_1)
-               DO i = 1, n_points
-                  CALL pgf_sum_rspace_1d(S_R, R(i, i_xyz), 0.25_dp/alpha, lgth, -R_bound, R_bound)
-               ENDDO
-               CALL CPU_TIME(t_2)
-               dt_G = t_1-t_0
-               dt_R = t_2-t_1
-               CALL mp_sum(dt_G, para_env%group)
-               CALL mp_sum(dt_R, para_env%group)
-               IF (dt_R-dt_G .GT. 0.0_dp) THEN
-                  IF (iter .EQ. 1) THEN
-                     CPWARN("GR-switch calibration FAILED: No valid initial interval was found.")
-                     EXIT outerloop
-                  ENDIF
-                  alpha_lr(1) = alpha_start(iter-1)
-                  alpha_lr(2) = alpha_start(iter)
-                  EXIT
-               ENDIF
-            ENDDO
-
-            ! 2) bisection
-            DO iter = 1, max_iter+1
-               IF (iter .GT. max_iter) THEN
-                  failed = .TRUE.
-                  CALL cp_warn(__LOCATION__, &
-                               "GR-switch calibration FAILED: Maximum number of iterations has been exceeded")
-                  EXIT outerloop
-               ENDIF
-               alpha = 0.5_dp*(alpha_lr(1)+alpha_lr(2))
-               IF ((alpha_lr(2)-alpha_lr(1))/alpha .LT. alpha_eps) THEN
-                  alpha_c(l, i_xyz) = (alpha_lr(2)+alpha_lr(1))/2
-                  EXIT
-               ENDIF
-               G_rad = exp_radius(l, alpha, lattice_sum_prec, 1.0_dp, epsin=G_res)
-               R_rad = exp_radius(l, 0.25_dp/alpha, lattice_sum_prec, 1.0_dp, epsin=R_res)
-               G_bound = FLOOR(G_rad/(inv_lgth*twopi))
-               R_bound = FLOOR(R_rad/lgth)+1
-               CALL CPU_TIME(t_0)
-               DO i = 1, n_points
-                  CALL pgf_sum_gspace_1d(S_G, R(i, i_xyz), alpha, inv_lgth, -G_bound, G_bound)
-               ENDDO
-               CALL CPU_TIME(t_1)
-               DO i = 1, n_points
-                  CALL pgf_sum_rspace_1d(S_R, R(i, i_xyz), 0.25_dp/alpha, lgth, -R_bound, R_bound)
-               ENDDO
-               CALL CPU_TIME(t_2)
-               dt_G = t_1-t_0
-               dt_R = t_2-t_1
-               CALL mp_sum(dt_G, para_env%group)
-               CALL mp_sum(dt_R, para_env%group)
-               IF (dt_R-dt_G .GT. 0.0_dp) THEN
-                  alpha_lr(2) = alpha
-               ELSE
-                  alpha_lr(1) = alpha
-               ENDIF
-            ENDDO
-            DEALLOCATE (S_G, S_R)
-         ENDDO
-      ENDDO outerloop
-
-   END SUBROUTINE calibrate_gr_switch
 
 ! **************************************************************************************************
 !> \brief Compute 1d sum

@@ -41,11 +41,9 @@ MODULE eri_mme_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_types'
 
-   INTEGER, PARAMETER, PUBLIC :: lmax = 6
    REAL(KIND=dp), PARAMETER, PUBLIC :: lattice_sum_prec = 1.0E-20_dp ! truncation threshold for summing PGFs
-   REAL(KIND=dp), PARAMETER, PUBLIC :: min_Rc = 2.0E+01_dp ! minimum allowed value for minimax upper bound Rc
    INTEGER, PARAMETER, PUBLIC :: dynamic_lattice_space = 0, rec_lattice_space = 1, dir_lattice_space = 2
-   INTEGER, PARAMETER, PUBLIC :: n_minimax_max = 15
+   INTEGER, PARAMETER, PUBLIC :: n_minimax_max = 53
 
    PUBLIC :: eri_mme_param, &
              eri_mme_init_read_input, &
@@ -62,17 +60,14 @@ MODULE eri_mme_types
       REAL(KIND=dp)                  :: vol
       LOGICAL                          :: is_ortho
       REAL(KIND=dp)                  :: cutoff
-      LOGICAL                          :: do_calib_cutoff, do_calib_alpha
+      LOGICAL                          :: do_calib_cutoff
       LOGICAL                          :: print_calib
       REAL(KIND=dp)                  :: cutoff_min, cutoff_max, cutoff_delta, &
                                         cutoff_eps, error_tot
-      REAL(KIND=dp), POINTER, &
-         DIMENSION(:, :)            :: alpha_c => NULL()
-
       INTEGER                          :: G_count, R_count
       REAL(KIND=dp)                  :: G_min, R_min
       LOGICAL                          :: is_valid
-      INTEGER                          :: lmax
+      INTEGER                          :: l_max
    END TYPE eri_mme_param
 
 CONTAINS
@@ -106,7 +101,7 @@ CONTAINS
                           name="N_MINIMAX", &
                           description="Number of terms in minimax approximation of "// &
                           "reciprocal space potential. ", &
-                          default_i_val=15)
+                          default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -123,16 +118,6 @@ CONTAINS
                           description="Whether the energy cutoff shall be calibrated to "// &
                           "minimize upper bound error estimate. ", &
                           default_l_val=.TRUE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, &
-                          name="DO_CALIBRATE_GR_SWITCH", &
-                          description="Whether the optimal compound exponent for switching between G and R space "// &
-                          "summation shall be calibrated w.r.t. CPU time. Not implemented "// &
-                          "for non-orthorhombic cells. Note: this feature is experimental. ", &
-                          default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -219,7 +204,6 @@ CONTAINS
       IF (param%n_minimax .GT. n_minimax_max) &
          CPABORT("The maximum allowed number of minimax points N_MINIMAX is "//TRIM(string))
       CALL section_vals_val_get(mme_section, "CUTOFF", r_val=param%cutoff)
-      CALL section_vals_val_get(mme_section, "DO_CALIBRATE_GR_SWITCH", l_val=param%do_calib_alpha)
       CALL section_vals_val_get(mme_section, "DO_CALIBRATE_CUTOFF", l_val=param%do_calib_cutoff)
       CALL section_vals_val_get(mme_section, "PRINT_CALIB", l_val=param%print_calib)
       subsection => section_vals_get_subs_vals(mme_section, "CUTOFF_CALIB")
@@ -230,7 +214,6 @@ CONTAINS
       param%mme_section => mme_section
 
       ALLOCATE (param%minimax_aw(2*param%n_minimax))
-      IF (param%do_calib_alpha) ALLOCATE (param%alpha_c(0:2*lmax, 3))
 
       param%is_valid = .FALSE.
 
@@ -253,7 +236,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(param%minimax_aw)) DEALLOCATE (param%minimax_aw)
-      IF (ASSOCIATED(param%alpha_c)) DEALLOCATE (param%alpha_c)
    END SUBROUTINE eri_mme_release
 
 END MODULE eri_mme_types
