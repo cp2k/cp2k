@@ -14,6 +14,7 @@ MODULE qmmm_image_charge
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_eri_mme_interface,            ONLY: eri_mme_2c_integrate
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -24,7 +25,6 @@ MODULE qmmm_image_charge
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE eri_mme_methods,                 ONLY: eri_mme_2c_integrate
    USE input_constants,                 ONLY: calc_always,&
                                               calc_once,&
                                               calc_once_done,&

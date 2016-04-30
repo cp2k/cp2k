@@ -10,8 +10,8 @@ MODULE eri_mme_test
                                               cell_type,&
                                               init_cell
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE eri_mme_methods,                 ONLY: eri_mme_set_params
-   USE eri_mme_methods_low,             ONLY: eri_mme_2c_integrate_low
+   USE eri_mme_error_control,           ONLY: eri_mme_set_params_custom
+   USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate_low
    USE eri_mme_types,                   ONLY: create_eri_mme_section,&
                                               dir_lattice_space,&
                                               eri_mme_init_read_input,&
@@ -219,7 +219,7 @@ CONTAINS
       CALL init_cell(box)
 
       ! initialize MME method
-      CALL eri_mme_set_params(param, box, MINVAL(zet), [MAXVAL(zet)], [l_max], l_max, para_env)
+      CALL eri_mme_set_params_custom(param, box, MINVAL(zet), [MAXVAL(zet)], [l_max], l_max, para_env)
       IF (iw > 0) CALL m_flush(iw)
 
       ! Calculate reference values (Exact expression in G space converged to high precision)

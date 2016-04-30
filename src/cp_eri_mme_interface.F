@@ -4,15 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Minimax-Ewald (MME) method for calculating electron repulsion integrals
-!>        (ERI) of periodic systems using a Hermite Gaussian basis.
-!>        The method relies on analytical Fourier transforms of Cartesian and
-!>        Hermite Gaussian functions and Poisson summation formula to represent
-!>        ERIs as a discrete sum over direct lattice vectors or reciprocal
-!>        lattice vectors. The reciprocal space potential 1/G^2 is approximated
-!>        by a linear combination of Gaussians employing minimax approximation.
-!>        Implementation of 2-center ERIs for general cells but currently only
-!>        efficient for orthorhombic cells.
+!> \brief Interface to the MME method for periodic ERI's to be used in CP2K
 !> \note  accuracy may not be sufficient yet because current implementation
 !>        can only use up to 15 points in minimax approximation.
 !> \par History
@@ -20,7 +12,7 @@
 !> \author Patrick Seewald
 ! **************************************************************************************************
 
-MODULE eri_mme_methods
+MODULE cp_eri_mme_interface
 
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
@@ -29,8 +21,8 @@ MODULE eri_mme_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE eri_mme_methods_low,             ONLY: eri_mme_2c_integrate_low,&
-                                              eri_mme_set_params_low
+   USE eri_mme_error_control,           ONLY: eri_mme_set_params_custom
+   USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate_low
    USE eri_mme_types,                   ONLY: eri_mme_param
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
@@ -45,14 +37,13 @@ MODULE eri_mme_methods
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_eri_mme_interface'
 
-   PUBLIC :: eri_mme_set_params, &
-             eri_mme_2c_integrate
+   PUBLIC :: eri_mme_set_params, eri_mme_2c_integrate
 
    INTERFACE eri_mme_set_params
       MODULE PROCEDURE eri_mme_set_params_from_basis
-      MODULE PROCEDURE eri_mme_set_params_low
+      MODULE PROCEDURE eri_mme_set_params_custom
    END INTERFACE
 
 CONTAINS
@@ -157,7 +148,7 @@ CONTAINS
    END SUBROUTINE eri_mme_2c_integrate
 
 ! **************************************************************************************************
-!> \brief Set parameters for MME method by deriving basis info from basis set.
+!> \brief Set parameters for MME method by deriving basis info from cp2k basis set.
 !>        Cutoff can be auto-calibrated to minimize total error.
 !>        Switch between G / R space representation can be auto-calibrated to
 !>        minimize run time.
@@ -189,15 +180,15 @@ CONTAINS
                                            zet_err_minimax, zet_err_cutoff, l_err_cutoff)
 
       param%l_max = MAXVAL(l_err_cutoff)
-      CALL eri_mme_set_params_low(param, cell, &
-                                  zet_err_minimax, zet_err_cutoff, l_err_cutoff, &
-                                  param%l_max, para_env)
+      CALL eri_mme_set_params(param, cell, &
+                              zet_err_minimax, zet_err_cutoff, l_err_cutoff, &
+                              param%l_max, para_env)
 
       CALL timestop(handle)
    END SUBROUTINE eri_mme_set_params_from_basis
 
 ! **************************************************************************************************
-!> \brief Get basis parameters for estimating cutoff and minimax error
+!> \brief Get basis parameters for estimating cutoff and minimax error from cp2k basis
 !> \param qs_kind_set ...
 !> \param basis_type ...
 !> \param zet_mm Smallest exponent, used to estimate error due to minimax approx.
@@ -270,4 +261,4 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE error_est_pgf_params_from_basis
 
-END MODULE eri_mme_methods
+END MODULE cp_eri_mme_interface
