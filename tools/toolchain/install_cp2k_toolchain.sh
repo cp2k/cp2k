@@ -308,7 +308,13 @@ enable_tsan=__FALSE__
 enable_gcc_master=__FALSE__
 enable_libxsmm_master=__FALSE__
 enable_omp=__TRUE__
-enable_cuda=__FALSE__
+if (command -v nvcc >&- 2>&-) ; then
+   echo "nvcc found, enabling CUDA by default"
+   enable_cuda=__TRUE__
+else
+   echo "nvcc not found, disabling CUDA by default"
+   enable_cuda=__FALSE__
+fi
 
 # defaults for CRAY Linux Environment
 if [ "$CRAY_LD_LIBRARY_PATH" ] ; then
