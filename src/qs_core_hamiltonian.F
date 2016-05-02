@@ -159,8 +159,7 @@ CONTAINS
       INTEGER                                            :: handle, img, maxder, natom, nder, nders, &
                                                             nimages, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: all_potential_present, &
-                                                            gth_potential_present, kgpot, lrigpw, &
+      LOGICAL                                            :: all_potential_present, kgpot, lrigpw, &
                                                             ofdft, ppl_present, use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit, eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -377,7 +376,6 @@ CONTAINS
                       sap_ppnl=sap_ppnl, &
                       sap_oce=sap_oce)
       CALL get_qs_kind_set(qs_kind_set, &
-                           gth_potential_present=gth_potential_present, &
                            all_potential_present=all_potential_present)
       ppl_present = ASSOCIATED(sac_ppl)
 

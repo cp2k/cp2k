@@ -138,7 +138,7 @@ MODULE scf_control_types
       INTEGER                               :: max_iter_lumos, max_diis, nmixing
       INTEGER                               :: max_scf, max_scf_hist, &
                                                maxl, nkind
-      LOGICAL                               :: do_diag_sub, gradient_functional, gth_potential_present, &
+      LOGICAL                               :: do_diag_sub, &
                                                use_cholesky, use_ot, use_diag, do_outer_scf_reortho
       INTEGER                               :: ref_count, id_nr
       INTEGER, DIMENSION(2)                 :: added_mos
