@@ -1507,9 +1507,9 @@ CONTAINS
       REAL(dp)                                           :: x1, x2
 
       IF (id == 1) THEN
-         yval = TANH(0.1_dp*xval)**2
+         yval = 2.0_dp*TANH(0.1_dp*xval)**2
       ELSE IF (id == -1) THEN
-         x1 = SQRT(xval)
+         x1 = SQRT(xval/2.0_dp)
          CPASSERT(x1 <= 1._dp)
          x2 = 0.5_dp*LOG((1._dp+x1)/(1._dp-x1))
          yval = x2/0.1_dp
