@@ -34,32 +34,50 @@ CONTAINS
 !> \brief Create matrix to transform between cartesian and hermite gaussian
 !>        basis functions.
 !> \param zet    exponent
+!> \param l_max ...
 !> \param h_to_c transformation matrix with dimensions (0:l_max, 0:l_max)
 !> \note  is idempotent, so transformation is the same
 !>        in both directions.
 ! **************************************************************************************************
-   SUBROUTINE create_hermite_to_cartesian(zet, h_to_c)
-      REAL(KIND=dp), INTENT(IN)                          :: zet
-      REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(INOUT)    :: h_to_c
+   PURE SUBROUTINE create_hermite_to_cartesian(zet, l_max, h_to_c)
+      REAL(KIND=dp), INTENT(IN)                :: zet
+      INTEGER, INTENT(IN)                      :: l_max
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, &
+         INTENT(OUT)                          :: h_to_c
 
-      INTEGER                                            :: k, l, l_max
+      INTEGER                                  :: k, l
 
-      l_max = UBOUND(h_to_c, 1)
-
-      CPASSERT((UBOUND(h_to_c, 2) .EQ. l_max))
-
+      ALLOCATE (h_to_c(0:l_max, 0:l_max))
       h_to_c(:, :) = 0.0_dp
       h_to_c(0, 0) = 1.0_dp
       DO l = 0, l_max-1
          DO k = 0, l+1
-            IF (k .EQ. 0) THEN
-               h_to_c(l+1, k) = (k+1)*h_to_c(l, k+1)
-            ELSE
-               IF (k .LT. l) h_to_c(l+1, k) = (k+1)*h_to_c(l, k+1)-2.0_dp*zet*h_to_c(l, k-1)
-               IF (k .GE. l) h_to_c(l+1, k) = -2.0_dp*zet*h_to_c(l, k-1)
-            ENDIF
+            h_to_c(l+1, k) = -(k+1)*get(h_to_c, l, k+1)+2.0_dp*zet*get(h_to_c, l, k-1)
          ENDDO
       ENDDO
+
+   CONTAINS
+! **************************************************************************************************
+!> \brief ...
+!> \param arr ...
+!> \param i1 ...
+!> \param i2 ...
+!> \retval el ...
+! **************************************************************************************************
+      PURE FUNCTION get(arr, i1, i2) RESULT(el)
+      REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(IN)       :: arr
+      INTEGER, INTENT(IN)                                :: i1, i2
+      REAL(KIND=dp)                                      :: el
+
+      INTEGER, DIMENSION(2)                              :: u
+
+         u = UBOUND(arr)
+         IF (MIN(i1, i2) .GE. 0 .AND. i1 .LE. u(1) .AND. i2 .LE. i1) THEN
+            el = arr(i1, i2)
+         ELSE
+            el = 0.0_dp
+         ENDIF
+      END FUNCTION
 
    END SUBROUTINE create_hermite_to_cartesian
 

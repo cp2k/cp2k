@@ -34,7 +34,8 @@ MODULE eri_mme_integrate
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
-   USE orbital_pointers,                ONLY: coset
+   USE orbital_pointers,                ONLY: coset,&
+                                              ncoset
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -46,7 +47,8 @@ MODULE eri_mme_integrate
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_integrate'
 
    PUBLIC :: eri_mme_2c_integrate_low, &
-             eri_mme_set_params_custom
+             eri_mme_set_params_custom, &
+             eri_mme_2c_integrate_set
 
 CONTAINS
 
@@ -115,7 +117,7 @@ CONTAINS
       ENDIF
 
       ! prefactor for screening (normalized Hermite Gaussians)
-      prefac_screening = eri_mme_max_prefactor(zeta, zetb, la_max, la_min, lb_max, lb_min)
+      prefac_screening = eri_mme_max_prefactor_2c(zeta, zetb, la_max, la_min, lb_max, lb_min)
 
       ! prefactor for integral values (unnormalized Hermite Gaussians)
       prefac = SQRT(1.0_dp/(zeta*zetb))
@@ -275,9 +277,10 @@ CONTAINS
             IF (.NOT. norm) THEN
                ! rescale to have same transformation for Hermite-Gaussians to Spherical Gaussians as
                ! for Cartesian Gaussians
-               hab(o1+ico, o2+jco) = Imm*4.0_dp*pi**4/((-2.0_dp*zeta)**la*(2.0_dp*zetb)**lb)
+               hab(o1+ico, o2+jco) = Imm*4.0_dp*pi**4/((2.0_dp*zeta)**la*(-2.0_dp*zetb)**lb)
             ELSE
-               hab(o1+ico, o2+jco) = Imm*4.0_dp*pi**4*hermite_gauss_norm(zeta, la_xyz)*hermite_gauss_norm(zetb, lb_xyz)
+               hab(o1+ico, o2+jco) = Imm*4.0_dp*pi**4*(-1.0_dp)**lb*hermite_gauss_norm(zeta, la_xyz)* &
+                                     hermite_gauss_norm(zetb, lb_xyz)
             ENDIF
          ENDDO ! la
          ENDDO
@@ -289,7 +292,82 @@ CONTAINS
    END SUBROUTINE eri_mme_2c_integrate_low
 
 ! **************************************************************************************************
-!> \brief Maximum prefactor for integrals w.r.t. to normalized Hermite Gaussians
+!> \brief Integrate set pair and contract with sphi matrix.
+!> \param param ...
+!> \param la_min ...
+!> \param la_max ...
+!> \param lb_min ...
+!> \param lb_max ...
+!> \param npgfa ...
+!> \param zeta ...
+!> \param npgfb ...
+!> \param zetb ...
+!> \param ra ...
+!> \param rb ...
+!> \param hab ...
+!> \param i1 ...
+!> \param i2 ...
+!> \param sphi_a ...
+!> \param sgfa ...
+!> \param nsgfa ...
+!> \param sphi_b ...
+!> \param sgfb ...
+!> \param nsgfb ...
+!> \note arrays required to be contiguous
+! **************************************************************************************************
+   SUBROUTINE eri_mme_2c_integrate_set(param, la_min, la_max, lb_min, lb_max, npgfa, zeta, npgfb, &
+                                       zetb, ra, rb, hab, i1, i2, sphi_a, sgfa, nsgfa, sphi_b, sgfb, nsgfb)
+      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+      INTEGER, INTENT(IN)                                :: la_min, la_max, lb_min, lb_max, npgfa
+      REAL(KIND=dp), DIMENSION(npgfa), INTENT(IN)        :: zeta
+      INTEGER, INTENT(IN)                                :: npgfb
+      REAL(KIND=dp), DIMENSION(npgfb), INTENT(IN)        :: zetb
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
+      INTEGER, INTENT(IN)                                :: i1, i2
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a
+      INTEGER, INTENT(IN)                                :: sgfa, nsgfa
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_b
+      INTEGER, INTENT(IN)                                :: sgfb, nsgfb
+
+      INTEGER                                            :: ipgf, jpgf, na, nb, ncoa, ncob
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_half, hab_herm
+
+      ! note: tested only for one exponent per pair (npgfa = npgfb = 1)
+
+      ncoa = npgfa*ncoset(la_max)
+      ncob = npgfb*ncoset(lb_max)
+
+      ALLOCATE (hab_herm(ncoa, ncob))
+
+      hab_herm(:, :) = 0.0_dp
+
+      DO ipgf = 1, npgfa
+         na = (ipgf-1)*ncoset(la_max)
+         DO jpgf = 1, npgfb
+            nb = (jpgf-1)*ncoset(lb_max)
+            CALL eri_mme_2c_integrate_low(param, &
+                                          la_min, la_max, lb_min, lb_max, &
+                                          zeta(ipgf), zetb(jpgf), ra-rb, hab_herm, na, nb)
+         ENDDO
+      ENDDO
+
+      ALLOCATE (hab_half(nsgfa, ncob))
+      hab_half(:, :) = 0.0_dp
+
+      CALL dgemm("T", "N", nsgfa, ncob, ncoa, &
+                 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                 hab_herm(1, 1), SIZE(hab_herm, 1), &
+                 0.0_dp, hab_half(1, 1), SIZE(hab_half, 1))
+      CALL dgemm("N", "N", nsgfa, nsgfb, ncob, &
+                 1.0_dp, hab_half(1, 1), SIZE(hab_half, 1), &
+                 sphi_b(1, sgfb), SIZE(sphi_b, 1), &
+                 1.0_dp, hab(i1, i2), SIZE(hab, 1)) ! TODO: why add original matrix?
+
+   END SUBROUTINE eri_mme_2c_integrate_set
+
+! **************************************************************************************************
+!> \brief Maximum prefactor for 2c integrals w.r.t. to normalized Hermite Gaussians
 !>        in 1d.
 !> \param zeta ...
 !> \param zetb ...
@@ -299,12 +377,12 @@ CONTAINS
 !> \param lb_min ...
 !> \retval prefac ...
 ! **************************************************************************************************
-   FUNCTION eri_mme_max_prefactor(zeta, zetb, la_max, la_min, lb_max, lb_min) RESULT(prefac)
+   FUNCTION eri_mme_max_prefactor_2c(zeta, zetb, la_max, la_min, lb_max, lb_min) RESULT(prefac)
       REAL(KIND=dp), INTENT(IN)                          :: zeta, zetb
       INTEGER, INTENT(IN)                                :: la_max, la_min, lb_max, lb_min
       REAL(KIND=dp)                                      :: prefac
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_max_prefactor', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_max_prefactor_2c', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, la, lb
@@ -331,6 +409,6 @@ CONTAINS
       ENDDO
       ENDDO
       ENDDO
-   END FUNCTION eri_mme_max_prefactor
+   END FUNCTION eri_mme_max_prefactor_2c
 
 END MODULE eri_mme_integrate

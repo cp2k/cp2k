@@ -133,7 +133,7 @@ CONTAINS
       CALL get_minimax_coeff_v_gspace(param%n_minimax, param%cutoff, param%G_min, param%minimax_aw, &
                                       E_mm)
 
-      IF (unit_nr > 0) WRITE (unit_nr, '(T2, A, T71, F10.1)') "ERI_MME| Cutoff for ERIs [a.u.]:", param%cutoff
+      IF (unit_nr > 0) WRITE (unit_nr, '(/T2, A, T71, F10.1)') "ERI_MME| Cutoff for ERIs [a.u.]:", param%cutoff
       IF (param%is_ortho) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2, A)') "ERI_MME| Estimated absolute error for normalized Hermite-Gaussian basis"
@@ -387,8 +387,8 @@ CONTAINS
 
       C_mm = 0.0_dp
       IF (G_1 .GT. G_c) THEN
-         dG = 1.0E-3
-         nG = CEILING((G_1-G_c)/dG)
+         nG = 1000
+         dG = (G_1-G_c)/nG
          G = G_c
          DO iG = 1, nG
             G = MIN(G, G_c)

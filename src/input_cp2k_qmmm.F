@@ -28,16 +28,16 @@ MODULE input_cp2k_qmmm
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE eri_mme_types,                   ONLY: create_eri_mme_section
    USE input_constants,                 ONLY: &
-        alpha_imomm_default, charge_scale_factor, do_fm_mom_conserv_buffer, &
-        do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, do_fm_mom_conserv_equal_f, &
-        do_fm_mom_conserv_none, do_fm_mom_conserv_qm, do_multipole_section_off, &
-        do_multipole_section_on, do_par_atom, do_par_grid, do_qmmm_center_every_step, &
-        do_qmmm_center_max_minus_min, do_qmmm_center_never, do_qmmm_center_pbc_aware, &
-        do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_image_calcmatrix, &
-        do_qmmm_image_gpw, do_qmmm_image_iter, do_qmmm_image_mme, do_qmmm_link_gho, &
-        do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_pcharge, do_qmmm_swave, &
-        do_qmmm_wall_none, do_qmmm_wall_quadratic, do_qmmm_wall_reflective, gaussian, &
-        radius_qmmm_default, spline3_nopbc_interp
+        alpha_imomm_default, charge_scale_factor, do_eri_gpw, do_eri_mme, &
+        do_fm_mom_conserv_buffer, do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &
+        do_fm_mom_conserv_equal_f, do_fm_mom_conserv_none, do_fm_mom_conserv_qm, &
+        do_multipole_section_off, do_multipole_section_on, do_par_atom, do_par_grid, &
+        do_qmmm_center_every_step, do_qmmm_center_max_minus_min, do_qmmm_center_never, &
+        do_qmmm_center_pbc_aware, do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, &
+        do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, do_qmmm_link_imomm, &
+        do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_pcharge, do_qmmm_swave, do_qmmm_wall_none, &
+        do_qmmm_wall_quadratic, do_qmmm_wall_reflective, gaussian, radius_qmmm_default, &
+        spline3_nopbc_interp
    USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                               create_Goodwin_section,&
                                               create_LJ_section,&
@@ -717,10 +717,10 @@ CONTAINS
                           "is an approximative method that has limited accuracy in the current implementation.", &
                           usage="IMAGE_MATRIX_METHOD MME", &
                           enum_c_vals=s2a("GPW", "MME"), &
-                          enum_i_vals=(/do_qmmm_image_gpw, do_qmmm_image_mme/), &
+                          enum_i_vals=(/do_eri_gpw, do_eri_mme/), &
                           enum_desc=s2a("Uses Gaussian Plane Wave method [Golze2013]", &
                                         "Uses MiniMax-Ewald method (ERI_MME subsection)"), &
-                          default_i_val=do_qmmm_image_gpw)
+                          default_i_val=do_eri_gpw)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

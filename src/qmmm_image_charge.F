@@ -14,7 +14,7 @@ MODULE qmmm_image_charge
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_eri_mme_interface,            ONLY: eri_mme_2c_integrate
+   USE cp_eri_mme_interface,            ONLY: eri_mme_2c_integrate_s
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -28,8 +28,8 @@ MODULE qmmm_image_charge
    USE input_constants,                 ONLY: calc_always,&
                                               calc_once,&
                                               calc_once_done,&
-                                              do_qmmm_image_gpw,&
-                                              do_qmmm_image_mme
+                                              do_eri_gpw,&
+                                              do_eri_mme
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -660,9 +660,9 @@ CONTAINS
 
       ! Calculate image matrix using either GPW or MME method
       SELECT CASE (qmmm_env%image_charge_pot%image_matrix_method)
-      CASE (do_qmmm_image_gpw)
+      CASE (do_eri_gpw)
          CALL calculate_image_matrix_gpw(image_matrix, qs_env, qmmm_env)
-      CASE (do_qmmm_image_mme)
+      CASE (do_eri_mme)
          CALL calculate_image_matrix_mme(image_matrix, qs_env, qmmm_env)
       CASE DEFAULT
          CPABORT("Unknown method for calculating image matrix")
@@ -785,7 +785,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: atom_a, handle, iatom, natom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: la_max, la_min
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zeta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ra
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -794,11 +793,7 @@ CONTAINS
       NULLIFY (para_env)
 
       natom = SIZE(qmmm_env%image_charge_pot%image_mm_list)
-      ALLOCATE (la_min(natom), la_max(natom))
       ALLOCATE (zeta(natom), ra(3, natom))
-
-      la_min(:) = 0
-      la_max(:) = 0
 
       zeta(:) = qmmm_env%image_charge_pot%eta
 
@@ -809,8 +804,8 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env)
 
-      CALL eri_mme_2c_integrate(qmmm_env%image_charge_pot%eri_mme_param, la_min, la_max, la_min, la_max, &
-                                zeta, zeta, ra, ra, image_matrix, para_env)
+      CALL eri_mme_2c_integrate_s(qmmm_env%image_charge_pot%eri_mme_param, &
+                                  zeta, zeta, ra, ra, image_matrix, para_env)
 
       CALL timestop(handle)
    END SUBROUTINE calculate_image_matrix_mme

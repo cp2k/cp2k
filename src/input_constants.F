@@ -369,9 +369,7 @@ MODULE input_constants
                                                do_qmmm_wall_reflective = 1, &
                                                do_qmmm_wall_quadratic = 2, &
                                                do_qmmm_image_calcmatrix = 0, &
-                                               do_qmmm_image_iter = 1, &
-                                               do_qmmm_image_gpw = 0, &
-                                               do_qmmm_image_mme = 1
+                                               do_qmmm_image_iter = 1
 
    INTEGER, PARAMETER, PUBLIC               :: calc_always = 0, &
                                                calc_once = 1, &
@@ -984,5 +982,8 @@ MODULE input_constants
                                                eri_operator_erf = 3, &
                                                eri_operator_erfc = 4, &
                                                eri_operator_gaussian = 5
+
+   INTEGER, PARAMETER, PUBLIC               :: do_eri_gpw = 0, &
+                                               do_eri_mme = 1
 
 END MODULE input_constants

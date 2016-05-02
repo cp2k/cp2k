@@ -38,8 +38,8 @@ MODULE qmmm_init
                                               read_lj_section,&
                                               read_wl_section
    USE input_constants,                 ONLY: &
-        RADIUS_QMMM_DEFAULT, calc_always, calc_once, do_qmmm_gauss, do_qmmm_image_calcmatrix, &
-        do_qmmm_image_iter, do_qmmm_image_mme, do_qmmm_link_gho, do_qmmm_link_imomm, &
+        RADIUS_QMMM_DEFAULT, calc_always, calc_once, do_eri_mme, do_qmmm_gauss, &
+        do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, do_qmmm_link_imomm, &
         do_qmmm_link_pseudo, do_qmmm_pcharge, do_qmmm_swave
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -836,7 +836,7 @@ CONTAINS
          CALL section_vals_val_get(image_charge_section, "IMAGE_MATRIX_METHOD", &
                                    i_val=qmmm_env%image_charge_pot%image_matrix_method)
 
-         IF (qmmm_env%image_charge_pot%image_matrix_method .EQ. do_qmmm_image_mme) THEN
+         IF (qmmm_env%image_charge_pot%image_matrix_method .EQ. do_eri_mme) THEN
             eri_mme_section => section_vals_get_subs_vals(image_charge_section, "ERI_MME")
             CALL eri_mme_init_read_input(eri_mme_section, qmmm_env%image_charge_pot%eri_mme_param)
             CALL eri_mme_set_params(qmmm_env%image_charge_pot%eri_mme_param, &

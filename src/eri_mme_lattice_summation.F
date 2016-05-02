@@ -28,6 +28,15 @@ MODULE eri_mme_lattice_summation
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_lattice_summation'
 
+   ! array storing some powers of imaginary unit (in lack of a more elegant way)
+   COMPLEX(KIND=dp), DIMENSION(0:23), PARAMETER :: &
+      i_pow = [(1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
+               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
+               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
+               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
+               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
+               (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp)]
+
    PUBLIC :: pgf_sum_gspace_1d, &
              pgf_sum_rspace_1d, pgf_sum_gspace_3d, pgf_sum_rspace_3d, pgf_sum_gspace_1d_deltal, &
              R_abs_min, G_abs_min
@@ -58,18 +67,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp)                                   :: exp_tot
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: i_pow_l, S_G_c
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: S_G_c
       INTEGER                                            :: k, l, l_max
       REAL(KIND=dp)                                      :: dG, G, G_pow_l
 
       dG = inv_lgth*twopi
       l_max = UBOUND(S_G, 1)
-
-      ALLOCATE (i_pow_l(0:l_max))
-      i_pow_l(0) = 1.0_dp
-      DO l = 1, l_max
-         i_pow_l(l) = i_pow_l(l-1)*gaussi
-      ENDDO
 
       ALLOCATE (S_G_c(0:l_max))
       S_G_c(:) = 0.0_dp
@@ -79,18 +82,18 @@ CONTAINS
          G_pow_l = 1.0_dp
          DO l = 0, l_max
             !G_pow_l = G**l
-            S_G_c(l) = S_G_c(l)+G_pow_l*exp_tot
+            S_G_c(l) = S_G_c(l)+G_pow_l*(-1.0_dp)**l*exp_tot
             G_pow_l = G_pow_l*G
          ENDDO
       ENDDO
 
-      S_G(:) = REAL(S_G_c(:)*i_pow_l(:))*inv_lgth
+      S_G(:) = REAL(S_G_c(0:l_max)*i_pow(0:l_max))*inv_lgth
    END SUBROUTINE pgf_sum_gspace_1d
 
 ! **************************************************************************************************
 !> \brief Compute Ewald-like sum in R space in 1 dimension
 !>        S_R(l, alpha) = SQRT(alpha/pi) sum_R'( H(l, alpha, R-R') ),
-!>        with H(l, alpha, R) = (d/dR)^l exp(-alpha*R^2),
+!>        with H(l, alpha, R) = (-d/dR)^l exp(-alpha*R^2),
 !>        dR = lgth and R' = -R_min*dR, (-R_min + 1)*dR, ..., R_max*dR,
 !>        for all l < = l_max.
 !> \param S_R ...
@@ -102,7 +105,7 @@ CONTAINS
 !> \note  result is equivalent to pgf_sum_gspace_1d with
 !>              S_R(l, alpha) = S_G(l, 1/(4*alpha))
 ! **************************************************************************************************
-   SUBROUTINE pgf_sum_rspace_1d(S_R, R, alpha, lgth, R_min, R_max)
+   PURE SUBROUTINE pgf_sum_rspace_1d(S_R, R, alpha, lgth, R_min, R_max)
       REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_R
       REAL(KIND=dp), INTENT(IN)                          :: R, alpha, lgth
       INTEGER, INTENT(IN)                                :: R_min, R_max
@@ -133,12 +136,11 @@ CONTAINS
 
       ! 2) transform C --> H
 
-      ALLOCATE (h_to_c(0:l_max, 0:l_max))
-      CALL create_hermite_to_cartesian(alpha, h_to_c)
+      CALL create_hermite_to_cartesian(alpha, l_max, h_to_c)
       S_R = MATMUL(h_to_c, S_R)*SQRT(alpha/pi)
    END SUBROUTINE pgf_sum_rspace_1d
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief Compute 1d sum
 !>        S_G(l, alpha) = inv_lgth*sum_G( C(l, alpha, delta_l, G) ) with
 !>          C(l, alpha, delta_l, G) = prefactor*|G|^(l-delta_l) exp(-alpha*G^2)
@@ -155,7 +157,7 @@ CONTAINS
 !> \param prefactor ...
 !> \note  needed for cutoff error estimate
 ! **************************************************************************************************
-   SUBROUTINE pgf_sum_gspace_1d_deltal(S_G, alpha, inv_lgth, G_min, G_c, delta_l, prefactor)
+   PURE SUBROUTINE pgf_sum_gspace_1d_deltal(S_G, alpha, inv_lgth, G_min, G_c, delta_l, prefactor)
       REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: alpha, inv_lgth
       INTEGER, INTENT(IN)                                :: G_min, G_c
@@ -197,7 +199,7 @@ CONTAINS
 !> \param vol ...
 !> \note  MMME Method is not very efficient for non-orthorhombic cells
 ! **************************************************************************************************
-   SUBROUTINE pgf_sum_gspace_3d(S_G, R, alpha, h_inv, G_min, G_c, vol)
+   PURE SUBROUTINE pgf_sum_gspace_3d(S_G, R, alpha, h_inv, G_min, G_c, vol)
       REAL(KIND=dp), DIMENSION(0:, 0:, 0:), &
          INTENT(INOUT)                                   :: S_G
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
@@ -235,7 +237,7 @@ CONTAINS
                DO k = 1, 3
                   Ik = Ik*G(k)**(l_xyz(k))
                ENDDO
-               Ig(lx, ly, lz) = Ig(lx, ly, lz)+exp_tot/G_sq*Ik*gaussi**l/vol
+               Ig(lx, ly, lz) = Ig(lx, ly, lz)+exp_tot/G_sq*Ik*(-gaussi)**l/vol
             ENDDO
             ENDDO
             ENDDO
@@ -256,7 +258,7 @@ CONTAINS
 !> \param R_max ...
 !> \note  MMME Method is not very efficient for non-orthorhombic cells
 ! **************************************************************************************************
-   SUBROUTINE pgf_sum_rspace_3d(S_R, R, alpha, hmat, R_min, R_max)
+   PURE SUBROUTINE pgf_sum_rspace_3d(S_R, R, alpha, hmat, R_min, R_max)
       REAL(KIND=dp), DIMENSION(0:, 0:, 0:), &
          INTENT(INOUT)                                   :: S_R
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
@@ -305,8 +307,7 @@ CONTAINS
       ENDDO
       S_R_C(:, :, :) = Is(:, :, :)
 
-      ALLOCATE (h_to_c(0:l_max, 0:l_max))
-      CALL create_hermite_to_cartesian(alpha, h_to_c)
+      CALL create_hermite_to_cartesian(alpha, l_max, h_to_c)
       DO l = 0, l_max
       DO lx = 0, l
       DO ly = 0, l-lx
@@ -334,7 +335,7 @@ CONTAINS
 !> \param hmat ...
 !> \retval R_m ...
 ! **************************************************************************************************
-   FUNCTION R_abs_min(hmat) RESULT(R_m)
+   PURE FUNCTION R_abs_min(hmat) RESULT(R_m)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
       REAL(KIND=dp)                                      :: R_m
 
@@ -367,7 +368,7 @@ CONTAINS
 !> \param h_inv ...
 !> \retval G_m ...
 ! **************************************************************************************************
-   FUNCTION G_abs_min(h_inv) RESULT(G_m)
+   PURE FUNCTION G_abs_min(h_inv) RESULT(G_m)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       REAL(KIND=dp)                                      :: G_m
 
