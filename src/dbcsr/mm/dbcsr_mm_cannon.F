@@ -197,6 +197,7 @@ MODULE dbcsr_mm_cannon
    TYPE dbcsr_buffer
       TYPE(dbcsr_data_obj)               :: DATA, data_diag
       INTEGER                            :: vprow, vpcol
+      INTEGER                            :: data_win, meta_win
       INTEGER, DIMENSION(:), POINTER     :: meta => Null(), &
                                             meta_diag => Null()
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: get_requests, &
@@ -210,6 +211,8 @@ MODULE dbcsr_mm_cannon
    TYPE dbcsr_buffers
       TYPE(dbcsr_buffer)             :: left, right
       TYPE(dbcsr_data_obj)           :: trs_stackbuf
+      LOGICAL                        :: has_rma_left_win = .FALSE., &
+                                        has_rma_right_win = .FALSE.
    END TYPE dbcsr_buffers
 
    ! Buffers
@@ -1396,7 +1399,8 @@ CONTAINS
       INTEGER, POINTER                                   :: coli, rowi
       INTEGER, TARGET                                    :: mi, ui
       LOGICAL                                            :: do_bcast, do_scatter, do_symmetry, &
-                                                            is_diagonal, tr
+                                                            do_win_free, is_diagonal, tr
+      LOGICAL, DIMENSION(2)                              :: do_win_create
       REAL(kind=sp), DIMENSION(:), POINTER               :: local_max_norms, max_norms
       TYPE(dbcsr_buffer), POINTER                        :: buffer
       TYPE(dbcsr_data_obj), POINTER                      :: data_buffer_p
@@ -1515,6 +1519,9 @@ CONTAINS
          ALLOCATE (left_no_empty_images_displ(nprocs))
          no_empty_images_displ => left_no_empty_images_displ
          do_scatter = .FALSE.
+         !
+         do_win_free = buffers_orig%has_rma_left_win
+         buffers_orig%has_rma_left_win = .TRUE.
       ELSE
          ! merging over cols
          nimages_merged = ncols_images
@@ -1560,6 +1567,9 @@ CONTAINS
          ENDIF
          local_meta_size_scatter = 0
          local_data_size_scatter = 0
+         !
+         do_win_free = buffers_orig%has_rma_right_win
+         buffers_orig%has_rma_right_win = .TRUE.
       ENDIF
       !
       do_bcast = nimages_merged .GT. 1
@@ -1717,7 +1727,7 @@ CONTAINS
 !$OMP         left_total_row_counts,otf_filtering,meta_size_diag_scatter,&
 !$OMP         request_meta_size_diag,request_data_size_diag,&
 !$OMP         no_empty_images,local_no_empty_images,&
-!$OMP         request_no_empty_images,irequests,&
+!$OMP         request_no_empty_images,irequests,do_win_free,do_win_create,&
 !$OMP         meta_size_scatter,data_size_scatter,iproc,&
 !$OMP         scatter_images_proc,scatter_images,&
 !$OMP         request_meta_size_scatter,mygrp_scatter,do_scatter,&
@@ -1930,9 +1940,20 @@ CONTAINS
       CALL mp_iallgather(local_no_empty_images, no_empty_images, mygrp, request_no_empty_images)
       !
       ! Allocate data and meta buffers
+      do_win_create(:) = .TRUE.
+      IF (do_win_free) THEN
+         do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (data_size+10)
+         do_win_create(2) = SIZE(buffer%meta) .LT. meta_size
+         CALL mp_sum(do_win_create, mygrp)
+         IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
+         IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
+      ENDIF
       CALL buffer_init(buffer, data_type, &
                        data_size, meta_size, &
                        data_memory_type=memtype_mpi_buffer)
+      IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data, mygrp, buffer%data_win)
+      IF (do_win_create(2)) CALL mp_win_create(buffer%meta, mygrp, buffer%meta_win)
+      !
       IF (is_diagonal .AND. do_bcast) THEN
          CALL resize_buffer_diag(buffer, data_type, &
                                  data_size_diag, meta_size_diag, &
@@ -3897,17 +3918,16 @@ CONTAINS
 
       INTEGER :: blk, data_type, data_type_byte, grp_left, grp_right, handle, handle2, handle3, &
          iget, index_row_max_epss, iproc, ithread, left_col_mult, left_col_nimages, &
-         left_data_offset, left_data_size, left_data_win, left_max_data_size, left_max_meta_size, &
-         left_meta_offset, left_meta_size, left_meta_win, left_myfirstvcol, left_myfirstvrow, &
-         left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, &
-         left_row_nimages, left_v_i, left_vcol, left_vrow, meta_size_image, metronome, &
-         min_nimages, mynode, mypcol, myprow, nblkrows_local, nsteps_k, nthreads, numnodes, nvirt_k
-      INTEGER :: recv_vcol, recv_vrow, right_col_mult, right_col_nimages, right_data_offset, &
-         right_data_size, right_data_win, right_max_data_size, right_max_meta_size, &
-         right_meta_offset, right_meta_size, right_meta_win, right_myfirstvcol, right_myfirstvrow, &
-         right_mypcol, right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
-         right_row_nimages, right_v_i, right_vcol, right_vrow, row, size_guess, size_index_merged, &
-         size_index_unmerged, v_ci, v_ki, v_ri
+         left_data_offset, left_data_size, left_max_data_size, left_max_meta_size, &
+         left_meta_offset, left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
+         left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, &
+         left_v_i, left_vcol, left_vrow, meta_size_image, metronome, min_nimages, mynode, mypcol, &
+         myprow, nblkrows_local, nsteps_k, nthreads, numnodes, nvirt_k, recv_vcol, recv_vrow
+      INTEGER :: right_col_mult, right_col_nimages, right_data_offset, right_data_size, &
+         right_max_data_size, right_max_meta_size, right_meta_offset, right_meta_size, &
+         right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
+         right_nprows, right_nrequests, right_row_mult, right_row_nimages, right_v_i, right_vcol, &
+         right_vrow, row, size_guess, size_index_merged, size_index_unmerged, v_ci, v_ki, v_ri
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:) :: indices_common_unmerged, left_displ_vunmerged, &
          left_get_requests_images, left_max_meta_size_merged, right_displ_vunmerged, &
@@ -3918,7 +3938,7 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
       LOGICAL                                            :: keep_sparsity, otf_filtering
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: common_unmerged
-      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: left_nofiltered, right_nofiltered
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: nofiltered
       REAL(kind=sp)                                      :: filter_eps_sp, min_row_max_epss
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:)           :: row_max_epss
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: left_norms, right_norms
@@ -4053,6 +4073,23 @@ CONTAINS
       nvirt_k = left_npcols*left_col_nimages
       nsteps_k = nvirt_k/min_nimages
       !
+      ! Set RMA windows for the original data
+      CALL mp_win_lock_all(buffers_orig%left%data_win)
+      CALL mp_win_lock_all(buffers_orig%left%meta_win)
+      CALL mp_win_lock_all(buffers_orig%right%data_win)
+      CALL mp_win_lock_all(buffers_orig%right%meta_win)
+      !
+      ! Wait refs and max norms (sent in make_buffers)
+      CALL mp_waitall(requests)
+      ! Delete buffers used for collectives
+      DEALLOCATE (right_local_refs_displ_unmerged, left_local_refs_displ_unmerged)
+      IF (otf_filtering .AND. use_mpi_filtering) THEN
+         DEALLOCATE (right_local_max_norms, left_local_max_norms)
+      ENDIF
+      DEALLOCATE (right_local_refs_meta_size, left_local_refs_meta_size)
+      DEALLOCATE (right_local_refs_data_size, left_local_refs_data_size)
+      DEALLOCATE (right_no_empty_images, left_no_empty_images)
+      !
       product_matrix%m%nblks = 0
       product_matrix%m%nze = 0
       product_matrix%m%row_p(:) = 0
@@ -4084,16 +4121,6 @@ CONTAINS
          ! The array must be valid when passed to called subroutines.
          ALLOCATE (left_norms(0, min_nimages), right_norms(0, min_nimages), row_max_epss(0))
       ENDIF
-      !
-      ! Set RMA windows for the original data
-      CALL dbcsr_win_create_any(buffers_orig%left%data, grp_left, left_data_win)
-      CALL mp_win_create(buffers_orig%left%meta, grp_left, left_meta_win)
-      CALL dbcsr_win_create_any(buffers_orig%right%data, grp_right, right_data_win)
-      CALL mp_win_create(buffers_orig%right%meta, grp_right, right_meta_win)
-      CALL mp_win_lock_all(left_data_win)
-      CALL mp_win_lock_all(left_meta_win)
-      CALL mp_win_lock_all(right_data_win)
-      CALL mp_win_lock_all(right_meta_win)
       !
       ALLOCATE (multrec(0:nthreads-1))
       !
@@ -4136,30 +4163,19 @@ CONTAINS
                                             capacity=left_col_nimages+right_row_nimages)
       ENDIF
       !
-      ! Wait refs and max norms (sent in make_buffers)
-      CALL mp_waitall(requests)
-      ! Delete buffers used for collectives
-      DEALLOCATE (right_local_refs_displ_unmerged, left_local_refs_displ_unmerged)
-      IF (otf_filtering .AND. use_mpi_filtering) THEN
-         DEALLOCATE (right_local_max_norms, left_local_max_norms)
-      ENDIF
-      DEALLOCATE (right_local_refs_meta_size, left_local_refs_meta_size)
-      DEALLOCATE (right_local_refs_data_size, left_local_refs_data_size)
-      DEALLOCATE (right_no_empty_images, left_no_empty_images)
-      !
       ! Pre-CANNON execution: filtering and resize buffers for communications
       CALL timeset(routineN//"_precannon", handle2)
       !
       ALLOCATE (right_vunmerged(0:min_nimages-1, 0:nsteps_k-1))
       ALLOCATE (left_vunmerged(0:min_nimages-1, 0:nsteps_k-1))
-      right_vunmerged = 0; left_vunmerged = 0
+      right_vunmerged(:, :) = 0
+      left_vunmerged(:, :) = 0
       !
       ALLOCATE (right_displ_vunmerged(0:nvirt_k-1))
       ALLOCATE (left_displ_vunmerged(0:nvirt_k-1))
       !
-      ALLOCATE (right_nofiltered(0:min_nimages-1, 0:nsteps_k-1))
-      ALLOCATE (left_nofiltered(0:min_nimages-1, 0:nsteps_k-1))
-      right_nofiltered = .FALSE.; left_nofiltered = .FALSE.
+      ALLOCATE (nofiltered(0:min_nimages-1, 0:nsteps_k-1))
+      nofiltered(:, :) = .FALSE.
       ALLOCATE (right_vmerged(right_col_nimages, 0:min_nimages-1, 0:nsteps_k-1))
       ALLOCATE (left_vmerged(left_row_nimages, 0:min_nimages-1, 0:nsteps_k-1))
       !
@@ -4167,9 +4183,9 @@ CONTAINS
       left_max_data_size = 0; left_max_meta_size = 0
       !
       ALLOCATE (left_max_meta_size_merged(0:min_nimages-1))
-      left_max_meta_size_merged = 0
+      left_max_meta_size_merged(:) = 0
       ALLOCATE (right_max_meta_size_merged(0:min_nimages-1))
-      right_max_meta_size_merged = 0
+      right_max_meta_size_merged(:) = 0
       !
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
@@ -4184,50 +4200,42 @@ CONTAINS
 !$OMP         right_max_meta_size,left_max_meta_size,&
 !$OMP         right_data_size,left_data_size,right_meta_size,left_meta_size,&
 !$OMP         size_index_unmerged,left_max_meta_size_merged,right_max_meta_size_merged,&
-!$OMP         right_vunmerged,left_vunmerged,right_nofiltered,left_nofiltered,myprow,&
+!$OMP         right_vunmerged,left_vunmerged,nofiltered,&
 !$OMP         right_vmerged,left_vmerged,left_displ_vunmerged,right_displ_vunmerged,&
 !$OMP         right_no_empty_images_displ,left_no_empty_images_displ) &
 !$OMP PRIVATE (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol,right_vrow,&
 !$OMP          right_vcol,left_vrow,left_vcol,meta_size_image,iproc)
       !
+      v_ci = LBOUND(right_refs_meta_size, 1)
 !$OMP DO
       DO iproc = 0, right_nprows-1
          recv_vrow = iproc*right_row_nimages
          right_displ_vunmerged(recv_vrow) = right_no_empty_images_displ(iproc+1)
          DO v_ki = recv_vrow+1, recv_vrow+right_row_nimages-1
-            right_displ_vunmerged(v_ki) = right_displ_vunmerged(v_ki-1)
-            DO v_ci = LBOUND(right_refs_meta_size, 1), UBOUND(right_refs_meta_size, 1)
-               IF (right_refs_meta_size(v_ci, v_ki-1) .NE. 0) THEN
-                  right_displ_vunmerged(v_ki) = right_displ_vunmerged(v_ki)+1
-               ENDIF
-            ENDDO
+            IF (right_refs_meta_size(v_ci, v_ki-1) .EQ. 0) THEN
+               right_displ_vunmerged(v_ki) = right_displ_vunmerged(v_ki-1)
+            ELSE
+               right_displ_vunmerged(v_ki) = right_displ_vunmerged(v_ki-1)+1
+            ENDIF
          ENDDO
       ENDDO
 !$OMP END DO
+      v_ri = LBOUND(left_refs_meta_size, 1)
 !$OMP DO
       DO iproc = 0, left_npcols-1
          recv_vcol = iproc*left_col_nimages
          left_displ_vunmerged(recv_vcol) = left_no_empty_images_displ(iproc+1)
          DO v_ki = recv_vcol+1, recv_vcol+left_col_nimages-1
-            left_displ_vunmerged(v_ki) = left_displ_vunmerged(v_ki-1)
-            DO v_ri = LBOUND(left_refs_meta_size, 1), UBOUND(left_refs_meta_size, 1)
-               IF (left_refs_meta_size(v_ri, v_ki-1) .NE. 0) THEN
-                  left_displ_vunmerged(v_ki) = left_displ_vunmerged(v_ki)+1
-               ENDIF
-            ENDDO
+            IF (left_refs_meta_size(v_ri, v_ki-1) .EQ. 0) THEN
+               left_displ_vunmerged(v_ki) = left_displ_vunmerged(v_ki-1)
+            ELSE
+               left_displ_vunmerged(v_ki) = left_displ_vunmerged(v_ki-1)+1
+            ENDIF
          ENDDO
       ENDDO
 !$OMP END DO
       !
       DO metronome = 0, nsteps_k-1
-         !
-!$OMP MASTER
-         right_data_size = 0
-         left_data_size = 0
-         right_meta_size = 0
-         left_meta_size = 0
-!$OMP END MASTER
-!$OMP BARRIER
          !
          ! Take first cluster global virtual coordinates
          CALL image_calculator(imgdist_right, &
@@ -4243,6 +4251,16 @@ CONTAINS
                                vpcol_shift=metronome*min_nimages, &
                                shifting='L')
          !
+!$OMP MASTER
+         right_data_size = 0
+         left_data_size = 0
+         right_meta_size = 0
+         left_meta_size = 0
+         right_vmerged(:, :, metronome) = right_vcol
+         left_vmerged(:, :, metronome) = left_vrow
+!$OMP END MASTER
+!$OMP BARRIER
+         !
 !$OMP DO REDUCTION(+:right_data_size,left_data_size,right_meta_size,left_meta_size) &
 !$OMP    schedule(dynamic)
          DO v_ki = 0, min_nimages-1
@@ -4252,11 +4270,9 @@ CONTAINS
             !
             IF (right_refs_meta_size(right_vcol, recv_vrow) .NE. 0) THEN
                right_vunmerged(v_ki, metronome) = 1
-               right_vmerged(1, v_ki, metronome) = right_vcol
             ENDIF
             IF (left_refs_meta_size(left_vrow, recv_vcol) .NE. 0) THEN
                left_vunmerged(v_ki, metronome) = 1
-               left_vmerged(1, v_ki, metronome) = left_vrow
             ENDIF
             !
             ! Max norms evaluation for filtering
@@ -4268,23 +4284,22 @@ CONTAINS
                       right_max_norms(right_displ_vunmerged(recv_vrow)+1) .LT. &
                       min_row_max_epss) CYCLE
                ENDIF
+               nofiltered(v_ki, metronome) = .TRUE.
                !
                ! resize buffers taking in account filtering
-               right_nofiltered(v_ki, metronome) = .TRUE.
                right_data_size = right_data_size+ &
                                  right_refs_data_size(right_displ_vunmerged(recv_vrow)+1)
                right_meta_size = right_meta_size+ &
-                                 right_refs_meta_size(right_vmerged(1, v_ki, metronome), recv_vrow)
-               meta_size_image = right_refs_meta_size(right_vmerged(1, v_ki, metronome), recv_vrow)- &
+                                 right_refs_meta_size(right_vcol, recv_vrow)
+               meta_size_image = right_refs_meta_size(right_vcol, recv_vrow)- &
                                  dbcsr_slot_nblks
                right_max_meta_size_merged(v_ki) = MAX(right_max_meta_size_merged(v_ki), meta_size_image)
                !
-               left_nofiltered(v_ki, metronome) = .TRUE.
                left_data_size = left_data_size+ &
                                 left_refs_data_size(left_displ_vunmerged(recv_vcol)+1)
                left_meta_size = left_meta_size+ &
-                                left_refs_meta_size(left_vmerged(1, v_ki, metronome), recv_vcol)
-               meta_size_image = left_refs_meta_size(left_vmerged(1, v_ki, metronome), recv_vcol)- &
+                                left_refs_meta_size(left_vrow, recv_vcol)
+               meta_size_image = left_refs_meta_size(left_vrow, recv_vcol)- &
                                  size_index_unmerged
                left_max_meta_size_merged(v_ki) = MAX(left_max_meta_size_merged(v_ki), meta_size_image)
             ENDIF
@@ -4315,7 +4330,7 @@ CONTAINS
       !
       ! Prepare buffers for computation
       IF (nsteps_k .GT. 1) THEN
-         ! Right:
+         ! Right
          CALL buffer_init(buffers_1%right, data_type, &
                           right_max_data_size, &
                           right_max_meta_size, &
@@ -4325,7 +4340,7 @@ CONTAINS
                                            imgdist_right, matrix_right, &
                                            right_max_meta_size_merged, &
                                            buffers_1%right%data)
-         ! Left:
+         ! Left
          CALL buffer_init(buffers_1%left, data_type, &
                           left_max_data_size, &
                           left_max_meta_size, &
@@ -4347,7 +4362,7 @@ CONTAINS
       ENDIF
       !
       ! Prepare buffers for communication
-      ! Right:
+      ! Right
       CALL buffer_init(buffers_2%right, data_type, &
                        right_max_data_size, &
                        right_max_meta_size, &
@@ -4357,7 +4372,7 @@ CONTAINS
                                         imgdist_right, matrix_right, &
                                         right_max_meta_size_merged, &
                                         buffers_2%right%data)
-      ! Left:
+      ! Left
       CALL buffer_init(buffers_2%left, data_type, &
                        left_max_data_size, &
                        left_max_meta_size, &
@@ -4452,8 +4467,6 @@ CONTAINS
             left_data_size = 0
             buffers_comm%left%nrequests = 0
             buffers_comm%left%offset(:, :) = 0
-            !
-            ! Take first cluster global virtual coordinates
             CALL image_calculator(imgdist_left, &
                                   vprow=buffers_comm%left%vprow, &
                                   vpcol=buffers_comm%left%vpcol, &
@@ -4473,24 +4486,24 @@ CONTAINS
                                     right_row_nimages, &
                                     right_vunmerged(v_ki, metronome), right_vmerged(1, v_ki, metronome), &
                                     right_displ_vunmerged, &
-                                    right_v_i, right_nofiltered(v_ki, metronome), &
+                                    right_v_i, nofiltered(v_ki, metronome), &
                                     right_refs_displ_unmerged, &
                                     buffers_comm%right, right_refs_meta_size, right_refs_data_size, &
                                     right_meta_size, right_data_size, &
                                     right_meta_offset, right_data_offset, &
-                                    right_meta_win, right_data_win, right_myprow, metronome .GT. 0, &
+                                    buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, metronome .GT. 0, &
                                     data_get, data_type_byte, buffers_orig%right)
                ! Left
                CALL cannon_transfer(v_ki, buffers_comm%left%vpcol, &
                                     left_col_nimages, &
                                     left_vunmerged(v_ki, metronome), left_vmerged(1, v_ki, metronome), &
                                     left_displ_vunmerged, &
-                                    left_v_i, left_nofiltered(v_ki, metronome), &
+                                    left_v_i, nofiltered(v_ki, metronome), &
                                     left_refs_displ_unmerged, &
                                     buffers_comm%left, left_refs_meta_size, left_refs_data_size, &
                                     left_meta_size, left_data_size, &
                                     left_meta_offset, left_data_offset, &
-                                    left_meta_win, left_data_win, left_mypcol, metronome .GT. 0, &
+                                    buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, metronome .GT. 0, &
                                     data_get, data_type_byte, buffers_orig%left)
             ENDDO
             ! Set the referenced sizes to the actual data moved via MPI
@@ -4559,11 +4572,11 @@ CONTAINS
                   !
                   ! Counting the requests per each unmerged image
                   right_get_requests_images(:) = 0
-                  DO iget = 1, buffers_calc%right%nrequests
+                  DO iget = 1, right_nrequests
                      right_get_requests_images(buffers_calc%right%get_requests_map(1, iget)) = 1
                   ENDDO
                   left_get_requests_images(:) = 0
-                  DO iget = 1, buffers_calc%left%nrequests
+                  DO iget = 1, left_nrequests
                      left_get_requests_images(buffers_calc%left%get_requests_map(1, iget)) = 1
                   ENDDO
                   !
@@ -4667,7 +4680,7 @@ CONTAINS
       DEALLOCATE (right_refs_displ_unmerged, left_refs_displ_unmerged)
       DEALLOCATE (multrec)
       DEALLOCATE (right_vunmerged, left_vunmerged)
-      DEALLOCATE (right_nofiltered, left_nofiltered)
+      DEALLOCATE (nofiltered)
       DEALLOCATE (right_vmerged, left_vmerged)
       DEALLOCATE (right_displ_vunmerged, left_displ_vunmerged)
       DEALLOCATE (right_no_empty_images_displ, left_no_empty_images_displ)
@@ -4677,14 +4690,10 @@ CONTAINS
       CALL dbcsr_finalize(product_matrix)
       !
       ! clean-up wins
-      CALL mp_win_unlock_all(right_data_win)
-      CALL mp_win_unlock_all(right_meta_win)
-      CALL mp_win_unlock_all(left_data_win)
-      CALL mp_win_unlock_all(left_meta_win)
-      CALL mp_win_free(right_data_win)
-      CALL mp_win_free(right_meta_win)
-      CALL mp_win_free(left_data_win)
-      CALL mp_win_free(left_meta_win)
+      CALL mp_win_unlock_all(buffers_orig%right%data_win)
+      CALL mp_win_unlock_all(buffers_orig%right%meta_win)
+      CALL mp_win_unlock_all(buffers_orig%left%data_win)
+      CALL mp_win_unlock_all(buffers_orig%left%meta_win)
       !
       CALL timestop(handle)
    END SUBROUTINE cannon_multiply_low_exp
@@ -4839,21 +4848,21 @@ CONTAINS
 
       INTEGER :: blk, col, data_type, data_type_byte, grp_gather, grp_left, grp_right, handle, &
          handle2, handle3, iget, index_row_max_epss, iproc, ithread, left_col_mult, &
-         left_col_nimages, left_data_offset, left_data_offset_diag, left_data_size, left_data_win, &
+         left_col_nimages, left_data_offset, left_data_offset_diag, left_data_size, &
          left_max_data_size, left_max_meta_size, left_meta_offset, left_meta_offset_diag, &
-         left_meta_size, left_meta_win, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
-         left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, &
-         left_v_i, left_vcol, left_vrow, local_data_size_gather, local_meta_size_gather
-      INTEGER :: meta_size_image, meta_size_scatter, metronome, min_nimages, mynode, mypcol, &
-         myprow, nblkrows_local, nimages_scatter, nsteps_k, nthreads, numnodes, nvirt_k, &
-         recv_vcol, recv_vcol_displ, recv_vrow, recv_vrow_displ, request_product_matrix, &
-         right_col_mult, right_col_nimages, right_data_offset, right_data_offset_diag, &
-         right_data_size, right_data_win, right_max_data_size, right_max_meta_size, &
-         right_meta_offset, right_meta_offset_diag, right_meta_size, right_meta_win, &
+         left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, &
+         left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, left_v_i, &
+         left_vcol, left_vrow, local_data_size_gather, local_meta_size_gather, meta_size_image, &
+         meta_size_scatter
+      INTEGER :: metronome, min_nimages, mynode, mypcol, myprow, nblkrows_local, nimages_scatter, &
+         nsteps_k, nthreads, numnodes, nvirt_k, recv_vcol, recv_vcol_displ, recv_vrow, &
+         recv_vrow_displ, request_product_matrix, right_col_mult, right_col_nimages, &
+         right_data_offset, right_data_offset_diag, right_data_size, right_max_data_size, &
+         right_max_meta_size, right_meta_offset, right_meta_offset_diag, right_meta_size, &
          right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
-         right_nprows, right_nrequests
-      INTEGER :: right_row_mult, right_row_nimages, right_v_i, right_vcol, right_vrow, row, &
-         size_guess, size_index_merged, size_index_unmerged, v_ci, v_k_loc, v_ki, v_ri
+         right_nprows, right_nrequests, right_row_mult, right_row_nimages, right_v_i, right_vcol, &
+         right_vrow, row
+      INTEGER :: size_guess, size_index_merged, size_index_unmerged, v_ci, v_k_loc, v_ki, v_ri
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:) :: data_displ_gather, data_size_gather, &
          indices_common_unmerged, left_displ_vunmerged, left_get_requests_images, &
@@ -5191,14 +5200,10 @@ CONTAINS
       CALL timestop(handle2)
       !
       ! Set RMA windows for the original data
-      CALL dbcsr_win_create_any(buffers_orig%left%data, grp_left, left_data_win)
-      CALL mp_win_create(buffers_orig%left%meta, grp_left, left_meta_win)
-      CALL dbcsr_win_create_any(buffers_orig%right%data, grp_right, right_data_win)
-      CALL mp_win_create(buffers_orig%right%meta, grp_right, right_meta_win)
-      CALL mp_win_lock_all(left_data_win)
-      CALL mp_win_lock_all(left_meta_win)
-      CALL mp_win_lock_all(right_data_win)
-      CALL mp_win_lock_all(right_meta_win)
+      CALL mp_win_lock_all(buffers_orig%left%data_win)
+      CALL mp_win_lock_all(buffers_orig%left%meta_win)
+      CALL mp_win_lock_all(buffers_orig%right%data_win)
+      CALL mp_win_lock_all(buffers_orig%right%meta_win)
       !
       ALLOCATE (multrec(0:nthreads-1))
       !
@@ -5639,7 +5644,8 @@ CONTAINS
                                         buffers_comm%right, right_refs_meta_size, right_refs_data_size, &
                                         right_meta_size, right_data_size, &
                                         min_nimages, right_meta_offset, right_data_offset, &
-                                        right_meta_win, right_data_win, right_myprow, metronome .GT. 0, &
+                                        buffers_orig%right%meta_win, buffers_orig%right%data_win, &
+                                        right_myprow, metronome .GT. 0, &
                                         data_get, data_type_byte, buffers_orig%right, &
                                         right_meta_offset_diag, right_data_offset_diag)
                ! Left
@@ -5652,7 +5658,8 @@ CONTAINS
                                         buffers_comm%left, left_refs_meta_size, left_refs_data_size, &
                                         left_meta_size, left_data_size, &
                                         min_nimages, left_meta_offset, left_data_offset, &
-                                        left_meta_win, left_data_win, left_mypcol, metronome .GT. 0, &
+                                        buffers_orig%left%meta_win, buffers_orig%left%data_win, &
+                                        left_mypcol, metronome .GT. 0, &
                                         data_get, data_type_byte, buffers_orig%left, &
                                         left_meta_offset_diag, left_data_offset_diag)
             ENDDO
@@ -5723,12 +5730,12 @@ CONTAINS
                !
                ! Counting the requests per each unmerged image
                right_get_requests_images(:) = 0
-               DO iget = 1, buffers_calc%right%nrequests
+               DO iget = 1, right_nrequests
                   right_get_requests_images(buffers_calc%right%get_requests_map(:, iget)) = &
                      right_get_requests_images(buffers_calc%right%get_requests_map(:, iget))+1
                ENDDO
                left_get_requests_images(:) = 0
-               DO iget = 1, buffers_calc%left%nrequests
+               DO iget = 1, left_nrequests
                   left_get_requests_images(buffers_calc%left%get_requests_map(:, iget)) = &
                      left_get_requests_images(buffers_calc%left%get_requests_map(:, iget))+1
                ENDDO
@@ -5881,14 +5888,10 @@ CONTAINS
       CALL dbcsr_finalize(product_matrix)
       !
       ! clean-up wins
-      CALL mp_win_unlock_all(right_data_win)
-      CALL mp_win_unlock_all(right_meta_win)
-      CALL mp_win_unlock_all(left_data_win)
-      CALL mp_win_unlock_all(left_meta_win)
-      CALL mp_win_free(right_data_win)
-      CALL mp_win_free(right_meta_win)
-      CALL mp_win_free(left_data_win)
-      CALL mp_win_free(left_meta_win)
+      CALL mp_win_unlock_all(buffers_orig%right%data_win)
+      CALL mp_win_unlock_all(buffers_orig%right%meta_win)
+      CALL mp_win_unlock_all(buffers_orig%left%data_win)
+      CALL mp_win_unlock_all(buffers_orig%left%meta_win)
       !
       ! Gather data
       IF (do_scatter .OR. do_diagonal) THEN
@@ -7735,6 +7738,17 @@ CONTAINS
    SUBROUTINE buffers_release(buffers)
       TYPE(dbcsr_buffers), INTENT(INOUT)                 :: buffers
 
+      IF (buffers%has_rma_right_win) THEN
+         CALL mp_win_free(buffers_orig%right%data_win)
+         CALL mp_win_free(buffers_orig%right%meta_win)
+         buffers%has_rma_right_win = .FALSE.
+      ENDIF
+      IF (buffers%has_rma_left_win) THEN
+         CALL mp_win_free(buffers_orig%left%data_win)
+         CALL mp_win_free(buffers_orig%left%meta_win)
+         buffers%has_rma_left_win = .FALSE.
+      ENDIF
+      !
       IF (buffers%left%is_valid) THEN
          CALL dbcsr_data_release(buffers%left%data)
          IF (dbcsr_data_valid(buffers%left%data_diag)) &

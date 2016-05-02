@@ -260,7 +260,7 @@ MODULE message_passing
          mp_sum_root_dv, mp_sum_root_dm, &
          mp_sum_root_cv, mp_sum_root_cm, &
          mp_sum_root_zv, mp_sum_root_zm
-      MODULE PROCEDURE mp_sum_b
+      MODULE PROCEDURE mp_sum_b, mp_sum_bv
    END INTERFACE
 
    INTERFACE mp_isum
@@ -2709,6 +2709,42 @@ CONTAINS
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_sum_b
+
+! **************************************************************************************************
+!> \brief Logical OR reduction
+!> \param[in,out] msg         Datum to perform inclusive disjunction (input)
+!>                            and resultant inclusive disjunction (output)
+!> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_allreduce
+! **************************************************************************************************
+   SUBROUTINE mp_sum_bv(msg, gid)
+      LOGICAL, DIMENSION(:), INTENT(INOUT)     :: msg
+      INTEGER, INTENT(IN)                      :: gid
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_bv', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                  :: handle, ierr, msglen
+#if defined(__parallel)
+      LOGICAL, DIMENSION(:), ALLOCATABLE       :: res
+#endif
+
+      CALL mp_timeset(routineN, handle)
+      ierr = 0
+      msglen = SIZE(msg)
+#if defined(__parallel)
+      ALLOCATE (res(msglen))
+      CALL mpi_allreduce(msg, res, msglen, MPI_LOGICAL, MPI_LOR, gid, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
+      msg = res
+      DEALLOCATE (res)
+#else
+      MARK_USED(msg)
+      MARK_USED(gid)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_sum_bv
 
 ! **************************************************************************************************
 !> \brief Opens a file
