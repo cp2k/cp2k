@@ -21,10 +21,11 @@ MODULE input_cp2k_mp2
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
+   USE eri_mme_types,                   ONLY: create_eri_mme_section
    USE input_constants,                 ONLY: &
-        do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, mp2_method_direct, &
-        mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, numerical, ri_coulomb, &
-        ri_mp2_laplace, ri_mp2_method_gpw, ri_overlap, ri_rpa_g0w0_crossing_newton, &
+        do_eri_gpw, do_eri_mme, do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
+        mp2_method_direct, mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, numerical, &
+        ri_coulomb, ri_mp2_laplace, ri_mp2_method_gpw, ri_overlap, ri_rpa_g0w0_crossing_newton, &
         ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, &
         wfc_mm_style_gemm, wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
@@ -182,6 +183,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="ERI_METHOD", &
+                          description="Method for calculating periodic electron repulsion integrals "// &
+                          "(MME method is faster but experimental, in the current implementation only 2-center ERIs with "// &
+                          "Coulomb metric are supported).", &
+                          usage="ERI_METHOD MME", &
+                          enum_c_vals=s2a("GPW", "MME"), &
+                          enum_i_vals=(/do_eri_gpw, do_eri_mme/), &
+                          enum_desc=s2a("Uses Gaussian Plane Wave method [DelBen2013]", &
+                                        "Uses MiniMax-Ewald method (ERI_MME subsection)"), &
+                          default_i_val=do_eri_gpw)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL cp_print_key_section_create(print_key, "MP2_INFO", &
                                        description="Controls the printing basic info about MP2 method", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
@@ -217,6 +231,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_mp2_potential(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_eri_mme_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

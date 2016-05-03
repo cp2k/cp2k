@@ -27,6 +27,8 @@ MODULE mp2_ri_gpw
         cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template
+   USE cp_eri_mme_interface,            ONLY: eri_mme_2c_integrate,&
+                                              eri_mme_set_params
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: cp_fm_syevx
@@ -43,8 +45,11 @@ MODULE mp2_ri_gpw
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE eri_mme_types,                   ONLY: eri_mme_param
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-   USE input_constants,                 ONLY: ri_coulomb,&
+   USE input_constants,                 ONLY: do_eri_gpw,&
+                                              do_eri_mme,&
+                                              ri_coulomb,&
                                               ri_overlap
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -239,8 +244,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: gw_corr_lev_total, handle, handle2, handle3, i, i_counter, itmp(2), LLL, &
-         max_row_col_local, max_row_col_local_beta, max_row_col_local_gw, my_B_all_end, &
+      INTEGER :: eri_method, gw_corr_lev_total, handle, handle2, handle3, i, i_counter, itmp(2), &
+         LLL, max_row_col_local, max_row_col_local_beta, max_row_col_local_gw, my_B_all_end, &
          my_B_all_size, my_B_all_start, my_B_size, my_B_size_beta, my_B_virtual_end, &
          my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ri_metric, my_ri_metric_gw, ncol_local, &
@@ -259,6 +264,7 @@ CONTAINS
                                                             fm_BIb_jb_beta, fm_matrix_L, &
                                                             fm_matrix_L_RI_metric
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
+      TYPE(eri_mme_param), POINTER                       :: eri_param
       TYPE(pw_p_type)                                    :: psi_L
 
       CALL timeset(routineN, handle)
@@ -379,8 +385,15 @@ CONTAINS
                              in_space=REALSPACE)
 
       do_mult_2c = qs_env%mp2_env%mp2_gpw%do_mult_2c
+      eri_method = qs_env%mp2_env%eri_method
+      eri_param => qs_env%mp2_env%eri_mme_param
 
-      CALL calculate_Lmin1(qs_env, para_env, para_env_sub, para_env_L, mp2_memory, &
+      ! Preparations for ERI MME method to compute 2c ERIs
+      IF (qs_env%mp2_env%eri_method .EQ. do_eri_mme) THEN
+         CALL eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type="RI_AUX", para_env=para_env)
+      ENDIF
+
+      CALL calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                            fm_matrix_L, ngroup, color_sub, dimen_RI, &
                            mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                            my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
@@ -615,7 +628,7 @@ CONTAINS
          DEALLOCATE (my_Lrows, sizes_array, starts_array, ends_array)
 
          ! difference to call of calculate_Lmin1 above: other RI metric for GW
-         CALL calculate_Lmin1(qs_env, para_env, para_env_sub, para_env_L, mp2_memory, &
+         CALL calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                               fm_matrix_L, ngroup, color_sub, dimen_RI, &
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                               my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
@@ -886,6 +899,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param eri_method ...
+!> \param eri_param ...
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param para_env_L ...
@@ -918,7 +933,7 @@ CONTAINS
 !> \param fm_matrix_L_RI_metric ...
 !> \param do_im_time ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_Lmin1(qs_env, para_env, para_env_sub, para_env_L, mp2_memory, &
+   SUBROUTINE calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                               fm_matrix_L, ngroup, color_sub, dimen_RI, &
                               mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                               my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
@@ -927,6 +942,8 @@ CONTAINS
                               ri_metric, fm_matrix_L_RI_metric, do_im_time)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: eri_method
+      TYPE(eri_mme_param), POINTER                       :: eri_param
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, para_env_L
       REAL(KIND=dp)                                      :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
@@ -965,7 +982,7 @@ CONTAINS
       END IF
 
       ! calculate L^{-1} or L (for overlap and trunc. Coulomb metric)
-      CALL compute_2c_in_and_cholesky(qs_env, para_env, para_env_sub, para_env_L, mp2_memory, &
+      CALL compute_2c_in_and_cholesky(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                       fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                       mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
@@ -978,7 +995,7 @@ CONTAINS
          DEALLOCATE (sizes_array, starts_array, ends_array)
 
          ! Calculate Chol. decomp. of matrix of RI operator, store it in fm_matrix_L_RI_metric
-         CALL compute_2c_in_and_cholesky(qs_env, para_env, para_env_sub, para_env_L, mp2_memory, &
+         CALL compute_2c_in_and_cholesky(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                          fm_matrix_L_RI_metric, ngroup, color_sub, dimen_RI, &
                                          mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                          my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
@@ -1021,6 +1038,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param eri_method ...
+!> \param eri_param ...
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param para_env_L ...
@@ -1054,7 +1073,7 @@ CONTAINS
 !> \param fm_matrix_L_extern ...
 !> \param ri_metric ...
 ! **************************************************************************************************
-   SUBROUTINE compute_2c_in_and_cholesky(qs_env, para_env, para_env_sub, para_env_L, mp2_memory, &
+   SUBROUTINE compute_2c_in_and_cholesky(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                          fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                          mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                          my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
@@ -1062,6 +1081,8 @@ CONTAINS
                                          num_small_eigen, auxbas_pw_pool, do_mult_2c, do_inversion, &
                                          external_matrix_struc, fm_matrix_L_extern, ri_metric)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER                                            :: eri_method
+      TYPE(eri_mme_param), POINTER                       :: eri_param
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, para_env_L
       REAL(KIND=dp)                                      :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
@@ -1923,148 +1944,162 @@ CONTAINS
          ALLOCATE (L_local_col(dimen_RI, my_group_L_size))
          L_local_col = 0.0_dp
 
-         ALLOCATE (wf_vector(dimen_RI))
+         IF (eri_method .EQ. do_eri_mme .AND. my_ri_metric .EQ. ri_coulomb) THEN
+            IF (para_env_sub%num_pe .EQ. para_env%num_pe) THEN
+               CALL eri_mme_2c_integrate(eri_param, para_env, qs_env, L_local_col, &
+                                         basis_type_a="RI_AUX", basis_type_b="RI_AUX")
+            ELSE
+               CPABORT("GROUP_SIZE (NUMBER_PROC) in WF_CORRELATION section must be set to -1")
+            ENDIF
 
-         i_counter = 0
-         DO LLL = my_group_L_start, my_group_L_end
-            i_counter = i_counter+1
+         ELSEIF (eri_method .EQ. do_eri_gpw .OR. my_ri_metric .NE. ri_coulomb) THEN
 
-            wf_vector = 0.0_dp
-            wf_vector(LLL) = 1.0_dp
+            ALLOCATE (wf_vector(dimen_RI))
 
-            ! pseudo psi_L
-            CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                        basis_type="RI_AUX", &
-                                        external_vector=wf_vector)
+            i_counter = 0
+            DO LLL = my_group_L_start, my_group_L_end
+               i_counter = i_counter+1
 
-            CALL timeset(routineN//"_pot_lm", handle3)
-            rho_r%pw%cr3d = psi_L%pw%cr3d
+               wf_vector = 0.0_dp
+               wf_vector(LLL) = 1.0_dp
 
-            ! in case we do the overlap metric, we have no potential and hence no FT has to be carried out
-            IF (my_ri_metric /= ri_overlap) THEN
-               CALL pw_transfer(rho_r%pw, rho_g%pw)
-               CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-               CALL pw_transfer(pot_g%pw, rho_r%pw)
-            END IF
+               ! pseudo psi_L
+               CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
+                                           basis_type="RI_AUX", &
+                                           external_vector=wf_vector)
 
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+               CALL timeset(routineN//"_pot_lm", handle3)
+               rho_r%pw%cr3d = psi_L%pw%cr3d
 
-            NULLIFY (rs_v)
-            NULLIFY (rs_descs)
-            CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_retain(rs_v(i)%rs_grid)
-            END DO
-            CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+               ! in case we do the overlap metric, we have no potential and hence no FT has to be carried out
+               IF (my_ri_metric /= ri_overlap) THEN
+                  CALL pw_transfer(rho_r%pw, rho_g%pw)
+                  CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+                  CALL pw_transfer(pot_g%pw, rho_r%pw)
+               END IF
 
-            CALL timestop(handle3)
+               CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
 
-            ! integrate the little bastards
-            offset = 0
-            DO iatom = 1, natom
-               ikind = kind_of(iatom)
-               CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
-
-               first_sgfa => basis_set_a%first_sgf
-               la_max => basis_set_a%lmax
-               la_min => basis_set_a%lmin
-               npgfa => basis_set_a%npgf
-               nseta = basis_set_a%nset
-               nsgfa => basis_set_a%nsgf_set
-               rpgfa => basis_set_a%pgf_radius
-               set_radius_a => basis_set_a%set_radius
-               sphi_a => basis_set_a%sphi
-               zeta => basis_set_a%zet
-
-               ra(:) = pbc(particle_set(iatom)%r, cell)
-               rab = 0.0_dp
-               rab2 = 0.0_dp
-
-               DO iset = 1, nseta
-                  ncoa = npgfa(iset)*ncoset(la_max(iset))
-                  sgfa = first_sgfa(1, iset)
-
-                  ALLOCATE (I_tmp2(ncoa, 1))
-                  I_tmp2 = 0.0_dp
-                  ALLOCATE (I_ab(nsgfa(iset), 1))
-                  I_ab = 0.0_dp
-
-                  igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-                  map_it_here = .FALSE.
-                  IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                     DO dir = 1, 3
-                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                        tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                        IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
-                        ELSE
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                        ENDIF
-                        ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                     ENDDO
-                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it_here = .TRUE.
-                     ENDIF
-                  ELSE
-                     ! not distributed, just a round-robin distribution over the full set of CPUs
-                     IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-                  ENDIF
-
-                  offset = offset+nsgfa(iset)
-
-                  IF (map_it_here) THEN
-                     DO ipgf = 1, npgfa(iset)
-                        sgfa = first_sgfa(1, iset)
-
-                        na1 = (ipgf-1)*ncoset(la_max(iset))+1
-                        na2 = ipgf*ncoset(la_max(iset))
-                        igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
-
-                        CALL integrate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                                                          lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                          ra=ra, rab=rab, rab2=rab2, &
-                                                          rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                          cell=cell, &
-                                                          cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                          hab=I_tmp2, &
-                                                          o1=na1-1, &
-                                                          o2=0, &
-                                                          map_consistent=.TRUE., &
-                                                          eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
-                                                          calculate_forces=.FALSE.)
-                     END DO
-
-                     CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                I_tmp2(1, 1), SIZE(I_tmp2, 1), &
-                                1.0_dp, I_ab(1, 1), SIZE(I_ab, 1))
-
-                     L_local_col(offset-nsgfa(iset)+1:offset, i_counter) = I_ab(1:nsgfa(iset), 1)
-                  END IF
-
-                  DEALLOCATE (I_tmp2)
-                  DEALLOCATE (I_ab)
-
+               NULLIFY (rs_v)
+               NULLIFY (rs_descs)
+               CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
+               DO i = 1, SIZE(rs_v)
+                  CALL rs_grid_retain(rs_v(i)%rs_grid)
                END DO
+               CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+
+               CALL timestop(handle3)
+
+               ! integrate the little bastards
+               offset = 0
+               DO iatom = 1, natom
+                  ikind = kind_of(iatom)
+                  CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
+
+                  first_sgfa => basis_set_a%first_sgf
+                  la_max => basis_set_a%lmax
+                  la_min => basis_set_a%lmin
+                  npgfa => basis_set_a%npgf
+                  nseta = basis_set_a%nset
+                  nsgfa => basis_set_a%nsgf_set
+                  rpgfa => basis_set_a%pgf_radius
+                  set_radius_a => basis_set_a%set_radius
+                  sphi_a => basis_set_a%sphi
+                  zeta => basis_set_a%zet
+
+                  ra(:) = pbc(particle_set(iatom)%r, cell)
+                  rab = 0.0_dp
+                  rab2 = 0.0_dp
+
+                  DO iset = 1, nseta
+                     ncoa = npgfa(iset)*ncoset(la_max(iset))
+                     sgfa = first_sgfa(1, iset)
+
+                     ALLOCATE (I_tmp2(ncoa, 1))
+                     I_tmp2 = 0.0_dp
+                     ALLOCATE (I_ab(nsgfa(iset), 1))
+                     I_ab = 0.0_dp
+
+                     igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
+                     map_it_here = .FALSE.
+                     IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
+                        DO dir = 1, 3
+                           ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                           tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                           tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                           IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
+                              lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)+rs_v(igrid_level)%rs_grid%desc%border
+                              ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)-rs_v(igrid_level)%rs_grid%desc%border
+                           ELSE
+                              lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
+                              ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
+                           ENDIF
+                           ! distributed grid, only map if it is local to the grid
+                           location(dir) = tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+                        ENDDO
+                        IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
+                            lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
+                            lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
+                           map_it_here = .TRUE.
+                        ENDIF
+                     ELSE
+                        ! not distributed, just a round-robin distribution over the full set of CPUs
+                        IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
+                     ENDIF
+
+                     offset = offset+nsgfa(iset)
+
+                     IF (map_it_here) THEN
+                        DO ipgf = 1, npgfa(iset)
+                           sgfa = first_sgfa(1, iset)
+
+                           na1 = (ipgf-1)*ncoset(la_max(iset))+1
+                           na2 = ipgf*ncoset(la_max(iset))
+                           igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
+
+                           CALL integrate_pgf_product_rspace( &
+                              la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
+                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
+                              ra=ra, rab=rab, rab2=rab2, &
+                              rsgrid=rs_v(igrid_level)%rs_grid, &
+                              cell=cell, &
+                              cube_info=pw_env_sub%cube_info(igrid_level), &
+                              hab=I_tmp2, &
+                              o1=na1-1, &
+                              o2=0, &
+                              map_consistent=.TRUE., &
+                              eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace, &
+                              calculate_forces=.FALSE.)
+                        END DO
+
+                        CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
+                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                   I_tmp2(1, 1), SIZE(I_tmp2, 1), &
+                                   1.0_dp, I_ab(1, 1), SIZE(I_ab, 1))
+
+                        L_local_col(offset-nsgfa(iset)+1:offset, i_counter) = I_ab(1:nsgfa(iset), 1)
+                     END IF
+
+                     DEALLOCATE (I_tmp2)
+                     DEALLOCATE (I_ab)
+
+                  END DO
+               END DO
+
+               DO i = 1, SIZE(rs_v)
+                  CALL rs_grid_release(rs_v(i)%rs_grid)
+               END DO
+
             END DO
 
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_release(rs_v(i)%rs_grid)
-            END DO
+            DEALLOCATE (wf_vector)
 
-         END DO
+            CALL mp_sum(L_local_col, para_env_sub%group)
 
-         DEALLOCATE (wf_vector)
-
-         CALL mp_sum(L_local_col, para_env_sub%group)
-
+         ELSE
+            CPABORT("unknown ERI method")
+         ENDIF
       END IF !end old code
 
       CALL timestop(handle2)

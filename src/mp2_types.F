@@ -13,17 +13,14 @@ MODULE mp2_types
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                               cp_dbcsr_type
    USE cp_fm_types,                     ONLY: cp_fm_type
+   USE eri_mme_types,                   ONLY: eri_mme_param,&
+                                              eri_mme_release
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type,&
                                               pair_list_element_type
-   USE input_constants,                 ONLY: mp2_method_direct,&
-                                              mp2_method_gpw,&
-                                              mp2_method_laplace,&
-                                              mp2_method_none,&
-                                              mp2_ri_optimize_basis,&
-                                              ri_mp2_laplace,&
-                                              ri_mp2_method_gpw,&
-                                              ri_rpa_method_gpw
+   USE input_constants,                 ONLY: &
+        do_eri_mme, mp2_method_direct, mp2_method_gpw, mp2_method_laplace, mp2_method_none, &
+        mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
    USE kinds,                           ONLY: default_path_length,&
                                               dp
 #include "./base/base_uses.f90"
@@ -175,6 +172,8 @@ MODULE mp2_types
       LOGICAL  :: hf_fail
       LOGICAL  :: p_screen
       LOGICAL  :: not_last_hfx
+      INTEGER  :: eri_method
+      TYPE(eri_mme_param), POINTER  :: eri_mme_param
    END TYPE
 
    TYPE integ_mat_buffer_type
@@ -218,6 +217,9 @@ CONTAINS
       IF (ASSOCIATED(mp2_env%ri_rpa%x_data)) THEN
          CALL hfx_release(mp2_env%ri_rpa%x_data)
       END IF
+
+      IF (mp2_env%eri_method .EQ. do_eri_mme) CALL eri_mme_release(mp2_env%eri_mme_param)
+      IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)
 
       DEALLOCATE (mp2_env)
 
