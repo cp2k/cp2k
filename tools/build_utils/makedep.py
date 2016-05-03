@@ -106,7 +106,10 @@ def main():
         p = normpath(dirname(fn))
         deps = collect_pkg_deps(packages, p)
         makefile += " ".join(["$(LIBDIR)/"+a+archive_ext for a in deps]) + "\n"
-        makefile += "\t" + "$(LD) $(LDFLAGS) -L$(LIBDIR) -o $@ %s.o "%bfn
+        makefile += "\t" + "$(LD) $(LDFLAGS)"
+        if(fn.endswith(".c")):
+            makefile += " $(LDFLAGS_C)"
+        makefile += " -L$(LIBDIR) -o $@ %s.o "%bfn
         makefile += "$(EXTERNAL_OBJECTS) "
         assert(all([a.startswith("lib") for a in deps]))
         makefile += " ".join(["-l"+a[3:]+archive_postfix for a in deps])
