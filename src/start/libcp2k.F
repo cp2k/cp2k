@@ -43,7 +43,7 @@ CONTAINS
 !> \param str_length ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_version(version_str, str_length) BIND(C)
-      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(INOUT)       :: version_str(*)
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(OUT)         :: version_str(*)
       INTEGER(C_INT), VALUE                              :: str_length
 
       INTEGER                                            :: i, n
@@ -105,8 +105,8 @@ CONTAINS
 !> \param output_file_path ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_create_force_env(new_env_id, input_file_path, output_file_path) BIND(C)
-      INTEGER(C_INT)                                     :: new_env_id
-      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      INTEGER(C_INT), INTENT(OUT)                        :: new_env_id
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
       INTEGER                                            :: ierr
@@ -131,8 +131,8 @@ CONTAINS
 !> \param mpi_comm ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_create_force_env_comm(new_env_id, input_file_path, output_file_path, mpi_comm) BIND(C)
-      INTEGER(C_INT)                                     :: new_env_id
-      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      INTEGER(C_INT), INTENT(OUT)                        :: new_env_id
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
@@ -171,7 +171,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_set_positions(env_id, new_pos, n_el) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id, n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: new_pos
+      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(IN)      :: new_pos
 
       INTEGER                                            :: ierr
 
@@ -187,7 +187,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_set_velocities(env_id, new_vel, n_el) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id, n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: new_vel
+      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(IN)      :: new_vel
 
       INTEGER                                            :: ierr
 
@@ -204,9 +204,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_result(env_id, description, RESULT, n_el) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
-      CHARACTER(LEN=1, KIND=C_CHAR)                      :: description(*)
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: description(*)
       INTEGER(C_INT), VALUE                              :: n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: RESULT
+      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(OUT)     :: RESULT
 
       CHARACTER(LEN=default_string_length)               :: desc_low
       INTEGER                                            :: ierr
@@ -225,7 +225,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_natom(env_id, natom) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
-      INTEGER(C_INT)                                     :: natom
+      INTEGER(C_INT), INTENT(OUT)                        :: natom
 
       INTEGER                                            :: ierr
 
@@ -240,7 +240,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_nparticle(env_id, nparticle) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
-      INTEGER(C_INT)                                     :: nparticle
+      INTEGER(C_INT), INTENT(OUT)                        :: nparticle
 
       INTEGER                                            :: ierr
 
@@ -256,7 +256,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_positions(env_id, pos, n_el) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id, n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: pos
+      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(OUT)     :: pos
 
       INTEGER                                            :: ierr
 
@@ -272,7 +272,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_forces(env_id, force, n_el) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id, n_el
-      REAL(C_DOUBLE), DIMENSION(1:n_el)                  :: force
+      REAL(C_DOUBLE), DIMENSION(1:n_el), INTENT(OUT)     :: force
 
       INTEGER                                            :: ierr
 
@@ -287,7 +287,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_potential_energy(env_id, e_pot) BIND(C)
       INTEGER(C_INT), VALUE                              :: env_id
-      REAL(C_DOUBLE)                                     :: e_pot
+      REAL(C_DOUBLE), INTENT(OUT)                        :: e_pot
 
       INTEGER                                            :: ierr
 
@@ -327,7 +327,7 @@ CONTAINS
 !> \param output_file_path ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_run_input(input_file_path, output_file_path) BIND(C)
-      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
       INTEGER                                            :: ierr
@@ -351,7 +351,7 @@ CONTAINS
 !> \param mpi_comm ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_run_input_comm(input_file_path, output_file_path, mpi_comm) BIND(C)
-      CHARACTER(LEN=1, KIND=C_CHAR)                      :: input_file_path(*), output_file_path(*)
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp

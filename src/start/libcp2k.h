@@ -71,15 +71,14 @@ void cp2k_destroy_force_env(force_env_t force_env);
  * \param new_pos Array containing the new positions of the particles
  * \param n_el Size of the new_pos array
  */
-void cp2k_set_positions(force_env_t force_env, double* new_pos, int n_el);
+void cp2k_set_positions(force_env_t force_env, const double* new_pos, int n_el);
 
 /** \brief Set velocity of the particles
  * \param force_env the force environment
  * \param new_vel Array containing the new velocities of the particles
  * \param n_el Size of the new_vel array
- * \param ierr Non-zero if an error occurred
  */
-void cp2k_set_velocities(force_env_t force_env, double* new_vel, int n_el);
+void cp2k_set_velocities(force_env_t force_env, const double* new_vel, int n_el);
 
 /** \brief Get an arbitrary result as 1D array from CP2K
  * \param force_env the force environment
