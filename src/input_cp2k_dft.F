@@ -5619,7 +5619,7 @@ CONTAINS
                           description="Sets the various options for the orbital transformation (OT) method. "// &
                           "Default settings already provide an efficient, yet robust method. "// &
                           "Most systems benefit from using the FULL_ALL preconditioner "// &
-                          "combined with a small value (0.001) of ENERGY_GAP."// &
+                          "combined with a small value (0.001) of ENERGY_GAP. "// &
                           "Well-behaved systems might benefit from using a DIIS minimizer.", &
                           n_keywords=27, n_subsections=0, repeats=.FALSE., &
                           citations=(/VandeVondele2003, Weber2008/))

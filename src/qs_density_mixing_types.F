@@ -409,7 +409,7 @@ CONTAINS
 
       CALL section_create(section, &
                           name=section_name, &
-                          description="Define type and parameters for mixing"// &
+                          description="Define type and parameters for mixing "// &
                           "procedures to be applied to the density matrix. Normally, "// &
                           "only one type of mixing method should be accepted. The mixing "// &
                           "procedures activated by this section are only active for diagonalization "// &
