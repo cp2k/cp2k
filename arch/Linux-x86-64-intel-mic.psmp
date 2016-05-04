@@ -103,6 +103,7 @@ CXXFLAGS  := -diag-disable $(DIAG_DISABLE) -std=c++0x
 CFLAGS    := -diag-disable $(DIAG_DISABLE)
 FCFLAGS   := -diag-disable $(DIAG_DISABLE) -free -fpp
 LDFLAGS   := -diag-disable $(DIAG_DISABLE)
+LDFLAGS_C := -diag-disable $(DIAG_DISABLE) -nofor_main
 OPTFLAGS  := $(NULL)
 
 ifeq (0,$(DBG))

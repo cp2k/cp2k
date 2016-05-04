@@ -19,6 +19,7 @@ CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -O2 -pc64 -unroll -openmp -heap-arrays 64
 #verify if the path to the mkl libraries is already defined and/or differs from this
 LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib -L/opt/intel/composer_xe_2013.2.146/mkl/lib/intel64
+LDFLAGS_C  = $(FCFLAGS) -L$(HOME)/lib -L/opt/intel/composer_xe_2013.2.146/mkl/lib/intel64 -nofor_main
 #If you want to use BLACS and SCALAPACK use the libraries below
 LIBS     = -mkl=parallel -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_intel_lp64 \
            -lmkl_intel_thread -lmkl_core -lm -lpthread -liomp5 -openmp

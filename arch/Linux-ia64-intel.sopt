@@ -19,6 +19,7 @@ DFLAGS   =
 CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -O2 -Vaxlib -tpp2
 LDFLAGS  = $(FCFLAGS) -L/apps/intel_mkl_61/mkl61/lib/64
+LDFLAGS_C  = $(FCFLAGS) -L/apps/intel_mkl_61/mkl61/lib/64 -nofor_main
 LIBS     = -lmkl_lapack -lmkl -lguide
 
 ##For compiler 11.0 one may want to try the following flags:
