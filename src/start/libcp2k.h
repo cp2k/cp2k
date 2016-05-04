@@ -26,12 +26,12 @@ typedef int force_env_t;
 void cp2k_get_version(char* version_str, int str_length);
 
 /** \brief Initialize CP2K and MPI
- * \warning You are supposed to call cp2k_finalize_cp2k() before terminating the program.
+ * \warning You are supposed to call cp2k_finalize() before terminating the program.
  */
 void cp2k_init();
 
 /** \brief Initialize CP2K without initializing MPI
- * \warning You are supposed to call cp2k_finalize_cp2k() before terminating the program.
+ * \warning You are supposed to call cp2k_finalize() before terminating the program.
  */
 void cp2k_init_without_mpi();
 
@@ -47,7 +47,7 @@ void cp2k_finalize_without_mpi();
  * \param new_force_env the created force environment
  * \param input_file_path Path to a CP2K input file
  * \param output_file_path Path to a file where CP2K is going to append its output (created if non-existent)
- * \warning You are supposed to call cp2k_destroy_fenv() to cleanup, before cp2k_finalize_cp2k().
+ * \warning You are supposed to call cp2k_destroy_force_env() to cleanup, before cp2k_finalize().
  */
 void cp2k_create_force_env(force_env_t* new_force_env, const char* input_file_path, const char* output_file_path);
 
@@ -57,9 +57,9 @@ void cp2k_create_force_env(force_env_t* new_force_env, const char* input_file_pa
  * \param output_file_path Path to a file where CP2K is going to write its output.
  *                         Will be created if not existent, otherwise appended.
  * \param mpi_comm MPI_COMM if MPI is not managed by CP2K
- * \warning You are supposed to call cp2k_destroy_fenv() to cleanup, before cp2k_finalize_cp2k().
+ * \warning You are supposed to call cp2k_destroy_force_env() to cleanup, before cp2k_finalize().
  */
-void cp2k_create_fenv_comm(force_env_t* new_force_env, const char* input_file_path, const char* output_file_path, int mpi_comm);
+void cp2k_create_force_env_comm(force_env_t* new_force_env, const char* input_file_path, const char* output_file_path, int mpi_comm);
 
 /** \brief Destroy/cleanup a force environment
  * \param force_env the force environment
