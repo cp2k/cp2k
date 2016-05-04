@@ -538,86 +538,49 @@ CONTAINS
 
          ELSE
 
-            ! multiply and goooooooo ...
-            CALL timeset(routineN//"_mult_o", handle3)
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                                   0.0_dp, matrix_ia_jnu, filter_eps=eps_filter)
-            IF (do_alpha_beta) THEN
-               ! transform orbitals using the beta coeff matrix
-               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
-                                      0.0_dp, matrix_ia_jnu_beta, filter_eps=eps_filter)
-            END IF
-            CALL timestop(handle3)
-            CALL timeset(routineN//"_mult_v", handle3)
-            CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
-                                   0.0_dp, matrix_ia_jb, filter_eps=eps_filter)
-            IF (do_alpha_beta) THEN
-               ! transform orbitals using the beta coeff matrix
-               CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu_beta, mo_coeff_v_beta, &
-                                      0.0_dp, matrix_ia_jb_beta, filter_eps=eps_filter)
-            END IF
-
-            CALL timestop(handle3)
-
-            ! now fill the matrix
-            CALL timeset(routineN//"_E_Ex_1", handle3)
-            CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
-
-            CALL grep_my_integrals(para_env_sub, fm_BIb_jb, BIb_C(i_counter, 1:my_B_size, 1:homo), max_row_col_local, &
-                                   sub_proc_map, local_col_row_info, &
-                                   my_B_virtual_end, my_B_virtual_start)
+            CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_ia_jnu, matrix_ia_jb, &
+                                      fm_BIb_jb, BIb_C(i_counter, 1:my_B_size, 1:homo), &
+                                      mo_coeff_o, mo_coeff_v, eps_filter, max_row_col_local, sub_proc_map, &
+                                      local_col_row_info, my_B_virtual_end, my_B_virtual_start, "alpha")
 
             IF (do_alpha_beta) THEN
-               CALL copy_dbcsr_to_fm(matrix_ia_jb_beta, fm_BIb_jb_beta)
-               CALL grep_my_integrals(para_env_sub, fm_BIb_jb_beta, &
-                                      BIb_C_beta(i_counter, 1:my_B_size_beta, 1:homo_beta), max_row_col_local_beta, &
-                                      sub_proc_map, local_col_row_info_beta, &
-                                      my_B_virtual_end_beta, my_B_virtual_start_beta)
-            END IF
+               CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_ia_jnu_beta, matrix_ia_jb_beta, &
+                                         fm_BIb_jb_beta, BIb_C_beta(i_counter, 1:my_B_size_beta, 1:homo_beta), &
+                                         mo_coeff_o_beta, mo_coeff_v_beta, eps_filter, max_row_col_local_beta, sub_proc_map, &
+                                         local_col_row_info_beta, my_B_virtual_end_beta, my_B_virtual_start_beta, "beta")
 
-            CALL timestop(handle3)
+            ENDIF
 
+            IF (my_do_gw .AND. (my_ri_metric_gw == my_ri_metric)) THEN
+               CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
+                                         fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
+                                         mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
+                                         local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
+
+               IF (do_alpha_beta) THEN
+                  CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu_beta, matrix_in_jm_beta, &
+                                            fm_BIb_gw_beta, BIb_c_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
+                                            mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, sub_proc_map, &
+                                            local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
+               ENDIF
+            ENDIF
          END IF ! imag. time
 
          IF (my_do_gw .AND. (my_ri_metric_gw == my_ri_metric)) THEN
             ! transform (K|mu nu) to (K|nm), n corresponds to corrected GW levels, m is in nmo
-            CALL timeset(routineN//"_mult_gw", handle3)
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_gw, &
-                                   0.0_dp, matrix_in_jnu, filter_eps=eps_filter)
-            CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_in_jnu, mo_coeff_all, &
-                                   0.0_dp, matrix_in_jm, filter_eps=eps_filter)
-
-            CALL timestop(handle3)
-
-            CALL timeset(routineN//"_E_Ex_2_gw", handle3)
-
-            CALL copy_dbcsr_to_fm(matrix_in_jm, fm_BIb_gw)
-            CALL grep_my_integrals(para_env_sub, fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                   max_row_col_local_gw, &
-                                   sub_proc_map, local_col_row_info_gw, &
-                                   my_B_all_end, my_B_all_start)
+            CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
+                                      fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
+                                      mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
+                                      local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_alpha")
 
             ! the same for beta
             IF (do_alpha_beta) THEN
-               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_gw_beta, &
-                                      0.0_dp, matrix_in_jnu_beta, filter_eps=eps_filter)
-               CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_in_jnu_beta, mo_coeff_all_beta, &
-                                      0.0_dp, matrix_in_jm_beta, filter_eps=eps_filter)
+               CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu_beta, matrix_in_jm_beta, &
+                                         fm_BIb_gw_beta, BIb_C_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
+                                         mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, sub_proc_map, &
+                                         local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
 
-               CALL timestop(handle3)
-
-               CALL timeset(routineN//"_E_Ex_2_gw", handle3)
-
-               CALL copy_dbcsr_to_fm(matrix_in_jm_beta, fm_BIb_gw_beta)
-               CALL grep_my_integrals(para_env_sub, fm_BIb_gw_beta, &
-                                      BIb_C_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                      max_row_col_local_gw, &
-                                      sub_proc_map, local_col_row_info_gw, &
-                                      my_B_all_end, my_B_all_start)
             END IF
-
-            CALL timestop(handle3)
-
          END IF
 
       END DO
@@ -677,23 +640,10 @@ CONTAINS
                                     pw_env_external=pw_env_sub, task_list_external=task_list_sub)
             CALL timestop(handle3)
 
-            CALL timeset(routineN//"_mult_gw_trunc", handle3)
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_gw, &
-                                   0.0_dp, matrix_in_jnu, filter_eps=eps_filter)
-            CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_in_jnu, mo_coeff_all, &
-                                   0.0_dp, matrix_in_jm, filter_eps=eps_filter)
-
-            CALL timestop(handle3)
-
-            CALL timeset(routineN//"_E_Ex_2_trunc", handle3)
-
-            CALL copy_dbcsr_to_fm(matrix_in_jm, fm_BIb_gw)
-            CALL grep_my_integrals(para_env_sub, fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                   max_row_col_local_gw, &
-                                   sub_proc_map, local_col_row_info_gw, &
-                                   my_B_all_end, my_B_all_start)
-
-            CALL timestop(handle3)
+            CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu, matrix_in_jm, &
+                                      fm_BIb_gw, BIb_C_gw(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
+                                      mo_coeff_gw, mo_coeff_all, eps_filter, max_row_col_local_gw, sub_proc_map, &
+                                      local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_trunc")
 
          END DO
 
@@ -895,6 +845,63 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_parallelization_arrays
+
+! **************************************************************************************************
+!> \brief Encapsulate ERI postprocessing: AO to MO transformation and store in B matrix.
+!> \param para_env ...
+!> \param mat_munu ...
+!> \param matrix_ia_jnu ...
+!> \param matrix_ia_jb ...
+!> \param fm_BIb_jb ...
+!> \param BIb_jb ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param eps_filter ...
+!> \param max_row_col_local ...
+!> \param sub_proc_map ...
+!> \param local_col_row_info ...
+!> \param my_B_end ...
+!> \param my_B_start ...
+!> \param descr ...
+! **************************************************************************************************
+   SUBROUTINE ao_to_mo_and_store_B(para_env, mat_munu, matrix_ia_jnu, matrix_ia_jb, fm_BIb_jb, BIb_jb, &
+                                   mo_coeff_o, mo_coeff_v, eps_filter, &
+                                   max_row_col_local, sub_proc_map, local_col_row_info, &
+                                   my_B_end, my_B_start, descr)
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_dbcsr_p_type)                              :: mat_munu
+      TYPE(cp_dbcsr_type)                                :: matrix_ia_jnu, matrix_ia_jb
+      TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
+      REAL(KIND=dp), DIMENSION(:, :)                     :: BIb_jb
+      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp)                                      :: eps_filter
+      INTEGER                                            :: max_row_col_local
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info
+      INTEGER                                            :: my_B_end, my_B_start
+      CHARACTER(LEN=*)                                   :: descr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ao_to_mo_and_store_B'
+
+      INTEGER                                            :: handle1, handle2
+
+      CALL timeset(routineN//"_mult_"//descr, handle1)
+
+      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
+                             0.0_dp, matrix_ia_jnu, filter_eps=eps_filter)
+      CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
+                             0.0_dp, matrix_ia_jb, filter_eps=eps_filter)
+      CALL timestop(handle1)
+
+      CALL timeset(routineN//"_E_Ex_"//descr, handle2)
+      CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
+
+      CALL grep_my_integrals(para_env, fm_BIb_jb, BIb_jb, max_row_col_local, &
+                             sub_proc_map, local_col_row_info, &
+                             my_B_end, my_B_start)
+
+      CALL timestop(handle2)
+   END SUBROUTINE ao_to_mo_and_store_B
 
 ! **************************************************************************************************
 !> \brief ...
