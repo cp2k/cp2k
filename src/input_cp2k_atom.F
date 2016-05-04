@@ -983,6 +983,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="MAX_INIT", &
+                          description="Maximum number of re-initialization of Powell method", &
+                          usage="MAX_INIT 5", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL", &
                           description="Weight for virtual states in pseudopotential optimization", &
                           usage="WEIGHT_POT_VIRTUAL 1.0", &
