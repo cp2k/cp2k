@@ -468,20 +468,32 @@ allowed_gxx_flags() {
     echo $__result
 }
 
+# remove a directory to a given path
+remove_path() {
+    local __path_name=$1
+    local __directory=$2
+    local __path="$(eval echo \$$__path_name)"
+    # must remove all the middle ones first before treating two ends,
+    # otherwise there can be cases where not all __directory are
+    # removed.
+    __path=${__path//:$__directory:/:}
+    __path=${__path#$__directory:}
+    __path=${__path%:$__directory}
+    __path=$(echo "$__path" | sed "s:^$__directory\$::g")
+    eval $__path_name=\"$__path\"
+    export $__path_name
+}
+
 # prepend a directory to a given path
 prepend_path() {
     # prepend directory to $path_name and then export path_name. If
     # the directory already exists in path, bring the directory to the
     # front of the list.
-    local __path_name=$1
-    local __directory=$2
-    if eval [ x\"\$$__path_name\" = x ] ; then
-        eval $__path_name=\"$__directory\"
-    else
-        eval $__path_name=\"$__directory:\$$__path_name\"
-    fi
-    eval $__path_name=\"$(IFS=:; eval unique -d ':' \$$__path_name)\"
-    export $__path_name
+    # $1 is path name
+    # $2 is directory
+    remove_path "$1" "$2"
+    eval $1=\"$2\${$1:+\":\$$1\"}\"
+    eval export $1
 }
 
 # append a directory to a given path
@@ -489,23 +501,11 @@ append_path() {
     # append directory to $path_name and then export path_name. If
     # the directory already exists in path, bring the directory to the
     # back of the list.
-    #
-    # $1 is path_name
+    # $1 is path name
     # $2 is directory
-    local __path_name=$1
-    local __directory=$2
-    if eval [ x\"\$$__path_name\" = x ] ; then
-        eval $__path_name=\"$__directory\"
-    else
-        eval $__path_name=\"\$$__path_name:$__directory\"
-    fi
-    # here, we reverse the list, apply unique, and then reverse back,
-    # so that the last instance of the repeated directory is kept
-    eval $__path_name=\"$(IFS=':'; \
-                reverse -d ':' \
-                        $(unique -d ':' \
-                                 $(eval reverse -d ':' \$$__path_name)))\"
-    export $__path_name
+    remove_path "$1" "$2"
+    eval $1=\"\${$1:+\"\$$1:\"}$2\"
+    eval export $1
 }
 
 # helper routine for reading --enable=* input options
