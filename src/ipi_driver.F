@@ -335,6 +335,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER            :: subsys
       TYPE(section_vals_type), POINTER         :: drv_section, motion_section
       TYPE(virial_type), POINTER               :: virial
+      REAL(KIND=dp)                            :: sleeptime
 
       CALL timeset(routineN, handle)
 
@@ -360,6 +361,8 @@ CONTAINS
       CALL section_vals_val_get(drv_section, "HOST", c_val=drv_hostname)
       CALL section_vals_val_get(drv_section, "PORT", i_val=drv_port)
       CALL section_vals_val_get(drv_section, "UNIX", l_val=drv_unix)
+      CALL section_vals_val_get(drv_section, "SLEEP_TIME", r_val=sleeptime)
+      CPASSERT(sleeptime >= 0)
 
       ! opens the socket
       socket = 0
@@ -400,7 +403,7 @@ CONTAINS
             CALL mp_testany(wait_req(2:), flag=fwait)
             DO WHILE (.NOT. fwait)
                CALL mp_testany(wait_req(2:), flag=fwait)
-               CALL uwait(0.01d0)
+               CALL uwait(sleeptime)
             ENDDO
          ENDIF
 

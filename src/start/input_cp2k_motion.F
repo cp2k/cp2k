@@ -1537,6 +1537,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="SLEEP_TIME", &
+                          description="Sleeping time while waiting for for driver commands [s].", &
+                          usage="SLEEP_TIME 0.1", &
+                          default_r_val=0.01_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_driver_section
 
 ! **************************************************************************************************
