@@ -355,7 +355,8 @@ CONTAINS
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
          IF (.NOT. ASSOCIATED(gth_potential)) CYCLE
-         CALL get_potential(potential=gth_potential, nct_nlcc=mylmax)
+         CALL get_potential(potential=gth_potential, nct_nlcc=mylmax, nlcc_present=nlcc)
+         IF (.NOT. nlcc) CYCLE
          lmax_global = MAX(MAXVAL(mylmax), lmax_global)
       END DO
       !lmax_global set according to ni = 2*nc-2 below
