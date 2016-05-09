@@ -1096,7 +1096,6 @@ CONTAINS
 !>        the maximum overlap method
 ! **************************************************************************************************
    SUBROUTINE cp_fm_vectorssum(matrix, sum_array)
-  USE message_passing,  ONLY: mp_sum
       TYPE(cp_fm_type), POINTER                          :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: sum_array
 

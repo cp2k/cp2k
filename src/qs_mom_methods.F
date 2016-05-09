@@ -333,6 +333,14 @@ CONTAINS
                          TRIM(str_iter)//" due to the SCF guess method used.")
          ENDIF
          scf_control%diagonalization%mom_start = scf_iter
+      ELSE IF (scf_control%diagonalization%mom_start > scf_iter .AND. &
+               (scf_control%diagonalization%mom_occA(1) > 0 .OR. scf_control%diagonalization%mom_occB(1) > 0)) THEN
+         ! the keyword START_ITER has been provided for an excited state calculation, ignore it
+         CALL integer_to_string(scf_iter, str_iter)
+         CALL cp_warn(__LOCATION__, &
+                      "The maximum overlap method will be activated at the SCF iteration No. "// &
+                      TRIM(str_iter)//" because an excited state calculation has been requested")
+         scf_control%diagonalization%mom_start = scf_iter
       ENDIF
 
       ! MOM is now initialised properly

@@ -973,7 +973,8 @@ CONTAINS
          ELSE
             IF (output_unit > 0) WRITE (output_unit, '(4(1X,1F16.8))') mo_eigenvalues(1:homo)
          END IF
-         CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, smear=scf_control%smear)
+         IF (.NOT. scf_control%diagonalization%mom) &
+            CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, smear=scf_control%smear)
          IF (output_unit > 0) WRITE (output_unit, '(T2,A,F12.6)') &
             "Fermi Energy [eV] :", mos(ispin)%mo_set%mu*evolt
       ENDDO

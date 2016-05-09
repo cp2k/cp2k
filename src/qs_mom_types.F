@@ -58,7 +58,8 @@ CONTAINS
                           description="Define type and parameters for the maximum overlap method (MOM) "// &
                           "to determine orbital occupancies. "// &
                           "The MOM procedures activated by this section are only active for diagonalization "// &
-                          "methods, i.e. not with minimization methods based on OT.", &
+                          "methods, i.e. not with minimization methods based on OT. "// &
+                          "Incompatible with core-level excitation spectra (XAS).", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE., &
                           citations=(/Gilbert2008/))
 
@@ -75,7 +76,9 @@ CONTAINS
 
       CALL keyword_create(keyword, &
                           name="START_ITER", &
-                          description="SCF iteration cycle to start the MOM procedure", &
+                          description="SCF iteration cycle to start the MOM procedure. "// &
+                          "Could be used for ground state calculations only "// &
+                          "in order to stabilise oscillating SCF iterations", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=integer_t, &
