@@ -8,8 +8,9 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_exp
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cell_types,                      ONLY: cell_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
         cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
@@ -17,9 +18,12 @@ MODULE pao_param_exp
         cp_dbcsr_set, cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
+   USE pao_potentials,                  ONLY: pao_build_V_neighbors
    USE pao_types,                       ONLY: pao_env_type
+   USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_initial_guess,                ONLY: calculate_atomic_fock_matrix
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -47,41 +51,87 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: acol, arow, handle, natoms
+      INTEGER                                            :: acol, arow, handle, i, iatom, N
       LOGICAL                                            :: found
-      REAL(dp), DIMENSION(:), POINTER                    :: evals
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H, block_N, block_U0
+      REAL(dp)                                           :: probe
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: block_V
+      REAL(dp), DIMENSION(:), POINTER                    :: H_evals
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H, block_H0, block_N, block_U0, &
+                                                            H_evecs
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(cp_dbcsr_type)                                :: matrix_H0
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
-                      matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, &
-                      natom=natoms, &
-                      dft_control=dft_control)
-
-      IF (dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set)
 
       ! allocate matrix_U0
       CALL cp_dbcsr_init(pao%matrix_U0)
       CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
 
+      ! allocate matrix_H0
+      CALL cp_dbcsr_init(matrix_H0)
+      CALL cp_dbcsr_create(matrix_H0, template=matrix_s(1)%matrix)
+      CALL cp_dbcsr_reserve_diag_blocks(matrix_H0)
+
+      ! calculate inital atomic fock matrix H0
+      ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), it's not rotationally invariant
+      ! getting H0 directly from the atomic code
+      CALL calculate_atomic_fock_matrix(matrix_H0, &
+                                        particle_set, &
+                                        atomic_kind_set, &
+                                        qs_kind_set, &
+                                        output_unit=pao%iw)
+
+      ! diagonalize each block of H0 and store eigenvectors in U0
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_H, found=found)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=arow, col=acol, block=block_N, found=found)
-         CPASSERT(ASSOCIATED(block_H) .AND. ASSOCIATED(block_N))
-         block_U0 = MATMUL(MATMUL(block_N, block_H), block_N) ! transform H into orthonormal basis
-         ALLOCATE (evals(SIZE(block_H, 1)))
-         CALL diamat_all(block_U0, evals)
-         DEALLOCATE (evals)
+         iatom = arow; CPASSERT(arow == acol)
+         CALL cp_dbcsr_get_block_p(matrix=matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
+         CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_N))
+         N = SIZE(block_U0, 1)
+
+         ! build potential V
+         CALL pao_build_V_neighbors(particle_set, qs_kind_set, cell, iatom, block_V)
+
+         ! construct H
+         ALLOCATE (block_H(N, N))
+         block_H = MATMUL(MATMUL(block_N, block_H0+block_V), block_N) ! transform H0 into orthonormal basis
+
+         ! diagonalize H
+         ALLOCATE (H_evecs(N, N), H_evals(N))
+         H_evecs = block_H
+         CALL diamat_all(H_evecs, H_evals)
+
+         ! ensure H_evals are non-degenerate
+         DO i = 1, N-1
+            IF (H_evals(i+1)-H_evals(i) < 1e-4_dp) &
+               CPWARN("min_gap of H too small")
+         ENDDO
+
+         ! initialize with rudimentary sign-convention (allows regtesting rotational invariance)
+         DO i = 1, N
+            probe = SUM(MATMUL(MATMUL(TRANSPOSE(H_evecs(:, 1:1)), block_H0), H_evecs(:, i:i)))
+            block_U0(:, i) = SIGN(1.0_dp, probe)*H_evecs(:, i)
+         ENDDO
+
+         DEALLOCATE (block_H, H_evecs, H_evals, block_V)
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
+      CALL cp_dbcsr_release(matrix_H0)
 
       IF (pao%precondition) &
          CPABORT("PAO preconditioning not supported for selected parametrization.")
@@ -215,6 +265,7 @@ CONTAINS
          ! TURNING POINT (if calc grad) ------------------------------------------
          IF (PRESENT(matrix_G)) THEN
             CPASSERT(PRESENT(matrix_M))
+
             CALL cp_dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
             CPASSERT(ASSOCIATED(block_G))
             CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M, found=found)
@@ -243,7 +294,7 @@ CONTAINS
 
             ! return only gradient for rotations between occupied and virtuals
             DO i = 1, nparams
-               block_G(i, 1) = block_G_full(MOD(i-1, M)+1, M+(i-1)/M+1)
+               block_G(i, 1) = 2.0_dp*block_G_full(MOD(i-1, M)+1, M+(i-1)/M+1)
             ENDDO
 
             DEALLOCATE (block_D, block_tmp, block_G_full)
@@ -287,7 +338,7 @@ CONTAINS
       RFR = REAL(MATMUL(RF, TRANSPOSE(CONJG(R))))
 
       ! gradient dE/dX has to be anti-symmetric
-      G = TRANSPOSE(RFR)-RFR
+      G = 0.5_dp*(TRANSPOSE(RFR)-RFR)
 
       DEALLOCATE (RM, RMR, F, RF, RFR)
    END FUNCTION fold_derivatives

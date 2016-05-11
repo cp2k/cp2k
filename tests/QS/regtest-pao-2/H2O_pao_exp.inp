@@ -26,6 +26,10 @@
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH
+        &PRINT
+          &RESTART ON
+          &END RESTART
+        &END PRINT
       &END PAO
     &END
     &XC
