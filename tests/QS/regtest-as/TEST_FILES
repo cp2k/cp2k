@@ -5,4 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 # 
 h2o.inp                                                1      1e-12            -17.124348368678522
+be.inp                                                 1      1e-12            -14.49107600944466
 #EOF

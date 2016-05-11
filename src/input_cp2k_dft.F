@@ -53,32 +53,33 @@ MODULE input_cp2k_dft
         eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, gaussian_env, &
         general_roks, high_spin_roks, history_guess, kg_color_dsatur, kg_color_greedy, &
         kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, &
-        mao_basis_orb, mao_basis_prim, mopac_guess, no_excitations, no_guess, numerical, oe_gllb, &
-        oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, &
-        orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
-        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
-        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_direct, &
-        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_becke_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, &
-        pw_interp, ramp_env, random_guess, real_time_propagation, ref_charge_atomic, &
-        ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
-        rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        restart_guess, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
-        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
-        shape_function_gaussian, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, smear_energy_window, smear_fermi_dirac, smear_list, &
-        sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
-        tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, use_coulomb, use_diff, &
-        use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit, &
-        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
-        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
-        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, &
-        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, &
+        numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, &
+        op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, &
+        orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
+        ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
+        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update, &
+        outer_scf_becke_constraint, outer_scf_ddapc_constraint, outer_scf_none, &
+        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, outer_scf_optimizer_none, &
+        outer_scf_optimizer_sd, outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, &
+        plus_u_mulliken_charges, pw_interp, ramp_env, random_guess, real_time_propagation, &
+        ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, &
+        rel_sczora_mp, rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, &
+        rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, sccs_derivative_cd3, &
+        sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, &
+        shape_function_density, shape_function_gaussian, sic_ad, sic_eo, sic_list_all, &
+        sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, smear_energy_window, &
+        smear_fermi_dirac, smear_list, sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, &
+        tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, &
+        use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, &
+        wannier_projection, weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
+        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
+        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
+        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
+        xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
+        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
@@ -7438,14 +7439,15 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL keyword_create(keyword, &
-                          name="ORBITAL_SELECTION", &
+      CALL keyword_create(keyword, name="ORBITAL_SELECTION", &
                           description="Method used to select active space orbitals.", &
                           usage="ORBITAL_SELECTION CANONICAL", &
                           default_i_val=casci_canonical, &
-                          enum_c_vals=s2a("CANONICAL"), &
-                          enum_i_vals=(/casci_canonical/), &
-                          enum_desc=s2a("Select orbitals using energy ordering of canoncial orbitals"))
+                          enum_c_vals=s2a("CANONICAL", "WANNIER_PROJECTION", "MAO"), &
+                          enum_i_vals=(/casci_canonical, wannier_projection, mao_projection/), &
+                          enum_desc=s2a("Select orbitals using energy ordering of canoncial orbitals", &
+                                        "Select orbitals from projected Wannier functions", &
+                                        "Select orbitals from modified atomic orbitals"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -7458,6 +7460,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_eri_gpw(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_localize_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

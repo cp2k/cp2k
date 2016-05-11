@@ -1,0 +1,70 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 300
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-10
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC 
+      EPS_SCF 1.0E-5
+      &OT OFF
+        PRECONDITIONER FULL_ALL
+        MINIMIZER DIIS
+      &END
+      ADDED_MOS  2
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END
+        &MEMORY
+          MAX_MEMORY  10
+        &END
+      &END
+    &END XC
+    &POISSON
+        PERIODIC NONE
+        POISSON_SOLVER ANALYTIC
+    &END
+    &PRINT
+       &ACTIVE_SPACE
+          ACTIVE_ELECTRONS 4
+          ACTIVE_ORBITALS  3
+          ORBITAL_SELECTION CANONICAL
+          &ERI
+             METHOD   FULL_GPW
+             OPERATOR <1/R>
+          &END
+          &ERI_GPW
+             STORE_WFN T
+             PRINT_LEVEL LOW
+          &END
+          &FCIDUMP
+          &END
+       &END ACTIVE_SPACE
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+     Be   0.000000   0.000000    0.000000
+    &END COORD
+    &KIND Be
+      BASIS_SET ORB DZV-GTH-PADE
+      POTENTIAL GTH-PBE
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL

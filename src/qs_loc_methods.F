@@ -208,14 +208,14 @@ CONTAINS
          ! Possibly fallback to jacobi if the crazy rotation fails
          IF (.NOT. converged) THEN
             IF (qs_loc_env%localized_wfn_control%jacobi_fallback) THEN
-               IF (output_unit > 0) WRITE (output_unit, "(A,I6,A)") &
+               IF (output_unit > 0) WRITE (output_unit, "(T4,A,I6,/,T4,A)") &
                   " Crazy Wannier localization not converged after ", sweeps, &
                   " iterations, switching to jacobi rotations"
                CALL jacobi_rotations(weights, zij_fm_set, vectors, para_env, max_iter=max_iter, &
                                      eps_localization=eps_localization, sweeps=sweeps, &
                                      out_each=out_each, target_time=target_time, start_time=start_time)
             ELSE
-               IF (output_unit > 0) WRITE (output_unit, "(A,I6,A)") &
+               IF (output_unit > 0) WRITE (output_unit, "(T4,A,I6,/,T4,A)") &
                   " Crazy Wannier localization not converged after ", sweeps, &
                   " iterations, and jacobi_fallback switched off "
             ENDIF
@@ -240,13 +240,13 @@ CONTAINS
          END IF
       CASE (do_loc_none)
          IF (output_unit > 0) THEN
-            WRITE (output_unit, '(A,I6,A)') " No MOS localization applied "
+            WRITE (output_unit, '(T4,A,I6,A)') " No MOS localization applied "
          ENDIF
       CASE DEFAULT
          CPABORT("Unknown localization method")
       END SELECT
       IF (output_unit > 0) THEN
-         IF (sweeps <= max_iter) WRITE (output_unit, '(T15,A,I3,A,I6,A)') " Localization  for spin ", ispin, &
+         IF (sweeps <= max_iter) WRITE (output_unit, '(T4,A,I3,A,I6,A)') " Localization  for spin ", ispin, &
             " converged in ", sweeps, " iterations"
       ENDIF
 
@@ -471,12 +471,12 @@ CONTAINS
       IF (.NOT. my_only_init) CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin)
 
       IF (output_unit > 0) THEN
-         WRITE (output_unit, '(T10, A, 2x, A26, A26)') " Spread Functional ", "sum_in -w_i ln(|z_in|^2)", &
+         WRITE (output_unit, '(T4, A, 2x, A26, A26)') " Spread Functional ", "sum_in -w_i ln(|z_in|^2)", &
             "sum_in w_i(1-|z_in|^2)"
          IF (my_only_init) THEN
-            WRITE (output_unit, '(T4,A,10x,2F20.10)') " Initial Spread (Berry) : ", sum_spread_i, sum_spread_ii
+            WRITE (output_unit, '(T4,A,T38,2F20.10)') " Initial Spread (Berry) : ", sum_spread_i, sum_spread_ii
          ELSE
-            WRITE (output_unit, '(T4,A,10x,2F20.10)') " Total Spread (Berry) : ", sum_spread_i, sum_spread_ii
+            WRITE (output_unit, '(T4,A,T38,2F20.10)') " Total Spread (Berry) : ", sum_spread_i, sum_spread_ii
          END IF
       END IF
 

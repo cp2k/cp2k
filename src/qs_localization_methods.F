@@ -366,10 +366,9 @@ CONTAINS
       unit_nr = -1
       IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source) THEN
          unit_nr = cp_logger_get_default_unit_nr()
-         WRITE (unit_nr, '(T10,A )') "Localization by iterative Jacobi rotation"
-         WRITE (unit_nr, '(T20,A12,T40,A12,A8 )') "Iteration", "Tolerance", " Time "
+         WRITE (unit_nr, '(T4,A )') " Localization by iterative Jacobi rotation"
       END IF
-! do jacobi sweeps until converged
+      ! do jacobi sweeps until converged
       DO WHILE (tolerance >= eps_localization .AND. sweeps < max_iter)
          sweeps = sweeps+1
          t1 = m_walltime()
@@ -390,7 +389,8 @@ CONTAINS
          CALL check_tolerance(c_zij, weights, tolerance)
          t2 = m_walltime()
          IF (unit_nr > 0 .AND. MODULO(sweeps, out_each) == 0) THEN
-            WRITE (unit_nr, '(T20,I12,T40,E12.4,F8.3)') sweeps, tolerance, t2-t1
+            WRITE (unit_nr, '(T4,A,I7,T30,A,E12.4,T60,A,F8.3)') &
+               "Iteration:", sweeps, "Tolerance:", tolerance, "Time:", t2-t1
             CALL m_flush(unit_nr)
          ENDIF
       END DO
@@ -423,7 +423,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: istate, jstate
       TYPE(cp_cfm_p_type) :: zij(:)
       REAL(KIND=dp), INTENT(IN) :: st, ct
-! Locals
+      ! Locals
       INTEGER :: idim, nstate
       COMPLEX(KIND=dp) :: st_cmplx
 #if defined(__SCALAPACK)
@@ -981,7 +981,7 @@ CONTAINS
       ndim = (SIZE(zij, 2))
 
       IF (output_unit > 0) THEN
-         WRITE (output_unit, '(T10,A )') "Localization by direct minimization of the functional; "
+         WRITE (output_unit, '(T4,A )') "Localization by direct minimization of the functional; "
          WRITE (output_unit, '(T5,2A13,A20,A20,A10 )') " Line search ", " Iteration ", " Functional ", " Tolerance ", " ds Min "
       END IF
 
@@ -1488,7 +1488,7 @@ CONTAINS
       ALLOCATE (rmat_recv_all(nblock_max*2, nblock_max, 0:para_env%num_pe-1))
 
       IF (output_unit > 0) THEN
-         WRITE (output_unit, '(T10,A )') "Localization by iterative distributed Jacobi rotation"
+         WRITE (output_unit, '(T4,A )') " Localization by iterative distributed Jacobi rotation"
          WRITE (output_unit, '(T20,A12,T32, A22,T60, A12,A8 )') "Iteration", "Functional", "Tolerance", " Time "
       END IF
 

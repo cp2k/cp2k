@@ -974,7 +974,9 @@ MODULE input_constants
                                                rlaxisint_readfromfile = 33
 
    ! Active Space Section: orbital selection methods
-   INTEGER, PARAMETER, PUBLIC               :: casci_canonical = 100
+   INTEGER, PARAMETER, PUBLIC               :: casci_canonical = 100, &
+                                               wannier_projection = 101, &
+                                               mao_projection = 102
    INTEGER, PARAMETER, PUBLIC               :: eri_method_full_gpw = 1, &
                                                eri_method_gpw_ht = 2
    INTEGER, PARAMETER, PUBLIC               :: eri_operator_coulomb = 1, &
