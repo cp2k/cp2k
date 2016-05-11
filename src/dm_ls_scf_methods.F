@@ -690,6 +690,8 @@ CONTAINS
          delta_n = nelectron-trace_fx
          IF ((ABS(frob_id/frob_x) < SQRT(threshold)) .AND. (ABS(delta_n) < 0.5_dp)) THEN
             gam = 3.0_dp
+         ELSE IF (ABS(delta_n) < 1e-14_dp) THEN
+            gam = 0.0_dp ! rare case of perfect electron count
          ELSE
             ! make sure, we don't divide by zero, as soon as gam is outside the interval gam_min,gam_max, it doesn't matter
             gam = delta_n/MAX(trace_gx, ABS(delta_n)/100)
