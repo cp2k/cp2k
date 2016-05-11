@@ -32,6 +32,8 @@ EXTSDIR      := exts
 EXTSHOME     := $(CP2KHOME)/$(EXTSDIR)
 EXTSPACKAGES := $(shell cd $(EXTSHOME) ; find * -maxdepth 0 -type d )
 
+PYTHON       := /usr/bin/env python
+
 # Common Targets ============================================================
 default_target: all
 
@@ -66,7 +68,7 @@ endif
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
-         toolversions extversions extclean libcp2k exts \
+         toolversions extversions extclean libcp2k exts python-bindings \
          doxify doxifyclean \
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help \
@@ -79,7 +81,7 @@ ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.F")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.c")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path "*/python*" -name "*.c")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cc")
@@ -111,7 +113,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions extversions extclean libcp2k exts $(EXTSPACKAGES) test testbg:
+$(EXE_NAMES) all toolversions extversions extclean libcp2k exts $(EXTSPACKAGES) python-bindings test testbg:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -140,6 +142,15 @@ testbg: dirs makedep all
 
 libcp2k: makedep | dirs exts
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
+
+python-bindings: libcp2k
+	@cd $(SRCDIR)/start/python ; \
+		env CC='$(CC)' LDSHARED='$(LD) -shared' CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LDFLAGS_C) $(LIBS)' \
+			$(PYTHON) setup.py build_ext \
+				--build-temp="$(OBJDIR)/python" \
+				--build-lib="$(LIBDIR)/python" \
+				--library-dirs="$(LIBDIR)" \
+				--libraries="$(patsubst -l%,%,$(filter -l%,$(LIBS)))"
 
 exts: $(EXTSPACKAGES)
 
@@ -186,7 +197,7 @@ endif
 	$(MAKE) --version
 	@echo ""
 	@echo "========= Python ($(ONEVERSION)) ========="
-	/usr/bin/env python --version
+	$(PYTHON) --version
 
 else
 
