@@ -31,12 +31,14 @@ MODULE particle_types
    ! Data types
 ! **************************************************************************************************
    TYPE particle_type
-      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
-      REAL(KIND=dp), DIMENSION(3)         :: f, & ! force
-                                             r, & ! position
-                                             v ! velocity
+      TYPE(atomic_kind_type), POINTER       :: atomic_kind => Null() ! atomic kind information
+      REAL(KIND=dp), DIMENSION(3)           :: f = 0.0_dp, & ! force
+                                               r = 0.0_dp, & ! position
+                                               v = 0.0_dp ! velocity
       ! Particle dependent terms for shell-model
-      INTEGER                               :: atom_index, t_region_index, shell_index
+      INTEGER                               :: atom_index = -1, &
+                                               t_region_index = -1, &
+                                               shell_index = -1
    END TYPE particle_type
 
    ! Public data types
