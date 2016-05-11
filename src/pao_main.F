@@ -31,6 +31,7 @@ MODULE pao_main
         pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, pao_calc_energy, &
         pao_calc_outer_grad_lnv, pao_check_grad, pao_check_trace_ps, pao_print_atom_info, &
         pao_read_preopt_dm, pao_test_convergence
+   USE pao_ml,                          ONLY: pao_machine_learning_init
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
                                               pao_opt_init,&
                                               pao_opt_new_dir
@@ -103,6 +104,8 @@ CONTAINS
          CALL pao_build_matrix_X(pao, qs_env)
          IF (LEN_TRIM(pao%restart_file) > 0) THEN
             CALL pao_read_restart(pao, qs_env)
+         ELSE IF (LEN_TRIM(pao%ml_training_file) > 0) THEN
+            CALL pao_machine_learning_init(pao, qs_env)
          ELSE
             CALL pao_param_initial_guess(pao, qs_env)
          ENDIF

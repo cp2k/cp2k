@@ -10,6 +10,7 @@
 MODULE pao_types
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE linesearch,                      ONLY: linesearch_type
 #include "./base/base_uses.f90"
@@ -20,7 +21,7 @@ MODULE pao_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_types'
 
-   PUBLIC :: pao_env_type
+   PUBLIC :: pao_env_type, training_matrix_type
 
    TYPE pao_env_type
       ! input values
@@ -41,6 +42,12 @@ MODULE pao_types
       INTEGER                          :: cg_init_steps = -1
       CHARACTER(LEN=default_path_length) :: preopt_dm_file = ""
       CHARACTER(LEN=default_path_length) :: restart_file = ""
+      CHARACTER(LEN=default_path_length) :: ml_training_file = ""
+
+      INTEGER                          :: ml_method = -1
+      REAL(KIND=dp)                    :: ml_tolerance = 0.0_dp
+      REAL(KIND=dp)                    :: gp_noise_var = 0.0_dp
+      REAL(KIND=dp)                    :: gp_scale = 0.0_dp
 
       ! output units
       INTEGER                          :: iw = -1
@@ -74,5 +81,13 @@ MODULE pao_types
       TYPE(cp_dbcsr_type)              :: matrix_precon_inv
 
    END TYPE
+
+   TYPE training_matrix_type
+      CHARACTER(LEN=default_string_length)      :: kindname = ""
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: inputs
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: outputs
+      REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: NN ! Neural Network
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: GP ! Gaussian Process
+   END TYPE training_matrix_type
 
 END MODULE pao_types

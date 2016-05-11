@@ -39,8 +39,11 @@ MODULE pao_input
                                                pao_fock_param = 102, &
                                                pao_exp_param = 103, &
                                                pao_gth_param = 104, &
+                                               pao_gthexp_param = 105, &
                                                pao_opt_cg = 301, &
-                                               pao_opt_bfgs = 302
+                                               pao_opt_bfgs = 302, &
+                                               pao_ml_gp = 401, &
+                                               pao_ml_nn = 402
 
 CONTAINS
 
@@ -118,14 +121,29 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "NUM_GRADIENT_EPS", pao%num_grad_eps
       IF (pao%num_grad_eps < 0.0_dp) CPABORT("PAO: NUM_GRADIENT_EPS < 0")
 
-      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PREOPT_DM_FILE", c_val=pao%preopt_dm_file)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "PREOPT_DM_FILE ", TRIM(pao%preopt_dm_file)
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PRINT%RESTART%WRITE_CYCLES", i_val=pao%write_cycles)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "PRINT%RESTART%WRITE_CYCLES", pao%write_cycles
 
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%RESTART_FILE", c_val=pao%restart_file)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "RESTART_FILE ", TRIM(pao%restart_file)
 
-      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PRINT%RESTART%WRITE_CYCLES", i_val=pao%write_cycles)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "PRINT%RESTART%WRITE_CYCLES", pao%write_cycles
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PREOPT_DM_FILE", c_val=pao%preopt_dm_file)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "PREOPT_DM_FILE ", TRIM(pao%preopt_dm_file)
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%MACHINE_LEARNING%TRAINING_FILE", c_val=pao%ml_training_file)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "MACHINE_LEARNING%TRAINING_FILE ", TRIM(pao%ml_training_file)
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%MACHINE_LEARNING%METHOD", i_val=pao%ml_method)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%METHOD", id2str(pao%ml_method)
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%MACHINE_LEARNING%TOLERANCE", r_val=pao%ml_tolerance)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%TOLERANCE", pao%ml_tolerance
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%MACHINE_LEARNING%GP_NOISE_VAR", r_val=pao%gp_noise_var)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%GP_NOISE_VAR", pao%gp_noise_var
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%MACHINE_LEARNING%GP_SCALE", r_val=pao%gp_scale)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%GP_SCALE", pao%gp_scale
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "" ! an empty separator line
 
@@ -143,6 +161,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'id2str', routineP = moduleN//':'//routineN
 
       SELECT CASE (id)
+      CASE (pao_gthexp_param)
+         s = "GTHEXP"
       CASE (pao_gth_param)
          s = "GTH"
       CASE (pao_rotinv_param)
@@ -155,6 +175,10 @@ CONTAINS
          s = "CG"
       CASE (pao_opt_bfgs)
          s = "BFGS"
+      CASE (pao_ml_gp)
+         s = "GAUSSIAN_PROCESS"
+      CASE (pao_ml_nn)
+         s = "NEURAL_NETWORK"
       CASE DEFAULT
          CPABORT("PAO: unknown id")
       END SELECT
@@ -210,9 +234,11 @@ CONTAINS
       ! Parametrization **********************************************************
       CALL keyword_create(keyword, name="PARAMETERIZATION", &
                           description="Parametrization of the mapping between the primary and the PAO basis.", &
-                          enum_c_vals=s2a("GTH", "ROTINV", "FOCK", "EXP"), &
-                          enum_i_vals=(/pao_gth_param, pao_rotinv_param, pao_fock_param, pao_exp_param/), &
+                          enum_c_vals=s2a("GTH", "GTHEXP", "ROTINV", "FOCK", "EXP"), &
+                          enum_i_vals=(/pao_gth_param, pao_gthexp_param, pao_rotinv_param, &
+                                        pao_fock_param, pao_exp_param/), &
                           enum_desc=s2a("Parametrization based on GTH pseudo potentials", &
+                                        "Parametrization based on GTH pseudo potentials and matrix exponential", &
                                         "Rotational invariant parametrization", &
                                         "Fock matrix parametrization", &
                                         "Original matrix exponential parametrization"), &
@@ -278,6 +304,45 @@ CONTAINS
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      ! Machine Learning *********************************************************
+      CALL section_create(subsection, name="MACHINE_LEARNING", description="Machine learning section")
+
+      CALL keyword_create(keyword, name="METHOD", &
+                          description="Machine learning scheme used to predict PAO basis sets.", &
+                          enum_c_vals=s2a("GAUSSIAN_PROCESS", "NEURAL_NETWORK"), &
+                          enum_i_vals=(/pao_ml_gp, pao_ml_nn/), &
+                          enum_desc=s2a("Gaussian Process", "Neural Network"), &
+                          default_i_val=pao_ml_gp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TOLERANCE", &
+                          description="Maximum variance tolerated when making predictions.", &
+                          default_r_val=1.0E-2_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TRAINING_FILE", &
+                          description="File which constains a lists PAO-restart file used for training.", &
+                          repeats=.FALSE., default_c_val="")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="GP_NOISE_VAR", &
+                          description="Variance of noise used for Gaussian Process machine learning.", &
+                          default_r_val=0.1_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="GP_SCALE", &
+                          description="Length scale used for Gaussian Process machine learning.", &
+                          default_r_val=0.05_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       ! Output *******************************************************************
       CALL section_create(subsection, name="PRINT", &

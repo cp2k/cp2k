@@ -1,0 +1,7 @@
+# reference
+2H2O_dist_3.4_pao_ref.inp         11     2e-13     -34.445924709096801
+# predict using a Gaussian Process
+2H2O_dist_3.4_pao_GP.inp          11     1e-5      -34.445924709096801
+# predict using a Neural Network
+2H2O_dist_3.4_pao_NN.inp          11     1e-5      -34.445924709096801
+#EOF
