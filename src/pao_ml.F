@@ -114,8 +114,8 @@ CONTAINS
                         file_action="READ", unit_number=unit_nr)
          DO WHILE (.TRUE.)
             READ (unit_nr, IOSTAT=istat, FMT='(A)') line
-            line = ADJUSTL(line)
             IF (istat /= 0) EXIT ! end of file reached
+            line = ADJUSTL(line)
             IF (LEN_TRIM(line) == 0) CYCLE ! skip empty line
             IF (line(1:1) == "!" .OR. line(1:1) == "#") CYCLE ! skipt comment
 
