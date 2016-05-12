@@ -323,7 +323,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: npgfb
       REAL(KIND=dp), DIMENSION(npgfb), INTENT(IN)        :: zetb
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: hab
       INTEGER, INTENT(IN)                                :: i1, i2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a
       INTEGER, INTENT(IN)                                :: sgfa, nsgfa
@@ -362,7 +362,7 @@ CONTAINS
       CALL dgemm("N", "N", nsgfa, nsgfb, ncob, &
                  1.0_dp, hab_half(1, 1), SIZE(hab_half, 1), &
                  sphi_b(1, sgfb), SIZE(sphi_b, 1), &
-                 1.0_dp, hab(i1, i2), SIZE(hab, 1)) ! TODO: why add original matrix?
+                 0.0_dp, hab(i1, i2), SIZE(hab, 1))
 
    END SUBROUTINE eri_mme_2c_integrate_set
 

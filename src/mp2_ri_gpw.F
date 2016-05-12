@@ -1952,12 +1952,9 @@ CONTAINS
          L_local_col = 0.0_dp
 
          IF (eri_method .EQ. do_eri_mme .AND. my_ri_metric .EQ. ri_coulomb) THEN
-            IF (para_env_sub%num_pe .EQ. para_env%num_pe) THEN
-               CALL eri_mme_2c_integrate(eri_param, para_env, qs_env, L_local_col, &
-                                         basis_type_a="RI_AUX", basis_type_b="RI_AUX")
-            ELSE
-               CPABORT("GROUP_SIZE (NUMBER_PROC) in WF_CORRELATION section must be set to -1")
-            ENDIF
+            CALL eri_mme_2c_integrate(eri_param, para_env_sub, qs_env, &
+                                      basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
+                                      hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end)
 
          ELSEIF (eri_method .EQ. do_eri_gpw .OR. my_ri_metric .NE. ri_coulomb) THEN
 

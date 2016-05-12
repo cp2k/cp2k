@@ -94,33 +94,99 @@ CONTAINS
    END SUBROUTINE eri_mme_integrate_finalize
 
 ! **************************************************************************************************
-!> \brief high-level integration routine for 2c integrals over CP2K basis sets.
-!>        Parallelization over pairs of sets.
-!> \param param ...
-!> \param para_env ...
+!> \brief get pointer to atom, pointer to set and offset in a set for each spherical orbital of a
+!>        basis.
 !> \param qs_env ...
-!> \param hab ...
+!> \param basis_type ...
+!> \param eri_offsets (:,1) atom numbers
+!>                    (:,2) set numbers
+!>                    (:,3) set offsets
+! **************************************************************************************************
+   SUBROUTINE get_eri_offsets(qs_env, basis_type, eri_offsets)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: eri_offsets
+
+      INTEGER                                            :: dimen_basis, iatom, ikind, iset, isgf, &
+                                                            natom, nkind, nset, nsgf, offset, &
+                                                            set_offset
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      INTEGER, DIMENSION(:), POINTER                     :: nsgf_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set)
+
+      nkind = SIZE(qs_kind_set)
+      natom = SIZE(particle_set)
+      ALLOCATE (kind_of(natom))
+
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+
+      dimen_basis = 0
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type=basis_type)
+         dimen_basis = dimen_basis+nsgf
+      END DO
+
+      ALLOCATE (eri_offsets(dimen_basis, 3))
+
+      offset = 0
+      DO iatom = 1, natom
+         ikind = kind_of(iatom)
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set, basis_type=basis_type)
+         nset = basis_set%nset
+         nsgf_set => basis_set%nsgf_set
+         DO iset = 1, nset
+            set_offset = 0
+            DO isgf = 1, nsgf_set(iset)
+               set_offset = set_offset+1
+               eri_offsets(offset+set_offset, :) = [iatom, iset, set_offset]
+            ENDDO
+            offset = offset+nsgf_set(iset)
+         ENDDO
+      ENDDO
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief high-level integration routine for 2c integrals over CP2K basis sets.
+!>        Contiguous column-wise distribution and parallelization over pairs of sets.
+!> \param param ...
+!> \param para_env mpi environment for local columns
+!> \param qs_env ...
 !> \param basis_type_a ...
 !> \param basis_type_b ...
+!> \param hab columns of ERI matrix
+!> \param first_b first column of hab
+!> \param last_b last column of hab
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_2c_integrate(param, para_env, qs_env, hab, basis_type_a, basis_type_b)
+   SUBROUTINE eri_mme_2c_integrate(param, para_env, qs_env, basis_type_a, basis_type_b, hab, first_b, last_b)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type_a, basis_type_b
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: hab
+      INTEGER, INTENT(IN)                                :: first_b, last_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_2c_integrate', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, iatom, ikind, iset, jatom, jkind, jset, my_setpair, n_setpair, natom, &
-         nkind, nseta, nseta_total, nsetb, nsetb_total, offset_a, offset_b, sgfa, sgfb
+      INTEGER :: atom_end, atom_start, first_set, handle, iatom, ikind, iset, jatom, jkind, jset, &
+         jset_end, jset_start, last_set, my_setpair, n_setpair, natom, nkind, nseta, nseta_total, &
+         nsetb, nsetb_total, offset_a_end, offset_a_start, offset_b_end, offset_b_start, set_end, &
+         set_offset_end, set_offset_start, set_start, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: eri_offsets
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: map_it_here
       REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: hab_full_set
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sphi_a, sphi_b, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -131,18 +197,26 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL eri_mme_integrate_prepare(param)
+      ! get mapping between ERIs and atoms, sets, set offsets
+      CALL get_eri_offsets(qs_env, basis_type_b, eri_offsets)
 
+      atom_start = eri_offsets(first_b, 1)
+      set_start = eri_offsets(first_b, 2)
+      set_offset_start = eri_offsets(first_b, 3)
+
+      atom_end = eri_offsets(last_b, 1)
+      set_end = eri_offsets(last_b, 2)
+      set_offset_end = eri_offsets(last_b, 3)
+
+      ! get QS stuff
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
                       cell=cell, particle_set=particle_set)
-
       nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
-
       ALLOCATE (kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
-      ! get total number of set pairs to integrate
+      ! get total number of local set pairs to integrate
       nseta_total = 0
       DO iatom = 1, natom
          ikind = kind_of(iatom)
@@ -151,7 +225,7 @@ CONTAINS
       ENDDO
 
       nsetb_total = 0
-      DO jatom = 1, natom
+      DO jatom = atom_start, atom_end
          jkind = kind_of(jatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b, basis_type=basis_type_b)
          nsetb_total = nsetb_total+basis_set_b%nset
@@ -160,9 +234,10 @@ CONTAINS
       n_setpair = nseta_total*nsetb_total
 
       ! integrate
+      CALL eri_mme_integrate_prepare(param)
       my_setpair = 0
 
-      offset_a = 0
+      offset_a_end = 0
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type=basis_type_a)
@@ -179,11 +254,12 @@ CONTAINS
          ra(:) = pbc(particle_set(iatom)%r, cell)
 
          DO iset = 1, nseta
-            offset_a = offset_a+nsgfa(iset)
+            offset_a_start = offset_a_end
+            offset_a_end = offset_a_end+nsgfa(iset)
             sgfa = first_sgfa(1, iset)
 
-            offset_b = 0
-            DO jatom = 1, natom
+            offset_b_end = 0
+            DO jatom = atom_start, atom_end
                jkind = kind_of(jatom)
                CALL get_qs_kind(qs_kind=qs_kind_set(jkind), basis_set=basis_set_b, basis_type=basis_type_b)
 
@@ -200,19 +276,32 @@ CONTAINS
                rab(:) = ra(:)-rb(:) ! pbc not needed
                dab = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)
 
-               DO jset = 1, nsetb
-                  offset_b = offset_b+nsgfb(jset)
+               jset_start = 1; jset_end = nsetb
+               IF (jatom == atom_start) jset_start = set_start
+               IF (jatom == atom_end) jset_end = set_end
+
+               DO jset = jset_start, jset_end
+                  first_set = MERGE(set_offset_start, 1, jset == jset_start .AND. jatom == atom_start)
+                  last_set = MERGE(set_offset_end, nsgfb(jset), jset == jset_end .AND. jatom == atom_end)
+                  offset_b_start = offset_b_end
+                  offset_b_end = offset_b_end+last_set+1-first_set
                   sgfb = first_sgfb(1, jset)
                   my_setpair = my_setpair+1
                   map_it_here = MODULO(my_setpair, para_env%num_pe) == para_env%mepos
 
                   IF (map_it_here) THEN
-                     CALL eri_mme_2c_integrate_set(param, la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
+                     ALLOCATE (hab_full_set(nsgfa(iset), nsgfb(jset)))
+                     CALL eri_mme_2c_integrate_set(param, &
+                                                   la_min(iset), la_max(iset), lb_min(jset), lb_max(jset), &
                                                    npgfa(iset), zeta(:, iset), npgfb(jset), zetb(:, jset), &
                                                    ra, rb, &
-                                                   hab, offset_a-nsgfa(iset)+1, offset_b-nsgfb(jset)+1, &
+                                                   hab_full_set, 1, 1, &
                                                    sphi_a, sgfa, nsgfa(iset), &
                                                    sphi_b, sgfb, nsgfb(jset))
+
+                     hab(offset_a_start+1:offset_a_end, offset_b_start+1:offset_b_end) = &
+                        hab_full_set(:, first_set:last_set)
+                     DEALLOCATE (hab_full_set)
                   ENDIF
                ENDDO
             ENDDO
