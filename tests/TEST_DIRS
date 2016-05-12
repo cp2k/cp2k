@@ -4,6 +4,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 QS/regtest-gpw-9                                            libxc
+QS/regtest-as                                               libint
 Fist/regtest-plumed2                                        plumed2 
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2 
 QS/regtest-sccs-3
@@ -199,4 +200,3 @@ QS/regtest-fftw                                             fftw3
 optimize_input/regtest-1
 FE/regtest-2
 Fist/regtest-quip                                           quip 
-QS/regtest-as
