@@ -3293,6 +3293,7 @@ CONTAINS
       MARK_USED(request)
       MARK_USED(tag)
       ierr = 1
+      request = 0
       CALL mp_stop(ierr, "mp_isend called in non parallel case")
 #endif
    END SUBROUTINE mp_isend_custom
@@ -3332,6 +3333,7 @@ CONTAINS
       MARK_USED(request)
       MARK_USED(tag)
       ierr = 1
+      request = 0
       CPABORT("mp_irecv called in non parallel case")
 #endif
    END SUBROUTINE mp_irecv_custom

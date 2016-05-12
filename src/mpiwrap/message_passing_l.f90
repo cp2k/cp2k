@@ -2789,6 +2789,7 @@
     MARK_USED(request)
     MARK_USED(tag)
     ierr=1
+    request=0
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
     CALL mp_timestop(handle)
@@ -2854,6 +2855,7 @@
     MARK_USED(request)
     MARK_USED(tag)
     ierr=1
+    request=0
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
     CALL mp_timestop(handle)
@@ -2924,6 +2926,7 @@
     MARK_USED(request)
     MARK_USED(tag)
     ierr=1
+    request=0
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
     CALL mp_timestop(handle)
@@ -2987,6 +2990,7 @@
     MARK_USED(comm)
     MARK_USED(request)
     MARK_USED(tag)
+    request=0
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_lv
@@ -3050,6 +3054,7 @@
     MARK_USED(comm)
     MARK_USED(request)
     MARK_USED(tag)
+    request=0
     CPABORT("mp_irecv called in non parallel case")
 #endif
     CALL mp_timestop(handle)
@@ -3119,6 +3124,7 @@
     MARK_USED(comm)
     MARK_USED(request)
     MARK_USED(tag)
+    request=0
     CPABORT("mp_irecv called in non parallel case")
 #endif
     CALL mp_timestop(handle)
