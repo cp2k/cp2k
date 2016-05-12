@@ -3462,7 +3462,7 @@ CONTAINS
 !
 !     **********
 
-      sgnd = dp_loc*(dx/ABS(dx))
+      sgnd = dp_loc*SIGN(1.0_dp,dx)
 
 !     First case: A higher function value. The minimum is bracketed.
 !     If the cubic step is closer to stx than the quadratic step, the
