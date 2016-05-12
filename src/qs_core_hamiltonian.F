@@ -79,11 +79,12 @@ MODULE qs_core_hamiltonian
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_deallocate_matrix_set, &
-        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj
+        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
+        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
                                               cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -224,6 +225,9 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
       nimages = dft_control%nimages
+      IF (ofdft) THEN
+         CPASSERT(nimages == 1)
+      END IF
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
@@ -344,14 +348,17 @@ CONTAINS
       DO img = 1, nimages
          ALLOCATE (matrix_h(1, img)%matrix)
          CALL cp_dbcsr_init(matrix_h(1, img)%matrix)
+         CALL cp_dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, 1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
          IF (.NOT. ofdft) THEN
             CALL cp_dbcsr_copy(matrix_h(1, img)%matrix, matrix_t(1, img)%matrix, &
-                               name="CORE HAMILTONIAN MATRIX")
-            ! relativistic atomic correction to kinetic energy
+                               keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
          END IF
       END DO
       IF (.NOT. ofdft) THEN
+         ! relativistic atomic correction to kinetic energy
          IF (qs_env%rel_control%rel_method /= rel_none) THEN
+            CPASSERT(nimages == 1)
             IF (qs_env%rel_control%rel_transformation == rel_trans_atom) THEN
                CALL build_atomic_relmat(matrix_h(1, 1)%matrix, &
                                         atomic_kind_set, qs_kind_set, particle_set)
