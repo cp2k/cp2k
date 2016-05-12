@@ -278,6 +278,7 @@ CONTAINS
       MARK_USED(numProcRow)
       MARK_USED(numProcCol)
       MARK_USED(outputFileIndex)
+      cp_pexsi_plan_initialize = 0
       CPABORT("Requires linking to the PEXSI library.")
 #endif
    END FUNCTION cp_pexsi_plan_initialize
