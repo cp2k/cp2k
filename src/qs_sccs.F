@@ -473,7 +473,11 @@ CONTAINS
             END DO
 !$OMP         END PARALLEL DO
             CALL pw_scale(v_sccs, dvol)
-
+            DO di = 1, 3
+               DO dj = 1, 3
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, d2rho_elec(dj, di)%pw)
+               END DO
+            END DO
          END IF
 
          ! Release storage
