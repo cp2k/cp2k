@@ -320,6 +320,7 @@ CONTAINS
 #if defined (__LIBXC)
       CALL xc_libxc_wrap_version(version)
 #else
+      version="none"
       CPABORT("In order to use libxc you need to download and install it")
 #endif
 
