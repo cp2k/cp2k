@@ -465,7 +465,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set, basis_type=basis_type)
          DO i = LBOUND(basis_set%l, 1), UBOUND(basis_set%l, 1)
             DO j = LBOUND(basis_set%l, 2), UBOUND(basis_set%l, 2)
-               IF ((basis_set%zet(i, j) .EQ. zet_m) .AND. (basis_set%l(i, j) .GT. l_zet)) THEN
+               IF (ABS(zet_m-basis_set%zet(i, j)) .LE. (zet_m*1.0E-12_dp) .AND. (basis_set%l(i, j) .GT. l_zet)) THEN
                   l_zet = basis_set%l(i, j)
                ENDIF
                IF ((basis_set%l(i, j) .EQ. l_m) .AND. (basis_set%zet(i, j) .GT. zet_l)) THEN

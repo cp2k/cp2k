@@ -81,7 +81,6 @@ CONTAINS
          exp_tot = EXP(-alpha*G**2)*EXP(gaussi*G*R)
          G_pow_l = 1.0_dp
          DO l = 0, l_max
-            !G_pow_l = G**l
             S_G_c(l) = S_G_c(l)+G_pow_l*(-1.0_dp)**l*exp_tot
             G_pow_l = G_pow_l*G
          ENDDO
@@ -213,11 +212,13 @@ CONTAINS
       INTEGER                                            :: gx, gy, gz, k, l, l_max, lx, ly, lz
       INTEGER, DIMENSION(3)                              :: g_xyz, l_xyz
       REAL(KIND=dp)                                      :: G_sq, Ik
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_pow_l
       REAL(KIND=dp), DIMENSION(3)                        :: G
       REAL(KIND=dp), DIMENSION(3, 3)                     :: ht
 
       l_max = UBOUND(S_G, 1)
       ht = twopi*TRANSPOSE(h_inv)
+      ALLOCATE (G_pow_l(3, 0:l_max))
       ALLOCATE (Ig(0:l_max, 0:l_max, 0:l_max))
       Ig(:, :, :) = 0.0_dp
       DO gx = G_min(1), G_c(1)
@@ -227,6 +228,12 @@ CONTAINS
          G = MATMUL(ht, g_xyz)
          G_sq = G(1)**2+G(2)**2+G(3)**2
          exp_tot = EXP(-alpha*G_sq)*EXP(-gaussi*DOT_PRODUCT(G, -R))
+         DO k = 1, 3
+            G_pow_l(k, 0) = 1.0_dp
+            DO l = 1, l_max
+               G_pow_l(k, l) = G_pow_l(k, l-1)*G(k)
+            ENDDO
+         ENDDO
          IF (.NOT. (gx .EQ. 0 .AND. gy .EQ. 0 .AND. gz .EQ. 0)) THEN
             DO l = 0, l_max
             DO lx = 0, l
@@ -235,7 +242,7 @@ CONTAINS
                l_xyz = [lx, ly, lz]
                Ik = 1.0_dp
                DO k = 1, 3
-                  Ik = Ik*G(k)**(l_xyz(k))
+                  Ik = Ik*G_pow_l(k, l_xyz(k))
                ENDDO
                Ig(lx, ly, lz) = Ig(lx, ly, lz)+exp_tot/G_sq*Ik*(-gaussi)**l/vol
             ENDDO
@@ -270,12 +277,13 @@ CONTAINS
                                                             lz, sx, sy, sz
       INTEGER, DIMENSION(3)                              :: l_xyz, s_xyz
       REAL(KIND=dp)                                      :: exp_tot, Ik, R_sq
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_to_c, R_pow_l
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Is, S_R_C
       REAL(KIND=dp), DIMENSION(3)                        :: Rp
 
       l_max = UBOUND(S_R, 1)
       ALLOCATE (S_R_C(0:l_max, 0:l_max, 0:l_max))
+      ALLOCATE (R_pow_l(3, 0:l_max))
       ALLOCATE (Is(0:l_max, 0:l_max, 0:l_max))
 
       S_R(:, :, :) = 0.0_dp
@@ -289,6 +297,12 @@ CONTAINS
          Rp = MATMUL(hmat, s_xyz)
          R_sq = (Rp(1)+R(1))**2+(Rp(2)+R(2))**2+(Rp(3)+R(3))**2
          exp_tot = EXP(-alpha*R_sq)
+         DO k = 1, 3
+            R_pow_l(k, 0) = 1.0_dp
+            DO l = 1, l_max
+               R_pow_l(k, l) = R_pow_l(k, l-1)*(Rp(k)+R(k))
+            ENDDO
+         ENDDO
          DO l = 0, l_max
          DO lx = 0, l
          DO ly = 0, l-lx
@@ -296,7 +310,7 @@ CONTAINS
             l_xyz = [lx, ly, lz]
             Ik = 1.0_dp
             DO k = 1, 3
-               Ik = Ik*(Rp(k)+R(k))**(l_xyz(k))
+               Ik = Ik*R_pow_l(k, l_xyz(k))
             ENDDO
             Is(lx, ly, lz) = Is(lx, ly, lz)+exp_tot*Ik
          ENDDO

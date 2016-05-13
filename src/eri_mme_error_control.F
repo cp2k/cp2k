@@ -356,7 +356,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet_ctff_tmp
       REAL(KIND=dp), DIMENSION(2)                        :: err_ctff_curr, err_ctff_prev
 
-! parameters for finding exponent maximizing cutoff error
+      ! parameters for finding exponent maximizing cutoff error
 
       eps_zet = 1.0E-05_dp ! tolerance for exponent
       zet_div = 2.0_dp ! sampling constant for finding initial values of exponents

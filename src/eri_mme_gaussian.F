@@ -119,7 +119,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: dG, G_max, minimax_Rc
 
       dG = 1.0E-3 ! Resolution in G to determine error of minimax approximation
-      !min_cutoff = .FALSE.
 
       ! Note: G_c = SQRT(2*cutoff) cutoff in 1 cartesian direction
       ! G_max = SQRT(3*G_c**2) maximum absolute value of G vector
