@@ -11,13 +11,9 @@
 !>
 ! **************************************************************************************************
 MODULE atom_utils
-   USE atom_types,                      ONLY: CGTO_BASIS,&
-                                              GTO_BASIS,&
-                                              atom_basis_type,&
-                                              atom_gthpot_type,&
-                                              atom_state,&
-                                              atom_type,&
-                                              eri
+   USE atom_types,                      ONLY: &
+        CGTO_BASIS, GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_state, atom_type, eri, &
+        gth_pseudo, upf_pseudo
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
@@ -56,7 +52,7 @@ MODULE atom_utils
    PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
    PUBLIC :: slater_density, wigner_slater_functional, atom_local_potential
    PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
-   PUBLIC :: atom_orbital_max, atom_wfnr0
+   PUBLIC :: atom_orbital_max, atom_wfnr0, get_rho0
 ! ZMP added public subroutines
    PUBLIC :: atom_read_external_density
    PUBLIC :: atom_read_external_vxc
@@ -1897,6 +1893,94 @@ CONTAINS
       END SELECT
 
    END FUNCTION atom_consistent_method
+! **************************************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param rho0 ...
+!> \retval nc ...
+! **************************************************************************************************
+   SUBROUTINE get_rho0(atom, rho0)
+      TYPE(atom_type), INTENT(IN)                        :: atom
+      REAL(KIND=dp), INTENT(OUT)                         :: rho0
+
+      INTEGER                                            :: m0, m1, m2, method, nr
+      LOGICAL                                            :: nlcc, spinpol
+      REAL(KIND=dp)                                      :: d0, d1, d2, r0, r1, r2, w0, w1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: xfun
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rho
+
+      method = atom%method_type
+      SELECT CASE (method)
+      CASE (do_rks_atom, do_rhf_atom)
+         spinpol = .FALSE.
+      CASE (do_uks_atom, do_uhf_atom)
+         spinpol = .TRUE.
+      CASE (do_rohf_atom)
+         CPABORT("")
+      CASE DEFAULT
+         CPABORT("")
+      END SELECT
+
+      nr = atom%basis%grid%nr
+      nlcc = .FALSE.
+      IF (atom%potential%ppot_type == gth_pseudo) THEN
+         nlcc = atom%potential%gth_pot%nlcc
+      ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
+         nlcc = atom%potential%upf_pot%core_correction
+         CPASSERT(.NOT. nlcc)
+      END IF
+      IF (nlcc) THEN
+         ALLOCATE (xfun(nr))
+      END IF
+
+      m0 = MAXVAL(MINLOC(atom%basis%grid%rad))
+      IF (m0 == nr) THEN
+         m1 = m0-1
+         m2 = m0-2
+      ELSE IF (m0 == 1) THEN
+         m1 = 2
+         m2 = 3
+      ELSE
+         CPABORT("GRID Definition incompatible")
+      END IF
+      r0 = atom%basis%grid%rad(m0)
+      r1 = atom%basis%grid%rad(m1)
+      r2 = atom%basis%grid%rad(m2)
+      w0 = r1/(r1-r0)
+      w1 = 1-w0
+
+      IF (spinpol) THEN
+         ALLOCATE (rho(nr, 2))
+         CALL atom_density(rho(:, 1), atom%orbitals%pmata, atom%basis, atom%state%maxl_occ, typ="RHO")
+         CALL atom_density(rho(:, 2), atom%orbitals%pmatb, atom%basis, atom%state%maxl_occ, typ="RHO")
+         IF (nlcc) THEN
+            xfun = 0.0_dp
+            CALL atom_core_density(xfun(:), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+            rho(:, 1) = rho(:, 1)+0.5_dp*xfun(:)
+            rho(:, 2) = rho(:, 2)+0.5_dp*xfun(:)
+         END IF
+         rho(:, 1) = rho(:, 1)+rho(:, 2)
+      ELSE
+         ALLOCATE (rho(nr, 1))
+         CALL atom_density(rho(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, typ="RHO")
+         IF (nlcc) THEN
+            CALL atom_core_density(rho(:, 1), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+         END IF
+      END IF
+      d0 = rho(m0, 1)
+      d1 = rho(m1, 1)
+      d2 = rho(m2, 1)
+
+      rho0 = w0*d0+w1*d1
+      rho0 = MAX(rho0, 0.0_dp)
+
+      DEALLOCATE (rho)
+      IF (nlcc) THEN
+         DEALLOCATE (xfun)
+      END IF
+
+   END SUBROUTINE get_rho0
+
 ! **************************************************************************************************
 
 END MODULE atom_utils

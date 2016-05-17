@@ -217,6 +217,9 @@ CONTAINS
       nlcc = .FALSE.
       IF (atom%potential%ppot_type == gth_pseudo) THEN
          nlcc = atom%potential%gth_pot%nlcc
+      ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
+         nlcc = atom%potential%upf_pot%core_correction
+         CPASSERT(.NOT. nlcc)
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN
@@ -404,7 +407,8 @@ CONTAINS
       IF (atom%potential%ppot_type == gth_pseudo) THEN
          nlcc = atom%potential%gth_pot%nlcc
       ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
-         CPABORT("")
+         nlcc = atom%potential%upf_pot%core_correction
+         CPASSERT(.NOT. nlcc)
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN

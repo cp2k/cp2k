@@ -12,7 +12,8 @@ MODULE atom_output
         atom_basis_type, atom_gthpot_type, atom_potential_type, atom_state, atom_type, cgto_basis, &
         ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, num_basis, sto_basis, upf_pseudo
    USE atom_utils,                      ONLY: get_maxl_occ,&
-                                              get_maxn_occ
+                                              get_maxn_occ,&
+                                              get_rho0
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE input_constants,                 ONLY: &
@@ -165,6 +166,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, l, n
+      REAL(KIND=dp)                                      :: drho
 
       WRITE (iw, '(/,A,T36,A,T61,F20.12)') " Energy components [Hartree]", &
          "    Total Energy ::", atom%energy%etot
@@ -218,6 +220,9 @@ CONTAINS
             IF (n > 0) WRITE (iw, *)
          END DO
       END IF
+
+      CALL get_rho0(atom, drho)
+      WRITE (iw, '(/,A,T66,F15.6)') " Total Electron Density at R=0: ", drho
 
    END SUBROUTINE atom_print_energies
 

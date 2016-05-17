@@ -920,7 +920,7 @@ CONTAINS
                      np = atom%state%maxn_calc(0)
                      DO k = 1, np
                         CALL atom_wfnr0(pv, atom%orbitals%wfn(:, k, 0), atom%basis)
-                        pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/ostate%f*100._dp
+                        pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun*100._dp
                         WRITE (iunit, '("    s-states"," N=",I5,T40,"Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k, pv, NINT(pchg)
                      END DO
                   ELSE
@@ -1251,7 +1251,8 @@ CONTAINS
                         END IF
                         IF (atom%orbitals%wrefnod(k, l, 1) > 0._dp) THEN
                            CALL atom_orbital_nodes(node, atom%orbitals%wfn(:, k, l), 2._dp*rcov, l, atom%basis)
-                           afun = afun+atom%weight*atom%orbitals%wrefnod(k, l, 1)*ABS(REAL(node, dp)-atom%orbitals%refnod(k, l, 1))
+                           afun = afun+atom%weight*atom%orbitals%wrefnod(k, l, 1)* &
+                                  ABS(REAL(node, dp)-atom%orbitals%refnod(k, l, 1))
                         END IF
                         IF (l == 0) THEN
                            IF (atom%orbitals%wpsir0(k, 1) > 0._dp) THEN
@@ -1298,11 +1299,13 @@ CONTAINS
                         END IF
                         IF (atom%orbitals%wrefnod(k, l, 1) > 0._dp) THEN
                            CALL atom_orbital_nodes(node, atom%orbitals%wfna(:, k, l), 2._dp*rcov1, l, atom%basis)
-                           afun = afun+atom%weight*atom%orbitals%wrefnod(k, l, 1)*ABS(REAL(node, dp)-atom%orbitals%refnod(k, l, 1))
+                           afun = afun+atom%weight*atom%orbitals%wrefnod(k, l, 1)* &
+                                  ABS(REAL(node, dp)-atom%orbitals%refnod(k, l, 1))
                         END IF
                         IF (atom%orbitals%wrefnod(k, l, 2) > 0._dp) THEN
                            CALL atom_orbital_nodes(node, atom%orbitals%wfnb(:, k, l), 2._dp*rcov2, l, atom%basis)
-                           afun = afun+atom%weight*atom%orbitals%wrefnod(k, l, 2)*ABS(REAL(node, dp)-atom%orbitals%refnod(k, l, 2))
+                           afun = afun+atom%weight*atom%orbitals%wrefnod(k, l, 2)* &
+                                  ABS(REAL(node, dp)-atom%orbitals%refnod(k, l, 2))
                         END IF
                         IF (l == 0) THEN
                            IF (atom%orbitals%wpsir0(k, 1) > 0._dp) THEN
