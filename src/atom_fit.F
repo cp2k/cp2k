@@ -862,11 +862,11 @@ CONTAINS
          IF (iunit > 0) THEN
             WRITE (iunit, '(" POWELL| RMS average of variables",T69,F12.10)') dx
          END IF
-         IF (dx < SQRT(ostate%rhoend)) EXIT
          ostate%state = 8
          CALL powell_optimize(ostate%nvar, x, ostate)
          CALL put_pseudo_param(x, ppot%gth_pot)
          CALL atom_write_pseudo_param(ppot%gth_pot)
+         IF (dx < SQRT(ostate%rhoend)) EXIT
          ostate%rhobeg = 0.25_dp*ostate%rhobeg
       END DO
       DEALLOCATE (xi)
