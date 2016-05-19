@@ -814,7 +814,8 @@ CONTAINS
                            IF (ABS(dener(1, j2, j2, i2, i2)) < 0.000001_dp) CYCLE
                            IF (ABS(dener(2, j2, j2, i2, i2)) < 0.000001_dp) CYCLE
                            de = dener(2, j1, j2, i1, i2)-dener(1, j1, j2, i1, i2)
-                           WRITE (iunit, '(i6,i6,i10,i6,5X,F16.6,F19.6,F12.6)') j1, i1, j2, i2, dener(2, j1, j2, i1, i2), de, t_ener
+                           WRITE (iunit, '(i6,i6,i10,i6,5X,F16.6,F19.6,F12.6)') &
+                              j1, i1, j2, i2, dener(2, j1, j2, i1, i2), de, t_ener
                         END DO
                      END DO
                   END DO
@@ -822,12 +823,14 @@ CONTAINS
                WRITE (iunit, *)
             END IF
 
-            WRITE (iunit, '(" Number of target values reached: ",T69,i5," of ",i3)') INT(SUM(pval(5:8, :, :, :, :))), ntarget
+            WRITE (iunit, '(" Number of target values reached: ",T69,i5," of ",i3)') &
+               INT(SUM(pval(5:8, :, :, :, :))), ntarget
             WRITE (iunit, *)
 
          END IF
 
          fopt = HUGE(0._dp)
+         ostate%state = 0
 
          DO
 
@@ -844,7 +847,7 @@ CONTAINS
             IF (ostate%nf == 2 .AND. iunit > 0) THEN
                WRITE (iunit, '(" POWELL| Inital value of function",T61,F20.10)') ostate%f
             END IF
-            IF (MOD(ostate%nf, n10) == 0 .AND. iunit > 0) THEN
+            IF (MOD(ostate%nf, n10) == 0 .AND. iunit > 0 .AND. ostate%nf > 2) THEN
                WRITE (iunit, '(" POWELL| Reached",i4,"% of maximal function calls",T61,F20.10)') &
                   INT(REAL(ostate%nf, dp)/REAL(ostate%maxfun, dp)*100._dp), fopt
                CALL put_pseudo_param(ostate%xopt, ppot%gth_pot)
@@ -859,19 +862,14 @@ CONTAINS
          IF (iunit > 0) THEN
             WRITE (iunit, '(" POWELL| RMS average of variables",T69,F12.10)') dx
          END IF
-         IF (dx < SQRT(ostate%rhoend)/10._dp) EXIT
-         ostate%rhobeg = 0.25_dp*ostate%rhobeg
-         CALL put_pseudo_param(ostate%xopt, ppot%gth_pot)
+         IF (dx < SQRT(ostate%rhoend)) EXIT
+         ostate%state = 8
+         CALL powell_optimize(ostate%nvar, x, ostate)
+         CALL put_pseudo_param(x, ppot%gth_pot)
          CALL atom_write_pseudo_param(ppot%gth_pot)
-         x(:) = ostate%xopt(:)
-         ostate%state = 0
+         ostate%rhobeg = 0.25_dp*ostate%rhobeg
       END DO
       DEALLOCATE (xi)
-
-      ostate%state = 8
-      CALL powell_optimize(ostate%nvar, x, ostate)
-      CALL put_pseudo_param(x, ppot%gth_pot)
-      CALL atom_write_pseudo_param(ppot%gth_pot)
 
       IF (iunit > 0) THEN
          WRITE (iunit, '(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
