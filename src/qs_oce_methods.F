@@ -596,16 +596,17 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE proj_blk(h_a, s_a, na, h_b, s_b, nb, blk, ldb, proj_h, proj_s, nso, buf1, buf2, fac, distab)
 
-      INTEGER                                            :: na
-      REAL(dp)                                           :: s_a(na, *), h_a(na, *)
-      INTEGER                                            :: nb
-      REAL(dp)                                           :: s_b(nb, *), h_b(nb, *)
-      INTEGER                                            :: ldb
-      REAL(dp)                                           :: blk(ldb, *)
-      INTEGER                                            :: nso
-      REAL(dp)                                           :: proj_s(nso, *), proj_h(nso, *), buf1(*), &
-                                                            buf2(*), fac
-      LOGICAL                                            :: distab
+      INTEGER, INTENT(IN)                                :: na
+      REAL(dp), INTENT(IN)                               :: s_a(na, *), h_a(na, *)
+      INTEGER, INTENT(IN)                                :: nb
+      REAL(dp), INTENT(IN)                               :: s_b(nb, *), h_b(nb, *)
+      INTEGER, INTENT(IN)                                :: ldb
+      REAL(dp), INTENT(IN)                               :: blk(ldb, *)
+      INTEGER, INTENT(IN)                                :: nso
+      REAL(dp), INTENT(OUT)                              :: proj_s(nso, *), proj_h(nso, *)
+      REAL(dp), INTENT(INOUT)                            :: buf1(*), buf2(*)
+      REAL(dp), INTENT(IN)                               :: fac
+      LOGICAL, INTENT(IN)                                :: distab
 
 !
 
