@@ -7451,6 +7451,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="SUBSPACE_ATOM", &
+                          description="Number of atom that defines the subspace to be projected on.", &
+                          usage="SUBSPACE_ATOM x", default_i_val=-1, &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SUBSPACE_SHELL", &
+                          description="Shell definition for subsapce.", &
+                          usage="SUBSPACE_SHELL 3d4s", default_c_val="X", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_print_orb_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

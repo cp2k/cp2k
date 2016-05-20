@@ -10,7 +10,12 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_active_space_methods
-   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE basis_set_types,                 ONLY: &
+        allocate_sto_basis_set, create_gto_from_sto_basis, deallocate_gto_basis_set, &
+        deallocate_sto_basis_set, gto_basis_set_type, init_orb_basis_set, set_sto_basis_set, &
+        srules, sto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: cp_csr_create,&
@@ -58,6 +63,7 @@ MODULE qs_active_space_methods
                                               mp_sync
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
+   USE periodic_table,                  ONLY: ptable
    USE pw_env_methods,                  ONLY: pw_env_create,&
                                               pw_env_rebuild
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -144,10 +150,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'active_space_main', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: eri_method, eri_operator, eri_print, handle, i, isp, ispin, iw, j, jm, m, &
-         mselect, n1, n2, nactive, nao, ncol, nel, ninactive, ninactive_alpha, ninactive_beta, &
-         nmo, nn1, nn2, nspins, ntot
+      CHARACTER(len=10)                                  :: cshell, lnam(5)
+      INTEGER :: eri_method, eri_operator, eri_print, handle, i, iatom, ishell, isp, ispin, iw, j, &
+         jm, m, mselect, n1, n2, nactive, nao, natom, ncol, nel, ninactive, ninactive_alpha, &
+         ninactive_beta, nmo, nn1, nn2, nspins, ntot, zval
       INTEGER, DIMENSION(2)                              :: nactive_orb, nepol, ninactive_orb
+      INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
                                                             explicit, isolated, store_wfn
@@ -155,6 +163,7 @@ CONTAINS
          eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, rho_ao
       TYPE(cp_dbcsr_type), POINTER                       :: denmat
@@ -163,8 +172,10 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(csr_type), POINTER                            :: eri_mat
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: pro_basis_set
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env_occ, qs_loc_env_virt
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -357,6 +368,34 @@ CONTAINS
          END IF
       END IF
 
+      ! get projection spaces
+      CALL section_vals_val_get(as_input, "SUBSPACE_ATOM", i_val=iatom, explicit=explicit)
+      IF (explicit) THEN
+         CALL get_qs_env(qs_env, natom=natom)
+         IF (iatom <= 0 .OR. iatom > natom) THEN
+            IF (iw > 0) THEN
+               WRITE (iw, '(/,T4,A,I3)') "ERROR: SUBSPACE_ATOM number is not valid", iatom
+            END IF
+            CPABORT("Select a valid SUBSPACE_ATOM")
+         END IF
+      END IF
+      CALL section_vals_val_get(as_input, "SUBSPACE_SHELL", c_val=cshell, explicit=explicit)
+      nshell = 0
+      lnam = ""
+      IF (explicit) THEN
+         cshell = ADJUSTL(cshell)
+         n1 = 1
+         DO i = 1, 5
+            ishell = i
+            IF (cshell(n1:n1) == " ") THEN
+               ishell = ishell-1
+               EXIT
+            END IF
+            READ (cshell(n1:), "(I1,A1)") nshell(i), lnam(i)
+            n1 = n1+2
+         END DO
+      END IF
+
       ! generate orbitals
       SELECT CASE (mselect)
       CASE DEFAULT
@@ -451,6 +490,21 @@ CONTAINS
             CALL qs_loc_driver(qs_env, qs_loc_env_virt, loc_print, myspin=ispin, &
                                ext_mo_coeff=mos_localized(ispin)%matrix)
          END DO
+         !
+         ! get definition of subspace
+         ! iatom, ishell, nshell, lnam
+         CPASSERT(iatom > 0)
+         CPASSERT(ishell > 0)
+         CALL get_qs_env(qs_env, particle_set=particle_set)
+         atomic_kind => particle_set(iatom)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind, z=zval)
+         NULLIFY (pro_basis_set)
+         CALL create_pro_basis(pro_basis_set, zval, ishell, nshell, lnam)
+         !
+         CALL deallocate_gto_basis_set(pro_basis_set)
+         !
+         CPABORT("not yet available")
+         !
          CALL qs_loc_env_release(qs_loc_env_occ)
          CALL qs_loc_env_release(qs_loc_env_virt)
          CALL cp_fm_vect_dealloc(mos_localized)
@@ -649,6 +703,8 @@ CONTAINS
             END DO
          END DO
       CASE (wannier_projection)
+         CPABORT("NOT IMPLEMENTED")
+      CASE (mao_projection)
          CPABORT("NOT IMPLEMENTED")
       END SELECT
 
@@ -1014,7 +1070,6 @@ CONTAINS
                ! screening using pair_int
                IF (pair_int < eri_env%eps_integral) CYCLE
                CALL pw_transfer(pot_g%pw, rho_r%pw)
-!deb           CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
                !
                IF (eri_env%method == eri_method_gpw_ht) THEN
                   CPABORT("Not available")
@@ -1592,5 +1647,69 @@ CONTAINS
 
    END SUBROUTINE fcidump
 ! **************************************************************************************************
+!> \brief Creates a local basis
+!> \param pro_basis_set ...
+!> \param zval ...
+!> \param ishell ...
+!> \param nshell ...
+!> \param lnam ...
+!> \par History
+!>      05.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE create_pro_basis(pro_basis_set, zval, ishell, nshell, lnam)
+      TYPE(gto_basis_set_type), POINTER                  :: pro_basis_set
+      INTEGER, INTENT(IN)                                :: zval, ishell
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nshell
+      CHARACTER(len=*), DIMENSION(:), INTENT(IN)         :: lnam
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_pro_basis', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=6), DIMENSION(:), POINTER            :: sym
+      INTEGER                                            :: i, l, nj
+      INTEGER, DIMENSION(4, 7)                           :: ne
+      INTEGER, DIMENSION(:), POINTER                     :: lq, nq
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
+      TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
+
+      CPASSERT(.NOT. ASSOCIATED(pro_basis_set))
+      NULLIFY (sto_basis_set)
+
+      ! electronic configuration
+      ne = 0
+      DO l = 1, 4 !lq(1)+1
+         nj = 2*(l-1)+1
+         DO i = l, 7 ! nq(1)
+            ne(l, i) = ptable(zval)%e_conv(l-1)-2*nj*(i-l)
+            ne(l, i) = MAX(ne(l, i), 0)
+            ne(l, i) = MIN(ne(l, i), 2*nj)
+         END DO
+      END DO
+      ALLOCATE (nq(ishell), lq(ishell), zet(ishell), sym(ishell))
+      DO i = 1, ishell
+         nq(i) = nshell(i)
+         SELECT CASE (lnam (i))
+         CASE ('S', 's')
+            lq(i) = 0
+         CASE ('P', 'p')
+            lq(i) = 1
+         CASE ('D', 'd')
+            lq(i) = 2
+         CASE ('F', 'f')
+            lq(i) = 3
+         CASE DEFAULT
+            CPABORT("Wrong l QN")
+         END SELECT
+         sym(i) = lnam(i)
+         zet(i) = srules(zval, ne, nq(1), lq(1))
+      END DO
+      CALL allocate_sto_basis_set(sto_basis_set)
+      CALL set_sto_basis_set(sto_basis_set, nshell=1, nq=nq, lq=lq, zet=zet, symbol=sym)
+      CALL create_gto_from_sto_basis(sto_basis_set, pro_basis_set, 6)
+      pro_basis_set%norm_type = 2
+      CALL init_orb_basis_set(pro_basis_set)
+      CALL deallocate_sto_basis_set(sto_basis_set)
+
+   END SUBROUTINE create_pro_basis
 
 END MODULE qs_active_space_methods
