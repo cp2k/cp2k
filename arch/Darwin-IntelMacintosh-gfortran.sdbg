@@ -4,9 +4,9 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 RANLIB   = ranlib
-DFLAGS   = -D__GFORTRAN -D__FFTSG 
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__NO_STATM_ACCESS
 FCFLAGS  = -O0 -g -march=native -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
-LIBS     = -Wl,-framework -Wl,vecLib -Wl,-Y -Wl,10
+LIBS     = -Wl,-framework -Wl,Accelerate -Wl,-Y -Wl,10
 
 
