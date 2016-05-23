@@ -53,7 +53,7 @@ MODULE atom_energy
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC  :: atom_energy_opt, atom_condnumber, atom_completeness
+   PUBLIC  :: atom_energy_opt
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_energy'
 

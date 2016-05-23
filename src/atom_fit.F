@@ -446,8 +446,10 @@ CONTAINS
       CASE (GTO_BASIS)
          zval = atom_info(1, 1)%atom%z
          crad = ptable(zval)%covalent_radius*bohr
-         CALL atom_condnumber(basis, crad, iunit)
-         CALL atom_completeness(basis, zval, iunit)
+         IF (iunit > 0) THEN
+            CALL atom_condnumber(basis, crad, iunit)
+            CALL atom_completeness(basis, zval, iunit)
+         END IF
       CASE (STO_BASIS)
          ! no basis test available
       END SELECT
