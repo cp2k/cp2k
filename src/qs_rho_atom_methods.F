@@ -504,8 +504,6 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: p_block_spin
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
-!$    INTEGER :: omp_get_max_threads, omp_get_thread_num
-
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control)
