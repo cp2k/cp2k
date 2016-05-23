@@ -21,8 +21,9 @@ MODULE atom_fit
         GTO_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, atom_p_type, &
         atom_potential_type, atom_type, create_opgrid, opgrid_type, release_opgrid, set_atom
    USE atom_utils,                      ONLY: &
-        atom_consistent_method, atom_denmat, atom_density, atom_orbital_charge, atom_orbital_max, &
-        atom_orbital_nodes, atom_wfnr0, get_maxn_occ, integrate_grid
+        atom_completeness, atom_condnumber, atom_consistent_method, atom_denmat, atom_density, &
+        atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, get_maxn_occ, &
+        integrate_grid
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE input_constants,                 ONLY: do_analytic
@@ -170,10 +171,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_basis', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, j, k, l, ll, m, n, n10, nl, nr
+      INTEGER                                            :: i, j, k, l, ll, m, n, n10, nl, nr, zval
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: xtob
       LOGICAL                                            :: explicit, mult
-      REAL(KIND=dp)                                      :: al, ear, fopt, pf, rk
+      REAL(KIND=dp)                                      :: al, crad, ear, fopt, pf, rk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: wem
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
@@ -438,6 +439,18 @@ CONTAINS
       IF (ALLOCATED(xtob)) THEN
          DEALLOCATE (xtob)
       END IF
+
+      SELECT CASE (basis%basis_type)
+      CASE DEFAULT
+         CPABORT("")
+      CASE (GTO_BASIS)
+         zval = atom_info(1, 1)%atom%z
+         crad = ptable(zval)%covalent_radius*bohr
+         CALL atom_condnumber(basis, crad, iunit)
+         CALL atom_completeness(basis, zval, iunit)
+      CASE (STO_BASIS)
+         ! no basis test available
+      END SELECT
 
    END SUBROUTINE atom_fit_basis
 ! **************************************************************************************************

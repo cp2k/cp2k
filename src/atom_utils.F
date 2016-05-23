@@ -11,9 +11,14 @@
 !>
 ! **************************************************************************************************
 MODULE atom_utils
+   USE ai_onecenter,                    ONLY: sg_overlap,&
+                                              sto_overlap
+   USE ai_overlap,                      ONLY: overlap_ab_s,&
+                                              overlap_ab_sp
+   USE ao_util,                         ONLY: exp_radius
    USE atom_types,                      ONLY: &
-        CGTO_BASIS, GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_state, atom_type, eri, &
-        gth_pseudo, upf_pseudo
+        CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
+        atom_state, atom_type, eri, gth_pseudo, upf_pseudo
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
@@ -32,8 +37,14 @@ MODULE atom_utils
                                               fourpi,&
                                               maxfac,&
                                               rootpi
+   USE mathlib,                         ONLY: invmat_symm
+   USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
+                                              init_orbital_pointers
+   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
+                                              init_spherical_harmonics
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
+   USE physcon,                         ONLY: bohr
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
@@ -44,6 +55,7 @@ MODULE atom_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_utils'
 
+   PUBLIC :: atom_condnumber, atom_completeness
    PUBLIC :: atom_set_occupation, get_maxl_occ, get_maxn_occ
    PUBLIC :: atom_denmat, atom_density, atom_core_density
    PUBLIC :: integrate_grid, atom_trace, atom_solve
@@ -53,6 +65,7 @@ MODULE atom_utils
    PUBLIC :: slater_density, wigner_slater_functional, atom_local_potential
    PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
    PUBLIC :: atom_orbital_max, atom_wfnr0, get_rho0
+   PUBLIC :: contract2, contract4, contract2add
 ! ZMP added public subroutines
    PUBLIC :: atom_read_external_density
    PUBLIC :: atom_read_external_vxc
@@ -1981,6 +1994,449 @@ CONTAINS
 
    END SUBROUTINE get_rho0
 
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param crad ...
+!> \param iw    ...
+! **************************************************************************************************
+   SUBROUTINE atom_condnumber(basis, crad, iw)
+      TYPE(atom_basis_type), POINTER                     :: basis
+      REAL(KIND=dp)                                      :: crad
+      INTEGER, INTENT(IN)                                :: iw
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: ci
+      REAL(KIND=dp), DIMENSION(10)                       :: cnum, rad
+
+      WRITE (iw, '(/,A,F8.4)') " Basis Set Condition Numbers: 2*covalent radius=", 2*crad
+      CALL init_orbital_pointers(3)
+      CALL init_spherical_harmonics(3, 0)
+      cnum = 0.0_dp
+      DO i = 1, 9
+         ci = 2.0_dp*(0.8_dp+i*0.1_dp)
+         rad(i) = crad*ci
+         CALL atom_basis_condnum(basis, rad(i), cnum(i))
+         WRITE (iw, '(A,F15.3,T50,A,F14.4)') " Lattice constant:", &
+            rad(i), "Condition number:", cnum(i)
+      END DO
+      rad(10) = 0.01_dp
+      CALL atom_basis_condnum(basis, rad(10), cnum(10))
+      WRITE (iw, '(A,A,T50,A,F14.4)') " Lattice constant:", &
+         "            Inf", "Condition number:", cnum(i)
+      CALL deallocate_orbital_pointers
+      CALL deallocate_spherical_harmonics
+
+   END SUBROUTINE atom_condnumber
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param zv ...
+!> \param iw    ...
+! **************************************************************************************************
+   SUBROUTINE atom_completeness(basis, zv, iw)
+      TYPE(atom_basis_type), POINTER                     :: basis
+      INTEGER, INTENT(IN)                                :: zv, iw
+
+      INTEGER                                            :: i, j, l, ll, m, n, nbas, nl, nr
+      INTEGER, DIMENSION(0:3)                            :: nelem, nlmax, nlmin
+      INTEGER, DIMENSION(4, 7)                           :: ne
+      REAL(KIND=dp)                                      :: al, c1, c2, pf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: sfun
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: omat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sint
+      REAL(KIND=dp), DIMENSION(0:3, 10)                  :: snl
+      REAL(KIND=dp), DIMENSION(2)                        :: sse
+      REAL(KIND=dp), DIMENSION(4, 7)                     :: sexp
+
+      ne = 0
+      nelem(0:3) = ptable(zv)%e_conv(0:3)
+      DO l = 0, 3
+         ll = 2*(2*l+1)
+         DO i = 1, 7
+            IF (nelem(l) >= ll) THEN
+               ne(l+1, i) = ll
+               nelem(l) = nelem(l)-ll
+            ELSE IF (nelem(l) > 0) THEN
+               ne(l+1, i) = nelem(l)
+               nelem(l) = 0
+            ELSE
+               EXIT
+            END IF
+         END DO
+      END DO
+
+      nlmin = 1
+      nlmax = 1
+      DO l = 0, 3
+         nlmin(l) = l+1
+         DO i = 1, 7
+            IF (ne(l+1, i) > 0) THEN
+               nlmax(l) = i+l
+            END IF
+         END DO
+         nlmax(l) = MAX(nlmax(l), nlmin(l)+1)
+      END DO
+
+      ! Slater exponents
+      sexp = 0.0_dp
+      DO l = 0, 3
+         sse(1) = 0.05_dp
+         sse(2) = 10.0_dp
+         DO i = l+1, 7
+            sexp(l+1, i) = srules(zv, ne, i, l)
+            IF (ne(l+1, i-l) > 0) THEN
+               sse(1) = MAX(sse(1), sexp(l+1, i))
+               sse(2) = MIN(sse(2), sexp(l+1, i))
+            END IF
+         END DO
+         DO i = 1, 10
+            snl(l, i) = ABS(2._dp*sse(1)-0.5_dp*sse(2))/9._dp*REAL(i-1, KIND=dp)+0.5_dp*MIN(sse(1), sse(2))
+         END DO
+      END DO
+
+      nbas = MAXVAL(basis%nbas)
+      ALLOCATE (omat(nbas, nbas, 0:3))
+      nr = SIZE(basis%bf, 1)
+      ALLOCATE (sfun(nr), sint(10, 2, nbas, 0:3))
+      sint = 0._dp
+
+      ! calculate overlaps between test functions and basis
+      DO l = 0, 3
+         DO i = 1, 10
+            al = snl(l, i)
+            nl = nlmin(l)
+            pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
+            sfun(1:nr) = pf*basis%grid%rad(1:nr)**(nl-1)*EXP(-al*basis%grid%rad(1:nr))
+            DO j = 1, basis%nbas(l)
+               sint(i, 1, j, l) = SUM(sfun(1:nr)*basis%bf(1:nr, j, l)*basis%grid%wr(1:nr))
+            END DO
+            nl = nlmax(l)
+            pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
+            sfun(1:nr) = pf*basis%grid%rad(1:nr)**(nl-1)*EXP(-al*basis%grid%rad(1:nr))
+            DO j = 1, basis%nbas(l)
+               sint(i, 2, j, l) = SUM(sfun(1:nr)*basis%bf(1:nr, j, l)*basis%grid%wr(1:nr))
+            END DO
+         END DO
+      END DO
+
+      DO l = 0, 3
+         n = basis%nbas(l)
+         IF (n <= 0) CYCLE
+         m = basis%nprim(l)
+         SELECT CASE (basis%basis_type)
+         CASE DEFAULT
+            CPABORT("")
+         CASE (GTO_BASIS)
+            CALL sg_overlap(omat(1:n, 1:n, l), l, basis%am(1:n, l), basis%am(1:n, l))
+         CASE (CGTO_BASIS)
+            ALLOCATE (bmat(m, m))
+            CALL sg_overlap(bmat(1:m, 1:m), l, basis%am(1:m, l), basis%am(1:m, l))
+            CALL contract2(omat(1:n, 1:n, l), bmat(1:m, 1:m), basis%cm(1:m, 1:n, l))
+            DEALLOCATE (bmat)
+         CASE (STO_BASIS)
+            CALL sto_overlap(omat(1:n, 1:n, l), basis%ns(1:n, l), basis%as(1:n, l), &
+                             basis%ns(1:n, l), basis%as(1:n, l))
+         CASE (NUM_BASIS)
+            CPABORT("")
+         END SELECT
+         CALL invmat_symm(omat(1:n, 1:n, l))
+      END DO
+
+      WRITE (iw, '(/,A)') " Basis Set Completeness Estimates"
+      DO l = 0, 3
+         n = basis%nbas(l)
+         IF (n <= 0) CYCLE
+         WRITE (iw, '(A,I3)') "   L-quantum number: ", l
+         WRITE (iw, '(A,T31,A,I2,T61,A,I2)') "    Slater Exponent", "Completeness n-qm=", nlmin(l), &
+            "Completeness n-qm=", nlmax(l)
+         DO i = 10, 1, -1
+            c1 = DOT_PRODUCT(sint(i, 1, 1:n, l), MATMUL(omat(1:n, 1:n, l), sint(i, 1, 1:n, l)))
+            c2 = DOT_PRODUCT(sint(i, 2, 1:n, l), MATMUL(omat(1:n, 1:n, l), sint(i, 2, 1:n, l)))
+            WRITE (iw, "(T6,F14.6,T41,F10.6,T71,F10.6)") snl(l, i), c1, c2
+         END DO
+      END DO
+
+      DEALLOCATE (omat, sfun, sint)
+
+   END SUBROUTINE atom_completeness
+
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param rad ...
+!> \param cnum ...
+! **************************************************************************************************
+   SUBROUTINE atom_basis_condnum(basis, rad, cnum)
+      TYPE(atom_basis_type), POINTER                     :: basis
+      REAL(KIND=dp), INTENT(IN)                          :: rad
+      REAL(KIND=dp), INTENT(OUT)                         :: cnum
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_condnum', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ia, ib, imax, info, ix, iy, iz, ja, jb, &
+                                                            ka, kb, l, la, lb, lwork, na, nb, &
+                                                            nbas, nna, nnb
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ibptr
+      REAL(KIND=dp)                                      :: r1, r2, reps, rmax
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weig, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smat
+      REAL(KIND=dp), DIMENSION(3)                        :: rab
+      REAL(KIND=dp), DIMENSION(7, 7)                     :: sab
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: zeta, zetb
+
+      ! total number of basis functions
+      nbas = 0
+      DO l = 0, 3
+         nbas = nbas+basis%nbas(l)*(2*l+1)
+      END DO
+
+      ALLOCATE (smat(nbas, nbas), ibptr(nbas, 0:3))
+      smat = 0.0_dp
+      ibptr = 0
+      na = 0
+      DO l = 0, 3
+         DO ia = 1, basis%nbas(l)
+            ibptr(ia, l) = na+1
+            na = na+(2*l+1)
+         END DO
+      END DO
+
+      reps = 1.e-14_dp
+      IF (basis%basis_type == GTO_BASIS .OR. &
+          basis%basis_type == CGTO_BASIS) THEN
+         DO la = 0, 3
+            na = basis%nprim(la)
+            nna = 2*la+1
+            IF (na == 0) CYCLE
+            zeta => basis%am(:, la)
+            DO lb = 0, 3
+               nb = basis%nprim(lb)
+               nnb = 2*lb+1
+               IF (nb == 0) CYCLE
+               zetb => basis%am(:, lb)
+               DO ia = 1, na
+                  DO ib = 1, nb
+                     IF (rad < 0.1_dp) THEN
+                        imax = 0
+                     ELSE
+                        r1 = exp_radius(la, zeta(ia), reps, 1.0_dp)
+                        r2 = exp_radius(lb, zetb(ib), reps, 1.0_dp)
+                        rmax = MAX(2._dp*r1, 2._dp*r2)
+                        imax = INT(rmax/rad)+1
+                     END IF
+                     IF (imax > 1) THEN
+                        CALL overlap_ab_sp(la, zeta(ia), lb, zetb(ib), rad, sab)
+                        IF (basis%basis_type == GTO_BASIS) THEN
+                           ja = ibptr(ia, la)
+                           jb = ibptr(ib, lb)
+                           smat(ja:ja+nna-1, jb:jb+nnb-1) = smat(ja:ja+nna-1, jb:jb+nnb-1)+sab(1:nna, 1:nnb)
+                        ELSEIF (basis%basis_type == CGTO_BASIS) THEN
+                           DO ka = 1, basis%nbas(la)
+                              DO kb = 1, basis%nbas(lb)
+                                 ja = ibptr(ka, la)
+                                 jb = ibptr(kb, lb)
+                                 smat(ja:ja+nna-1, jb:jb+nnb-1) = smat(ja:ja+nna-1, jb:jb+nnb-1)+ &
+                                                                  sab(1:nna, 1:nnb)*basis%cm(ia, ka, la)*basis%cm(ib, kb, lb)
+                              END DO
+                           END DO
+                        END IF
+                     ELSE
+                        DO ix = -imax, imax
+                           rab(1) = rad*ix
+                           DO iy = -imax, imax
+                              rab(2) = rad*iy
+                              DO iz = -imax, imax
+                                 rab(3) = rad*iz
+                                 CALL overlap_ab_s(la, zeta(ia), lb, zetb(ib), rab, sab)
+                                 IF (basis%basis_type == GTO_BASIS) THEN
+                                    ja = ibptr(ia, la)
+                                    jb = ibptr(ib, lb)
+                                    smat(ja:ja+nna-1, jb:jb+nnb-1) = smat(ja:ja+nna-1, jb:jb+nnb-1)+sab(1:nna, 1:nnb)
+                                 ELSEIF (basis%basis_type == CGTO_BASIS) THEN
+                                    DO ka = 1, basis%nbas(la)
+                                       DO kb = 1, basis%nbas(lb)
+                                          ja = ibptr(ka, la)
+                                          jb = ibptr(kb, lb)
+                                          smat(ja:ja+nna-1, jb:jb+nnb-1) = &
+                                             smat(ja:ja+nna-1, jb:jb+nnb-1)+ &
+                                             sab(1:nna, 1:nnb)*basis%cm(ia, ka, la)*basis%cm(ib, kb, lb)
+                                       END DO
+                                    END DO
+                                 END IF
+                              END DO
+                           END DO
+                        END DO
+                     END IF
+                  END DO
+               END DO
+            END DO
+         END DO
+      ELSE
+         CPABORT("Condition number not available for this basis type")
+      END IF
+
+      info = 0
+      lwork = nbas*nbas
+      ALLOCATE (weig(nbas), work(lwork))
+
+      CALL lapack_ssyev("N", "U", nbas, smat, nbas, weig, work, lwork, info)
+      CPASSERT(info == 0)
+      IF (weig(1) < 0.0_dp) THEN
+         cnum = 100._dp
+      ELSE
+         cnum = ABS(weig(nbas)/weig(1))
+         cnum = LOG10(cnum)
+      END IF
+
+      DEALLOCATE (smat, ibptr, weig, work)
+
+   END SUBROUTINE atom_basis_condnum
+! **************************************************************************************************
+!> \brief ...
+!> \param int ...
+!> \param omat ...
+!> \param cm ...
+! **************************************************************************************************
+   SUBROUTINE contract2(int, omat, cm)
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract2', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, m, n
+
+      CALL timeset(routineN, handle)
+
+      n = SIZE(int, 1)
+      m = SIZE(omat, 1)
+
+      INT(1:n, 1:n) = MATMUL(TRANSPOSE(cm(1:m, 1:n)), MATMUL(omat(1:m, 1:m), cm(1:m, 1:n)))
+
+      CALL timestop(handle)
+
+   END SUBROUTINE contract2
+! **************************************************************************************************
+!> \brief ...
+!> \param int ...
+!> \param omat ...
+!> \param cm ...
+! **************************************************************************************************
+   SUBROUTINE contract2add(int, omat, cm)
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract2add', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, m, n
+
+      CALL timeset(routineN, handle)
+
+      n = SIZE(int, 1)
+      m = SIZE(omat, 1)
+
+      INT(1:n, 1:n) = INT(1:n, 1:n)+MATMUL(TRANSPOSE(cm(1:m, 1:n)), MATMUL(omat(1:m, 1:m), cm(1:m, 1:n)))
+
+      CALL timestop(handle)
+
+   END SUBROUTINE contract2add
+! **************************************************************************************************
+!> \brief ...
+!> \param eri ...
+!> \param omat ...
+!> \param cm1 ...
+!> \param cm2 ...
+! **************************************************************************************************
+   SUBROUTINE contract4(eri, omat, cm1, cm2)
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: eri
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm1, cm2
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'contract4', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i1, i2, m1, m2, mm1, mm2, n1, &
+                                                            n2, nn1, nn2
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: amat, atran, bmat, btran, hint
+
+      CALL timeset(routineN, handle)
+
+      m1 = SIZE(cm1, 1)
+      n1 = SIZE(cm1, 2)
+      m2 = SIZE(cm2, 1)
+      n2 = SIZE(cm2, 2)
+      nn1 = SIZE(eri, 1)
+      nn2 = SIZE(eri, 2)
+      mm1 = SIZE(omat, 1)
+      mm2 = SIZE(omat, 2)
+
+      ALLOCATE (amat(m1, m1), atran(n1, n1), bmat(m2, m2), btran(n2, n2))
+      ALLOCATE (hint(mm1, nn2))
+
+      DO i1 = 1, mm1
+         CALL iunpack(bmat(1:m2, 1:m2), omat(i1, 1:mm2), m2)
+         CALL contract2(btran(1:n2, 1:n2), bmat(1:m2, 1:m2), cm2(1:m2, 1:n2))
+         CALL ipack(btran(1:n2, 1:n2), hint(i1, 1:nn2), n2)
+      END DO
+
+      DO i2 = 1, nn2
+         CALL iunpack(amat(1:m1, 1:m1), hint(1:mm1, i2), m1)
+         CALL contract2(atran(1:n1, 1:n1), amat(1:m1, 1:m1), cm1(1:m1, 1:n1))
+         CALL ipack(atran(1:n1, 1:n1), eri(1:nn1, i2), n1)
+      END DO
+
+      DEALLOCATE (amat, atran, bmat, btran)
+      DEALLOCATE (hint)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE contract4
+! **************************************************************************************************
+!> \brief ...
+!> \param mat ...
+!> \param vec ...
+!> \param n ...
+! **************************************************************************************************
+   SUBROUTINE ipack(mat, vec, n)
+      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: mat
+      REAL(dp), DIMENSION(:), INTENT(INOUT)              :: vec
+      INTEGER, INTENT(IN)                                :: n
+
+      INTEGER                                            :: i, ij, j
+
+      ij = 0
+      DO i = 1, n
+         DO j = i, n
+            ij = ij+1
+            vec(ij) = mat(i, j)
+         END DO
+      END DO
+
+   END SUBROUTINE ipack
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat ...
+!> \param vec ...
+!> \param n ...
+! **************************************************************************************************
+   SUBROUTINE iunpack(mat, vec, n)
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: mat
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: vec
+      INTEGER, INTENT(IN)                                :: n
+
+      INTEGER                                            :: i, ij, j
+
+      ij = 0
+      DO i = 1, n
+         DO j = i, n
+            ij = ij+1
+            mat(i, j) = vec(ij)
+            mat(j, i) = vec(ij)
+         END DO
+      END DO
+
+   END SUBROUTINE iunpack
 ! **************************************************************************************************
 
 END MODULE atom_utils

@@ -5,9 +5,6 @@
 
 ! **************************************************************************************************
 MODULE atom_energy
-   USE ai_onecenter,                    ONLY: sg_overlap,&
-                                              sto_overlap
-   USE atom_basis,                      ONLY: atom_basis_condnum
    USE atom_electronic_structure,       ONLY: calculate_atom
    USE atom_fit,                        ONLY: atom_fit_density,&
                                               atom_fit_kgpot
@@ -16,8 +13,7 @@ MODULE atom_energy
                                               atom_ppint_release,&
                                               atom_ppint_setup,&
                                               atom_relint_release,&
-                                              atom_relint_setup,&
-                                              contract2
+                                              atom_relint_setup
    USE atom_output,                     ONLY: atom_print_basis,&
                                               atom_print_info,&
                                               atom_print_method,&
@@ -25,18 +21,16 @@ MODULE atom_energy
                                               atom_print_potential,&
                                               atom_write_pseudo_param
    USE atom_types,                      ONLY: &
-        CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
-        atom_integrals, atom_optimization_type, atom_orbitals, atom_p_type, atom_potential_type, &
-        atom_state, atom_type, create_atom_orbs, create_atom_type, gth_pseudo, init_atom_basis, &
-        init_atom_potential, read_atom_opt_section, release_atom_basis, release_atom_potential, &
-        release_atom_type, set_atom
+        atom_basis_type, atom_gthpot_type, atom_integrals, atom_optimization_type, atom_orbitals, &
+        atom_p_type, atom_potential_type, atom_state, atom_type, create_atom_orbs, &
+        create_atom_type, gth_pseudo, init_atom_basis, init_atom_potential, read_atom_opt_section, &
+        release_atom_basis, release_atom_potential, release_atom_type, set_atom
    USE atom_utils,                      ONLY: &
-        atom_consistent_method, atom_core_density, atom_density, atom_local_potential, &
-        atom_read_external_density, atom_read_external_vxc, atom_set_occupation, &
-        atom_write_zmp_restart, get_maxl_occ, get_maxn_occ
+        atom_completeness, atom_condnumber, atom_consistent_method, atom_core_density, &
+        atom_density, atom_local_potential, atom_read_external_density, atom_read_external_vxc, &
+        atom_set_occupation, atom_write_zmp_restart, get_maxl_occ, get_maxn_occ
    USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
                                               calculate_atom_zmp
-   USE basis_set_types,                 ONLY: srules
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -49,14 +43,8 @@ MODULE atom_energy
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: dfac,&
-                                              fac,&
                                               gamma1,&
                                               pi
-   USE mathlib,                         ONLY: invmat_symm
-   USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
-                                              init_orbital_pointers
-   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
-                                              init_spherical_harmonics
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
    USE physcon,                         ONLY: bohr,&
@@ -65,7 +53,7 @@ MODULE atom_energy
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC  :: atom_energy_opt
+   PUBLIC  :: atom_energy_opt, atom_condnumber, atom_completeness
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_energy'
 
@@ -915,172 +903,5 @@ CONTAINS
          END IF
       END IF
    END SUBROUTINE compose
-! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param crad ...
-!> \param iw    ...
-! **************************************************************************************************
-   SUBROUTINE atom_condnumber(basis, crad, iw)
-      TYPE(atom_basis_type), POINTER                     :: basis
-      REAL(KIND=dp)                                      :: crad
-      INTEGER, INTENT(IN)                                :: iw
-
-      INTEGER                                            :: i
-      REAL(KIND=dp)                                      :: ci
-      REAL(KIND=dp), DIMENSION(10)                       :: cnum, rad
-
-      WRITE (iw, '(/,A)') " Basis Set Condition Numbers"
-      CALL init_orbital_pointers(3)
-      CALL init_spherical_harmonics(3, 0)
-      cnum = 0.0_dp
-      DO i = 1, 9
-         ci = 2.0_dp*(0.8_dp+i*0.1_dp)
-         rad(i) = crad*ci
-         CALL atom_basis_condnum(basis, rad(i), cnum(i))
-         WRITE (iw, '(A,F15.3,T50,A,F14.4)') " Lattice constant:", &
-            rad(i), "Condition number:", cnum(i)
-      END DO
-      rad(10) = 0.01_dp
-      CALL atom_basis_condnum(basis, rad(10), cnum(10))
-      WRITE (iw, '(A,A,T50,A,F14.4)') " Lattice constant:", &
-         "            Inf", "Condition number:", cnum(i)
-      CALL deallocate_orbital_pointers
-      CALL deallocate_spherical_harmonics
-
-   END SUBROUTINE atom_condnumber
-! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param zv ...
-!> \param iw    ...
-! **************************************************************************************************
-   SUBROUTINE atom_completeness(basis, zv, iw)
-      TYPE(atom_basis_type), POINTER                     :: basis
-      INTEGER, INTENT(IN)                                :: zv, iw
-
-      INTEGER                                            :: i, j, l, ll, m, n, nbas, nl, nr
-      INTEGER, DIMENSION(0:3)                            :: nelem, nlmax, nlmin
-      INTEGER, DIMENSION(4, 7)                           :: ne
-      REAL(KIND=dp)                                      :: al, c1, c2, pf
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: sfun
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bmat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: omat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sint
-      REAL(KIND=dp), DIMENSION(0:3, 10)                  :: snl
-      REAL(KIND=dp), DIMENSION(2)                        :: sse
-      REAL(KIND=dp), DIMENSION(4, 7)                     :: sexp
-
-      ne = 0
-      nelem(0:3) = ptable(zv)%e_conv(0:3)
-      DO l = 0, 3
-         ll = 2*(2*l+1)
-         DO i = 1, 7
-            IF (nelem(l) >= ll) THEN
-               ne(l+1, i) = ll
-               nelem(l) = nelem(l)-ll
-            ELSE IF (nelem(l) > 0) THEN
-               ne(l+1, i) = nelem(l)
-               nelem(l) = 0
-            ELSE
-               EXIT
-            END IF
-         END DO
-      END DO
-
-      nlmin = 1
-      nlmax = 1
-      DO l = 0, 3
-         nlmin(l) = l+1
-         DO i = 1, 7
-            IF (ne(l+1, i) > 0) THEN
-               nlmax(l) = i+l
-            END IF
-         END DO
-         nlmax(l) = MAX(nlmax(l), nlmin(l)+1)
-      END DO
-
-      ! Slater exponents
-      sexp = 0.0_dp
-      DO l = 0, 3
-         sse(1) = 0.05_dp
-         sse(2) = 10.0_dp
-         DO i = l+1, 7
-            sexp(l+1, i) = srules(zv, ne, i, l)
-            IF (ne(l+1, i-l) > 0) THEN
-               sse(1) = MAX(sse(1), sexp(l+1, i))
-               sse(2) = MIN(sse(2), sexp(l+1, i))
-            END IF
-         END DO
-         DO i = 1, 10
-            snl(l, i) = ABS(2._dp*sse(1)-0.5_dp*sse(2))/9._dp*REAL(i-1, KIND=dp)+0.5_dp*MIN(sse(1), sse(2))
-         END DO
-      END DO
-
-      nbas = MAXVAL(basis%nbas)
-      ALLOCATE (omat(nbas, nbas, 0:3))
-      nr = SIZE(basis%bf, 1)
-      ALLOCATE (sfun(nr), sint(10, 2, nbas, 0:3))
-      sint = 0._dp
-
-      ! calculate overlaps between test functions and basis
-      DO l = 0, 3
-         DO i = 1, 10
-            al = snl(l, i)
-            nl = nlmin(l)
-            pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
-            sfun(1:nr) = pf*basis%grid%rad(1:nr)**(nl-1)*EXP(-al*basis%grid%rad(1:nr))
-            DO j = 1, basis%nbas(l)
-               sint(i, 1, j, l) = SUM(sfun(1:nr)*basis%bf(1:nr, j, l)*basis%grid%wr(1:nr))
-            END DO
-            nl = nlmax(l)
-            pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
-            sfun(1:nr) = pf*basis%grid%rad(1:nr)**(nl-1)*EXP(-al*basis%grid%rad(1:nr))
-            DO j = 1, basis%nbas(l)
-               sint(i, 2, j, l) = SUM(sfun(1:nr)*basis%bf(1:nr, j, l)*basis%grid%wr(1:nr))
-            END DO
-         END DO
-      END DO
-
-      DO l = 0, 3
-         n = basis%nbas(l)
-         IF (n <= 0) CYCLE
-         m = basis%nprim(l)
-         SELECT CASE (basis%basis_type)
-         CASE DEFAULT
-            CPABORT("")
-         CASE (GTO_BASIS)
-            CALL sg_overlap(omat(1:n, 1:n, l), l, basis%am(1:n, l), basis%am(1:n, l))
-         CASE (CGTO_BASIS)
-            ALLOCATE (bmat(m, m))
-            CALL sg_overlap(bmat(1:m, 1:m), l, basis%am(1:m, l), basis%am(1:m, l))
-            CALL contract2(omat(1:n, 1:n, l), bmat(1:m, 1:m), basis%cm(1:m, 1:n, l))
-            DEALLOCATE (bmat)
-         CASE (STO_BASIS)
-            CALL sto_overlap(omat(1:n, 1:n, l), basis%ns(1:n, l), basis%as(1:n, l), &
-                             basis%ns(1:n, l), basis%as(1:n, l))
-         CASE (NUM_BASIS)
-            CPABORT("")
-         END SELECT
-         CALL invmat_symm(omat(1:n, 1:n, l))
-      END DO
-
-      WRITE (iw, '(/,A)') " Basis Set Completeness Estimates"
-      DO l = 0, 3
-         n = basis%nbas(l)
-         IF (n <= 0) CYCLE
-         WRITE (iw, '(A,I3)') "   L-quantum number: ", l
-         WRITE (iw, '(A,T31,A,I2,T61,A,I2)') "    Slater Exponent", "Completeness n-qm=", nlmin(l), &
-            "Completeness n-qm=", nlmax(l)
-         DO i = 10, 1, -1
-            c1 = DOT_PRODUCT(sint(i, 1, 1:n, l), MATMUL(omat(1:n, 1:n, l), sint(i, 1, 1:n, l)))
-            c2 = DOT_PRODUCT(sint(i, 2, 1:n, l), MATMUL(omat(1:n, 1:n, l), sint(i, 2, 1:n, l)))
-            WRITE (iw, "(T6,F14.6,T41,F10.6,T71,F10.6)") snl(l, i), c1, c2
-         END DO
-      END DO
-
-      DEALLOCATE (omat, sfun, sint)
-
-   END SUBROUTINE atom_completeness
 
 END MODULE atom_energy

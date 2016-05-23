@@ -18,12 +18,9 @@ MODULE atom_operators
         atom_basis_gridrep, atom_basis_type, atom_integrals, atom_potential_type, atom_state, &
         cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, num_basis, release_atom_basis, &
         sto_basis, upf_pseudo
-   USE atom_utils,                      ONLY: atom_solve,&
-                                              coulomb_potential_numeric,&
-                                              integrate_grid,&
-                                              numpot_matrix,&
-                                              slater_density,&
-                                              wigner_slater_functional
+   USE atom_utils,                      ONLY: &
+        atom_solve, contract2, contract2add, contract4, coulomb_potential_numeric, integrate_grid, &
+        numpot_matrix, slater_density, wigner_slater_functional
    USE dkh_main,                        ONLY: dkh_atom_transformation
    USE erf_fn,                          ONLY: erfc
    USE input_constants,                 ONLY: &
@@ -1076,149 +1073,6 @@ CONTAINS
       DEALLOCATE (rho, pot)
 
    END SUBROUTINE calculate_model_potential
-! **************************************************************************************************
-!> \brief ...
-!> \param int ...
-!> \param omat ...
-!> \param cm ...
-! **************************************************************************************************
-   SUBROUTINE contract2(int, omat, cm)
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract2', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, m, n
-
-      CALL timeset(routineN, handle)
-
-      n = SIZE(int, 1)
-      m = SIZE(omat, 1)
-
-      INT(1:n, 1:n) = MATMUL(TRANSPOSE(cm(1:m, 1:n)), MATMUL(omat(1:m, 1:m), cm(1:m, 1:n)))
-
-      CALL timestop(handle)
-
-   END SUBROUTINE contract2
-! **************************************************************************************************
-!> \brief ...
-!> \param int ...
-!> \param omat ...
-!> \param cm ...
-! **************************************************************************************************
-   SUBROUTINE contract2add(int, omat, cm)
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: int
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract2add', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, m, n
-
-      CALL timeset(routineN, handle)
-
-      n = SIZE(int, 1)
-      m = SIZE(omat, 1)
-
-      INT(1:n, 1:n) = INT(1:n, 1:n)+MATMUL(TRANSPOSE(cm(1:m, 1:n)), MATMUL(omat(1:m, 1:m), cm(1:m, 1:n)))
-
-      CALL timestop(handle)
-
-   END SUBROUTINE contract2add
-! **************************************************************************************************
-!> \brief ...
-!> \param eri ...
-!> \param omat ...
-!> \param cm1 ...
-!> \param cm2 ...
-! **************************************************************************************************
-   SUBROUTINE contract4(eri, omat, cm1, cm2)
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: eri
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: omat, cm1, cm2
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'contract4', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, i1, i2, m1, m2, mm1, mm2, n1, &
-                                                            n2, nn1, nn2
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: amat, atran, bmat, btran, hint
-
-      CALL timeset(routineN, handle)
-
-      m1 = SIZE(cm1, 1)
-      n1 = SIZE(cm1, 2)
-      m2 = SIZE(cm2, 1)
-      n2 = SIZE(cm2, 2)
-      nn1 = SIZE(eri, 1)
-      nn2 = SIZE(eri, 2)
-      mm1 = SIZE(omat, 1)
-      mm2 = SIZE(omat, 2)
-
-      ALLOCATE (amat(m1, m1), atran(n1, n1), bmat(m2, m2), btran(n2, n2))
-      ALLOCATE (hint(mm1, nn2))
-
-      DO i1 = 1, mm1
-         CALL iunpack(bmat(1:m2, 1:m2), omat(i1, 1:mm2), m2)
-         CALL contract2(btran(1:n2, 1:n2), bmat(1:m2, 1:m2), cm2(1:m2, 1:n2))
-         CALL ipack(btran(1:n2, 1:n2), hint(i1, 1:nn2), n2)
-      END DO
-
-      DO i2 = 1, nn2
-         CALL iunpack(amat(1:m1, 1:m1), hint(1:mm1, i2), m1)
-         CALL contract2(atran(1:n1, 1:n1), amat(1:m1, 1:m1), cm1(1:m1, 1:n1))
-         CALL ipack(atran(1:n1, 1:n1), eri(1:nn1, i2), n1)
-      END DO
-
-      DEALLOCATE (amat, atran, bmat, btran)
-      DEALLOCATE (hint)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE contract4
-! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \param vec ...
-!> \param n ...
-! **************************************************************************************************
-   SUBROUTINE ipack(mat, vec, n)
-      REAL(dp), DIMENSION(:, :), INTENT(IN)              :: mat
-      REAL(dp), DIMENSION(:), INTENT(INOUT)              :: vec
-      INTEGER, INTENT(IN)                                :: n
-
-      INTEGER                                            :: i, ij, j
-
-      ij = 0
-      DO i = 1, n
-         DO j = i, n
-            ij = ij+1
-            vec(ij) = mat(i, j)
-         END DO
-      END DO
-
-   END SUBROUTINE ipack
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \param vec ...
-!> \param n ...
-! **************************************************************************************************
-   SUBROUTINE iunpack(mat, vec, n)
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: mat
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: vec
-      INTEGER, INTENT(IN)                                :: n
-
-      INTEGER                                            :: i, ij, j
-
-      ij = 0
-      DO i = 1, n
-         DO j = i, n
-            ij = ij+1
-            mat(i, j) = vec(ij)
-            mat(j, i) = vec(ij)
-         END DO
-      END DO
-
-   END SUBROUTINE iunpack
 ! **************************************************************************************************
 
 END MODULE atom_operators

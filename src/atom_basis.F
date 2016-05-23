@@ -5,19 +5,16 @@
 
 ! **************************************************************************************************
 MODULE atom_basis
-   USE ai_overlap,                      ONLY: overlap_ab_s,&
-                                              overlap_ab_sp
-   USE ao_util,                         ONLY: exp_radius
    USE atom_fit,                        ONLY: atom_fit_basis
    USE atom_output,                     ONLY: atom_print_basis,&
                                               atom_print_info,&
                                               atom_print_method,&
                                               atom_print_potential
    USE atom_types,                      ONLY: &
-        CGTO_BASIS, GTO_BASIS, atom_basis_type, atom_integrals, atom_optimization_type, &
-        atom_orbitals, atom_p_type, atom_potential_type, atom_state, create_atom_orbs, &
-        create_atom_type, init_atom_basis, init_atom_potential, read_atom_opt_section, &
-        release_atom_basis, release_atom_potential, release_atom_type, set_atom
+        atom_basis_type, atom_integrals, atom_optimization_type, atom_orbitals, atom_p_type, &
+        atom_potential_type, atom_state, create_atom_orbs, create_atom_type, init_atom_basis, &
+        init_atom_potential, read_atom_opt_section, release_atom_basis, release_atom_potential, &
+        release_atom_type, set_atom
    USE atom_utils,                      ONLY: atom_consistent_method,&
                                               atom_set_occupation,&
                                               get_maxl_occ,&
@@ -33,14 +30,13 @@ MODULE atom_basis
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE lapack,                          ONLY: lapack_ssyev
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC  :: atom_basis_opt, atom_basis_condnum
+   PUBLIC  :: atom_basis_opt
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_basis'
 
@@ -277,139 +273,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE atom_basis_opt
-
-! **************************************************************************************************
-!> \brief ...
-!> \param basis ...
-!> \param rad ...
-!> \param cnum ...
-! **************************************************************************************************
-   SUBROUTINE atom_basis_condnum(basis, rad, cnum)
-      TYPE(atom_basis_type), POINTER                     :: basis
-      REAL(KIND=dp), INTENT(IN)                          :: rad
-      REAL(KIND=dp), INTENT(OUT)                         :: cnum
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_condnum', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: ia, ib, imax, info, ix, iy, iz, ja, jb, &
-                                                            ka, kb, l, la, lb, lwork, na, nb, &
-                                                            nbas, nna, nnb
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ibptr
-      REAL(KIND=dp)                                      :: r1, r2, reps, rmax
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weig, work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smat
-      REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(7, 7)                     :: sab
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: zeta, zetb
-
-! total number of basis functions
-
-      nbas = 0
-      DO l = 0, 3
-         nbas = nbas+basis%nbas(l)*(2*l+1)
-      END DO
-
-      ALLOCATE (smat(nbas, nbas), ibptr(nbas, 0:3))
-      smat = 0.0_dp
-      ibptr = 0
-      na = 0
-      DO l = 0, 3
-         DO ia = 1, basis%nbas(l)
-            ibptr(ia, l) = na+1
-            na = na+(2*l+1)
-         END DO
-      END DO
-
-      reps = 1.e-14_dp
-      IF (basis%basis_type == GTO_BASIS .OR. &
-          basis%basis_type == CGTO_BASIS) THEN
-         DO la = 0, 3
-            na = basis%nprim(la)
-            nna = 2*la+1
-            IF (na == 0) CYCLE
-            zeta => basis%am(:, la)
-            DO lb = 0, 3
-               nb = basis%nprim(lb)
-               nnb = 2*lb+1
-               IF (nb == 0) CYCLE
-               zetb => basis%am(:, lb)
-               DO ia = 1, na
-                  DO ib = 1, nb
-                     IF (rad < 0.1_dp) THEN
-                        imax = 0
-                     ELSE
-                        r1 = exp_radius(la, zeta(ia), reps, 1.0_dp)
-                        r2 = exp_radius(lb, zetb(ib), reps, 1.0_dp)
-                        rmax = MAX(2._dp*r1, 2._dp*r2)
-                        imax = INT(rmax/rad)+1
-                     END IF
-                     IF (imax > 1) THEN
-                        CALL overlap_ab_sp(la, zeta(ia), lb, zetb(ib), rad, sab)
-                        IF (basis%basis_type == GTO_BASIS) THEN
-                           ja = ibptr(ia, la)
-                           jb = ibptr(ib, lb)
-                           smat(ja:ja+nna-1, jb:jb+nnb-1) = smat(ja:ja+nna-1, jb:jb+nnb-1)+sab(1:nna, 1:nnb)
-                        ELSEIF (basis%basis_type == CGTO_BASIS) THEN
-                           DO ka = 1, basis%nbas(la)
-                              DO kb = 1, basis%nbas(lb)
-                                 ja = ibptr(ka, la)
-                                 jb = ibptr(kb, lb)
-                                 smat(ja:ja+nna-1, jb:jb+nnb-1) = smat(ja:ja+nna-1, jb:jb+nnb-1)+ &
-                                                                  sab(1:nna, 1:nnb)*basis%cm(ia, ka, la)*basis%cm(ib, kb, lb)
-                              END DO
-                           END DO
-                        END IF
-                     ELSE
-                        DO ix = -imax, imax
-                           rab(1) = rad*ix
-                           DO iy = -imax, imax
-                              rab(2) = rad*iy
-                              DO iz = -imax, imax
-                                 rab(3) = rad*iz
-                                 CALL overlap_ab_s(la, zeta(ia), lb, zetb(ib), rab, sab)
-                                 IF (basis%basis_type == GTO_BASIS) THEN
-                                    ja = ibptr(ia, la)
-                                    jb = ibptr(ib, lb)
-                                    smat(ja:ja+nna-1, jb:jb+nnb-1) = smat(ja:ja+nna-1, jb:jb+nnb-1)+sab(1:nna, 1:nnb)
-                                 ELSEIF (basis%basis_type == CGTO_BASIS) THEN
-                                    DO ka = 1, basis%nbas(la)
-                                       DO kb = 1, basis%nbas(lb)
-                                          ja = ibptr(ka, la)
-                                          jb = ibptr(kb, lb)
-                                          smat(ja:ja+nna-1, jb:jb+nnb-1) = &
-                                             smat(ja:ja+nna-1, jb:jb+nnb-1)+ &
-                                             sab(1:nna, 1:nnb)*basis%cm(ia, ka, la)*basis%cm(ib, kb, lb)
-                                       END DO
-                                    END DO
-                                 END IF
-                              END DO
-                           END DO
-                        END DO
-                     END IF
-                  END DO
-               END DO
-            END DO
-         END DO
-      ELSE
-         CPABORT("Condition number not available for this basis type")
-      END IF
-
-      info = 0
-      lwork = nbas*nbas
-      ALLOCATE (weig(nbas), work(lwork))
-
-      CALL lapack_ssyev("N", "U", nbas, smat, nbas, weig, work, lwork, info)
-      CPASSERT(info == 0)
-      IF (weig(1) < 0.0_dp) THEN
-         cnum = 100._dp
-      ELSE
-         cnum = ABS(weig(nbas)/weig(1))
-         cnum = LOG10(cnum)
-      END IF
-
-      DEALLOCATE (smat, ibptr, weig, work)
-
-   END SUBROUTINE atom_basis_condnum
 
 END MODULE atom_basis
