@@ -2,8 +2,8 @@
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright (C) 2000 - 2016  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
-! **************************************************************************************************
 MODULE qs_rho_atom_methods
+
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -64,6 +64,9 @@ MODULE qs_rho_atom_methods
    USE util,                            ONLY: get_limit
    USE whittaker,                       ONLY: whittaker_c0a,&
                                               whittaker_ci
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -162,8 +165,7 @@ CONTAINS
 
       ALLOCATE (CPCH_sphere(nsoset(maxl), nsoset(maxl)))
       ALLOCATE (CPCS_sphere(nsoset(maxl), nsoset(maxl)))
-      ALLOCATE (g1(nr), g2(nr), gg0(nr), gg(nr, 0:2*maxl), dgg(nr, 0:2*maxl), &
-                gg_lm1(nr, 0:2*maxl))
+      ALLOCATE (g1(nr), g2(nr), gg0(nr), gg(nr, 0:2*maxl), dgg(nr, 0:2*maxl), gg_lm1(nr, 0:2*maxl))
       ALLOCATE (erf_zet12(nr), vgg(nr, 0:2*maxl, 0:indso(1, max_iso_not0)))
       ALLOCATE (done_vgg(0:2*maxl, 0:indso(1, max_iso_not0)))
       ALLOCATE (dd(nr), int1(nr), int2(nr))
@@ -196,8 +198,8 @@ CONTAINS
                                    max_s_harm, lmax_expansion, dacg_list, dacg_n_list, damax_iso_not0_local)
             CALL get_none0_cg_list(my_dCG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax_expansion, dbcg_list, dbcg_n_list, dbmax_iso_not0_local)
-
             n1s = nsoset(lmax(iset1))
+
             DO ipgf1 = 1, npgf(iset1)
                iso1_first = nsoset(lmin(iset1)-1)+1+n1s*(ipgf1-1)+m1s
                iso1_last = nsoset(lmax(iset1))+n1s*(ipgf1-1)+m1s
@@ -254,13 +256,12 @@ CONTAINS
                      DO l = lmin12+1, lmax12
                         gg(1:nr, l) = grid_atom%rad(1:nr)*gg(1:nr, l-1)
                         gg_lm1(1:nr, l) = gg(1:nr, l-1)
-                        dgg(1:nr, l-1) = dgg(1:nr, l-1)-2.0_dp*(zet(ipgf1, iset1)+ &
-                                                                zet(ipgf2, iset2))*gg(1:nr, l)
+                        dgg(1:nr, l-1) = dgg(1:nr, l-1)-2.0_dp*(zet(ipgf1, iset1) &
+                                                                +zet(ipgf2, iset2))*gg(1:nr, l)
 
                      END DO
-                     dgg(1:nr, lmax12) = dgg(1:nr, lmax12)-2.0_dp*(zet(ipgf1, iset1)+ &
-                                                                   zet(ipgf2, iset2))*grid_atom%rad(1:nr)* &
-                                         gg(1:nr, lmax12)
+                     dgg(1:nr, lmax12) = dgg(1:nr, lmax12)-2.0_dp*(zet(ipgf1, iset1) &
+                                                                   +zet(ipgf2, iset2))*grid_atom%rad(1:nr)*gg(1:nr, lmax12)
 
                      c2 = SQRT(pi*pi*pi/(zet12*zet12*zet12))
 
@@ -299,12 +300,12 @@ CONTAINS
                      DO i = 1, nspins
                         CPCH_sphere = 0.0_dp
                         CPCS_sphere = 0.0_dp
+
                         coeff => rho_atom_set(iatom)%cpc_h(i)%r_coef
-                        CPCH_sphere(i1:i1+size1-1, i2:i2+size2-1) = &
-                           coeff(iso1_first:iso1_last, iso2_first:iso2_last)
+                        CPCH_sphere(i1:i1+size1-1, i2:i2+size2-1) = coeff(iso1_first:iso1_last, iso2_first:iso2_last)
+
                         coeff => rho_atom_set(iatom)%cpc_s(i)%r_coef
-                        CPCS_sphere(i1:i1+size1-1, i2:i2+size2-1) = &
-                           coeff(iso1_first:iso1_last, iso2_first:iso2_last)
+                        CPCS_sphere(i1:i1+size1-1, i2:i2+size2-1) = coeff(iso1_first:iso1_last, iso2_first:iso2_last)
 
                         DO iso = 1, max_iso_not0_local
                            l_iso = indso(1, iso)
@@ -325,6 +326,7 @@ CONTAINS
                                          +4._dp*zet(ipgf1, iset1)*zet(ipgf2, iset2)*grid_atom%rad2(1:nr)
                               l = indso(1, iso1)+indso(1, iso2)
                               CPASSERT(l <= lmax_expansion)
+
                               rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr, iso) = &
                                  rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr, iso)+ &
                                  gg(1:nr, l)*CPCH_sphere(iso1, iso2)*my_CG(iso1, iso2, iso)
@@ -433,10 +435,8 @@ CONTAINS
                rho_s = 0.0_dp
                rho_h = 0.0_dp
                DO ir = 1, nr
-                  rho_h = rho_h+ &
-                          rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir, iso)*grid_atom%wr(ir)
-                  rho_s = rho_s+ &
-                          rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir, iso)*grid_atom%wr(ir)
+                  rho_h = rho_h+rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir, iso)*grid_atom%wr(ir)
+                  rho_s = rho_s+rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir, iso)*grid_atom%wr(ir)
                END DO ! ir
                tot_rho1_h(i) = tot_rho1_h(i)+rho_h*harmonics%slm_int(iso)
                tot_rho1_s(i) = tot_rho1_s(i)+rho_s*harmonics%slm_int(iso)
@@ -455,12 +455,12 @@ CONTAINS
    END SUBROUTINE calculate_rho_atom
 
 ! **************************************************************************************************
-
-! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param rho_ao ...
 !> \param rho_atom_set ...
+!> \par History
+!>      Add OpenMP [Apr 2016, EPCC]
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set)
 
@@ -474,7 +474,7 @@ CONTAINS
 
       INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, img, irow, ispin, istat, jatom, &
          jkind, kac, katom, kbc, kkind, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, n_cont_b, &
-         nat_kind, natom, nimages, nkind, nsatbas, nsetc, nsgfa, nsgfb, nsoctot, nspins, num_pe
+         nat_kind, natom, nimages, nkind, nsatbas, nsetc, nsoctot, nspins, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: a_list, list_a, list_b
@@ -503,6 +503,8 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: p_block_spin
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
+
+!$    INTEGER :: omp_get_max_threads, omp_get_thread_num
 
       CALL timeset(routineN, handle)
 
@@ -534,20 +536,11 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
 
-      ALLOCATE (p_block_spin(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (p_block_spin(ispin)%r_coef)
-      END DO
-
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       CALL get_qs_kind_set(qs_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
 
-      ALLOCATE (PC1(max_nsgf*max_gau), CPC(max_gau*max_gau), p_matrix(max_nsgf, max_nsgf), &
-                STAT=istat)
-      CPASSERT(istat == 0)
-
       nkind = SIZE(atomic_kind_set)
-!   Inizialize to 0 the CPC coefficients and the local density arrays
+!   Initialize to 0 the CPC coefficients and the local density arrays
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=a_list, natom=nat_kind)
          CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
@@ -582,16 +575,60 @@ CONTAINS
             NULLIFY (basis_set_list(ikind)%gto_basis_set)
          END IF
       END DO
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, cell=cell_b, r=rab)
+
+      num_pe = 1
+!$    num_pe = omp_get_max_threads()
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb, nthread=num_pe)
+
+!$OMP PARALLEL DEFAULT( NONE )                            &
+!$OMP           SHARED( max_nsgf, max_gau                 &
+!$OMP                 , nl_iterator, basis_set_list       &
+!$OMP                 , nimages, cell_to_index            &
+!$OMP                 , nspins, rho_ao                    &
+!$OMP                 , nkind, qs_kind_set                &
+!$OMP                 , oce, eps_cpc                      &
+!$OMP                 , rho_atom                          &
+!$OMP                 )                                   &
+!$OMP          PRIVATE( p_block_spin, ispin               &
+!$OMP                 , PC1, CPC, p_matrix, istat         &
+!$OMP                 , mepos                             &
+!$OMP                 , ikind, jkind, iatom, jatom        &
+!$OMP                 , cell_b, rab                       &
+!$OMP                 , basis_set_a, basis_set_b          &
+!$OMP                 , pmax, irow, icol, img             &
+!$OMP                 , found                             &
+!$OMP                 , kkind, orb_basis_set, paw_proj    &
+!$OMP                 , paw_atom, nsetc, maxsoc, nsatbas  &
+!$OMP                 , nsoctot, katom                    &
+!$OMP                 , iac , alist_ac, kac, n_cont_a, list_a     &
+!$OMP                 , ibc , alist_bc, kbc, n_cont_b, list_b     &
+!$OMP                 , C_coeff_hh_a, C_coeff_ss_a, dista         &
+!$OMP                 , C_coeff_hh_b, C_coeff_ss_b, distb         &
+!$OMP                 , distab                                    &
+!$OMP                 , factor, r_coef_h, r_coef_s                &
+!$OMP                 )
+
+      ALLOCATE (p_block_spin(nspins))
+      DO ispin = 1, nspins
+         NULLIFY (p_block_spin(ispin)%r_coef)
+      END DO
+
+      ALLOCATE (PC1(max_nsgf*max_gau), CPC(max_gau*max_gau), p_matrix(max_nsgf, max_nsgf), STAT=istat)
+      CPASSERT(istat == 0)
+
+      mepos = 0
+!$    mepos = omp_get_thread_num()
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
+
+         CALL get_iterator_info(nl_iterator, mepos=mepos, &
+                                ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, &
+                                cell=cell_b, r=rab)
+
          basis_set_a => basis_set_list(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         nsgfa = basis_set_a%nsgf
-         nsgfb = basis_set_b%nsgf
 
          pmax = 0._dp
          IF (iatom <= jatom) THEN
@@ -631,9 +668,9 @@ CONTAINS
 
             iac = ikind+nkind*(kkind-1)
             ibc = jkind+nkind*(kkind-1)
-
             IF (.NOT. ASSOCIATED(oce%intac(iac)%alist)) CYCLE
             IF (.NOT. ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
+
             CALL get_alist(oce%intac(iac), alist_ac, iatom)
             CALL get_alist(oce%intac(ibc), alist_bc, jatom)
             IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
@@ -648,6 +685,7 @@ CONTAINS
                      n_cont_a = alist_ac%clist(kac)%nsgf_cnt
                      n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
                      IF (n_cont_a .EQ. 0 .OR. n_cont_b .EQ. 0) CYCLE
+
                      list_a => alist_ac%clist(kac)%sgf_list
                      list_b => alist_bc%clist(kbc)%sgf_list
 
@@ -692,6 +730,7 @@ CONTAINS
                         r_coef_h => rho_atom(katom)%cpc_h(ispin)%r_coef
                         r_coef_s => rho_atom(katom)%cpc_s(ispin)%r_coef
 
+!$OMP CRITICAL(qs_rho_atom_methods_proj_blk)
                         IF (iatom <= jatom) THEN
                            CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
@@ -703,6 +742,7 @@ CONTAINS
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
                                          PC1, CPC, factor, distab)
                         ENDIF
+!$OMP END CRITICAL(qs_rho_atom_methods_proj_blk)
 
                      END DO
                      EXIT !search loop over jatom-katom list
@@ -711,6 +751,10 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      DEALLOCATE (PC1, CPC, p_block_spin, p_matrix)
+!$OMP END PARALLEL
+
       CALL neighbor_list_iterator_release(nl_iterator)
 
       ALLOCATE (kind_of(natom))
@@ -732,7 +776,7 @@ CONTAINS
 
       END DO
 
-      DEALLOCATE (PC1, CPC, p_block_spin, p_matrix, kind_of, basis_set_list)
+      DEALLOCATE (kind_of, basis_set_list)
 
       CALL timestop(handle)
 
