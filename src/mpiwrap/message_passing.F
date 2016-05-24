@@ -48,7 +48,7 @@ MODULE message_passing
 ! USE mpi, ONLY: mpi_wtime
 ! constants
 ! USE mpi, ONLY: MPI_DOUBLE_PRECISION, MPI_DOUBLE_COMPLEX, MPI_REAL, MPI_COMPLEX, MPI_ANY_TAG,&
-!                MPI_ANY_SOURCE, MPI_COMM_NULL, MPI_REQUEST_NULL, MPI_WIN_NULL, MPI_STATUS_SIZE, MPI_STATUS_IGNORE,&
+!                MPI_ANY_SOURCE, MPI_COMM_NULL, MPI_REQUEST_NULL, MPI_WIN_NULL, MPI_STATUS_SIZE, MPI_STATUS_IGNORE, MPI_STATUSES_IGNORE, &
 !                MPI_ADDRESS_KIND, MPI_OFFSET_KIND, MPI_MODE_CREATE, MPI_MODE_RDONLY, MPI_MODE_WRONLY,&
 !                MPI_MODE_RDWR, MPI_MODE_EXCL, MPI_COMM_SELF, MPI_COMM_WORLD, MPI_THREAD_FUNNELED,&
 !                MPI_ERRORS_RETURN, MPI_SUCCESS, MPI_MAX_PROCESSOR_NAME, MPI_MAX_ERROR_STRING, MPI_IDENT,&
@@ -1613,7 +1613,7 @@ CONTAINS
       count = SIZE(requests)
       t_start = m_walltime()
 
-      CALL mpi_waitall(count, requests, MPI_STATUS_IGNORE, ierr)
+      CALL mpi_waitall_internal(count, requests, MPI_STATUSES_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_1")
 
       t_end = m_walltime()
@@ -1649,7 +1649,7 @@ CONTAINS
       count = SIZE(requests)
       t_start = m_walltime()
 
-      CALL mpi_waitall_internal(count, requests, MPI_STATUS_IGNORE, ierr)
+      CALL mpi_waitall_internal(count, requests, MPI_STATUSES_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_2")
 
       t_end = m_walltime()
