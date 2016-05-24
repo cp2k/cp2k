@@ -102,7 +102,7 @@ EOF
         ;;
 esac
 if [ "$with_libxsmm" != "__DONTUSE__" ] ; then
-    LIBXSMM_LIBS="-lxsmmf -lxmm"
+    LIBXSMM_LIBS="-lxsmmf -lxsmm"
     if [ "$with_libxsmm" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_libxsmm"
 prepend_path PATH "${pkg_install_dir}/bin"
@@ -119,7 +119,7 @@ export LIBXSMM_LIBS="${LIBXSMM_LIBS}"
 export CP_DFLAGS="-D__LIBXSMM \${CP_DFLAGS}"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBXSMM_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBXSMM_LDFLAGS}"
-export CP_LIBS="-lxsmm \${CP_LIBS}"
+export CP_LIBS="\${LIBXSMM_LIBS} \${CP_LIBS}"
 EOF
 fi
 cd "${ROOTDIR}"
