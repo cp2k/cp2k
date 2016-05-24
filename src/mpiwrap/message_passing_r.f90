@@ -23,14 +23,12 @@
     INTEGER                                  :: displ, left, &
                                                 msglen, myrank, nprocs, &
                                                 right, tag
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 #endif
 
     ierror = 0
     CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
     CALL mpi_comm_rank(group,myrank,ierror)
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ "//routineN )
     CALL mpi_comm_size(group,nprocs,ierror)
@@ -46,11 +44,10 @@
     msglen = SIZE(msg)
     t_start = m_walltime ( )
     CALL mpi_sendrecv_replace(msg,msglen,MPI_REAL,right,tag,left,tag, &
-         group,status,ierror)
-    t_end = m_walltime ( )
+         group,MPI_STATUS_IGNORE,ierror)
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
+    t_end = m_walltime ( )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
-    DEALLOCATE(status)
 #else
     MARK_USED(msg)
     MARK_USED(group)
@@ -86,14 +83,12 @@
     INTEGER                                  :: displ, left, &
                                                 msglen, myrank, nprocs, &
                                                 right, tag
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 #endif
 
     ierror = 0
     CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
     CALL mpi_comm_rank(group,myrank,ierror)
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ "//routineN )
     CALL mpi_comm_size(group,nprocs,ierror)
@@ -109,11 +104,9 @@
     msglen = SIZE(msg)
     t_start = m_walltime ( )
     CALL mpi_sendrecv_replace(msg,msglen,MPI_REAL,right,tag,left,&
-         tag,group,status,ierror)
-    t_end = m_walltime ( )
+         tag,group,MPI_STATUS_IGNORE,ierror)
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
-    DEALLOCATE(status)
 #else
     MARK_USED(msg)
     MARK_USED(group)
@@ -2403,27 +2396,23 @@
 #if defined(__parallel)
     INTEGER                                  :: msglen_in, msglen_out, &
                                                 recv_tag, send_tag
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 #endif
 
     ierr = 0
     CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
     t_start = m_walltime ( )
     msglen_in = SIZE(msgin)
     msglen_out = SIZE(msgout)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
     CALL mpi_sendrecv(msgin,msglen_in,MPI_REAL,dest,send_tag,msgout,&
-         msglen_out,MPI_REAL,source,recv_tag,comm,status,ierr)
-    ! we do not check the status
+         msglen_out,MPI_REAL,source,recv_tag,comm,MPI_STATUS_IGNORE,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
          msg_size=(msglen_in+msglen_out)*real_4_size/2)
-    DEALLOCATE(status)
 #else
     MARK_USED(dest)
     MARK_USED(source)
@@ -2455,27 +2444,23 @@
 #if defined(__parallel)
     INTEGER                                  :: msglen_in, msglen_out, &
                                                 recv_tag, send_tag
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 #endif
 
     ierr = 0
     CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
     t_start = m_walltime ( )
     msglen_in = SIZE(msgin,1)*SIZE(msgin,2)
     msglen_out = SIZE(msgout,1)*SIZE(msgout,2)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
     CALL mpi_sendrecv(msgin,msglen_in,MPI_REAL,dest,send_tag,msgout,&
-         msglen_out,MPI_REAL,source,recv_tag,comm,status,ierr)
-    ! we do not check the status
+         msglen_out,MPI_REAL,source,recv_tag,comm,MPI_STATUS_IGNORE,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
          msg_size=(msglen_in+msglen_out)*real_4_size/2)
-    DEALLOCATE(status)
 #else
     MARK_USED(dest)
     MARK_USED(source)
@@ -2507,27 +2492,23 @@
 #if defined(__parallel)
     INTEGER                                  :: msglen_in, msglen_out, &
                                                 recv_tag, send_tag
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 #endif
 
     ierr = 0
     CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
     t_start = m_walltime ( )
     msglen_in = SIZE(msgin)
     msglen_out = SIZE(msgout)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
     CALL mpi_sendrecv(msgin,msglen_in,MPI_REAL,dest,send_tag,msgout,&
-         msglen_out,MPI_REAL,source,recv_tag,comm,status,ierr)
-    ! we do not check the status
+         msglen_out,MPI_REAL,source,recv_tag,comm,MPI_STATUS_IGNORE,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
          msg_size=(msglen_in+msglen_out)*real_4_size/2)
-    DEALLOCATE(status)
 #else
     MARK_USED(dest)
     MARK_USED(source)
@@ -2559,27 +2540,23 @@
 #if defined(__parallel)
     INTEGER                                  :: msglen_in, msglen_out, &
                                                 recv_tag, send_tag
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 #endif
 
     ierr = 0
     CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
     t_start = m_walltime ( )
     msglen_in = SIZE(msgin)
     msglen_out = SIZE(msgout)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
     CALL mpi_sendrecv(msgin,msglen_in,MPI_REAL,dest,send_tag,msgout,&
-         msglen_out,MPI_REAL,source,recv_tag,comm,status,ierr)
-    ! we do not check the status
+         msglen_out,MPI_REAL,source,recv_tag,comm,MPI_STATUS_IGNORE,ierr)
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
          msg_size=(msglen_in+msglen_out)*real_4_size/2)
-    DEALLOCATE(status)
 #else
     MARK_USED(dest)
     MARK_USED(source)
@@ -3430,19 +3407,14 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr, msg_len
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_REAL, status, ierr)
+    CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_rv @ "//routineN)
-    DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
@@ -3463,17 +3435,12 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_WRITE_AT(fh, offset, msg, 1, MPI_REAL, status, ierr)
+    CALL MPI_FILE_WRITE_AT(fh, offset, msg, 1, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_r @ "//routineN)
-    DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg
 #endif
@@ -3500,19 +3467,14 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_REAL, status, ierr)
+    CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_all_rv @ "//routineN)
-    DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
@@ -3533,17 +3495,12 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, 1, MPI_REAL, status, ierr)
+    CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, 1, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_all_r @ "//routineN)
-    DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg
 #endif
@@ -3571,19 +3528,14 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_REAL, status, ierr)
+    CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_rv @ "//routineN)
-    DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
@@ -3605,17 +3557,12 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_READ_AT(fh, offset, msg, 1, MPI_REAL, status, ierr)
+    CALL MPI_FILE_READ_AT(fh, offset, msg, 1, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_r @ "//routineN)
-    DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg
 #endif
@@ -3641,19 +3588,14 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr, msg_len
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
     msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_REAL, status, ierr)
+    CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_all_rv @ "//routineN)
-    DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
 #endif
@@ -3674,17 +3616,12 @@
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                    :: ierr
-#if defined(__parallel)
-    INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
-#endif
 
     ierr = 0
 #if defined(__parallel)
-    ALLOCATE(status(MPI_STATUS_SIZE))
-    CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, 1, MPI_REAL, status, ierr)
+    CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, 1, MPI_REAL, MPI_STATUS_IGNORE, ierr)
     IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_all_r @ "//routineN)
-    DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg
 #endif

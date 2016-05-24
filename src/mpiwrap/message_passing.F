@@ -48,10 +48,10 @@ MODULE message_passing
 ! USE mpi, ONLY: mpi_wtime
 ! constants
 ! USE mpi, ONLY: MPI_DOUBLE_PRECISION, MPI_DOUBLE_COMPLEX, MPI_REAL, MPI_COMPLEX, MPI_ANY_TAG,&
-!                MPI_ANY_SOURCE, MPI_COMM_NULL, MPI_REQUEST_NULL, MPI_WIN_NULL, MPI_STATUS_SIZE,&
+!                MPI_ANY_SOURCE, MPI_COMM_NULL, MPI_REQUEST_NULL, MPI_WIN_NULL, MPI_STATUS_SIZE, MPI_STATUS_IGNORE,&
 !                MPI_ADDRESS_KIND, MPI_OFFSET_KIND, MPI_MODE_CREATE, MPI_MODE_RDONLY, MPI_MODE_WRONLY,&
-!                MPI_MODE_RDWR, MPI_MODE_EXCL, MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL, MPI_THREAD_FUNNELED,&
-!                MPI_ERRORS_RETURN, MPI_SUCCESS, MPI_MAX_PROCESSOR_NAME, MPI_STATUS_SIZE, MPI_MAX_ERROR_STRING, MPI_IDENT,&
+!                MPI_MODE_RDWR, MPI_MODE_EXCL, MPI_COMM_SELF, MPI_COMM_WORLD, MPI_THREAD_FUNNELED,&
+!                MPI_ERRORS_RETURN, MPI_SUCCESS, MPI_MAX_PROCESSOR_NAME, MPI_MAX_ERROR_STRING, MPI_IDENT,&
 !                MPI_UNEQUAL, MPI_MAX, MPI_SUM, MPI_INFO_NULL, MPI_IN_PLACE, MPI_CONGRUENT, MPI_SIMILAR, MPI_MIN, MPI_SOURCE,&
 !                MPI_TAG, MPI_INTEGER8, MPI_INTEGER, MPI_MAXLOC, MPI_2INTEGER, MPI_MINLOC, MPI_LOGICAL, MPI_2DOUBLE_PRECISION,&
 !                MPI_LOR, MPI_CHARACTER, MPI_BOTTOM, MPI_MODE_NOCHECK, MPI_2REAL
@@ -1563,30 +1563,23 @@ CONTAINS
 !>      see isendrecv
 ! **************************************************************************************************
    SUBROUTINE mp_wait(request)
-      INTEGER, INTENT(inout)                   :: request
+      INTEGER, INTENT(inout)                             :: request
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_wait', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_wait', routineP = moduleN//':'//routineN
 
-      INTEGER                                  :: handle, ierr
-#if defined(__parallel)
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
-#endif
+      INTEGER                                            :: handle, ierr
 
       ierr = 0
       CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-      ALLOCATE (status(MPI_STATUS_SIZE))
       t_start = m_walltime()
 
-      CALL mpi_wait(request, status, ierr)
-      ! we do not check the status
+      CALL mpi_wait(request, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_wait @ mp_wait")
 
       t_end = m_walltime()
       CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
-      DEALLOCATE (status)
 #else
       MARK_USED(request)
 #endif
@@ -1611,7 +1604,6 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
 #endif
 
       ierr = 0
@@ -1619,16 +1611,13 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
-      ALLOCATE (status(MPI_STATUS_SIZE, count))
       t_start = m_walltime()
 
-      CALL mpi_waitall(count, requests, status, ierr)
-      ! we do not check the status
+      CALL mpi_waitall(count, requests, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_1")
 
       t_end = m_walltime()
       CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
-      DEALLOCATE (status)
 #else
       MARK_USED(requests)
 #endif
@@ -1651,7 +1640,6 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
 #endif
 
       ierr = 0
@@ -1659,16 +1647,13 @@ CONTAINS
 
 #if defined(__parallel)
       count = SIZE(requests)
-      ALLOCATE (status(MPI_STATUS_SIZE, count))
       t_start = m_walltime()
 
-      CALL mpi_waitall_internal(count, requests, status, ierr)
-      ! we do not check the status
+      CALL mpi_waitall_internal(count, requests, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_2")
 
       t_end = m_walltime()
       CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
-      DEALLOCATE (status)
 #else
       MARK_USED(requests)
 #endif
@@ -1715,7 +1700,6 @@ CONTAINS
       INTEGER                                  :: handle, ierr
 #if defined(__parallel)
       INTEGER                                  :: count
-      INTEGER                                  :: status(MPI_STATUS_SIZE)
 #endif
 
       ierr = 0
@@ -1725,8 +1709,7 @@ CONTAINS
       count = SIZE(requests)
       t_start = m_walltime()
 
-      CALL mpi_waitany(count, requests, completed, status, ierr)
-      ! we do not check the status
+      CALL mpi_waitany(count, requests, completed, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitany @ mp_waitany")
 
       t_end = m_walltime()
@@ -1762,11 +1745,9 @@ CONTAINS
 
 #if defined(__parallel)
       CALL mpi_test(requests(1), flag, MPI_STATUS_IGNORE, ierr)
-      ! we do not check the status
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_testall @ mp_testall_t2")
       !
       CALL mpi_test(requests(2), flag1, MPI_STATUS_IGNORE, ierr)
-      ! we do not check the status
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_testall @ mp_testall_t2")
       !
       flag = flag .AND. flag1
@@ -1795,7 +1776,6 @@ CONTAINS
       INTEGER                                  :: ierr
 #if defined(__parallel)
       INTEGER                                  :: completed_l, count
-      INTEGER                                  :: status(MPI_STATUS_SIZE)
       LOGICAL                                  :: flag_l
 #endif
 
@@ -1804,8 +1784,7 @@ CONTAINS
 #if defined(__parallel)
       count = SIZE(requests)
 
-      CALL mpi_testany_internal(count, requests, completed_l, flag_l, status, ierr)
-      ! we do not check the status
+      CALL mpi_testany_internal(count, requests, completed_l, flag_l, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_testany_1 @ mp_testany")
 
       IF (PRESENT(completed)) completed = completed_l
@@ -1837,7 +1816,6 @@ CONTAINS
       INTEGER                                  :: ierr
 #if defined(__parallel)
       INTEGER                                  :: completed_l, count
-      INTEGER                                  :: status(MPI_STATUS_SIZE)
       LOGICAL                                  :: flag_l
 #endif
 
@@ -1846,8 +1824,7 @@ CONTAINS
 #if defined(__parallel)
       count = SIZE(requests)
 
-      CALL mpi_testany_internal(count, requests, completed_l, flag_l, status, ierr)
-      ! we do not check the status
+      CALL mpi_testany_internal(count, requests, completed_l, flag_l, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_testany_2 @ mp_testany")
 
       IF (PRESENT(completed)) completed = completed_l
@@ -2874,15 +2851,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_chv @ "//routineN)
-      DEALLOCATE (status)
 #else
       MARK_USED(msglen)
       WRITE (UNIT=fh, POS=offset+1) msg
@@ -2905,13 +2879,10 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_WRITE_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_WRITE_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_ch @ "//routineN)
-      DEALLOCATE (status)
 #else
       WRITE (UNIT=fh, POS=offset+1) msg
 #endif
@@ -2938,15 +2909,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_all_chv @ "//routineN)
-      DEALLOCATE (status)
 #else
       MARK_USED(msglen)
       WRITE (UNIT=fh, POS=offset+1) msg
@@ -2969,13 +2937,10 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_write_at_all_ch @ "//routineN)
-      DEALLOCATE (status)
 #else
       WRITE (UNIT=fh, POS=offset+1) msg
 #endif
@@ -3003,15 +2968,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_chv @ "//routineN)
-      DEALLOCATE (status)
 #else
       MARK_USED(msglen)
       READ (UNIT=fh, POS=offset+1) msg
@@ -3034,13 +2996,10 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_READ_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_READ_AT(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_ch @ "//routineN)
-      DEALLOCATE (status)
 #else
       READ (UNIT=fh, POS=offset+1) msg
 #endif
@@ -3067,15 +3026,12 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr, msg_len
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
       msg_len = SIZE(msg)
       IF (PRESENT(msglen)) msg_len = msglen
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_all_chv @ "//routineN)
-      DEALLOCATE (status)
 #else
       MARK_USED(msglen)
       READ (UNIT=fh, POS=offset+1) msg
@@ -3098,13 +3054,10 @@ CONTAINS
 
 #if defined(__parallel)
       INTEGER                                    :: ierr
-      INTEGER, ALLOCATABLE, DIMENSION(:)         :: status
 
-      ALLOCATE (status(MPI_STATUS_SIZE))
-      CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, status, ierr)
+      CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
       IF (ierr .NE. 0) &
          CPABORT("mpi_file_read_at_all_ch @ "//routineN)
-      DEALLOCATE (status)
 #else
       READ (UNIT=fh, POS=offset+1) msg
 #endif
@@ -3463,8 +3416,7 @@ CONTAINS
 #if defined(__parallel)
 
       INTEGER :: I, ierr, ierror, itask, itests, J, jtask, left, nbufmax, &
-                 ncount, Ngrid, Nloc, nprocs, Ntot, partner, right, &
-                 status(MPI_STATUS_SIZE), taskid
+                 ncount, Ngrid, Nloc, nprocs, Ntot, partner, right, taskid
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
       LOGICAL                                  :: ionode
       REAL(KIND=dp)                            :: maxdiff, res, res2, res3, t1, &
@@ -3584,7 +3536,7 @@ CONTAINS
                CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, jtask, itask*jtask, comm, ierror)
             ENDIF
             IF (taskid .EQ. jtask) THEN
-               CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm, status, ierror)
+               CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm, MPI_STATUS_IGNORE, ierror)
             ENDIF
             send_timings(itask, jtask) = MPI_WTIME()-t1+threshold
          ENDDO
@@ -3617,7 +3569,7 @@ CONTAINS
             IF (MODULO(taskid, 2) == 0) THEN
                CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid+1, 0, comm, ierror)
             ELSE
-               CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-1, 0, comm, status, ierror)
+               CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-1, 0, comm, MPI_STATUS_IGNORE, ierror)
             ENDIF
             t2 = t2+MPI_WTIME()-t1+threshold
          ENDDO
@@ -3646,7 +3598,7 @@ CONTAINS
             IF (taskid .LT. nprocs/2) THEN
                CALL MPI_SEND(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid+nprocs/2, 0, comm, ierror)
             ELSE
-               CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-nprocs/2, 0, comm, status, ierror)
+               CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-nprocs/2, 0, comm, MPI_STATUS_IGNORE, ierror)
             ENDIF
             t2 = t2+MPI_WTIME()-t1+threshold
          ENDDO
@@ -3765,7 +3717,7 @@ CONTAINS
          DO i = 1, Nprocs
             lgrid2(:) = lgrid2+grid(:, MODULO(taskid-i, Nprocs)+1)
             IF (i .EQ. nprocs) EXIT
-            CALL MPI_SENDRECV_REPLACE(lgrid2, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm, status, ierr)
+            CALL MPI_SENDRECV_REPLACE(lgrid2, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm, MPI_STATUS_IGNORE, ierr)
          ENDDO
          t4 = MPI_WTIME()-t3+threshold
          CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm, ierr)
@@ -3788,14 +3740,14 @@ CONTAINS
             partner = taskid+1
             DO i = 1, Nprocs, 2 ! sum the full grid with the partner
                CALL MPI_SENDRECV(grid3(1, i+1), nloc, MPI_DOUBLE_PRECISION, partner, 17, &
-                                 lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 19, comm, status, ierr)
+                                 lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 19, comm, MPI_STATUS_IGNORE, ierr)
                grid3(:, i) = grid3(:, i)+lgrid3(:)
             ENDDO
          ELSE
             partner = taskid-1
             DO i = 1, Nprocs, 2
                CALL MPI_SENDRECV(grid3(1, i), nloc, MPI_DOUBLE_PRECISION, partner, 19, &
-                                 lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 17, comm, status, ierr)
+                                 lgrid3, nloc, MPI_DOUBLE_PRECISION, partner, 17, comm, MPI_STATUS_IGNORE, ierr)
                grid3(:, i+1) = grid3(:, i+1)+lgrid3(:)
             ENDDO
          ENDIF
@@ -3809,7 +3761,7 @@ CONTAINS
          DO i = 1, Nprocs, 2
             lgrid3(:) = lgrid3+grid3(:, MODULO(taskid-i-1, Nprocs)+1)
             IF (i .EQ. nprocs-1) EXIT
-            CALL MPI_SENDRECV_REPLACE(lgrid3, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm, status, ierr)
+            CALL MPI_SENDRECV_REPLACE(lgrid3, nloc, MPI_DOUBLE_PRECISION, right, 0, left, 0, comm, MPI_STATUS_IGNORE, ierr)
          ENDDO
          t5 = MPI_WTIME()-t3+threshold
          CALL mpi_allreduce(t4, res, 1, MPI_DOUBLE_PRECISION, MPI_MAX, comm, ierr)
