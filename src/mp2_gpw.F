@@ -10,6 +10,8 @@
 ! **************************************************************************************************
 MODULE mp2_gpw
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
                                               cp_blacs_env_create,&
@@ -95,7 +97,8 @@ MODULE mp2_gpw
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_interactions,                 ONLY: init_interaction_radii
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -2026,7 +2029,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mat_munu', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, natom, nkind
+      INTEGER                                            :: handle, ikind, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: orb_radius
@@ -2035,6 +2038,7 @@ CONTAINS
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist_sub
       TYPE(distribution_1d_type), POINTER                :: local_molecules_sub, local_particles_sub
       TYPE(distribution_2d_type), POINTER                :: distribution_2d_sub
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
       CALL timeset(routineN, handle)
 
@@ -2075,14 +2079,26 @@ CONTAINS
       NULLIFY (sab_orb_sub)
       CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
       nkind = SIZE(atomic_kind_set)
+      ALLOCATE (atom2d(nkind))
+
+      CALL atom2d_build(atom2d, local_particles_sub, distribution_2d_sub, atomic_kind_set, &
+                        qs_kind_set, molecule_set, molecule_only=.FALSE., particle_set=particle_set)
+
       ALLOCATE (orb_present(nkind))
       ALLOCATE (orb_radius(nkind))
       ALLOCATE (pair_radius(nkind, nkind))
-      ALLOCATE (atom2d(nkind))
 
-      CALL atom2d_build(atom2d, orb_radius, orb_present, local_particles_sub, distribution_2d_sub, &
-                        atomic_kind_set, qs_kind_set, molecule_set, molecule_only=.FALSE., dftb=.FALSE., &
-                        particle_set=particle_set)
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            orb_present(ikind) = .TRUE.
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
+         ELSE
+            orb_present(ikind) = .FALSE.
+            orb_radius(ikind) = 0.0_dp
+         ENDIF
+      END DO
+
       CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
       CALL build_neighbor_lists(sab_orb_sub, particle_set, atom2d, cell, pair_radius, &

@@ -158,32 +158,24 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   Build some distribution structure of atoms, refactored from build_qs_neighbor_lists
 !> \param atom2d output
-!> \param orb_radius output
-!> \param orb_present output
 !> \param distribution_1d ...
 !> \param distribution_2d ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param molecule_set ...
 !> \param molecule_only ...
-!> \param kg ...
-!> \param dftb ...
 !> \param particle_set ...
 !> \author  JH
 ! **************************************************************************************************
-   SUBROUTINE atom2d_build(atom2d, orb_radius, orb_present, distribution_1d, distribution_2d, &
-                           atomic_kind_set, qs_kind_set, molecule_set, molecule_only, kg, dftb, particle_set)
+   SUBROUTINE atom2d_build(atom2d, distribution_1d, distribution_2d, &
+                           atomic_kind_set, qs_kind_set, molecule_set, molecule_only, particle_set)
       TYPE(local_atoms_type), DIMENSION(:)               :: atom2d
-      REAL(dp), DIMENSION(:)                             :: orb_radius
-      LOGICAL, DIMENSION(:)                              :: orb_present
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       LOGICAL                                            :: molecule_only
-      LOGICAL, OPTIONAL                                  :: kg
-      LOGICAL                                            :: dftb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom2d_build', routineP = moduleN//':'//routineN
@@ -195,14 +187,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2mol, listindex, listsort
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind, local_cols_array, &
                                                             local_rows_array
-      LOGICAL                                            :: do_kg
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
 
       CALL timeset(routineN, handle)
-
-      do_kg = .FALSE.
-      IF (PRESENT(kg)) do_kg = kg
 
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
@@ -228,7 +214,6 @@ CONTAINS
          NULLIFY (atom2d(ikind)%list_b_mol)
 
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom2d(ikind)%list)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
 
          natom_a = SIZE(atom2d(ikind)%list)
 
@@ -244,64 +229,43 @@ CONTAINS
             atom2d(ikind)%list_1d(iat) = atom_of_kind(ia)
          END DO
 
-         IF (ASSOCIATED(orb_basis_set)) THEN
-            orb_present(ikind) = .TRUE.
-            IF (do_kg) THEN
-               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, short_kind_radius=orb_radius(ikind))
-            ELSE
-               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
-            END IF
-         ELSE IF (dftb) THEN
-            ! Set the interaction radius for the neighbor lists (DFTB case)
-            ! This includes all interactions (orbitals and short range pair potential) except vdW
-            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom)
-            CALL get_dftb_atom_param(dftb_parameter=dftb_atom, &
-                                     cutoff=orb_radius(ikind), &
-                                     defined=orb_present(ikind))
-         ELSE
-            orb_present(ikind) = .FALSE.
-         END IF
+         ALLOCATE (listsort(natom_a), listindex(natom_a))
+         listsort(1:natom_a) = atom2d(ikind)%list(1:natom_a)
+         CALL sort(listsort, natom_a, listindex)
+         ! Block rows
+         IF (natom_local_a > 0) THEN
+            ALLOCATE (atom2d(ikind)%list_local_a_index(natom_local_a))
+            ALLOCATE (atom2d(ikind)%list_a_mol(natom_local_a))
+            atom2d(ikind)%list_a_mol(:) = 0
 
-         IF (orb_present(ikind)) THEN
-            ALLOCATE (listsort(natom_a), listindex(natom_a))
-            listsort(1:natom_a) = atom2d(ikind)%list(1:natom_a)
-            CALL sort(listsort, natom_a, listindex)
-            ! Block rows
-            IF (natom_local_a > 0) THEN
-               ALLOCATE (atom2d(ikind)%list_local_a_index(natom_local_a))
-               ALLOCATE (atom2d(ikind)%list_a_mol(natom_local_a))
-               atom2d(ikind)%list_a_mol(:) = 0
-
-               ! Build index vector for mapping
-               DO iatom_local = 1, natom_local_a
-                  atom_a = local_rows_array(iatom_local)
-                  iatom = locate(listsort, atom_a)
-                  atom2d(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
-                  IF (molecule_only) atom2d(ikind)%list_a_mol(iatom_local) = atom2mol(atom_a)
-               END DO
-
-            END IF
-
-            ! Block columns
-            IF (natom_local_b > 0) THEN
-
-               ALLOCATE (atom2d(ikind)%list_local_b_index(natom_local_b))
-               ALLOCATE (atom2d(ikind)%list_b_mol(natom_local_b))
-               atom2d(ikind)%list_b_mol(:) = 0
-
-               ! Build index vector for mapping
-               DO iatom_local = 1, natom_local_b
-                  atom_a = local_cols_array(iatom_local)
-                  iatom = locate(listsort, atom_a)
-                  atom2d(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
-                  IF (molecule_only) atom2d(ikind)%list_b_mol(iatom_local) = atom2mol(atom_a)
-               END DO
-
-            END IF
-
-            DEALLOCATE (listsort, listindex)
+            ! Build index vector for mapping
+            DO iatom_local = 1, natom_local_a
+               atom_a = local_rows_array(iatom_local)
+               iatom = locate(listsort, atom_a)
+               atom2d(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
+               IF (molecule_only) atom2d(ikind)%list_a_mol(iatom_local) = atom2mol(atom_a)
+            END DO
 
          END IF
+
+         ! Block columns
+         IF (natom_local_b > 0) THEN
+
+            ALLOCATE (atom2d(ikind)%list_local_b_index(natom_local_b))
+            ALLOCATE (atom2d(ikind)%list_b_mol(natom_local_b))
+            atom2d(ikind)%list_b_mol(:) = 0
+
+            ! Build index vector for mapping
+            DO iatom_local = 1, natom_local_b
+               atom_a = local_cols_array(iatom_local)
+               iatom = locate(listsort, atom_a)
+               atom2d(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
+               IF (molecule_only) atom2d(ikind)%list_b_mol(iatom_local) = atom2mol(atom_a)
+            END DO
+
+         END IF
+
+         DEALLOCATE (listsort, listindex)
 
       ENDDO
 
@@ -497,9 +461,8 @@ CONTAINS
       ! Initialize the local data structures
       ALLOCATE (atom2d(nkind))
 
-      CALL atom2d_build(atom2d, orb_radius, orb_present, distribution_1d, distribution_2d, &
-                        atomic_kind_set, qs_kind_set, molecule_set, molecule_only, &
-                        dftb=dftb, particle_set=particle_set)
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, qs_kind_set, &
+                        molecule_set, molecule_only, particle_set=particle_set)
 
       DO ikind = 1, nkind
 
@@ -515,7 +478,22 @@ CONTAINS
                           all_potential=all_potential, &
                           gth_potential=gth_potential)
 
-         ! SCP
+         IF (dftb) THEN
+            ! Set the interaction radius for the neighbor lists (DFTB case)
+            ! This includes all interactions (orbitals and short range pair potential) except vdW
+            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom)
+            CALL get_dftb_atom_param(dftb_parameter=dftb_atom, &
+                                     cutoff=orb_radius(ikind), &
+                                     defined=orb_present(ikind))
+         ELSE
+            IF (ASSOCIATED(orb_basis_set)) THEN
+               orb_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
+            ELSE
+               orb_present(ikind) = .FALSE.
+            ENDIF
+         ENDIF
+
          IF (ASSOCIATED(aux_basis_set)) THEN
             aux_present(ikind) = .TRUE.
          ELSE
@@ -1311,13 +1289,12 @@ CONTAINS
 !> \param mic ...
 !> \param symmetric ...
 !> \param molecular ...
-!> \param dftb ...
 !> \param operator_type ...
 !> \date    14.03.2016
 !> \author  JGH
 ! **************************************************************************************************
    SUBROUTINE setup_neighbor_list(ab_list, basis_set_a, basis_set_b, qs_env, &
-                                  mic, symmetric, molecular, dftb, operator_type)
+                                  mic, symmetric, molecular, operator_type)
 
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: ab_list
@@ -1325,7 +1302,7 @@ CONTAINS
       TYPE(gto_basis_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: basis_set_b
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: mic, symmetric, molecular, dftb
+      LOGICAL, INTENT(IN), OPTIONAL                      :: mic, symmetric, molecular
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: operator_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'setup_neighbor_list', &
@@ -1333,10 +1310,9 @@ CONTAINS
 
       CHARACTER(LEN=4)                                   :: otype
       INTEGER                                            :: ikind, nkind
-      LOGICAL                                            :: my_dftb, my_mic, my_molecular, &
-                                                            my_symmetric
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: a_present, b_present, orb_present
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: a_radius, b_radius, orb_radius
+      LOGICAL                                            :: my_mic, my_molecular, my_symmetric
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: a_present, b_present
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: a_radius, b_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1369,12 +1345,6 @@ CONTAINS
          my_molecular = molecular
       ELSE
          my_molecular = .FALSE.
-      END IF
-
-      IF (PRESENT(dftb)) THEN
-         my_dftb = dftb
-      ELSE
-         my_dftb = .FALSE.
       END IF
 
       IF (PRESENT(operator_type)) THEN
@@ -1418,17 +1388,14 @@ CONTAINS
                       molecule_set=molecule_set)
 
       ALLOCATE (atom2d(nkind))
-      ALLOCATE (orb_radius(nkind), orb_present(nkind))
-      CALL atom2d_build(atom2d, orb_radius, orb_present, distribution_1d, distribution_2d, &
-                        atomic_kind_set, qs_kind_set, molecule_set, my_molecular, &
-                        dftb=my_dftb, particle_set=particle_set)
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, qs_kind_set, &
+                        molecule_set, my_molecular, particle_set=particle_set)
       CALL build_neighbor_lists(ab_list, particle_set, atom2d, cell, pair_radius, &
                                 mic=my_mic, symmetric=my_symmetric, molecular=my_molecular, &
                                 subcells=2.0_dp, name="AUX_NL")
 
       CALL atom2d_cleanup(atom2d)
 
-      DEALLOCATE (orb_radius, orb_present)
       DEALLOCATE (a_present, b_present, a_radius, b_radius, pair_radius, atom2d)
 
    END SUBROUTINE setup_neighbor_list

@@ -12,6 +12,8 @@
 MODULE kg_environment
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -252,6 +254,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(local_potential_type), POINTER                :: tnadd_potential
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -275,6 +278,8 @@ CONTAINS
                       particle_set=particle_set, &
                       para_env=para_env)
 
+      CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
+
       ! Allocate work storage
       nkind = SIZE(atomic_kind_set)
       ALLOCATE (orb_radius(nkind), tpot_radius(nkind))
@@ -284,20 +289,23 @@ CONTAINS
       ALLOCATE (pair_radius(nkind, nkind))
       ALLOCATE (atom2d(nkind))
 
-      CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
-
-      IF (PRESENT(subset_of_mol)) THEN
-         CALL atom2d_build(atom2d, orb_radius, orb_present, distribution_1d, distribution_2d, &
-                           atomic_kind_set, qs_kind_set, molecule_set, molecule_only, kg=.FALSE., &
-                           dftb=.FALSE., particle_set=particle_set)
-      ELSE
-         CALL atom2d_build(atom2d, orb_radius, orb_present, distribution_1d, distribution_2d, &
-                           atomic_kind_set, qs_kind_set, molecule_set, molecule_only, kg=.TRUE., &
-                           dftb=.FALSE., particle_set=particle_set)
-      END IF
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, qs_kind_set, &
+                        molecule_set, molecule_only, particle_set=particle_set)
 
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom2d(ikind)%list)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            orb_present(ikind) = .TRUE.
+            IF (PRESENT(subset_of_mol)) THEN
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
+            ELSE
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, short_kind_radius=orb_radius(ikind))
+            END IF
+         ELSE
+            orb_present(ikind) = .FALSE.
+            orb_radius(ikind) = 0.0_dp
+         END IF
       END DO
 
       IF (PRESENT(sab_orb)) THEN
