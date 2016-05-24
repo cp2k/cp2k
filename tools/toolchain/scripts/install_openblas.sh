@@ -34,11 +34,6 @@ case "$with_openblas" in
             [ -d OpenBLAS-${openblas_ver} ] && rm -rf OpenBLAS-${openblas_ver}
             tar -zxf OpenBLAS-${openblas_ver}.tar.gz
             cd OpenBLAS-${openblas_ver}
-            # Originally we try to install both the serial and the omp
-            # threaded version. Unfortunately, neither is thread-safe
-            # (i.e. the CP2K ssmp and psmp version need to link to
-            # something else, the omp version is unused)
-            #
             # First attempt to make openblas using auto detected
             # TARGET, if this fails, then make with forced
             # TARGET=NEHALEM
@@ -67,23 +62,25 @@ case "$with_openblas" in
                  FC=$(basename $FC) \
                  PREFIX="${pkg_install_dir}" \
                  install > install.serial.log 2>&1
-            # make clean > clean.log 2>&1
-            # make -j $nprocs \
-            #      USE_THREAD=1 \
-            #      USE_OPENMP=1 \
-            #      LIBNAMESUFFIX=omp \
-            #      CC=$(basename $CC) \
-            #      FC=$(basename $FC) \
-            #      PREFIX="${pkg_install_dir}" \
-            #      > make.omp.log 2>&1
-            # make -j $nprocs \
-            #      USE_THREAD=1 \
-            #      USE_OPENMP=1 \
-            #      LIBNAMESUFFIX=omp \
-            #      CC=$(basename $CC) \
-            #      FC=$(basename $FC) \
-            #      PREFIX="${pkg_install_dir}" \
-            #      install > install.omp.log 2>&1
+            if [ $ENABLE_OMP = "__TRUE__" ] ; then
+               make clean > clean.log 2>&1
+               make -j $nprocs \
+                    USE_THREAD=1 \
+                    USE_OPENMP=1 \
+                    LIBNAMESUFFIX=omp \
+                    CC=$(basename $CC) \
+                    FC=$(basename $FC) \
+                    PREFIX="${pkg_install_dir}" \
+                    > make.omp.log 2>&1
+               make -j $nprocs \
+                    USE_THREAD=1 \
+                    USE_OPENMP=1 \
+                    LIBNAMESUFFIX=omp \
+                    CC=$(basename $CC) \
+                    FC=$(basename $FC) \
+                    PREFIX="${pkg_install_dir}" \
+                    install > install.omp.log 2>&1
+            fi 
             cd ..
             touch "${install_lock_file}"
         fi
@@ -93,6 +90,8 @@ case "$with_openblas" in
     __SYSTEM__)
         echo "==================== Finding LAPACK from system paths ===================="
         check_lib -lopenblas "OpenBLAS"
+        # somewhat unclear ... the system threaded openblas might not be suffixed _omp
+        [ $ENABLE_OMP = "__TRUE__" ] && check_lib -lopenblas_omp "OpenBLAS"
         add_include_from_paths OPENBLAS_CFLAGS "openblas_config.h" $INCLUDE_PATHS
         add_lib_from_paths OPENBLAS_LDFLAGS "libopenblas.*" $LIB_PATHS
         ;;
@@ -109,6 +108,7 @@ case "$with_openblas" in
 esac
 if [ "$with_openblas" != "__DONTUSE__" ] ; then
     OPENBLAS_LIBS="-lopenblas"
+    OPENBLAS_LIBS_OMP="-lopenblas_omp"
     if [ "$with_openblas" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_openblas"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -121,10 +121,10 @@ EOF
     cat <<EOF >> "${BUILDDIR}/setup_openblas"
 export OPENBLAS_CFLAGS="${OPENBLAS_CFLAGS}"
 export OPENBLAS_LDFLAGS="${OPENBLAS_LDFLAGS}"
-export OPENBLAS_LIBS="${OPENBLAS_LIBS}"
+export OPENBLAS_LIBS="IF_OMP(${OPENBLAS_LIBS_OMP}|${OPENBLAS_LIBS})"
 export FAST_MATH_CFLAGS="\${FAST_MATH_CFLAGS} ${OPENBLAS_CFLAGS}"
 export FAST_MATH_LDFLAGS="\${FAST_MATH_LDFLAGS} ${OPENBLAS_LDFLAGS}"
-export FAST_MATH_LIBS="\${FAST_MATH_LIBS} ${OPENBLAS_LIBS}"
+export FAST_MATH_LIBS="\${FAST_MATH_LIBS} IF_OMP(${OPENBLAS_LIBS_OMP}|${OPENBLAS_LIBS})"
 EOF
 fi
 cd "${ROOTDIR}"

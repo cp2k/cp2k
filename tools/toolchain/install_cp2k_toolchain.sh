@@ -786,8 +786,8 @@ case "$MPI_MODE" in
         ;;
 esac
 
-# math core libraries, need to use reflapck for valgrind builds, as
-# many fast libraries are not necesarily thread safe
+# math core libraries, need to use reflapack for valgrind builds, as
+# many fast libraries are not necesarily valgrind clean
 export REF_MATH_CFLAGS=''
 export REF_MATH_LDFLAGS=''
 export REF_MATH_LIBS=''
@@ -824,9 +824,9 @@ else
     export MATH_LIBS="${FAST_MATH_LIBS}"
 fi
 
-export CP_CFLAGS="${CP_CFLAGS} IF_VALGRIND(${REF_MATH_CFLAGS}|${FAST_MATH_CFLAGS})"
-export CP_LDFLAGS="${CP_LDFLAGS} IF_VALGRIND(${REF_MATH_LDFLAGS}|${FAST_MATH_LDFLAGS})"
-export CP_LIBS="${CP_LIBS} IF_VALGRIND(${REF_MATH_LIBS}|${FAST_MATH_LIBS})"
+export CP_CFLAGS="${CP_CFLAGS} IF_DEBUG(${REF_MATH_CFLAGS}|IF_VALGRIND(${REF_MATH_CFLAGS}|${FAST_MATH_CFLAGS}))"
+export CP_LDFLAGS="${CP_LDFLAGS} IF_DEBUG(${REF_MATH_LDFLAGS}|IF_VALGRIND(${REF_MATH_LDFLAGS}|${FAST_MATH_LDFLAGS}))"
+export CP_LIBS="${CP_LIBS} IF_DEBUG(${REF_MATH_LIBS}|IF_VALGRIND(${REF_MATH_LIBS}|${FAST_MATH_LIBS}))"
 
 # other libraries
 for ii in $lib_list ; do
