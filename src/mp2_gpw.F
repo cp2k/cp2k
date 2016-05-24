@@ -2082,7 +2082,7 @@ CONTAINS
       ALLOCATE (atom2d(nkind))
 
       CALL atom2d_build(atom2d, local_particles_sub, distribution_2d_sub, atomic_kind_set, &
-                        qs_kind_set, molecule_set, molecule_only=.FALSE., particle_set=particle_set)
+                        molecule_set, molecule_only=.FALSE., particle_set=particle_set)
 
       ALLOCATE (orb_present(nkind))
       ALLOCATE (orb_radius(nkind))

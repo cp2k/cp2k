@@ -161,19 +161,17 @@ CONTAINS
 !> \param distribution_1d ...
 !> \param distribution_2d ...
 !> \param atomic_kind_set ...
-!> \param qs_kind_set ...
 !> \param molecule_set ...
 !> \param molecule_only ...
 !> \param particle_set ...
 !> \author  JH
 ! **************************************************************************************************
    SUBROUTINE atom2d_build(atom2d, distribution_1d, distribution_2d, &
-                           atomic_kind_set, qs_kind_set, molecule_set, molecule_only, particle_set)
+                           atomic_kind_set, molecule_set, molecule_only, particle_set)
       TYPE(local_atoms_type), DIMENSION(:)               :: atom2d
       TYPE(distribution_1d_type), POINTER                :: distribution_1d
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       LOGICAL                                            :: molecule_only
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -461,7 +459,7 @@ CONTAINS
       ! Initialize the local data structures
       ALLOCATE (atom2d(nkind))
 
-      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, qs_kind_set, &
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, &
                         molecule_set, molecule_only, particle_set=particle_set)
 
       DO ikind = 1, nkind
@@ -1323,7 +1321,6 @@ CONTAINS
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       basis_a => basis_set_a
       IF (PRESENT(basis_set_b)) THEN
@@ -1380,7 +1377,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, &
                       atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
                       cell=cell, &
                       distribution_2d=distribution_2d, &
                       local_particles=distribution_1d, &
@@ -1388,7 +1384,7 @@ CONTAINS
                       molecule_set=molecule_set)
 
       ALLOCATE (atom2d(nkind))
-      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, qs_kind_set, &
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, &
                         molecule_set, my_molecular, particle_set=particle_set)
       CALL build_neighbor_lists(ab_list, particle_set, atom2d, cell, pair_radius, &
                                 mic=my_mic, symmetric=my_symmetric, molecular=my_molecular, &

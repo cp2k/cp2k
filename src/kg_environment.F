@@ -289,7 +289,7 @@ CONTAINS
       ALLOCATE (pair_radius(nkind, nkind))
       ALLOCATE (atom2d(nkind))
 
-      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, qs_kind_set, &
+      CALL atom2d_build(atom2d, distribution_1d, distribution_2d, atomic_kind_set, &
                         molecule_set, molecule_only, particle_set=particle_set)
 
       DO ikind = 1, nkind
