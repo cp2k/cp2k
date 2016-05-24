@@ -1616,7 +1616,7 @@ CONTAINS
       ALLOCATE (status(MPI_STATUS_SIZE, count))
       CALL mpi_waitall_internal(count, requests, status, ierr) ! MPI_STATUSES_IGNORE openmpi workaround
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_1")
-      DEALLOCATE(status)
+      DEALLOCATE (status)
       t_end = m_walltime()
       CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
 #else
@@ -1654,7 +1654,7 @@ CONTAINS
 
       CALL mpi_waitall_internal(count, requests, status, ierr) ! MPI_STATUSES_IGNORE openmpi workaround
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_waitall @ mp_waitall_2")
-      DEALLOCATE(status)
+      DEALLOCATE (status)
 
       t_end = m_walltime()
       CALL add_perf(perf_id=9, count=1, time=t_end-t_start)
