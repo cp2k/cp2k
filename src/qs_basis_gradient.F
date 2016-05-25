@@ -19,6 +19,7 @@ MODULE qs_basis_gradient
                                               cp_dbcsr_p_type,&
                                               cp_dbcsr_set,&
                                               cp_dbcsr_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -40,7 +41,15 @@ MODULE qs_basis_gradient
                                               qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
+   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                              make_basis_sm
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_p_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_set,&
+                                              qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
@@ -253,9 +262,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_basis_reinit_energy', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, ispin, nmo
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s_kp, rho_ao_kp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: input
 
@@ -281,6 +294,18 @@ CONTAINS
       ELSE
          NULLIFY (scf_env%p_mix_new)
       END IF
+      CALL get_qs_env(qs_env, mos=mos, rho=rho, matrix_s_kp=matrix_s_kp)
+      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+      DO ispin = 1, SIZE(mos)
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         ! reorthogonalize MOs
+         CALL make_basis_sm(mo_coeff, nmo, matrix_s_kp(1, 1)%matrix)
+         ! update density matrix
+         CALL calculate_density_matrix(mos(ispin)%mo_set, rho_ao_kp(ispin, 1)%matrix)
+      END DO
+      CALL qs_rho_set(rho, rho_r_valid=.FALSE., drho_r_valid=.FALSE., rho_g_valid=.FALSE., &
+                      drho_g_valid=.FALSE., tau_r_valid=.FALSE., tau_g_valid=.FALSE.)
+      CALL qs_rho_update_rho(rho, qs_env)
 
       CALL timestop(handle)
 
