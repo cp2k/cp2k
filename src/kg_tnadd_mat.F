@@ -196,10 +196,12 @@ CONTAINS
 !$    nthread = omp_get_max_threads()
 
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb, nthread=nthread)
+      ! iterator for basis/potential list
+      CALL neighbor_list_iterator_create(ap_iterator, sac_kin, search=.TRUE., nthread=nthread)
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (nl_iterator, basis_set_list, calculate_forces, force, use_virial,&
+!$OMP SHARED  (nl_iterator, ap_iterator, basis_set_list, calculate_forces, force, use_virial,&
 !$OMP          matrix_kg, matrix_p,virial, atomic_kind_set, qs_kind_set, particle_set,&
 !$OMP          sab_orb, sac_kin, nthread, ncoset, nkind,&
 !$OMP          atom_of_kind, ldsab,  maxnset, maxder, &
@@ -210,16 +212,13 @@ CONTAINS
 !$OMP          zetb, last_iatom, last_jatom, new_atom_pair, dab, irow, icol, h_block, found, iset, ncoa, &
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
 !$OMP          radius, alpha, nct, imol, jmol, kmol,&
-!$OMP          npol, ngau, cval, ccval, ap_iterator, rac, dac, rbc, dbc, &
+!$OMP          npol, ngau, cval, ccval, rac, dac, rbc, dbc, &
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
 !$OMP          f0, katom, ppl_work, atom_c,&
 !$OMP          ldai,tnadd_potential)
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
-
-      ! iterator for basis/potential list
-      CALL neighbor_list_iterator_create(ap_iterator, sac_kin, search=.TRUE.)
 
       ALLOCATE (hab(ldsab, ldsab, maxnset, maxnset), work(ldsab, ldsab*maxder))
       ldai = ncoset(2*maxlgto+2*nder)
@@ -349,11 +348,11 @@ CONTAINS
             ALLOCATE (ccval(npol, ngau))
             ccval(1:npol, 1:ngau) = TRANSPOSE(cval(1:ngau, 1:npol))
 
-            CALL nl_set_sub_iterator(ap_iterator, ikind, kkind, iatom)
+            CALL nl_set_sub_iterator(ap_iterator, mepos, ikind, kkind, iatom)
 
-            DO WHILE (nl_sub_iterate(ap_iterator) == 0)
+            DO WHILE (nl_sub_iterate(ap_iterator, mepos) == 0)
 
-               CALL get_iterator_info(ap_iterator, jatom=katom, r=rac)
+               CALL get_iterator_info(ap_iterator, mepos, jatom=katom, r=rac)
 
                ! this potential only acts on other moleclules
                kmol = atom_to_molecule(katom)
@@ -460,8 +459,6 @@ CONTAINS
          END DO
       END DO
 
-      CALL neighbor_list_iterator_release(ap_iterator)
-
       DEALLOCATE (hab, work, ppl_work)
 
       IF (calculate_forces) THEN
@@ -470,6 +467,7 @@ CONTAINS
 
 !$OMP END PARALLEL
 
+      CALL neighbor_list_iterator_release(ap_iterator)
       CALL neighbor_list_iterator_release(nl_iterator)
 
       DO i = 1, SIZE(matrix_kg)

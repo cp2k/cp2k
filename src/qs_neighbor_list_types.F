@@ -276,21 +276,31 @@ CONTAINS
 !> \param ikind ...
 !> \param jkind ...
 !> \param iatom ...
+!> \param mepos ...
 ! **************************************************************************************************
-   SUBROUTINE nl_set_sub_iterator(iterator_set, ikind, jkind, iatom)
+   SUBROUTINE nl_set_sub_iterator(iterator_set, ikind, jkind, iatom, mepos)
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator_set
       INTEGER, INTENT(IN)                                :: ikind, jkind, iatom
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nl_set_sub_iterator', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ij, il, ilist, mthread, nlist, nnode
+      INTEGER                                            :: i, ij, ilist, me, nlist, nnode
       TYPE(list_search_type), POINTER                    :: list_search
       TYPE(neighbor_list_iterator_type), POINTER         :: iterator
       TYPE(neighbor_list_type), POINTER                  :: neighbor_list
 
-      iterator => iterator_set(0)%neighbor_list_iterator
+      IF (PRESENT(mepos)) THEN
+         me = mepos
+      ELSE
+         me = 0
+      END IF
+
+      ! Set up my thread-local iterator for the list of iatom / jkind nodes
+
+      iterator => iterator_set(me)%neighbor_list_iterator
       ij = ikind+iterator%nkind*(jkind-1)
       IF (ASSOCIATED(iterator%list_search)) THEN
          list_search => iterator%list_search(ij)
@@ -312,26 +322,19 @@ CONTAINS
          CPABORT("")
       END IF
 
-      mthread = SIZE(iterator_set)
-      DO il = 0, mthread-1
-         iterator => iterator_set(il)%neighbor_list_iterator
+      iterator%ikind = ikind
+      iterator%jkind = jkind
 
-         iterator%ikind = ikind
-         iterator%jkind = jkind
+      iterator%ilist = ilist
+      iterator%nlist = nlist
+      iterator%inode = 0
+      iterator%nnode = nnode
 
-         iterator%ilist = ilist
-         iterator%nlist = nlist
-         iterator%inode = 0
-         iterator%nnode = nnode
+      iterator%iatom = iatom
+      iterator%jatom = 0
 
-         iterator%iatom = iatom
-         iterator%jatom = 0
-
-         iterator%neighbor_list => neighbor_list
-         NULLIFY (iterator%neighbor_node)
-      END DO
-
-      iterator_set(:)%last = 0
+      iterator%neighbor_list => neighbor_list
+      NULLIFY (iterator%neighbor_node)
 
    END SUBROUTINE nl_set_sub_iterator
 
@@ -430,27 +433,30 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param iterator_set ...
+!> \param mepos ...
 !> \retval istat ...
 ! **************************************************************************************************
-   FUNCTION nl_sub_iterate(iterator_set) RESULT(istat)
+   FUNCTION nl_sub_iterate(iterator_set, mepos) RESULT(istat)
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator_set
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
       INTEGER                                            :: istat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'nl_sub_iterate', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: last, me
+      INTEGER                                            :: me
       TYPE(neighbor_list_iterator_type), POINTER         :: iterator
 
-! Sub-iterator single-threaded, or with private sub-iterators only
+      ! Each thread's sub-iterator are independent, no need to synchronise with other threads
 
-      me = 0
+      IF (PRESENT(mepos)) THEN
+         me = mepos
+      ELSE
+         me = 0
+      END IF
+
       istat = 0
 
-      last = iterator_set(0)%last
-      IF (last /= me) THEN
-         iterator_set(me)%neighbor_list_iterator = iterator_set(last)%neighbor_list_iterator
-      END IF
       iterator => iterator_set(me)%neighbor_list_iterator
 
       IF (ASSOCIATED(iterator%neighbor_list)) THEN
@@ -474,9 +480,6 @@ CONTAINS
       IF (istat == 0) THEN
          CALL get_neighbor_node(neighbor_node=iterator%neighbor_node, neighbor=iterator%jatom)
       END IF
-
-      ! mark the last iterator updated
-      iterator_set(:)%last = me
 
    END FUNCTION nl_sub_iterate
 
