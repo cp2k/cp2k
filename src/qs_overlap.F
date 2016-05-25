@@ -142,9 +142,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, &
-         jkind, jset, ldsab, maxder, maxiter, maxs, mepos, n1, n2, natom, ncoa, ncob, nder, nimg, &
-         nkind, nseta, nsetb, nthread, output_unit, sgfa, sgfb
+      INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, irow, iset, jatom, jkind, &
+         jset, ldsab, maxder, maxiter, maxs, mepos, n1, n2, natom, ncoa, ncob, nder, nimg, nkind, &
+         nseta, nsetb, nthread, output_unit, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -268,7 +268,7 @@ CONTAINS
 !$OMP SHARED (nthread,do_forces,ldsab,maxder,nl_iterator, use_cell_mapping, do_symmetric,maxs,dokp,&
 !$OMP         ncoset,nder,use_virial,force,virial,ndod,&
 !$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, atom_of_kind, cell_to_index, matrixkp_s, matrixkp_p)  &
-!$OMP PRIVATE (mepos,oint,owork,pmat,sint,ikind,jkind,inode,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
+!$OMP PRIVATE (mepos,oint,owork,pmat,sint,ikind,jkind,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, f,  &
 !$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset )
@@ -284,7 +284,7 @@ CONTAINS
       END DO
 
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
-         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, inode=inode, &
+         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rab, cell=cell)
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
@@ -532,9 +532,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix_simple', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, inode, irow, iset, jatom, jkind, &
-         jset, ldsab, m1, m2, mepos, n1, n2, natom, ncoa, ncob, nkind, nseta, nsetb, nthread, &
-         sgfa, sgfb
+      INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, irow, iset, jatom, jkind, jset, &
+         ldsab, m1, m2, mepos, n1, n2, natom, ncoa, ncob, nkind, nseta, nsetb, nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
@@ -597,7 +596,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,ldsab,nl_iterator,do_symmetric,ncoset,&
 !$OMP         matrix_s,basis_set_list_a,basis_set_list_b,atom_of_kind)  &
-!$OMP PRIVATE (mepos,oint,owork,sint,ikind,jkind,inode,iatom,jatom,rab,basis_set_a,basis_set_b,atom_a,atom_b,&
+!$OMP PRIVATE (mepos,oint,owork,sint,ikind,jkind,iatom,jatom,rab,basis_set_a,basis_set_b,atom_a,atom_b,&
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, dab, &
 !$OMP          zetb, scon_a, scon_b, irow, icol, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset )
@@ -610,7 +609,7 @@ CONTAINS
       NULLIFY (sint(1)%block)
 
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
-         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, inode=inode, &
+         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rab)
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE

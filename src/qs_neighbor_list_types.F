@@ -54,11 +54,8 @@ MODULE qs_neighbor_list_types
       PRIVATE
       TYPE(neighbor_list_type), POINTER :: first_neighbor_list, &
                                            last_neighbor_list
-      REAL(dp)                          :: r_max
       INTEGER                           :: nlist
       LOGICAL                           :: symmetric
-      LOGICAL                           :: mic
-      LOGICAL                           :: molecular
    END TYPE neighbor_list_set_type
 
 ! **************************************************************************************************
@@ -755,19 +752,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   Allocate and initialize a set of neighbor lists.
 !> \param neighbor_list_set ...
-!> \param r_max ...
 !> \param symmetric ...
-!> \param mic ...
-!> \param molecular ...
 !> \date    23.06.2000
 !> \author MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE allocate_neighbor_list_set(neighbor_list_set, r_max, symmetric, mic, molecular)
+   SUBROUTINE allocate_neighbor_list_set(neighbor_list_set, symmetric)
 
       TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
-      REAL(dp), INTENT(IN)                               :: r_max
-      LOGICAL, INTENT(IN)                                :: symmetric, mic, molecular
+      LOGICAL, INTENT(IN)                                :: symmetric
 
       CHARACTER(len=*), PARAMETER :: routineN = 'allocate_neighbor_list_set', &
          routineP = moduleN//':'//routineN
@@ -792,7 +785,7 @@ CONTAINS
 
 !   *** Initialize the pointers to the first neighbor list ***
 
-      CALL init_neighbor_list_set(neighbor_list_set, r_max, symmetric, mic, molecular)
+      CALL init_neighbor_list_set(neighbor_list_set, symmetric)
 
    END SUBROUTINE allocate_neighbor_list_set
 
@@ -926,32 +919,25 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   Return the components of a neighbor list set.
 !> \param neighbor_list_set ...
-!> \param r_max ...
 !> \param nlist ...
 !> \param symmetric ...
-!> \param mic ...
-!> \param molecular ...
 !> \date    10.11.2000
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE get_neighbor_list_set(neighbor_list_set, r_max, nlist, symmetric, mic, molecular)
+   SUBROUTINE get_neighbor_list_set(neighbor_list_set, nlist, symmetric)
 
       TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: r_max
       INTEGER, INTENT(OUT), OPTIONAL                     :: nlist
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: symmetric, mic, molecular
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: symmetric
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_set', &
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(neighbor_list_set)) THEN
 
-         IF (PRESENT(r_max)) r_max = neighbor_list_set%r_max
          IF (PRESENT(nlist)) nlist = neighbor_list_set%nlist
          IF (PRESENT(symmetric)) symmetric = neighbor_list_set%symmetric
-         IF (PRESENT(mic)) mic = neighbor_list_set%mic
-         IF (PRESENT(molecular)) molecular = neighbor_list_set%molecular
 
       ELSE
 
@@ -964,22 +950,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   Return the components of the first neighbor list set.
 !> \param neighbor_list_sets ...
-!> \param r_max ...
 !> \param nlist ...
 !> \param symmetric ...
-!> \param mic ...
-!> \param molecular ...
 !> \date    07.2014
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE get_neighbor_list_set_p(neighbor_list_sets, r_max, nlist, symmetric, mic, molecular)
+   SUBROUTINE get_neighbor_list_set_p(neighbor_list_sets, nlist, symmetric)
 
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: neighbor_list_sets
-      REAL(dp), INTENT(OUT), OPTIONAL                    :: r_max
       INTEGER, INTENT(OUT), OPTIONAL                     :: nlist
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: symmetric, mic, molecular
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: symmetric
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_set_p', &
          routineP = moduleN//':'//routineN
@@ -996,11 +978,8 @@ CONTAINS
          END DO
 
          IF (ASSOCIATED(neighbor_list_set)) THEN
-            IF (PRESENT(r_max)) r_max = neighbor_list_set%r_max
             IF (PRESENT(nlist)) nlist = neighbor_list_set%nlist
             IF (PRESENT(symmetric)) symmetric = neighbor_list_set%symmetric
-            IF (PRESENT(mic)) mic = neighbor_list_set%mic
-            IF (PRESENT(molecular)) molecular = neighbor_list_set%molecular
          ELSE
             CALL cp_abort(__LOCATION__, "No neighbor list set is associated. "// &
                           "Did you specify *all* required basis-sets, eg. for ADMM?")
@@ -1053,19 +1032,15 @@ CONTAINS
 !>         This routine is also used to prepare a neighbor list set for
 !>         overwriting.
 !> \param neighbor_list_set ...
-!> \param r_max ...
 !> \param symmetric ...
-!> \param mic ...
-!> \param molecular ...
 !> \date  20.09.2002
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE init_neighbor_list_set(neighbor_list_set, r_max, symmetric, mic, molecular)
+   SUBROUTINE init_neighbor_list_set(neighbor_list_set, symmetric)
 
       TYPE(neighbor_list_set_type), POINTER              :: neighbor_list_set
-      REAL(dp), INTENT(IN)                               :: r_max
-      LOGICAL, INTENT(IN)                                :: symmetric, mic, molecular
+      LOGICAL, INTENT(IN)                                :: symmetric
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_neighbor_list_set', &
          routineP = moduleN//':'//routineN
@@ -1078,13 +1053,8 @@ CONTAINS
          ! *** Initialize the neighbor list counter ***
          neighbor_list_set%nlist = 0
 
-         ! *** Initialize the maximum interaction radius (optional) ***
-         neighbor_list_set%r_max = r_max
-
          ! *** Initialize the neighbor list build properties
          neighbor_list_set%symmetric = symmetric
-         neighbor_list_set%mic = mic
-         neighbor_list_set%molecular = molecular
 
       ELSE
 

@@ -1099,7 +1099,7 @@ CONTAINS
             ncell(:) = (INT(sab_max(:))+1)*periodic(:)
 
             CALL allocate_neighbor_list_set(neighbor_list_set=ab_list(iab)%neighbor_list_set, &
-                                            r_max=rabm, symmetric=my_symmetric, mic=my_mic, molecular=my_molecular)
+                                            symmetric=my_symmetric)
             neighbor_list_set => ab_list(iab)%neighbor_list_set
 
             DO iatom_local = 1, nlista(ikind)

@@ -147,9 +147,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_matrices', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, inode, irow, iw, &
-         jatom, jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, &
-         natorb_b, nderivatives, ngrd, ngrdcut, nimg, nkind, nmat, spdim
+      INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, irow, iw, jatom, &
+         jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, &
+         nderivatives, ngrd, ngrdcut, nimg, nkind, nmat, spdim
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -295,7 +295,7 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, inode=inode, r=rij, cell=cell)
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
          CALL get_dftb_atom_param(dftb_kind_a, &
@@ -764,8 +764,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_overlap', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, i, iatom, icol, ikind, indder, inode, irow, j, jatom, jkind, l1, l2, la, &
-         lb, llm, lmaxi, lmaxj, m, n1, n2, natom, natorb_a, natorb_b, ngrd, ngrdcut, nkind
+      INTEGER :: handle, i, iatom, icol, ikind, indder, irow, j, jatom, jkind, l1, l2, la, lb, &
+         llm, lmaxi, lmaxj, m, n1, n2, natom, natorb_a, natorb_b, ngrd, ngrdcut, nkind
       LOGICAL                                            :: defined, found
       REAL(KIND=dp)                                      :: ddr, dgrd, dr, f0
       REAL(KIND=dp), DIMENSION(0:3)                      :: skself
@@ -829,7 +829,7 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, inode=inode, r=rij)
+                                iatom=iatom, jatom=jatom, r=rij)
 
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)

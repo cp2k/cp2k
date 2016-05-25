@@ -79,9 +79,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: atom_a, atom_b, handle, i, iatom, ic, &
-                                                            icol, icor, ikind, inode, irow, j, &
-                                                            jatom, jkind, l, li, ll, natom, nder, &
-                                                            nimg, nkind, nspins
+                                                            icol, icor, ikind, irow, j, jatom, &
+                                                            jkind, l, li, ll, natom, nder, nimg, &
+                                                            nkind, nspins
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -245,7 +245,7 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, inode=inode, r=rij, cell=cell)
+                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
          IF (.NOT. scptb_defined(ikind)) CYCLE
          IF (.NOT. scptb_defined(jkind)) CYCLE
 

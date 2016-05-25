@@ -109,8 +109,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_kinetic_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: atom_a, atom_b, handle, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, &
-         jset, ldsab, mepos, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, nthread, sgfa, sgfb
+      INTEGER :: atom_a, atom_b, handle, iatom, ic, icol, ikind, irow, iset, jatom, jkind, jset, &
+         ldsab, mepos, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
@@ -211,7 +211,7 @@ CONTAINS
 !$OMP SHARED (nthread,do_forces,ldsab,nl_iterator, use_cell_mapping, do_symmetric,dokp,&
 !$OMP         ncoset,use_virial,force,virial,matrix_t,matrixkp_t,&
 !$OMP         matrix_p,basis_set_list, atom_of_kind, cell_to_index, matrixkp_p)  &
-!$OMP PRIVATE (k_block,mepos,kab,qab,pab,ikind,jkind,inode,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
+!$OMP PRIVATE (k_block,mepos,kab,qab,pab,ikind,jkind,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, tab, &
 !$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, sgfa, sgfb, iset, jset )
@@ -225,7 +225,7 @@ CONTAINS
       END IF
 
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
-         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, inode=inode, &
+         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rab, cell=cell)
          atom_a = atom_of_kind(iatom)
          atom_b = atom_of_kind(jatom)

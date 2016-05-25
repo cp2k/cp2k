@@ -194,9 +194,9 @@ CONTAINS
                                                             zone = (0.0_dp, 1.0_dp)
 
       COMPLEX(dp)                                        :: zdet, zdeta, zi(3)
-      INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, inode, irow, iset, &
-         ispin, j, jatom, jkind, jset, ldab, ldsa, ldsb, lsab, n1, n2, nao, natom, ncoa, ncob, &
-         nkind, nmo, nseta, nsetb, sgfa, sgfb
+      INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, irow, iset, ispin, j, &
+         jatom, jkind, jset, ldab, ldsa, ldsb, lsab, n1, n2, nao, natom, ncoa, ncob, nkind, nmo, &
+         nseta, nsetb, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
@@ -448,7 +448,7 @@ CONTAINS
                !
                CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
                DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-                  CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
+                  CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                          iatom=iatom, jatom=jatom, r=rab)
                   basis_set_a => basis_set_list(ikind)%gto_basis_set
                   IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
@@ -683,9 +683,9 @@ CONTAINS
                                                             zone = (0.0_dp, 1.0_dp)
 
       COMPLEX(dp)                                        :: zdet, zdeta, zi(3)
-      INTEGER :: handle, i, ia, iatom, icol, idir, ikind, inode, irow, iset, ispin, jatom, jkind, &
-         jset, ldab, ldsa, ldsb, lsab, n1, n2, nao, natom, ncoa, ncob, nkind, nmo, nseta, nsetb, &
-         sgfa, sgfb
+      INTEGER :: handle, i, ia, iatom, icol, idir, ikind, irow, iset, ispin, jatom, jkind, jset, &
+         ldab, ldsa, ldsb, lsab, n1, n2, nao, natom, ncoa, ncob, nkind, nmo, nseta, nsetb, sgfa, &
+         sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
@@ -936,7 +936,7 @@ CONTAINS
             !
             CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                       iatom=iatom, jatom=jatom, r=rab)
                basis_set_a => basis_set_list(ikind)%gto_basis_set
                IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
