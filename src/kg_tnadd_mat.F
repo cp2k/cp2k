@@ -348,7 +348,7 @@ CONTAINS
             ALLOCATE (ccval(npol, ngau))
             ccval(1:npol, 1:ngau) = TRANSPOSE(cval(1:ngau, 1:npol))
 
-            CALL nl_set_sub_iterator(ap_iterator, mepos, ikind, kkind, iatom)
+            CALL nl_set_sub_iterator(ap_iterator, ikind, kkind, iatom, mepos)
 
             DO WHILE (nl_sub_iterate(ap_iterator, mepos) == 0)
 
