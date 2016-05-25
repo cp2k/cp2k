@@ -34,7 +34,7 @@ We have good experience with gcc/gfortran (gcc >=4.6 works, later version recomm
 Be aware that some compilers have bugs that might cause them to fail (internal compiler errors,
 segfaults) or, worse, yield a mis-compiled CP2K. Report bugs to compiler
 vendors; they (and we) have an interest in fixing them.
-Always run a 'make -j check' (See point 6.) after compilation to identifiy these problems.
+Always run a 'make -j test' (See point 5.) after compilation to identifiy these problems.
 
 ==== 2d. BLAS and LAPACK (required, base functionality) ====
 BLAS and LAPACK should be installed.  Using vendor-provided libraries
