@@ -628,7 +628,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: outer_scf_ddapc_constraint = 123, &
                                                outer_scf_s2_constraint = 124, &
                                                outer_scf_becke_constraint = 125, &
-                                               outer_scf_none = 126
+                                               outer_scf_none = 126, &
+                                               outer_scf_basis_center_opt = 127
 
    ! outer scf optimizers
    INTEGER, PARAMETER, PUBLIC               :: outer_scf_optimizer_sd = 1001, &

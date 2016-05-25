@@ -61,25 +61,25 @@ MODULE input_cp2k_dft
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
         ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update, &
-        outer_scf_becke_constraint, outer_scf_ddapc_constraint, outer_scf_none, &
-        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, outer_scf_optimizer_none, &
-        outer_scf_optimizer_sd, outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, &
-        plus_u_mulliken_charges, pw_interp, ramp_env, random_guess, real_time_propagation, &
-        ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, &
-        rel_sczora_mp, rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, &
-        rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, sccs_derivative_cd3, &
-        sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, &
-        shape_function_density, shape_function_gaussian, sic_ad, sic_eo, sic_list_all, &
-        sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, smear_energy_window, &
-        smear_fermi_dirac, smear_list, sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, &
-        tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, &
-        use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, use_scf_wfn, &
-        wannier_projection, weight_type_mass, weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, &
-        wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
-        wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, &
-        xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
-        xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        outer_scf_basis_center_opt, outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_s2_constraint, plus_u_lowdin, &
+        plus_u_mulliken, plus_u_mulliken_charges, pw_interp, ramp_env, random_guess, &
+        real_time_propagation, ref_charge_atomic, ref_charge_mulliken, rel_dkh, rel_none, &
+        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
+        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, &
+        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+        sccs_fattebert_gygi, shape_function_density, shape_function_gaussian, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, spline3_nopbc_interp, &
+        spline3_pbc_interp, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
+        tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, &
+        use_scf_wfn, wannier_projection, weight_type_mass, weight_type_unit, wfi_aspc_nr, &
+        wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
+        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, &
+        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_kpoints,              ONLY: create_kpoints_section
@@ -4503,13 +4503,14 @@ CONTAINS
                           description="Specifies which kind of outer SCF should be employed", &
                           usage="TYPE DDAPC_CONSTRAINT ", &
                           default_i_val=outer_scf_none, &
-                          enum_c_vals=s2a("DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT", "NONE"), &
+                          enum_c_vals=s2a("DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT", "BASIS_CENTER_OPT", "NONE"), &
                           enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
                                         "Enforce a constraint on the S2, requires the corresponding section", &
                                         "Enforce a constraint on the Becke weight population,requires the corresponding section", &
+                                        "Optimize positions of basis functions, if atom types FLOATING_BASIS_CENTER are defined", &
                                         "Do nothing in the outer loop, useful for resetting the inner loop,"), &
                           enum_i_vals=(/outer_scf_ddapc_constraint, outer_scf_s2_constraint, &
-                                        outer_scf_becke_constraint, outer_scf_none/))
+                                        outer_scf_becke_constraint, outer_scf_basis_center_opt, outer_scf_none/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

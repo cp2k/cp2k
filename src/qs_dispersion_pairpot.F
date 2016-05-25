@@ -828,10 +828,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: atenergy, atstress, debug, debugall, &
-                                                            debugx, ghost_a, ghost_b, ghost_c, &
-                                                            is000, use_virial
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, ghost
+      LOGICAL :: atenergy, atstress, debug, debugall, debugx, floating_a, floating_b, floating_c, &
+         ghost_a, ghost_b, ghost_c, is000, use_virial
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
       REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, cc6ca, cnab, cnum, dc6a, &
          dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, dcc6bcc, dcc6caa, dcc6cac, dcnab, dd, de6, &
          de8, de91, de921, de922, dea, devdw, dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, &
@@ -930,12 +929,13 @@ CONTAINS
             CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
          END IF
 
-         ALLOCATE (dodisp(nkind), ghost(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
+         ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-            CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
+            CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
             dodisp(ikind) = disp_a%defined
             ghost(ikind) = ghost_a
+            floating(ikind) = floating_a
             atomnumber(ikind) = za
             c6d2(ikind) = disp_a%c6
             radd2(ikind) = disp_a%vdw_radii
@@ -1011,7 +1011,7 @@ CONTAINS
             CALL neighbor_list_iterator_create(nl_iterator, sab_cn)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
                CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
-               IF (ghost(ikind) .OR. ghost(jkind)) CYCLE
+               IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
                rcc = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
                IF (rcc > 1.e-6_dp) THEN
                   za = atomnumber(ikind)
@@ -1134,7 +1134,7 @@ CONTAINS
          CALL neighbor_list_iterator_create(nl_iterator, sab_vdw)
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
-            IF (ghost(ikind) .OR. ghost(jkind)) CYCLE
+            IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
             IF (.NOT. (dodisp(ikind) .AND. dodisp(jkind))) CYCLE
             za = atomnumber(ikind)
             zb = atomnumber(jkind)
@@ -1317,7 +1317,7 @@ CONTAINS
                               rc0 = MATMUL(cell%hmat, cell_c)
                               DO katom = kstart, natom
                                  kkind = kind_of(katom)
-                                 IF (ghost(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
+                                 IF (ghost(kkind) .OR. floating(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
                                  rc(:) = rcpbc(:, katom)+rc0(:)
                                  r2bc = SUM((rb-rc)**2)
                                  IF (r2bc >= rc2) CYCLE
@@ -1554,12 +1554,12 @@ CONTAINS
                END IF
                DO ikind = 1, nkind
                   CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, z=za)
-                  CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
-                  IF (.NOT. disp_a%defined .OR. ghost_a) CYCLE
+                  CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
+                  IF (.NOT. disp_a%defined .OR. ghost_a .OR. floating_a) CYCLE
                   DO jkind = 1, nkind
                      CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
-                     CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b)
-                     IF (.NOT. disp_b%defined .OR. ghost_b) CYCLE
+                     CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b, floating=floating_b)
+                     IF (.NOT. disp_b%defined .OR. ghost_b .OR. floating_b) CYCLE
                      CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
                                 cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
                      elrc6 = elrc6-s6*twopi*REAL(na*nb, KIND=dp)*cc6ab/(3._dp*rcut**3*cell%deth)
@@ -1568,8 +1568,8 @@ CONTAINS
                      IF (dispersion_env%doabc) THEN
                         DO kkind = 1, nkind
                            CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
-                           CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c)
-                           IF (.NOT. disp_c%defined .OR. ghost_c) CYCLE
+                           CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c, floating=floating_c)
+                           IF (.NOT. disp_c%defined .OR. ghost_c .OR. floating_c) CYCLE
                            CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
                                       cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
                            CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
@@ -1675,7 +1675,7 @@ CONTAINS
             DEALLOCATE (atom_of_kind, kind_of)
          END IF
 
-         DEALLOCATE (dodisp, ghost, atomnumber, rcpbc, radd2, c6d2)
+         DEALLOCATE (dodisp, ghost, floating, atomnumber, rcpbc, radd2, c6d2)
 
          IF (ASSOCIATED(dispersion_env%dftd_section)) THEN
             CALL cp_print_key_finished_output(unit_nr, logger, dispersion_env%dftd_section, &

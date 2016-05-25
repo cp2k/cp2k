@@ -58,7 +58,6 @@ MODULE qs_energy_utils
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type
-   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_external_density,             ONLY: external_read_density
@@ -80,6 +79,7 @@ MODULE qs_energy_utils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf,                          ONLY: scf
+   USE qs_update_s_mstruct,             ONLY: qs_env_update_s_mstruct
    USE scf_control_types,               ONLY: scf_control_type
    USE scptb_core_interactions,         ONLY: scptb_core_interaction
    USE scptb_core_matrix,               ONLY: build_scptb_core_matrix

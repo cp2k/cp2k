@@ -1233,6 +1233,17 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, &
+                          name="FLOATING_BASIS_CENTER", &
+                          description="This keyword makes all atoms of this kind "// &
+                          "floating functions, i.e. without pseudo or nuclear charge"// &
+                          "which are subject to a geometry optimization in the outer SCF.", &
+                          usage="FLOATING_BASIS_CENTER", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, &
                           name="NO_OPTIMIZE", &
                           description="Skip optimization of this type (used in specific basis set or"// &
                           " potential optimization schemes", &

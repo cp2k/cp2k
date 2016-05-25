@@ -15,12 +15,15 @@ MODULE qs_outer_scf
                                               dft_control_type,&
                                               s2_restraint_type
    USE input_constants,                 ONLY: &
-        do_ddapc_constraint, do_s2_constraint, outer_scf_becke_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_s2_constraint
+        do_ddapc_constraint, do_s2_constraint, outer_scf_basis_center_opt, &
+        outer_scf_becke_constraint, outer_scf_ddapc_constraint, outer_scf_none, &
+        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, outer_scf_optimizer_none, &
+        outer_scf_optimizer_sd, outer_scf_s2_constraint
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
+   USE qs_basis_gradient,               ONLY: qs_basis_center_gradient,&
+                                              qs_update_basis_center_pos,&
+                                              return_basis_center_gradient_norm
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -61,6 +64,8 @@ CONTAINS
       CASE (outer_scf_s2_constraint)
          res = 1
       CASE (outer_scf_becke_constraint)
+         res = 1
+      CASE (outer_scf_basis_center_opt)
          res = 1
       CASE (outer_scf_none) ! just needed to communicate the gradient criterium
          res = 1
@@ -137,6 +142,9 @@ CONTAINS
          scf_env%outer_scf%variables(:, ihistory) = becke_control%strength
          scf_env%outer_scf%gradient(:, ihistory) = becke_control%becke_order_p- &
                                                    becke_control%target
+      CASE (outer_scf_basis_center_opt)
+         CALL qs_basis_center_gradient(qs_env)
+         scf_env%outer_scf%gradient(:, ihistory) = return_basis_center_gradient_norm(qs_env)
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -174,6 +182,11 @@ CONTAINS
       optimizer_type = scf_control%outer_scf%optimizer
 
       DO WHILE (.TRUE.) ! if we need a different run type we'll restart here
+
+         IF (scf_control%outer_scf%type == outer_scf_basis_center_opt) THEN
+            scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
+            EXIT
+         ENDIF
 
          SELECT CASE (optimizer_type)
          CASE (outer_scf_optimizer_bisect) ! bisection on the gradient, needs to be 1D
@@ -312,6 +325,8 @@ CONTAINS
       CASE (outer_scf_becke_constraint)
          becke_control => dft_control%qs_control%becke_control
          becke_control%strength = scf_env%outer_scf%variables(1, ihistory+1)
+      CASE (outer_scf_basis_center_opt)
+         CALL qs_update_basis_center_pos(qs_env)
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -378,6 +393,9 @@ CONTAINS
       CASE (outer_scf_becke_constraint)
          outer_scf_history(1, ivec) = &
             dft_control%qs_control%becke_control%strength
+      CASE (outer_scf_basis_center_opt)
+         ! write variables target array to extrapolation
+         outer_scf_history(1, ivec) = 0.0_dp
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -404,6 +422,8 @@ CONTAINS
          dft_control%qs_control%s2_restraint_control%strength = extrapolation(1)
       CASE (outer_scf_becke_constraint)
          dft_control%qs_control%becke_control%strength = extrapolation(1)
+      CASE (outer_scf_basis_center_opt)
+         ! nothing to do
       CASE DEFAULT
          CPABORT("")
       END SELECT

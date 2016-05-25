@@ -78,7 +78,7 @@ CONTAINS
       INTEGER :: akind, counter, first_atom, i, iatom, ikind, imol, imol_now, istate, j, &
          local_location, natom, natom_loc, natom_max, nkind, nmol, nstate, output_unit, reference
       INTEGER, POINTER                                   :: wfc_to_atom_map(:)
-      LOGICAL                                            :: do_berry, ghost
+      LOGICAL                                            :: do_berry, floating, ghost
       REAL(KIND=dp)                                      :: charge_tot, dipole(3), dr(3), mydist(2), &
                                                             ria(3), theta, zeff, zwfc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charge_set
@@ -264,8 +264,8 @@ CONTAINS
                      i = first_atom+iatom-1
                      atomic_kind => particle_set(i)%atomic_kind
                      CALL get_atomic_kind(atomic_kind, kind_number=akind)
-                     CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
-                     IF (.NOT. ghost) THEN
+                     CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
+                     IF (.NOT. ghost .AND. .NOT. floating) THEN
                         CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
                         charge_set(imol_now) = charge_set(imol_now)+zeff
                      END IF
@@ -285,8 +285,8 @@ CONTAINS
                      i = first_atom+iatom-1
                      atomic_kind => particle_set(i)%atomic_kind
                      CALL get_atomic_kind(atomic_kind, kind_number=akind)
-                     CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
-                     IF (.NOT. ghost) THEN
+                     CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
+                     IF (.NOT. ghost .AND. .NOT. floating) THEN
                         CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
                         ria = pbc(particle_set(i)%r, cell)
                         DO j = 1, 3
@@ -319,8 +319,8 @@ CONTAINS
                      i = first_atom+iatom-1
                      atomic_kind => particle_set(i)%atomic_kind
                      CALL get_atomic_kind(atomic_kind, kind_number=akind)
-                     CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
-                     IF (.NOT. ghost) THEN
+                     CALL get_qs_kind(qs_kind_set(akind), ghost=ghost, floating=floating)
+                     IF (.NOT. ghost .AND. .NOT. floating) THEN
                         CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
                         ria = pbc(particle_set(i)%r, cell)-rcc
                         dipole = dipole+zeff*(ria-rcc)

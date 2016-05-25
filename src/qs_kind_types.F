@@ -135,6 +135,7 @@ MODULE qs_kind_types
       LOGICAL                                :: paw_atom = .FALSE. ! needs atomic rho1
       LOGICAL                                :: gpw_type_forced = .FALSE. ! gpw atom even if with hard exponents
       LOGICAL                                :: ghost = .FALSE.
+      LOGICAL                                :: floating = .FALSE.
       INTEGER                                :: lmax_dftb = -1
       REAL(KIND=dp)                        :: dudq_dftb3 = 0.0_dp
       INTEGER, DIMENSION(:, :), POINTER       :: addel => Null()
@@ -338,6 +339,7 @@ CONTAINS
 !> \param init_u_ramping_each_scf ...
 !> \param reltmat ...
 !> \param ghost ...
+!> \param floating ...
 !> \param name ...
 !> \param element_symbol ...
 !> \param pao_basis_size ...
@@ -360,7 +362,7 @@ CONTAINS
                           dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, &
                           bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
-                          init_u_ramping_each_scf, reltmat, ghost, name, element_symbol, &
+                          init_u_ramping_each_scf, reltmat, ghost, floating, name, element_symbol, &
                           pao_basis_size, pao_pot_maxl, pao_pot_max_projector, pao_pot_beta, pao_pot_weight, &
                           pao_pot_neighbors)
 
@@ -403,7 +405,7 @@ CONTAINS
                                                             eps_u_ramping
       LOGICAL, OPTIONAL                                  :: init_u_ramping_each_scf
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
-      LOGICAL, OPTIONAL                                  :: ghost
+      LOGICAL, OPTIONAL                                  :: ghost, floating
       CHARACTER(LEN=default_string_length), &
          INTENT(OUT), OPTIONAL                           :: name
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
@@ -559,6 +561,7 @@ CONTAINS
       IF (PRESENT(ngrid_rad)) ngrid_rad = qs_kind%ngrid_rad
       IF (PRESENT(lmax_rho0)) lmax_rho0 = qs_kind%lmax_rho0
       IF (PRESENT(ghost)) ghost = qs_kind%ghost
+      IF (PRESENT(floating)) floating = qs_kind%floating
       IF (PRESENT(dft_plus_u_atom)) dft_plus_u_atom = ASSOCIATED(qs_kind%dft_plus_u)
       IF (PRESENT(l_of_dft_plus_u)) THEN
          IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
@@ -1392,6 +1395,8 @@ CONTAINS
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="GHOST", l_val=qs_kind%ghost)
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="FLOATING_BASIS_CENTER", l_val=qs_kind%floating)
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="NO_OPTIMIZE", l_val=qs_kind%no_optimize)
 
          ! DFTB3 param
@@ -1598,7 +1603,7 @@ CONTAINS
             CALL get_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
             CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
          END IF
-         IF (qs_kind%ghost) THEN
+         IF (qs_kind%ghost .OR. qs_kind%floating) THEN
             CALL get_qs_kind(qs_kind=qs_kind, elec_conf=elec_conf)
             elec_conf(:) = 0
             CALL get_potential(potential=qs_kind%all_potential, &
@@ -1716,7 +1721,7 @@ CONTAINS
          END IF
 
          ! If Ghost atom we don't need to allocate/initialize anything connected to POTENTIAL
-         IF (qs_kind%ghost) THEN
+         IF (qs_kind%ghost .OR. qs_kind%floating) THEN
             IF (ASSOCIATED(qs_kind%elec_conf)) qs_kind%elec_conf = 0
          ELSE
             ! Allocate and initialise the potential data set structure
@@ -1933,6 +1938,7 @@ CONTAINS
 !> \param qs_kind ...
 !> \param paw_atom ...
 !> \param ghost ...
+!> \param floating ...
 !> \param hard_radius ...
 !> \param hard0_radius ...
 !> \param soft_basis_set ...
@@ -1947,14 +1953,14 @@ CONTAINS
 !> \param scptb_parameter ...
 !> \param elec_conf ...
 ! **************************************************************************************************
-   SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, hard_radius, hard0_radius, &
+   SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
                           soft_basis_set, hard_basis_set, lmax_rho0, zeff, &
                           no_optimize, dispersion, u_minus_j, reltmat, &
                           dftb_parameter, scptb_parameter, &
                           elec_conf)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
-      LOGICAL, INTENT(IN), OPTIONAL                      :: paw_atom, ghost
+      LOGICAL, INTENT(IN), OPTIONAL                      :: paw_atom, ghost, floating
       REAL(dp), INTENT(IN), OPTIONAL                     :: hard_radius, hard0_radius
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: soft_basis_set, hard_basis_set
       INTEGER, INTENT(IN), OPTIONAL                      :: lmax_rho0
@@ -1992,6 +1998,8 @@ CONTAINS
          END IF
       END IF
       IF (PRESENT(ghost)) qs_kind%ghost = ghost
+
+      IF (PRESENT(floating)) qs_kind%floating = floating
 
       IF (PRESENT(no_optimize)) qs_kind%no_optimize = no_optimize
 
@@ -2061,6 +2069,10 @@ CONTAINS
             IF (qs_kind%ghost) THEN
                WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
                   "The atoms of this atomic kind are GHOST atoms!"
+            END IF
+            IF (qs_kind%floating) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
+                  "The atoms of this atomic kind are FLOATING BASIS FUNCTIONS."
             END IF
             IF (qs_kind%paw_atom) THEN
                WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
@@ -2391,7 +2403,7 @@ CONTAINS
          END DO
       END IF
 
-      IF (qs_kind%ghost) THEN
+      IF (qs_kind%ghost .OR. qs_kind%floating) THEN
          nelem = 0
          ncore = 0
          ncalc = 0

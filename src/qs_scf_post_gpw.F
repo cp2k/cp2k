@@ -1025,7 +1025,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(3)                     :: ggamma, zphase
       INTEGER                                            :: handle, i, ikind, ispins, j, n_rep, &
                                                             reference, unit_nr
-      LOGICAL                                            :: do_berry, first_time, ghost
+      LOGICAL                                            :: do_berry, first_time, floating, ghost
       REAL(KIND=dp)                                      :: charge_tot, theta, zeff, zwfc
       REAL(KIND=dp), DIMENSION(3)                        :: ci, dipole, dipole_old, gvec, rcc, ria
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
@@ -1065,8 +1065,8 @@ CONTAINS
             ! Nuclear charges
             DO i = 1, SIZE(particle_set)
                CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost)
-               IF (.NOT. ghost) THEN
+               CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost, floating=floating)
+               IF (.NOT. ghost .AND. .NOT. floating) THEN
                   CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff)
                   ria = pbc(particle_set(i)%r, cell)
                   DO j = 1, 3
@@ -1100,8 +1100,8 @@ CONTAINS
             ! Charges of the atoms involved
             DO i = 1, SIZE(particle_set)
                CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost)
-               IF (.NOT. ghost) THEN
+               CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost, floating=floating)
+               IF (.NOT. ghost .AND. .NOT. floating) THEN
                   CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff)
                   ria = pbc(particle_set(i)%r, cell)
                   dipole = dipole+zeff*(ria-rcc)

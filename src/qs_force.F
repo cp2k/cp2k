@@ -56,6 +56,7 @@ MODULE qs_force
                                               external_e_potential
    USE qs_force_types,                  ONLY: allocate_qs_force,&
                                               qs_force_type,&
+                                              replicate_qs_force,&
                                               zero_qs_force
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -373,51 +374,52 @@ CONTAINS
       END IF
 
       !  *** replicate forces ***
-      DO ikind = 1, SIZE(force)
-         CALL mp_sum(force(ikind)%overlap, para_env%group)
-         CALL mp_sum(force(ikind)%overlap_admm, para_env%group)
-         CALL mp_sum(force(ikind)%kinetic, para_env%group)
-         CALL mp_sum(force(ikind)%gth_ppl, para_env%group)
-         CALL mp_sum(force(ikind)%gth_nlcc, para_env%group)
-         CALL mp_sum(force(ikind)%gth_ppnl, para_env%group)
-         CALL mp_sum(force(ikind)%all_potential, para_env%group)
-         CALL mp_sum(force(ikind)%core_overlap, para_env%group)
-         CALL mp_sum(force(ikind)%rho_core, para_env%group)
-         CALL mp_sum(force(ikind)%rho_elec, para_env%group)
-         CALL mp_sum(force(ikind)%rho_lri_elec, para_env%group)
-         CALL mp_sum(force(ikind)%vhxc_atom, para_env%group)
-         CALL mp_sum(force(ikind)%g0s_Vh_elec, para_env%group)
-         CALL mp_sum(force(ikind)%fock_4c, para_env%group)
-         CALL mp_sum(force(ikind)%mp2_non_sep, para_env%group)
-         CALL mp_sum(force(ikind)%mp2_sep, para_env%group)
-         CALL mp_sum(force(ikind)%repulsive, para_env%group)
-         CALL mp_sum(force(ikind)%dispersion, para_env%group)
-         CALL mp_sum(force(ikind)%ehrenfest, para_env%group)
+      CALL replicate_qs_force(force, para_env)
+!     DO ikind = 1, SIZE(force)
+!        CALL mp_sum(force(ikind)%overlap, para_env%group)
+!        CALL mp_sum(force(ikind)%overlap_admm, para_env%group)
+!        CALL mp_sum(force(ikind)%kinetic, para_env%group)
+!        CALL mp_sum(force(ikind)%gth_ppl, para_env%group)
+!        CALL mp_sum(force(ikind)%gth_nlcc, para_env%group)
+!        CALL mp_sum(force(ikind)%gth_ppnl, para_env%group)
+!        CALL mp_sum(force(ikind)%all_potential, para_env%group)
+!        CALL mp_sum(force(ikind)%core_overlap, para_env%group)
+!        CALL mp_sum(force(ikind)%rho_core, para_env%group)
+!        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
+!        CALL mp_sum(force(ikind)%rho_lri_elec, para_env%group)
+!        CALL mp_sum(force(ikind)%vhxc_atom, para_env%group)
+!        CALL mp_sum(force(ikind)%g0s_Vh_elec, para_env%group)
+!        CALL mp_sum(force(ikind)%fock_4c, para_env%group)
+!        CALL mp_sum(force(ikind)%mp2_non_sep, para_env%group)
+!        CALL mp_sum(force(ikind)%mp2_sep, para_env%group)
+!        CALL mp_sum(force(ikind)%repulsive, para_env%group)
+!        CALL mp_sum(force(ikind)%dispersion, para_env%group)
+!        CALL mp_sum(force(ikind)%ehrenfest, para_env%group)
 
-         force(ikind)%total(:, :) = force(ikind)%total(:, :)+ &
-                                    force(ikind)%core_overlap(:, :)+ &
-                                    force(ikind)%gth_ppl(:, :)+ &
-                                    force(ikind)%gth_nlcc(:, :)+ &
-                                    force(ikind)%gth_ppnl(:, :)+ &
-                                    force(ikind)%all_potential(:, :)+ &
-                                    force(ikind)%kinetic(:, :)+ &
-                                    force(ikind)%overlap(:, :)+ &
-                                    force(ikind)%overlap_admm(:, :)+ &
-                                    force(ikind)%rho_core(:, :)+ &
-                                    force(ikind)%rho_elec(:, :)+ &
-                                    force(ikind)%rho_lri_elec(:, :)+ &
-                                    force(ikind)%vhxc_atom(:, :)+ &
-                                    force(ikind)%g0s_Vh_elec(:, :)+ &
-                                    force(ikind)%fock_4c(:, :)+ &
-                                    force(ikind)%mp2_non_sep(:, :)+ &
-                                    force(ikind)%mp2_sep(:, :)+ &
-                                    force(ikind)%repulsive(:, :)+ &
-                                    force(ikind)%dispersion(:, :)+ &
-                                    force(ikind)%ehrenfest(:, :)+ &
-                                    force(ikind)%efield(:, :)+ &
-                                    force(ikind)%eev(:, :)
+!        force(ikind)%total(:, :) = force(ikind)%total(:, :)+ &
+!                                   force(ikind)%core_overlap(:, :)+ &
+!                                   force(ikind)%gth_ppl(:, :)+ &
+!                                   force(ikind)%gth_nlcc(:, :)+ &
+!                                   force(ikind)%gth_ppnl(:, :)+ &
+!                                   force(ikind)%all_potential(:, :)+ &
+!                                   force(ikind)%kinetic(:, :)+ &
+!                                   force(ikind)%overlap(:, :)+ &
+!                                   force(ikind)%overlap_admm(:, :)+ &
+!                                   force(ikind)%rho_core(:, :)+ &
+!                                   force(ikind)%rho_elec(:, :)+ &
+!                                   force(ikind)%rho_lri_elec(:, :)+ &
+!                                   force(ikind)%vhxc_atom(:, :)+ &
+!                                   force(ikind)%g0s_Vh_elec(:, :)+ &
+!                                   force(ikind)%fock_4c(:, :)+ &
+!                                   force(ikind)%mp2_non_sep(:, :)+ &
+!                                   force(ikind)%mp2_sep(:, :)+ &
+!                                   force(ikind)%repulsive(:, :)+ &
+!                                   force(ikind)%dispersion(:, :)+ &
+!                                   force(ikind)%ehrenfest(:, :)+ &
+!                                   force(ikind)%efield(:, :)+ &
+!                                   force(ikind)%eev(:, :)
 
-      END DO
+!     END DO
 
       DO iatom = 1, natom
          ikind = kind_of(iatom)

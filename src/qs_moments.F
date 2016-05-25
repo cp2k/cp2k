@@ -755,7 +755,7 @@ CONTAINS
       INTEGER                                            :: handle, i, ia, idim, ikind, ispin, ix, &
                                                             iy, iz, j, k, l, nao, nm, nmo, nmom, &
                                                             nmotot, tmp_dim
-      LOGICAL                                            :: ghost, uniform
+      LOGICAL                                            :: floating, ghost, uniform
       REAL(dp)                                           :: charge, ci(3), cij(3, 3), dd, occ, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rmom
@@ -874,8 +874,8 @@ CONTAINS
       DO ia = 1, SIZE(particle_set)
          atomic_kind => particle_set(ia)%atomic_kind
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-         CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
-         IF (.NOT. ghost) THEN
+         CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, floating=floating)
+         IF (.NOT. ghost .AND. .NOT. floating) THEN
             rmom(1, 2) = rmom(1, 2)-charge
          ENDIF
       END DO
@@ -895,8 +895,8 @@ CONTAINS
             DO ia = 1, SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
                CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
-               IF (.NOT. ghost) THEN
+               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, floating=floating)
+               IF (.NOT. ghost .AND. .NOT. floating) THEN
                   ria = particle_set(ia)%r
                   ria = pbc(ria, cell)
                   DO i = 1, 3

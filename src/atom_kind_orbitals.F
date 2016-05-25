@@ -809,7 +809,7 @@ CONTAINS
          ncalc = nelem-ncore
       END IF
 
-      IF (qs_kind%ghost) THEN
+      IF (qs_kind%ghost .OR. qs_kind%floating) THEN
          nelem = 0
          ncore = 0
          ncalc = 0
@@ -1116,7 +1116,7 @@ CONTAINS
          END DO
          ncalc = nelem-ncore
 
-         IF (qs_kind%ghost) THEN
+         IF (qs_kind%ghost .OR. qs_kind%floating) THEN
             nelem = 0
             ncore = 0
             ncalc = 0
