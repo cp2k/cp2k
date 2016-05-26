@@ -145,8 +145,10 @@ CONTAINS
       CASE (outer_scf_basis_center_opt)
          CALL qs_basis_center_gradient(qs_env)
          scf_env%outer_scf%gradient(:, ihistory) = return_basis_center_gradient_norm(qs_env)
+
       CASE DEFAULT
          CPABORT("")
+
       END SELECT
 
       CALL timestop(handle)
@@ -181,100 +183,99 @@ CONTAINS
       ihistory = scf_env%outer_scf%iter_count
       optimizer_type = scf_control%outer_scf%optimizer
 
-      DO WHILE (.TRUE.) ! if we need a different run type we'll restart here
+      IF (scf_control%outer_scf%type == outer_scf_basis_center_opt) THEN
+         scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
+      ELSE
+         DO WHILE (.TRUE.) ! if we need a different run type we'll restart here
 
-         IF (scf_control%outer_scf%type == outer_scf_basis_center_opt) THEN
-            scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
-            EXIT
-         ENDIF
+            SELECT CASE (optimizer_type)
+            CASE (outer_scf_optimizer_bisect) ! bisection on the gradient, needs to be 1D
+               CPASSERT(SIZE(scf_env%outer_scf%gradient(:, 1)) == 1)
+               ! find the pair of points that bracket a zero of the gradient, with the smallest interval possible
+               ilow = -1
+               ihigh = -1
+               interval = HUGE(interval)
+               DO i = 1, ihistory
+                  DO j = i+1, ihistory
+                     ! distrust often used points
+                     IF (scf_env%outer_scf%count(i) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
+                     IF (scf_env%outer_scf%count(j) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
 
-         SELECT CASE (optimizer_type)
-         CASE (outer_scf_optimizer_bisect) ! bisection on the gradient, needs to be 1D
-            CPASSERT(SIZE(scf_env%outer_scf%gradient(:, 1)) == 1)
-            ! find the pair of points that bracket a zero of the gradient, with the smallest interval possible
-            ilow = -1
-            ihigh = -1
-            interval = HUGE(interval)
-            DO i = 1, ihistory
-               DO j = i+1, ihistory
-                  ! distrust often used points
-                  IF (scf_env%outer_scf%count(i) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
-                  IF (scf_env%outer_scf%count(j) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
-
-                  ! if they bracket a zero use them
-                  IF (scf_env%outer_scf%gradient(1, i)* &
-                      scf_env%outer_scf%gradient(1, j) < 0.0_dp) THEN
-                     tmp = ABS(scf_env%outer_scf%variables(1, i)-scf_env%outer_scf%variables(1, j))
-                     IF (tmp < interval) THEN
-                        ilow = i
-                        ihigh = j
-                        interval = tmp
+                     ! if they bracket a zero use them
+                     IF (scf_env%outer_scf%gradient(1, i)* &
+                         scf_env%outer_scf%gradient(1, j) < 0.0_dp) THEN
+                        tmp = ABS(scf_env%outer_scf%variables(1, i)-scf_env%outer_scf%variables(1, j))
+                        IF (tmp < interval) THEN
+                           ilow = i
+                           ihigh = j
+                           interval = tmp
+                        ENDIF
                      ENDIF
-                  ENDIF
-               ENDDO
-            ENDDO
-            IF (ilow == -1) THEN ! we didn't bracket a minimum yet, try something else
-               optimizer_type = outer_scf_optimizer_diis
-               CYCLE
-            ENDIF
-            scf_env%outer_scf%count(ilow) = scf_env%outer_scf%count(ilow)+1
-            scf_env%outer_scf%count(ihigh) = scf_env%outer_scf%count(ihigh)+1
-            scf_env%outer_scf%variables(:, ihistory+1) = 0.5_dp*(scf_env%outer_scf%variables(:, ilow)+ &
-                                                                 scf_env%outer_scf%variables(:, ihigh))
-         CASE (outer_scf_optimizer_none)
-            scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
-         CASE (outer_scf_optimizer_sd)
-            ! Notice that we are just trying to find a stationary point
-            ! e.g. the ddpac_constraint, one maximizes the function, so the stepsize might have
-            ! to be negative
-            scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
-                                                         scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:, ihistory)
-         CASE (outer_scf_optimizer_diis)
-            CPASSERT(scf_control%outer_scf%diis_buffer_length > 0)
-            ! set up DIIS matrix
-            nb = MIN(ihistory, scf_control%outer_scf%diis_buffer_length)
-            IF (nb < 2) THEN
-               optimizer_type = outer_scf_optimizer_sd
-               CYCLE
-            ELSE
-               ALLOCATE (b(nb+1, nb+1), a(nb+1, nb+1), ev(nb+1), ipivot(nb+1))
-               DO I = 1, nb
-                  DO J = I, nb
-                     ibuf = ihistory-nb+i
-                     jbuf = ihistory-nb+j
-                     b(I, J) = DOT_PRODUCT(scf_env%outer_scf%gradient(:, ibuf), &
-                                           scf_env%outer_scf%gradient(:, jbuf))
-                     b(J, I) = b(I, J)
                   ENDDO
                ENDDO
-               b(nb+1, :) = -1.0_dp
-               b(:, nb+1) = -1.0_dp
-               b(nb+1, nb+1) = 0.0_dp
+               IF (ilow == -1) THEN ! we didn't bracket a minimum yet, try something else
+                  optimizer_type = outer_scf_optimizer_diis
+                  CYCLE
+               ENDIF
+               scf_env%outer_scf%count(ilow) = scf_env%outer_scf%count(ilow)+1
+               scf_env%outer_scf%count(ihigh) = scf_env%outer_scf%count(ihigh)+1
+               scf_env%outer_scf%variables(:, ihistory+1) = 0.5_dp*(scf_env%outer_scf%variables(:, ilow)+ &
+                                                                    scf_env%outer_scf%variables(:, ihigh))
+            CASE (outer_scf_optimizer_none)
+               scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
+            CASE (outer_scf_optimizer_sd)
+               ! Notice that we are just trying to find a stationary point
+               ! e.g. the ddpac_constraint, one maximizes the function, so the stepsize might have
+               ! to be negative
+               scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
+                                                            scf_control%outer_scf%step_size*scf_env%outer_scf%gradient(:, ihistory)
+            CASE (outer_scf_optimizer_diis)
+               CPASSERT(scf_control%outer_scf%diis_buffer_length > 0)
+               ! set up DIIS matrix
+               nb = MIN(ihistory, scf_control%outer_scf%diis_buffer_length)
+               IF (nb < 2) THEN
+                  optimizer_type = outer_scf_optimizer_sd
+                  CYCLE
+               ELSE
+                  ALLOCATE (b(nb+1, nb+1), a(nb+1, nb+1), ev(nb+1), ipivot(nb+1))
+                  DO I = 1, nb
+                     DO J = I, nb
+                        ibuf = ihistory-nb+i
+                        jbuf = ihistory-nb+j
+                        b(I, J) = DOT_PRODUCT(scf_env%outer_scf%gradient(:, ibuf), &
+                                              scf_env%outer_scf%gradient(:, jbuf))
+                        b(J, I) = b(I, J)
+                     ENDDO
+                  ENDDO
+                  b(nb+1, :) = -1.0_dp
+                  b(:, nb+1) = -1.0_dp
+                  b(nb+1, nb+1) = 0.0_dp
 
-               CALL diamat_all(b, ev)
-               a(:, :) = b
-               DO I = 1, nb+1
-                  IF (ABS(ev(I)) .LT. 1.0E-12_dp) THEN
-                     a(:, I) = 0.0_dp
-                  ELSE
-                     a(:, I) = a(:, I)/ev(I)
-                  ENDIF
-               END DO
-               ev(:) = -MATMUL(a, b(nb+1, :))
+                  CALL diamat_all(b, ev)
+                  a(:, :) = b
+                  DO I = 1, nb+1
+                     IF (ABS(ev(I)) .LT. 1.0E-12_dp) THEN
+                        a(:, I) = 0.0_dp
+                     ELSE
+                        a(:, I) = a(:, I)/ev(I)
+                     ENDIF
+                  END DO
+                  ev(:) = -MATMUL(a, b(nb+1, :))
 
-               scf_env%outer_scf%variables(:, ihistory+1) = 0.0_dp
-               DO i = 1, nb
-                  ibuf = ihistory-nb+i
-                  scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory+1)+ &
-                                                               ev(i)*scf_env%outer_scf%variables(:, ibuf)
-               ENDDO
-               DEALLOCATE (b, ev)
-            ENDIF
-         CASE DEFAULT
-            CPABORT("")
-         END SELECT
-         EXIT
-      ENDDO
+                  scf_env%outer_scf%variables(:, ihistory+1) = 0.0_dp
+                  DO i = 1, nb
+                     ibuf = ihistory-nb+i
+                     scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory+1)+ &
+                                                                  ev(i)*scf_env%outer_scf%variables(:, ibuf)
+                  ENDDO
+                  DEALLOCATE (b, ev)
+               ENDIF
+            CASE DEFAULT
+               CPABORT("")
+            END SELECT
+            EXIT
+         ENDDO
+      END IF
 
       CALL timestop(handle)
 
@@ -394,7 +395,6 @@ CONTAINS
          outer_scf_history(1, ivec) = &
             dft_control%qs_control%becke_control%strength
       CASE (outer_scf_basis_center_opt)
-         ! write variables target array to extrapolation
          outer_scf_history(1, ivec) = 0.0_dp
       CASE DEFAULT
          CPABORT("")

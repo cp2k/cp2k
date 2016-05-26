@@ -70,7 +70,6 @@ MODULE qs_scf_types
 ! **************************************************************************************************
    TYPE qs_outer_scf_type
       INTEGER :: iter_count
-
       ! these are the variable of outer loop.
       ! right now, we assume that they can be easily written as
       ! small arrays, but we might want to go the cp_fm_types
@@ -89,7 +88,7 @@ MODULE qs_scf_types
       REAL(dp), DIMENSION(:), POINTER :: c_eval, t_eval
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: v_mat, mo_conv, mo_refine
       TYPE(cp_fm_type), POINTER ::  tmp_mat
-!NOTE: the following matrices are small and could be used as standard array rather than distributed fm
+      !NOTE: the following matrices are small and could be used as standard array rather than distributed fm
       TYPE(cp_fm_type), POINTER :: block1_mat, block2_mat, block3_mat, block4_mat, block5_mat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER ::  c_vec, chc_mat
    END TYPE krylov_space_type
@@ -103,6 +102,9 @@ MODULE qs_scf_types
       TYPE(mixing_storage_type), POINTER :: mixing_store
    END TYPE subspace_env_type
 
+   TYPE floating_basis_type
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient
+   END TYPE floating_basis_type
    ! **************************************************************************************************
    TYPE qs_scf_env_type
       TYPE(qs_outer_scf_type) :: outer_scf
@@ -124,6 +126,7 @@ MODULE qs_scf_types
       TYPE(subspace_env_type), POINTER :: subspace_env
       TYPE(davidson_type), POINTER, DIMENSION(:) :: block_davidson_env
       TYPE(fb_env_obj) :: filter_matrix_env
+      TYPE(floating_basis_type) :: floating_basis
    END TYPE qs_scf_env_type
 
 CONTAINS
@@ -187,6 +190,7 @@ CONTAINS
       NULLIFY (scf_env%krylov_space)
       NULLIFY (scf_env%subspace_env)
       NULLIFY (scf_env%block_davidson_env)
+      NULLIFY (scf_env%floating_basis%gradient)
       CALL fb_env_nullify(scf_env%filter_matrix_env)
 
       CALL timestop(handle)
@@ -345,6 +349,9 @@ CONTAINS
             END IF
             IF (fb_env_has_data(scf_env%filter_matrix_env)) THEN
                CALL fb_env_release(scf_env%filter_matrix_env)
+            END IF
+            IF (ASSOCIATED(scf_env%floating_basis%gradient)) THEN
+               DEALLOCATE (scf_env%floating_basis%gradient)
             END IF
             DEALLOCATE (scf_env)
          END IF

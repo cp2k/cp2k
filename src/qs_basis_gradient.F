@@ -31,6 +31,7 @@ MODULE qs_basis_gradient
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: allocate_qs_force,&
+                                              deallocate_qs_force,&
                                               qs_force_type,&
                                               replicate_qs_force,&
                                               zero_qs_force
@@ -88,40 +89,49 @@ CONTAINS
                                                             natom, nimg, nkind, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
       LOGICAL                                            :: floating, has_unit_metric
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s, matrix_w_kp
       TYPE(cp_dbcsr_type), POINTER                       :: matrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: basis_force, force, qs_force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      ! zero out the forces in particle set
-      CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
-      natom = SIZE(particle_set)
-      DO iatom = 1, natom
-         particle_set(iatom)%f(:) = 0.0_dp
-      END DO
+      ! get the gradient array
+      CALL get_qs_env(qs_env, scf_env=scf_env, natom=natom)
+      IF (ASSOCIATED(scf_env%floating_basis%gradient)) THEN
+         gradient => scf_env%floating_basis%gradient
+         CPASSERT(SIZE(gradient) == 3*natom)
+      ELSE
+         ALLOCATE (gradient(3, natom))
+         scf_env%floating_basis%gradient => gradient
+      END IF
+      gradient = 0.0_dp
+
       ! init the force environment
       CALL get_qs_env(qs_env, force=force, subsys=subsys, atomic_kind_set=atomic_kind_set)
-      IF (.NOT. ASSOCIATED(force)) THEN
-         ! Allocate the force data structure
-         nkind = SIZE(atomic_kind_set)
-         ALLOCATE (natom_of_kind(nkind))
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
-         CALL allocate_qs_force(force, natom_of_kind)
-         DEALLOCATE (natom_of_kind)
-         CALL qs_subsys_set(subsys, force=force)
+      IF (ASSOCIATED(force)) THEN
+         qs_force => force
+      ELSE
+         NULLIFY (qs_force)
       END IF
-      CALL zero_qs_force(force)
+      ! Allocate the force data structure
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (natom_of_kind(nkind))
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=natom_of_kind)
+      CALL allocate_qs_force(basis_force, natom_of_kind)
+      DEALLOCATE (natom_of_kind)
+      CALL qs_subsys_set(subsys, force=basis_force)
+      CALL zero_qs_force(basis_force)
 
       ! get atom mapping
       ALLOCATE (atom_of_kind(natom), kind_of(natom))
@@ -158,13 +168,19 @@ CONTAINS
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
 
       ! replicate forces
-      CALL replicate_qs_force(force, para_env)
+      CALL replicate_qs_force(basis_force, para_env)
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       DO iatom = 1, natom
          ikind = kind_of(iatom)
          i = atom_of_kind(iatom)
          CALL get_qs_kind(qs_kind_set(ikind), floating=floating)
-         IF (floating) particle_set(iatom)%f = -force(ikind)%total(1:3, i)
+         IF (floating) gradient(1:3, iatom) = -basis_force(ikind)%total(1:3, i)
       END DO
+      ! clean up force environment and reinitialize qs_force
+      IF (ASSOCIATED(basis_force)) CALL deallocate_qs_force(basis_force)
+      CALL qs_subsys_set(subsys, force=qs_force)
+      CALL get_qs_env(qs_env, ks_env=ks_env)
+      CALL set_ks_env(ks_env, forces_up_to_date=.FALSE.)
 
       DEALLOCATE (atom_of_kind, kind_of)
 
@@ -185,11 +201,14 @@ CONTAINS
 
       INTEGER                                            :: iatom, ikind, natom, nfloat
       LOGICAL                                            :: floating
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       norm = 0.0_dp
-      CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
+      CALL get_qs_env(qs_env, scf_env=scf_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
+      gradient => scf_env%floating_basis%gradient
       natom = SIZE(particle_set)
       nfloat = 0
       DO iatom = 1, natom
@@ -197,9 +216,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), floating=floating)
          IF (floating) THEN
             nfloat = nfloat+1
-            norm = norm+ABS(particle_set(iatom)%f(1)) &
-                   +ABS(particle_set(iatom)%f(2)) &
-                   +ABS(particle_set(iatom)%f(3))
+            norm = norm+SUM(ABS(gradient(1:3, iatom)))
          END IF
       END DO
       IF (nfloat > 0) THEN
@@ -222,24 +239,26 @@ CONTAINS
       INTEGER                                            :: handle, iatom, ikind, natom
       LOGICAL                                            :: floating
       REAL(KIND=dp)                                      :: alpha
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       CALL timeset(routineN, handle)
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
       ! update positions
-      CALL get_qs_env(qs_env, dft_control=dft_control, particle_set=particle_set, qs_kind_set=qs_kind_set)
+      CALL get_qs_env(qs_env, scf_env=scf_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
+      gradient => scf_env%floating_basis%gradient
       natom = SIZE(particle_set)
       alpha = 0.50_dp
       DO iatom = 1, natom
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), floating=floating)
          IF (floating) THEN
-            particle_set(iatom)%r = particle_set(iatom)%r+alpha*particle_set(iatom)%f
+            particle_set(iatom)%r(1:3) = particle_set(iatom)%r(1:3)+alpha*gradient(1:3, iatom)
          END IF
       END DO
 
