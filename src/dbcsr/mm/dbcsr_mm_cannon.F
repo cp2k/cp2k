@@ -7672,6 +7672,8 @@ CONTAINS
                              data_size=data_size, memory_type=data_memory_type)
          CALL dbcsr_data_set_size_referenced(buffer%data, data_size)
          CALL dbcsr_data_init(buffer%data_diag)
+         CALL dbcsr_data_new(buffer%data_diag, data_type=data_type, &
+                             data_size=1, memory_type=data_memory_type)
          buffer%is_valid = .TRUE.
       ELSE
          CALL dbcsr_data_ensure_size(buffer%data, data_size, nocopy=.TRUE.)
