@@ -206,7 +206,7 @@ CONTAINS
       total_size_requested = PRODUCT(sizes_requested(1:d))
       total_size_oversized = PRODUCT(sizes_oversized(1:d))
 
-      IF (ANY(sizes_requested<0) .OR. ANY(sizes_oversized<0)) &
+      IF (ANY(sizes_requested < 0) .OR. ANY(sizes_oversized < 0)) &
          CPABORT("Negative data size requested, integer overflow?")
 
       IF (total_size_requested > 1 .AND. ASSOCIATED(my_memory_type%pool)) THEN
