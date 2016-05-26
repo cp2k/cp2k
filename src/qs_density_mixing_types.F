@@ -11,6 +11,10 @@
 ! **************************************************************************************************
 MODULE qs_density_mixing_types
    USE ao_util,                         ONLY: exp_radius
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                              cp_dbcsr_deallocate_matrix_set,&
+                                              cp_dbcsr_p_type,&
+                                              cp_dbcsr_type
    USE input_constants,                 ONLY: broy_mix,&
                                               broy_mix_new,&
                                               direct_p_mix,&
@@ -55,6 +59,7 @@ MODULE qs_density_mixing_types
    TYPE mixing_storage_type
       INTEGER :: ref_count, ig_max, ncall, nbuffer, n_simple_mix, nskip_mixing, p_metric_method
       INTEGER, POINTER, DIMENSION(:) :: ig_global_index
+      LOGICAL :: gmix_p
       LOGICAL, POINTER, DIMENSION(:) :: paw
       CHARACTER(len=15) :: iter_method
       REAL(dp) :: alpha, bconst, beta, broy_w0, max_g2, max_gvec_exp, pulay_alpha, pulay_beta, r_step, &
@@ -69,9 +74,15 @@ MODULE qs_density_mixing_types
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER :: delta_res, u_vec, z_vec
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER ::drho_buffer, rhoin_buffer, &
                                                         res_buffer
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_in_buffer
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_res_buffer
+      TYPE(cp_dbcsr_type), POINTER :: rho_ao_mix, rho_ao_res
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_lastres, cpc_s_lastres
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_in, cpc_s_in
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_old, cpc_s_old
+      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_in_buffer, cpc_s_in_buffer
+      TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: cpc_h_res_buffer, cpc_s_res_buffer
       TYPE(rho_atom_coeff), DIMENSION(:, :, :), POINTER :: dcpc_h_in, dcpc_s_in
    END TYPE mixing_storage_type
 
@@ -110,6 +121,7 @@ CONTAINS
       mixing_store%beta = 1.0_dp
       mixing_store%iter_method = "NoMix"
       mixing_store%max_g2 = 2._dp*ecut
+      mixing_store%gmix_p = .FALSE.
 
       NULLIFY (mixing_store%p_metric)
       NULLIFY (mixing_store%kerker_factor)
@@ -139,6 +151,17 @@ CONTAINS
       NULLIFY (mixing_store%dcpc_s_in)
       NULLIFY (mixing_store%cpc_h_lastres)
       NULLIFY (mixing_store%cpc_s_lastres)
+      NULLIFY (mixing_store%rho_ao_in)
+      NULLIFY (mixing_store%rho_ao_in_old)
+      NULLIFY (mixing_store%rho_ao_in_buffer)
+      NULLIFY (mixing_store%rho_ao_lastres)
+      NULLIFY (mixing_store%rho_ao_res_buffer)
+      NULLIFY (mixing_store%rho_ao_mix)
+      NULLIFY (mixing_store%rho_ao_res)
+      NULLIFY (mixing_store%cpc_h_in_buffer)
+      NULLIFY (mixing_store%cpc_s_in_buffer)
+      NULLIFY (mixing_store%cpc_h_res_buffer)
+      NULLIFY (mixing_store%cpc_s_res_buffer)
 
       CALL section_vals_val_get(mixing_section, "ALPHA", r_val=mixing_store%alpha)
       CALL section_vals_val_get(mixing_section, "BETA", r_val=mixing_store%beta)
@@ -146,6 +169,7 @@ CONTAINS
       CALL section_vals_val_get(mixing_section, "NBUFFER", i_val=mixing_store%nbuffer)
       CALL section_vals_val_get(mixing_section, "NSKIP", i_val=mixing_store%nskip_mixing)
       CALL section_vals_val_get(mixing_section, "MAX_GVEC_EXP", r_val=mixing_store%max_gvec_exp)
+      CALL section_vals_val_get(mixing_section, "GMIX_P", l_val=mixing_store%gmix_p)
 
       IF (mixing_store%max_gvec_exp > 0._dp) THEN
          alpha = 0.25_dp/mixing_store%max_gvec_exp
@@ -244,6 +268,35 @@ CONTAINS
                DEALLOCATE (mixing_store%cpc_h_old)
                DEALLOCATE (mixing_store%cpc_s_old)
             END IF
+            IF (ASSOCIATED(mixing_store%cpc_h_in_buffer)) THEN
+               DO i = 1, SIZE(mixing_store%cpc_h_in_buffer, 3)
+               DO j = 1, SIZE(mixing_store%cpc_h_in_buffer, 2)
+               DO k = 1, SIZE(mixing_store%cpc_h_in_buffer, 1)
+                  IF (ASSOCIATED(mixing_store%cpc_h_in_buffer(k, j, i)%r_coef)) THEN
+                     DEALLOCATE (mixing_store%cpc_h_in_buffer(k, j, i)%r_coef)
+                     DEALLOCATE (mixing_store%cpc_s_in_buffer(k, j, i)%r_coef)
+                  END IF
+               END DO
+               END DO
+               END DO
+               DEALLOCATE (mixing_store%cpc_h_in_buffer)
+               DEALLOCATE (mixing_store%cpc_s_in_buffer)
+            END IF
+            IF (ASSOCIATED(mixing_store%cpc_h_res_buffer)) THEN
+               DO i = 1, SIZE(mixing_store%cpc_h_res_buffer, 3)
+               DO j = 1, SIZE(mixing_store%cpc_h_res_buffer, 2)
+               DO k = 1, SIZE(mixing_store%cpc_h_res_buffer, 1)
+                  IF (ASSOCIATED(mixing_store%cpc_h_res_buffer(k, j, i)%r_coef)) THEN
+                     DEALLOCATE (mixing_store%cpc_h_res_buffer(k, j, i)%r_coef)
+                     DEALLOCATE (mixing_store%cpc_s_res_buffer(k, j, i)%r_coef)
+                  END IF
+               END DO
+               END DO
+               END DO
+               DEALLOCATE (mixing_store%cpc_h_res_buffer)
+               DEALLOCATE (mixing_store%cpc_s_res_buffer)
+            END IF
+
             IF (ASSOCIATED(mixing_store%dcpc_h_in)) THEN
                DO i = 1, SIZE(mixing_store%dcpc_h_in, 3)
                DO j = 1, SIZE(mixing_store%dcpc_h_in, 2)
@@ -355,6 +408,28 @@ CONTAINS
                   END DO
                END DO
                DEALLOCATE (mixing_store%z_vec)
+            END IF
+
+            IF (ASSOCIATED(mixing_store%rho_ao_in)) THEN
+               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in)
+            END IF
+            IF (ASSOCIATED(mixing_store%rho_ao_in_old)) THEN
+               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_old)
+            END IF
+            IF (ASSOCIATED(mixing_store%rho_ao_lastres)) THEN
+               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_lastres)
+            END IF
+            IF (ASSOCIATED(mixing_store%rho_ao_in_buffer)) THEN
+               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_buffer)
+            END IF
+            IF (ASSOCIATED(mixing_store%rho_ao_res_buffer)) THEN
+               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_res_buffer)
+            END IF
+            IF (ASSOCIATED(mixing_store%rho_ao_mix)) THEN
+               CALL cp_dbcsr_deallocate_matrix(mixing_store%rho_ao_mix)
+            END IF
+            IF (ASSOCIATED(mixing_store%rho_ao_res)) THEN
+               CALL cp_dbcsr_deallocate_matrix(mixing_store%rho_ao_res)
             END IF
 
             DEALLOCATE (mixing_store)
@@ -617,6 +692,16 @@ CONTAINS
                           type_of_var=real_t, &
                           default_r_val=-1._dp, &
                           usage="MAX_GVEC_EXP 3.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="GMIX_P", &
+                          description="Activate the mixing of the denisty matrix, using the same"// &
+                          " mixing coefficient applied for the g-space mixing.", &
+                          repeats=.FALSE., &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE., &
+                          usage="GMIX_P")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
