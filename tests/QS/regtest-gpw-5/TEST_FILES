@@ -19,4 +19,12 @@ si8_pulay_off.inp                                      1      5e-13             
 #
 si8_pmix_nosmear_mocubes.inp                           1      5e-13             -31.18760296982239
 si8_pulay_mocubes.inp                                  1      5e-13             -31.16058546016065
+#
+si7c_kerker_test4.inp                                  1      5e-13             -32.89092890918074 
+si7c_kerker_test4_nopmix.inp                           1      5e-13             -32.96309487108195
+si7c_pulay_gapw.inp                                  1      5e-13               -32.83710556023730
+si7c_broy_gapw.inp                                   1      5e-13               -32.76991775855248 
+si7c_broy_gapw_a04_atomic.inp                        1      5e-13               -32.83664474506033 
+si7c_broy_gapw_a04_restart.inp                       1      5e-13               -32.83833607502124 
+si7c_broy_gapw_a04_nopmix.inp                        1      5e-13               -32.84202168871438
 #EOF
