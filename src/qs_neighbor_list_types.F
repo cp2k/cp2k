@@ -75,8 +75,19 @@ MODULE qs_neighbor_list_types
       INTEGER, DIMENSION(:), POINTER        :: atom_list
       INTEGER, DIMENSION(:), POINTER        :: atom_index
       TYPE(neighbor_list_p_type), &
-         DIMENSION(:), POINTER               :: neighbor_list
+         DIMENSION(:), POINTER              :: neighbor_list
    END TYPE list_search_type
+
+! **************************************************************************************************
+   TYPE neighbor_list_task_type
+      INTEGER                               :: iatom, jatom, &
+                                               ikind, jkind, nkind, &
+                                               ilist, nlist, inode, nnode
+      REAL(KIND=dp), DIMENSION(3)           :: r
+      INTEGER, DIMENSION(3)                 :: cell
+      TYPE(neighbor_list_task_type), &
+         POINTER                            :: next ! Pointer for forming a linked list of tasks
+   END TYPE neighbor_list_task_type
 
 ! **************************************************************************************************
 ! Neighbor List Iterator
@@ -105,7 +116,8 @@ MODULE qs_neighbor_list_types
 
    PUBLIC :: neighbor_list_p_type, &
              neighbor_list_set_type, &
-             neighbor_list_set_p_type
+             neighbor_list_set_p_type, &
+             neighbor_list_task_type
 
 ! *** Public subroutines ***
 
@@ -123,7 +135,8 @@ MODULE qs_neighbor_list_types
              neighbor_list_iterate, &
              nl_set_sub_iterator, &
              nl_sub_iterate, &
-             get_iterator_info
+             get_iterator_info, &
+             get_iterator_task
 
 CONTAINS
 
@@ -541,6 +554,38 @@ CONTAINS
       END IF
 
    END SUBROUTINE get_iterator_info
+
+! **************************************************************************************************
+!> \brief Captures the current state of the iterator in a neighbor_list_task_type
+!> \param iterator_set the iterator / array of iterators (for multiple threads)
+!> \param mepos OpenMP thread index
+!> \param task the task structure which is returned
+! **************************************************************************************************
+   SUBROUTINE get_iterator_task(iterator_set, mepos, task)
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: iterator_set
+      INTEGER, OPTIONAL                                  :: mepos
+      TYPE(neighbor_list_task_type), INTENT(OUT)         :: task
+
+      IF (PRESENT(mepos)) THEN
+         CALL get_iterator_info(iterator_set, mepos=mepos, ikind=task%ikind, jkind=task%jkind, &
+                                nkind=task%nkind, &
+                                ilist=task%ilist, nlist=task%nlist, &
+                                inode=task%inode, nnode=task%nnode, &
+                                iatom=task%iatom, jatom=task%jatom, &
+                                r=task%r, cell=task%cell)
+      ELSE
+         CALL get_iterator_info(iterator_set, ikind=task%ikind, jkind=task%jkind, &
+                                nkind=task%nkind, &
+                                ilist=task%ilist, nlist=task%nlist, &
+                                inode=task%inode, nnode=task%nnode, &
+                                iatom=task%iatom, jatom=task%jatom, &
+                                r=task%r, cell=task%cell)
+      ENDIF
+
+      NULLIFY (task%next)
+
+   END SUBROUTINE get_iterator_task
 
 ! **************************************************************************************************
 !> \brief   Add a new neighbor list to a neighbor list set.
