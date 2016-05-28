@@ -71,12 +71,12 @@ CASE_RE = re.compile(SOL_STR + r"CASE\s*(\(.+\)|DEFAULT)" + EOL_STR, RE_FLAGS)
 ENDSEL_RE = re.compile(SOL_STR + r"END\s*SELECT" + EOL_STR, RE_FLAGS)
 
 SUBR_RE = re.compile(
-    r"^[^\"'!]*SUBROUTINE\s+\w+\s*(\(.*\))?" + EOL_STR, RE_FLAGS)
+    r"^([^\"'!]* )?SUBROUTINE\s+\w+\s*(\(.*\))?" + EOL_STR, RE_FLAGS)
 ENDSUBR_RE = re.compile(
     SOL_STR + r"END\s*SUBROUTINE(\s+\w+)?" + EOL_STR, RE_FLAGS)
 
 FCT_RE = re.compile(
-    r"^[^\"'!]*FUNCTION\s+\w+\s*(\(.*\))?(\s*RESULT\s*\(\w+\))?" + EOL_STR, RE_FLAGS)
+    r"^([^\"'!]* )?FUNCTION\s+\w+\s*(\(.*\))?(\s*RESULT\s*\(\w+\))?" + EOL_STR, RE_FLAGS)
 ENDFCT_RE = re.compile(
     SOL_STR + r"END\s*FUNCTION(\s+\w+)?" + EOL_STR, RE_FLAGS)
 
@@ -91,7 +91,7 @@ PROG_RE = re.compile(SOL_STR + r"PROGRAM\s+\w+" + EOL_STR, RE_FLAGS)
 ENDPROG_RE = re.compile(
     SOL_STR + r"END\s*PROGRAM(\s+\w+)?" + EOL_STR, RE_FLAGS)
 
-INTERFACE_RE = re.compile(SOL_STR + r"INTERFACE(\s+\w+)?" + EOL_STR, RE_FLAGS)
+INTERFACE_RE = re.compile(r"^([^\"'!]* )?INTERFACE(\s+\w+)?" + EOL_STR, RE_FLAGS)
 ENDINTERFACE_RE = re.compile(
     SOL_STR + r"END\s*INTERFACE(\s+\w+)?" + EOL_STR, RE_FLAGS)
 
