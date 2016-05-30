@@ -15,7 +15,7 @@ MODULE cp_control_utils
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, qs_control_type, sccs_control_create, &
-        tddfpt_control_create, tddfpt_control_type
+        tddfpt2_control_type, tddfpt_control_create, tddfpt_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -420,6 +420,9 @@ CONTAINS
       ! Read the external vxc input section
       tmp_section => section_vals_get_subs_vals(dft_section, "EXTERNAL_VXC")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_external_vxc)
+
+      ! reimplemented TDDFPT
+      CALL read_tddfpt2_control(dft_control%tddfpt2_control, dft_section)
 
    END SUBROUTINE read_dft_control
 
@@ -1050,6 +1053,44 @@ CONTAINS
       CALL section_vals_val_get(sic_section, "SIC_SCALING_B", r_val=t_control%sic_scaling_b)
 
    END SUBROUTINE read_tddfpt_control
+
+! **************************************************************************************************
+!> \brief ...
+!> \param t_control ...
+!> \param dft_section ...
+! **************************************************************************************************
+   SUBROUTINE read_tddfpt2_control(t_control, dft_section)
+      TYPE(tddfpt2_control_type), POINTER                :: t_control
+      TYPE(section_vals_type), POINTER                   :: dft_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt2_control', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      TYPE(section_vals_type), POINTER                   :: t_section
+
+      CALL timeset(routineN, handle)
+      NULLIFY (t_section)
+      t_section => section_vals_get_subs_vals(dft_section, "TDDFPT2")
+
+      CALL section_vals_val_get(t_section, "NSTATES", i_val=t_control%nstates)
+      CALL section_vals_val_get(t_section, "ADDED_STATES", i_val=t_control%added_states)
+      CALL section_vals_val_get(t_section, "ADDED_OCC_MOS", i_val=t_control%added_occ_mos)
+      CALL section_vals_val_get(t_section, "MAX_ITER", i_val=t_control%niters)
+
+      CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%conv)
+      CALL section_vals_val_get(t_section, "DEGENERATE_EPS", r_val=t_control%degenerate_eps)
+
+      CALL section_vals_val_get(t_section, "ADD_DEGENERATE_STATES", l_val=t_control%add_degenerate)
+
+      IF (t_control%conv < 0) &
+         t_control%conv = ABS(t_control%conv)
+
+      IF (t_control%degenerate_eps < 0) &
+         t_control%degenerate_eps = ABS(t_control%degenerate_eps)
+
+      CALL timestop(handle)
+   END SUBROUTINE read_tddfpt2_control
 
 ! **************************************************************************************************
 !> \brief Write the DFT control parameters to the output unit.

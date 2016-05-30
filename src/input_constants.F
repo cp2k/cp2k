@@ -125,7 +125,8 @@ MODULE input_constants
                                                ehrenfest = 16, &
                                                do_tamc = 17, &
                                                tree_mc_run = 18, &
-                                               driver_run = 19
+                                               driver_run = 19, &
+                                               tddfpt2_run = 20
 
    ! Run Types of Atom Code
    INTEGER, PARAMETER, PUBLIC               :: atom_no_run = 1, &

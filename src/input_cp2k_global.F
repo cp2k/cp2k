@@ -42,7 +42,8 @@ MODULE input_cp2k_global
         elpa_avx_b2, elpa_avx_b4, elpa_avx_b6, elpa_bgp, elpa_bgq, elpa_gen, elpa_gen_sim, &
         elpa_sse, energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, &
         fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, &
-        mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
+        mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, tddfpt2_run, &
+        tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -281,13 +282,13 @@ CONTAINS
                          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION", &
                          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO", &
                          "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION", &
-                         "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER"), &
+                         "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER", "TDDFPT2"), &
          enum_i_vals=(/none_run, energy_run, energy_force_run, mol_dyn_run, &
                        geo_opt_run, mon_car_run, electronic_spectra_run, debug_run, &
                        bsse_run, linear_response_run, pint_run, vib_anal, do_band, &
                        cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run, &
                        mon_car_run, electronic_spectra_run, linear_response_run, &
-                       vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run/), &
+                       vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run, tddfpt2_run/), &
          enum_desc=s2a("Perform no tasks", "Computes energy", "Computes energy and forces", &
                        "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", "Computes absorption Spectra", &
                        "Performs a Debug analysis", "Basis set superposition error", "Linear Response", &
@@ -298,7 +299,9 @@ CONTAINS
                        "Ehrenfest dynamics (using real time propagation of the wavefunction)", &
                        "Temperature Accelerated Monte Carlo (TAMC)", &
                        "Tree Monte Carlo (TMC), a pre-sampling MC algorithm", &
-                       "i-PI driver mode"))
+                       "i-PI driver mode", &
+                       "Reimplemented Time-Dependent Density Functional Theory (works for hybrid functionals). "// &
+                       "Depends on the input section FORCE_EVAL%DFT%TDDFPT2"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -321,6 +321,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_tddfpt2_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_mgrid_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -3986,6 +3990,116 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_tddfpt_section
+
+! **************************************************************************************************
+!> \brief creates an input section for tddfpt calculation
+!> \param section a section to create
+!> \par History
+!>    * 05.2016 forked from create_tddfpt_section [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE create_tddfpt2_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_tddfpt2_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "TDDFPT2", &
+                          description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
+                          "Current implementation works for hybrid functionals. "// &
+                          "Currently limited for singlet states and spin-restricted density "// &
+                          "and can be used with Gaussian and Plane Waves (GPW) method only. "// &
+                          "The keyword 'FORCE_EVAL%DFT%EXCITATIONS tddfpt' is no longer needed.", &
+                          n_keywords=7, n_subsections=1, repeats=.FALSE., &
+                          citations=(/Iannuzzi2005/))
+
+      NULLIFY (keyword, print_key, subsection)
+
+      ! Integer
+      CALL keyword_create(keyword, name="NSTATES", &
+                          description="Number of excited states to converge.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ADDED_STATES", &
+                          description="Number of additional excited states in the active space "// &
+                          "(-1 means all virtual orbitals).", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=10)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ADDED_OCC_MOS", &
+                          description="Number of additional occupied molecular orbitals in the active space "// &
+                          "(0 means as few as possible, -1 means all occupied orbitals). "// &
+                          "For debug purpose only; excitation energies should not depend on the actual value used.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_ITER", &
+                          description="Maximal number of iterations to be performed.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Real
+      CALL keyword_create(keyword, name="CONVERGENCE", &
+                          description="Target accuracy for excited state energies.", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree", &
+                          default_r_val=1.0e-6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DEGENERATE_EPS", &
+                          description="Energy threshold which controls when excited states are considered to be degenerate.", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree", &
+                          default_r_val=1.0e-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Logical
+      CALL keyword_create(keyword, name="ADD_DEGENERATE_STATES", &
+                          description="Automatically include degenerate excited states into the active space.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! PRINT subsection
+      CALL section_create(subsection, "PRINT", "Printing of information during the TDDFT run.", &
+                          repeats=.FALSE.)
+
+      CALL cp_print_key_section_create(print_key, "GUESS_VECTORS", &
+                                       description="Controls the printing of initial guess vectors.", &
+                                       print_level=low_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "ITERATION_INFO", &
+                                       description="Controls the printing of basic iteration information "// &
+                                       "during the TDDFT run.", &
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "DETAILED_ENERGY", &
+                                       description="Controls the printing of detailed energy information "// &
+                                       "during the TDDFT run.", &
+                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+   END SUBROUTINE create_tddfpt2_section
 
 ! **************************************************************************************************
 !> \brief creates the input section for the relativistic part

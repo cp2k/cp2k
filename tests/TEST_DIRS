@@ -39,6 +39,7 @@ ATOM/regtest-pseudo
 QS/regtest-dft-vdw-corr-3                                   libxc 
 QS/regtest-sccs-2
 QS/regtest-tddfpt
+QS/regtest-tddfpt-2
 QS/regtest-almo-2
 QS/regtest-lvlshift
 QS/regtest-hfx-wfn-fitting                                  libint 

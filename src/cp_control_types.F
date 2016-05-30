@@ -372,6 +372,26 @@ MODULE cp_control_types
    END TYPE tddfpt_control_type
 
 ! **************************************************************************************************
+! \brief Control parameters for a Time-Dependent DFT calculation
+! **************************************************************************************************
+   TYPE tddfpt2_control_type
+      !> number of excited states to converge
+      INTEGER                                   :: nstates
+      !> number of additional excited states in the active space
+      INTEGER                                   :: added_states
+      !> number of additional occupied molecular orbitals in the active space
+      INTEGER                                   :: added_occ_mos
+      !> maximal number of iterations to be performed
+      INTEGER                                   :: niters
+      !> target accuracy
+      REAL(kind=dp)                             :: conv
+      !> energy threshold which controls when excited states are considered to be degenerate
+      REAL(kind=dp)                             :: degenerate_eps
+      !> should all degenerate excited states be automatically added to the active space
+      LOGICAL                                   :: add_degenerate
+   END TYPE tddfpt2_control_type
+
+! **************************************************************************************************
 ! \brief Control parameters for a DFT calculation
 ! **************************************************************************************************
    TYPE dft_control_type
@@ -381,6 +401,7 @@ MODULE cp_control_types
       TYPE(rtp_control_type), POINTER            :: rtp_control
       TYPE(sccs_control_type), POINTER           :: sccs_control
       TYPE(tddfpt_control_type), POINTER         :: tddfpt_control
+      TYPE(tddfpt2_control_type), POINTER        :: tddfpt2_control
       TYPE(xas_control_type), POINTER            :: xas_control
       TYPE(efield_p_type), POINTER, DIMENSION(:) :: efield_fields
       INTEGER                                    :: nspins, &
@@ -432,6 +453,7 @@ MODULE cp_control_types
              qs_control_type, &
              gapw_control_type, &
              tddfpt_control_type, &
+             tddfpt2_control_type, &
              efield_type, &
              mulliken_restraint_type, &
              ddapc_restraint_type, &
@@ -746,6 +768,7 @@ CONTAINS
       NULLIFY (dft_control%xas_control)
       NULLIFY (dft_control%qs_control)
       NULLIFY (dft_control%tddfpt_control)
+      NULLIFY (dft_control%tddfpt2_control)
       NULLIFY (dft_control%efield_fields)
       NULLIFY (dft_control%period_efield)
       NULLIFY (dft_control%admm_control)
@@ -753,6 +776,7 @@ CONTAINS
       NULLIFY (dft_control%sccs_control)
       dft_control%do_sccs = .FALSE.
       CALL qs_control_create(dft_control%qs_control)
+      CALL tddfpt2_control_create(dft_control%tddfpt2_control)
    END SUBROUTINE dft_control_create
 
 ! **************************************************************************************************
@@ -792,6 +816,7 @@ CONTAINS
          IF (dft_control%ref_count == 0) THEN
             CALL qs_control_release(dft_control%qs_control)
             CALL tddfpt_control_release(dft_control%tddfpt_control)
+            CALL tddfpt2_control_release(dft_control%tddfpt2_control)
             CALL xas_control_release(dft_control%xas_control)
             CALL admm_control_release(dft_control%admm_control)
             CALL efield_fields_release(dft_control%efield_fields)
@@ -940,6 +965,51 @@ CONTAINS
          DEALLOCATE (tddfpt_control)
       END IF
    END SUBROUTINE tddfpt_control_release
+
+! **************************************************************************************************
+!> \brief allocate control options for Time-Dependent Density Functional Theory calculation
+!> \param tddfpt_control an object to create
+!> \par History
+!>    * 05.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt2_control_create(tddfpt_control)
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt2_control_create', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CPASSERT(.NOT. ASSOCIATED(tddfpt_control))
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (tddfpt_control)
+
+      CALL timestop(handle)
+   END SUBROUTINE tddfpt2_control_create
+
+! **************************************************************************************************
+!> \brief release memory allocated for TDDFT control options
+!> \param tddfpt_control an object to release
+!> \par History
+!>    * 05.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt2_control_release(tddfpt_control)
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt2_control_release', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (ASSOCIATED(tddfpt_control)) THEN
+         DEALLOCATE (tddfpt_control)
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE tddfpt2_control_release
 
 ! **************************************************************************************************
 !> \brief ...

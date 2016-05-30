@@ -1,0 +1,87 @@
+&GLOBAL
+  PROJECT ch2o_pbe0_tddfpt
+  RUN_TYPE tddfpt2
+  PRINT_LEVEL low
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &TDDFPT2
+       NSTATES        3
+       ADDED_STATES   9
+       MAX_ITER 10
+
+       CONVERGENCE    [eV] 1.0e-3
+    &END TDDFPT2
+
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+
+    &MGRID
+      CUTOFF 400
+    &END MGRID
+
+    &QS
+      METHOD gpw
+    &END QS
+
+    &SCF
+      MAX_SCF   100
+      EPS_SCF   1e-7
+      SCF_GUESS atomic
+    &END SCF
+
+    &POISSON
+       PERIODIC none
+       POISSON_SOLVER wavelet
+    &END POISSON
+
+    &XC
+      &XC_FUNCTIONAL pbe0
+      &END XC_FUNCTIONAL
+
+      &XC_GRID
+        XC_DERIV SPLINE2_SMOOTH
+      &END XC_GRID
+
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+        &END SCREENING
+      &END HF
+    &END XC
+  &END DFT
+
+  &SUBSYS
+    &TOPOLOGY
+       &CENTER_COORDINATES
+       &END CENTER_COORDINATES
+    &END TOPOLOGY
+
+    &CELL
+      ABC 9.0 9.0 9.0
+      PERIODIC NONE
+    &END CELL
+
+    &COORD
+  O         0.9588431900        1.1234806613        1.8643358699
+  C         1.0045827842        1.0372747429        0.6713062328
+  H         1.0304990091        1.9328340670        0.0202209074
+  H         1.0234151411        0.0574091066        0.1554705073
+    &END COORD
+
+    &KIND O
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &KIND C
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+    &KIND H
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
