@@ -247,9 +247,7 @@ CONTAINS
          slope = cp_dbcsr_frobenius_norm(pao%matrix_G)**2
          CALL linesearch_step(pao%linesearch, energy=energy, slope=slope)
 
-         ! abort if no progress is made, but guard against very small slope cases (e.g. pao basis == primary basis)
-         IF (pao%linesearch%step_size < 1e-10_dp .AND. SQRT(slope) > 1e-10_dp) &
-            CPABORT("PAO gradient is wrong.")
+         IF (pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
 
          CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
          CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, pao%linesearch%step_size)

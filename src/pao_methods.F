@@ -298,8 +298,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy_diff, loop_eps, norm_G, now, &
                                                             time_diff
 
-      is_converged = .FALSE.
-
       ! calculate progress
       energy_diff = new_energy-pao%energy_prev
       pao%energy_prev = new_energy
@@ -315,13 +313,13 @@ CONTAINS
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of gradient:", norm_G
       ENDIF
 
+      ! convergence criterion
+      loop_eps = norm_G/ls_scf_env%nelectron_total
+      is_converged = loop_eps < pao%eps_pao
+
       IF (pao%istep > 1) THEN
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| energy improvement:", energy_diff
          ! IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
-
-         ! convergence criterion
-         loop_eps = norm_G/ls_scf_env%nelectron_total
-         is_converged = loop_eps < pao%eps_pao
 
          ! print one-liner
          IF (pao%iw > 0) WRITE (pao%iw, '(A,I6,11X,F20.9,1X,E10.3,1X,E10.3,1X,F9.3)') &
