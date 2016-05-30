@@ -17,3 +17,4 @@ H2O_pao_rotinv_restart.inp        11     5e-07    -17.202822380853704
 H2O_pao_check_grad.inp             0
 H2O_pao_mixing.inp                11     1e-07    -17.204698253588596
 #EOF
+H2O_pao_minimal.inp               11     1e-07    -17.140031230468164
