@@ -112,8 +112,6 @@ CONTAINS
          END DO
       END DO
 
-      WRITE (*, *) "dmax", dmax
-
       DEALLOCATE (sab, swork)
 
    END SUBROUTINE overlap_ab_test_simple
@@ -283,8 +281,6 @@ CONTAINS
             END DO
          END DO
       END DO
-
-      WRITE (*, *) "dmax", dmax
 
       DEALLOCATE (sabc)
 
@@ -495,8 +491,6 @@ CONTAINS
             END DO
          END DO
       END DO
-
-      WRITE (*, *) "dmax", dmax
 
       DEALLOCATE (saabb, swork)
 
