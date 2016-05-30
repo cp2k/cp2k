@@ -110,8 +110,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
 
-      PROCEDURE(ab_sint_shg), POINTER                    :: s_operator_ab => null()
+      PROCEDURE(ab_sint_shg), POINTER                    :: s_operator_ab
 
+      NULLIFY (s_operator_ab)
       CALL timeset(routineN, handle)
 
       CALL precalc_angular_shg_part(fba, fbb, rab, Waux_mat, dWaux_mat, calculate_forces)

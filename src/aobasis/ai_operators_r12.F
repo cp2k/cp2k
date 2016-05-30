@@ -46,9 +46,29 @@ MODULE ai_operators_r12
 
    ! *** Public subroutines ***
 
-   PUBLIC :: operator2, cps_coulomb2, cps_verf2, cps_verfc2, cps_vgauss2, cps_gauss2
+   PUBLIC :: operator2, cps_coulomb2, cps_verf2, cps_verfc2, cps_vgauss2, cps_gauss2, ab_sint_os
 
-#include "./ai_operators_r12.h"
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief Interface for the calculation of integrals over s-functions and the s-type auxiliary
+!>        integrals using the Obara-Saika (OS) scheme
+!> \param v ...
+!> \param nmax ...
+!> \param zetp ...
+!> \param zetq ...
+!> \param zetw ...
+!> \param rho ...
+!> \param rac2 ...
+!> \param omega ...
+! **************************************************************************************************
+      SUBROUTINE ab_sint_os(v, nmax, zetp, zetq, zetw, rho, rac2, omega)
+       USE kinds,                           ONLY: dp
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
+      INTEGER, INTENT(IN)                                :: nmax
+      REAL(KIND=dp), INTENT(IN)                          :: zetp, zetq, zetw, rho, rac2, omega
+
+      END SUBROUTINE ab_sint_os
+   END INTERFACE
 
 CONTAINS
 

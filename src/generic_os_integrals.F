@@ -17,7 +17,8 @@ MODULE generic_os_integrals
                                               abc_contract,&
                                               abcd_contract
    USE ai_derivatives,                  ONLY: dabdr_noscreen
-   USE ai_operators_r12,                ONLY: cps_coulomb2,&
+   USE ai_operators_r12,                ONLY: ab_sint_os,&
+                                              cps_coulomb2,&
                                               cps_gauss2,&
                                               cps_verf2,&
                                               cps_verfc2,&
@@ -51,10 +52,6 @@ MODULE generic_os_integrals
    PUBLIC :: two_center_os_integrals, int_overlap_ab_os, int_overlap_aba_os, &
              int_overlap_abb_os, int_overlap_aabb_os
 
-#include "./aobasis/ai_operators_r12.h"
-
-! **************************************************************************************************
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -85,8 +82,9 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: my_omega
 
-      PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2 => null()
+      PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2
 
+      NULLIFY (cps_operator2)
       CALL timeset(routineN, handle)
 
       my_omega = 1.0_dp
