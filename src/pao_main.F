@@ -156,9 +156,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_update', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, icycle
-      LOGICAL                                            :: cycle_converged, should_stop
-      REAL(KIND=dp)                                      :: energy, norm_X, slope
-      TYPE(cp_dbcsr_type)                                :: matrix_M, matrix_X_start
+      LOGICAL                                            :: cycle_converged, do_mixing, should_stop
+      REAL(KIND=dp)                                      :: energy, slope
+      TYPE(cp_dbcsr_type)                                :: matrix_M, matrix_X_mixing
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
 
@@ -179,12 +179,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! only perform mixing if the pao%matrix_X is non-zero
-      ! useful if started from a reference DM.
-      norm_X = cp_dbcsr_frobenius_norm(pao%matrix_X)
-      IF (pao%mixing /= 1.0_dp .AND. norm_X /= 0.0_dp) THEN
-         CALL cp_dbcsr_init(matrix_X_start)
-         CALL cp_dbcsr_copy(matrix_X_start, pao%matrix_X)
+      ! perform mixing once we are well into the optimization
+      do_mixing = pao%mixing /= 1.0_dp .AND. pao%istep > 1
+      IF (do_mixing) THEN
+         CALL cp_dbcsr_init(matrix_X_mixing)
+         CALL cp_dbcsr_copy(matrix_X_mixing, pao%matrix_X)
       ENDIF
 
       cycle_converged = .FALSE.
@@ -257,9 +256,9 @@ CONTAINS
       ENDDO
 
       ! perform mixing of matrix_X
-      IF (pao%mixing /= 1.0_dp .AND. norm_X /= 0.0_dp) THEN
-         CALL cp_dbcsr_add(pao%matrix_X, matrix_X_start, pao%mixing, 1.0_dp-pao%mixing)
-         CALL cp_dbcsr_release(matrix_X_start)
+      IF (do_mixing) THEN
+         CALL cp_dbcsr_add(pao%matrix_X, matrix_X_mixing, pao%mixing, 1.0_dp-pao%mixing)
+         CALL cp_dbcsr_release(matrix_X_mixing)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Recalculating energy after mixing."
          CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
       ENDIF

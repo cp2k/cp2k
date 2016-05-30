@@ -118,7 +118,7 @@ CONTAINS
       REAL(dp)                                           :: alpha, beta, denom, diff, gap
       REAL(dp), DIMENSION(:), POINTER                    :: H_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_N, D1, D2, H, H0, H_evecs, M2, M3, &
-                                                            M4, M5, M6, M7, Y
+                                                            M4, M5, M6, M7, M8, Y
 
       CALL timeset(routineN, handle)
 
@@ -160,6 +160,9 @@ CONTAINS
          penalty = penalty+alpha*EXP(-(diff/beta)**2)
       ENDDO
       ENDDO
+
+      ! regularization energy
+      penalty = penalty+pao%regularization*SUM(V**2)
 
       IF (PRESENT(G)) THEN ! TURNING POINT (if calc grad) -------------------------
 
@@ -212,10 +215,14 @@ CONTAINS
          ALLOCATE (M7(n, n))
          M7 = MATMUL(MATMUL(block_N, M6), block_N)
 
-         ! symmetrize
-         G = 0.5_dp*(M7+TRANSPOSE(M7)) ! the final gradient
+         ! add regularization gradient
+         ALLOCATE (M8(n, n))
+         M8 = M7+2.0_dp*pao%regularization*V
 
-         DEALLOCATE (D1, D2, M2, M3, M4, M5, M6, M7)
+         ! symmetrize
+         G = 0.5_dp*(M8+TRANSPOSE(M8)) ! the final gradient
+
+         DEALLOCATE (D1, D2, M2, M3, M4, M5, M6, M7, M8)
       ENDIF
 
       DEALLOCATE (H, H_evals, H_evecs)

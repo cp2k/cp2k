@@ -23,6 +23,7 @@
         EPS_PAO    5.0E-7
         MAX_PAO    3000
         PARAMETERIZATION FOCK
+        REGULARIZATION 1.0E-5
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH

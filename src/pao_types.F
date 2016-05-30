@@ -28,6 +28,7 @@ MODULE pao_types
       REAL(KIND=dp)                    :: eps_pao = 0.0_dp
       REAL(KIND=dp)                    :: cg_reset_limit = 0.1_dp
       REAL(KIND=dp)                    :: mixing = 0.0_dp
+      REAL(KIND=dp)                    :: regularization = 0.0_dp
       REAL(KIND=dp)                    :: penalty_dist = 0.0_dp
       REAL(KIND=dp)                    :: penalty_strength = 0.0_dp
       REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp

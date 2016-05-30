@@ -89,6 +89,10 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PRECONDITION", l_val=pao%precondition)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,L10)") " PAO|", "PRECONDITION", pao%precondition
 
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%REGULARIZATION", r_val=pao%regularization)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "REGULARIZATION", pao%regularization
+      IF (pao%regularization < 0.0_dp) CPABORT("PAO: REGULARIZATION < 0")
+
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PENALTY_DISTANCE", r_val=pao%penalty_dist)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "PENALTY_DISTANCE", pao%penalty_dist
       IF (pao%penalty_dist < 0.0_dp) CPABORT("PAO: PENALTY_DISTANCE < 0")
@@ -243,6 +247,12 @@ CONTAINS
                                         "Fock matrix parametrization", &
                                         "Original matrix exponential parametrization"), &
                           default_i_val=pao_rotinv_param)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="REGULARIZATION", &
+                          description="Strength of regularization term which ensures parameters remain small.", &
+                          default_r_val=0.001_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
