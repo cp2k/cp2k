@@ -29,4 +29,5 @@ dbcsr_order_N.inp                                     58    1.0E-14             
 test_eri_mme_accuracy.inp                              0
 test_eri_mme_performance.inp                           0
 test_minimax.inp                                       0
+test_shg_integrals_01.inp                              0
 #EOF

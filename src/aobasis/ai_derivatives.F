@@ -41,7 +41,7 @@ MODULE ai_derivatives
    PRIVATE
 
 ! *** Public subroutines ***
-   PUBLIC :: adbdr, dabdr
+   PUBLIC :: adbdr, dabdr, dabdr_noscreen
 
 CONTAINS
 
@@ -344,6 +344,126 @@ CONTAINS
       END DO
 
    END SUBROUTINE adbdr
+! **************************************************************************************************
+!> \brief   Calculate the first derivative of an integral block.
+!>          This takes the derivative  with respect to
+!>          the atomic position Ra, i.e. the center of the primitive on the left.
+!>          Difference to routine dabdr: employs no (!!) screening, which is relevant when
+!>          calculating the derivatives of Coulomb integrals
+!> \param la_max ...
+!> \param npgfa ...
+!> \param zeta ...
+!> \param lb_max ...
+!> \param npgfb ...
+!> \param ab ...
+!> \param dabdx ...
+!> \param dabdy ...
+!> \param dabdz ...
+! **************************************************************************************************
+   SUBROUTINE dabdr_noscreen(la_max, npgfa, zeta, lb_max, npgfb, ab, dabdx, dabdy, dabdz)
+      INTEGER, INTENT(IN)                                :: la_max, npgfa
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta
+      INTEGER, INTENT(IN)                                :: lb_max, npgfb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: ab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: dabdx, dabdy, dabdz
+
+      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, coamx, &
+                                                            coamy, coamz, coapx, coapy, coapz, &
+                                                            cob, codb, ipgf, jpgf, la, lb, na, nb, &
+                                                            nda, ndb
+      REAL(KIND=dp)                                      :: fa, fx, fy, fz
+
+!   *** Loop over all pairs of primitive Gaussian-type functions ***
+
+      na = 0
+      nda = 0
+
+      dabdx = 0.0_dp
+      dabdy = 0.0_dp
+      dabdz = 0.0_dp
+
+      DO ipgf = 1, npgfa
+
+         fa = 2.0_dp*zeta(ipgf)
+
+         nb = 0
+         ndb = 0
+
+         DO jpgf = 1, npgfb
+
+            !*** [da/dRi|O|b] = 2*zeta*[a+1i|O|b] - Ni(a)[a-1i|O|b] ***
+
+            DO la = 0, la_max !MAX(0,la_min),la_max
+
+               IF (la == 0) THEN
+
+                  coa = na+1
+                  coapx = nda+2
+                  coapy = nda+3
+                  coapz = nda+4
+
+                  DO lb = 0, lb_max !lb_min,lb_max
+                     DO bx = 0, lb
+                        DO by = 0, lb-bx
+                           bz = lb-bx-by
+                           cob = nb+coset(bx, by, bz)
+                           codb = ndb+coset(bx, by, bz)
+                           dabdx(coa, cob) = fa*ab(coapx, codb)
+                           dabdy(coa, cob) = fa*ab(coapy, codb)
+                           dabdz(coa, cob) = fa*ab(coapz, codb)
+                        END DO
+                     END DO
+                  END DO
+
+               ELSE
+
+                  DO ax = 0, la
+                     DO ay = 0, la-ax
+                        az = la-ax-ay
+
+                        coa = na+coset(ax, ay, az)
+                        coamx = nda+coset(MAX(0, ax-1), ay, az)
+                        coamy = nda+coset(ax, MAX(0, ay-1), az)
+                        coamz = nda+coset(ax, ay, MAX(0, az-1))
+                        coapx = nda+coset(ax+1, ay, az)
+                        coapy = nda+coset(ax, ay+1, az)
+                        coapz = nda+coset(ax, ay, az+1)
+
+                        fx = REAL(ax, dp)
+                        fy = REAL(ay, dp)
+                        fz = REAL(az, dp)
+
+                        DO lb = 0, lb_max !lb_min,lb_max
+                           DO bx = 0, lb
+                              DO by = 0, lb-bx
+                                 bz = lb-bx-by
+                                 cob = nb+coset(bx, by, bz)
+                                 codb = ndb+coset(bx, by, bz)
+                                 dabdx(coa, cob) = fa*ab(coapx, codb)-fx*ab(coamx, codb)
+                                 dabdy(coa, cob) = fa*ab(coapy, codb)-fy*ab(coamy, codb)
+                                 dabdz(coa, cob) = fa*ab(coapz, codb)-fz*ab(coamz, codb)
+                              END DO
+                           END DO
+                        END DO
+
+                     END DO
+                  END DO
+
+               END IF
+
+            END DO
+
+            nb = nb+ncoset(lb_max)
+            ndb = ndb+ncoset(lb_max+1)
+
+         END DO
+
+         na = na+ncoset(la_max)
+         nda = nda+ncoset(la_max+1)
+
+      END DO
+
+   END SUBROUTINE dabdr_noscreen
 
 END MODULE ai_derivatives
 

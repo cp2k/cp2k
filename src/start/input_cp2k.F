@@ -50,6 +50,7 @@ MODULE input_cp2k
    USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
                                               do_pw_grid_blocked_free,&
                                               do_pw_grid_blocked_true
+   USE shg_integrals_test,              ONLY: create_shg_integrals_test_section
    USE string_utilities,                ONLY: newline,&
                                               s2a
    USE swarm_input,                     ONLY: create_swarm_section
@@ -273,6 +274,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_eri_mme_test_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_shg_integrals_test_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

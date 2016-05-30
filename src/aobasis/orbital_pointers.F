@@ -22,8 +22,6 @@ MODULE orbital_pointers
 !         number l.
 ! nsoset: Number of spherical orbitals up to the angular momentum quantum
 !         number l.
-! nsoset_pm: Number of spherical orbitals up to the angular momentum quantum
-!         number l for positive m only, i.e. m >= 0
 
    USE kinds,                           ONLY: int_size
    USE termination,                     ONLY: stop_memory
@@ -39,7 +37,7 @@ MODULE orbital_pointers
 
    INTEGER, SAVE :: current_maxl = -1
 
-   INTEGER, DIMENSION(:), ALLOCATABLE     :: nco, ncoset, nso, nsoset, nsoset_pm
+   INTEGER, DIMENSION(:), ALLOCATABLE     :: nco, ncoset, nso, nsoset
    INTEGER, DIMENSION(:, :), ALLOCATABLE   :: indco, indso, indso_inv
    INTEGER, DIMENSION(:, :), ALLOCATABLE   :: so, soset
    INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: co, coset
@@ -61,7 +59,6 @@ MODULE orbital_pointers
              ncoset, &
              nso, &
              nsoset, &
-             nsoset_pm, &
              soset
 
 CONTAINS
@@ -192,18 +189,10 @@ CONTAINS
          CALL stop_memory(routineN, moduleN, __LINE__, &
                           "nsoset", (maxl+2)*int_size)
       END IF
-      ALLOCATE (nsoset_pm(-1:maxl), STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routineN, moduleN, __LINE__, &
-                          "nsoset_pm", (maxl+2)*int_size)
-      END IF
-
       nsoset(-1) = 0
-      nsoset_pm(-1) = 0
 
       DO l = 0, maxl
          nsoset(l) = nsoset(l-1)+nso(l)
-         nsoset_pm(l) = nsoset_pm(l-1)+l+1
       END DO
 
       ALLOCATE (indso(2, nsoset(maxl)), STAT=istat)
@@ -280,8 +269,6 @@ CONTAINS
          DEALLOCATE (nso)
 
          DEALLOCATE (nsoset)
-
-         DEALLOCATE (nsoset_pm)
 
          DEALLOCATE (so)
 

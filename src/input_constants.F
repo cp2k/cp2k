@@ -989,4 +989,10 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: do_eri_gpw = 0, &
                                                do_eri_mme = 1
 
+   ! operators for integrals
+   INTEGER, PARAMETER, PUBLIC                :: operator_coulomb = 0, &
+                                                operator_verf = 1, &
+                                                operator_verfc = 2, &
+                                                operator_vgauss = 3, &
+                                                operator_gauss = 4
 END MODULE input_constants

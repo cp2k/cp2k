@@ -4,13 +4,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Debugs the  integral matrices for the LRIGPW method
-!>        lri : local resolution of the identity
+!> \brief Debugs Obara-Saika integral matrices
 !> \par History
 !>      created [07.2014]
 !> \authors Dorothea Golze
 ! **************************************************************************************************
-MODULE lri_debug_integrals
+MODULE debug_os_integrals
 
    USE ai_overlap,                      ONLY: overlap
    USE ai_overlap3,                     ONLY: overlap3
@@ -31,7 +30,7 @@ MODULE lri_debug_integrals
 
 ! **************************************************************************************************
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_debug_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'debug_os_integrals'
 
    PUBLIC :: overlap_ab_test, overlap_abc_test, overlap_aabb_test
 
@@ -247,11 +246,6 @@ CONTAINS
                     lb_max_set=lb_max, npgfb=1, zetb=xb_work, rpgfb=rpgfb, lb_min_set=lb_min, &
                     lc_max_set=lc_max, npgfc=1, zetc=xc_work, rpgfc=rpgfc, lc_min_set=lc_min, &
                     rab=rab, dab=dab, rac=rac, dac=dac, rbc=rbc, dbc=dbc, sabc=sabc)
-      !sabc(:,:,:)=0._dp
-      !CALL overlap3_old(la_max=la_max,npgfa=1,zeta=xa_work,rpgfa=rpgfa,la_min=la_min,&
-      !              lb_max=lb_max,npgfb=1,zetb=xb_work,rpgfb=rpgfb,lb_min=lb_min,&
-      !              lc_max=lc_max,npgfc=1,zetc=xc,rpgfc=20._dp,lc_min=lc_min,&
-      !              rab=rab,dab=dab,rac=rac,dac=dac,rbc=rbc,dbc=dbc,sabc=sabc)
 
       !---------------------------------------
 
@@ -624,4 +618,4 @@ CONTAINS
 
    END SUBROUTINE overlap_aabb_test
 
-END MODULE lri_debug_integrals
+END MODULE debug_os_integrals

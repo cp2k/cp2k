@@ -105,6 +105,7 @@ MODULE library_tests
         pw2rs, realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs2pw, &
         rs_grid_create, rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
         rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
+   USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
    USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
 
@@ -141,7 +142,8 @@ CONTAINS
       LOGICAL                                            :: explicit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER :: cp_dbcsr_test_section, cp_fm_gemm_test_section, &
-         eigensolver_section, eri_mme_test_section, pw_transfer_section, rs_pw_transfer_section
+         eigensolver_section, eri_mme_test_section, pw_transfer_section, rs_pw_transfer_section, &
+         shg_integrals_test_section
 
       CALL timeset(routineN, handle)
 
@@ -204,6 +206,12 @@ CONTAINS
       CALL section_vals_get(eri_mme_test_section, explicit=explicit)
       IF (explicit) THEN
          CALL eri_mme_perf_acc_test(para_env, iw, eri_mme_test_section)
+      ENDIF
+
+      shg_integrals_test_section => section_vals_get_subs_vals(root_section, "TEST%SHG_INTEGRALS_TEST")
+      CALL section_vals_get(shg_integrals_test_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL shg_integrals_perf_acc_test(iw, shg_integrals_test_section)
       ENDIF
 
       ! DBCSR tests

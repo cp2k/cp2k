@@ -4,23 +4,39 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Calculates integral matrices for LRIGPW method using the Obara-Saika
-!>        (OS) integral scheme
-!>        lri : local resolution of the identity
+!> \brief Calculation of contracted, spherical Gaussian integrals using the (OS) integral
+!>        scheme. Routines for the following two-center integrals:
+!>        i)  (a|O(r12)|b) where O(r12) is the overlap, coulomb operator etc.
+!>        ii) (aba) and (abb) s-overlaps
 !> \par History
 !>      created [06.2015]
 !> \author Dorothea Golze
 ! **************************************************************************************************
-MODULE lri_os_integrals
+MODULE generic_os_integrals
+   USE ai_contraction_sphi,             ONLY: ab_contract,&
+                                              abc_contract,&
+                                              abcd_contract
+   USE ai_derivatives,                  ONLY: dabdr_noscreen
+   USE ai_operators_r12,                ONLY: cps_coulomb2,&
+                                              cps_gauss2,&
+                                              cps_verf2,&
+                                              cps_verfc2,&
+                                              cps_vgauss2,&
+                                              operator2
    USE ai_overlap,                      ONLY: overlap
    USE ai_overlap3,                     ONLY: overlap3
    USE ai_overlap_aabb,                 ONLY: overlap_aabb
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE kinds,                           ONLY: dp
-   USE lri_debug_integrals,             ONLY: overlap_aabb_test,&
+   USE debug_os_integrals,              ONLY: overlap_aabb_test,&
                                               overlap_ab_test,&
                                               overlap_abc_test
+   USE input_constants,                 ONLY: operator_coulomb,&
+                                              operator_gauss,&
+                                              operator_verf,&
+                                              operator_verfc,&
+                                              operator_vgauss
+   USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: ncoset
 #include "./base/base_uses.f90"
 
@@ -30,29 +46,220 @@ MODULE lri_os_integrals
 
 ! **************************************************************************************************
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_os_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'generic_os_integrals'
 
-   PUBLIC :: lri_int_ab, lri_int_aba, lri_int_abb, lri_int_aabb
+   PUBLIC :: two_center_os_integrals, int_overlap_ab_os, int_overlap_aba_os, &
+             int_overlap_abb_os, int_overlap_aabb_os
+
+#include "./aobasis/ai_operators_r12.h"
 
 ! **************************************************************************************************
 
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Calcululates the two-center integrals of the type (a|O(r12)|b) using the OS scheme
+!> \param r12_operator the integral operator, which depends on r12=|r1-r2|
+!> \param vab integral matrix of spherical contracted Gaussian functions
+!> \param dvab derivative of the integrals
+!> \param rab distance vector between center A and B
+!> \param fba basis at center A
+!> \param fbb basis at center B
+!> \param omega parameter in the operator
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE two_center_os_integrals(r12_operator, vab, dvab, rab, fba, fbb, omega, calculate_forces)
+
+      INTEGER, INTENT(IN)                                :: r12_operator
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: dvab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'two_center_os_integrals', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: my_omega
+
+      PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2 => null()
+
+      CALL timeset(routineN, handle)
+
+      my_omega = 1.0_dp
+
+      SELECT CASE (r12_operator)
+      CASE (operator_coulomb)
+         cps_operator2 => cps_coulomb2
+      CASE (operator_verf)
+         cps_operator2 => cps_verf2
+         IF (PRESENT(omega)) my_omega = omega
+      CASE (operator_verfc)
+         cps_operator2 => cps_verfc2
+         IF (PRESENT(omega)) my_omega = omega
+      CASE (operator_vgauss)
+         cps_operator2 => cps_vgauss2
+         IF (PRESENT(omega)) my_omega = omega
+      CASE (operator_gauss)
+         cps_operator2 => cps_gauss2
+         IF (PRESENT(omega)) my_omega = omega
+      CASE DEFAULT
+         CPABORT("Operator not available")
+      END SELECT
+
+      CALL int_operator_ab_os(cps_operator2, vab, dvab, rab, fba, fbb, my_omega, calculate_forces)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE two_center_os_integrals
+
+! **************************************************************************************************
+!> \brief calculate integrals (a|O(r12)|b)
+!> \param cps_operator2 procedure pointer for the respective operator.
+!> \param vab integral matrix of spherical contracted Gaussian functions
+!> \param dvab derivative of the integrals
+!> \param rab distance vector between center A and B
+!> \param fba basis at center A
+!> \param fbb basis at center B
+!> \param omega parameter in the operator
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE int_operator_ab_os(cps_operator2, vab, dvab, rab, fba, fbb, omega, calculate_forces)
+
+      PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: dvab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_os', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, iset, jset, lds, m1, m2, &
+                                                            maxco, maxcoa, maxcob, maxl, maxla, &
+                                                            maxlb, ncoa, ncoap, ncob, ncobp, &
+                                                            nseta, nsetb, sgfa, sgfb
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      REAL(KIND=dp)                                      :: dab, rab2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vac, vac_plus
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: devab, vwork
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
+
+      CALL timeset(routineN, handle)
+      NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, &
+               first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb, &
+               sphi_a, sphi_b, zeta, zetb)
+
+      ! basis ikind
+      first_sgfa => fba%first_sgf
+      la_max => fba%lmax
+      la_min => fba%lmin
+      npgfa => fba%npgf
+      nseta = fba%nset
+      nsgfa => fba%nsgf_set
+      rpgfa => fba%pgf_radius
+      set_radius_a => fba%set_radius
+      sphi_a => fba%sphi
+      zeta => fba%zet
+      ! basis jkind
+      first_sgfb => fbb%first_sgf
+      lb_max => fbb%lmax
+      lb_min => fbb%lmin
+      npgfb => fbb%npgf
+      nsetb = fbb%nset
+      nsgfb => fbb%nsgf_set
+      rpgfb => fbb%pgf_radius
+      set_radius_b => fbb%set_radius
+      sphi_b => fbb%sphi
+      zetb => fbb%zet
+
+      CALL get_gto_basis_set(fba, maxco=maxcoa, maxl=maxla)
+      CALL get_gto_basis_set(fbb, maxco=maxcob, maxl=maxlb)
+      maxco = MAX(maxcoa, maxcob)
+      IF (calculate_forces) THEN
+         maxl = MAX(maxla+1, maxlb)
+      ELSE
+         maxl = MAX(maxla, maxlb)
+      ENDIF
+      lds = ncoset(maxl)
+
+      rab2 = SUM(rab*rab)
+      dab = SQRT(rab2)
+
+      DO iset = 1, nseta
+
+         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         ncoap = npgfa(iset)*ncoset(la_max(iset)+1)
+         sgfa = first_sgfa(1, iset)
+
+         DO jset = 1, nsetb
+
+            ncob = npgfb(jset)*ncoset(lb_max(jset))
+            ncobp = npgfb(jset)*ncoset(lb_max(jset)+1)
+            sgfb = first_sgfb(1, jset)
+            m1 = sgfa+nsgfa(iset)-1
+            m2 = sgfb+nsgfb(jset)-1
+
+            ! calculate integrals
+            IF (calculate_forces) THEN
+               ALLOCATE (vwork(ncoap, ncobp, la_max(iset)+lb_max(jset)+3), &
+                         vac(ncoa, ncob), vac_plus(ncoap, ncobp), devab(ncoa, ncob, 3))
+               devab = 0._dp
+               vwork = 0.0_dp
+               vac = 0.0_dp
+               CALL operator2(cps_operator2, la_max(iset)+1, npgfa(iset), zeta(:, iset), la_min(iset), &
+                              lb_max(jset)+1, npgfb(jset), zetb(:, jset), lb_min(jset), &
+                              omega, rab, rab2, vac, vwork, maxder=1, vac_plus=vac_plus)
+               CALL dabdr_noscreen(la_max(iset), npgfa(iset), zeta(:, iset), lb_max(jset), npgfb(jset), &
+                                   vac_plus, devab(:, :, 1), devab(:, :, 2), devab(:, :, 3))
+               DO i = 1, 3
+                  CALL ab_contract(dvab(sgfa:m1, sgfb:m2, i), devab(:, :, i), sphi_a(:, sgfa:), &
+                                   sphi_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
+               ENDDO
+
+            ELSE
+               ALLOCATE (vwork(ncoa, ncob, la_max(iset)+lb_max(jset)+1), &
+                         vac(ncoa, ncob), vac_plus(ncoap, ncobp), devab(ncoa, ncob, 3))
+               vwork = 0.0_dp
+               vac = 0.0_dp
+               CALL operator2(cps_operator2, la_max(iset), npgfa(iset), zeta(:, iset), la_min(iset), &
+                              lb_max(jset), npgfb(jset), zetb(:, jset), lb_min(jset), &
+                              omega, rab, rab2, vac, vwork)
+            ENDIF
+
+            CALL ab_contract(vab(sgfa:m1, sgfb:m2), vac(1:ncoa, 1:ncob), sphi_a(:, sgfa:), sphi_b(:, sgfb:), &
+                             ncoa, ncob, nsgfa(iset), nsgfb(jset))
+            DEALLOCATE (vwork, vac, vac_plus, devab)
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE int_operator_ab_os
+
+! **************************************************************************************************
 !> \brief calculate overlap integrals (a,b)
 !> \param sab integral (a,b)
 !> \param dsab derivative of sab with respect to A
-!> \param ra ...
-!> \param rb ...
-!> \param rab ...
+!> \param ra position center A, for debug only
+!> \param rb position center B, for debug only
+!> \param rab distance vector between center A and B
 !> \param fba basis at center A
 !> \param fbb basis at center B
 !> \param calculate_forces ...
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE lri_int_ab(sab, dsab, ra, rb, rab, fba, fbb, calculate_forces, debug, &
-                         dmax)
+   SUBROUTINE int_overlap_ab_os(sab, dsab, ra, rb, rab, fba, fbb, calculate_forces, debug, &
+                                dmax)
 
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sab
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
@@ -62,7 +269,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_ab', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_os', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, iset, jset, lds, m1, m2, &
                                                             maxco, maxcoa, maxcob, maxl, maxla, &
@@ -181,15 +389,15 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE lri_int_ab
+   END SUBROUTINE int_overlap_ab_os
 
 ! **************************************************************************************************
 !> \brief calculate integrals (a,b,fa)
 !> \param abaint integral (a,b,fa)
 !> \param dabdaint derivative of abaint with respect to A
-!> \param ra ...
-!> \param rb ...
-!> \param rab ...
+!> \param ra position center A, for debug only
+!> \param rb position center B, for debug only
+!> \param rab distance vector between center A and B
 !> \param oba orbital basis at center A
 !> \param obb orbital basis at center B
 !> \param fba auxiliary basis set at center A
@@ -197,8 +405,8 @@ CONTAINS
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE lri_int_aba(abaint, dabdaint, ra, rb, rab, oba, obb, fba, &
-                          calculate_forces, debug, dmax)
+   SUBROUTINE int_overlap_aba_os(abaint, dabdaint, ra, rb, rab, oba, obb, fba, &
+                                 calculate_forces, debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abaint
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
@@ -208,7 +416,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_aba', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_os', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, iset, jset, kaset, m1, m2, &
                                                             m3, ncoa, ncob, ncoc, nseta, nsetb, &
@@ -345,15 +554,15 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE lri_int_aba
+   END SUBROUTINE int_overlap_aba_os
 
 ! **************************************************************************************************
 !> \brief calculate integrals (a,b,fb)
 !> \param abbint integral (a,b,fb)
 !> \param dabbint derivative of abbint with respect to A
-!> \param ra ...
-!> \param rb ...
-!> \param rab ...
+!> \param ra position center A, for debug only
+!> \param rb position center B, for debug only
+!> \param rab distance vector between center A and B
 !> \param oba orbital basis at center A
 !> \param obb orbital basis at center B
 !> \param fbb auxiliary basis set at center B
@@ -361,8 +570,8 @@ CONTAINS
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE lri_int_abb(abbint, dabbint, ra, rb, rab, oba, obb, fbb, calculate_forces, &
-                          debug, dmax)
+   SUBROUTINE int_overlap_abb_os(abbint, dabbint, ra, rb, rab, oba, obb, fbb, calculate_forces, &
+                                 debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abbint
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
@@ -372,7 +581,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_abb', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_os', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, iset, jset, kbset, m1, m2, &
                                                             m3, ncoa, ncob, ncoc, nseta, nsetb, &
@@ -501,7 +711,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE lri_int_abb
+   END SUBROUTINE int_overlap_abb_os
 
 ! **************************************************************************************************
 !> \brief calculate overlap integrals (aa,bb)
@@ -514,7 +724,7 @@ CONTAINS
 !> \param debug integrals are debugged by recursive routines if requested
 !> \param dmax maximal deviation between integrals when debugging
 ! **************************************************************************************************
-   SUBROUTINE lri_int_aabb(saabb, oba, obb, rab, ra, rb, debug, dmax)
+   SUBROUTINE int_overlap_aabb_os(saabb, oba, obb, rab, ra, rb, debug, dmax)
 
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: saabb
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb
@@ -522,7 +732,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: debug
       REAL(KIND=dp), INTENT(INOUT)                       :: dmax
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_aabb', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aabb_os', &
+         routineP = moduleN//':'//routineN
 
       INTEGER :: handle, iset, isgfa1, jset, jsgfa2, kset, ksgfb1, lds, lset, lsgfb2, m1, m2, m3, &
          m4, maxco, maxcoa, maxcob, maxl, maxla, maxlb, ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, &
@@ -649,193 +860,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE lri_int_aabb
+   END SUBROUTINE int_overlap_aabb_os
 
-! **************************************************************************************************
-!> \brief contract overlap integrals (a,b) and transfer to spherical Gaussians
-!> \param abint ...
-!> \param sab ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param ncoa ...
-!> \param ncob ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-! **************************************************************************************************
-   SUBROUTINE ab_contract(abint, sab, sphi_a, sphi_b, ncoa, ncob, nsgfa, nsgfb)
-
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: abint
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sab, sphi_a, sphi_b
-      INTEGER, INTENT(IN)                                :: ncoa, ncob, nsgfa, nsgfb
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ab_contract', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: m1, m2, msphia, msphib, nn
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpp
-
-      msphia = SIZE(sphi_a, 1)
-      msphib = SIZE(sphi_b, 1)
-
-      m1 = SIZE(sab, 1)
-      m2 = SIZE(sab, 2)
-
-      nn = SIZE(abint, 1)
-
-      ALLOCATE (cpp(nsgfa, m2))
-
-      CALL dgemm("T", "N", nsgfa, m2, ncoa, 1._dp, sphi_a, msphia, sab, m1, 0.0_dp, cpp, nsgfa)
-      CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, cpp, nsgfa, sphi_b, msphib, 0.0_dp, &
-                 abint, nn)
-
-      DEALLOCATE (cpp)
-
-   END SUBROUTINE ab_contract
-
-! **************************************************************************************************
-!> \brief contract three-center overlap integrals (a,b,c) and transfer
-!>        to spherical Gaussians
-!> \param abcint ...
-!> \param sabc ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param ncoa ...
-!> \param ncob ...
-!> \param ncoc ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param nsgfc ...
-! **************************************************************************************************
-   SUBROUTINE abc_contract(abcint, sabc, sphi_a, sphi_b, sphi_c, ncoa, ncob, ncoc, &
-                           nsgfa, nsgfb, nsgfc)
-
-      REAL(KIND=dp), DIMENSION(:, :, :)                  :: abcint, sabc
-      REAL(KIND=dp), DIMENSION(:, :)                     :: sphi_a, sphi_b, sphi_c
-      INTEGER, INTENT(IN)                                :: ncoa, ncob, ncoc, nsgfa, nsgfb, nsgfc
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'abc_contract', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, isgfc, m1, m2, m3, msphia, &
-                                                            msphib, msphic
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp_ccc, work_cpc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cpc, cpp
-
-      CALL timeset(routineN, handle)
-
-      msphia = SIZE(sphi_a, 1)
-      msphib = SIZE(sphi_b, 1)
-      msphic = SIZE(sphi_c, 1)
-
-      m1 = SIZE(sabc, 1)
-      m2 = SIZE(sabc, 2)
-      m3 = SIZE(sabc, 3)
-
-      ALLOCATE (cpp(nsgfa, m2, m3), cpc(nsgfa, m2, nsgfc))
-      cpp = 0._dp
-      cpc = 0._dp
-      ALLOCATE (work_cpc(nsgfa, m2), temp_ccc(nsgfa, nsgfb))
-      work_cpc(:, :) = 0._dp
-      temp_ccc(:, :) = 0._dp
-
-      CALL dgemm("T", "N", nsgfa, m2*m3, ncoa, 1._dp, sphi_a, msphia, sabc, m1, 0.0_dp, cpp, nsgfa)
-      CALL dgemm("N", "N", nsgfa*m2, nsgfc, ncoc, 1._dp, cpp, nsgfa*m2, sphi_c, msphic, 0.0_dp, &
-                 cpc, nsgfa*m2)
-
-      DO isgfc = 1, nsgfc
-         work_cpc(:, :) = cpc(:, :, isgfc)
-         CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, work_cpc, nsgfa, sphi_b, msphib, &
-                    0.0_dp, temp_ccc, nsgfa)
-         abcint(:, :, isgfc) = temp_ccc(:, :)
-      END DO
-
-      DEALLOCATE (cpp, cpc, work_cpc, temp_ccc)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE abc_contract
-
-! **************************************************************************************************
-!> \brief contract four-center overlap integrals (a,b,c,d) and transfer
-!>        to spherical Gaussians
-!> \param abcdint ...
-!> \param sabcd ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param sphi_d ...
-!> \param ncoa ...
-!> \param ncob ...
-!> \param ncoc ...
-!> \param ncod ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param nsgfc ...
-!> \param nsgfd ...
-! **************************************************************************************************
-   SUBROUTINE abcd_contract(abcdint, sabcd, sphi_a, sphi_b, sphi_c, sphi_d, ncoa, ncob, &
-                            ncoc, ncod, nsgfa, nsgfb, nsgfc, nsgfd)
-
-      REAL(KIND=dp), DIMENSION(:, :, :, :), &
-         INTENT(INOUT)                                   :: abcdint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: sabcd
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sphi_a, sphi_b, sphi_c, sphi_d
-      INTEGER, INTENT(IN)                                :: ncoa, ncob, ncoc, ncod, nsgfa, nsgfb, &
-                                                            nsgfc, nsgfd
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'abcd_contract', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, isgfc, isgfd, m1, m2, m3, m4, &
-                                                            msphia, msphib, msphic, msphid
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: temp_cccc, work_cpcc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: temp_cpcc, work_cppc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: cpcc, cppc, cppp
-
-      CALL timeset(routineN, handle)
-
-      msphia = SIZE(sphi_a, 1)
-      msphib = SIZE(sphi_b, 1)
-      msphic = SIZE(sphi_c, 1)
-      msphid = SIZE(sphi_d, 1)
-
-      m1 = SIZE(sabcd, 1)
-      m2 = SIZE(sabcd, 2)
-      m3 = SIZE(sabcd, 3)
-      m4 = SIZE(sabcd, 4)
-
-      ALLOCATE (cppp(nsgfa, m2, m3, m4), cppc(nsgfa, m2, m3, nsgfd), &
-                cpcc(nsgfa, m2, nsgfc, nsgfd))
-
-      ALLOCATE (work_cppc(nsgfa, m2, m3), temp_cpcc(nsgfa, m2, nsgfc))
-      work_cppc = 0._dp
-      temp_cpcc = 0._dp
-
-      ALLOCATE (work_cpcc(nsgfa, m2), temp_cccc(nsgfa, nsgfb))
-      work_cpcc = 0._dp
-      temp_cccc = 0._dp
-
-      CALL dgemm("T", "N", nsgfa, m2*m3*m4, ncoa, 1._dp, sphi_a, msphia, sabcd, m1, &
-                 0.0_dp, cppp, nsgfa)
-      CALL dgemm("N", "N", nsgfa*m2*m3, nsgfd, ncod, 1._dp, cppp, nsgfa*m2*m3, &
-                 sphi_d, msphid, 0.0_dp, cppc, nsgfa*m2*m3)
-
-      DO isgfd = 1, nsgfd
-         work_cppc(:, :, :) = cppc(:, :, :, isgfd)
-         CALL dgemm("N", "N", nsgfa*m2, nsgfc, ncoc, 1._dp, work_cppc, nsgfa*m2, &
-                    sphi_c, msphic, 0.0_dp, temp_cpcc, nsgfa*m2)
-         cpcc(:, :, :, isgfd) = temp_cpcc(:, :, :)
-         DO isgfc = 1, nsgfc
-            work_cpcc(:, :) = cpcc(:, :, isgfc, isgfd)
-            CALL dgemm("N", "N", nsgfa, nsgfb, ncob, 1._dp, work_cpcc, nsgfa, sphi_b, &
-                       msphib, 0.0_dp, temp_cccc, nsgfa)
-            abcdint(:, :, isgfc, isgfd) = temp_cccc(:, :)
-         END DO
-      END DO
-
-      DEALLOCATE (cpcc, cppc, cppp)
-      DEALLOCATE (work_cpcc, work_cppc, temp_cpcc, temp_cccc)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE abcd_contract
-
-END MODULE lri_os_integrals
+END MODULE generic_os_integrals

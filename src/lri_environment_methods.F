@@ -29,6 +29,14 @@ MODULE lri_environment_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE generic_os_integrals,            ONLY: int_overlap_aabb_os,&
+                                              int_overlap_ab_os,&
+                                              int_overlap_aba_os,&
+                                              int_overlap_abb_os
+   USE generic_shg_integrals,           ONLY: int_overlap_ab_shg,&
+                                              int_overlap_aba_shg,&
+                                              int_overlap_abb_shg,&
+                                              lri_precalc_angular_shg_part
    USE input_constants,                 ONLY: do_lri_inv,&
                                               do_lri_inv_auto,&
                                               do_lri_pseudoinv_diag,&
@@ -40,14 +48,6 @@ MODULE lri_environment_methods
         deallocate_lri_ints, deallocate_lri_ints_rho, lri_density_create, lri_density_release, &
         lri_density_type, lri_environment_type, lri_int_rho_type, lri_int_type, lri_kind_type, &
         lri_list_type, lri_rhoab_type
-   USE lri_os_integrals,                ONLY: lri_int_aabb,&
-                                              lri_int_ab,&
-                                              lri_int_aba,&
-                                              lri_int_abb
-   USE lri_shg_integrals,               ONLY: lri_int_ab_shg,&
-                                              lri_int_aba_shg,&
-                                              lri_int_abb_shg,&
-                                              precalc_angular_shg_part
    USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
                                               get_pseudo_inverse_svd,&
                                               invmat_symm
@@ -165,7 +165,6 @@ CONTAINS
             CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                    nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, &
                                    iatom=iatom, jatom=jatom, r=rab)
-
             iac = ikind+nkind*(jkind-1)
             dab = SQRT(SUM(rab*rab))
 
@@ -200,7 +199,6 @@ CONTAINS
                CALL lri_int_os(lri_env, lrii, ra, rb, rab, obasa, obasb, fbasa, fbasb, &
                                iatom, jatom, ikind)
             ENDIF
-
             ! construct and invert S matrix
             lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
             IF (dab > lri_env%delta) THEN
@@ -311,8 +309,8 @@ CONTAINS
             rb(:) = pbc(particle_set(jatom)%r, cell)
 
             ! calculate integrals (aa,bb)
-            CALL lri_int_aabb(lriir%soaabb, obasa, obasb, rab, ra, rb, lri_env%debug, &
-                              lriir%dmax_aabb)
+            CALL int_overlap_aabb_os(lriir%soaabb, obasa, obasb, rab, ra, rb, lri_env%debug, &
+                                     lriir%dmax_aabb)
 
          END DO
 
@@ -678,26 +676,26 @@ CONTAINS
          lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
          lrii%dsoo = 0._dp
          !*** (a,a,fa)
-         CALL lri_int_aba(lrii%abaint, ra=ra, rb=rb, rab=rab, oba=obasa, obb=obasb, &
-                          fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
-                          dmax=lrii%dmax_aba)
+         CALL int_overlap_aba_os(lrii%abaint, ra=ra, rb=rb, rab=rab, oba=obasa, obb=obasb, &
+                                 fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
+                                 dmax=lrii%dmax_aba)
          lrii%dabdaint = 0.0_dp
          lrii%dabbint = 0.0_dp
       ELSE
          !*** (fa,fb)
-         CALL lri_int_ab(lrii%sab, lrii%dsab, ra, rb, rab, fbasa, fbasb, &
-                         lrii%calc_force_pair, lri_env%debug, &
-                         lrii%dmax_ab)
+         CALL int_overlap_ab_os(lrii%sab, lrii%dsab, ra, rb, rab, fbasa, fbasb, &
+                                lrii%calc_force_pair, lri_env%debug, &
+                                lrii%dmax_ab)
          !*** (a,b)
-         CALL lri_int_ab(lrii%soo, lrii%dsoo, ra, rb, rab, obasa, obasb, &
-                         lrii%calc_force_pair, lri_env%debug, &
-                         lrii%dmax_oo)
+         CALL int_overlap_ab_os(lrii%soo, lrii%dsoo, ra, rb, rab, obasa, obasb, &
+                                lrii%calc_force_pair, lri_env%debug, &
+                                lrii%dmax_oo)
          !*** (a,b,fa)
-         CALL lri_int_aba(lrii%abaint, lrii%dabdaint, ra, rb, rab, obasa, obasb, fbasa, &
-                          lrii%calc_force_pair, lri_env%debug, lrii%dmax_aba)
+         CALL int_overlap_aba_os(lrii%abaint, lrii%dabdaint, ra, rb, rab, obasa, obasb, fbasa, &
+                                 lrii%calc_force_pair, lri_env%debug, lrii%dmax_aba)
          !*** (a,b,fb)
-         CALL lri_int_abb(lrii%abbint, lrii%dabbint, ra, rb, rab, obasa, obasb, fbasb, &
-                          lrii%calc_force_pair, lri_env%debug, lrii%dmax_abb)
+         CALL int_overlap_abb_os(lrii%abbint, lrii%dabbint, ra, rb, rab, obasa, obasb, fbasb, &
+                                 lrii%calc_force_pair, lri_env%debug, lrii%dmax_abb)
       ENDIF
 
       CALL timestop(handle)
@@ -733,13 +731,12 @@ CONTAINS
 
       INTEGER                                            :: handle, nba, nbb, nfa, nfb
       REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scon_orba, scon_orbb, scon_ria, scon_rib
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: Waux_mat
-      REAL(KIND=dp), DIMENSION(:, :, :, :, :), POINTER   :: dWaux_mat
 
       CALL timeset(routineN, handle)
-      NULLIFY (scon_orba, scon_orbb, scon_ria, scon_rib, Waux_mat, dWaux_mat)
-
+      NULLIFY (scon_orba, scon_orbb, scon_ria, scon_rib)
       dab = SQRT(SUM(rab*rab))
       nba = obasa%nsgf
       nbb = obasb%nsgf
@@ -755,9 +752,9 @@ CONTAINS
          lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
          lrii%dsoo = 0._dp
          !*** (a,a,fa)
-         CALL lri_int_aba(lrii%abaint, ra=ra, rb=rb, rab=rab, oba=obasa, obb=obasb, &
-                          fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
-                          dmax=lrii%dmax_aba)
+         CALL int_overlap_aba_os(lrii%abaint, ra=ra, rb=rb, rab=rab, oba=obasa, obb=obasb, &
+                                 fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
+                                 dmax=lrii%dmax_aba)
          lrii%dabdaint = 0.0_dp
          lrii%dabbint = 0.0_dp
       ELSE
@@ -765,22 +762,23 @@ CONTAINS
          scon_orbb => lri_env%bas_prop(jkind)%scon_orb
          scon_ria => lri_env%bas_prop(ikind)%scon_ri
          scon_rib => lri_env%bas_prop(jkind)%scon_ri
-         CALL precalc_angular_shg_part(obasa, obasb, fbasa, fbasb, rab, Waux_mat, dWaux_mat, &
-                                       lrii%calc_force_pair)
+         CALL lri_precalc_angular_shg_part(obasa, obasb, fbasa, fbasb, rab, Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (fa,fb)
-         CALL lri_int_ab_shg(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_ria, scon_rib, &
-                             Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         CALL int_overlap_ab_shg(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_ria, scon_rib, &
+                                 Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (a,b)
-         CALL lri_int_ab_shg(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_orba, scon_orbb, &
-                             Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         CALL int_overlap_ab_shg(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_orba, scon_orbb, &
+                                 Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (a,b,fa)
-         CALL lri_int_aba_shg(lri_env, lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
-                              scon_orba, scon_orbb, scon_ria, Waux_mat, dWaux_mat, &
-                              lrii%calc_force_pair)
+         CALL int_overlap_aba_shg(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
+                                  scon_orba, scon_orbb, scon_ria, &
+                                  lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
+                                  lri_env%cg_shg%ncg_none0, Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (a,b,fb)
-         CALL lri_int_abb_shg(lri_env, lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
-                              scon_orba, scon_orbb, scon_rib, Waux_mat, dWaux_mat, &
-                              lrii%calc_force_pair)
+         CALL int_overlap_abb_shg(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
+                                  scon_orba, scon_orbb, scon_rib, &
+                                  lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
+                                  lri_env%cg_shg%ncg_none0, Waux_mat, dWaux_mat, lrii%calc_force_pair)
          DEALLOCATE (Waux_mat, dWaux_mat)
       ENDIF
 

@@ -72,25 +72,25 @@ MODULE lri_environment_types
       ! condition number of overlap matrix
       REAL(KIND=dp)                                           :: cond_num
       ! integrals (a,b,ai)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: abaint
-      ! integrals (a,b,bi)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: abbint
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: abaint
+      ! integrals (a,b,b)
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: abbint
       ! integrals (da/dA,b,dai/dA)
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER              :: dabdaint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: dabdaint
       ! integrals (da/dA,b,bi)
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER              :: dabbint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: dabbint
       ! integrals (a,b)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                  :: soo
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: soo
       ! derivative d(a,b)/dA
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: dsoo
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: dsoo
       ! integrals (ai,bi)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                  :: sab
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sab
       ! derivative d(ai,bi)/dA
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: dsab
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: dsab
       ! derivative of fit coeff dacoef/dpmatrix
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: dacoef
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: dacoef
       ! inverse of integrals (ai,bi)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                  :: sinv
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: sinv
       ! integral (ai) / (bi), dim(1..nfa,nfa+1..nfa+nfb)
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: n
       ! sinv * (ai)
@@ -142,13 +142,13 @@ MODULE lri_environment_types
       ! integral of ri basis fbas
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: int_fbas
       ! self overlap ri basis
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                  :: ri_ovlp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: ri_ovlp
       ! self overlap orb basis
-      REAL(KIND=dp), DIMENSION(:, :), POINTER                  :: orb_ovlp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: orb_ovlp
       ! contraction matrix for SHG integrals ri basis
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: scon_ri
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_ri
       ! contraction matrix for SHG integrals orb basis
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                :: scon_orb
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_orb
    END TYPE lri_bas_type
 
 ! **************************************************************************************************
@@ -159,7 +159,7 @@ MODULE lri_environment_types
       ! list of non-zero CG coefficients
       INTEGER, DIMENSION(:, :, :), POINTER                      :: cg_none0_list
       ! number of non-zero CG coefficients
-      INTEGER, DIMENSION(:, :), POINTER                        :: ncg_none0
+      INTEGER, DIMENSION(:, :), POINTER                         :: ncg_none0
    END TYPE lri_clebsch_gordon_type
 
 ! **************************************************************************************************

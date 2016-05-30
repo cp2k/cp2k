@@ -1608,7 +1608,7 @@ CONTAINS
       CALL reallocate(gto_basis_set%norm_cgf, 1, ncgf)
 
       basis_type = ""
-      CALL section_vals_val_get(basis_section, "_SECTION_PARAMETERS_", i_rep_val=irep, c_val=basis_type)
+      CALL section_vals_val_get(basis_section, "_SECTION_PARAMETERS_", i_rep_section=irep, c_val=basis_type)
       IF (basis_type == "Orbital") basis_type = "ORB"
 
       NULLIFY (list, val)

@@ -410,7 +410,7 @@ CONTAINS
 
    END SUBROUTINE basis_ovlp
 
-!*****************************************************************************
+! **************************************************************************************************
 !> \brief contraction matrix for SHG integrals
 !> \param basis ...
 !> \param scon_shg contraction matrix
@@ -438,6 +438,7 @@ CONTAINS
       maxshell = SIZE(basis%gcc, 2)
       ALLOCATE (norm(basis%nset, maxshell))
       ALLOCATE (scon_shg(maxpgf, maxshell, nset))
+      scon_shg = 0.0_dp
 
       CALL basis_norm_shg(basis, norm)
 
