@@ -51,7 +51,8 @@ MODULE qs_ks_atom
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
+!$ USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+!$                                            omp_get_thread_num
 
 #include "./base/base_uses.f90"
 
@@ -340,6 +341,11 @@ CONTAINS
                DO kbc = 1, alist_bc%nclist
                   IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
 
+                  IF (use_virial) THEN
+                     rac = alist_ac%clist(kac)%rac
+                     rbc = alist_bc%clist(kbc)%rac
+                  END IF
+
                   IF (ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
                      n_cont_a = alist_ac%clist(kac)%nsgf_cnt
                      n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
@@ -386,41 +392,41 @@ CONTAINS
                         rho_at => rho_atom(katom)
                         force_tmp(1:3, 1:3) = 0.0_dp
                         IF (iatom <= jatom) THEN
-!$OMP CRITICAL(update_ks_atom_forces)
                            CALL add_vhxca_forces(mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
                                                  rho_at, force_tmp, nspins, iatom, jatom, nsoctot, &
                                                  list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix)
+!$OMP     CRITICAL(update_ks_atom_forces)
                            force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind)+force_tmp(1:3, 3)
                            force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind)+force_tmp(1:3, 1)
                            force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind)+force_tmp(1:3, 2)
+!$OMP END CRITICAL(update_ks_atom_forces)
+!$OMP     CRITICAL(update_ks_atom_virial)
                            IF (use_virial) THEN
-                              rac = alist_ac%clist(kac)%rac
-                              rbc = alist_bc%clist(kbc)%rac
                               CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 1), rac)
                               CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 2), rbc)
                            END IF
-!$OMP END CRITICAL(update_ks_atom_forces)
+!$OMP END CRITICAL(update_ks_atom_virial)
                         ELSE
-!$OMP CRITICAL(update_ks_atom_forces)
                            CALL add_vhxca_forces(mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
                                                  rho_at, force_tmp, nspins, jatom, iatom, nsoctot, &
                                                  list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix)
+!$OMP     CRITICAL(update_ks_atom_forces)
                            force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind)+force_tmp(1:3, 3)
                            force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind)+force_tmp(1:3, 2)
                            force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind)+force_tmp(1:3, 1)
+!$OMP END CRITICAL(update_ks_atom_forces)
+!$OMP     CRITICAL(update_ks_atom_virial)
                            IF (use_virial) THEN
-                              rac = alist_ac%clist(kac)%rac
-                              rbc = alist_bc%clist(kbc)%rac
                               CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 2), rac)
                               CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 1), rbc)
                            END IF
-!$OMP END CRITICAL(update_ks_atom_forces)
+!$OMP END CRITICAL(update_ks_atom_virial)
                         END IF
                      END IF
                      EXIT ! search loop over jatom-katom list
                   END IF
-               END DO
-            END DO
+               END DO ! kbc
+            END DO ! kac
 
          ENDDO ! kkind
 
