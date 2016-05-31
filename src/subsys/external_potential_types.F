@@ -1777,10 +1777,27 @@ CONTAINS
                                                         c_val=TRIM(line_att))
                            END DO
                         ELSE
-                           CPABORT("")
+                           CALL cp_abort(__LOCATION__, &
+                                         "Syntax error for <"// &
+                                         TRIM(element_symbol)// &
+                                         "> in the atomic potential <"// &
+                                         TRIM(potential_name)// &
+                                         "> potential file <"// &
+                                         TRIM(potential_file_name)//">: "// &
+                                         "Expected LPOT/NLCC/LSD keyword, got: <"// &
+                                         TRIM(line)//">")
                         END IF
                      ELSE
-                        CPABORT("")
+                        CALL parser_get_object(parser, line)
+                        CALL cp_abort(__LOCATION__, &
+                                      "Syntax error for <"// &
+                                      TRIM(element_symbol)// &
+                                      "> in the atomic potential <"// &
+                                      TRIM(potential_name)// &
+                                      "> potential file <"// &
+                                      TRIM(potential_file_name)//">: "// &
+                                      "Expected LPOT/NLCC/LSD keyword or INTEGER, got: <"// &
+                                      TRIM(line)//">")
                      END IF
                   END DO
                END IF

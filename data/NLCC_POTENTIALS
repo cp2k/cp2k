@@ -44,7 +44,7 @@
 #
 # Calculation of c_core from values given in A. Willand et al.
 #
-# c_core(CP2K) = 4Pi * (Z-Zion)/(SQRT(2Pi)*r_core)^3
+# c_core(CP2K) = c_core(Willand) * 4Pi * (Z-Zion)/(SQRT(2Pi)*r_core)^3
 #
 ################################################################################
 #
@@ -76,6 +76,15 @@ C GTH-NLCC-PBE-q4 GTH-NLCC-PBE
    2                                       
         0.30228391  1      9.57595383     
         0.36878252  1     -0.00996437    
+Cl GTH-NLCC-PBE-q7 GTH-NLCC-PBE
+    2  5
+        0.32000000  1     -0.27448290
+    NLCC  1
+        0.42147846  1     31.2490172184
+    2
+        0.32659110  2      4.20335702      0.00000000
+                                           4.55651710
+        0.36756872  1      4.22907835
 F GTH-NLCC-PBE-q7 GTH-NLCC-PBE
     2 5
         0.20610323  2    -19.86716500      2.79308907
