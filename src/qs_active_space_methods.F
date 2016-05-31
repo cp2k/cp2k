@@ -25,9 +25,13 @@ MODULE qs_active_space_methods
                                               cp_dbcsr_p_type,&
                                               cp_dbcsr_type,&
                                               csr_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
+                                              cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_gemm
+   USE cp_fm_diag,                      ONLY: cp_fm_syevd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -99,6 +103,7 @@ MODULE qs_active_space_methods
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: qs_loc_env_create,&
@@ -268,7 +273,7 @@ CONTAINS
       END IF
       active_space_env%nactive = nactive
       active_space_env%ninactive = ninactive
-      IF (nspins > 1) THEN
+      IF (nspins == 1) THEN
          active_space_env%nelectrons(1) = ntot
          active_space_env%nelectrons(2) = 0
       ELSE
@@ -681,9 +686,9 @@ CONTAINS
       ALLOCATE (active_space_env%p_ref(nspins))
       DO isp = 1, nspins
          mo_set => active_space_env%mos_active(isp)%mo_set
-         CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
+         CALL get_mo_set(mo_set, mo_coeff=mo_coeff, nmo=nmo)
          NULLIFY (active_space_env%p_ref(isp)%matrix)
-         CALL create_subspace_matrix(mo_coeff, active_space_env%p_ref(isp)%matrix)
+         CALL create_subspace_matrix(mo_coeff, active_space_env%p_ref(isp)%matrix, nmo)
       END DO
       SELECT CASE (mselect)
       CASE DEFAULT
@@ -694,7 +699,7 @@ CONTAINS
          DO isp = 1, nspins
             fmat => active_space_env%p_ref(isp)%matrix
             CALL cp_fm_set_all(fmat, alpha=0.0_dp)
-            n1 = active_space_env%nelectrons(isp)
+            n1 = active_space_env%nelectrons(isp)-active_space_env%ninspin(isp)
             DO i = 1, nactive_orb(isp)
                fel = MIN(focc, REAL(n1, KIND=dp))
                CALL cp_fm_set_element(fmat, i, i, fel)
@@ -709,7 +714,7 @@ CONTAINS
       END SELECT
 
       ! calculate one-electron operators in the subspace
-      CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
+      CALL update_active_space(qs_env, active_space_env)
 
       ! Output a FCIDUMP file
       CALL get_qs_env(qs_env, energy=energy)
@@ -745,26 +750,59 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, is, nmo, nspins
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_vxc
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: h_matrix, ks_matrix
-      TYPE(cp_fm_type), POINTER                          :: hmat, ksmat, mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: hmat, ksmat, mo_coeff, vxcmat
 
       CALL timeset(routineN, handle)
 
+      nspins = active_space_env%nspins
+
       ! Kohn-Sham / Fock operator
+      IF (ASSOCIATED(active_space_env%ks_sub)) THEN
+         DO is = 1, SIZE(active_space_env%ks_sub)
+            CALL cp_fm_release(active_space_env%ks_sub(is)%matrix)
+         END DO
+         DEALLOCATE (active_space_env%ks_sub)
+      END IF
       CALL get_qs_env(qs_env, matrix_ks_kp=ks_matrix)
       IF (SIZE(ks_matrix, 2) > 1) THEN
          CPABORT("No k-points allowed at this point")
       END IF
-      nspins = active_space_env%nspins
       ALLOCATE (active_space_env%ks_sub(nspins))
       DO is = 1, nspins
          CALL get_mo_set(mo_set=mos(is)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
          NULLIFY (ksmat)
-         CALL subspace_operator(mo_coeff, ks_matrix(is, 1)%matrix, ksmat)
+         CALL subspace_operator(mo_coeff, nmo, ks_matrix(is, 1)%matrix, ksmat)
          active_space_env%ks_sub(is)%matrix => ksmat
       END DO
 
+      ! Vxc matrix
+      IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
+         DO is = 1, SIZE(active_space_env%vxc_sub)
+            CALL cp_fm_release(active_space_env%vxc_sub(is)%matrix)
+         END DO
+         DEALLOCATE (active_space_env%vxc_sub)
+      END IF
+      NULLIFY (matrix_vxc)
+      CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc)
+      IF (ASSOCIATED(matrix_vxc)) THEN
+         ALLOCATE (active_space_env%vxc_sub(nspins))
+         DO is = 1, nspins
+            CALL get_mo_set(mo_set=mos(is)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+            NULLIFY (vxcmat)
+            CALL subspace_operator(mo_coeff, nmo, matrix_vxc(is)%matrix, vxcmat)
+            active_space_env%vxc_sub(is)%matrix => vxcmat
+         END DO
+      END IF
+
       ! Core Hamiltonian
+      IF (ASSOCIATED(active_space_env%h_sub)) THEN
+         DO is = 1, SIZE(active_space_env%h_sub)
+            CALL cp_fm_release(active_space_env%h_sub(is)%matrix)
+         END DO
+         DEALLOCATE (active_space_env%h_sub)
+      END IF
       NULLIFY (h_matrix)
       CALL get_qs_env(qs_env=qs_env, matrix_h_kp=h_matrix)
       IF (SIZE(h_matrix, 2) > 1) THEN
@@ -774,7 +812,7 @@ CONTAINS
       DO is = 1, nspins
          CALL get_mo_set(mo_set=mos(is)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
          NULLIFY (hmat)
-         CALL subspace_operator(mo_coeff, h_matrix(1, 1)%matrix, hmat)
+         CALL subspace_operator(mo_coeff, nmo, h_matrix(1, 1)%matrix, hmat)
          active_space_env%h_sub(is)%matrix => hmat
       END DO
 
@@ -785,14 +823,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief computes a one-electron operator in the subspace of the provided orbital set
 !> \param orbitals ...
+!> \param nmo ...
 !> \param op_matrix operator matrix in AO basis
 !> \param op_sub operator in orbital basis
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE subspace_operator(orbitals, op_matrix, op_sub)
+   SUBROUTINE subspace_operator(orbitals, nmo, op_matrix, op_sub)
 
       TYPE(cp_fm_type), POINTER                          :: orbitals
+      INTEGER, INTENT(IN)                                :: nmo
       TYPE(cp_dbcsr_type), POINTER                       :: op_matrix
       TYPE(cp_fm_type), POINTER                          :: op_sub
 
@@ -807,16 +847,17 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(op_sub))
 
       CALL cp_fm_get_info(matrix=orbitals, ncol_global=ncol, nrow_global=nrow)
+      CPASSERT(nmo <= ncol)
 
-      IF (ncol .GT. 0) THEN
+      IF (nmo > 0) THEN
 
          CALL cp_fm_create(vectors, orbitals%matrix_struct, "vectors")
 
-         CALL create_subspace_matrix(orbitals, op_sub)
+         CALL create_subspace_matrix(orbitals, op_sub, nmo)
 
-         CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, ncol)
+         CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, nmo)
 
-         CALL cp_gemm('T', 'N', ncol, ncol, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
+         CALL cp_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
 
          CALL cp_fm_release(vectors)
 
@@ -830,27 +871,26 @@ CONTAINS
 !> \brief creates a matrix of subspace size
 !> \param orbitals ...
 !> \param op_sub operator in orbital basis
+!> \param n ...
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE create_subspace_matrix(orbitals, op_sub)
+   SUBROUTINE create_subspace_matrix(orbitals, op_sub, n)
 
       TYPE(cp_fm_type), POINTER                          :: orbitals, op_sub
+      INTEGER, INTENT(IN)                                :: n
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_subspace_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       CPASSERT(.NOT. ASSOCIATED(op_sub))
 
-      CALL cp_fm_get_info(matrix=orbitals, ncol_global=ncol, nrow_global=nrow)
-
-      IF (ncol .GT. 0) THEN
+      IF (n > 0) THEN
 
          NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=ncol, ncol_global=ncol, &
+         CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=n, &
                                   para_env=orbitals%matrix_struct%para_env, &
                                   context=orbitals%matrix_struct%context)
          CALL cp_fm_create(op_sub, fm_struct, name="Subspace operator")
@@ -1711,5 +1751,103 @@ CONTAINS
       CALL deallocate_sto_basis_set(sto_basis_set)
 
    END SUBROUTINE create_pro_basis
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param active_space_env ...
+! **************************************************************************************************
+   SUBROUTINE update_active_space(qs_env, active_space_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(active_space_type), POINTER                   :: active_space_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'update_active_space', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ispin, nao, nmo, nspins
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
+      TYPE(cp_dbcsr_type), POINTER                       :: pinact
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: lmats, p_ref
+      TYPE(cp_fm_type), POINTER                          :: fm_active, lmat, pmat, vec
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL timeset(routineN, handle)
+
+      ! density matrix
+      CALL get_qs_env(qs_env, rho=rho)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      nspins = active_space_env%nspins
+      p_ref => active_space_env%p_ref
+      mos => active_space_env%mos_active
+      ALLOCATE (lmats(nspins))
+      DO ispin = 1, nspins
+         pinact => active_space_env%pmat_inactive(ispin)%matrix
+         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, pinact)
+         ! create active density matrix in AO basis
+         pmat => p_ref(ispin)%matrix
+         CALL cp_fm_create(lmat, pmat%matrix_struct)
+         CALL cp_fm_to_fm(pmat, lmat)
+         ! calclulate SQRT(P): P = U*U
+         CALL cp_fm_sqrt(lmat)
+         ! R = C * U
+         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_active, nao=nao, nmo=nmo)
+         CALL cp_fm_create(vec, fm_active%matrix_struct)
+         CALL cp_fm_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lmat, 0.0_dp, vec)
+         CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &
+                                    matrix_v=vec, ncol=nmo, alpha=1.0_dp)
+         CALL cp_fm_release(vec)
+         CALL cp_fm_release(lmat)
+      END DO
+
+      ! let's also calculate Vxc
+      qs_env%requires_matrix_vxc = .TRUE.
+
+      ! new density and Kohn-Sham matrix
+      CALL qs_ks_update_qs_env(qs_env)
+
+      ! update operators
+      mos => active_space_env%mos_active
+      CALL calculate_operators(mos, qs_env, active_space_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE update_active_space
+
+! **************************************************************************************************
+!> \brief Calculate the SQRT of a FM matrix
+!> \param amat ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_sqrt(amat)
+      TYPE(cp_fm_type), POINTER                          :: amat
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_sqrt', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigv
+      TYPE(cp_fm_type), POINTER                          :: bmat, vmat
+
+      ! eigenvalues
+      CALL cp_fm_get_info(amat, nrow_global=n)
+      ALLOCATE (eigv(n))
+      ! scratch arrays
+      CALL cp_fm_create(vmat, amat%matrix_struct)
+      CALL cp_fm_create(bmat, amat%matrix_struct)
+      ! diag
+      CALL cp_fm_syevd(amat, vmat, eigv)
+      ! SQRT
+      DO i = 1, n
+         eigv(i) = MAX(eigv(i), 0.0_dp)
+         eigv(i) = SQRT(eigv(i))
+      END DO
+      CALL cp_fm_to_fm(vmat, bmat)
+      CALL cp_fm_column_scale(bmat, eigv)
+      CALL cp_fm_gemm("N", "T", n, n, n, 1.0_dp, bmat, vmat, 0.0_dp, amat)
+      ! clean up
+      DEALLOCATE (eigv)
+      CALL cp_fm_release(vmat)
+
+   END SUBROUTINE cp_fm_sqrt
 
 END MODULE qs_active_space_methods

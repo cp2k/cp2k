@@ -68,6 +68,7 @@ MODULE qs_active_space_types
       TYPE(eri_type)                :: eri
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: p_ref
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: ks_sub
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: vxc_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: h_sub
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER:: pmat_inactive
    END TYPE active_space_type
@@ -93,7 +94,7 @@ CONTAINS
       ALLOCATE (active_space_env)
       NULLIFY (active_space_env%mos_active, active_space_env%mos_inactive)
       NULLIFY (active_space_env%ks_sub, active_space_env%p_ref)
-      NULLIFY (active_space_env%h_sub)
+      NULLIFY (active_space_env%vxc_sub, active_space_env%h_sub)
       NULLIFY (active_space_env%pmat_inactive)
 
    END SUBROUTINE create_active_space_type
@@ -140,6 +141,13 @@ CONTAINS
                CALL cp_fm_release(active_space_env%ks_sub(isp)%matrix)
             END DO
             DEALLOCATE (active_space_env%ks_sub)
+         END IF
+
+         IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
+            DO isp = 1, SIZE(active_space_env%vxc_sub)
+               CALL cp_fm_release(active_space_env%vxc_sub(isp)%matrix)
+            END DO
+            DEALLOCATE (active_space_env%vxc_sub)
          END IF
 
          IF (ASSOCIATED(active_space_env%h_sub)) THEN

@@ -100,8 +100,7 @@ CONTAINS
 
       LOGICAL                                            :: try_library
 
-! skalapack is the default and always linked
-
+      ! scalapack is the default and always linked
       IF (diag_lib .EQ. "SL") THEN
          try_library = .FALSE.
          diag_type = 1
@@ -178,9 +177,12 @@ CONTAINS
          CALL cp_fm_syevr(matrix, eigenvectors, eigenvalues, 1, nmo)
       ELSE IF (diag_type == 1) THEN
          CALL cp_fm_syevd(matrix, eigenvectors, eigenvalues, info=myinfo)
+      ELSE
+         CPABORT("Unknown DIAG type")
       END IF
 
       IF (PRESENT(info)) info = myinfo
+
    END SUBROUTINE choose_eigv_solver
 
 ! **************************************************************************************************
