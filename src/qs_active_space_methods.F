@@ -1766,7 +1766,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, nmo, nspins
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
       TYPE(cp_dbcsr_type), POINTER                       :: pinact
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: lmats, p_ref
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_ref
       TYPE(cp_fm_type), POINTER                          :: fm_active, lmat, pmat, vec
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1780,7 +1780,6 @@ CONTAINS
       nspins = active_space_env%nspins
       p_ref => active_space_env%p_ref
       mos => active_space_env%mos_active
-      ALLOCATE (lmats(nspins))
       DO ispin = 1, nspins
          pinact => active_space_env%pmat_inactive(ispin)%matrix
          CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, pinact)
