@@ -176,7 +176,8 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "N_ABSCISSAE", i_val=transport_env%params%n_abscissae)
       CALL section_vals_val_get(transport_section, "N_KPOINTS", i_val=transport_env%params%n_kpoint)
       CALL section_vals_val_get(transport_section, "NUM_INTERVAL", i_val=transport_env%params%num_interval)
-      CALL section_vals_val_get(transport_section, "TASKS_PER_POINT", i_val=transport_env%params%tasks_per_point)
+      CALL section_vals_val_get(transport_section, "TASKS_PER_ENERGY_POINT", &
+                                i_val=transport_env%params%tasks_per_energy_point)
       CALL section_vals_val_get(transport_section, "GPUS_PER_POINT", i_val=transport_env%params%gpus_per_point)
       CALL section_vals_val_get(transport_section, "COLZERO_THRESHOLD", r_val=transport_env%params%colzero_threshold)
       CALL section_vals_val_get(transport_section, "EPS_LIMIT", r_val=transport_env%params%eps_limit)
@@ -195,6 +196,8 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "CUTOUT", i_vals=i_vals)
       transport_env%params%cutout = i_vals
 
+      CALL section_vals_val_get(beyn_section, "TASKS_PER_INTEGRATION_POINT", &
+                                i_val=transport_env%params%tasks_per_integration_point)
       CALL section_vals_val_get(beyn_section, "N_POINTS_BEYN", i_val=transport_env%params%n_points_beyn)
       CALL section_vals_val_get(beyn_section, "N_RAND", r_val=transport_env%params%n_rand_beyn)
       CALL section_vals_val_get(beyn_section, "N_RAND_CC", r_val=transport_env%params%n_rand_cc_beyn)
@@ -279,15 +282,15 @@ CONTAINS
       mp_group = logger%para_env%group
       CALL mp_environ(numnodes, mynode, mp_group)
 
-      ! Use all tasks if user input for TASKS_PER_POINT is 0 or greater than MPI size.
-      IF ((transport_env%params%tasks_per_point .GT. numnodes) &
-          .OR. (transport_env%params%tasks_per_point .EQ. 0)) THEN
-         transport_env%params%tasks_per_point = numnodes
+      ! Use all tasks if user input for TASKS_PER_ENERGY_POINT is 0 or greater than MPI size.
+      IF ((transport_env%params%tasks_per_energy_point .GT. numnodes) &
+          .OR. (transport_env%params%tasks_per_energy_point .EQ. 0)) THEN
+         transport_env%params%tasks_per_energy_point = numnodes
       ENDIF
 
-      ! Determine valid TASKS_PER_POINT from user input
-      DO WHILE (MOD(numnodes, transport_env%params%tasks_per_point) .NE. 0)
-         transport_env%params%tasks_per_point = transport_env%params%tasks_per_point+1
+      ! Determine valid TASKS_PER_ENERGY_POINT from user input
+      DO WHILE (MOD(numnodes, transport_env%params%tasks_per_energy_point) .NE. 0)
+         transport_env%params%tasks_per_energy_point = transport_env%params%tasks_per_energy_point+1
       ENDDO
 
       IF (cp_dbcsr_has_symmetry(template_matrix)) THEN

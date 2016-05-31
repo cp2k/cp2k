@@ -160,11 +160,12 @@ typedef struct {
     int     n_kpoint;
     int     num_interval;
     int     num_contacts;
-    int     tasks_per_point;
+    int     tasks_per_energy_point;
     int     gpus_per_point;
     int     n_blocks;
     int     n_points_beyn;
     int     ncrc_beyn;
+    int     tasks_per_integration_point;
     int     cutout[2];
     double  colzero_threshold;
     double  eps_limit;

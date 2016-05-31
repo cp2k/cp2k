@@ -96,9 +96,9 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TASKS_PER_POINT", &
-                          description="Minimum number of tasks per energy point.", &
-                          usage="TASKS_PER_POINT <integer>", default_i_val=1)
+      CALL keyword_create(keyword, name="TASKS_PER_ENERGY_POINT", &
+                          description="Number of tasks per energy point.", &
+                          usage="TASKS_PER_ENERGY_POINT <integer>", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -158,7 +158,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="ENERGY_INTERVAL", &
-                          description="Average distance for big intervals in energy vector.", &
+                          description="Distance between energy points in eV.", &
                           usage="ENERGY_INTERVAL <real>", default_r_val=1.0E-3_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -308,7 +308,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="BEYN", &
                           description="Parameters for the Beyn eigenvalue solver.", &
-                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=6, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -340,6 +340,12 @@ CONTAINS
       CALL keyword_create(keyword, name="ONE_CIRCLE", &
                           description="Set to .TRUE. if only one circle instead of two should be used in the Beyn solver.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TASKS_PER_INTEGRATION_POINT", &
+                          description="Number of tasks per integration point.", &
+                          usage="TASKS_PER_INTEGRATION_POINT <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -52,11 +52,12 @@ MODULE transport_env_types
       INTEGER(C_INT)  :: n_kpoint
       INTEGER(C_INT)  :: num_interval
       INTEGER(C_INT)  :: num_contacts
-      INTEGER(C_INT)  :: tasks_per_point
+      INTEGER(C_INT)  :: tasks_per_energy_point
       INTEGER(C_INT)  :: gpus_per_point
       INTEGER(C_INT)  :: n_blocks
       INTEGER(C_INT)  :: n_points_beyn
       INTEGER(C_INT)  :: ncrc_beyn
+      INTEGER(C_INT)  :: tasks_per_integration_point
       INTEGER(C_INT)  :: cutout(2)
       REAL(C_DOUBLE)  :: colzero_threshold
       REAL(C_DOUBLE)  :: eps_limit
