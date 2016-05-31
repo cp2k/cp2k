@@ -29,8 +29,7 @@ MODULE qs_active_space_methods
                                               cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_gemm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -1794,7 +1793,7 @@ CONTAINS
          ! R = C * U
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_active, nao=nao, nmo=nmo)
          CALL cp_fm_create(vec, fm_active%matrix_struct)
-         CALL cp_fm_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lmat, 0.0_dp, vec)
+         CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lmat, 0.0_dp, vec)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &
                                     matrix_v=vec, ncol=nmo, alpha=1.0_dp)
          CALL cp_fm_release(vec)
@@ -1843,7 +1842,7 @@ CONTAINS
       END DO
       CALL cp_fm_to_fm(vmat, bmat)
       CALL cp_fm_column_scale(bmat, eigv)
-      CALL cp_fm_gemm("N", "T", n, n, n, 1.0_dp, bmat, vmat, 0.0_dp, amat)
+      CALL cp_gemm("N", "T", n, n, n, 1.0_dp, bmat, vmat, 0.0_dp, amat)
       ! clean up
       DEALLOCATE (eigv)
       CALL cp_fm_release(vmat)
