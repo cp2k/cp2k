@@ -571,6 +571,7 @@ CONTAINS
          IF (edisp /= 0.0_dp) energy%dispersion = edisp
          IF (qs_env%requires_matrix_vxc .AND. ASSOCIATED(v_rspace_new)) THEN
             CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace_new, matrix_vxc=matrix_vxc)
+            CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
          ENDIF
 
          IF (gapw .OR. gapw_xc) THEN

@@ -1845,6 +1845,7 @@ CONTAINS
       ! clean up
       DEALLOCATE (eigv)
       CALL cp_fm_release(vmat)
+      CALL cp_fm_release(bmat)
 
    END SUBROUTINE cp_fm_sqrt
 
