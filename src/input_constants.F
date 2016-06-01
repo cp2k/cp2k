@@ -919,6 +919,11 @@ MODULE input_constants
                                                do_lri_opt_coeff = 1, &
                                                do_lri_opt_exps = 2
 
+   ! Active smape model parameters
+   INTEGER, PARAMETER, PUBLIC               :: hf_model = 100, &
+                                               rsdft_model = 101, &
+                                               dmft_model = 102
+
    ! callgraph parameters
    INTEGER, PARAMETER, PUBLIC               :: callgraph_none = 0, &
                                                callgraph_master = 1, &

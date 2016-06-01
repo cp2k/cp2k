@@ -49,9 +49,9 @@ MODULE qs_active_space_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE input_constants,                 ONLY: &
-        casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, &
-        mao_projection, wannier_projection
+        casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
+        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
+        mao_projection, rsdft_model, wannier_projection
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -163,7 +163,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
                                                             explicit, isolated, store_wfn
-      REAL(KIND=dp) :: eref, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, eri_rcut, &
+      REAL(KIND=dp) :: eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, eri_rcut, &
          eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       TYPE(active_space_type), POINTER                   :: active_space_env
@@ -212,15 +212,34 @@ CONTAINS
 
       NULLIFY (active_space_env)
       CALL create_active_space_type(active_space_env)
+      active_space_env%energy_total = 0.0_dp
+      active_space_env%energy_ref = 0.0_dp
+      active_space_env%energy_inactive = 0.0_dp
+      active_space_env%energy_active = 0.0_dp
 
       ! input options
+
+      ! model
+      CALL section_vals_val_get(as_input, "MODEL", i_val=active_space_env%model)
+      IF (iw > 0) THEN
+         SELECT CASE (active_space_env%model)
+         CASE (hf_model)
+            WRITE (iw, '(T4,A)') "Hartree-Fock model for interaction Hamiltonian"
+         CASE (rsdft_model)
+            WRITE (iw, '(T4,A)') "Range-separated DFT model for interaction Hamiltonian"
+         CASE (dmft_model)
+            WRITE (iw, '(T4,A)') "DMFT model for interaction Hamiltonian"
+         CASE DEFAULT
+            CPABORT("Unknown Model")
+         END SELECT
+      END IF
 
       ! isolated (molecular) system?
       CALL section_vals_val_get(as_input, "ISOLATED_SYSTEM", l_val=isolated)
       active_space_env%molecule = isolated
       IF (iw > 0) THEN
          IF (active_space_env%molecule) THEN
-            WRITE (iw, '(T3,A)') "System is treated without periodicity"
+            WRITE (iw, '(T4,A)') "System is treated without periodicity"
          END IF
       END IF
 
@@ -716,9 +735,7 @@ CONTAINS
       CALL update_active_space(qs_env, active_space_env)
 
       ! Output a FCIDUMP file
-      CALL get_qs_env(qs_env, energy=energy)
-      eref = energy%total
-      CALL fcidump(active_space_env, as_input, eref)
+      CALL fcidump(active_space_env, as_input)
 
       CALL set_qs_env(qs_env, active_space=active_space_env)
 
@@ -1514,15 +1531,13 @@ CONTAINS
 !> \brief Writes a FCIDUMP file
 !> \param active_space_env ...
 !> \param as_input ...
-!> \param eref ...
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE fcidump(active_space_env, as_input, eref)
+   SUBROUTINE fcidump(active_space_env, as_input)
 
       TYPE(active_space_type), POINTER                   :: active_space_env
       TYPE(section_vals_type), POINTER                   :: as_input
-      REAL(KIND=dp), INTENT(IN)                          :: eref
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fcidump', routineP = moduleN//':'//routineN
 
@@ -1530,9 +1545,9 @@ CONTAINS
                                                             irange(2), irptr, isym, iw, ms2, &
                                                             nelec, nindex, norb, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: colind
-      REAL(KIND=dp)                                      :: eeri, erint, esub, mval
+      REAL(KIND=dp)                                      :: erint, esub, mval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: erival
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ks_mat, ks_ref, p_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fmat
       TYPE(cp_fm_type), POINTER                          :: matrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(csr_type), POINTER                            :: eri
@@ -1556,79 +1571,6 @@ CONTAINS
                WRITE (iw, "(A,I1,A)") "  ISYM=", isym, ","
                WRITE (iw, "(A)") " /"
             END IF
-            !
-            ! Loop over ERI, calculate subspace HF energy and Fock matrix
-            !
-            ! replicate KS, Core, and P matrices
-            ALLOCATE (ks_mat(norb, norb), ks_ref(norb, norb), p_mat(norb, norb))
-            ks_mat = 0.0_dp
-            ks_ref = 0.0_dp
-            p_mat = 0.0_dp
-            DO i1 = 1, norb
-               DO i2 = i1, norb
-                  matrix => active_space_env%p_ref(1)%matrix
-                  CALL cp_fm_get_element(matrix, i1, i2, mval)
-                  p_mat(i1, i2) = mval
-                  p_mat(i2, i1) = mval
-                  matrix => active_space_env%ks_sub(1)%matrix
-                  CALL cp_fm_get_element(matrix, i1, i2, mval)
-                  ks_mat(i1, i2) = mval
-                  ks_mat(i2, i1) = mval
-               END DO
-            END DO
-            ! calculate energy
-            eeri = 0.0_dp
-            eri => active_space_env%eri%eri(1)%csr_mat
-            nindex = (norb*(norb+1))/2
-            irange = get_irange_csr(nindex, eri%mp_group)
-            DO i1 = 1, norb
-               DO i2 = i1, norb
-                  i12 = get_index_ij(i1, i2, norb)
-                  IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
-                     i12l = i12-irange(1)+1
-                     irptr = eri%rowptr_local(i12l)-1
-                     DO i34l = 1, eri%nzerow_local(i12l)
-                        i34 = eri%colind_local(irptr+i34l)
-                        CALL get_index_pair(i34, norb, i3, i4)
-                        erint = eri%nzval_local%r_dp(irptr+i34l)
-                        ! Coulomb
-                        ks_ref(i1, i2) = ks_ref(i1, i2)+erint*p_mat(i3, i4)
-                        IF (i3 /= i4) THEN
-                           ks_ref(i1, i2) = ks_ref(i1, i2)+erint*p_mat(i3, i4)
-                        END IF
-                        IF (i12 /= i34) THEN
-                           ks_ref(i3, i4) = ks_ref(i3, i4)+erint*p_mat(i1, i2)
-                           IF (i1 /= i2) THEN
-                              ks_ref(i3, i4) = ks_ref(i3, i4)+erint*p_mat(i1, i2)
-                           END IF
-                        END IF
-                        ! Exchange
-                        erint = -0.5_dp*erint
-                        ks_ref(i1, i3) = ks_ref(i1, i3)+erint*p_mat(i2, i4)
-                        IF (i1 /= i2) THEN
-                           ks_ref(i2, i3) = ks_ref(i2, i3)+erint*p_mat(i1, i4)
-                        END IF
-                        IF (i3 /= i4) THEN
-                           ks_ref(i1, i4) = ks_ref(i1, i4)+erint*p_mat(i2, i3)
-                        END IF
-                        IF (i1 /= i2 .AND. i3 /= i4) THEN
-                           ks_ref(i2, i4) = ks_ref(i2, i4)+erint*p_mat(i1, i3)
-                        END IF
-                     END DO
-                  END IF
-               END DO
-            END DO
-            !
-            DO i1 = 1, norb
-               DO i2 = i1, norb
-                  ks_ref(i1, i2) = ks_ref(i2, i1)
-               END DO
-            END DO
-            CALL mp_sum(ks_ref, eri%mp_group)
-            !
-            eeri = 0.5_dp*SUM(ks_ref*p_mat)
-            ks_mat(1:norb, 1:norb) = ks_mat(1:norb, 1:norb)+ks_ref(1:norb, 1:norb)
-            esub = eref-SUM(ks_mat(1:norb, 1:norb)*p_mat(1:norb, 1:norb))+eeri
             !
             ! Print integrals: ERI
             eri => active_space_env%eri%eri(1)%csr_mat
@@ -1665,18 +1607,30 @@ CONTAINS
             END DO
             DEALLOCATE (erival, colind)
             ! Print integrals: Fij
+            ! replicate Fock matrix
+            ALLOCATE (fmat(norb, norb))
+            fmat = 0.0_dp
+            matrix => active_space_env%fock_sub(1)%matrix
+            DO i1 = 1, norb
+               DO i2 = i1, norb
+                  CALL cp_fm_get_element(matrix, i1, i2, mval)
+                  fmat(i1, i2) = mval
+                  fmat(i2, i1) = mval
+               END DO
+            END DO
             IF (iw > 0) THEN
                i3 = 0; i4 = 0
                DO i1 = 1, norb
                   DO i2 = i1, norb
-                     WRITE (iw, "(ES23.16,4I4)") ks_mat(i1, i2), i1, i2, i3, i4
+                     WRITE (iw, "(ES23.16,4I4)") fmat(i1, i2), i1, i2, i3, i4
                   END DO
                END DO
             END IF
+            DEALLOCATE (fmat)
             ! Print energy
+            esub = active_space_env%energy_inactive
             i1 = 0; i2 = 0; i3 = 0; i4 = 0
             IF (iw > 0) WRITE (iw, "(ES23.16,4I4)") esub, i1, i2, i3, i4
-            DEALLOCATE (ks_mat, ks_ref, p_mat)
          ELSE
             CPABORT("Option not yet available")
          END IF
@@ -1685,6 +1639,132 @@ CONTAINS
       END IF
 
    END SUBROUTINE fcidump
+! **************************************************************************************************
+!> \brief Calculates active space Fock matrix and inactive energy
+!> \param active_space_env ...
+!> \par History
+!>      06.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE subspace_fock_matrix(active_space_env)
+
+      TYPE(active_space_type), POINTER                   :: active_space_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'subspace_fock_matrix', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
+                                                            irange(2), irptr, is, nelec, nindex, &
+                                                            norb, nspins
+      REAL(KIND=dp)                                      :: eeri, eref, erint, esub, mval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ks_mat, ks_ref, p_mat
+      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(csr_type), POINTER                            :: eri
+
+      eref = active_space_env%energy_ref
+      nspins = active_space_env%nspins
+      IF (nspins == 1) THEN
+         nelec = active_space_env%nactive
+         CALL get_mo_set(active_space_env%mos_active(1)%mo_set, nmo=norb)
+         !
+         ! Loop over ERI, calculate subspace HF energy and Fock matrix
+         !
+         ! replicate KS, Core, and P matrices
+         ALLOCATE (ks_mat(norb, norb), ks_ref(norb, norb), p_mat(norb, norb))
+         ks_mat = 0.0_dp
+         ks_ref = 0.0_dp
+         p_mat = 0.0_dp
+         DO i1 = 1, norb
+            DO i2 = i1, norb
+               matrix => active_space_env%p_ref(1)%matrix
+               CALL cp_fm_get_element(matrix, i1, i2, mval)
+               p_mat(i1, i2) = mval
+               p_mat(i2, i1) = mval
+               matrix => active_space_env%ks_sub(1)%matrix
+               CALL cp_fm_get_element(matrix, i1, i2, mval)
+               ks_mat(i1, i2) = mval
+               ks_mat(i2, i1) = mval
+            END DO
+         END DO
+         ! calculate energy
+         eeri = 0.0_dp
+         eri => active_space_env%eri%eri(1)%csr_mat
+         nindex = (norb*(norb+1))/2
+         irange = get_irange_csr(nindex, eri%mp_group)
+         DO i1 = 1, norb
+            DO i2 = i1, norb
+               i12 = get_index_ij(i1, i2, norb)
+               IF (i12 >= irange(1) .AND. i12 <= irange(2)) THEN
+                  i12l = i12-irange(1)+1
+                  irptr = eri%rowptr_local(i12l)-1
+                  DO i34l = 1, eri%nzerow_local(i12l)
+                     i34 = eri%colind_local(irptr+i34l)
+                     CALL get_index_pair(i34, norb, i3, i4)
+                     erint = eri%nzval_local%r_dp(irptr+i34l)
+                     ! Coulomb
+                     ks_ref(i1, i2) = ks_ref(i1, i2)+erint*p_mat(i3, i4)
+                     IF (i3 /= i4) THEN
+                        ks_ref(i1, i2) = ks_ref(i1, i2)+erint*p_mat(i3, i4)
+                     END IF
+                     IF (i12 /= i34) THEN
+                        ks_ref(i3, i4) = ks_ref(i3, i4)+erint*p_mat(i1, i2)
+                        IF (i1 /= i2) THEN
+                           ks_ref(i3, i4) = ks_ref(i3, i4)+erint*p_mat(i1, i2)
+                        END IF
+                     END IF
+                     ! Exchange
+                     erint = -0.5_dp*erint
+                     ks_ref(i1, i3) = ks_ref(i1, i3)+erint*p_mat(i2, i4)
+                     IF (i1 /= i2) THEN
+                        ks_ref(i2, i3) = ks_ref(i2, i3)+erint*p_mat(i1, i4)
+                     END IF
+                     IF (i3 /= i4) THEN
+                        ks_ref(i1, i4) = ks_ref(i1, i4)+erint*p_mat(i2, i3)
+                     END IF
+                     IF (i1 /= i2 .AND. i3 /= i4) THEN
+                        ks_ref(i2, i4) = ks_ref(i2, i4)+erint*p_mat(i1, i3)
+                     END IF
+                  END DO
+               END IF
+            END DO
+         END DO
+         !
+         DO i1 = 1, norb
+            DO i2 = i1, norb
+               ks_ref(i1, i2) = ks_ref(i2, i1)
+            END DO
+         END DO
+         CALL mp_sum(ks_ref, eri%mp_group)
+         !
+         eeri = 0.5_dp*SUM(ks_ref*p_mat)
+         ks_mat(1:norb, 1:norb) = ks_mat(1:norb, 1:norb)+ks_ref(1:norb, 1:norb)
+         esub = eref-SUM(ks_mat(1:norb, 1:norb)*p_mat(1:norb, 1:norb))+eeri
+         !
+         active_space_env%energy_inactive = esub
+         !
+         IF (ASSOCIATED(active_space_env%fock_sub)) THEN
+            DO is = 1, SIZE(active_space_env%fock_sub)
+               CALL cp_fm_release(active_space_env%fock_sub(is)%matrix)
+            END DO
+            DEALLOCATE (active_space_env%fock_sub)
+         END IF
+         ALLOCATE (active_space_env%fock_sub(nspins))
+         DO is = 1, nspins
+            matrix => active_space_env%ks_sub(is)%matrix
+            CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
+                              name="Active Fock operator")
+         END DO
+         matrix => active_space_env%fock_sub(1)%matrix
+         DO i1 = 1, norb
+            DO i2 = 1, norb
+               mval = ks_mat(i1, i2)
+               CALL cp_fm_set_element(matrix, i1, i2, mval)
+            END DO
+         END DO
+      ELSE
+         CPABORT("Spin option not yet available")
+      END IF
+
+   END SUBROUTINE subspace_fock_matrix
 ! **************************************************************************************************
 !> \brief Creates a local basis
 !> \param pro_basis_set ...
@@ -1769,6 +1849,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_ref
       TYPE(cp_fm_type), POINTER                          :: fm_active, lmat, pmat, vec
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
@@ -1805,9 +1886,16 @@ CONTAINS
       ! new density and Kohn-Sham matrix
       CALL qs_ks_update_qs_env(qs_env)
 
+      ! reference energy
+      CALL get_qs_env(qs_env, energy=energy)
+      active_space_env%energy_ref = energy%total
+
       ! update operators
       mos => active_space_env%mos_active
       CALL calculate_operators(mos, qs_env, active_space_env)
+
+      ! inactive subspace energy and active Fock operator
+      CALL subspace_fock_matrix(active_space_env)
 
       CALL timestop(handle)
 

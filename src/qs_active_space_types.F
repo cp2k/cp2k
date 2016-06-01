@@ -63,6 +63,11 @@ MODULE qs_active_space_types
       INTEGER                       :: multiplicity
       INTEGER                       :: nspins
       LOGICAL                       :: molecule
+      INTEGER                       :: model
+      REAL(KIND=dp)                 :: energy_total
+      REAL(KIND=dp)                 :: energy_ref
+      REAL(KIND=dp)                 :: energy_inactive
+      REAL(KIND=dp)                 :: energy_active
       TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos_active
       TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos_inactive
       TYPE(eri_type)                :: eri
@@ -70,6 +75,7 @@ MODULE qs_active_space_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: ks_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: vxc_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: h_sub
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: fock_sub
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER:: pmat_inactive
    END TYPE active_space_type
 
@@ -95,7 +101,7 @@ CONTAINS
       NULLIFY (active_space_env%mos_active, active_space_env%mos_inactive)
       NULLIFY (active_space_env%ks_sub, active_space_env%p_ref)
       NULLIFY (active_space_env%vxc_sub, active_space_env%h_sub)
-      NULLIFY (active_space_env%pmat_inactive)
+      NULLIFY (active_space_env%fock_sub, active_space_env%pmat_inactive)
 
    END SUBROUTINE create_active_space_type
 
@@ -155,6 +161,13 @@ CONTAINS
                CALL cp_fm_release(active_space_env%h_sub(isp)%matrix)
             END DO
             DEALLOCATE (active_space_env%h_sub)
+         END IF
+
+         IF (ASSOCIATED(active_space_env%fock_sub)) THEN
+            DO isp = 1, SIZE(active_space_env%fock_sub)
+               CALL cp_fm_release(active_space_env%fock_sub(isp)%matrix)
+            END DO
+            DEALLOCATE (active_space_env%fock_sub)
          END IF
 
          IF (ASSOCIATED(active_space_env%pmat_inactive)) &
