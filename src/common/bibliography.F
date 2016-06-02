@@ -77,7 +77,7 @@ MODULE bibliography
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
-                            Kapil2016, Heinzmann1976, Ehrhardt1985
+                            Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016
 
 CONTAINS
 
@@ -3399,6 +3399,27 @@ CONTAINS
                          "EP 245", &
                          "ER"), &
                          DOI="10.1007/BF00526774")
+
+      CALL add_reference(key=Rybkin2016, ISI_record=s2a( &
+                         "AU Rybkin, VV", &
+                         "   VandeVondele, J", &
+                         "AF Rybkin, Vladimir V.", &
+                         "   VandeVondele, Joost", &
+                         "TI Spin-Unrestricted Second-Order Moller-Plesset (MP2) Forces for the", &
+                         "   Condensed Phase: From Molecular Radicals to F-Centers in Solids", &
+                         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION", &
+                         "SN 1549-9618", &
+                         "EI 1549-9626", &
+                         "PD MAY", &
+                         "PY 2016", &
+                         "VL 12", &
+                         "IS 5", &
+                         "BP 2214", &
+                         "EP 2223", &
+                         "DI 10.1021/acs.jctc.6b00015", &
+                         "UT WOS:000375810000010", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.6b00015")
 
    END SUBROUTINE add_all_references
 

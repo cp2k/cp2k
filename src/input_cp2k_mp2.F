@@ -13,7 +13,8 @@ MODULE input_cp2k_mp2
    USE bibliography,                    ONLY: DelBen2012,&
                                               DelBen2013,&
                                               DelBen2015,&
-                                              DelBen2015b
+                                              DelBen2015b,&
+                                              Rybkin2016
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -70,7 +71,7 @@ CONTAINS
       CALL section_create(section, "WF_CORRELATION", &
                           description="Sets up the Wavefunction-based Correlation parameters if requested ", &
                           n_keywords=8, n_subsections=6, repeats=.TRUE., &
-                          citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b/))
+                          citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016/))
 
       NULLIFY (keyword, print_key, subsection)
 
