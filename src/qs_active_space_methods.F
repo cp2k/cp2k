@@ -180,7 +180,6 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env_occ, qs_loc_env_virt
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: as_input, loc_print, loc_section, &
