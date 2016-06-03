@@ -279,6 +279,9 @@ CONTAINS
          ENDIF
       ENDIF
 
+      IF (dft_control%tddfpt2_control%trans_dipole) &
+         nders = 1
+
       ! filter for new matrices
       eps_filter = dft_control%qs_control%eps_filter_matrix
 

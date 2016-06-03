@@ -343,7 +343,9 @@ CONTAINS
          CALL tddfpt_calculation(force_env%qs_env)
       CASE (tddfpt2_run)
          IF (method_name_id /= do_qs) &
-            CPABORT("TD-DFPT is available only with Quickstep.")
+            CPABORT("TDDFPT2 is available only with Quickstep.")
+         CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
+         dft_control%tddfpt2_control%trans_dipole = .TRUE.
          CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
          CALL tddfpt(force_env%qs_env)
       CASE (real_time_propagation)

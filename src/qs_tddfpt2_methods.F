@@ -23,6 +23,7 @@ MODULE qs_tddfpt2_methods
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
+                                              cp_fm_schur_product,&
                                               cp_fm_symm,&
                                               cp_fm_trace,&
                                               cp_fm_triangular_invert
@@ -134,7 +135,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: ispin = 1
-      REAL(kind=dp), PARAMETER :: min_excitation_amplitude = 1.0e-2_dp
 
       CHARACTER(len=20)                                  :: navail_str, nstates_str
       INTEGER :: energy_unit, handle, istate, iter, jstate, log_unit, nao, niters, nmo_occ_active, &
@@ -176,7 +176,7 @@ CONTAINS
 
       IF (tddfpt_control%nstates <= 0) THEN
          CALL integer_to_string(tddfpt_control%nstates, nstates_str)
-         CALL cp_warn(__LOCATION__, "TD-DFPT calculation was requestes for "// &
+         CALL cp_warn(__LOCATION__, "TDDFPT calculation was requestes for "// &
                       TRIM(nstates_str)//" excited states: nothing to do.")
          CALL timestop(handle)
          RETURN
@@ -314,8 +314,8 @@ CONTAINS
       CALL cp_fm_create(evecs_a_fm, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
-      ! ++ storage for half-transformed four-centre integrals ( i j || mu nu),
-      ! where i <= j are occupied MOs, qnd mu, nu are atomic basis functions
+      ! ++ storage for half-transformed four-centre integrals (i j || mu nu),
+      ! where i <= j are occupied MOs, and mu, nu are atomic basis functions
       IF (do_hfx) THEN
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, para_env=para_env, context=blacs_env)
 
@@ -362,18 +362,18 @@ CONTAINS
          CALL tddfpt_init_by_energy_diff(a_kv=action_matrix, evecs=evecs, evals_occ=evals_occ, &
                                          matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix)
 
-         ! add contributions from coulomb term
+         ! add contributions from coulomb terms
          ! alpha == 2 due to singlet state
          CALL tddfpt_apply_coulomb(a_kv=action_matrix, alpha=2.0_dp, evecs=evecs, mos_occ=mos_occ, &
                                    qs_env=qs_env, matrix_s=matrix_s(1)%matrix)
 
-         ! add contributions from TDDFT kernel
+         ! add contributions from the adiabatic TDDFT kernel
          ! alpha == 2 due to relation K_alpha,alpha == K_alpha,beta for singlet states
          CALL tddfpt_apply_kernel(a_kv=action_matrix, alpha=2.0_dp, evecs=evecs, mos_occ=mos_occ, &
                                   xc_rho_set=xc_rho_set, xc_deriv_set=xc_deriv_set, &
                                   qs_env=qs_env, matrix_s=matrix_s(1)%matrix, xc_section=xc_section)
 
-         ! add contribution from exact exchange
+         ! add contribution from exact exchange terms
          IF (do_hfx) &
             CALL tddfpt_apply_hfx(a_kv=action_matrix, K_ij_munu=K_ij_munu, alpha=C_hf, evecs=evecs, qs_env=qs_env)
 
@@ -471,15 +471,16 @@ CONTAINS
       END DO
       DEALLOCATE (evecs_new)
 
-      DEALLOCATE (evals_virt)
-      DEALLOCATE (evals_occ)
-      CALL cp_fm_release(mos_occ)
-
       ! print summary information
       log_unit = cp_logger_get_default_io_unit()
       CALL tddfpt_print_summary(log_unit=log_unit, nstates=nstates, evecs=evecs, evals=evals_last, &
-                                nmo_occ_total=nmo_occ_total, mos_virt=mos_virt, matrix_s=matrix_s(1)%matrix, &
-                                min_amplitude=min_excitation_amplitude)
+                                nmo_occ_total=nmo_occ_total, mos_virt=mos_virt, matrix_s=matrix_s, &
+                                min_amplitude=tddfpt_control%min_excitation_amplitude, mos_occ=mos_occ, &
+                                evals_virt=evals_virt, evals_occ=evals_occ)
+
+      DEALLOCATE (evals_virt)
+      DEALLOCATE (evals_occ)
+      CALL cp_fm_release(mos_occ)
 
       DEALLOCATE (evals_last)
 
@@ -726,10 +727,10 @@ CONTAINS
 
       nmo_occ_active = 0
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(/,18X,A)') 'TDDFT initial guess'
+         WRITE (log_unit, '(/,18X,A)') "TDDFT initial guess"
          WRITE (log_unit, '(1X,52("-"))')
-         WRITE (log_unit, '(5X,A)') 'State     Occupied  ->  Virtual      Excitation'
-         WRITE (log_unit, '(5X,A)') 'number      state        state       energy (eV)'
+         WRITE (log_unit, '(5X,A)') "State     Occupied  ->  Virtual      Excitation"
+         WRITE (log_unit, '(5X,A)') "number     orbital      orbital      energy (eV)"
          WRITE (log_unit, '(1X,52("-"))')
       END IF
       DO istate = 1, nstates_total
@@ -739,7 +740,7 @@ CONTAINS
          imo_occ = (inds(istate)-1)/nmo_virt_selected+1
          imo_virt = MOD(inds(istate)-1, nmo_virt_selected)+1
          IF (log_unit > 0) &
-            WRITE (log_unit, '(1X,I8,4X,I8,4X,I8,6X,F14.5)') istate, nmo_occ_avail-imo_occ+1, &
+            WRITE (log_unit, '(1X,I8,4X,I8,5X,I8,5X,F14.5)') istate, nmo_occ_avail-imo_occ+1, &
             imo_virt+nmo_occ_avail, e_virt_minus_occ(istate)*evolt
 
          IF (nmo_occ_active < imo_occ) &
@@ -1391,98 +1392,179 @@ CONTAINS
 !> \param evecs    TDDFPT trial vectors
 !> \param evals    TDDFPT eigenvalues
 !> \param nmo_occ_total total number of occupied molecular orbitals
+!> \param mos_occ occupied molecular orbitals
+!> \param evals_occ  occupied orbital energies
 !> \param mos_virt virtual molecular orbitals
-!> \param matrix_s overlap matrix
+!> \param evals_virt  virtual orbital energies
+!> \param matrix_s overlap matrix and their firts derivatives over x, y, and z directions
 !> \param min_amplitude the smallest excitation amplitude to print
 !> \par History
-!>    * 05.2016 adapted from  [Sergey Chulkov]
-!> \note Based on the subroutine find_contributions() which were originally created
-!>             by Thomas Chassaing on 02.2005.
+!>    * 05.2016 created [Sergey Chulkov]
+!>    * 06.2016 transition dipole moments and oscillator strengths [Sergey Chulkov]
+!> \note \parblock
+!>       Adapted version of the subroutine find_contributions() which was originally created
+!>       by Thomas Chassaing on 02.2005.
+!>
+!>       To compute transition dipole integrals we use the fact that the ground state wave-function
+!>       and all response functions (which are in fact a linear combination of virtual molecular
+!>       orbitals) are eigenfunctions of the Hamiltonian operator. Using the identity:
+!>       \f[\vec{r}\hat{H} - \hat{H}\vec{r} = [\vec{r},\hat{H}] = [\vec{r},-1/2 \nabla^2] = \nabla\f]
+!>       we can derive a relationship between transition dipole integrals and momentum integrals:
+!>       \f[<\psi_i|\nabla|\psi_a> = <\psi_i|\vec{r}|\hat{H}\psi_a> - <\hat{H}\psi_i|\vec{r}|\psi_a>=
+!>       (\epsilon_a - \epsilon_i) <\psi_i|\vec{r}|\psi_a> .\f]
+!>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_summary(log_unit, nstates, evecs, evals, nmo_occ_total, mos_virt, matrix_s, min_amplitude)
+   SUBROUTINE tddfpt_print_summary(log_unit, nstates, evecs, evals, nmo_occ_total, &
+                                   mos_occ, evals_occ, mos_virt, evals_virt, matrix_s, min_amplitude)
       INTEGER, INTENT(in)                                :: log_unit, nstates
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: evecs
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       INTEGER, INTENT(in)                                :: nmo_occ_total
+      TYPE(cp_fm_type), POINTER                          :: mos_occ
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals_occ
       TYPE(cp_fm_type), POINTER                          :: mos_virt
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals_virt
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       REAL(kind=dp), INTENT(in)                          :: min_amplitude
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_summary', &
          routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: nderivs = 3
 
-      INTEGER                                            :: handle, iexc, imo_occ, imo_virt, istate, &
-                                                            nao, nmo_occ, nmo_virt, nmo_virt_occ
+      INTEGER                                            :: handle, ideriv, iexc, imo_occ, imo_virt, &
+                                                            istate, nao, nmo_occ, nmo_virt, &
+                                                            nmo_virt_occ
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
+      REAL(kind=dp)                                      :: oscillator_strength
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights_abs_1d
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_2d
+      REAL(kind=dp), DIMENSION(nderivs)                  :: trans_dipole
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_p_type), DIMENSION(nderivs)             :: dS_mos_occ
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: S_mos_virt, weights_fm
+      TYPE(cp_fm_type), POINTER                          :: ediff_inv, ediff_inv_weights, &
+                                                            S_mos_virt, scaled_evect, weights_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       EXTERNAL :: dcopy
 
       CALL timeset(routineN, handle)
 
+      ! ensure we have the overlap matrix itself and its first derivatives over x, y and z
+      CPASSERT(SIZE(matrix_s) >= nderivs+1)
+
       NULLIFY (fm_struct, blacs_env, para_env, S_mos_virt)
       CALL cp_fm_get_info(matrix=mos_virt, nrow_global=nao, ncol_global=nmo_virt, &
                           matrix_struct=fm_struct, context=blacs_env, para_env=para_env)
-      CALL cp_fm_get_info(matrix=evecs(1)%matrix, ncol_global=nmo_occ)
 
       CALL cp_fm_create(S_mos_virt, fm_struct)
 
-      CALL cp_dbcsr_sm_fm_multiply(matrix_s, mos_virt, S_mos_virt, ncol=nmo_virt, alpha=1.0_dp, beta=0.0_dp)
-
-      NULLIFY (fm_struct, weights_fm)
-      CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt, ncol_global=nmo_occ, para_env=para_env, context=blacs_env)
-      CALL cp_fm_create(weights_fm, fm_struct)
-      CALL cp_fm_struct_release(fm_struct)
-
-      nmo_virt_occ = nmo_virt*nmo_occ
-
-      ALLOCATE (weights_2d(nmo_virt, nmo_occ))
-      ALLOCATE (weights_abs_1d(nmo_virt_occ))
-      ALLOCATE (inds(nmo_virt_occ))
-
-      IF (log_unit > 0) &
-         WRITE (log_unit, '(/,1X,A,/)') "TDDFT singlet states"
-
-      DO istate = 1, nstates
-         IF (log_unit > 0) &
-            WRITE (log_unit, '(1X,A,1X,I8,3X,A,F14.7)') &
-            'TDDFT| State number:', istate, 'Excitation energy (eV):', evals(istate)*evolt
-
-         CALL cp_gemm('T', 'N', nmo_virt, nmo_occ, nao, 1.0_dp, S_mos_virt, evecs(istate)%matrix, 0.0_dp, weights_fm)
-
-         CALL cp_fm_get_submatrix(weights_fm, weights_2d)
-         CALL dcopy(nmo_virt_occ, weights_2d, 1, weights_abs_1d, 1)
-         weights_abs_1d = ABS(weights_abs_1d)
-         CALL sort(weights_abs_1d, nmo_virt_occ, inds)
-
-         IF (log_unit > 0) &
-            WRITE (log_unit, '(/,11X,A,T25,A,T40,A)') "Occ. state", "Virt. state", "Excitation amplitude"
-
-         DO iexc = nmo_virt_occ, 1, -1
-            IF (weights_abs_1d(iexc) < min_amplitude) EXIT
-
-            imo_occ = (inds(iexc)-1)/nmo_virt+1
-            imo_virt = MOD(inds(iexc)-1, nmo_virt)+1
-
-            IF (log_unit > 0) &
-               WRITE (log_unit, '(11X,I8,T25,I8,T50,F7.3)') nmo_occ_total-nmo_occ+imo_occ, &
-               nmo_occ_total+imo_virt, weights_2d(imo_virt, imo_occ)
-         END DO
-
-         IF (log_unit > 0) &
-            WRITE (log_unit, '()')
+      NULLIFY (fm_struct)
+      CALL cp_fm_get_info(matrix=evecs(1)%matrix, ncol_global=nmo_occ, matrix_struct=fm_struct)
+      DO ideriv = 1, nderivs
+         NULLIFY (dS_mos_occ(ideriv)%matrix)
+         CALL cp_fm_create(dS_mos_occ(ideriv)%matrix, fm_struct)
       END DO
 
-      DEALLOCATE (inds)
-      DEALLOCATE (weights_abs_1d)
-      DEALLOCATE (weights_2d)
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mos_virt, S_mos_virt, ncol=nmo_virt, alpha=1.0_dp, beta=0.0_dp)
+      DO ideriv = 1, nderivs
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s(ideriv+1)%matrix, mos_occ, dS_mos_occ(ideriv)%matrix, &
+                                      ncol=nmo_occ, alpha=1.0_dp, beta=0.0_dp)
+      END DO
 
+      NULLIFY (fm_struct, weights_fm, ediff_inv, ediff_inv_weights)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt, ncol_global=nmo_occ, para_env=para_env, context=blacs_env)
+      CALL cp_fm_create(weights_fm, fm_struct)
+      CALL cp_fm_create(ediff_inv, fm_struct)
+      CALL cp_fm_create(ediff_inv_weights, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL cp_fm_get_info(matrix=evecs(1)%matrix, matrix_struct=fm_struct)
+      NULLIFY (scaled_evect)
+      CALL cp_fm_create(scaled_evect, fm_struct)
+
+      ALLOCATE (weights_2d(nmo_virt, nmo_occ))
+      DO imo_occ = 1, nmo_occ
+         DO imo_virt = 1, nmo_virt
+            weights_2d(imo_virt, imo_occ) = 1.0_dp/(evals_virt(imo_virt)-evals_occ(imo_occ))
+         END DO
+      END DO
+      CALL cp_fm_set_submatrix(ediff_inv, weights_2d)
+
+      ! summary information
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(/,1X,A,/)') "TDDFT singlet states"
+
+         WRITE (log_unit, '(3X,A,T14,A,T31,A,T63,A)') "State", "Excitation", "Transition dipole (a.u.)", "Oscillator"
+         WRITE (log_unit, '(3X,A,T14,A,T33,A,T43,A,T53,A,T61,A)') "number", "energy (eV)", "x", "y", "z", "strength (a.u.)"
+         WRITE (log_unit, '(1X,74("-"))')
+      END IF
+
+      DO istate = 1, nstates
+         CALL cp_gemm('T', 'N', nmo_virt, nmo_occ, nao, 1.0_dp, S_mos_virt, evecs(istate)%matrix, 0.0_dp, weights_fm)
+
+         CALL cp_fm_schur_product(weights_fm, ediff_inv, ediff_inv_weights)
+         CALL cp_gemm('N', 'N', nao, nmo_occ, nmo_virt, 1.0_dp, mos_virt, ediff_inv_weights, 0.0_dp, scaled_evect)
+
+         DO ideriv = 1, nderivs
+            CALL cp_fm_trace(dS_mos_occ(ideriv)%matrix, scaled_evect, trans_dipole(ideriv))
+         END DO
+         oscillator_strength = 2.0_dp/3.0_dp*evals(istate)*DOT_PRODUCT(trans_dipole, trans_dipole)
+
+         IF (log_unit > 0) &
+            WRITE (log_unit, '(1X,I8,T14,F11.5,T28,3(1X,F9.4),T63,F10.5)') &
+            istate, evals(istate)*evolt, trans_dipole(1:nderivs), oscillator_strength
+      END DO
+
+      CALL cp_fm_release(scaled_evect)
+      CALL cp_fm_release(ediff_inv_weights)
+      CALL cp_fm_release(ediff_inv)
+
+      ! excitation analysis
+      IF (min_amplitude < 1.0_dp) THEN
+         nmo_virt_occ = nmo_virt*nmo_occ
+         ALLOCATE (weights_abs_1d(nmo_virt_occ))
+         ALLOCATE (inds(nmo_virt_occ))
+
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, '(/,1X,A,/)') "Excitation analysis"
+
+            WRITE (log_unit, '(3X,A,T15,A,T28,A,T41,A)') "State", "Occupied", "Virtual", "Excitation"
+            WRITE (log_unit, '(3X,A,T16,A,T28,A,T41,A)') "number", "orbital", "orbital", "amplitude"
+            WRITE (log_unit, '(1X,49("-"))')
+         END IF
+
+         DO istate = 1, nstates
+            CALL cp_gemm('T', 'N', nmo_virt, nmo_occ, nao, 1.0_dp, S_mos_virt, evecs(istate)%matrix, 0.0_dp, weights_fm)
+            CALL cp_fm_get_submatrix(weights_fm, weights_2d)
+            CALL dcopy(nmo_virt_occ, weights_2d, 1, weights_abs_1d, 1)
+            weights_abs_1d = ABS(weights_abs_1d)
+            CALL sort(weights_abs_1d, nmo_virt_occ, inds)
+
+            IF (log_unit > 0) &
+               WRITE (log_unit, '(1X,I8)') istate
+
+            DO iexc = nmo_virt_occ, 1, -1
+               IF (weights_abs_1d(iexc) < min_amplitude) EXIT
+
+               imo_occ = (inds(iexc)-1)/nmo_virt+1
+               imo_virt = MOD(inds(iexc)-1, nmo_virt)+1
+
+               IF (log_unit > 0) &
+                  WRITE (log_unit, '(T14,I8,T26,I8,T42,F9.6)') nmo_occ_total-nmo_occ+imo_occ, &
+                  nmo_occ_total+imo_virt, weights_2d(imo_virt, imo_occ)
+            END DO
+         END DO
+
+         DEALLOCATE (inds)
+         DEALLOCATE (weights_abs_1d)
+      END IF
+
+      DEALLOCATE (weights_2d)
       CALL cp_fm_release(weights_fm)
+      DO ideriv = 1, nderivs
+         CALL cp_fm_release(dS_mos_occ(ideriv)%matrix)
+      END DO
       CALL cp_fm_release(S_mos_virt)
 
       CALL timestop(handle)

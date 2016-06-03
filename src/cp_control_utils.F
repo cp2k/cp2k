@@ -1080,6 +1080,7 @@ CONTAINS
 
       CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%conv)
       CALL section_vals_val_get(t_section, "DEGENERATE_EPS", r_val=t_control%degenerate_eps)
+      CALL section_vals_val_get(t_section, "MIN_AMPLITUDE", r_val=t_control%min_excitation_amplitude)
 
       CALL section_vals_val_get(t_section, "ADD_DEGENERATE_STATES", l_val=t_control%add_degenerate)
 
@@ -1088,6 +1089,10 @@ CONTAINS
 
       IF (t_control%degenerate_eps < 0) &
          t_control%degenerate_eps = ABS(t_control%degenerate_eps)
+
+      ! activated in the subroutine cp2k_run() if the TDDFPT run is actually requested;
+      ! this is to ensure we compute derivatives of the overlap matrix only when they are needed
+      t_control%trans_dipole = .FALSE.
 
       CALL timestop(handle)
    END SUBROUTINE read_tddfpt2_control

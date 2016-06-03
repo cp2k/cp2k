@@ -387,8 +387,12 @@ MODULE cp_control_types
       REAL(kind=dp)                             :: conv
       !> energy threshold which controls when excited states are considered to be degenerate
       REAL(kind=dp)                             :: degenerate_eps
+      !> the smallest excitation amplitude to print
+      REAL(kind=dp)                             :: min_excitation_amplitude
       !> should all degenerate excited states be automatically added to the active space
       LOGICAL                                   :: add_degenerate
+      !> compute transition dipole moments and oscillator strengths
+      LOGICAL                                   :: trans_dipole
    END TYPE tddfpt2_control_type
 
 ! **************************************************************************************************

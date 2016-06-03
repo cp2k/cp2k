@@ -4014,7 +4014,7 @@ CONTAINS
                           "Currently limited for singlet states and spin-restricted density "// &
                           "and can be used with Gaussian and Plane Waves (GPW) method only. "// &
                           "The keyword 'FORCE_EVAL%DFT%EXCITATIONS tddfpt' is no longer needed.", &
-                          n_keywords=7, n_subsections=1, repeats=.FALSE., &
+                          n_keywords=8, n_subsections=1, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
 
       NULLIFY (keyword, print_key, subsection)
@@ -4063,6 +4063,13 @@ CONTAINS
                           description="Energy threshold which controls when excited states are considered to be degenerate.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
                           default_r_val=1.0e-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIN_AMPLITUDE", &
+                          description="The smallest excitation amplitude to print.", &
+                          n_var=1, type_of_var=real_t, &
+                          default_r_val=1.0e-2_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
