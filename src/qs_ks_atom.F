@@ -343,11 +343,6 @@ CONTAINS
                DO kbc = 1, alist_bc%nclist
                   IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
 
-                  IF (use_virial) THEN
-                     rac = alist_ac%clist(kac)%rac
-                     rbc = alist_bc%clist(kbc)%rac
-                  END IF
-
                   IF (ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
                      n_cont_a = alist_ac%clist(kac)%nsgf_cnt
                      n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
@@ -388,6 +383,10 @@ CONTAINS
 !$OMP END CRITICAL(update_ks_atom_add_vhxca_to_ks)
 
                      IF (forces) THEN
+                        IF (use_virial) THEN
+                           rac = alist_ac%clist(kac)%rac
+                           rbc = alist_bc%clist(kbc)%rac
+                        END IF
                         ia_kind = atom_of_kind(iatom)
                         ja_kind = atom_of_kind(jatom)
                         ka_kind = atom_of_kind(katom)
