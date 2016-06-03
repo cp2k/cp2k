@@ -181,6 +181,8 @@ CONTAINS
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
          ldCPC = max_gau
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      ELSE
+         use_virial = .FALSE.
       END IF
 
       nkind = SIZE(qs_kind_set, 1)
