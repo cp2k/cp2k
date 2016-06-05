@@ -87,11 +87,10 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, handle, i, iend, ifirst, igrp, ikind, ilast, ilist, indexa, &
          ipair, iparticle, iparticle_local, istart, iunique, jkind, junique, mpair, nkinds, &
-         nloc_size, npairs, nparticle, nparticle_local, nr_h3O, nr_oh, nunique
+         nloc_size, npairs, nparticle, nparticle_local, nr_h3O, nr_o, nr_oh, nunique
       INTEGER, DIMENSION(:), POINTER                     :: glob_loc_list_a, work_list
       INTEGER, DIMENSION(:, :), POINTER                  :: glob_loc_list, list, sort_list
-      LOGICAL                                            :: allow_h3o_formation, allow_oh_formation, &
-                                                            any_quip, any_siepmann, any_tersoff
+      LOGICAL                                            :: any_quip, any_siepmann, any_tersoff
       REAL(KIND=dp)                                      :: drij, embed, pot_loc, pot_quip, qr, &
                                                             rab2_max, rij(3)
       REAL(KIND=dp), DIMENSION(3)                        :: cell_v, cvi
@@ -111,8 +110,6 @@ CONTAINS
       any_tersoff = .FALSE.
       any_siepmann = .FALSE.
       any_quip = .FALSE.
-      allow_oh_formation = .FALSE.
-      allow_h3O_formation = .FALSE.
       CALL timeset(routineN, handle)
       CALL fist_nonbond_env_get(fist_nonbond_env, r_last_update_pbc=r_last_update_pbc, &
                                 potparm=potparm, eam_data=eam_data)
@@ -248,9 +245,10 @@ CONTAINS
       !SIEPMANN POTENTIAL
       IF (any_siepmann) THEN
          NULLIFY (glob_loc_list, glob_cell_v, glob_loc_list_a)
-         CALL setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
          nr_oh = 0
          nr_h3O = 0
+         nr_o = 0
+         CALL setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
          DO ilist = 1, nonbonded%nlists
             neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
             npairs = neighbor_kind_pair%npairs
@@ -269,8 +267,6 @@ CONTAINS
                   CALL matvec_3x3(cell_v, cell%hmat, cvi)
                   pot => potparm%pot(ikind, jkind)%pot
                   siepmann => pot%set(i)%siepmann
-                  IF (siepmann%allow_oh_formation) allow_oh_formation = .TRUE.
-                  IF (siepmann%allow_h3o_formation) allow_h3o_formation = .TRUE.
                   npairs = iend-istart+1
                   IF (npairs /= 0) THEN
                      ALLOCATE (sort_list(2, npairs), work_list(npairs))
@@ -315,7 +311,7 @@ CONTAINS
                            drij = SQRT(drij)
                            CALL siepmann_energy(pot_loc, siepmann, r_last_update_pbc, atom_a, atom_b, nloc_size, &
                                                 glob_loc_list(:, ifirst:ilast), cell_v, cell, drij, &
-                                                particle_set, nr_oh, nr_h3O)
+                                                particle_set, nr_oh, nr_h3O, nr_o)
                            pot_manybody = pot_manybody+pot_loc
                         END DO
                         ifirst = ilast+1
@@ -327,12 +323,12 @@ CONTAINS
             END DO Kind_Group_Loop_2
          END DO
          CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
-         IF (allow_oh_formation) THEN
-            CALL print_nr_ions_siepmann(nr_oh, mm_section, para_env, count_oh=.TRUE.)
-         ENDIF
-         IF (allow_h3o_formation) THEN
-            CALL print_nr_ions_siepmann(nr_h3o, mm_section, para_env, count_oh=.FALSE.)
-         ENDIF
+         CALL print_nr_ions_siepmann(nr_oh, mm_section, para_env, print_oh=.TRUE., &
+                                     print_h3o=.FALSE., print_o=.FALSE.)
+         CALL print_nr_ions_siepmann(nr_h3o, mm_section, para_env, print_oh=.FALSE., &
+                                     print_h3o=.TRUE., print_o=.FALSE.)
+         CALL print_nr_ions_siepmann(nr_o, mm_section, para_env, print_oh=.FALSE., &
+                                     print_h3o=.FALSE., print_o=.TRUE.)
       END IF
 
       CALL timestop(handle)

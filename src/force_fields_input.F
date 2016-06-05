@@ -1303,6 +1303,8 @@ CONTAINS
                                    l_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%allow_oh_formation)
          CALL section_vals_val_get(siepmann_section, "ALLOW_H3O_FORMATION", &
                                    l_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%allow_h3o_formation)
+         CALL section_vals_val_get(siepmann_section, "ALLOW_O_FORMATION", &
+                                   l_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%allow_o_formation)
 
          ! ! In case it is defined override the standard specification of RCUT
          CALL section_vals_val_get(siepmann_section, "RCUT", n_rep_val=n_rep)

@@ -2456,6 +2456,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="ALLOW_O_FORMATION", &
+                          description=" The Siepmann-Sprik potential is actually designed for intact"// &
+                          " water molecules only. If water is treated at the QM level,"// &
+                          " water molecules can potentially dissociate, i.e."// &
+                          " some O-H bonds might be stretched leading temporarily"// &
+                          " to the formation of O^2- ions. This keyword allows the"// &
+                          " the formation of such ions. The T3 term (dipole term)"// &
+                          " is then switched off for evaluating the interaction"// &
+                          " between the O^2- ion and the metal.", &
+                          usage="ALLOW_O2-_FORMATION TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_Siepmann_section
 
 ! **************************************************************************************************
