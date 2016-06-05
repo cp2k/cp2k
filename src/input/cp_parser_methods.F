@@ -1370,9 +1370,14 @@ CONTAINS
 
       DO WHILE (.NOT. parsing_done)
          i = i+iop
+         ! note that INDEX always starts counting from 1 if found. Thus iop
+         ! will give the length of the integer number plus 1
          iop = INDEX(string(i:n), "*")
          IF (iop == 0) THEN
             ! Last factor found: read it and then exit the loop
+            ! note that iop will always be the length of one integer plus 1
+            ! and we still need to calculate it here as it is need for fmtstr
+            ! below to determine integer format length
             iop = n-i+2
             parsing_done = .TRUE.
          END IF

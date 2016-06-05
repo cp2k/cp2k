@@ -680,21 +680,31 @@ CONTAINS
 !> \param iw ...
 !> \param el_per_part ...
 !> \param Ilist ...
+!> \param parts_per_line : number of particle columns to be printed in one line
 ! **************************************************************************************************
-   SUBROUTINE write_particle_matrix(matrix, particle_set, iw, el_per_part, Ilist)
+   SUBROUTINE write_particle_matrix(matrix, particle_set, iw, el_per_part, Ilist, parts_per_line)
       REAL(KIND=dp), DIMENSION(:, :)                     :: matrix
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: iw
       INTEGER, INTENT(IN), OPTIONAL                      :: el_per_part
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: Ilist
+      INTEGER, INTENT(IN), OPTIONAL                      :: parts_per_line
 
       CHARACTER(LEN=2)                                   :: element_symbol
+      CHARACTER(LEN=default_string_length)               :: fmt_string1, fmt_string2
       INTEGER                                            :: from, i, iatom, icol, jatom, katom, &
-                                                            my_el_per_part, natom, to
+                                                            my_el_per_part, my_parts_per_line, &
+                                                            natom, to
       INTEGER, DIMENSION(:), POINTER                     :: my_list
 
       my_el_per_part = 1
       IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
+      my_parts_per_line = 5
+      IF (PRESENT(parts_per_line)) my_parts_per_line = MAX(parts_per_line, 1)
+      WRITE (fmt_string1, FMT='(A,I0,A)') &
+         "(/,T2,11X,", my_parts_per_line, "(4X,I5,4X))"
+      WRITE (fmt_string2, FMT='(A,I0,A)') &
+         "(T2,I5,2X,A2,2X,", my_parts_per_line, "(1X,F12.6))"
       IF (PRESENT(Ilist)) THEN
          natom = SIZE(Ilist)
       ELSE
@@ -709,17 +719,16 @@ CONTAINS
          END DO
       END IF
       natom = natom*my_el_per_part
-      DO jatom = 1, natom, 5
+      DO jatom = 1, natom, my_parts_per_line
          from = jatom
-         to = MIN(from+4, natom)
-         WRITE (UNIT=iw, FMT="(/,T2,11X,5(4X,I5,4X))") &
-            (icol, icol=from, to)
+         to = MIN(from+my_parts_per_line-1, natom)
+         WRITE (UNIT=iw, FMT=TRIM(fmt_string1)) (icol, icol=from, to)
          DO iatom = 1, natom
             katom = iatom/my_el_per_part
             IF (MOD(iatom, my_el_per_part) /= 0) katom = katom+1
             CALL get_atomic_kind(atomic_kind=particle_set(my_list(katom))%atomic_kind, &
                                  element_symbol=element_symbol)
-            WRITE (UNIT=iw, FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))") &
+            WRITE (UNIT=iw, FMT=TRIM(fmt_string2)) &
                iatom, element_symbol, &
                (matrix(iatom, icol), icol=from, to)
          END DO

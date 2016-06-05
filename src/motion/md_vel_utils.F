@@ -17,6 +17,8 @@ MODULE md_vel_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
+   USE bibliography,                    ONLY: West2006,&
+                                              cite_reference
    USE cell_types,                      ONLY: &
         cell_type, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, &
         use_perd_yz, use_perd_z
@@ -37,13 +39,10 @@ MODULE md_vel_utils
    USE force_env_utils,                 ONLY: force_env_rattle,&
                                               force_env_shake
    USE global_types,                    ONLY: global_environment_type
-   USE input_constants,                 ONLY: npe_f_ensemble,&
-                                              npe_i_ensemble,&
-                                              nph_uniaxial_damped_ensemble,&
-                                              nph_uniaxial_ensemble,&
-                                              npt_f_ensemble,&
-                                              npt_i_ensemble,&
-                                              reftraj_ensemble
+   USE input_constants,                 ONLY: &
+        md_init_default, md_init_vib, npe_f_ensemble, npe_i_ensemble, &
+        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
+        reftraj_ensemble
    USE input_cp2k_binary_restarts,      ONLY: read_binary_velocities
    USE input_restart_force_eval,        ONLY: update_subsys
    USE input_section_types,             ONLY: section_vals_get,&
@@ -55,16 +54,23 @@ MODULE md_vel_utils
                                               val_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: diamat_all
    USE md_ener_types,                   ONLY: md_ener_type
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
+   USE md_util,                         ONLY: read_vib_eigs_unformatted
    USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
-   USE parallel_rng_types,              ONLY: next_random_number
+   USE parallel_rng_types,              ONLY: UNIFORM,&
+                                              create_rng_stream,&
+                                              delete_rng_stream,&
+                                              next_random_number,&
+                                              random_numbers,&
+                                              rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: kelvin
@@ -535,15 +541,28 @@ CONTAINS
 !> \param core_part ...
 !> \param force_rescaling ...
 !> \param para_env ...
+!> \param write_binary_restart_file ...
 !> \par History
 !>      - is_fixed removed from particle_type
 !>      - 2007-11-07: Cleanup (TV)
 !>      - 2007-11-09: Added angvel_zero feature
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
 ! **************************************************************************************************
-  SUBROUTINE initialize_velocities(simpar, part, force_env, globenv, md_env, &
-       molecule_kinds, label, print_section, subsys_section, shell_present,&
-       shell_part, core_part, force_rescaling, para_env)
+  SUBROUTINE initialize_velocities(simpar, &
+                                   part, &
+                                   force_env, &
+                                   globenv, &
+                                   md_env, &
+                                   molecule_kinds, &
+                                   label, &
+                                   print_section, &
+                                   subsys_section, &
+                                   shell_present,&
+                                   shell_part, &
+                                   core_part, &
+                                   force_rescaling, &
+                                   para_env, &
+                                   write_binary_restart_file)
 
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(particle_type), DIMENSION(:), POINTER         :: part
@@ -557,6 +576,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: shell_part, core_part
       LOGICAL, INTENT(IN)                                :: force_rescaling
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: write_binary_restart_file
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities', &
          routineP = moduleN//':'//routineN
@@ -574,6 +594,7 @@ CONTAINS
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(section_vals_type), POINTER                   :: md_section, root_section, vib_section
 
     CALL timeset(routineN,handle)
 
@@ -618,13 +639,31 @@ CONTAINS
        simpar%v_shock = simpar%v_shock * SQRT ( mass_tot )
     END IF
 
-
     CALL read_input_velocities(simpar, part, force_env, md_env, subsys_section,&
              shell_present, shell_part, core_part, force_rescaling, para_env, is_fixed, success)
-    IF(.NOT.success) &
-       CALL generate_velocities(simpar, part, force_env, globenv, md_env, shell_present,&
-                shell_part, core_part, is_fixed, iw)
-
+    IF (.NOT.success) THEN
+       SELECT CASE (simpar%initialization_method)
+       CASE (md_init_default)
+          CALL generate_velocities(simpar, part, force_env, globenv, md_env, shell_present,&
+               shell_part, core_part, is_fixed, iw)
+       CASE (md_init_vib)
+          CALL force_env_get(force_env=force_env, root_section=root_section)
+          md_section => section_vals_get_subs_vals(root_section, "MOTION%MD")
+          vib_section => section_vals_get_subs_vals(root_section, "VIBRATIONAL_ANALYSIS")
+          CALL generate_coords_vels_vib(simpar, &
+                                        part, &
+                                        md_section, &
+                                        vib_section, &
+                                        force_env, &
+                                        globenv, &
+                                        shell_present, &
+                                        shell_part, &
+                                        core_part, &
+                                        is_fixed)
+          ! update restart file for the modified coordinates and velocities
+          CALL update_subsys(subsys_section, force_env, .FALSE., write_binary_restart_file)
+       END SELECT
+    END IF
 
     IF (iw>0) THEN
        ! Recompute vcom, ecom and ekin for IO
@@ -838,6 +877,323 @@ CONTAINS
      END IF
   END SUBROUTINE read_input_velocities
 
+! **************************************************************************************************
+!> \brief Initializing velocities AND positions randomly on all processors, based on vibrational
+!>        modes of the system, so that the starting coordinates are already very close to
+!>        canonical ensumble corresponding to temperature of a head bath.
+!> \param simpar          : MD simulation parameters
+!> \param particles       : global array of all particles
+!> \param md_section      : MD input subsection
+!> \param vib_section     : vibrational analysis input section
+!> \param force_env       : force environment container
+!> \param global_env      : global environment container
+!> \param shell_present   : if core-shell model is used
+!> \param shell_particles : global array of all shell particles in shell model
+!> \param core_particles  : global array of all core particles in shell model
+!> \param is_fixed        : array of size of total number of atoms, that determines if any
+!>                          cartesian components are fixed
+!> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
+! **************************************************************************************************
+  SUBROUTINE generate_coords_vels_vib(simpar, &
+                                      particles, &
+                                      md_section, &
+                                      vib_section, &
+                                      force_env, &
+                                      global_env, &
+                                      shell_present, &
+                                      shell_particles, &
+                                      core_particles, &
+                                      is_fixed)
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particles
+      TYPE(section_vals_type), POINTER                   :: md_section, vib_section
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_environment_type), POINTER             :: global_env
+      LOGICAL, INTENT(IN)                                :: shell_present
+      TYPE(particle_type), DIMENSION(:), POINTER         :: shell_particles, core_particles
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: is_fixed
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_coords_vels_vib', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: dof, fixed_dof, iatom, ii, imode, &
+                                                            my_dof, natoms, shell_index
+      REAL(KIND=dp)                                      :: Erand, mass, my_phase, ratio, temperature
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, phase, random
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dr, eigenvectors
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(rng_stream_type), POINTER                     :: random_stream
+
+     NULLIFY(random_stream)
+     CALL cite_reference(West2006)
+     natoms = SIZE(particles)
+     temperature = simpar%temp_ext
+     my_dof = 3*natoms
+     ALLOCATE (eigenvalues(my_dof))
+     ALLOCATE (eigenvectors(my_dof,my_dof))
+     ALLOCATE (phase(my_dof))
+     ALLOCATE (random(my_dof))
+     ALLOCATE (dr(3,natoms))
+     CALL force_env_get(force_env=force_env, para_env=para_env)
+     ! read vibration modes
+     CALL read_vib_eigs_unformatted(md_section, &
+                                    vib_section, &
+                                    para_env, &
+                                    dof, &
+                                    eigenvalues, &
+                                    eigenvectors)
+     IF (my_dof .NE. dof) THEN
+        CALL cp_abort(__LOCATION__, &
+                      "number of degrees of freedom in vibrational analysis data "// &
+                      "do not match total number of cartesian degrees of freedom")
+     END IF
+     ! read phases
+     CALL section_vals_val_get(md_section, "INITIAL_VIBRATION%PHASE", r_val=my_phase)
+     my_phase = MIN(1.0_dp, my_phase)
+     ! generate random numbers
+     CALL create_rng_stream(random_stream, name="MD_INIT_VIB", distribution_type=UNIFORM)
+     CALL random_numbers(random, random_stream)
+     IF (my_phase .LT. 0.0_dp) THEN
+        CALL random_numbers(phase, random_stream)
+     ELSE
+        phase = my_phase
+     END IF
+     CALL delete_rng_stream(random_stream)
+     ! the first three modes are acoustic with zero frequencies,
+     ! exclude these from considerations
+     my_dof = dof - 3
+     ! randomly selects energy from distribution about kT, all
+     ! energies are scaled so that the sum over vibration modes gives
+     ! exactly my_dof*kT. Note that k = 1.0 in atomic units
+     Erand = 0.0_dp
+     DO imode = 4, dof
+        Erand = Erand - temperature*LOG(1.0_dp-random(imode))
+     END DO
+     ! need to take into account of fixed constraints too
+     fixed_dof = 0
+     DO iatom = 1, natoms
+        SELECT CASE (is_fixed(iatom))
+        CASE (use_perd_x, use_perd_y, use_perd_z)
+           fixed_dof = fixed_dof + 1
+        CASE (use_perd_xy, use_perd_xz, use_perd_yz)
+           fixed_dof = fixed_dof + 2
+        CASE (use_perd_xyz)
+           fixed_dof = fixed_dof + 3
+        END SELECT
+     END DO
+     my_dof = my_dof - fixed_dof
+     ratio = REAL(my_dof,KIND=dp)*temperature/Erand
+     ! update  velocities AND positions
+     DO iatom = 1, natoms
+        atomic_kind => particles(iatom)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+        SELECT CASE (is_fixed(iatom))
+        CASE (use_perd_x)
+           DO ii = 2, 3
+              dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
+                                               eigenvectors, random, phase, dof, ratio)
+              particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
+                                                        eigenvalues, eigenvectors, &
+                                                        random, phase, dof, ratio)
+           END DO
+        CASE (use_perd_y)
+           DO ii = 1, 3, 2
+              dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
+                                               eigenvectors, random, phase, dof, ratio)
+              particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
+                                                        eigenvalues, eigenvectors, &
+                                                        random, phase, dof, ratio)
+           END DO
+        CASE (use_perd_z)
+           DO ii = 1, 2
+              dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
+                                               eigenvectors, random, phase, dof, ratio)
+              particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
+                                                        eigenvalues, eigenvectors, &
+                                                        random, phase, dof, ratio)
+           END DO
+        CASE (use_perd_xy)
+           dr(3, iatom) = dr_from_vib_data(iatom, 3, mass, temperature, eigenvalues, &
+                                            eigenvectors, random, phase, dof, ratio)
+           particles(iatom)%v(3) = dv_from_vib_data(iatom, 3, mass, temperature, &
+                                                    eigenvalues, eigenvectors, &
+                                                    random, phase, dof, ratio)
+        CASE (use_perd_xz)
+           dr(2, iatom) = dr_from_vib_data(iatom, 2, mass, temperature, eigenvalues, &
+                                           eigenvectors, random, phase, dof, ratio)
+           particles(iatom)%v(2) = dv_from_vib_data(iatom, 2, mass, temperature, &
+                                                    eigenvalues, eigenvectors, &
+                                                    random, phase, dof, ratio)
+        CASE (use_perd_yz)
+           dr(1, iatom) = dr_from_vib_data(iatom, 1, mass, temperature, eigenvalues, &
+                                           eigenvectors, random, phase, dof, ratio)
+           particles(iatom)%v(1) = dv_from_vib_data(iatom, 1, mass, temperature, &
+                                                    eigenvalues, eigenvectors, &
+                                                    random, phase, dof, ratio)
+        CASE (use_perd_none)
+           DO ii = 1, 3
+              dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
+                                               eigenvectors, random, phase, dof, ratio)
+              particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
+                                                        eigenvalues, eigenvectors, &
+                                                        random, phase, dof, ratio)
+           END DO
+        END SELECT
+     END DO ! iatom
+     ! free memory
+     DEALLOCATE (eigenvalues)
+     DEALLOCATE (eigenvectors)
+     DEALLOCATE (phase)
+     DEALLOCATE (random)
+     ! update particle coordinates
+     DO iatom = 1, natoms
+        particles(iatom)%r(:) = particles(iatom)%r(:) + dr(:,iatom)
+     END DO
+     ! update core-shell model coordinates
+     IF (shell_present) THEN
+        ! particles have moved, and for core-shell model this means
+        ! the cores and shells must also move by the same amount. The
+        ! shell positions will then be optimised if needed
+        shell_index = particles(iatom)%shell_index
+        IF (shell_index .NE. 0) THEN
+           core_particles(shell_index)%r(:) = core_particles(shell_index)%r(:) + &
+                                              dr(:,iatom)
+           shell_particles(shell_index)%r(:) = shell_particles(shell_index)%r(:) + &
+                                               dr(:,iatom)
+        END IF
+        CALL optimize_shell_core(force_env, &
+                                 particles, &
+                                 shell_particles, &
+                                 core_particles, &
+                                 global_env)
+     END IF
+     ! cleanup
+     DEALLOCATE(dr)
+  END SUBROUTINE generate_coords_vels_vib
+
+! **************************************************************************************************
+!> \brief calculates componbent of initial velocity of an atom from vibreational modes
+!> \param iatom        : global atomic index
+!> \param icart        : cartesian index (1, 2 or 3)
+!> \param mass         : atomic mass
+!> \param temperature  : target temperature of canonical ensemble
+!> \param eigenvalues  : array containing all cartesian vibrational mode eigenvalues (frequencies)
+!> \param eigenvectors : array containing all corresponding vibrational mode eigenvectors
+!>                       (displacements)
+!> \param random       : array containing uniform distributed random numbers, must be the size
+!>                       of 3*natoms. Numbers must be between 0 and 1
+!> \param phase        : array containing numbers between 0 and 1 that determines for each
+!>                       vibration mode the ratio of potential energy vs kinetic energy contribution
+!>                       to total energy
+!> \param dof          : total number of degrees of freedom, = 3*natoms
+!> \param scale        : scale to make sure the sum of vibrational modes give the correct energy
+!> \retval res         : outputs icart-th cartesian component of initial position of atom iatom
+!> \author Lianheng Tong, lianheng.tong@kcl.ac.uk
+! **************************************************************************************************
+  PURE FUNCTION dr_from_vib_data(iatom, &
+                                 icart, &
+                                 mass, &
+                                 temperature, &
+                                 eigenvalues, &
+                                 eigenvectors, &
+                                 random, &
+                                 phase, &
+                                 dof, &
+                                 scale) &
+                                 RESULT(res)
+      INTEGER, INTENT(IN)                                :: iatom, icart
+      REAL(KIND=dp), INTENT(IN)                          :: mass, temperature
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: random, phase
+      INTEGER, INTENT(IN)                                :: dof
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      REAL(KIND=dp)                                      :: res
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dr_from_vib_data', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imode, ind
+
+     res = 0.0_dp
+     ! assuming the eigenvalues are sorted in accending order, the
+     ! first three modes are acoustic with zero frequencies. These are
+     ! excluded from considerations, and should have been reflected in
+     ! the calculation of scale outside this function
+     IF (mass .GT. 0.0_dp) THEN
+        ! eigenvector rows assumed to be grouped in atomic blocks
+        ind = (iatom - 1)*3 + icart
+        DO imode = 4, dof
+           res = res + &
+                 SQRT(-2.0_dp*scale*temperature*LOG(1-random(imode))/mass) / &
+                 eigenvalues(imode) * &
+                 eigenvectors(ind,imode) * &
+                 COS(2.0_dp*pi*phase(imode))
+        END DO
+     END IF
+  END FUNCTION dr_from_vib_data
+
+! **************************************************************************************************
+!> \brief calculates componbent of initial velocity of an atom from vibreational modes
+!> \param iatom        : global atomic index
+!> \param icart        : cartesian index (1, 2 or 3)
+!> \param mass         : atomic mass
+!> \param temperature  : target temperature of canonical ensemble
+!> \param eigenvalues  : array containing all cartesian vibrational mode eigenvalues (frequencies)
+!> \param eigenvectors : array containing all corresponding vibrational mode eigenvectors
+!>                       (displacements)
+!> \param random       : array containing uniform distributed random numbers, must be the size
+!>                       of 3*natoms. Numbers must be between 0 and 1
+!> \param phase        : array containing numbers between 0 and 1 that determines for each
+!>                       vibration mode the ratio of potential energy vs kinetic energy contribution
+!>                       to total energy
+!> \param dof          : total number of degrees of freedom, = 3*natoms
+!> \param scale        : scale to make sure the sum of vibrational modes give the correct energy
+!> \retval res         : outputs icart-th cartesian component of initial velocity of atom iatom
+!> \author Lianheng Tong, lianheng.tong@kcl.ac.uk
+! **************************************************************************************************
+  PURE FUNCTION dv_from_vib_data(iatom, &
+                                 icart, &
+                                 mass, &
+                                 temperature, &
+                                 eigenvalues, &
+                                 eigenvectors, &
+                                 random, &
+                                 phase, &
+                                 dof, &
+                                 scale) &
+                                 RESULT(res)
+      INTEGER, INTENT(IN)                                :: iatom, icart
+      REAL(KIND=dp), INTENT(IN)                          :: mass, temperature
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: random, phase
+      INTEGER, INTENT(IN)                                :: dof
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      REAL(KIND=dp)                                      :: res
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dv_from_vib_data', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: imode, ind
+
+     res = 0.0_dp
+     ! assuming the eigenvalues are sorted in accending order, the
+     ! first three modes are acoustic with zero frequencies. These are
+     ! excluded from considerations, and should have been reflected in
+     ! the calculation of scale outside this function
+     IF (mass .GT. 0.0_dp) THEN
+        ! eigenvector rows assumed to be grouped in atomic blocks
+        ind = (iatom - 1)*3 + icart
+        DO imode = 4, dof
+           res = res - &
+                 SQRT(-2.0_dp*scale*temperature*LOG(1-random(imode))/mass) * &
+                 eigenvectors(ind,imode) * &
+                 SIN(2.0_dp*pi*phase(imode))
+        END DO
+     END IF
+  END FUNCTION dv_from_vib_data
 
 ! **************************************************************************************************
 !> \brief Initializing velocities deterministically on all processors, if not given in input
@@ -854,7 +1210,7 @@ CONTAINS
 !> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>, Ole Schuett
 ! **************************************************************************************************
   SUBROUTINE generate_velocities(simpar, part, force_env, globenv, md_env,&
-                          shell_present, shell_part, core_part, is_fixed, iw)
+                                 shell_present, shell_part, core_part, is_fixed, iw)
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(particle_type), DIMENSION(:), POINTER         :: part
       TYPE(force_env_type), POINTER                      :: force_env
@@ -917,7 +1273,7 @@ CONTAINS
   END SUBROUTINE generate_velocities
 
 ! **************************************************************************************************
-!> \brief Direct velocities along a low-curvature direction in order to 
+!> \brief Direct velocities along a low-curvature direction in order to
 !>        favors MD trajectories to cross rapidly over small energy barriers
 !>        into neighboring basins.
 !> \param simpar ...
@@ -1812,20 +2168,32 @@ CONTAINS
        core_particle_set  =>  core_particles%els
     END IF
 
-    CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds,&
-         force_env=force_env, globenv=globenv, md_env=md_env,&
-         label="Velocities initialization",print_section=print_section, &
-         subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
-         shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.FALSE., &
-         para_env=para_env)
+    CALL initialize_velocities(simpar, &
+                               particle_set, &
+                               molecule_kinds=molecule_kinds, &
+                               force_env=force_env, &
+                               globenv=globenv, &
+                               md_env=md_env, &
+                               label="Velocities initialization", &
+                               print_section=print_section, &
+                               subsys_section=subsys_section, &
+                               shell_present=(shell_present.AND.shell_adiabatic), &
+                               shell_part=shell_particle_set, &
+                               core_part=core_particle_set, &
+                               force_rescaling=.FALSE., &
+                               para_env=para_env, &
+                               write_binary_restart_file=write_binary_restart_file)
 
     ! Apply constraints if required and rescale velocities..
     IF (simpar%ensemble /= reftraj_ensemble) THEN
        IF (apply_cns0) THEN
-          CALL force_env_calc_energy_force ( force_env, calc_force=.TRUE.)
-          CALL force_env_shake(force_env,shake_tol=simpar%shake_tol,&
-               log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
-               dump_lm=simpar%dump_lm,compold=.TRUE.)
+          CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
+          CALL force_env_shake(force_env, &
+                               shake_tol=simpar%shake_tol,&
+                               log_unit=simpar%info_constraint, &
+                               lagrange_mult=simpar%lagrange_multipliers,&
+                               dump_lm=simpar%dump_lm, &
+                               compold=.TRUE.)
           CALL force_env_rattle(force_env,shake_tol=simpar%shake_tol,&
                log_unit=simpar%info_constraint,lagrange_mult=simpar%lagrange_multipliers,&
                dump_lm=simpar%dump_lm,reset=.TRUE.)
@@ -1842,13 +2210,21 @@ CONTAINS
           ! Reinitialize velocities rescaling properly after rattle
           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
           CALL update_subsys(subsys_section,force_env,.FALSE.,write_binary_restart_file)
-
-          CALL initialize_velocities(simpar,particle_set, molecule_kinds=molecule_kinds,&
-               force_env=force_env, globenv=globenv, md_env=md_env,&
-               label="Re-Initializing velocities after applying constraints",print_section=print_section, &
-               subsys_section=subsys_section, shell_present=(shell_present.AND.shell_adiabatic), &
-               shell_part=shell_particle_set, core_part=core_particle_set, force_rescaling=.TRUE., &
-               para_env=para_env)
+          CALL initialize_velocities(simpar, &
+                                     particle_set, &
+                                     molecule_kinds=molecule_kinds,&
+                                     force_env=force_env, &
+                                     globenv=globenv, &
+                                     md_env=md_env, &
+                                     label="Re-Initializing velocities after applying constraints", &
+                                     print_section=print_section, &
+                                     subsys_section=subsys_section, &
+                                     shell_present=(shell_present.AND.shell_adiabatic), &
+                                     shell_part=shell_particle_set, &
+                                     core_part=core_particle_set, &
+                                     force_rescaling=.TRUE., &
+                                     para_env=para_env, &
+                                     write_binary_restart_file=write_binary_restart_file)
        END IF
     END IF
 

@@ -82,6 +82,8 @@ MODULE simpar_types
       INTEGER        :: soften_nsteps
       REAL(KIND=dp) :: soften_alpha
       REAL(KIND=dp) :: soften_delta
+      ! MD initialisation method
+      INTEGER       :: initialization_method
    END TYPE simpar_type
 
    PUBLIC :: simpar_type, &

@@ -12,7 +12,7 @@
 MODULE input_cp2k_md
    USE bibliography,                    ONLY: &
         Evans1983, Guidon2008, Kantorovich2008, Kantorovich2008a, Kolafa2004, Kuhne2007, &
-        Minary2003, Ricci2003, Tuckerman1992, VandeVondele2002
+        Minary2003, Ricci2003, Tuckerman1992, VandeVondele2002, West2006
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -21,9 +21,10 @@ MODULE input_cp2k_md
                                               medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_ensemble, &
-        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-        nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
+        isokin_ensemble, langevin_ensemble, md_init_default, md_init_vib, npe_f_ensemble, &
+        npe_i_ensemble, nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, &
+        reftraj_ensemble
    USE input_cp2k_barostats,            ONLY: create_barostat_section
    USE input_cp2k_thermostats,          ONLY: create_region_section,&
                                               create_thermo_fast_section,&
@@ -220,6 +221,29 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="INITIALIZATION_METHOD", &
+                          description="This keyword selects which method to use to initialize MD. "// &
+                          "If velecities are not set explicitly, DEFAULT optioin will assign "// &
+                          "random velocities and then scale according to TEMPERATURE; VIBRATIONAL "// &
+                          "option will then use previously calculated vibrational modes to "// &
+                          "initialise both the atomic positions and velocities so that the "// &
+                          "starting point for MD is as close to canonical ensemble as possible, "// &
+                          "without the need for lengthy equilibration steps. See PRL 96, 115504 "// &
+                          "(2006). The user input atomic positions in this case are expected to "// &
+                          "be already geometry optimised. Further options for VIBRATIONAL mode "// &
+                          "is can be set in INITIAL_VIBRATION subsection. If unspecified, then "// &
+                          "the DEFAULT mode will be used.", &
+                          usage="INITIALIZATION_METHOD DEFAULT", &
+                          default_i_val=md_init_default, &
+                          enum_c_vals=s2a("DEFAULT", "VIBRATIONAL"), &
+                          enum_desc=s2a("Assign random velocities and then scale according to "// &
+                                        "TEMPERATURE", &
+                                        "Initialise positions and velocities to give canonical ensemble "// &
+                                        "with TEMPERATURE, using the method described in PRL 96, 115504 (2006)"), &
+                          enum_i_vals=(/md_init_default, md_init_vib/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_langevin_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -269,6 +293,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_cascade_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_vib_init_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1306,5 +1334,62 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE create_avgs_restart_section
+
+! **************************************************************************************************
+!> \brief Defines the INITIAL_VIBRATION section
+!> \param section ...
+!> \author Lianheng Tong
+! **************************************************************************************************
+   SUBROUTINE create_vib_init_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_vib_init_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="INITIAL_VIBRATION", &
+                          description="Controls the set of parameters for MD initialisation "// &
+                          "based on vibration analysis data. The starting atomic coordinates "// &
+                          "should be based on the relaxed positions obtained from a previous "// &
+                          "geometry/cell optimisation calculation, and the vibrational "// &
+                          "frequencies and displacements data should be obtained from a "// &
+                          "vibrational analysis calculation done based on the relaxed "// &
+                          "coordinates. The MD initialisation process expects the user has "// &
+                          "performed both geometry optimisation and vibrational analysis "// &
+                          "before hand, and won't perform those calculations automatically ", &
+                          citations=(/West2006/), &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="VIB_EIGS_FILE_NAME", &
+                          description="The file name of vibrational frequency (eigenvalue)"// &
+                          "and displacement (eigenvector) data calculated from the a "// &
+                          "vibrational analysis calculation done previously. This file must "// &
+                          "be the same unformatted binary file as referred to by "// &
+                          "VIBRATIONAL_ANALYSIS%PRINT%CARTESIAN_EIGS keyword. If this keyword "// &
+                          "is not explicitly defined by the user, then the default file "// &
+                          "name of: <project_name>-<CARTESIAN_EIGS_FILENAME>.eig will be used", &
+                          usage="VIB_EIGS_FILE_NAME <FILENAME>", &
+                          type_of_var=lchar_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="PHASE", &
+                          description="Controls the initial ratio of potential and kinetic "// &
+                          "contribution to the total energy. The contribution is determined by"// &
+                          "COS**2(2*pi*PHASE) for potential energy, and SIN**2(2*pi*PHASE) "// &
+                          "for kinetic energy. If PHASE is negative, then for each vibration "// &
+                          "mode the phase is determined randomly. Otherwise, PHASE must be "// &
+                          "between 0.0 and 1.0 and will be the same for all vibration modes. "// &
+                          "If value > 1.0 it will just be treated as 1.0. "// &
+                          "For example, setting PHASE = 0.25 would set all modes to "// &
+                          "begin with entirely kinetic energy --- in other words, the initial "// &
+                          "atomic positions will remain at their optimised location", &
+                          default_r_val=-1.0_dp, &
+                          usage="PHASE <REAL>")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_vib_init_section
 
 END MODULE input_cp2k_md

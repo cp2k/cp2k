@@ -106,6 +106,10 @@ MODULE input_constants
                                                do_thermo_gle = 103, &
                                                do_thermo_al = 104
 
+   ! MD initialisation method
+   INTEGER, PARAMETER, PUBLIC               :: md_init_default = 1, &
+                                               md_init_vib = 2
+
    ! Run Types
    INTEGER, PARAMETER, PUBLIC               :: none_run = 1, &
                                                energy_run = 2, &

@@ -92,8 +92,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, iparticle1, &
-         iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, nRotTrM, nvib, output_unit, prep, &
-         proc_dist_type
+         iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, nRotTrM, nvib, output_unit, &
+         output_unit_eig, prep, proc_dist_type
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL                                            :: calc_intens, calc_thchdata, &
                                                             do_mode_tracking, keep_rotations, &
@@ -122,7 +122,20 @@ CONTAINS
       logger => cp_get_default_logger()
       vib_section => section_vals_get_subs_vals(input, "VIBRATIONAL_ANALYSIS")
       print_section => section_vals_get_subs_vals(vib_section, "PRINT")
-      output_unit = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", extension=".vibLog")
+      output_unit = cp_print_key_unit_nr(logger, &
+                                         print_section, &
+                                         "PROGRAM_RUN_INFO", &
+                                         extension=".vibLog")
+      ! for output of cartesian frequencies and eigenvectors of the
+      ! Hessian that can be used for initialisation of MD caclulations
+      output_unit_eig = cp_print_key_unit_nr(logger, &
+                                             print_section, &
+                                             "CARTESIAN_EIGS", &
+                                             extension=".eig", &
+                                             file_status="REPLACE", &
+                                             file_action="WRITE", &
+                                             do_backup=.TRUE., &
+                                             file_form="UNFORMATTED")
 
       CALL section_vals_val_get(vib_section, "DX", r_val=dx)
       CALL section_vals_val_get(vib_section, "NPROC_REP", i_val=prep)
@@ -384,6 +397,14 @@ CONTAINS
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T2,"VIB| Cartesian Low frequencies ---",4G12.5)') &
                   (H_eigval1(i), i=1, MIN(9, ncoord))
+               WRITE (output_unit, '(T2,A)') "VIB| Eigenvectors before removal of rotations and translations"
+               CALL write_particle_matrix(Hint1, particles, output_unit, el_per_part=3, &
+                                          Ilist=Mlist)
+            END IF
+            ! write frequencies and eigenvectors to cartesian eig file
+            IF (output_unit_eig > 0) THEN
+               CALL write_eigs_unformatted(output_unit_eig, &
+                                           ncoord, H_eigval1, Hint1)
             END IF
             IF (nvib /= 0) THEN
                Hint2(:, :) = MATMUL(TRANSPOSE(D), MATMUL(Hessian, D))
@@ -464,6 +485,7 @@ CONTAINS
          END IF
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, print_section, "PROGRAM_RUN_INFO")
+      CALL cp_print_key_finished_output(output_unit_eig, logger, print_section, "CARTESIAN_EIGS")
       CALL rep_env_release(rep_env)
       CALL timestop(handle)
    END SUBROUTINE vb_anal
@@ -843,5 +865,39 @@ CONTAINS
       ENDIF
 
    END SUBROUTINE get_thch_values
-END MODULE vibrational_analysis
 
+! **************************************************************************************************
+!> \brief write out the non-orthogalized, i.e. without rotation and translational symmetry removed,
+!>        eigenvalues and eigenvectors of the Cartesian Hessian in unformatted binary file
+!> \param unit : the output unit to write to
+!> \param dof  : total degrees of freedom, i.e. the rank of the Hessian matrix
+!> \param eigenvalues  : eigenvalues of the Hessian matrix
+!> \param eigenvectors : matrix with each column being the eigenvectors of the Hessian matrix
+!> \author Lianheng Tong - 2016/04/20
+! **************************************************************************************************
+   SUBROUTINE write_eigs_unformatted(unit, dof, eigenvalues, eigenvectors)
+      INTEGER, INTENT(IN)                                :: unit, dof
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenvectors
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_eigs_unformatted', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, jj
+
+      CALL timeset(routineN, handle)
+      IF (unit .GT. 0) THEN
+         ! degrees of freedom, i.e. the rank
+         WRITE (unit) dof
+         ! eigenvalues in one record
+         WRITE (unit) eigenvalues(1:dof)
+         ! eigenvectors: each record contains an eigenvector
+         DO jj = 1, dof
+            WRITE (unit) eigenvectors(1:dof, jj)
+         END DO
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE write_eigs_unformatted
+
+END MODULE vibrational_analysis

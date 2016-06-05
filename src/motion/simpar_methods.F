@@ -284,6 +284,8 @@ CONTAINS
       CALL section_vals_val_get(md_section, "DISPLACEMENT_TOL", r_val=simpar%dr_tol, &
                                 explicit=simpar%variable_dt)
       CALL section_vals_val_get(md_section, "TIMESTEP", r_val=simpar%dt)
+      CALL section_vals_val_get(md_section, "INITIALIZATION_METHOD", &
+                                i_val=simpar%initialization_method)
       ! Initialize dt_fact to 1.0
       simpar%dt_fact = 1.0_dp
 

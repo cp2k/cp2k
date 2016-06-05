@@ -77,7 +77,7 @@ MODULE bibliography
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
-                            Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016
+                            Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006
 
 CONTAINS
 
@@ -3420,6 +3420,20 @@ CONTAINS
                          "UT WOS:000375810000010", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b00015")
+
+      CALL add_reference(key=West2006, ISI_record=s2a( &
+                         "AU West, D", &
+                         "   Estreicher, S. K.", &
+                         "TI First-Principles Calculations of Vibrational Lifetimes ", &
+                         "   and Decay Channels: Hydrogen-Related Modes in Si", &
+                         "SO PHYSICAL REVIEW LETTERS", &
+                         "PY 2006", &
+                         "VL 96", &
+                         "IS 11", &
+                         "AR 115504", &
+                         "DI 10.1103/PhysRevLett.96.115504", &
+                         "ER"), &
+                         DOI="10.1103/PhysRevLett.96.115504")
 
    END SUBROUTINE add_all_references
 

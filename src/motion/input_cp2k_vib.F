@@ -193,6 +193,25 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, "CARTESIAN_EIGS", &
+                                       description="Controls the printing of Cartesian "// &
+                                       "frequencies and eigenvectors of the Hessian used "// &
+                                       "for initializing ensemble for MD calculations. "// &
+                                       "This should always print to a file, and will not "// &
+                                       "effect the same frequencies and eigenvectors printed "// &
+                                       "in the main vibrational analysis output", &
+                                       print_level=low_print_level, &
+                                       add_last=add_last_numeric, &
+                                       filename="VIBRATIONS")
+      CALL keyword_create(keyword, name="BACKUP_COPIES", &
+                          description="Specifies the maximum index of backup copies.", &
+                          usage="BACKUP_COPIES {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
    END SUBROUTINE create_print_vib_section
 
 ! **************************************************************************************************
