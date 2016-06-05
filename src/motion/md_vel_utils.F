@@ -1140,7 +1140,6 @@ CONTAINS
 !> \param icart        : cartesian index (1, 2 or 3)
 !> \param mass         : atomic mass
 !> \param temperature  : target temperature of canonical ensemble
-!> \param eigenvalues  : array containing all cartesian vibrational mode eigenvalues (frequencies)
 !> \param eigenvectors : array containing all corresponding vibrational mode eigenvectors
 !>                       (displacements)
 !> \param random       : array containing uniform distributed random numbers, must be the size
