@@ -994,50 +994,50 @@ CONTAINS
               dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
                                                eigenvectors, random, phase, dof, ratio)
               particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
-                                                        eigenvalues, eigenvectors, &
-                                                        random, phase, dof, ratio)
+                                                        eigenvectors, random, phase, dof, &
+                                                        ratio)
            END DO
         CASE (use_perd_y)
            DO ii = 1, 3, 2
               dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
                                                eigenvectors, random, phase, dof, ratio)
               particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
-                                                        eigenvalues, eigenvectors, &
-                                                        random, phase, dof, ratio)
+                                                        eigenvectors, random, phase, dof, &
+                                                        ratio)
            END DO
         CASE (use_perd_z)
            DO ii = 1, 2
               dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
                                                eigenvectors, random, phase, dof, ratio)
               particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
-                                                        eigenvalues, eigenvectors, &
-                                                        random, phase, dof, ratio)
+                                                        eigenvectors, random, phase, dof, &
+                                                        ratio)
            END DO
         CASE (use_perd_xy)
            dr(3, iatom) = dr_from_vib_data(iatom, 3, mass, temperature, eigenvalues, &
                                             eigenvectors, random, phase, dof, ratio)
            particles(iatom)%v(3) = dv_from_vib_data(iatom, 3, mass, temperature, &
-                                                    eigenvalues, eigenvectors, &
-                                                    random, phase, dof, ratio)
+                                                    eigenvectors, random, phase, dof, &
+                                                    ratio)
         CASE (use_perd_xz)
            dr(2, iatom) = dr_from_vib_data(iatom, 2, mass, temperature, eigenvalues, &
                                            eigenvectors, random, phase, dof, ratio)
            particles(iatom)%v(2) = dv_from_vib_data(iatom, 2, mass, temperature, &
-                                                    eigenvalues, eigenvectors, &
-                                                    random, phase, dof, ratio)
+                                                    eigenvectors, random, phase, dof, &
+                                                    ratio)
         CASE (use_perd_yz)
            dr(1, iatom) = dr_from_vib_data(iatom, 1, mass, temperature, eigenvalues, &
                                            eigenvectors, random, phase, dof, ratio)
            particles(iatom)%v(1) = dv_from_vib_data(iatom, 1, mass, temperature, &
-                                                    eigenvalues, eigenvectors, &
-                                                    random, phase, dof, ratio)
+                                                    eigenvectors, random, phase, dof, &
+                                                    ratio)
         CASE (use_perd_none)
            DO ii = 1, 3
               dr(ii, iatom) = dr_from_vib_data(iatom, ii, mass, temperature, eigenvalues, &
                                                eigenvectors, random, phase, dof, ratio)
               particles(iatom)%v(ii) = dv_from_vib_data(iatom, ii, mass, temperature, &
-                                                        eigenvalues, eigenvectors, &
-                                                        random, phase, dof, ratio)
+                                                        eigenvectors, random, phase, dof, &
+                                                        ratio)
            END DO
         END SELECT
      END DO ! iatom
@@ -1157,7 +1157,6 @@ CONTAINS
                                  icart, &
                                  mass, &
                                  temperature, &
-                                 eigenvalues, &
                                  eigenvectors, &
                                  random, &
                                  phase, &
@@ -1166,7 +1165,6 @@ CONTAINS
                                  RESULT(res)
       INTEGER, INTENT(IN)                                :: iatom, icart
       REAL(KIND=dp), INTENT(IN)                          :: mass, temperature
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: random, phase
       INTEGER, INTENT(IN)                                :: dof
