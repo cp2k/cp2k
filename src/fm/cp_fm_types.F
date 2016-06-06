@@ -74,7 +74,6 @@ MODULE cp_fm_types
              cp_fm_to_fm_submat, & ! copy (parts of) a fm to a fm
              cp_fm_to_fm_triangular, &
              cp_fm_copy_general, &
-             cp_fm_to_fm_submat_general, &
              cp_fm_write_unformatted, & ! writes a full matrix to an open unit
              cp_fm_read_unformatted, & ! reads a full matrix from an open unit
              cp_fm_setup, & ! allows to set flags for fms

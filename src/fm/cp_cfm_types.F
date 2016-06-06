@@ -36,8 +36,6 @@ MODULE cp_cfm_types
    PUBLIC :: cp_cfm_create, cp_cfm_release
    PUBLIC :: cp_cfm_set_all, cp_cfm_get_info, cp_cfm_get_element
    PUBLIC :: cp_cfm_set_element, cp_cfm_to_cfm, cp_cfm_to_fm
-   PUBLIC :: cp_cfm_set_submatrix, cp_cfm_to_cfm_triangular
-   PUBLIC :: cp_cfm_get_submatrix
 
    INTERFACE cp_cfm_to_cfm
       MODULE PROCEDURE cp_cfm_to_cfm_matrix, & ! a full matrix

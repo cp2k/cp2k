@@ -56,7 +56,6 @@ MODULE dbcsr_mp_operations
    PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
    PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any, dbcsr_ibcast_any
    PUBLIC :: dbcsr_iscatterv_any, dbcsr_gatherv_any
-   PUBLIC :: dbcsr_mp_type_indexed_make_any
    ! Type helpers
    PUBLIC :: dbcsr_mp_type_from_anytype
 

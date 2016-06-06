@@ -37,7 +37,6 @@ MODULE qs_fb_matrix_data_types
              fb_matrix_data_get, &
              fb_matrix_data_has_data, &
              fb_matrix_data_nullify, &
-             fb_matrix_data_status, &
              fb_matrix_data_release
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_matrix_data_types'

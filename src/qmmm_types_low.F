@@ -54,7 +54,7 @@ MODULE qmmm_types_low
    PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
    PUBLIC :: qmmm_imomm_link_type, qmmm_links_type
    PUBLIC :: add_set_type, add_set_release, create_add_set_type
-   PUBLIC :: add_shell_type, add_shell_release, create_add_shell_type
+   PUBLIC :: add_shell_type, create_add_shell_type
    PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
 
 ! **************************************************************************************************

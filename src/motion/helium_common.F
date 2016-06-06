@@ -60,16 +60,8 @@ MODULE helium_common
    PUBLIC :: helium_cycle_of
    PUBLIC :: helium_total_winding_number
    PUBLIC :: helium_total_projected_area
-   PUBLIC :: helium_link_projected_area
-   PUBLIC :: helium_cycle_projected_area
-   PUBLIC :: helium_cycle_projected_area_pbc
    PUBLIC :: helium_total_moment_of_inertia
-   PUBLIC :: helium_total_moment_of_inertia_linkwise
    PUBLIC :: helium_com
-   PUBLIC :: helium_total_projected_area_linkwise
-   PUBLIC :: helium_link_vector
-   PUBLIC :: helium_calc_cycles
-   PUBLIC :: helium_update_coord_system
    PUBLIC :: helium_set_rdf_coord_system
 
 CONTAINS

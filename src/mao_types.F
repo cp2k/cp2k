@@ -17,9 +17,6 @@ MODULE mao_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mao_types'
 
-   PUBLIC :: mao_type
-   PUBLIC :: create_mao_type, release_mao_type
-
 ! **************************************************************************************************
 !> \brief Quantities needed for MAO's
 !> \author JGH

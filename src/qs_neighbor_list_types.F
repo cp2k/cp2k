@@ -116,8 +116,7 @@ MODULE qs_neighbor_list_types
 
    PUBLIC :: neighbor_list_p_type, &
              neighbor_list_set_type, &
-             neighbor_list_set_p_type, &
-             neighbor_list_task_type
+             neighbor_list_set_p_type
 
 ! *** Public subroutines ***
 
@@ -135,8 +134,7 @@ MODULE qs_neighbor_list_types
              neighbor_list_iterate, &
              nl_set_sub_iterator, &
              nl_sub_iterate, &
-             get_iterator_info, &
-             get_iterator_task
+             get_iterator_info
 
 CONTAINS
 

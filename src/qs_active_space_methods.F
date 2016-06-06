@@ -134,7 +134,7 @@ MODULE qs_active_space_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_active_space_methods'
 
-   PUBLIC ::  active_space_main, update_active_space
+   PUBLIC :: active_space_main
 
 ! **************************************************************************************************
 

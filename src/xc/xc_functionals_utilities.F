@@ -29,7 +29,7 @@ MODULE xc_functionals_utilities
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_functionals_utilities'
 
-   PUBLIC :: set_util, setup_calculation, calc_rs, calc_fx, &
+   PUBLIC :: set_util, calc_rs, calc_fx, &
              calc_wave_vector, calc_z, calc_rs_pw, calc_srs_pw
 
    INTERFACE calc_fx

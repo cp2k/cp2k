@@ -37,7 +37,6 @@ MODULE pint_types
    PUBLIC :: staging_env_type
    PUBLIC :: pile_therm_type
    PUBLIC :: piglet_therm_type
-   PUBLIC :: pint_propagator_type
 
    ! ***************************************************************************
    !> \brief environment for a path integral run

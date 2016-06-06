@@ -21,7 +21,6 @@
 MODULE eri_mme_integrate
 
    USE ao_util,                         ONLY: exp_radius
-   USE eri_mme_error_control,           ONLY: eri_mme_set_params_custom
    USE eri_mme_gaussian,                ONLY: hermite_gauss_norm
    USE eri_mme_lattice_summation,       ONLY: pgf_sum_gspace_1d,&
                                               pgf_sum_gspace_3d,&
@@ -47,7 +46,6 @@ MODULE eri_mme_integrate
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_integrate'
 
    PUBLIC :: eri_mme_2c_integrate_low, &
-             eri_mme_set_params_custom, &
              eri_mme_2c_integrate_set
 
 CONTAINS

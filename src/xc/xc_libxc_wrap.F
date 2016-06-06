@@ -153,14 +153,12 @@ MODULE xc_libxc_wrap
    PUBLIC :: xc_f90_func_init, xc_f90_func_end
    PUBLIC :: xc_f90_info_family, xc_f90_info_kind, xc_f90_info_name
    PUBLIC :: xc_f90_gga_exc, xc_f90_gga_exc_vxc, xc_f90_gga_fxc, &
-             xc_f90_gga_lb_set_par, xc_f90_gga_vxc, xc_f90_gga_x_hjs_set_par, &
-             xc_f90_gga_x_wpbeh_set_par, xc_f90_hyb_gga_xc_hse_set_par
-   PUBLIC :: xc_f90_lda, xc_f90_lda_c_1d_csc_set_par, xc_f90_lda_c_2d_prm_set_par, &
-             xc_f90_lda_c_xalpha_set_par, xc_f90_lda_exc, xc_f90_lda_exc_vxc, &
-             xc_f90_lda_fxc, xc_f90_lda_kxc, xc_f90_lda_vxc, &
-             xc_f90_lda_x_1d_set_par, xc_f90_lda_x_set_par
+             xc_f90_gga_vxc
+   PUBLIC :: xc_f90_lda, &
+             xc_f90_lda_exc, xc_f90_lda_exc_vxc, &
+             xc_f90_lda_fxc, xc_f90_lda_kxc, xc_f90_lda_vxc
    PUBLIC :: xc_f90_mgga, xc_f90_mgga_exc, xc_f90_mgga_exc_vxc, xc_f90_mgga_fxc, &
-             xc_f90_mgga_vxc, xc_f90_mgga_x_tb09_set_par
+             xc_f90_mgga_vxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
              XC_FAMILY_HYB_GGA

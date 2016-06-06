@@ -67,11 +67,9 @@ MODULE helium_types
    !> derived data types
    PUBLIC :: helium_solvent_type
    PUBLIC :: int_arr_ptr
-   PUBLIC :: real_arr_ptr
 
    !> functions
    PUBLIC :: helium_destroy_int_arr_ptr
-   PUBLIC :: helium_destroy_real_arr_ptr
 
 ! ***************************************************************************
 !> \brief  Vector type useful for averaging

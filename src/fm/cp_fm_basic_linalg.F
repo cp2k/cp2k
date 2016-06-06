@@ -32,7 +32,6 @@ MODULE cp_fm_basic_linalg
 
    PUBLIC :: cp_fm_scale, & ! scale a matrix
              cp_fm_scale_and_add, & ! scale and add two matrices
-             cp_fm_geadd, & ! similar to cp_fm_scale_and_add, but allows transpose
              cp_fm_column_scale, & ! scale colummns of a matrix
              cp_fm_trace, & ! trace of the transpose(A)*B
              cp_fm_schur_product, & ! schur product
@@ -47,10 +46,7 @@ MODULE cp_fm_basic_linalg
              cp_fm_frobenius_norm, & ! frobenius norm
              cp_fm_triangular_invert, & ! compute the reciprocal of a tirangular matrix
              cp_fm_qr_factorization, & ! compute the QR factorization of a rectangular matrix
-             cp_fm_solve, & ! solves the equation  A*B=C A and C are input
-             cp_fm_lu_invert, & ! inverts a general matrix using LU factorisation
-             cp_fm_norm, & ! calculates norm of a matrix
-             cp_fm_latra ! calculates trace of a square matrix using (p)dlatra
+             cp_fm_solve ! solves the equation  A*B=C A and C are input
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
    REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra

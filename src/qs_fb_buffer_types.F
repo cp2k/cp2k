@@ -13,19 +13,14 @@ MODULE qs_fb_buffer_types
    PRIVATE
 
 ! public types
-   PUBLIC :: fb_buffer_i_obj, &
-             fb_buffer_d_obj
+   PUBLIC :: fb_buffer_d_obj
 
 ! public methods
    PUBLIC :: fb_buffer_add, &
-             fb_buffer_associate, &
              fb_buffer_create, &
-             fb_buffer_calc_disps, &
-             fb_buffer_calc_sizes, &
              fb_buffer_get, &
              fb_buffer_has_data, &
              fb_buffer_release, &
-             fb_buffer_retain, &
              fb_buffer_nullify, &
              fb_buffer_replace
 

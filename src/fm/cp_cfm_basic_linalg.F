@@ -30,8 +30,7 @@ MODULE cp_cfm_basic_linalg
    PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_gemm, cp_cfm_lu_decompose, &
              cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product, &
              cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply, &
-             cp_cfm_triangular_invert, cp_cfm_axpy, cp_cfm_geadd, cp_cfm_transpose, &
-             cp_cfm_cholesky_invert, cp_cfm_lu_invert, cp_cfm_norm, cp_cfm_latra
+             cp_cfm_triangular_invert
 
    REAL(KIND=dp), EXTERNAL :: zlange, pzlange, pzlatra
 

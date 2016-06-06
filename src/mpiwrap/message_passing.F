@@ -133,11 +133,11 @@ MODULE message_passing
 
    ! message passing
    PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync, mp_isum
-   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
+   PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
    PUBLIC :: mp_isend, mp_irecv, mp_ibcast
    PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
    PUBLIC :: mp_testall, mp_iscatter
-   PUBLIC :: mp_gatherv, mp_igatherv
+   PUBLIC :: mp_gatherv
    PUBLIC :: mp_send, mp_recv
 
    ! Memory management
@@ -157,7 +157,7 @@ MODULE message_passing
 
    ! some 'advanced types' currently only used for dbcsr
    PUBLIC :: mp_type_descriptor_type
-   PUBLIC :: mp_type_make, mp_type_free
+   PUBLIC :: mp_type_make
    PUBLIC :: mp_type_size
 
    ! some benchmarking code
@@ -168,8 +168,7 @@ MODULE message_passing
              mp_win_unlock_all, mp_rget
 
    ! vector types
-   PUBLIC :: mp_type_indexed_make_i, mp_type_indexed_make_l, &
-             mp_type_indexed_make_r, mp_type_indexed_make_d, &
+   PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
              mp_type_indexed_make_c, mp_type_indexed_make_z
 
 #ifndef __parallel
