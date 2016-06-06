@@ -21,12 +21,12 @@ def main():
     lib_dir = sys.argv[3]
 
     for root, dirs, files in os.walk(src_dir):
-        if("PACKAGE" in files):
+        if "PACKAGE" in files:
             content = open(path.join(root,"PACKAGE")).read()
             package = eval(content)
 
             archive = "libcp2k" + path.basename(root)
-            if(package.has_key("archive")):
+            if "archive" in package.keys():
                 archive = package["archive"]
 
             archive_fn = path.join(lib_dir, archive+".a")
@@ -51,7 +51,7 @@ def check_output(*popenargs, **kwargs):
     p = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
     output = p.communicate()[0]
     assert(p.wait() == 0)
-    return output
+    return output.decode()
 
 #=============================================================================
 if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
