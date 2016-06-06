@@ -52,7 +52,10 @@ MODULE qs_ks_atom
    USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB,                         ONLY: omp_get_max_threads,&
-!$                                            omp_get_thread_num
+!$                                            omp_get_thread_num,&
+!$                                            omp_lock_kind,&
+!$                                            omp_init_lock, omp_set_lock,&
+!$                                            omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 
@@ -112,6 +115,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
@@ -132,6 +136,9 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
       TYPE(rho_atom_type), POINTER                       :: rho_at
       TYPE(virial_type), POINTER                         :: virial
+
+!$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
+!$    INTEGER                                            :: lock_num
 
       CALL timeset(routineN, handle)
 
@@ -181,6 +188,7 @@ CONTAINS
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
          ldCPC = max_gau
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         IF (use_virial) pv_virial_thread(:, :) = 0.0_dp
       ELSE
          use_virial = .FALSE.
       END IF
@@ -240,11 +248,12 @@ CONTAINS
 !$OMP                 , basis_set_list                               &
 !$OMP                 , nimages, cell_to_index                       &
 !$OMP                 , nspins, ksmat, forces, pmat                  &
-!$OMP                 , nkind, qs_kind_set, oce                      &
+!$OMP                 , natom, nkind, qs_kind_set, oce               &
 !$OMP                 , rho_atom                                     &
 !$OMP                 , factor, ldCPC                                &
 !$OMP                 , atom_of_kind                                 &
-!$OMP                 , force, use_virial, virial                    &
+!$OMP                 , force, use_virial                            &
+!$OMP                 , locks                                        &
 !$OMP                 )                                              &
 !$OMP          PRIVATE( C_int_h, C_int_s                             &
 !$OMP                 , coc, a_matrix, p_matrix                      &
@@ -262,6 +271,8 @@ CONTAINS
 !$OMP                 , ia_kind, ja_kind, ka_kind                    &
 !$OMP                 , dCPC_h, dCPC_s, PC_h, PC_s                   &
 !$OMP                 , rac, rbc                                     &
+!$OMP                 )                                              &
+!$OMP        REDUCTION(+:pv_virial_thread                            &
 !$OMP                 )
 
       ALLOCATE (C_int_h(max_gau*max_nsgf), C_int_s(max_gau*max_nsgf), coc(max_gau*max_gau), &
@@ -275,8 +286,15 @@ CONTAINS
       IF (forces) THEN
          ALLOCATE (dCPC_h(max_gau, max_gau), dCPC_s(max_gau, max_gau), &
                    PC_h(max_nsgf, max_gau, nspins), PC_s(max_nsgf, max_gau, nspins))
-      ELSE
-         !do nothing
+!$OMP SINGLE
+!$       ALLOCATE (locks(natom*nkind))
+!$OMP END SINGLE
+
+!$OMP DO
+!$       do lock_num = 1, natom*nkind
+!$          call omp_init_lock(locks(lock_num))
+!$       end do
+!$OMP END DO
       END IF
 
       mepos = 0
@@ -396,32 +414,36 @@ CONTAINS
                            CALL add_vhxca_forces(mat_p, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
                                                  rho_at, force_tmp, nspins, iatom, jatom, nsoctot, &
                                                  list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix)
-!$OMP     CRITICAL(update_ks_atom_forces)
+!$                         call omp_set_lock(locks((ka_kind-1)*nkind+kkind))
                            force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind)+force_tmp(1:3, 3)
+!$                         call omp_unset_lock(locks((ka_kind-1)*nkind+kkind))
+!$                         call omp_set_lock(locks((ia_kind-1)*nkind+ikind))
                            force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind)+force_tmp(1:3, 1)
+!$                         call omp_unset_lock(locks((ia_kind-1)*nkind+ikind))
+!$                         call omp_set_lock(locks((ja_kind-1)*nkind+jkind))
                            force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind)+force_tmp(1:3, 2)
-!$OMP END CRITICAL(update_ks_atom_forces)
-!$OMP     CRITICAL(update_ks_atom_virial)
+!$                         call omp_unset_lock(locks((ja_kind-1)*nkind+jkind))
                            IF (use_virial) THEN
-                              CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 1), rac)
-                              CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 2), rbc)
+                              CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 1), rac)
+                              CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rbc)
                            END IF
-!$OMP END CRITICAL(update_ks_atom_virial)
                         ELSE
                            CALL add_vhxca_forces(mat_p, C_coeff_hh_b, C_coeff_hh_a, C_coeff_ss_b, C_coeff_ss_a, &
                                                  rho_at, force_tmp, nspins, jatom, iatom, nsoctot, &
                                                  list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, PC_h, PC_s, p_matrix)
-!$OMP     CRITICAL(update_ks_atom_forces)
+!$                         call omp_set_lock(locks((ka_kind-1)*nkind+kkind))
                            force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind)+force_tmp(1:3, 3)
+!$                         call omp_unset_lock(locks((ka_kind-1)*nkind+kkind))
+!$                         call omp_set_lock(locks((ia_kind-1)*nkind+ikind))
                            force(ikind)%vhxc_atom(1:3, ia_kind) = force(ikind)%vhxc_atom(1:3, ia_kind)+force_tmp(1:3, 2)
+!$                         call omp_unset_lock(locks((ia_kind-1)*nkind+ikind))
+!$                         call omp_set_lock(locks((ja_kind-1)*nkind+jkind))
                            force(jkind)%vhxc_atom(1:3, ja_kind) = force(jkind)%vhxc_atom(1:3, ja_kind)+force_tmp(1:3, 1)
-!$OMP END CRITICAL(update_ks_atom_forces)
-!$OMP     CRITICAL(update_ks_atom_virial)
+!$                         call omp_unset_lock(locks((ja_kind-1)*nkind+jkind))
                            IF (use_virial) THEN
-                              CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 2), rac)
-                              CALL virial_pair_force(virial%pv_virial, 1._dp, force_tmp(1:3, 1), rbc)
+                              CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 2), rac)
+                              CALL virial_pair_force(pv_virial_thread, 1._dp, force_tmp(1:3, 1), rbc)
                            END IF
-!$OMP END CRITICAL(update_ks_atom_virial)
                         END IF
                      END IF
                      EXIT ! search loop over jatom-katom list
@@ -439,10 +461,23 @@ CONTAINS
       DEALLOCATE (mat_h, mat_p, C_int_h, C_int_s, a_matrix, p_matrix, coc)
 
       IF (forces) THEN
-         DEALLOCATE (DCPC_h, dCPC_s, PC_h, PC_s)
+         DEALLOCATE (dCPC_h, dCPC_s, PC_h, PC_s)
+!$OMP DO
+!$       DO lock_num = 1, natom*nkind
+!$          call omp_destroy_lock(locks(lock_num))
+!$       END DO
+!$OMP END DO
+
+!$OMP SINGLE
+!$       DEALLOCATE (locks)
+!$OMP END SINGLE NOWAIT
       END IF
 
 !$OMP END PARALLEL
+
+      IF (use_virial) THEN
+         virial%pv_virial(1:3, 1:3) = virial%pv_virial(1:3, 1:3)+pv_virial_thread(1:3, 1:3)
+      END IF
 
       CALL neighbor_list_iterator_release(nl_iterator)
 
