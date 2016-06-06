@@ -235,7 +235,7 @@ CONTAINS
                           n_keywords=5, n_subsections=1, repeats=.FALSE.)
 
       CALL keyword_create(keyword, name="FREQUENCY", &
-                          description="value close to the expected value of the frequency for to look for. "// &
+                          description="value close to the expected value of the frequency to look for. "// &
                           "If the block Davidson algorithm is applied, the nrep closest frequencies are tracked. ", &
                           usage="FREQUENCY {REAL}", default_r_val=-1._dp)
       CALL section_add_keyword(section, keyword)

@@ -4,12 +4,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!  \brief implementation of dipole and three-body part of Siepmann-Sprik
-!         potential
+!> \brief implementation of dipole and three-body part of Siepmann-Sprik potential
 !>        dipole term: 3rd term in Eq. (1) in J. Chem. Phys., Vol. 102, p.511
 !>        three-body term: Eq. (4) in J. Chem. Phys., Vol. 102, p. 511
-!>        remaining terms of Siepmann-Sprik potential can be given via
-!>        the GENPOT section
+!>        remaining terms of Siepmann-Sprik potential can be given via the GENPOT section
 !> \par History
 !>      12.2012 created
 !> \author Dorothea Golze
