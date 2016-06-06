@@ -21,10 +21,10 @@ MODULE colvar_methods
         coord_colvar_id, dfunct_colvar_id, dist_colvar_id, distance_from_path_colvar_id, &
         do_clv_fix_point, do_clv_geo_center, do_clv_x, do_clv_xy, do_clv_xz, do_clv_y, do_clv_yz, &
         do_clv_z, eval_point_der, eval_point_mass, eval_point_pos, gyration_colvar_id, &
-        hydronium_colvar_id, mindist_colvar_id, plane_def_atoms, plane_def_vec, &
-        plane_distance_colvar_id, plane_plane_angle_colvar_id, population_colvar_id, &
-        qparm_colvar_id, reaction_path_colvar_id, ring_puckering_colvar_id, rmsd_colvar_id, &
-        rotation_colvar_id, torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
+        hydronium_dist_colvar_id, hydronium_shell_colvar_id, mindist_colvar_id, plane_def_atoms, &
+        plane_def_vec, plane_distance_colvar_id, plane_plane_angle_colvar_id, &
+        population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, ring_puckering_colvar_id, &
+        rmsd_colvar_id, rotation_colvar_id, torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
         xyz_outerdiag_colvar_id
    USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -140,7 +140,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: iatms
       INTEGER, DIMENSION(:, :), POINTER                  :: p_bounds
       LOGICAL                                            :: check, use_mixed_energy
-      LOGICAL, DIMENSION(25)                             :: my_subsection
+      LOGICAL, DIMENSION(26)                             :: my_subsection
       REAL(dp), DIMENSION(:), POINTER                    :: s1, wei, weights
       REAL(dp), DIMENSION(:, :), POINTER                 :: p_range, s1v
       REAL(KIND=dp), DIMENSION(1)                        :: my_val
@@ -153,11 +153,12 @@ CONTAINS
       TYPE(section_vals_type), POINTER :: acid_hyd_dist_section, acid_hyd_shell_section, &
          angle_section, colvar_subsection, combine_section, coordination_section, dfunct_section, &
          distance_from_path_section, distance_section, frame_section, gyration_section, &
-         HBP_section, hydronium_section, mindist_section, path_section, plane_dist_section, &
-         plane_plane_angle_section, plane_sections, point_section, population_section, &
-         qparm_section, reaction_path_section, ring_puckering_section, rmsd_section, &
-         rotation_section, torsion_section, u_section, Wc_section, wrk_section, xyz_diag_section
-      TYPE(section_vals_type), POINTER :: xyz_outerdiag_section
+         HBP_section, hydronium_dist_section, hydronium_shell_section, mindist_section, &
+         path_section, plane_dist_section, plane_plane_angle_section, plane_sections, &
+         point_section, population_section, qparm_section, reaction_path_section, &
+         ring_puckering_section, rmsd_section, rotation_section, torsion_section, u_section, &
+         Wc_section, wrk_section
+      TYPE(section_vals_type), POINTER :: xyz_diag_section, xyz_outerdiag_section
 
       CALL timeset(routineN, handle)
       NULLIFY (logger, c_kinds, iatms)
@@ -174,7 +175,8 @@ CONTAINS
          => section_vals_get_subs_vals(colvar_section, "ANGLE_PLANE_PLANE", i_rep_section=icol)
       rotation_section => section_vals_get_subs_vals(colvar_section, "BOND_ROTATION", i_rep_section=icol)
       qparm_section => section_vals_get_subs_vals(colvar_section, "QPARM", i_rep_section=icol)
-      hydronium_section => section_vals_get_subs_vals(colvar_section, "HYDRONIUM", i_rep_section=icol)
+      hydronium_shell_section => section_vals_get_subs_vals(colvar_section, "HYDRONIUM_SHELL", i_rep_section=icol)
+      hydronium_dist_section => section_vals_get_subs_vals(colvar_section, "HYDRONIUM_DISTANCE", i_rep_section=icol)
       acid_hyd_dist_section => section_vals_get_subs_vals(colvar_section, "ACID_HYDRONIUM_DISTANCE", i_rep_section=icol)
       acid_hyd_shell_section &
          => section_vals_get_subs_vals(colvar_section, "ACID_HYDRONIUM_SHELL", i_rep_section=icol)
@@ -205,7 +207,7 @@ CONTAINS
       CALL section_vals_get(rotation_section, explicit=my_subsection(6))
       CALL section_vals_get(dfunct_section, explicit=my_subsection(7))
       CALL section_vals_get(qparm_section, explicit=my_subsection(8))
-      CALL section_vals_get(hydronium_section, explicit=my_subsection(9))
+      CALL section_vals_get(hydronium_shell_section, explicit=my_subsection(9))
       ! These are just special cases since they are not present in their own defition of COLVARS
       IF (ASSOCIATED(reaction_path_section)) THEN
          CALL section_vals_get(reaction_path_section, &
@@ -233,6 +235,7 @@ CONTAINS
       CALL section_vals_get(mindist_section, explicit=my_subsection(23))
       CALL section_vals_get(acid_hyd_dist_section, explicit=my_subsection(24))
       CALL section_vals_get(acid_hyd_shell_section, explicit=my_subsection(25))
+      CALL section_vals_get(hydronium_dist_section, explicit=my_subsection(26))
 
       ! Only one colvar can be present
       CPASSERT(COUNT(my_subsection) == 1)
@@ -442,40 +445,14 @@ CONTAINS
          colvar%qparm_param%n_atoms_to = ndim
       ELSE IF (my_subsection(9)) THEN
          ! Hydronium
-         CALL colvar_create(colvar, hydronium_colvar_id)
-         NULLIFY (colvar%hydronium_param%i_oxygens)
-         NULLIFY (colvar%hydronium_param%i_hydrogens)
-
-         CALL section_vals_val_get(hydronium_section, "OXYGENS", n_rep_val=n_var)
-         ndim = 0
-         DO k = 1, n_var
-            CALL section_vals_val_get(hydronium_section, "OXYGENS", i_vals=iatms)
-            CALL reallocate(colvar%hydronium_param%i_oxygens, 1, ndim+SIZE(iatms))
-            colvar%hydronium_param%i_oxygens(ndim+1:ndim+SIZE(iatms)) = iatms
-            ndim = ndim+SIZE(iatms)
-         END DO
-         colvar%hydronium_param%n_oxygens = ndim
-
-         CALL section_vals_val_get(hydronium_section, "HYDROGENS", n_rep_val=n_var)
-         ndim = 0
-         DO k = 1, n_var
-            CALL section_vals_val_get(hydronium_section, "HYDROGENS", i_vals=iatms)
-            CALL reallocate(colvar%hydronium_param%i_hydrogens, 1, ndim+SIZE(iatms))
-            colvar%hydronium_param%i_hydrogens(ndim+1:ndim+SIZE(iatms)) = iatms
-            ndim = ndim+SIZE(iatms)
-         END DO
-         colvar%hydronium_param%n_hydrogens = ndim
-
-         CALL section_vals_val_get(hydronium_section, "ROO", r_val=colvar%hydronium_param%roo)
-         CALL section_vals_val_get(hydronium_section, "ROH", r_val=colvar%hydronium_param%roh)
-         CALL section_vals_val_get(hydronium_section, "pOH", i_val=colvar%hydronium_param%poh)
-         CALL section_vals_val_get(hydronium_section, "qOH", i_val=colvar%hydronium_param%qoh)
-         CALL section_vals_val_get(hydronium_section, "pOO", i_val=colvar%hydronium_param%poo)
-         CALL section_vals_val_get(hydronium_section, "qOO", i_val=colvar%hydronium_param%qoo)
-         CALL section_vals_val_get(hydronium_section, "pM", i_val=colvar%hydronium_param%pm)
-         CALL section_vals_val_get(hydronium_section, "qM", i_val=colvar%hydronium_param%qm)
-         CALL section_vals_val_get(hydronium_section, "NH", r_val=colvar%hydronium_param%nh)
-         CALL section_vals_val_get(hydronium_section, "LAMBDA", r_val=colvar%hydronium_param%lambda)
+         CALL colvar_create(colvar, hydronium_shell_colvar_id)
+         NULLIFY (colvar%hydronium_shell_param%i_oxygens)
+         NULLIFY (colvar%hydronium_shell_param%i_hydrogens)
+         CALL read_hydronium_colvars(hydronium_shell_section, colvar, hydronium_shell_colvar_id, &
+                                     colvar%hydronium_shell_param%n_oxygens, &
+                                     colvar%hydronium_shell_param%n_hydrogens, &
+                                     colvar%hydronium_shell_param%i_oxygens, &
+                                     colvar%hydronium_shell_param%i_hydrogens)
       ELSE IF (my_subsection(10) .OR. my_subsection(16)) THEN
          !reaction path or distance from reaction path
          IF (my_subsection(10)) THEN
@@ -1065,6 +1042,16 @@ CONTAINS
                                           colvar%acid_hyd_shell_param%i_oxygens_water, &
                                           colvar%acid_hyd_shell_param%i_oxygens_acid, &
                                           colvar%acid_hyd_shell_param%i_hydrogens)
+      ELSE IF (my_subsection(26)) THEN
+         ! Distance hydronium and hydroxide, autoionization of water
+         CALL colvar_create(colvar, hydronium_dist_colvar_id)
+         NULLIFY (colvar%hydronium_dist_param%i_oxygens)
+         NULLIFY (colvar%hydronium_dist_param%i_hydrogens)
+         CALL read_hydronium_colvars(hydronium_dist_section, colvar, hydronium_dist_colvar_id, &
+                                     colvar%hydronium_dist_param%n_oxygens, &
+                                     colvar%hydronium_dist_param%n_hydrogens, &
+                                     colvar%hydronium_dist_param%i_oxygens, &
+                                     colvar%hydronium_dist_param%i_hydrogens)
       END IF
       CALL colvar_setup(colvar)
 
@@ -1228,15 +1215,25 @@ CONTAINS
             CPWARN("Description header for REACTION_PATH COLVAR missing!!")
          CASE (distance_from_path_colvar_id)
             CPWARN("Description header for REACTION_PATH COLVAR missing!!")
-         CASE (hydronium_colvar_id)
-            WRITE (iw, '( A,T71,I10)') ' COLVARS| POH', colvar%hydronium_param%poh
-            WRITE (iw, '( A,T71,I10)') ' COLVARS| QOH', colvar%hydronium_param%qoh
-            WRITE (iw, '( A,T71,I10)') ' COLVARS| POO', colvar%hydronium_param%poo
-            WRITE (iw, '( A,T71,I10)') ' COLVARS| QOO', colvar%hydronium_param%qoo
-            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ROO', colvar%hydronium_param%roo
-            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ROH', colvar%hydronium_param%roh
-            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| NH', colvar%hydronium_param%nh
-            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| LAMBDA', colvar%hydronium_param%lambda
+         CASE (hydronium_shell_colvar_id)
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| POH', colvar%hydronium_shell_param%poh
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| QOH', colvar%hydronium_shell_param%qoh
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| POO', colvar%hydronium_shell_param%poo
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| QOO', colvar%hydronium_shell_param%qoo
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ROO', colvar%hydronium_shell_param%roo
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ROH', colvar%hydronium_shell_param%roh
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| NH', colvar%hydronium_shell_param%nh
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| LAMBDA', colvar%hydronium_shell_param%lambda
+         CASE (hydronium_dist_colvar_id)
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| POH', colvar%hydronium_dist_param%poh
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| QOH', colvar%hydronium_dist_param%qoh
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ROH', colvar%hydronium_dist_param%roh
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| PM', colvar%hydronium_dist_param%pm
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| QM', colvar%hydronium_dist_param%qm
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| NH', colvar%hydronium_dist_param%nh
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| PF', colvar%hydronium_dist_param%pf
+            WRITE (iw, '( A,T71,I10)') ' COLVARS| QF', colvar%hydronium_dist_param%qf
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| NN', colvar%hydronium_dist_param%nn
          CASE (acid_hyd_dist_colvar_id)
             WRITE (iw, '( A,T71,I10)') ' COLVARS| PAOH', colvar%acid_hyd_dist_param%paoh
             WRITE (iw, '( A,T71,I10)') ' COLVARS| QAOH', colvar%acid_hyd_dist_param%qaoh
@@ -1380,6 +1377,80 @@ CONTAINS
                                         "PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
    END SUBROUTINE colvar_read
+
+! **************************************************************************************************
+!> \brief read collective variables for the autoionization of water
+!> \param section ...
+!> \param colvar collective variable
+!> \param colvar_id  ...
+!> \param n_oxygens number of oxygens
+!> \param n_hydrogens number of hydrogens
+!> \param i_oxygens list of oxygens
+!> \param i_hydrogens list of hydrogens
+!> \author Dorothea Golze
+! **************************************************************************************************
+   SUBROUTINE read_hydronium_colvars(section, colvar, colvar_id, n_oxygens, n_hydrogens, &
+                                     i_oxygens, i_hydrogens)
+      TYPE(section_vals_type), POINTER                   :: section
+      TYPE(colvar_type), POINTER                         :: colvar
+      INTEGER, INTENT(IN)                                :: colvar_id
+      INTEGER, INTENT(OUT)                               :: n_oxygens, n_hydrogens
+      INTEGER, DIMENSION(:), POINTER                     :: i_oxygens, i_hydrogens
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_hydronium_colvars', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: k, n_var, ndim
+      INTEGER, DIMENSION(:), POINTER                     :: iatms
+
+      NULLIFY (iatms)
+
+      CALL section_vals_val_get(section, "OXYGENS", n_rep_val=n_var)
+      ndim = 0
+      DO k = 1, n_var
+         CALL section_vals_val_get(section, "OXYGENS", i_vals=iatms)
+         CALL reallocate(i_oxygens, 1, ndim+SIZE(iatms))
+         i_oxygens(ndim+1:ndim+SIZE(iatms)) = iatms
+         ndim = ndim+SIZE(iatms)
+      END DO
+      n_oxygens = ndim
+
+      CALL section_vals_val_get(section, "HYDROGENS", n_rep_val=n_var)
+      ndim = 0
+      DO k = 1, n_var
+         CALL section_vals_val_get(section, "HYDROGENS", i_vals=iatms)
+         CALL reallocate(i_hydrogens, 1, ndim+SIZE(iatms))
+         i_hydrogens(ndim+1:ndim+SIZE(iatms)) = iatms
+         ndim = ndim+SIZE(iatms)
+      END DO
+      n_hydrogens = ndim
+
+      SELECT CASE (colvar_id)
+      CASE (hydronium_shell_colvar_id)
+         CALL section_vals_val_get(section, "ROO", r_val=colvar%hydronium_shell_param%roo)
+         CALL section_vals_val_get(section, "ROH", r_val=colvar%hydronium_shell_param%roh)
+         CALL section_vals_val_get(section, "pOH", i_val=colvar%hydronium_shell_param%poh)
+         CALL section_vals_val_get(section, "qOH", i_val=colvar%hydronium_shell_param%qoh)
+         CALL section_vals_val_get(section, "pOO", i_val=colvar%hydronium_shell_param%poo)
+         CALL section_vals_val_get(section, "qOO", i_val=colvar%hydronium_shell_param%qoo)
+         CALL section_vals_val_get(section, "pM", i_val=colvar%hydronium_shell_param%pm)
+         CALL section_vals_val_get(section, "qM", i_val=colvar%hydronium_shell_param%qm)
+         CALL section_vals_val_get(section, "NH", r_val=colvar%hydronium_shell_param%nh)
+         CALL section_vals_val_get(section, "LAMBDA", r_val=colvar%hydronium_shell_param%lambda)
+      CASE (hydronium_dist_colvar_id)
+         CALL section_vals_val_get(section, "ROH", r_val=colvar%hydronium_dist_param%roh)
+         CALL section_vals_val_get(section, "pOH", i_val=colvar%hydronium_dist_param%poh)
+         CALL section_vals_val_get(section, "qOH", i_val=colvar%hydronium_dist_param%qoh)
+         CALL section_vals_val_get(section, "pF", i_val=colvar%hydronium_dist_param%pf)
+         CALL section_vals_val_get(section, "qF", i_val=colvar%hydronium_dist_param%qf)
+         CALL section_vals_val_get(section, "pM", i_val=colvar%hydronium_dist_param%pm)
+         CALL section_vals_val_get(section, "qM", i_val=colvar%hydronium_dist_param%qm)
+         CALL section_vals_val_get(section, "NH", r_val=colvar%hydronium_dist_param%nh)
+         CALL section_vals_val_get(section, "NN", r_val=colvar%hydronium_dist_param%nn)
+         CALL section_vals_val_get(section, "LAMBDA", r_val=colvar%hydronium_dist_param%lambda)
+      END SELECT
+
+   END SUBROUTINE read_hydronium_colvars
 
 ! **************************************************************************************************
 !> \brief read collective variables for the dissociation of a carboxylic acid
@@ -1609,8 +1680,10 @@ CONTAINS
          CALL rotation_colvar(colvar, cell, particles=particles)
       CASE (qparm_colvar_id)
          CALL qparm_colvar(colvar, cell, particles=particles)
-      CASE (hydronium_colvar_id)
-         CALL hydronium_colvar(colvar, cell, particles=particles)
+      CASE (hydronium_shell_colvar_id)
+         CALL hydronium_shell_colvar(colvar, cell, particles=particles)
+      CASE (hydronium_dist_colvar_id)
+         CALL hydronium_dist_colvar(colvar, cell, particles=particles)
       CASE (acid_hyd_dist_colvar_id)
          CALL acid_hyd_dist_colvar(colvar, cell, particles=particles)
       CASE (acid_hyd_shell_colvar_id)
@@ -1700,8 +1773,10 @@ CONTAINS
          CALL rotation_colvar(colvar, cell, subsys=subsys)
       CASE (qparm_colvar_id)
          CALL qparm_colvar(colvar, cell, subsys=subsys)
-      CASE (hydronium_colvar_id)
-         CALL hydronium_colvar(colvar, cell, subsys=subsys)
+      CASE (hydronium_shell_colvar_id)
+         CALL hydronium_shell_colvar(colvar, cell, subsys=subsys)
+      CASE (hydronium_dist_colvar_id)
+         CALL hydronium_dist_colvar(colvar, cell, subsys=subsys)
       CASE (acid_hyd_dist_colvar_id)
          CALL acid_hyd_dist_colvar(colvar, cell, subsys=subsys)
       CASE (acid_hyd_shell_colvar_id)
@@ -1773,8 +1848,10 @@ CONTAINS
          CALL rotation_colvar(colvar, cell, particles=particles)
       CASE (qparm_colvar_id)
          CALL qparm_colvar(colvar, cell, particles=particles)
-      CASE (hydronium_colvar_id)
-         CALL hydronium_colvar(colvar, cell, particles=particles)
+      CASE (hydronium_shell_colvar_id)
+         CALL hydronium_shell_colvar(colvar, cell, particles=particles)
+      CASE (hydronium_dist_colvar_id)
+         CALL hydronium_dist_colvar(colvar, cell, particles=particles)
       CASE (acid_hyd_dist_colvar_id)
          CALL acid_hyd_dist_colvar(colvar, cell, particles=particles)
       CASE (acid_hyd_shell_colvar_id)
@@ -3169,7 +3246,7 @@ CONTAINS
    END SUBROUTINE qparm_colvar
 
 ! **************************************************************************************************
-!> \brief evaluates the force due (and on) the hydronium collective variable
+!> \brief evaluates the force due (and on) the hydronium_shell collective variable
 !> \param colvar ...
 !> \param cell ...
 !> \param subsys ...
@@ -3178,14 +3255,14 @@ CONTAINS
 !> \note This function needs to be extended to the POINT structure!!
 !>       non-standard conform.. it's a breach in the colvar module.
 ! **************************************************************************************************
-   SUBROUTINE hydronium_colvar(colvar, cell, subsys, particles)
+   SUBROUTINE hydronium_shell_colvar(colvar, cell, subsys, particles)
       TYPE(colvar_type), POINTER                         :: colvar
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particles
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_colvar', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_shell_colvar', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, ii, j, jj, n_hydrogens, n_oxygens, &
@@ -3198,21 +3275,21 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles_i
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
 
-      n_oxygens = colvar%hydronium_param%n_oxygens
-      n_hydrogens = colvar%hydronium_param%n_hydrogens
-      nh = colvar%hydronium_param%nh
-      poh = colvar%hydronium_param%poh
-      qoh = colvar%hydronium_param%qoh
-      poo = colvar%hydronium_param%poo
-      qoo = colvar%hydronium_param%qoo
-      roo = colvar%hydronium_param%roo
-      roh = colvar%hydronium_param%roh
-      lambda = colvar%hydronium_param%lambda
-      pm = colvar%hydronium_param%pm
-      qm = colvar%hydronium_param%qm
+      n_oxygens = colvar%hydronium_shell_param%n_oxygens
+      n_hydrogens = colvar%hydronium_shell_param%n_hydrogens
+      nh = colvar%hydronium_shell_param%nh
+      poh = colvar%hydronium_shell_param%poh
+      qoh = colvar%hydronium_shell_param%qoh
+      poo = colvar%hydronium_shell_param%poo
+      qoo = colvar%hydronium_shell_param%qoo
+      roo = colvar%hydronium_shell_param%roo
+      roh = colvar%hydronium_shell_param%roh
+      lambda = colvar%hydronium_shell_param%lambda
+      pm = colvar%hydronium_shell_param%pm
+      qm = colvar%hydronium_shell_param%qm
 
       NULLIFY (particles_i)
-      CPASSERT(colvar%type_id == hydronium_colvar_id)
+      CPASSERT(colvar%type_id == hydronium_shell_colvar_id)
       IF (PRESENT(particles)) THEN
          my_particles => particles
       ELSE
@@ -3240,11 +3317,11 @@ CONTAINS
       qloc = 0._dp
       noh = 0._dp
       DO ii = 1, n_oxygens
-         i = colvar%hydronium_param%i_oxygens(ii)
+         i = colvar%hydronium_shell_param%i_oxygens(ii)
          rpi(:) = my_particles(i)%r(1:3)
          ! Computing M( n ( ii ) )
          DO jj = 1, n_hydrogens
-            j = colvar%hydronium_param%i_hydrogens(jj)
+            j = colvar%hydronium_shell_param%i_hydrogens(jj)
             rpj(:) = my_particles(j)%r(1:3)
             rji = pbc(rpj, rpi, cell)
             drji = SQRT(SUM(rji**2))
@@ -3269,7 +3346,7 @@ CONTAINS
          ! Computing no ( ii )
          DO jj = 1, n_oxygens
             IF (ii == jj) CYCLE
-            j = colvar%hydronium_param%i_oxygens(jj)
+            j = colvar%hydronium_shell_param%i_oxygens(jj)
             rpj(:) = my_particles(j)%r(1:3)
             rji = pbc(rpj, rpi, cell)
             drji = SQRT(SUM(rji**2))
@@ -3326,7 +3403,222 @@ CONTAINS
       DEALLOCATE (dnoo)
       DEALLOCATE (noo)
       DEALLOCATE (qloc)
-   END SUBROUTINE hydronium_colvar
+
+   END SUBROUTINE hydronium_shell_colvar
+
+! **************************************************************************************************
+!> \brief evaluates the force due (and on) the hydronium_dist collective variable;
+!>        distance between hydronium and hydroxide ion
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \author Dorothea Golze
+! **************************************************************************************************
+   SUBROUTINE hydronium_dist_colvar(colvar, cell, subsys, particles)
+      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_subsys_type), OPTIONAL, POINTER            :: subsys
+      TYPE(particle_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: particles
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'hydronium_dist_colvar', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, ii, j, jj, k, kk, n_hydrogens, &
+                                                            n_oxygens, offsetH, pf, pm, poh, qf, &
+                                                            qm, qoh
+      REAL(dp) :: drji, drki, fscalar, invden, lambda, nh, nn, num, rion, rion_den, rion_num, &
+         rji(3), rki(3), roh, rrel, sum_expfac_F, sum_expfac_noh
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: dexpfac_F, dexpfac_noh, dF, dM, &
+                                                            expfac_F, expfac_F_rki, expfac_noh, F, &
+                                                            M, noh
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dexpfac_F_rki
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: ddist_rki, dnoh
+      REAL(dp), DIMENSION(3)                             :: rpi, rpj, rpk
+      TYPE(particle_list_type), POINTER                  :: particles_i
+      TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
+
+      n_oxygens = colvar%hydronium_dist_param%n_oxygens
+      n_hydrogens = colvar%hydronium_dist_param%n_hydrogens
+      poh = colvar%hydronium_dist_param%poh
+      qoh = colvar%hydronium_dist_param%qoh
+      roh = colvar%hydronium_dist_param%roh
+      pm = colvar%hydronium_dist_param%pm
+      qm = colvar%hydronium_dist_param%qm
+      nh = colvar%hydronium_dist_param%nh
+      pf = colvar%hydronium_dist_param%pf
+      qf = colvar%hydronium_dist_param%qf
+      nn = colvar%hydronium_dist_param%nn
+      lambda = colvar%hydronium_dist_param%lambda
+
+      NULLIFY (particles_i)
+      CPASSERT(colvar%type_id == hydronium_dist_colvar_id)
+      IF (PRESENT(particles)) THEN
+         my_particles => particles
+      ELSE
+         CPASSERT(PRESENT(subsys))
+         CALL cp_subsys_get(subsys, particles=particles_i)
+         my_particles => particles_i%els
+      END IF
+
+      ALLOCATE (dnoh(3, n_hydrogens, n_oxygens))
+      ALLOCATE (noh(n_oxygens))
+      ALLOCATE (M(n_oxygens), dM(n_oxygens))
+      ALLOCATE (F(n_oxygens), dF(n_oxygens))
+      ALLOCATE (expfac_noh(n_oxygens), dexpfac_noh(n_oxygens))
+      ALLOCATE (expfac_F(n_oxygens), dexpfac_F(n_oxygens))
+      ALLOCATE (ddist_rki(3, n_oxygens, n_oxygens))
+      ALLOCATE (expfac_F_rki(n_oxygens))
+      ALLOCATE (dexpfac_F_rki(n_oxygens, n_oxygens))
+
+      ! Zero Arrays:
+      noh = 0._dp
+      dnoh = 0._dp
+      rion_num = 0._dp
+      F = 0._dp
+      M = 0._dp
+      dF = 0._dp
+      dM = 0._dp
+      expfac_noh = 0._dp
+      expfac_F = 0._dp
+      sum_expfac_noh = 0._dp
+      sum_expfac_F = 0._dp
+      ddist_rki = 0._dp
+      expfac_F_rki = 0._dp
+      dexpfac_F_rki = 0._dp
+
+      !*** Calculate coordination function noh(ii) and its derivative
+      DO ii = 1, n_oxygens
+         i = colvar%hydronium_dist_param%i_oxygens(ii)
+         rpi(:) = my_particles(i)%r(1:3)
+         DO jj = 1, n_hydrogens
+            j = colvar%hydronium_dist_param%i_hydrogens(jj)
+            rpj(:) = my_particles(j)%r(1:3)
+            rji = pbc(rpj, rpi, cell)
+            drji = SQRT(SUM(rji**2))
+            rrel = drji/roh
+            num = (1.0_dp-rrel**poh)
+            invden = 1.0_dp/(1.0_dp-rrel**qoh)
+            IF (ABS(1.0_dp-rrel) > 1.0E-6_dp) THEN
+               noh(ii) = noh(ii)+num*invden
+               fscalar = ((-poh*(rrel**(poh-1))*invden) &
+                          +num*(invden)**2*qoh*(rrel**(qoh-1)))/(drji*roh)
+               dnoh(1:3, jj, ii) = rji(1:3)*fscalar
+            ELSE
+               !correct limit if rji --> roh
+               noh(ii) = noh(ii)+REAL(poh, dp)/REAL(qoh, dp)
+               fscalar = REAL(poh*(poh-qoh), dp)/(REAL(2*qoh, dp)*roh*drji)
+               dnoh(1:3, jj, ii) = rji(1:3)*fscalar
+            ENDIF
+         END DO
+      END DO
+
+      !*** Calculate M, dM, exp(lambda*M) and sum_[exp(lambda*M)]
+      DO ii = 1, n_oxygens
+         num = 1.0_dp-(noh(ii)/nh)**pm
+         invden = 1.0_dp/(1.0_dp-(noh(ii)/nh)**qm)
+         M(ii) = 1.0_dp-num*invden
+         dM(ii) = (pm*(noh(ii)/nh)**(pm-1)*invden-qm*num*(invden**2)* &
+                   (noh(ii)/nh)**(qm-1))/nh
+         expfac_noh(ii) = EXP(lambda*noh(ii))
+         dexpfac_noh(ii) = lambda*expfac_noh(ii)
+         sum_expfac_noh = sum_expfac_noh+expfac_noh(ii)
+      END DO
+
+      !*** Calculate F, dF, exp(lambda*F) and sum_[exp(lambda*F)]
+      DO ii = 1, n_oxygens
+         i = colvar%hydronium_dist_param%i_oxygens(ii)
+         num = 1.0_dp-(noh(ii)/nn)**pf
+         invden = 1.0_dp/(1.0_dp-(noh(ii)/nn)**qf)
+         F(ii) = num*invden
+         dF(ii) = (-pf*(noh(ii)/nn)**(pf-1)*invden+qf*num*(invden**2)* &
+                   (noh(ii)/nn)**(qf-1))/nn
+         expfac_F(ii) = EXP(lambda*F(ii))
+         dexpfac_F(ii) = lambda*expfac_F(ii)
+         sum_expfac_F = sum_expfac_F+expfac_F(ii)
+      END DO
+
+      !*** Calculation numerator of rion
+      DO ii = 1, n_oxygens
+         i = colvar%hydronium_dist_param%i_oxygens(ii)
+         rpi(:) = my_particles(i)%r(1:3)
+         DO kk = 1, n_oxygens
+            IF (ii == kk) CYCLE
+            k = colvar%hydronium_dist_param%i_oxygens(kk)
+            rpk(:) = my_particles(k)%r(1:3)
+            rki = pbc(rpk, rpi, cell)
+            drki = SQRT(SUM(rki**2))
+            expfac_F_rki(ii) = expfac_F_rki(ii)+drki*expfac_F(kk)
+            ddist_rki(1:3, kk, ii) = rki(1:3)/drki
+            dexpfac_F_rki(kk, ii) = drki*dexpfac_F(kk)
+         ENDDO
+         rion_num = rion_num+M(ii)*expfac_noh(ii)*expfac_F_rki(ii)
+      ENDDO
+
+      !*** Final H3O+/OH- distance
+      rion_den = sum_expfac_noh*sum_expfac_F
+      rion = rion_num/rion_den
+      colvar%ss = rion
+
+      offsetH = n_oxygens
+      !*** Derivatives numerator
+      DO ii = 1, n_oxygens
+         DO jj = 1, n_hydrogens
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
+                                   +dM(ii)*dnoh(1:3, jj, ii)*expfac_noh(ii) &
+                                   *expfac_F_rki(ii)/rion_den
+            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
+                                           -dM(ii)*dnoh(1:3, jj, ii)*expfac_noh(ii) &
+                                           *expfac_F_rki(ii)/rion_den
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
+                                   +M(ii)*dexpfac_noh(ii)*dnoh(1:3, jj, ii) &
+                                   *expfac_F_rki(ii)/rion_den
+            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
+                                           -M(ii)*dexpfac_noh(ii)*dnoh(1:3, jj, ii) &
+                                           *expfac_F_rki(ii)/rion_den
+         ENDDO
+         DO kk = 1, n_oxygens
+            IF (ii == kk) CYCLE
+            colvar%dsdr(1:3, kk) = colvar%dsdr(1:3, kk) &
+                                   -M(ii)*expfac_noh(ii)*ddist_rki(1:3, kk, ii) &
+                                   *expfac_F(kk)/rion_den
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
+                                   +M(ii)*expfac_noh(ii)*ddist_rki(1:3, kk, ii) &
+                                   *expfac_F(kk)/rion_den
+            DO jj = 1, n_hydrogens
+               colvar%dsdr(1:3, kk) = colvar%dsdr(1:3, kk) &
+                                      +M(ii)*expfac_noh(ii)*dexpfac_F_rki(kk, ii) &
+                                      *dF(kk)*dnoh(1:3, jj, kk)/rion_den
+               colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
+                                              -M(ii)*expfac_noh(ii)*dexpfac_F_rki(kk, ii) &
+                                              *dF(kk)*dnoh(1:3, jj, kk)/rion_den
+            ENDDO
+         ENDDO
+      ENDDO
+      !*** Derivatives denominator
+      DO ii = 1, n_oxygens
+         DO jj = 1, n_hydrogens
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
+                                   -rion_num*sum_expfac_F*dexpfac_noh(ii) &
+                                   *dnoh(1:3, jj, ii)/(rion_den**2)
+            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
+                                           +rion_num*sum_expfac_F*dexpfac_noh(ii) &
+                                           *dnoh(1:3, jj, ii)/(rion_den**2)
+            colvar%dsdr(1:3, ii) = colvar%dsdr(1:3, ii) &
+                                   -rion_num*sum_expfac_noh*dexpfac_F(ii)*dF(ii) &
+                                   *dnoh(1:3, jj, ii)/(rion_den**2)
+            colvar%dsdr(1:3, offsetH+jj) = colvar%dsdr(1:3, offsetH+jj) &
+                                           +rion_num*sum_expfac_noh*dexpfac_F(ii)*dF(ii) &
+                                           *dnoh(1:3, jj, ii)/(rion_den**2)
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (noh, M, F, expfac_noh, expfac_F)
+      DEALLOCATE (dnoh, dM, dF, dexpfac_noh, dexpfac_F)
+      DEALLOCATE (ddist_rki, expfac_F_rki, dexpfac_F_rki)
+
+   END SUBROUTINE hydronium_dist_colvar
 
 ! **************************************************************************************************
 !> \brief evaluates the force due (and on) the acid-hydronium-distance

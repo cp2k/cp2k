@@ -22,18 +22,23 @@
   &END MD
   &FREE_ENERGY
     METHOD METADYN
-  &METADYN
-    DO_HILLS T
-    NT_HILLS 2
-    WW .005
-    TEMPERATURE 150.
-    &METAVAR
-      LAMBDA 1.2
-      MASS 40.
-      COLVAR 1
-      SCALE .050
-    &END METAVAR 
-  &END METADYN
+    &METADYN
+      DO_HILLS T
+      NT_HILLS 1
+      WW .005
+      TEMPERATURE 150.
+      &METAVAR
+        LAMBDA 1.2
+        MASS 40.
+        COLVAR 1
+        SCALE .050
+      &END METAVAR 
+      &METAVAR
+        MASS 40.
+        COLVAR 2
+        SCALE .2
+      &END METAVAR 
+    &END METADYN
   &END FREE_ENERGY
 &END MOTION
 &FORCE_EVAL 
@@ -70,18 +75,28 @@
       &END ATOMIC_COORDINATES
     &END PRINT
     &COLVAR
-     &HYDRONIUM
-      OXYGENS   1 4 7 10  
-      HYDROGENS 2 3 5 6 8 9 11 12 13    
-      ROO 5.5
-      ROH 2.2
-      NH  2.2
-      POH 8
-      QOH 16
-      POO 8
-      QOO 16
-      LAMBDA 10.
-     &END HYDRONIUM
+     &HYDRONIUM_SHELL
+       OXYGENS   1 4 7 10  
+       HYDROGENS 2 3 5 6 8 9 11 12 13    
+       ROO 5.5
+       ROH 2.2
+       NH  2.2
+       POH 8
+       QOH 16
+       POO 8
+       QOO 16
+       LAMBDA 10.
+     &END HYDRONIUM_SHELL
+    &END COLVAR
+    &COLVAR
+     &HYDRONIUM_DISTANCE
+       OXYGENS   1 4 7 10  
+       HYDROGENS 2 3 5 6 8 9 11 12 13   
+       NH 2.4
+       PM 20
+       QM 40
+       LAMBDA 20. 
+     &END HYDRONIUM_DISTANCE
     &END COLVAR
   &END SUBSYS
   &DFT

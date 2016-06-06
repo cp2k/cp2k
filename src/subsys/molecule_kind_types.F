@@ -24,9 +24,10 @@ MODULE molecule_kind_types
    USE colvar_types,                    ONLY: &
         acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, angle_colvar_id, colvar_counters, &
         combine_colvar_id, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, gyration_colvar_id, &
-        hydronium_colvar_id, plane_distance_colvar_id, plane_plane_angle_colvar_id, &
-        population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, rotation_colvar_id, &
-        torsion_colvar_id, xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+        hydronium_dist_colvar_id, hydronium_shell_colvar_id, plane_distance_colvar_id, &
+        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
+        reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, xyz_diag_colvar_id, &
+        xyz_outerdiag_colvar_id
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -252,7 +253,8 @@ CONTAINS
       ncolv%nqparm = 0
       ncolv%nxyz_diag = 0
       ncolv%nxyz_outerdiag = 0
-      ncolv%nhydronium = 0
+      ncolv%nhydronium_shell = 0
+      ncolv%nhydronium_dist = 0
       ncolv%nacid_hyd_dist = 0
       ncolv%nacid_hyd_shell = 0
       ncolv%nreactionpath = 0
@@ -291,8 +293,10 @@ CONTAINS
                ncolv%nxyz_diag = ncolv%nxyz_diag+1
             CASE (xyz_outerdiag_colvar_id)
                ncolv%nxyz_outerdiag = ncolv%nxyz_outerdiag+1
-            CASE (hydronium_colvar_id)
-               ncolv%nhydronium = ncolv%nhydronium+1
+            CASE (hydronium_shell_colvar_id)
+               ncolv%nhydronium_shell = ncolv%nhydronium_shell+1
+            CASE (hydronium_dist_colvar_id)
+               ncolv%nhydronium_dist = ncolv%nhydronium_dist+1
             CASE (acid_hyd_dist_colvar_id)
                ncolv%nacid_hyd_dist = ncolv%nacid_hyd_dist+1
             CASE (acid_hyd_shell_colvar_id)
@@ -317,7 +321,8 @@ CONTAINS
                    ncolv%nqparm+ &
                    ncolv%nxyz_diag+ &
                    ncolv%nxyz_outerdiag+ &
-                   ncolv%nhydronium+ &
+                   ncolv%nhydronium_shell+ &
+                   ncolv%nhydronium_dist+ &
                    ncolv%nacid_hyd_dist+ &
                    ncolv%nacid_hyd_shell+ &
                    ncolv%nreactionpath+ &

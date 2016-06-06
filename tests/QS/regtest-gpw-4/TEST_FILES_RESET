@@ -1093,3 +1093,5 @@ test-pdb.inp
 H2O-extpot.inp
 #  
 h2o-otdiag.inp
+# Add another colvar
+H2O-meta_hydro.inp

@@ -189,7 +189,11 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_colvar_hydronium_section(subsection)
+      CALL create_colvar_hydronium_shell_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_colvar_hydronium_dist_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1296,16 +1300,16 @@ CONTAINS
 !> \param section the section to be created
 !> \author Marcel Baer
 ! **************************************************************************************************
-   SUBROUTINE create_colvar_hydronium_section(section)
+   SUBROUTINE create_colvar_hydronium_shell_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_section', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_shell_section', &
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="hydronium", &
+      CALL section_create(section, name="HYDRONIUM_SHELL", &
                           description="Section to define the formation of a hydronium as a"// &
                           " collective variable. Number of oxygens in the 1st shell of the"// &
                           " hydronium. Adapted from Equation (3) in Supplementary Info of"// &
@@ -1415,7 +1419,125 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE create_colvar_hydronium_section
+   END SUBROUTINE create_colvar_hydronium_shell_section
+
+! **************************************************************************************************
+!> \brief collective variables specifying the distance between hydronium and hydroxide ion
+!> \param section the section to be created
+!> \author Dorothea Golze
+! **************************************************************************************************
+   SUBROUTINE create_colvar_hydronium_dist_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hydronium_dist_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="HYDRONIUM_DISTANCE", &
+                          description="Section to define the formation of a hydronium as a"// &
+                          " collective variable. Distance between hydronium and hydroxide ion"// &
+                          " Experimental at this point, i.e. not proved to be an effective "// &
+                          " collective variable.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="OXYGENS", &
+                          description="Specifies indexes of atoms building the coordination variable."// &
+                          " Oxygens of the water molecules.", &
+                          usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="HYDROGENS", &
+                          description="Specifies indexes of atoms building the coordination variable."// &
+                          " Hydrogens of the water molecules.", &
+                          usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE., &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ROH", &
+                          description="Specifies the rc parameter in the coordination function: "// &
+                          " number of hydrogens per water molecule.", &
+                          usage="ROH {real}", default_r_val=cp_unit_to_cp2k(value=2.4_dp, &
+                                                                            unit_str="bohr"), unit_str="bohr", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="pOH", &
+                          description="Sets the value of the numerator of the exponential factor"// &
+                          " in the coordination function: number of hydrogens per water molecule.", &
+                          usage="pOH {integer}", default_i_val=6, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="qOH", &
+                          description="Sets the value of the denominator of the exponential factor"// &
+                          " in the coordination function: number of hydrogens per water molecule.", &
+                          usage="qOH {integer}", default_i_val=12, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NH", &
+                          description="Specifies the NH parameter in the M function.", &
+                          usage="NH {real}", default_r_val=2.2_dp, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="pM", &
+                          description="Sets the value of the numerator of the exponential factor"// &
+                          " in the M function.", &
+                          usage="pM {integer}", default_i_val=8, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="qM", &
+                          description="Sets the value of the denominator of the exponential factor"// &
+                          " in the M function.", &
+                          usage="qM {integer}", default_i_val=16, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NN", &
+                          description="Specifies the NN parameter in the F function.", &
+                          usage="NN {real}", default_r_val=1.5_dp, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="pF", &
+                          description="Sets the value of the numerator of the exponential factor"// &
+                          " in the F function.", &
+                          usage="pF {integer}", default_i_val=8, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="qF", &
+                          description="Sets the value of the denominator of the exponential factor"// &
+                          " in the F function.", &
+                          usage="qF {integer}", default_i_val=16, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="LAMBDA", &
+                          description="Specify the LAMBDA parameter in the hydronium function.", &
+                          usage="LAMBDA {real}", default_r_val=20.0_dp, &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_colvar_hydronium_dist_section
 
 ! **************************************************************************************************
 !> \brief collective variables specifying the solvation of carboxylic acid;
