@@ -603,8 +603,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldb
       REAL(dp), INTENT(IN)                               :: blk(ldb, *)
       INTEGER, INTENT(IN)                                :: nso
-      REAL(dp), INTENT(INOUT)                            :: proj_s(nso, *), proj_h(nso, *)
-      REAL(dp), INTENT(INOUT)                            :: buf1(*), buf2(*)
+      REAL(dp), INTENT(INOUT)                            :: proj_s(nso, *), proj_h(nso, *), buf1(*), &
+                                                            buf2(*)
       REAL(dp), INTENT(IN)                               :: fac
       LOGICAL, INTENT(IN)                                :: distab
 
