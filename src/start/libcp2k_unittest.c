@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "libcp2k.h"
 
 /**
@@ -80,7 +81,7 @@ int main(int argc, char** argv){
     double energy;
     cp2k_get_potential_energy(force_env, &energy);
     printf("\n ENERGY: %.12f\n",energy);
-    if(abs(-1.118912797546392 - energy) / abs(energy) > 1e-13){
+    if(fabs(-1.118912797546392 - energy) / fabs(energy) > 1e-13){
         printf("Wrong energy\n");
         return(-1);
     }
