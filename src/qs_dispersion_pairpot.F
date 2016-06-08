@@ -184,21 +184,22 @@ CONTAINS
       END SELECT
 
       nkind = SIZE(atomic_kind_set)
-      DO ikind = 1, nkind
-         CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol, z=elem)
-         ALLOCATE (disp)
-         SELECT CASE (vdw_type)
+      SELECT CASE (vdw_type)
+      CASE DEFAULT
+         CPABORT("")
+      CASE (xc_vdw_fun_none)
+         ! we should never reach this point
+         CPABORT("xc_vdw_fun_none in init routine")
+      CASE (xc_vdw_fun_pairpot)
+         ! setup information on pair potentials
+         SELECT CASE (dispersion_env%pp_type)
          CASE DEFAULT
             CPABORT("")
-         CASE (xc_vdw_fun_none)
-            disp%defined = .FALSE.
-         CASE (xc_vdw_fun_pairpot)
-            ! setup information on pair potentials
-            SELECT CASE (dispersion_env%pp_type)
-            CASE DEFAULT
-               CPABORT("")
-            CASE (vdw_pairpot_dftd2)
-               CALL cite_reference(Grimme2006)
+         CASE (vdw_pairpot_dftd2)
+            CALL cite_reference(Grimme2006)
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol, z=elem)
+               ALLOCATE (disp)
                disp%type = dftd2_pp
                ! get filename of parameter file
                filename = dispersion_env%parameter_file_name
@@ -251,53 +252,63 @@ CONTAINS
                ELSE
                   disp%defined = .FALSE.
                END IF
-            CASE (vdw_pairpot_dftd3, vdw_pairpot_dftd3bj)
+               ! Check if the parameter is defined
+               IF (.NOT. disp%defined) &
+                  CALL cp_abort(__LOCATION__, &
+                                "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "// &
+                                "Please provide a valid set of parameters through the input section or "// &
+                                "through an external file! ")
+               CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
+            END DO
+         CASE (vdw_pairpot_dftd3, vdw_pairpot_dftd3bj)
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), element_symbol=symbol, z=elem)
+               ALLOCATE (disp)
                disp%type = dftd3_pp
                IF (elem <= 94) THEN
                   disp%defined = .TRUE.
                ELSE
                   disp%defined = .FALSE.
                END IF
+               IF (.NOT. disp%defined) &
+                  CALL cp_abort(__LOCATION__, &
+                                "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "// &
+                                "Please provide a valid set of parameters through the input section or "// &
+                                "through an external file! ")
+               CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
+            END DO
 
-               ! Check for coordination numbers
-               IF (PRESENT(pp_section)) THEN
-                  CALL section_vals_val_get(pp_section, "KIND_COORDINATION_NUMBERS", n_rep_val=n_rep)
-                  IF (n_rep > 0) THEN
-                     ALLOCATE (dispersion_env%cnkind(n_rep))
-                     DO i = 1, n_rep
-                        CALL section_vals_val_get(pp_section, "KIND_COORDINATION_NUMBERS", i_rep_val=i, &
-                                                  c_vals=tmpstringlist)
-                        READ (tmpstringlist(1), *) dispersion_env%cnkind(i)%cnum
-                        READ (tmpstringlist(2), *) dispersion_env%cnkind(i)%kind
-                     END DO
-                  END IF
-                  CALL section_vals_val_get(pp_section, "ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep)
-                  IF (n_rep > 0) THEN
-                     ALLOCATE (dispersion_env%cnlist(n_rep))
-                     DO i = 1, n_rep
-                        CALL section_vals_val_get(pp_section, "ATOM_COORDINATION_NUMBERS", i_rep_val=i, &
-                                                  c_vals=tmpstringlist)
-                        nl = SIZE(tmpstringlist)
-                        ALLOCATE (dispersion_env%cnlist(i)%atom(nl-1))
-                        dispersion_env%cnlist(i)%natom = nl-1
-                        READ (tmpstringlist(1), *) dispersion_env%cnlist(i)%cnum
-                        DO j = 1, nl-1
-                           READ (tmpstringlist(j+1), *) dispersion_env%cnlist(i)%atom(j)
-                        END DO
-                     END DO
-                  END IF
+            ! Check for coordination numbers
+            IF (PRESENT(pp_section)) THEN
+               CALL section_vals_val_get(pp_section, "KIND_COORDINATION_NUMBERS", n_rep_val=n_rep)
+               IF (n_rep > 0) THEN
+                  ALLOCATE (dispersion_env%cnkind(n_rep))
+                  DO i = 1, n_rep
+                     CALL section_vals_val_get(pp_section, "KIND_COORDINATION_NUMBERS", i_rep_val=i, &
+                                               c_vals=tmpstringlist)
+                     READ (tmpstringlist(1), *) dispersion_env%cnkind(i)%cnum
+                     READ (tmpstringlist(2), *) dispersion_env%cnkind(i)%kind
+                  END DO
                END IF
+               CALL section_vals_val_get(pp_section, "ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep)
+               IF (n_rep > 0) THEN
+                  ALLOCATE (dispersion_env%cnlist(n_rep))
+                  DO i = 1, n_rep
+                     CALL section_vals_val_get(pp_section, "ATOM_COORDINATION_NUMBERS", i_rep_val=i, &
+                                               c_vals=tmpstringlist)
+                     nl = SIZE(tmpstringlist)
+                     ALLOCATE (dispersion_env%cnlist(i)%atom(nl-1))
+                     dispersion_env%cnlist(i)%natom = nl-1
+                     READ (tmpstringlist(1), *) dispersion_env%cnlist(i)%cnum
+                     DO j = 1, nl-1
+                        READ (tmpstringlist(j+1), *) dispersion_env%cnlist(i)%atom(j)
+                     END DO
+                  END DO
+               END IF
+            END IF
 
-            END SELECT
          END SELECT
-         ! Check if the parameter is defined
-         IF (.NOT. disp%defined) &
-            CALL cp_abort(__LOCATION__, &
-                          "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "// &
-                          "Please provide a valid set of parameters through the input section or "// &
-                          "through an external file! ")
-         CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
-      END DO
+      END SELECT
 
       CALL timestop(handle)
 
