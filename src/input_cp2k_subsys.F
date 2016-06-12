@@ -1304,6 +1304,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL section_create(section, name="PAO_POTENTIAL", &
+                          repeats=.TRUE., &
                           description="Settings of the PAO potentials, which are atomic kind specific.")
 
       CALL keyword_create(keyword, name="MAXL", &
@@ -1328,12 +1329,6 @@ CONTAINS
       CALL keyword_create(keyword, name="MAX_PROJECTOR", &
                           description="Maximum angular moment of the potential's projectors.", &
                           default_i_val=2)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="NEIGHBORS", &
-                          description="Number of neigbors used for spanning the potential.", &
-                          default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

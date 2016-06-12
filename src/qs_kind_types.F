@@ -108,6 +108,16 @@ MODULE qs_kind_types
                                                 smear
    END TYPE dft_plus_u_type
 
+! **************************************************************************************************
+!> \brief Holds information of a PAO potential
+! **************************************************************************************************
+   TYPE pao_potential_type
+      INTEGER                                :: maxl = -1
+      REAL(KIND=dp)                          :: beta = 0.0_dp
+      REAL(KIND=dp)                          :: weight = 0.0_dp
+      INTEGER                                :: max_projector = -1
+   END TYPE pao_potential_type
+
 !> Provides all information about a quickstep kind
 ! **************************************************************************************************
    TYPE qs_kind_type
@@ -155,11 +165,7 @@ MODULE qs_kind_types
       TYPE(qs_atom_dispersion_type), POINTER :: dispersion => Null()
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: reltmat => Null()
       INTEGER                                :: pao_basis_size = -1
-      INTEGER                                :: pao_pot_maxl = -1
-      REAL(KIND=dp)                          :: pao_pot_beta = 0.0_dp
-      REAL(KIND=dp)                          :: pao_pot_weight = 0.0_dp
-      INTEGER                                :: pao_pot_max_projector = -1
-      INTEGER                                :: pao_pot_neighbors = -1
+      TYPE(pao_potential_type), DIMENSION(:), POINTER :: pao_potentials => Null()
    END TYPE qs_kind_type
 
 !> Provides a vector of pointers of type qs_kind_type
@@ -184,7 +190,7 @@ MODULE qs_kind_types
              init_atom_electronic_state
 
    ! Public data types
-   PUBLIC :: qs_kind_type
+   PUBLIC :: qs_kind_type, pao_potential_type
 
 CONTAINS
 
@@ -270,6 +276,10 @@ CONTAINS
                DEALLOCATE (qs_kind_set(ikind)%reltmat)
             END IF
 
+            IF (ASSOCIATED(qs_kind_set(ikind)%pao_potentials)) THEN
+               DEALLOCATE (qs_kind_set(ikind)%pao_potentials)
+            END IF
+
             CALL remove_basis_set_container(qs_kind_set(ikind)%basis_sets)
 
          END DO
@@ -343,11 +353,7 @@ CONTAINS
 !> \param name ...
 !> \param element_symbol ...
 !> \param pao_basis_size ...
-!> \param pao_pot_maxl ...
-!> \param pao_pot_max_projector ...
-!> \param pao_pot_beta ...
-!> \param pao_pot_weight ...
-!> \param pao_pot_neighbors ...
+!> \param pao_potentials ...
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
@@ -363,8 +369,7 @@ CONTAINS
                           bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
                           init_u_ramping_each_scf, reltmat, ghost, floating, name, element_symbol, &
-                          pao_basis_size, pao_pot_maxl, pao_pot_max_projector, pao_pot_beta, pao_pot_weight, &
-                          pao_pot_neighbors)
+                          pao_basis_size, pao_potentials)
 
       TYPE(qs_kind_type)                                 :: qs_kind
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: basis_set
@@ -409,10 +414,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          INTENT(OUT), OPTIONAL                           :: name
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
-      INTEGER, INTENT(OUT), OPTIONAL                     :: pao_basis_size, pao_pot_maxl, &
-                                                            pao_pot_max_projector
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: pao_pot_beta, pao_pot_weight
-      INTEGER, INTENT(OUT), OPTIONAL                     :: pao_pot_neighbors
+      INTEGER, INTENT(OUT), OPTIONAL                     :: pao_basis_size
+      TYPE(pao_potential_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: pao_potentials
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind', routineP = moduleN//':'//routineN
 
@@ -649,11 +653,7 @@ CONTAINS
       IF (PRESENT(lmax_dftb)) lmax_dftb = qs_kind%lmax_dftb
 
       IF (PRESENT(pao_basis_size)) pao_basis_size = qs_kind%pao_basis_size
-      IF (PRESENT(pao_pot_maxl)) pao_pot_maxl = qs_kind%pao_pot_maxl
-      IF (PRESENT(pao_pot_max_projector)) pao_pot_max_projector = qs_kind%pao_pot_max_projector
-      IF (PRESENT(pao_pot_neighbors)) pao_pot_neighbors = qs_kind%pao_pot_neighbors
-      IF (PRESENT(pao_pot_beta)) pao_pot_beta = qs_kind%pao_pot_beta
-      IF (PRESENT(pao_pot_weight)) pao_pot_weight = qs_kind%pao_pot_weight
+      IF (PRESENT(pao_potentials)) pao_potentials => qs_kind%pao_potentials
    END SUBROUTINE get_qs_kind
 
 ! **************************************************************************************************
@@ -1167,9 +1167,9 @@ CONTAINS
          DIMENSION(:), POINTER                           :: tmpstringlist
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_name, basis_set_type
-      INTEGER                                            :: handle, i, i_rep, ipos, j, k_rep, l, m, &
-                                                            n_rep, nb_rep, nexp, ngauss, &
-                                                            norbitals, z
+      INTEGER                                            :: handle, i, i_rep, ipaopot, ipos, j, &
+                                                            k_rep, l, m, n_rep, nb_rep, nexp, &
+                                                            ngauss, norbitals, npaopot, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled
@@ -1332,14 +1332,22 @@ CONTAINS
          END IF
          ! end of deprecated input
 
+         ! parse PAO stuff
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="PAO_BASIS_SIZE", i_val=qs_kind%pao_basis_size)
          pao_pot_section => section_vals_get_subs_vals(kind_section, "PAO_POTENTIAL", i_rep_section=k_rep)
-         CALL section_vals_val_get(pao_pot_section, keyword_name="MAXL", i_val=qs_kind%pao_pot_maxl)
-         CALL section_vals_val_get(pao_pot_section, keyword_name="MAX_PROJECTOR", i_val=qs_kind%pao_pot_max_projector)
-         CALL section_vals_val_get(pao_pot_section, keyword_name="NEIGHBORS", i_val=qs_kind%pao_pot_neighbors)
-         CALL section_vals_val_get(pao_pot_section, keyword_name="BETA", r_val=qs_kind%pao_pot_beta)
-         CALL section_vals_val_get(pao_pot_section, keyword_name="WEIGHT", r_val=qs_kind%pao_pot_weight)
+         CALL section_vals_get(pao_pot_section, n_repetition=npaopot)
+         ALLOCATE (qs_kind%pao_potentials(npaopot))
+         DO ipaopot = 1, npaopot
+            CALL section_vals_val_get(pao_pot_section, keyword_name="MAXL", i_rep_section=ipaopot, &
+                                      i_val=qs_kind%pao_potentials(ipaopot)%maxl)
+            CALL section_vals_val_get(pao_pot_section, keyword_name="MAX_PROJECTOR", i_rep_section=ipaopot, &
+                                      i_val=qs_kind%pao_potentials(ipaopot)%max_projector)
+            CALL section_vals_val_get(pao_pot_section, keyword_name="BETA", i_rep_section=ipaopot, &
+                                      r_val=qs_kind%pao_potentials(ipaopot)%beta)
+            CALL section_vals_val_get(pao_pot_section, keyword_name="WEIGHT", i_rep_section=ipaopot, &
+                                      r_val=qs_kind%pao_potentials(ipaopot)%weight)
+         ENDDO
 
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="ELEC_CONF", n_rep_val=i)

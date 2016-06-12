@@ -34,6 +34,10 @@ MODULE pao_types
       REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
       REAL(KIND=dp)                    :: check_grad_tol = 0.0_dp
       REAL(KIND=dp)                    :: num_grad_eps = 0.0_dp
+      REAL(KIND=dp)                    :: linpot_precon_delta = 0.0_dp
+      REAL(KIND=dp)                    :: linpot_init_delta = 0.0_dp
+      REAL(KIND=dp)                    :: linpot_regu_delta = 0.0_dp
+      REAL(KIND=dp)                    :: linpot_regu_strength = 0.0_dp
       INTEGER                          :: num_grad_order = -1
       INTEGER                          :: max_pao = -1
       INTEGER                          :: max_cycles = -1
@@ -58,6 +62,7 @@ MODULE pao_types
       INTEGER                          :: istep = -1
       REAL(KIND=dp)                    :: energy_prev = 0.0_dp
       REAL(KIND=dp)                    :: step_start_time = 0.0_dp
+      REAL(KIND=dp)                    :: norm_G = 0.0_dp
       TYPE(linesearch_type)            :: linesearch
       LOGICAL                          :: need_initial_scf = .FALSE.
       LOGICAL                          :: precondition = .FALSE.
@@ -75,11 +80,11 @@ MODULE pao_types
       TYPE(cp_dbcsr_type)              :: matrix_G_prev
       TYPE(cp_dbcsr_type)              :: matrix_D
       TYPE(cp_dbcsr_type)              :: matrix_D_preconed
-      TYPE(cp_dbcsr_type)              :: matrix_G_preconed
       TYPE(cp_dbcsr_type)              :: matrix_V_terms
       TYPE(cp_dbcsr_type)              :: matrix_BFGS
       TYPE(cp_dbcsr_type)              :: matrix_precon
       TYPE(cp_dbcsr_type)              :: matrix_precon_inv
+      TYPE(cp_dbcsr_type)              :: matrix_R
 
    END TYPE
 

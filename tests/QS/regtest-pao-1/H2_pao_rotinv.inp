@@ -23,8 +23,12 @@
         PARAMETERIZATION ROTINV
         REGULARIZATION 0.0
         CHECK_UNITARY_TOL 1.0E-10
+        PRECONDITION YES
+        LINPOT_PRECONDITION_DELTA 0.1
+        LINPOT_INITGUESS_DELTA 1E+10 ! use zero as nitial guess
         &LINE_SEARCH
           METHOD 2PNT
+          MAX_STEP_SIZE 10.0
         &END LINE_SEARCH
         &PRINT
           &RESTART ON

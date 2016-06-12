@@ -38,6 +38,7 @@ MODULE pao_param_gth
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              pao_potential_type,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
 
@@ -353,10 +354,17 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: nparams
 
       INTEGER                                            :: max_projector, maxl, ncombis
+      TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
-      CALL get_qs_kind(qs_kind_set(ikind), pao_pot_maxl=maxl, pao_pot_max_projector=max_projector)
+      CALL get_qs_kind(qs_kind_set(ikind), pao_potentials=pao_potentials)
+
+      IF (SIZE(pao_potentials) /= 1) &
+         CPABORT("GTH parametrization requires exactly one PAO_POTENTIAL section per KIND")
+
+      max_projector = pao_potentials(1)%max_projector
+      maxl = pao_potentials(1)%maxl
 
       IF (maxl < 0) &
          CPABORT("GTH parametrization requires non-negative PAO_POTENTIAL%MAXL")
@@ -388,12 +396,20 @@ CONTAINS
       INTEGER                                            :: c, jkind, lpot, max_shell, min_shell, &
                                                             pot_max_projector, pot_maxl
       REAL(KIND=dp)                                      :: beta, norm2, pot_beta, R_vdw
+      TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
       CALL get_atomic_kind(particle_set(jatom)%atomic_kind, rvdw=R_vdw, kind_number=jkind)
-      CALL get_qs_kind(qs_kind_set(jkind), pao_pot_max_projector=pot_max_projector, pao_pot_maxl=pot_maxl)
+      CALL get_qs_kind(qs_kind_set(jkind), pao_potentials=pao_potentials)
+
+      IF (SIZE(pao_potentials) /= 1) &
+         CPABORT("GTH parametrization requires exactly one PAO_POTENTIAL section per KIND")
+
+      pot_max_projector = pao_potentials(1)%max_projector
+      pot_maxl = pao_potentials(1)%maxl
+      pot_beta = pao_potentials(1)%beta
 
       c = 0
       outer: &
@@ -406,7 +422,6 @@ CONTAINS
       ENDDO
       ENDDO outer
 
-      CALL get_qs_kind(qs_kind_set(jkind), pao_pot_beta=pot_beta)
       beta = 0.5_dp/(R_vdw*pot_beta)**2
 
       CALL calc_gaussian(qs_env, block_V, iatom, jatom, lpot=lpot, beta=beta, &

@@ -39,7 +39,6 @@ MODULE pao_input
                                                pao_fock_param = 102, &
                                                pao_exp_param = 103, &
                                                pao_gth_param = 104, &
-                                               pao_gthexp_param = 105, &
                                                pao_opt_cg = 301, &
                                                pao_opt_bfgs = 302, &
                                                pao_ml_gp = 401, &
@@ -100,6 +99,22 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PENALTY_STRENGTH", r_val=pao%penalty_strength)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "PENALTY_STRENGTH", pao%penalty_strength
       IF (pao%penalty_strength < 0.0_dp) CPABORT("PAO: PENALTY_STRENGTH < 0")
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%LINPOT_PRECONDITION_DELTA", r_val=pao%linpot_precon_delta)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_PRECONDITION_DELTA", pao%linpot_precon_delta
+      IF (pao%linpot_precon_delta < 0.0_dp) CPABORT("PAO: LINPOT_PRECONDITION_DELTA < 0")
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%LINPOT_INITGUESS_DELTA", r_val=pao%linpot_init_delta)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_INITGUESS_DELT", pao%linpot_init_delta
+      IF (pao%linpot_init_delta < 0.0_dp) CPABORT("PAO: LINPOT_INITGUESS_DELTA < 0")
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%LINPOT_REGULARIZATION_DELTA", r_val=pao%linpot_regu_delta)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_REGULARIZATION_DELTA", pao%linpot_regu_delta
+      IF (pao%linpot_regu_delta < 0.0_dp) CPABORT("PAO: LINPOT_REGULARIZATION_DELTA < 0")
+
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%LINPOT_REGULARIZATION_STRENGTH", r_val=pao%linpot_regu_strength)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "LINPOT_REGULARIZATION_STRENGTH", pao%linpot_regu_strength
+      IF (pao%linpot_regu_strength < 0.0_dp) CPABORT("PAO: LINPOT_REGULARIZATION_STRENGTH < 0")
 
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%OPTIMIZER", i_val=pao%optimizer)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "OPTIMIZER", id2str(pao%optimizer)
@@ -165,8 +180,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'id2str', routineP = moduleN//':'//routineN
 
       SELECT CASE (id)
-      CASE (pao_gthexp_param)
-         s = "GTHEXP"
       CASE (pao_gth_param)
          s = "GTH"
       CASE (pao_rotinv_param)
@@ -238,13 +251,11 @@ CONTAINS
       ! Parametrization **********************************************************
       CALL keyword_create(keyword, name="PARAMETERIZATION", &
                           description="Parametrization of the mapping between the primary and the PAO basis.", &
-                          enum_c_vals=s2a("GTH", "GTHEXP", "ROTINV", "FOCK", "EXP"), &
-                          enum_i_vals=(/pao_gth_param, pao_gthexp_param, pao_rotinv_param, &
-                                        pao_fock_param, pao_exp_param/), &
-                          enum_desc=s2a("Parametrization based on GTH pseudo potentials", &
-                                        "Parametrization based on GTH pseudo potentials and matrix exponential", &
-                                        "Rotational invariant parametrization", &
+                          enum_c_vals=s2a("ROTINV", "FOCK", "GTH", "EXP"), &
+                          enum_i_vals=(/pao_rotinv_param, pao_fock_param, pao_gth_param, pao_exp_param/), &
+                          enum_desc=s2a("Rotational invariant parametrization (machine learnable)", &
                                         "Fock matrix parametrization", &
+                                        "Parametrization based on GTH pseudo potentials", &
                                         "Original matrix exponential parametrization"), &
                           default_i_val=pao_rotinv_param)
       CALL section_add_keyword(section, keyword)
@@ -252,7 +263,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="REGULARIZATION", &
                           description="Strength of regularization term which ensures parameters remain small.", &
-                          default_r_val=0.001_dp)
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -312,6 +323,31 @@ CONTAINS
                           description="Check if rotation matrix is unitary."// &
                           " Negative values mean don't check at all.", &
                           default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Linpot settings  *********************************************************
+      CALL keyword_create(keyword, name="LINPOT_PRECONDITION_DELTA", &
+                          description="Eigenvalue threshold used for preconditioning.", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="LINPOT_INITGUESS_DELTA", &
+                          description="Eigenvalue threshold used for calculating initial guess.", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="LINPOT_REGULARIZATION_DELTA", &
+                          description="Eigenvalue threshold used for regularization.", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="LINPOT_REGULARIZATION_STRENGTH", &
+                          description="Strength of regularization on linpot layer.", &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

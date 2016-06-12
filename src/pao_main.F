@@ -9,9 +9,8 @@
 ! **************************************************************************************************
 MODULE pao_main
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_frobenius_norm, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, &
-        cp_dbcsr_type
+        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_p_type, &
+        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type
    USE cp_external_control,             ONLY: external_control
    USE dm_ls_scf_qs,                    ONLY: ls_scf_qs_atomic_guess
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
@@ -157,7 +156,7 @@ CONTAINS
 
       INTEGER                                            :: handle, icycle
       LOGICAL                                            :: cycle_converged, do_mixing, should_stop
-      REAL(KIND=dp)                                      :: energy, slope
+      REAL(KIND=dp)                                      :: energy
       TYPE(cp_dbcsr_type)                                :: matrix_M, matrix_X_mixing
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -244,8 +243,7 @@ CONTAINS
          ENDIF
 
          ! perform line-search step
-         slope = cp_dbcsr_frobenius_norm(pao%matrix_G)**2
-         CALL linesearch_step(pao%linesearch, energy=energy, slope=slope)
+         CALL linesearch_step(pao%linesearch, energy=energy, slope=pao%norm_G**2)
 
          IF (pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
 

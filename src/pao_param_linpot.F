@@ -17,6 +17,7 @@ MODULE pao_param_linpot
         cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_type, &
         dbcsr_distribution_mp, dbcsr_mp_group
    USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
    USE pao_input,                       ONLY: pao_fock_param,&
@@ -105,16 +106,167 @@ CONTAINS
          DO kterm = 1, nterms
             block_V_term(1:n, 1:n) => block_V_terms(:, kterm) ! map column into matrix
             CALL linpot_calc_term(pao, qs_env, iatom, kterm, block_V_term)
-            block_V_term = block_V_term/SQRT(SUM(block_V_term*block_V_term)) ! normalize
          ENDDO
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 
+      CALL pao_param_linpot_regularizer(pao)
+
       IF (pao%precondition) &
-         CPABORT("PAO preconditioning not supported for selected parametrization.")
+         CALL pao_param_linpot_preconditioner(pao)
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_init_linpot
+
+! **************************************************************************************************
+!> \brief Builds the regularization metric matrix_R
+!> \param pao ...
+! **************************************************************************************************
+   SUBROUTINE pao_param_linpot_regularizer(pao)
+      TYPE(pao_env_type), POINTER                        :: pao
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_linpot_regularizer'
+
+      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, &
+                                                            nterms
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_nterms
+      LOGICAL                                            :: found
+      REAL(dp)                                           :: v, w
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: S, S_evecs
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_R, V_terms
+      TYPE(cp_dbcsr_iterator)                            :: iter
+
+      CALL timeset(routineN, handle)
+
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Building linpot regularizer"
+
+      blk_sizes_nterms => cp_dbcsr_col_block_sizes(pao%matrix_V_terms)
+
+      ! build regularization metric
+      CALL cp_dbcsr_init(pao%matrix_R)
+      CALL cp_dbcsr_create(pao%matrix_R, &
+                           template=pao%matrix_V_terms, &
+                           matrix_type="N", &
+                           row_blk_size=blk_sizes_nterms, &
+                           col_blk_size=blk_sizes_nterms, &
+                           name="PAO matrix_R")
+      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_R)
+
+      ! fill matrix_R
+      CALL cp_dbcsr_iterator_start(iter, pao%matrix_R)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_R)
+         iatom = arow; CPASSERT(arow == acol)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=V_terms, found=found)
+         CPASSERT(ASSOCIATED(V_terms))
+         nterms = SIZE(V_terms, 2)
+
+         ! build overlap matrix
+         ALLOCATE (S(nterms, nterms))
+         S(:, :) = MATMUL(TRANSPOSE(V_terms), V_terms)
+
+         ! diagonalize S
+         ALLOCATE (S_evals(nterms), S_evecs(nterms, nterms))
+         S_evecs(:, :) = S
+         CALL diamat_all(S_evecs, S_evals)
+
+         block_R = 0.0_dp
+         DO k = 1, nterms
+            v = pao%linpot_regu_delta/S_evals(k)
+            w = pao%linpot_regu_strength*MIN(1.0_dp, ABS(v))
+            DO i = 1, nterms
+            DO j = 1, nterms
+               block_R(i, j) = block_R(i, j)+w*S_evecs(i, k)*S_evecs(j, k)
+            ENDDO
+            ENDDO
+         ENDDO
+
+         ! clean up
+         DEALLOCATE (S, S_evals, S_evecs)
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle)
+   END SUBROUTINE pao_param_linpot_regularizer
+
+! **************************************************************************************************
+!> \brief Builds the preconditioner matrix_precon and matrix_precon_inv
+!> \param pao ...
+! **************************************************************************************************
+   SUBROUTINE pao_param_linpot_preconditioner(pao)
+      TYPE(pao_env_type), POINTER                        :: pao
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_linpot_preconditioner'
+
+      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, &
+                                                            nterms
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_nterms
+      LOGICAL                                            :: found
+      REAL(dp)                                           :: eval_capped
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: S, S_evecs
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_precon, block_precon_inv, &
+                                                            block_V_terms
+      TYPE(cp_dbcsr_iterator)                            :: iter
+
+      CALL timeset(routineN, handle)
+
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Building linpot preconditioner"
+
+      blk_sizes_nterms => cp_dbcsr_col_block_sizes(pao%matrix_V_terms)
+
+      CALL cp_dbcsr_init(pao%matrix_precon)
+      CALL cp_dbcsr_create(pao%matrix_precon, &
+                           template=pao%matrix_V_terms, &
+                           matrix_type="N", &
+                           row_blk_size=blk_sizes_nterms, &
+                           col_blk_size=blk_sizes_nterms, &
+                           name="PAO matrix_precon")
+      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_precon)
+
+      CALL cp_dbcsr_init(pao%matrix_precon_inv)
+      CALL cp_dbcsr_create(pao%matrix_precon_inv, template=pao%matrix_precon, name="PAO matrix_precon_inv")
+      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_precon_inv)
+
+      CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_terms)
+         iatom = arow; CPASSERT(arow == acol)
+
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_precon, row=iatom, col=iatom, block=block_precon, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_precon_inv, row=iatom, col=iatom, block=block_precon_inv, found=found)
+         CPASSERT(ASSOCIATED(block_precon))
+         CPASSERT(ASSOCIATED(block_precon_inv))
+
+         nterms = SIZE(block_V_terms, 2)
+         ALLOCATE (S(nterms, nterms))
+         S(:, :) = MATMUL(TRANSPOSE(block_V_terms), block_V_terms)
+
+         ! diagonalize S
+         ALLOCATE (S_evals(nterms), S_evecs(nterms, nterms))
+         S_evecs(:, :) = S
+         CALL diamat_all(S_evecs, S_evals)
+
+         ! construct 1/Sqrt(S) and Sqrt(S)
+         block_precon = 0.0_dp
+         block_precon_inv = 0.0_dp
+         DO k = 1, nterms
+            eval_capped = MAX(pao%linpot_precon_delta, S_evals(k)) ! too small eigenvalues are hurtful
+            DO i = 1, nterms
+            DO j = 1, nterms
+               block_precon(i, j) = block_precon(i, j)+S_evecs(i, k)*S_evecs(j, k)/SQRT(eval_capped)
+               block_precon_inv(i, j) = block_precon_inv(i, j)+S_evecs(i, k)*S_evecs(j, k)*SQRT(eval_capped)
+            ENDDO
+            ENDDO
+         ENDDO
+
+         DEALLOCATE (S, S_evecs, S_evals)
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle)
+   END SUBROUTINE pao_param_linpot_preconditioner
 
 ! **************************************************************************************************
 !> \brief Finalize the linear potential parametrization
@@ -125,6 +277,12 @@ CONTAINS
 
       CALL pao_param_finalize_fock(pao)
       CALL cp_dbcsr_release(pao%matrix_V_terms)
+      CALL cp_dbcsr_release(pao%matrix_R)
+
+      IF (pao%precondition) THEN
+         CALL cp_dbcsr_release(pao%matrix_precon)
+         CALL cp_dbcsr_release(pao%matrix_precon_inv)
+      ENDIF
 
    END SUBROUTINE pao_param_finalize_linpot
 
@@ -169,23 +327,25 @@ CONTAINS
       INTEGER                                            :: acol, arow, group, handle, iatom, n
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:), POINTER                    :: vec_M2, vec_V
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_M1, block_M2, block_U, &
-                                                            block_V, block_V_terms, block_X
-      REAL(KIND=dp)                                      :: min_gap
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_M1, block_M2, block_R, &
+                                                            block_U, block_V, block_V_terms, &
+                                                            block_X
+      REAL(KIND=dp)                                      :: min_gap, regu_energy
       TYPE(cp_dbcsr_iterator)                            :: iter
 
       CALL timeset(routineN, handle)
 
       min_gap = HUGE(dp)
+      regu_energy = 0.0_dp
       group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
 
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
-         IF (arow /= acol) CPABORT("pao_calc_U_linpot: encountered off-diagonal block")
-         iatom = arow
+         iatom = arow; CPASSERT(arow == acol)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_R, row=iatom, col=iatom, block=block_R, found=found)
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
-         CPASSERT(ASSOCIATED(block_U))
+         CPASSERT(ASSOCIATED(block_R) .AND. ASSOCIATED(block_U))
          n = SIZE(block_U, 1)
 
          ! calculate potential V
@@ -201,6 +361,9 @@ CONTAINS
             CPABORT("block_V not symmetric")
          block_V = 0.5_dp*(block_V+TRANSPOSE(block_V)) ! symmetrize exactly
 
+         ! regularization energy
+         regu_energy = regu_energy+DOT_PRODUCT(block_X(:, 1), MATMUL(block_R, block_X(:, 1)))
+
          IF (.NOT. PRESENT(matrix_G)) THEN
             CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U)
 
@@ -215,8 +378,10 @@ CONTAINS
             block_M2(1:n, 1:n) => vec_M2(:) ! map vector into matrix
             CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U, block_M1, block_M2)
             IF (MAXVAL(ABS(block_M2-TRANSPOSE(block_M2))) > 1e-14_dp) CPABORT("Expect symmetric matrix")
-            IF (SIZE(block_V_terms) > 0) & ! protect against corner-case of zero pao parameters
+            IF (SIZE(block_V_terms) > 0) THEN ! protect against corner-case of zero pao parameters
                block_G(:, 1) = MATMUL(vec_M2, block_V_terms)
+               block_G = block_G+2.0_dp*MATMUL(block_R, block_X) ! regularization gradient
+            ENDIF
             DEALLOCATE (vec_M2)
          ENDIF
 
@@ -227,6 +392,10 @@ CONTAINS
 
       ! sum penalty energies across ranks
       CALL mp_sum(penalty, group)
+      CALL mp_sum(regu_energy, group)
+
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| linpot regularization energy:", regu_energy
+      penalty = penalty+regu_energy
 
       ! print smallest homo-lumo gap encountered by fock-layer
       CALL mp_min(min_gap, group)
@@ -272,12 +441,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_linpot'
 
-      INTEGER                                            :: acol, arow, handle, n
+      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, n, &
+                                                            nterms
       LOGICAL                                            :: found
-      REAL(dp)                                           :: norm
+      REAL(dp)                                           :: norm, w
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: S, S_evecs, S_inv
       REAL(dp), DIMENSION(:), POINTER                    :: V_guess_vec
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H0, block_ks, block_V_terms, &
-                                                            block_X, V_guess
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H0, block_ks, block_X, V_guess, &
+                                                            V_terms
       TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
 
@@ -288,30 +460,49 @@ CONTAINS
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
-
-         ! retrieve potential terms
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=arow, col=acol, block=block_V_terms, found=found)
-         CPASSERT(ASSOCIATED(block_V_terms))
-         IF (SIZE(block_V_terms) == 0) CYCLE ! protect against corner-case of zero pao parameters
+         iatom = arow; CPASSERT(arow == acol)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=V_terms, found=found)
+         CPASSERT(ASSOCIATED(V_terms))
+         nterms = SIZE(V_terms, 2)
+         IF (nterms == 0) CYCLE ! protect against corner-case of zero pao parameters
 
          ! retrieve block_ks and block_H0
-         CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_ks, found=found)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=arow, col=acol, block=block_H0, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=iatom, col=iatom, block=block_ks, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
          CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_ks))
 
-         ! guess a potential
+         ! use diagonal block of Kohn-Sham matrix as initial guess
          n = SIZE(block_ks, 1)
          ALLOCATE (V_guess_vec(n*n))
          V_guess(1:n, 1:n) => V_guess_vec
          V_guess = block_ks-block_H0
 
-         ! project out anything that the potential terms can not represent
-         V_guess_vec = MATMUL(MATMUL(block_V_terms, TRANSPOSE(block_V_terms)), V_guess_vec)
+         ! build overlap matrix
+         ALLOCATE (S(nterms, nterms))
+         S(:, :) = MATMUL(TRANSPOSE(V_terms), V_terms)
 
-         ! find least-square-fit of guessed potential
-         CALL dgelsy_wrapper(block_V_terms, V_guess_vec, block_X(:, 1))
+         ! diagonalize S
+         ALLOCATE (S_evals(nterms), S_evecs(nterms, nterms))
+         S_evecs(:, :) = S
+         CALL diamat_all(S_evecs, S_evals)
 
-         DEALLOCATE (V_guess_vec)
+         ! calculate Tikhonov regularized inverse
+         ALLOCATE (S_inv(nterms, nterms))
+         S_inv(:, :) = 0.0_dp
+         DO k = 1, nterms
+            w = S_evals(k)/(S_evals(k)**2+pao%linpot_init_delta)
+            DO i = 1, nterms
+            DO j = 1, nterms
+               S_inv(i, j) = S_inv(i, j)+w*S_evecs(i, k)*S_evecs(j, k)
+            ENDDO
+            ENDDO
+         ENDDO
+
+         ! perform fit
+         block_X(:, 1) = MATMUL(MATMUL(S_inv, TRANSPOSE(V_terms)), V_guess_vec)
+
+         ! clean up
+         DEALLOCATE (V_guess_vec, S, S_evecs, S_evals, S_inv)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 
@@ -320,70 +511,5 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_initguess_linpot
-
-! **************************************************************************************************
-!> \brief Helper routine for calling LAPACK dgelsy
-!>  computes the linear least square fit min|| A * X - B ||
-!> \param matrix_A possibly non-square matrix
-!> \param vec_B ...
-!> \param vec_X ...
-! **************************************************************************************************
-   SUBROUTINE dgelsy_wrapper(matrix_A, vec_B, vec_X)
-      REAL(dp), DIMENSION(:, :)                          :: matrix_A
-      REAL(dp), DIMENSION(:)                             :: vec_B, vec_X
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'dgelsy_wrapper'
-
-      INTEGER                                            :: handle, info, lda, ldb, lwork, m, n, &
-                                                            nrhs, rank
-      INTEGER, DIMENSION(:), POINTER                     :: jpvt
-      REAL(KIND=dp)                                      :: rcon
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: B, work
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: A
-
-      CALL timeset(routineN, handle)
-      NULLIFY (jpvt, work, B)
-
-      IF (SIZE(matrix_A, 1) /= SIZE(vec_B)) CPABORT("DGELSY: matrix_A and vec_B not compatible")
-      IF (SIZE(matrix_A, 2) /= SIZE(vec_X)) CPABORT("DGELSY: matrix_A and vec_X not compatible")
-      m = SIZE(matrix_A, 1)
-      n = SIZE(matrix_A, 2)
-      lda = m
-      ldb = MAX(m, n)
-      nrhs = 1 ! number of right hand sides
-
-      rcon = 0.0_dp ! est. condition number
-
-      ! optional permutations of A
-      ALLOCATE (jpvt(n))
-      jpvt(:) = 0 ! no permutation
-
-      ! make copies of matrix_A and vec_B
-      ALLOCATE (A(m, n), B(MAX(m, n)))
-      B(1:m) = vec_B(:)
-      A(:, :) = matrix_A(:, :)
-
-      ! query required work space
-      lwork = -1
-      ALLOCATE (work(1))
-      CALL DGELSY(m, n, nrhs, A(1, 1), lda, B(1), ldb, jpvt, rcon, rank, work(1), lwork, info)
-      IF (info /= 0) CPABORT("DGELSY work space query failed")
-
-      ! allocate work space
-      lwork = INT(REAL(work(1)))
-      DEALLOCATE (work)
-      ALLOCATE (work(lwork))
-
-      ! perform actual optimization
-      CALL DGELSY(m, n, nrhs, A(1, 1), lda, B(1), ldb, jpvt, rcon, rank, work(1), lwork, info)
-      IF (info /= 0) CPABORT("DGELSY optimization failed")
-
-      ! copy results
-      vec_X(:) = B(1:n)
-
-      DEALLOCATE (A, B, work, jpvt)
-      CALL timestop(handle)
-
-   END SUBROUTINE dgelsy_wrapper
 
 END MODULE pao_param_linpot

@@ -10,9 +10,9 @@
 MODULE pao_optimizer
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, &
-        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
-        cp_dbcsr_trace, cp_dbcsr_type
+        cp_dbcsr_create, cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_multiply, &
+        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_opt_bfgs,&
                                               pao_opt_cg
@@ -44,8 +44,6 @@ CONTAINS
       IF (pao%precondition) THEN
          CALL cp_dbcsr_init(pao%matrix_D_preconed)
          CALL cp_dbcsr_copy(pao%matrix_D_preconed, pao%matrix_D)
-         CALL cp_dbcsr_init(pao%matrix_G_preconed)
-         CALL cp_dbcsr_copy(pao%matrix_G_preconed, pao%matrix_G)
       ENDIF
 
       IF (pao%optimizer == pao_opt_bfgs) &
@@ -86,10 +84,8 @@ CONTAINS
 
       CALL cp_dbcsr_release(pao%matrix_D)
       CALL cp_dbcsr_release(pao%matrix_G_prev)
-      IF (pao%precondition) THEN
+      IF (pao%precondition) &
          CALL cp_dbcsr_release(pao%matrix_D_preconed)
-         CALL cp_dbcsr_release(pao%matrix_G_preconed)
-      ENDIF
 
       IF (pao%optimizer == pao_opt_bfgs) &
          CALL cp_dbcsr_release(pao%matrix_BFGS)
@@ -108,23 +104,33 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_opt_new_dir'
 
       INTEGER                                            :: handle
+      TYPE(cp_dbcsr_type)                                :: matrix_G_preconed
 
       CALL timeset(routineN, handle)
 
       IF (pao%precondition) THEN
          ! We can't convert matrix_D for and back every time, the numeric noise would disturb the CG,
          ! hence we keep matrix_D_preconed around.
+         CALL cp_dbcsr_init(matrix_G_preconed)
+         CALL cp_dbcsr_copy(matrix_G_preconed, pao%matrix_G)
          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, pao%matrix_G, &
-                                0.0_dp, pao%matrix_G_preconed, retain_sparsity=.TRUE.)
-         CALL pao_opt_new_dir_low(pao, icycle, pao%matrix_G_preconed, pao%matrix_G_prev, pao%matrix_D_preconed)
+                                0.0_dp, matrix_G_preconed, retain_sparsity=.TRUE.)
+         CALL pao_opt_new_dir_low(pao, icycle, matrix_G_preconed, pao%matrix_G_prev, pao%matrix_D_preconed)
          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, pao%matrix_D_preconed, &
                                 0.0_dp, pao%matrix_D, retain_sparsity=.TRUE.)
+
          ! store preconditioned gradient for next iteration
-         CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_G_preconed)
-         ! We keep matrix_G_preconed, because its norm is later used for convergence detection.
+         CALL cp_dbcsr_copy(pao%matrix_G_prev, matrix_G_preconed)
+
+         pao%norm_G = cp_dbcsr_frobenius_norm(matrix_G_preconed)
+         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of preconditioned gradient:", pao%norm_G
+         CALL cp_dbcsr_release(matrix_G_preconed)
+
       ELSE
          CALL pao_opt_new_dir_low(pao, icycle, pao%matrix_G, pao%matrix_G_prev, pao%matrix_D)
          CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_G) ! store gradient for next iteration
+         pao%norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
+         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of gradient:", pao%norm_G
       ENDIF
 
       CALL timestop(handle)

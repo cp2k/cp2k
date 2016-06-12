@@ -13,11 +13,11 @@ MODULE pao_methods
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
         cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-        cp_dbcsr_distribution, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
+        cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
+        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
+        cp_dbcsr_trace, cp_dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -295,8 +295,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: new_energy
       LOGICAL, INTENT(OUT)                               :: is_converged
 
-      REAL(KIND=dp)                                      :: energy_diff, loop_eps, norm_G, now, &
-                                                            time_diff
+      REAL(KIND=dp)                                      :: energy_diff, loop_eps, now, time_diff
 
       ! calculate progress
       energy_diff = new_energy-pao%energy_prev
@@ -305,16 +304,8 @@ CONTAINS
       time_diff = now-pao%step_start_time
       pao%step_start_time = now
 
-      IF (pao%precondition) THEN
-         norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G_preconed)
-         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of preconditioned gradient:", norm_G
-      ELSE
-         norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
-         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of gradient:", norm_G
-      ENDIF
-
       ! convergence criterion
-      loop_eps = norm_G/ls_scf_env%nelectron_total
+      loop_eps = pao%norm_G/ls_scf_env%nelectron_total
       is_converged = loop_eps < pao%eps_pao
 
       IF (pao%istep > 1) THEN

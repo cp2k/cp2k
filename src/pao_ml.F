@@ -12,8 +12,7 @@ MODULE pao_ml
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_create,&
                                               cell_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_iterator,&
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_iterator,&
                                               cp_dbcsr_iterator_blocks_left,&
                                               cp_dbcsr_iterator_next_block,&
                                               cp_dbcsr_iterator_start,&
@@ -28,9 +27,9 @@ MODULE pao_ml
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_sum
    USE pao_input,                       ONLY: id2str,&
-                                              pao_exp_param,&
                                               pao_ml_gp,&
-                                              pao_ml_nn
+                                              pao_ml_nn,&
+                                              pao_rotinv_param
    USE pao_io,                          ONLY: pao_ioblock_type,&
                                               pao_iokind_type,&
                                               pao_kinds_ensure_equal,&
@@ -98,8 +97,8 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO|ML| Initializing maschine learning...'
 
-      IF (pao%parameterization /= pao_exp_param) &
-         CPABORT("PAO maschine learning requires EXP parametrization")
+      IF (pao%parameterization /= pao_rotinv_param) &
+         CPABORT("PAO maschine learning requires ROTINV parametrization")
 
       CALL get_qs_env(qs_env, para_env=para_env, atomic_kind_set=atomic_kind_set)
 
@@ -158,7 +157,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: hmat, positions
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: u0blocks, xblocks
+      TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
       TYPE(pao_iokind_type), ALLOCATABLE, DIMENSION(:)   :: kinds
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -169,7 +168,7 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, '(A,A)') " PAO|ML| Reading training frame from file: ", TRIM(filename)
 
       ! parse training data
-      CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, u0blocks)
+      CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks)
 
       ! check parametrization
       IF (TRIM(param) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
@@ -191,9 +190,6 @@ CONTAINS
          my_particle_set(iatom)%r = positions(iatom, :)
       ENDDO
 
-      IF (.NOT. ALLOCATED(u0blocks)) &
-         CPABORT("PAO-ML requires U0_blocks e.g. from EXP parametization")
-
       ! build training points
       DO ikind = 1, SIZE(kindsmap)
          DO iatom = 1, SIZE(xblocks)
@@ -210,7 +206,6 @@ CONTAINS
                                          qs_kind_set, &
                                          cell, &
                                          iatom=iatom, &
-                                         u0block=u0blocks(iatom)%p, &
                                          xblock=xblocks(iatom)%p, &
                                          output=new_point%output)
 
@@ -398,9 +393,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_ml_predict'
 
       INTEGER                                            :: acol, arow, handle, iatom, ikind, natoms
-      LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor, output, variances
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_U0, block_X
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_X
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_dbcsr_iterator)                            :: iter
@@ -427,8 +421,6 @@ CONTAINS
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
-         CPASSERT(ASSOCIATED(block_U0))
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
 
          ! calculate decriptor
@@ -446,7 +438,6 @@ CONTAINS
                                    qs_kind_set, &
                                    cell, &
                                    iatom=iatom, &
-                                   u0block=block_U0, &
                                    output=output, &
                                    xblock=block_X)
 

@@ -8,12 +8,16 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_ml_descriptor
-   USE cell_types,                      ONLY: cell_type
+   USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
-   USE pao_potentials,                  ONLY: pao_build_V_neighbors
+   USE pao_potentials,                  ONLY: calc_gaussian
    USE particle_types,                  ONLY: particle_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,13 +45,27 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor
 
-      INTEGER                                            :: N
+      INTEGER                                            :: ikind, jatom, N, natoms
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: V_neighbors
+      REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
 
-      CPASSERT(.NOT. ALLOCATED(descriptor))
+      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
+      N = basis_set%nsgf
+      natoms = SIZE(particle_set)
 
-      CALL pao_build_V_neighbors(particle_set, qs_kind_set, cell, iatom, V_neighbors)
-      N = SIZE(V_neighbors, 1)
+      ALLOCATE (V_neighbors(N, N))
+      V_neighbors = 0.0_dp
+      DO jatom = 1, natoms
+         IF (jatom == iatom) CYCLE
+         Ra = particle_set(iatom)%r
+         Rb = particle_set(jatom)%r
+         Rab = pbc(ra, rb, cell)
+         ! TODO read beta and weight from input
+         CALL calc_gaussian(basis_set, V_neighbors, Rab, lpot=0, beta=1.0_dp, weight=1.0_dp)
+      ENDDO
+
       ALLOCATE (descriptor(N))
       CALL diamat_all(V_neighbors, descriptor)
       DEALLOCATE (V_neighbors)

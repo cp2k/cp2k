@@ -23,6 +23,7 @@
         PARAMETERIZATION FOCK
         REGULARIZATION 1.0E-4
         CHECK_UNITARY_TOL 1.0E-10
+        LINPOT_INITGUESS_DELTA 1E+10 ! use zero as nitial guess
         &LINE_SEARCH
           METHOD 3PNT
           MAX_STEP_SIZE 10.0

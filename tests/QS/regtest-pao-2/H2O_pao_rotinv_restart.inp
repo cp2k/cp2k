@@ -48,7 +48,7 @@
       POTENTIAL GTH-PBE
       PAO_BASIS_SIZE 4
       &PAO_POTENTIAL
-        MAXL 0
+        MAXL 4
       &END PAO_POTENTIAL
     &END KIND
     &KIND O
@@ -56,7 +56,7 @@
       POTENTIAL GTH-PBE
       PAO_BASIS_SIZE 4
       &PAO_POTENTIAL
-        MAXL 1
+        MAXL 4
       &END PAO_POTENTIAL
     &END KIND
     &TOPOLOGY

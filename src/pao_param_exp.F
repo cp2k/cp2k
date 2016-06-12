@@ -8,9 +8,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_exp
-   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
         cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
@@ -18,12 +16,9 @@ MODULE pao_param_exp
         cp_dbcsr_set, cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
-   USE pao_potentials,                  ONLY: pao_build_V_neighbors
    USE pao_types,                       ONLY: pao_env_type
-   USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_initial_guess,                ONLY: calculate_atomic_fock_matrix
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
@@ -51,87 +46,48 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: acol, arow, handle, i, iatom, N
+      INTEGER                                            :: acol, arow, handle, iatom, N
       LOGICAL                                            :: found
-      REAL(dp)                                           :: probe
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: block_V
       REAL(dp), DIMENSION(:), POINTER                    :: H_evals
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H, block_H0, block_N, block_U0, &
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H, block_ks, block_N, block_U0, &
                                                             H_evecs
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type)                                :: matrix_H0
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, &
-                      matrix_s=matrix_s, &
-                      cell=cell, &
-                      particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, matrix_ks=matrix_ks)
 
       ! allocate matrix_U0
       CALL cp_dbcsr_init(pao%matrix_U0)
       CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
 
-      ! allocate matrix_H0
-      CALL cp_dbcsr_init(matrix_H0)
-      CALL cp_dbcsr_create(matrix_H0, template=matrix_s(1)%matrix)
-      CALL cp_dbcsr_reserve_diag_blocks(matrix_H0)
-
-      ! calculate inital atomic fock matrix H0
-      ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), it's not rotationally invariant
-      ! getting H0 directly from the atomic code
-      CALL calculate_atomic_fock_matrix(matrix_H0, &
-                                        particle_set, &
-                                        atomic_kind_set, &
-                                        qs_kind_set, &
-                                        output_unit=pao%iw)
-
       ! diagonalize each block of H0 and store eigenvectors in U0
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
          iatom = arow; CPASSERT(arow == acol)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_ks, found=found)
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
-         CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_N))
+         CPASSERT(ASSOCIATED(block_ks) .AND. ASSOCIATED(block_N))
          N = SIZE(block_U0, 1)
-
-         ! build potential V
-         CALL pao_build_V_neighbors(particle_set, qs_kind_set, cell, iatom, block_V)
 
          ! construct H
          ALLOCATE (block_H(N, N))
-         block_H = MATMUL(MATMUL(block_N, block_H0+block_V), block_N) ! transform H0 into orthonormal basis
+         block_H = MATMUL(MATMUL(block_N, block_ks), block_N) ! transform into orthonormal basis
 
          ! diagonalize H
          ALLOCATE (H_evecs(N, N), H_evals(N))
          H_evecs = block_H
          CALL diamat_all(H_evecs, H_evals)
 
-         ! ensure H_evals are non-degenerate
-         DO i = 1, N-1
-            IF (H_evals(i+1)-H_evals(i) < 1e-4_dp) &
-               CPWARN("min_gap of H too small")
-         ENDDO
+         ! use eigenvectors as initial guess
+         block_U0 = H_evecs
 
-         ! initialize with rudimentary sign-convention (allows regtesting rotational invariance)
-         DO i = 1, N
-            probe = SUM(MATMUL(MATMUL(TRANSPOSE(H_evecs(:, 1:1)), block_H0), H_evecs(:, i:i)))
-            block_U0(:, i) = SIGN(1.0_dp, probe)*H_evecs(:, i)
-         ENDDO
-
-         DEALLOCATE (block_H, H_evecs, H_evals, block_V)
+         DEALLOCATE (block_H, H_evecs, H_evals)
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
-      CALL cp_dbcsr_release(matrix_H0)
 
       IF (pao%precondition) &
          CPABORT("PAO preconditioning not supported for selected parametrization.")

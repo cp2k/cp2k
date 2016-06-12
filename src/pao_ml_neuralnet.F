@@ -27,7 +27,7 @@ MODULE pao_ml_neuralnet
 
    ! TODO turn these into input parameters
    REAL(dp), PARAMETER   :: step_size = 0.001_dp
-   INTEGER, PARAMETER    :: nlayers = 5
+   INTEGER, PARAMETER    :: nlayers = 2
    REAL(dp), PARAMETER   :: convergence_eps = 1e-7_dp
    INTEGER, PARAMETER    :: max_training_cycles = 50000
 
@@ -170,7 +170,7 @@ CONTAINS
                          prediction=prediction)
             error = MAXVAL(ABS(training_matrix%outputs(ipoint, :)-prediction))
             IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| ", TRIM(training_matrix%kindname), &
-               "verify training-point:", ipoint, "SQRT(error):", SQRT(error)
+               " verify training-point:", ipoint, "SQRT(error):", SQRT(error)
          ENDDO
          DEALLOCATE (prediction)
 

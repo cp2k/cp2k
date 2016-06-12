@@ -9,19 +9,13 @@
 ! **************************************************************************************************
 MODULE pao_potentials
    USE ai_overlap,                      ONLY: overlap_aab
-   USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
-   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: gamma1
    USE mathlib,                         ONLY: multinomial
    USE orbital_pointers,                ONLY: indco,&
                                               init_orbital_pointers,&
                                               ncoset
-   USE particle_types,                  ONLY: particle_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -30,83 +24,9 @@ MODULE pao_potentials
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_potentials'
 
-   PUBLIC :: pao_build_V_neighbors, pao_build_V_core
+   PUBLIC :: calc_gaussian
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Construct a potential which mimics the chemical environment created by neighboring atoms
-!> \param particle_set ...
-!> \param qs_kind_set ...
-!> \param cell ...
-!> \param iatom ...
-!> \param block_V ...
-! **************************************************************************************************
-   SUBROUTINE pao_build_V_neighbors(particle_set, qs_kind_set, cell, iatom, block_V)
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER, INTENT(IN)                                :: iatom
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: block_V
-
-      INTEGER                                            :: ikind, jatom, jkind, N, natoms
-      REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
-      REAL(KIND=dp)                                      :: pot_beta, pot_weight
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set
-
-      CPASSERT(.NOT. ALLOCATED(block_V))
-
-      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
-      N = basis_set%nsgf
-      natoms = SIZE(particle_set)
-
-      ALLOCATE (block_V(N, N))
-      block_V = 0.0_dp
-      DO jatom = 1, natoms
-         IF (jatom == iatom) CYCLE
-         CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
-         CALL get_qs_kind(qs_kind_set(jkind), pao_pot_beta=pot_beta, pao_pot_weight=pot_weight)
-         Ra = particle_set(iatom)%r
-         Rb = particle_set(jatom)%r
-         Rab = pbc(ra, rb, cell)
-         CALL calc_gaussian(basis_set, block_V, Rab, lpot=0, beta=pot_beta, weight=pot_weight)
-      ENDDO
-
-   END SUBROUTINE pao_build_V_neighbors
-
-! **************************************************************************************************
-!> \brief Construct a potential based on the atomic core Hamiltonian
-!> \param particle_set ...
-!> \param qs_kind_set ...
-!> \param iatom ...
-!> \param block_V ...
-! **************************************************************************************************
-   SUBROUTINE pao_build_V_core(particle_set, qs_kind_set, iatom, block_V)
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER, INTENT(IN)                                :: iatom
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: block_V
-
-      INTEGER                                            :: ikind, N
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_V_ptr
-
-      CPASSERT(.NOT. ALLOCATED(block_V))
-
-      NULLIFY (block_V_ptr)
-      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-      CALL calculate_atomic_orbitals(atomic_kind=particle_set(iatom)%atomic_kind, &
-                                     qs_kind=qs_kind_set(ikind), &
-                                     iunit=-1, &
-                                     fmat=block_V_ptr, &
-                                     ispin=1)
-
-      ! turn pointer into allocatable
-      N = SIZE(block_V_ptr, 1)
-      ALLOCATE (block_V(N, N))
-      block_V(:, :) = block_V_ptr
-      DEALLOCATE (block_V_ptr)
-   END SUBROUTINE pao_build_V_core
 
 ! **************************************************************************************************
 !> \brief Calculates potential term of the form r**lpot * Exp(-beta*r**2)
@@ -116,26 +36,31 @@ CONTAINS
 !> \param lpot polynomial prefactor, r**lpot
 !> \param beta exponent of the Gaussian
 !> \param weight ...
+!> \param min_shell ...
+!> \param max_shell ...
 ! **************************************************************************************************
-   SUBROUTINE calc_gaussian(basis_set, block_V, Rab, lpot, beta, weight)
+   SUBROUTINE calc_gaussian(basis_set, block_V, Rab, lpot, beta, weight, min_shell, max_shell)
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
       REAL(dp), DIMENSION(3)                             :: Rab
       INTEGER, INTENT(IN)                                :: lpot
       REAL(dp), INTENT(IN)                               :: beta, weight
+      INTEGER, INTENT(IN), OPTIONAL                      :: min_shell, max_shell
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_gaussian'
       REAL(dp), PARAMETER                                :: inf_dist = 0.1*HUGE(1.0)
 
-      INTEGER :: handle, ic, iset, ishell, jset, jshell, la1_max, la1_min, la2_max, la2_min, &
-         lb_max, lb_min, N, na1, na2, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, npgfb
-      REAL(dp)                                           :: coeff
+      INTEGER :: handle, ic, iset, ishell, ishell_abs, jset, jshell, jshell_abs, la1_max, la1_min, &
+         la2_max, la2_min, lb_max, lb_min, N, na1, na2, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, &
+         npgfb
+      REAL(dp)                                           :: coeff, norm2
       REAL(dp), DIMENSION(:), POINTER                    :: rpgfa1, rpgfa2, rpgfb, zeta1, zeta2, zetb
       REAL(dp), DIMENSION(:, :), POINTER                 :: new_block, sab
       REAL(dp), DIMENSION(:, :, :), POINTER              :: saab
 
       CALL timeset(routineN, handle)
 
+      CPASSERT(PRESENT(min_shell) .EQV. PRESENT(max_shell))
       CPASSERT(MOD(lpot, 2) == 0) ! otherwise it's not rotationally invariant
       CALL init_orbital_pointers(lpot)
 
@@ -160,6 +85,12 @@ CONTAINS
       DO jset = 1, basis_set%nset
       DO ishell = 1, basis_set%nshell(iset)
       DO jshell = 1, basis_set%nshell(jset)
+         IF (PRESENT(min_shell) .AND. PRESENT(max_shell)) THEN
+            ishell_abs = SUM(basis_set%nshell(1:iset-1))+ishell
+            jshell_abs = SUM(basis_set%nshell(1:jset-1))+jshell
+            IF (MIN(ishell_abs, jshell_abs) /= min_shell) CYCLE
+            IF (MAX(ishell_abs, jshell_abs) /= max_shell) CYCLE
+         ENDIF
 
          ! setup iset
          la1_max = basis_set%l(ishell, iset)
@@ -210,7 +141,9 @@ CONTAINS
 
       DEALLOCATE (rpgfb, zetb)
 
-      block_V = block_V+weight*new_block
+      norm2 = (2.0_dp*beta)**(-0.5_dp-lpot)*gamma1(lpot)
+
+      block_V = block_V+weight*new_block/SQRT(norm2)
       DEALLOCATE (new_block)
 
       ! symmetrize

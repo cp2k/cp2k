@@ -24,6 +24,8 @@
         MAX_PAO    3000
         PARAMETERIZATION FOCK
         REGULARIZATION 1.0E-5
+        LINPOT_INITGUESS_DELTA 1E+10 ! use zero as initial guess
+        OPTIMIZER BFGS
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH

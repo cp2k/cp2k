@@ -30,8 +30,7 @@ MODULE pao_io
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_max,&
                                               mp_sum
-   USE pao_input,                       ONLY: id2str,&
-                                              pao_exp_param
+   USE pao_input,                       ONLY: id2str
    USE pao_param,                       ONLY: pao_param_count
    USE pao_types,                       ONLY: pao_env_type
    USE particle_types,                  ONLY: particle_type
@@ -39,6 +38,7 @@ MODULE pao_io
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              pao_potential_type,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
 
@@ -63,15 +63,11 @@ MODULE pao_io
       CHARACTER(LEN=default_string_length)     :: prim_basis_name = ""
       INTEGER                                  :: prim_basis_size = -1
       INTEGER                                  :: pao_basis_size = -1
-      INTEGER                                  :: pao_pot_maxl = -1
-      REAL(dp)                                 :: pao_pot_beta = 0.0_dp
-      REAL(dp)                                 :: pao_pot_weight = 0.0_dp
-      INTEGER                                  :: pao_pot_max_projector = -1
-      INTEGER                                  :: pao_pot_neighbors = -1
       INTEGER                                  :: nparams = -1
+      TYPE(pao_potential_type), ALLOCATABLE, DIMENSION(:) :: pao_potentials
    END TYPE pao_iokind_type
 
-   INTEGER, PARAMETER, PRIVATE :: file_format_version = 2
+   INTEGER, PARAMETER, PRIVATE :: file_format_version = 4
 
 CONTAINS
 
@@ -97,7 +93,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_X, buffer
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: u0blocks, xblocks
+      TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
       TYPE(pao_iokind_type), ALLOCATABLE, DIMENSION(:)   :: kinds
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -112,7 +108,7 @@ CONTAINS
 
       ! read and check restart file on first rank only
       IF (para_env%mepos == para_env%source) THEN
-         CALL pao_read_raw(pao%restart_file, param, hmat, kinds, atom2kind, positions, xblocks, u0blocks)
+         CALL pao_read_raw(pao%restart_file, param, hmat, kinds, atom2kind, positions, xblocks)
 
          ! check cell
          IF (MAXVAL(ABS(hmat-cell%hmat)) > 1e-10) &
@@ -178,23 +174,21 @@ CONTAINS
 !> \param atom2kind ...
 !> \param positions ...
 !> \param xblocks ...
-!> \param u0blocks ...
 ! **************************************************************************************************
-   SUBROUTINE pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, u0blocks)
+   SUBROUTINE pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks)
       CHARACTER(LEN=default_path_length), INTENT(IN)     :: filename
       CHARACTER(LEN=default_string_length), INTENT(OUT)  :: param
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: hmat
       TYPE(pao_iokind_type), ALLOCATABLE, DIMENSION(:)   :: kinds
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: positions
-      TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks, u0blocks
+      TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_read_raw', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: label, str_in
-      INTEGER                                            :: i1, i2, i3, i4, iatom, ikind, n, natoms, &
-                                                            nkinds, nparams, u0blocks_read, &
-                                                            unit_nr, xblocks_read
+      INTEGER                                            :: i1, i2, iatom, ikind, ipot, natoms, &
+                                                            nkinds, nparams, unit_nr, xblocks_read
       LOGICAL                                            :: check_version
       REAL(dp)                                           :: r1, r2
       REAL(dp), DIMENSION(3)                             :: pos_in
@@ -205,12 +199,10 @@ CONTAINS
       CPASSERT(.NOT. ALLOCATED(atom2kind))
       CPASSERT(.NOT. ALLOCATED(positions))
       CPASSERT(.NOT. ALLOCATED(xblocks))
-      CPASSERT(.NOT. ALLOCATED(u0blocks))
 
       natoms = -1
       nkinds = -1
       xblocks_read = 0
-      u0blocks_read = 0
       check_version = .FALSE.
 
       CALL open_file(file_name=filename, file_status="OLD", file_form="FORMATTED", &
@@ -251,14 +243,22 @@ CONTAINS
             kinds(ikind)%prim_basis_name = str_in
 
          ELSE IF (TRIM(label) == "PaoBasis") THEN
-            READ (unit_nr, fmt=*) label, ikind, i1, i2, i3, i4, r1, r2
+            READ (unit_nr, fmt=*) label, ikind, i1
             CPASSERT(ALLOCATED(kinds))
             kinds(ikind)%pao_basis_size = i1
-            kinds(ikind)%pao_pot_maxl = i2
-            kinds(ikind)%pao_pot_max_projector = i3
-            kinds(ikind)%pao_pot_neighbors = i4
-            kinds(ikind)%pao_pot_beta = r1
-            kinds(ikind)%pao_pot_weight = r2
+
+         ELSE IF (TRIM(label) == "NPaoPotentials") THEN
+            READ (unit_nr, fmt=*) label, ikind, i1
+            CPASSERT(ALLOCATED(kinds))
+            ALLOCATE (kinds(ikind)%pao_potentials(i1))
+
+         ELSE IF (TRIM(label) == "PaoPotential") THEN
+            READ (unit_nr, fmt=*) label, ikind, ipot, i1, i2, r1, r2
+            CPASSERT(ALLOCATED(kinds(ikind)%pao_potentials))
+            kinds(ikind)%pao_potentials(ipot)%maxl = i1
+            kinds(ikind)%pao_potentials(ipot)%max_projector = i2
+            kinds(ikind)%pao_potentials(ipot)%beta = r1
+            kinds(ikind)%pao_potentials(ipot)%weight = r2
 
          ELSE IF (TRIM(label) == "NParams") THEN
             READ (unit_nr, fmt=*) label, ikind, i1
@@ -267,7 +267,7 @@ CONTAINS
 
          ELSE IF (TRIM(label) == "Natoms") THEN
             READ (unit_nr, fmt=*) label, natoms
-            ALLOCATE (positions(natoms, 3), atom2kind(natoms), xblocks(natoms), u0blocks(natoms))
+            ALLOCATE (positions(natoms, 3), atom2kind(natoms), xblocks(natoms))
             positions = 0.0_dp; atom2kind = -1
 
          ELSE IF (TRIM(label) == "Atom") THEN
@@ -292,17 +292,6 @@ CONTAINS
             xblocks_read = xblocks_read+1
             CPASSERT(iatom == xblocks_read) ! ensure blocks are read in order
 
-         ELSE IF (TRIM(label) == "U0block") THEN
-            READ (unit_nr, fmt=*) label, iatom
-            CPASSERT(ALLOCATED(kinds) .AND. ALLOCATED(atom2kind))
-            ikind = atom2kind(iatom)
-            N = kinds(ikind)%prim_basis_size
-            ALLOCATE (u0blocks(iatom)%p(N, N))
-            BACKSPACE (unit_nr)
-            READ (unit_nr, fmt=*) label, iatom, u0blocks(iatom)%p
-            u0blocks_read = u0blocks_read+1
-            CPASSERT(iatom == u0blocks_read) ! ensure blocks are read in order
-
          ELSE IF (TRIM(label) == "THE_END") THEN
             EXIT
          ELSE
@@ -314,8 +303,6 @@ CONTAINS
 
       CPASSERT(check_version)
       CPASSERT(xblocks_read == natoms) ! ensure we read all blocks
-      CPASSERT(u0blocks_read == 0 .OR. u0blocks_read == natoms)
-      IF (u0blocks_read == 0) DEALLOCATE (u0blocks)
 
    END SUBROUTINE pao_read_raw
 
@@ -333,12 +320,10 @@ CONTAINS
       TYPE(pao_iokind_type), INTENT(IN)                  :: pao_kind
 
       CHARACTER(LEN=default_string_length)               :: name
-      INTEGER                                            :: nparams, pao_basis_size, &
-                                                            pao_pot_max_projector, pao_pot_maxl, &
-                                                            pao_pot_neighbors, z
-      REAL(dp)                                           :: pao_pot_beta, pao_pot_weight
+      INTEGER                                            :: ipot, nparams, pao_basis_size, z
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL get_qs_env(qs_env, &
@@ -352,11 +337,7 @@ CONTAINS
       CALL get_qs_kind(qs_kind_set(ikind), &
                        basis_set=basis_set, &
                        pao_basis_size=pao_basis_size, &
-                       pao_pot_maxl=pao_pot_maxl, &
-                       pao_pot_max_projector=pao_pot_max_projector, &
-                       pao_pot_neighbors=pao_pot_neighbors, &
-                       pao_pot_beta=pao_pot_beta, &
-                       pao_pot_weight=pao_pot_weight)
+                       pao_potentials=pao_potentials)
       CALL pao_param_count(pao, qs_env, ikind=ikind, nparams=nparams)
 
       IF (pao_kind%nparams /= nparams) &
@@ -371,16 +352,19 @@ CONTAINS
          CPABORT("Primary Basis-set size does not match")
       IF (pao_kind%pao_basis_size /= pao_basis_size) &
          CPABORT("PAO basis size does not match")
-      IF (pao_kind%pao_pot_maxl /= pao_pot_maxl) &
-         CPABORT("PAO_POT_MAXL does not match")
-      IF (pao_kind%pao_pot_max_projector /= pao_pot_max_projector) &
-         CPABORT("PAO_POT_MAX_PROJECTOR does not match")
-      IF (pao_kind%pao_pot_neighbors /= pao_pot_neighbors) &
-         CPABORT("PAO_POT_NEIGHBORS does not match")
-      IF (pao_kind%pao_pot_beta /= pao_pot_beta) &
-         CPABORT("PAO_POT_BETA does not match")
-      IF (pao_kind%pao_pot_weight /= pao_pot_weight) &
-         CPABORT("PAO_POT_WEIGHT does not match")
+      IF (SIZE(pao_kind%pao_potentials) /= SIZE(pao_potentials)) &
+         CPABORT("Number of PAO_POTENTIALS does not match")
+
+      DO ipot = 1, SIZE(pao_potentials)
+         IF (pao_kind%pao_potentials(ipot)%maxl /= pao_potentials(ipot)%maxl) &
+            CPABORT("PAO_POT_MAXL does not match")
+         IF (pao_kind%pao_potentials(ipot)%max_projector /= pao_potentials(ipot)%max_projector) &
+            CPABORT("PAO_POT_MAX_PROJECTOR does not match")
+         IF (pao_kind%pao_potentials(ipot)%beta /= pao_potentials(ipot)%beta) &
+            CPABORT("PAO_POT_BETA does not match")
+         IF (pao_kind%pao_potentials(ipot)%weight /= pao_potentials(ipot)%weight) &
+            CPABORT("PAO_POT_WEIGHT does not match")
+      ENDDO
 
    END SUBROUTINE pao_kinds_ensure_equal
 
@@ -427,8 +411,6 @@ CONTAINS
             CALL write_restart_header(pao, qs_env, energy, unit_nr)
 
          CALL pao_write_diagonal_blocks(para_env, pao%matrix_X, "Xblock", unit_nr)
-         IF (pao%parameterization == pao_exp_param) &
-            CALL pao_write_diagonal_blocks(para_env, pao%matrix_U0, "U0block", unit_nr)
 
       ENDIF
 
@@ -504,13 +486,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: kindname
-      INTEGER                                            :: iatom, ikind, nparams, pao_basis_size, &
-                                                            pao_pot_max_projector, pao_pot_maxl, &
-                                                            pao_pot_neighbors, z
-      REAL(dp)                                           :: pao_pot_beta, pao_pot_weight
+      INTEGER                                            :: iatom, ikind, ipot, nparams, &
+                                                            pao_basis_size, z
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -531,19 +512,21 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind_set(ikind), name=kindname, z=z)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           pao_basis_size=pao_basis_size, &
-                          pao_pot_maxl=pao_pot_maxl, &
-                          pao_pot_max_projector=pao_pot_max_projector, &
-                          pao_pot_neighbors=pao_pot_neighbors, &
-                          pao_pot_beta=pao_pot_beta, &
-                          pao_pot_weight=pao_pot_weight, &
+                          pao_potentials=pao_potentials, &
                           basis_set=basis_set)
          CALL pao_param_count(pao, qs_env, ikind, nparams)
          WRITE (unit_nr, "(A,5X,I10,1X,A,1X,I3)") "Kind", ikind, TRIM(kindname), z
-         WRITE (unit_nr, "(A,5X,I10,1X,I10,1X,A)") "PrimBasis", ikind, basis_set%nsgf, TRIM(basis_set%name)
-         WRITE (unit_nr, "(A,5X,I10,1X,I3,1X,I3)", advance='no') "PaoBasis", ikind, pao_basis_size, pao_pot_maxl
-         WRITE (unit_nr, "(1X,I3,1X,I3,1X)", advance='no') pao_pot_max_projector, pao_pot_neighbors
-         WRITE (unit_nr, "(F20.16,1X,F20.16)") pao_pot_beta, pao_pot_weight
          WRITE (unit_nr, "(A,5X,I10,1X,I3)") "NParams", ikind, nparams
+         WRITE (unit_nr, "(A,5X,I10,1X,I10,1X,A)") "PrimBasis", ikind, basis_set%nsgf, TRIM(basis_set%name)
+         WRITE (unit_nr, "(A,5X,I10,1X,I3)") "PaoBasis", ikind, pao_basis_size
+         WRITE (unit_nr, "(A,5X,I10,1X,I3)") "NPaoPotentials", ikind, SIZE(pao_potentials)
+         DO ipot = 1, SIZE(pao_potentials)
+            WRITE (unit_nr, "(A,5X,I10,1X,I3)", advance='no') "PaoPotential", ikind, ipot
+            WRITE (unit_nr, "(1X,I3)", advance='no') pao_potentials(ipot)%maxl
+            WRITE (unit_nr, "(1X,I3)", advance='no') pao_potentials(ipot)%max_projector
+            WRITE (unit_nr, "(1X,F20.16)", advance='no') pao_potentials(ipot)%beta
+            WRITE (unit_nr, "(1X,F20.16)") pao_potentials(ipot)%weight
+         ENDDO
       ENDDO
 
       ! write cell
