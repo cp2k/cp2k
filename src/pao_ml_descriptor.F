@@ -17,6 +17,7 @@ MODULE pao_ml_descriptor
    USE pao_potentials,                  ONLY: calc_gaussian
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              pao_descriptor_type,&
                                               qs_kind_type
 #include "./base/base_uses.f90"
 
@@ -45,31 +46,57 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor
 
-      INTEGER                                            :: ikind, jatom, N, natoms
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: V_neighbors
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_ml_calc_descriptor'
+
+      INTEGER                                            :: handle, idesc, ikind, jatom, jkind, N, &
+                                                            natoms, ndesc
+      REAL(dp)                                           :: beta, weight
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: V_evals
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: V_block
       REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(pao_descriptor_type), DIMENSION(:), POINTER   :: pao_descriptors
+
+      CALL timeset(routineN, handle)
 
       CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, pao_descriptors=pao_descriptors)
+
       N = basis_set%nsgf
       natoms = SIZE(particle_set)
+      ndesc = SIZE(pao_descriptors)
+      IF (ndesc == 0) CPABORT("No PAO_DESCRIPTOR section found")
 
-      ALLOCATE (V_neighbors(N, N))
-      V_neighbors = 0.0_dp
-      DO jatom = 1, natoms
-         IF (jatom == iatom) CYCLE
-         Ra = particle_set(iatom)%r
-         Rb = particle_set(jatom)%r
-         Rab = pbc(ra, rb, cell)
-         ! TODO read beta and weight from input
-         CALL calc_gaussian(basis_set, V_neighbors, Rab, lpot=0, beta=1.0_dp, weight=1.0_dp)
+      ALLOCATE (descriptor(N*ndesc), V_block(N, N), V_evals(N))
+
+      DO idesc = 1, ndesc
+
+         ! construct matrix V_block from neighboring atoms
+         V_block = 0.0_dp
+         DO jatom = 1, natoms
+            IF (jatom == iatom) CYCLE
+            Ra = particle_set(iatom)%r
+            Rb = particle_set(jatom)%r
+            Rab = pbc(ra, rb, cell)
+            CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
+            CALL get_qs_kind(qs_kind_set(jkind), pao_descriptors=pao_descriptors)
+            IF (SIZE(pao_descriptors) /= ndesc) &
+               CPABORT("Not all KINDs have the same number of PAO_DESCRIPTOR sections")
+            weight = pao_descriptors(idesc)%weight
+            beta = pao_descriptors(idesc)%beta
+            CALL calc_gaussian(basis_set, V_block, Rab, lpot=0, beta=beta, weight=weight)
+         ENDDO
+
+         ! diagonalize V_block
+         CALL diamat_all(V_block, V_evals)
+
+         ! use eigenvalues of V_block as descriptor
+         descriptor((idesc-1)*N+1:idesc*N) = V_evals(:)
       ENDDO
 
-      ALLOCATE (descriptor(N))
-      CALL diamat_all(V_neighbors, descriptor)
-      DEALLOCATE (V_neighbors)
+      DEALLOCATE (V_block, V_evals)
 
+      CALL timestop(handle)
    END SUBROUTINE pao_ml_calc_descriptor
 
 END MODULE pao_ml_descriptor

@@ -1,7 +1,11 @@
-# reference
-2H2O_dist_3.4_pao_ref.inp         11     2e-13     -34.448121471820563
-# predict using a Gaussian Process
-2H2O_dist_3.4_pao_GP.inp          11     5e-5      -34.448121471820563
-# predict using a Neural Network
-2H2O_dist_3.4_pao_NN.inp          11     5e-5      -34.448121471820563
+# generate training-data / reference
+H2_dist_0.5_pao.inp               11     2e-13     -1.090022967330119
+H2_dist_0.9_pao.inp               11     2e-13     -1.153696829988193
+H2_dist_0.7_pao.inp               11     2e-13     -1.162990081364273
+#
+# predict mid-point using a Gaussian Process
+H2_dist_0.7_GP.inp                11     1e-4      -1.162990081364273
+#
+# predict mid-point using a Neural Network
+H2_dist_0.7_NN.inp                11     1e-4      -1.162990081364273
 #EOF

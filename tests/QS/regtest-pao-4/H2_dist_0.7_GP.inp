@@ -6,14 +6,13 @@
     &QS
       LS_SCF
     &END QS
-    &MGRID
-      CUTOFF 400
-      REL_CUTOFF 60
-    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      PSOLVER  MT
+    &END POISSON
     &LS_SCF
       MAX_SCF     25
       EPS_SCF     1.0E-8
-      EPS_FILTER  1.0E-20
       S_PRECONDITIONER  NONE
       REPORT_ALL_SPARSITIES OFF
       PURIFICATION_METHOD TRS4
@@ -22,9 +21,11 @@
         MAX_PAO 1
         PARAMETERIZATION ROTINV
         &MACHINE_LEARNING
-          METHOD NEURAL_NETWORK
+          METHOD GAUSSIAN_PROCESS
           TOLERANCE 0.001
-          TRAINING_FILE 2H2O_training.txt
+          TRAINING_FILE H2_training.txt
+          GP_SCALE 7.0
+          GP_NOISE_VAR 0.001
         &END MACHINE_LEARNING
       &END PAO
     &END
@@ -34,41 +35,36 @@
     &END XC
   &END DFT
   &SUBSYS
-    ! dist 3.4
-    &COORD
-      O  -1.464   0.099   0.300  mol1
-      H  -1.956   0.624  -0.340  mol1
-      H  -1.797  -0.799   0.206  mol1
-      O   1.838   0.154  -0.510  mol2
-      H   2.363   0.494   0.220  mol2
-      H   0.920   0.173  -0.198  mol2
-    &END COORD
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC 4.0 4.0 4.0
+      PERIODIC NONE
     &END CELL
+    &COORD
+      H       0.7   0.0   0.0
+      H       0.0   0.0   0.0
+    &END COORD
     &TOPOLOGY
-      &CENTER_COORDINATES
-      &END
-    &END TOPOLOGY
-    &KIND O
-      BASIS_SET DZVP-MOLOPT-GTH
-      POTENTIAL GTH-PBE
-      PAO_BASIS_SIZE 4
-      &PAO_POTENTIAL
-        MAXL 4
-      &END PAO_POTENTIAL
-    &END KIND
+       &CENTER_COORDINATES
+       &END
+    &END
     &KIND H
       BASIS_SET DZVP-MOLOPT-GTH
       POTENTIAL GTH-PBE
-      PAO_BASIS_SIZE 4
+      PAO_BASIS_SIZE 1
       &PAO_POTENTIAL
-        MAXL 4
+        MAXL 0
       &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+        WEIGHT +1.0
+        BETA 1.0
+      &END PAO_DESCRIPTOR
+      &PAO_DESCRIPTOR
+        WEIGHT -1.0
+        BETA 0.8
+      &END PAO_DESCRIPTOR
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT 2H2O_dist_3.4_pao_NN
-  RUN_TYPE ENERGY
+  PROJECT H2_dist_0.7_GP
 &END GLOBAL

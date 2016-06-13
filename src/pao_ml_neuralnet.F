@@ -27,7 +27,7 @@ MODULE pao_ml_neuralnet
 
    ! TODO turn these into input parameters
    REAL(dp), PARAMETER   :: step_size = 0.001_dp
-   INTEGER, PARAMETER    :: nlayers = 2
+   INTEGER, PARAMETER    :: nlayers = 1
    REAL(dp), PARAMETER   :: convergence_eps = 1e-7_dp
    INTEGER, PARAMETER    :: max_training_cycles = 50000
 

@@ -109,7 +109,7 @@ MODULE qs_kind_types
    END TYPE dft_plus_u_type
 
 ! **************************************************************************************************
-!> \brief Holds information of a PAO potential
+!> \brief Holds information about a PAO potential
 ! **************************************************************************************************
    TYPE pao_potential_type
       INTEGER                                :: maxl = -1
@@ -117,6 +117,14 @@ MODULE qs_kind_types
       REAL(KIND=dp)                          :: weight = 0.0_dp
       INTEGER                                :: max_projector = -1
    END TYPE pao_potential_type
+
+! **************************************************************************************************
+!> \brief Holds information about a PAO descriptor
+! **************************************************************************************************
+   TYPE pao_descriptor_type
+      REAL(KIND=dp)                          :: beta = 0.0_dp
+      REAL(KIND=dp)                          :: weight = 0.0_dp
+   END TYPE pao_descriptor_type
 
 !> Provides all information about a quickstep kind
 ! **************************************************************************************************
@@ -166,6 +174,7 @@ MODULE qs_kind_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: reltmat => Null()
       INTEGER                                :: pao_basis_size = -1
       TYPE(pao_potential_type), DIMENSION(:), POINTER :: pao_potentials => Null()
+      TYPE(pao_descriptor_type), DIMENSION(:), POINTER :: pao_descriptors => Null()
    END TYPE qs_kind_type
 
 !> Provides a vector of pointers of type qs_kind_type
@@ -190,7 +199,7 @@ MODULE qs_kind_types
              init_atom_electronic_state
 
    ! Public data types
-   PUBLIC :: qs_kind_type, pao_potential_type
+   PUBLIC :: qs_kind_type, pao_potential_type, pao_descriptor_type
 
 CONTAINS
 
@@ -279,6 +288,9 @@ CONTAINS
             IF (ASSOCIATED(qs_kind_set(ikind)%pao_potentials)) THEN
                DEALLOCATE (qs_kind_set(ikind)%pao_potentials)
             END IF
+            IF (ASSOCIATED(qs_kind_set(ikind)%pao_descriptors)) THEN
+               DEALLOCATE (qs_kind_set(ikind)%pao_descriptors)
+            END IF
 
             CALL remove_basis_set_container(qs_kind_set(ikind)%basis_sets)
 
@@ -354,6 +366,7 @@ CONTAINS
 !> \param element_symbol ...
 !> \param pao_basis_size ...
 !> \param pao_potentials ...
+!> \param pao_descriptors ...
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
@@ -369,7 +382,7 @@ CONTAINS
                           bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
                           init_u_ramping_each_scf, reltmat, ghost, floating, name, element_symbol, &
-                          pao_basis_size, pao_potentials)
+                          pao_basis_size, pao_potentials, pao_descriptors)
 
       TYPE(qs_kind_type)                                 :: qs_kind
       TYPE(gto_basis_set_type), OPTIONAL, POINTER        :: basis_set
@@ -417,6 +430,8 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: pao_basis_size
       TYPE(pao_potential_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pao_potentials
+      TYPE(pao_descriptor_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: pao_descriptors
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind', routineP = moduleN//':'//routineN
 
@@ -654,6 +669,7 @@ CONTAINS
 
       IF (PRESENT(pao_basis_size)) pao_basis_size = qs_kind%pao_basis_size
       IF (PRESENT(pao_potentials)) pao_potentials => qs_kind%pao_potentials
+      IF (PRESENT(pao_descriptors)) pao_descriptors => qs_kind%pao_descriptors
    END SUBROUTINE get_qs_kind
 
 ! **************************************************************************************************
@@ -1167,17 +1183,18 @@ CONTAINS
          DIMENSION(:), POINTER                           :: tmpstringlist
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_name, basis_set_type
-      INTEGER                                            :: handle, i, i_rep, ipaopot, ipos, j, &
-                                                            k_rep, l, m, n_rep, nb_rep, nexp, &
-                                                            ngauss, norbitals, npaopot, z
+      INTEGER                                            :: handle, i, i_rep, ipaodesc, ipaopot, &
+                                                            ipos, j, k_rep, l, m, n_rep, nb_rep, &
+                                                            nexp, ngauss, norbitals, npaodesc, &
+                                                            npaopot, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled
       REAL(KIND=dp)                                      :: zeff_correction
       TYPE(gto_basis_set_type), POINTER                  :: sup_basis_set, tmp_basis_set
       TYPE(section_vals_type), POINTER :: basis_section, bs_section, dft_plus_u_section, &
-         dft_section, enforce_occupation_section, kgpot_section, pao_pot_section, &
-         potential_section, spin_section
+         dft_section, enforce_occupation_section, kgpot_section, pao_desc_section, &
+         pao_pot_section, potential_section, spin_section
 
       CALL timeset(routineN, handle)
 
@@ -1332,9 +1349,11 @@ CONTAINS
          END IF
          ! end of deprecated input
 
-         ! parse PAO stuff
-         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
-                                   keyword_name="PAO_BASIS_SIZE", i_val=qs_kind%pao_basis_size)
+         ! parse PAO_BASIS_SIZE
+         CALL section_vals_val_get(kind_section, keyword_name="PAO_BASIS_SIZE", i_rep_section=k_rep, &
+                                   i_val=qs_kind%pao_basis_size)
+
+         ! parse PAO_POTENTIAL sections
          pao_pot_section => section_vals_get_subs_vals(kind_section, "PAO_POTENTIAL", i_rep_section=k_rep)
          CALL section_vals_get(pao_pot_section, n_repetition=npaopot)
          ALLOCATE (qs_kind%pao_potentials(npaopot))
@@ -1349,6 +1368,18 @@ CONTAINS
                                       r_val=qs_kind%pao_potentials(ipaopot)%weight)
          ENDDO
 
+         ! parse PAO_DESCRIPTOR sections
+         pao_desc_section => section_vals_get_subs_vals(kind_section, "PAO_DESCRIPTOR", i_rep_section=k_rep)
+         CALL section_vals_get(pao_desc_section, n_repetition=npaodesc)
+         ALLOCATE (qs_kind%pao_descriptors(npaodesc))
+         DO ipaodesc = 1, npaodesc
+            CALL section_vals_val_get(pao_desc_section, keyword_name="BETA", i_rep_section=ipaodesc, &
+                                      r_val=qs_kind%pao_descriptors(ipaodesc)%beta)
+            CALL section_vals_val_get(pao_desc_section, keyword_name="WEIGHT", i_rep_section=ipaodesc, &
+                                      r_val=qs_kind%pao_descriptors(ipaodesc)%weight)
+         ENDDO
+
+         ! parse ELEC_CONF
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="ELEC_CONF", n_rep_val=i)
          IF (i > 0) THEN

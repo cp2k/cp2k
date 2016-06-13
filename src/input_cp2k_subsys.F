@@ -1265,6 +1265,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_pao_descriptor_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_basis_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1295,27 +1299,22 @@ CONTAINS
    SUBROUTINE create_pao_potential_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_pao_potential_section', &
-         routineP = moduleN//':'//routineN
-
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
       NULLIFY (keyword)
 
-      CALL section_create(section, name="PAO_POTENTIAL", &
-                          repeats=.TRUE., &
+      CALL section_create(section, name="PAO_POTENTIAL", repeats=.TRUE., &
                           description="Settings of the PAO potentials, which are atomic kind specific.")
 
       CALL keyword_create(keyword, name="MAXL", &
-                          description="Maximum angular moment of the potential.", &
-                          default_i_val=0)
+                          description="Maximum angular moment of the potential "// &
+                          "(must be an even number).", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="BETA", &
-                          description="Scaling factor of the potential's Gaussian Hull functions. "// &
-                          "The exponent is given by pot_exp = 0.5/(R_vdw*pot_beta)**2.", &
+                          description="Exponent of the Gaussian potential term.", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1327,12 +1326,42 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MAX_PROJECTOR", &
-                          description="Maximum angular moment of the potential's projectors.", &
-                          default_i_val=2)
+                          description="Maximum angular moment of the potential's projectors. "// &
+                          "Used only by the GTH parametrization", default_i_val=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_pao_potential_section
+
+! **************************************************************************************************
+!> \brief Creates the PAO_DESCRIPTOR section
+!> \param section the section to create
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE create_pao_descriptor_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      NULLIFY (keyword)
+
+      CALL section_create(section, name="PAO_DESCRIPTOR", repeats=.TRUE., &
+                          description="Settings of the PAO descriptor, which are atomic kind specific.")
+
+      CALL keyword_create(keyword, name="BETA", &
+                          description="Exponent of the Gaussian potential term.", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="WEIGHT", &
+                          description="Weight of Gaussian potential term.", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_pao_descriptor_section
 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for BS method: imposing atomic orbital occupation

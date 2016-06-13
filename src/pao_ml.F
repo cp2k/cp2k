@@ -108,6 +108,7 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind_set(ikind), name=training_lists(ikind)%kindname)
       ENDDO
 
+      ! parse training-set on first rank
       IF (para_env%mepos == para_env%source) THEN
          CALL open_file(file_name=pao%ml_training_file, file_status="OLD", file_form="FORMATTED", &
                         file_action="READ", unit_number=unit_nr)
@@ -120,17 +121,30 @@ CONTAINS
 
             CALL add_to_training_list(pao, qs_env, training_lists, filename=line)
          ENDDO
-
          CALL close_file(unit_number=unit_nr)
-
          CALL training_list2matrix(training_lists, training_matrices)
          DEALLOCATE (training_lists)
       ENDIF
 
+      ! broadcast training-set to all ranks
       CALL bcast_training(para_env, training_matrices)
+
+      ! print some stats
+      IF (pao%iw > 0) THEN
+         DO ikind = 1, SIZE(training_matrices)
+            WRITE (pao%iw, *) "PAO|ML| Descriptor for kind: ", &
+               TRIM(training_matrices(ikind)%kindname), " has ", &
+               SIZE(training_matrices(ikind)%inputs, 2), " dimensions."
+         ENDDO
+      ENDIF
+
+      ! use training-set to train model
       CALL pao_ml_train(pao, training_matrices)
+
+      ! use trained model to predict pao basis
       CALL pao_ml_predict(pao, qs_env, training_matrices)
 
+      ! clean up
       DEALLOCATE (training_matrices)
 
    END SUBROUTINE pao_machine_learning_init

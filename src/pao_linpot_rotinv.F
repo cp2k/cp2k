@@ -171,7 +171,7 @@ CONTAINS
             CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
             CALL get_qs_kind(qs_kind_set(jkind), pao_potentials=jpao_potentials)
             IF (SIZE(jpao_potentials) /= npots) &
-               CPABORT("Not all KINDS have the same number of PAO_POTENTIAL section")
+               CPABORT("Not all KINDs have the same number of PAO_POTENTIAL sections")
             pot_beta = jpao_potentials(ipot)%beta ! taken from remote atom
             pot_weight = jpao_potentials(ipot)%weight ! taken from remote atom
             Ra = particle_set(iatom)%r
