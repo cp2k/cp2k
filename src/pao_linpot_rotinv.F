@@ -43,8 +43,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nterms
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_count_terms'
-
       INTEGER                                            :: ipot, iset, ishell, ishell_abs, lmax, &
                                                             lmin, lpot, max_shell, min_shell, &
                                                             npots, nshells, pot_maxl
@@ -112,8 +110,6 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom, kterm
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_calc_term'
 
       INTEGER :: c, i, ikind, ipot, iset, ishell, ishell_abs, jatom, jkind, jset, jshell, &
          jshell_abs, lmax, lmin, lpot, max_shell, min_shell, N, natoms, npots, nshells, pot_maxl, &
