@@ -35,6 +35,7 @@ MODULE input_cp2k_xc
                                               section_release,&
                                               section_type
    USE input_val_types,                 ONLY: char_t,&
+                                              integer_t,&
                                               real_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
@@ -944,6 +945,14 @@ CONTAINS
                           description="Extensive output for the DFT-D2 and DFT-D3 models", &
                           usage="VERBOSE_OUTPUT", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      ! Set coordination numbers by atom numbers
+      CALL keyword_create(keyword, name="D3_EXCLUDE_KIND", &
+                          description="Specifies the atomic kinds excluded in the DFT-D3 calculation.", &
+                          usage="D3_EXCLUDE_KIND kind1 kind2 ... ", repeats=.FALSE., &
+                          n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 

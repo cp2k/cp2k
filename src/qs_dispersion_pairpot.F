@@ -117,7 +117,8 @@ CONTAINS
       INTEGER                                            :: elem, handle, i, ikind, j, max_elem, &
                                                             maxc, n_rep, nkind, nl, vdw_pp_type, &
                                                             vdw_type
-      LOGICAL                                            :: at_end, found, is_available
+      INTEGER, DIMENSION(:), POINTER                     :: exlist
+      LOGICAL                                            :: at_end, explicit, found, is_available
       REAL(KIND=dp)                                      :: dum
       TYPE(cp_parser_type), POINTER                      :: parser
       TYPE(qs_atom_dispersion_type), POINTER             :: disp
@@ -278,8 +279,8 @@ CONTAINS
                CALL set_qs_kind(qs_kind_set(ikind), dispersion=disp)
             END DO
 
-            ! Check for coordination numbers
             IF (PRESENT(pp_section)) THEN
+               ! Check for coordination numbers
                CALL section_vals_val_get(pp_section, "KIND_COORDINATION_NUMBERS", n_rep_val=n_rep)
                IF (n_rep > 0) THEN
                   ALLOCATE (dispersion_env%cnkind(n_rep))
@@ -303,6 +304,16 @@ CONTAINS
                      DO j = 1, nl-1
                         READ (tmpstringlist(j+1), *) dispersion_env%cnlist(i)%atom(j)
                      END DO
+                  END DO
+               END IF
+               ! Check for exclusion lists
+               CALL section_vals_val_get(pp_section, "D3_EXCLUDE_KIND", explicit=explicit)
+               IF (explicit) THEN
+                  CALL section_vals_val_get(pp_section, "D3_EXCLUDE_KIND", i_vals=exlist)
+                  DO j = 1, SIZE(exlist)
+                     ikind = exlist(j)
+                     CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp)
+                     disp%defined = .FALSE.
                   END DO
                END IF
             END IF
