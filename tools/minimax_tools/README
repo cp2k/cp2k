@@ -1,0 +1,13 @@
+Scripts to generate the minimax_k53.F source file that contains minimax coefficients 
+to approximate 1/x as a sum over exponential functions.
+
+Based on tabulated coefficients from
+D. Braess and W. Hackbusch, IMA Journal of Numerical Analysis 25.4 (2005): 685-697
+http://www.mis.mpg.de/scicomp/EXP_SUM/1_x
+
+Usage:
+first execute
+./wget_minimax.sh
+to download the data and then execute
+./minimax_to_fortran_source.py
+to create (overwrite) the cp2k/src/minimax_k53.F file (python 2.7 required)

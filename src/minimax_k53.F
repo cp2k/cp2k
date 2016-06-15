@@ -12,6 +12,7 @@
 !>        http://www.mis.mpg.de/scicomp/EXP_SUM/1_x
 !>        This module should not be modified manually and should not be used anywhere
 !>        except in main minimax module.
+!>        This file was created using the scripts in cp2k/tools/minimax_tools.
 ! **************************************************************************************************
 
 MODULE minimax_k53
