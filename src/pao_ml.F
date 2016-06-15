@@ -80,7 +80,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_init', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ikind
+      INTEGER                                            :: i
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(training_list_type), ALLOCATABLE, &
@@ -99,8 +99,8 @@ CONTAINS
 
       ! create training-set data-structure
       ALLOCATE (training_lists(SIZE(atomic_kind_set)))
-      DO ikind = 1, SIZE(training_lists)
-         CALL get_atomic_kind(atomic_kind_set(ikind), name=training_lists(ikind)%kindname)
+      DO i = 1, SIZE(training_lists)
+         CALL get_atomic_kind(atomic_kind_set(i), name=training_lists(i)%kindname)
       ENDDO
 
       ! parses training files, calculates descriptors and stores all training-points as linked lists
@@ -111,14 +111,8 @@ CONTAINS
       ! turns linked lists into matrices and syncs them across ranks
       CALL training_list2matrix(training_lists, training_matrices, para_env)
 
-      ! print some stats
-      IF (pao%iw > 0) THEN
-         DO ikind = 1, SIZE(training_matrices)
-            WRITE (pao%iw, *) "PAO|ML| Descriptor for kind: ", &
-               TRIM(training_matrices(ikind)%kindname), " has ", &
-               SIZE(training_matrices(ikind)%inputs, 2), " dimensions."
-         ENDDO
-      ENDIF
+      ! print some statistics about the training set
+      CALL pao_ml_print_stats(pao, training_matrices)
 
       ! use training-set to train model
       CALL pao_ml_train(pao, training_matrices)
@@ -355,6 +349,31 @@ CONTAINS
       ENDDO
 
    END SUBROUTINE training_list2matrix
+
+! **************************************************************************************************
+!> \brief Print some statistics about the training set
+!> \param pao ...
+!> \param training_matrices ...
+! **************************************************************************************************
+   SUBROUTINE pao_ml_print_stats(pao, training_matrices)
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(training_matrix_type), DIMENSION(:)           :: training_matrices
+
+      INTEGER                                            :: ikind, N
+
+      IF (pao%iw <= 0) RETURN
+
+      DO ikind = 1, SIZE(training_matrices)
+         N = SIZE(training_matrices(ikind)%inputs)
+         WRITE (pao%iw, "(A,I3,A,E10.1,1X,E10.1,1X,E10.1)") " PAO|ML| Descriptor for kind: "// &
+            TRIM(training_matrices(ikind)%kindname)//" size: ", &
+            SIZE(training_matrices(ikind)%inputs, 2), " min/mean/max: ", &
+            MINVAL(training_matrices(ikind)%inputs), &
+            SUM(training_matrices(ikind)%inputs)/REAL(N, dp), &
+            MAXVAL(training_matrices(ikind)%inputs)
+      ENDDO
+
+   END SUBROUTINE pao_ml_print_stats
 
 ! **************************************************************************************************
 !> \brief Calls the actuall learning algorthim to traing on the given matrices
