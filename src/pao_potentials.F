@@ -9,6 +9,7 @@
 ! **************************************************************************************************
 MODULE pao_potentials
    USE ai_overlap,                      ONLY: overlap_aab
+   USE ao_util,                         ONLY: exp_radius
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gamma1
@@ -48,7 +49,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: min_shell, max_shell
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_gaussian'
-      REAL(dp), PARAMETER                                :: inf_dist = 0.1*HUGE(1.0)
 
       INTEGER :: handle, ic, iset, ishell, ishell_abs, jset, jshell, jshell_abs, la1_max, la1_min, &
          la2_max, la2_min, lb_max, lb_min, N, na1, na2, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, &
@@ -75,9 +75,9 @@ CONTAINS
       npgfb = 1 ! number of exponents
       nb = npgfb*ncfgb
 
-      ! initialize exponents, using R_vdw from neighbour atom
+      ! initialize exponents
       ALLOCATE (rpgfb(npgfb), zetb(npgfb))
-      rpgfb(1) = inf_dist ! range of functions, we dont want screening
+      rpgfb(1) = exp_radius(0, beta, 1.0E-12_dp, 1.0_dp) ! TODO get the EPS parameter from somewhere / precompute this elsewhere
       zetb(1) = beta
 
       ! loop over all set/shell combination and fill block_V
@@ -99,9 +99,7 @@ CONTAINS
          ncfga1 = ncoset(la1_max)-ncoset(la1_min-1)
          na1 = npgfa1*ncfga1
          zeta1 => basis_set%zet(:, iset)
-         !rpgfa1  => basis_set%pgf_radius(:,iset) !TODO: reenable screening
-         ALLOCATE (rpgfa1(npgfa1))
-         rpgfa1(:) = inf_dist ! range of functions, we dont want screening
+         rpgfa1 => basis_set%pgf_radius(:, iset)
 
          ! setup jset
          la2_max = basis_set%l(jshell, jset)
@@ -110,9 +108,7 @@ CONTAINS
          ncfga2 = ncoset(la2_max)-ncoset(la2_min-1)
          na2 = npgfa2*ncfga2
          zeta2 => basis_set%zet(:, jset)
-         !rpgfa2  => basis_set%pgf_radius(:,jset) !TODO: reenable screening
-         ALLOCATE (rpgfa2(npgfa2))
-         rpgfa2(:) = inf_dist ! range of functions, we dont want screening
+         rpgfa2 => basis_set%pgf_radius(:, jset)
 
          ! calculate integrals
          ALLOCATE (saab(na1, na2, nb))
@@ -121,7 +117,6 @@ CONTAINS
                           la2_max=la2_max, la2_min=la2_min, npgfa2=npgfa2, rpgfa2=rpgfa2, zeta2=zeta2, &
                           lb_max=lb_max, lb_min=lb_min, npgfb=npgfb, rpgfb=rpgfb, zetb=zetb, &
                           rab=Rab, saab=saab)
-         DEALLOCATE (rpgfa1, rpgfa2)
 
          ! sum potential terms: POW(x**2 + y**2 + z**2, lpot/2)
          ALLOCATE (sab(na1, na2))
