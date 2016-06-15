@@ -116,7 +116,8 @@ MODULE qs_neighbor_list_types
 
    PUBLIC :: neighbor_list_p_type, &
              neighbor_list_set_type, &
-             neighbor_list_set_p_type
+             neighbor_list_set_p_type, &
+             neighbor_list_task_type
 
 ! *** Public subroutines ***
 
@@ -124,6 +125,7 @@ MODULE qs_neighbor_list_types
              add_neighbor_node, &
              allocate_neighbor_list_set, &
              deallocate_neighbor_list_set, &
+             get_iterator_task, &
              get_neighbor_list_set_p
 
 ! *** Iterator functions and types ***
@@ -556,14 +558,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Captures the current state of the iterator in a neighbor_list_task_type
 !> \param iterator_set the iterator / array of iterators (for multiple threads)
-!> \param mepos OpenMP thread index
 !> \param task the task structure which is returned
+!> \param mepos OpenMP thread index
 ! **************************************************************************************************
-   SUBROUTINE get_iterator_task(iterator_set, mepos, task)
+   SUBROUTINE get_iterator_task(iterator_set, task, mepos)
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator_set
-      INTEGER, OPTIONAL                                  :: mepos
       TYPE(neighbor_list_task_type), INTENT(OUT)         :: task
+      INTEGER, OPTIONAL                                  :: mepos
 
       IF (PRESENT(mepos)) THEN
          CALL get_iterator_info(iterator_set, mepos=mepos, ikind=task%ikind, jkind=task%jkind, &
