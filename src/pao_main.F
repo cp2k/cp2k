@@ -103,7 +103,7 @@ CONTAINS
          CALL pao_build_matrix_X(pao, qs_env)
          IF (LEN_TRIM(pao%restart_file) > 0) THEN
             CALL pao_read_restart(pao, qs_env)
-         ELSE IF (LEN_TRIM(pao%ml_training_file) > 0) THEN
+         ELSE IF (SIZE(pao%ml_training_set) > 0) THEN
             CALL pao_machine_learning_init(pao, qs_env)
          ELSE
             CALL pao_param_initial_guess(pao, qs_env)
@@ -293,6 +293,7 @@ CONTAINS
       CALL cp_dbcsr_release(pao%matrix_Y)
       CALL cp_dbcsr_release(pao%matrix_N)
       CALL cp_dbcsr_release(pao%matrix_N_inv)
+      DEALLOCATE (pao%ml_training_set)
 
       CALL cp_dbcsr_release(ls_mstruct%matrix_A)
       CALL cp_dbcsr_release(ls_mstruct%matrix_B)

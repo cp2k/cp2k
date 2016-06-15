@@ -50,7 +50,7 @@
       PAO_BASIS_SIZE 4
       &PAO_POTENTIAL
         MAXL 2
-        BETA 0.5
+        BETA 1.0
       &END PAO_POTENTIAL
     &END KIND
     &KIND O
@@ -59,7 +59,7 @@
       PAO_BASIS_SIZE 4
       &PAO_POTENTIAL
         MAXL 2
-        BETA 0.5
+        BETA 1.0
         MAX_PROJECTOR 1
       &END PAO_POTENTIAL
     &END KIND

@@ -18,8 +18,6 @@ MODULE pao_ml
                                               cp_dbcsr_iterator_start,&
                                               cp_dbcsr_iterator_stop,&
                                               cp_dbcsr_p_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -34,8 +32,6 @@ MODULE pao_ml
                                               pao_iokind_type,&
                                               pao_kinds_ensure_equal,&
                                               pao_read_raw
-   USE pao_ml_codec,                    ONLY: pao_ml_decode_xblock,&
-                                              pao_ml_encode_xblock
    USE pao_ml_descriptor,               ONLY: pao_ml_calc_descriptor
    USE pao_ml_gaussprocess,             ONLY: pao_ml_gp_predict,&
                                               pao_ml_gp_train
@@ -84,8 +80,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_init', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_path_length)                 :: line
-      INTEGER                                            :: ikind, istat, unit_nr
+      INTEGER                                            :: i, ikind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(training_list_type), ALLOCATABLE, &
@@ -93,7 +88,7 @@ CONTAINS
       TYPE(training_matrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: training_matrices
 
-      CPASSERT(LEN_TRIM(pao%ml_training_file) > 0)
+      CPASSERT(SIZE(pao%ml_training_set) > 0)
 
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO|ML| Initializing maschine learning...'
 
@@ -108,26 +103,13 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind_set(ikind), name=training_lists(ikind)%kindname)
       ENDDO
 
-      ! parse training-set on first rank
-      IF (para_env%mepos == para_env%source) THEN
-         CALL open_file(file_name=pao%ml_training_file, file_status="OLD", file_form="FORMATTED", &
-                        file_action="READ", unit_number=unit_nr)
-         DO WHILE (.TRUE.)
-            READ (unit_nr, IOSTAT=istat, FMT='(A)') line
-            IF (istat /= 0) EXIT ! end of file reached
-            line = ADJUSTL(line)
-            IF (LEN_TRIM(line) == 0) CYCLE ! skip empty line
-            IF (line(1:1) == "!" .OR. line(1:1) == "#") CYCLE ! skipt comment
+      ! parses training files, calculates descriptors and stores all training-points as linked lists
+      DO i = 1, SIZE(pao%ml_training_set)
+         CALL add_to_training_list(pao, qs_env, training_lists, filename=pao%ml_training_set(i)%fn)
+      ENDDO
 
-            CALL add_to_training_list(pao, qs_env, training_lists, filename=line)
-         ENDDO
-         CALL close_file(unit_number=unit_nr)
-         CALL training_list2matrix(training_lists, training_matrices)
-         DEALLOCATE (training_lists)
-      ENDIF
-
-      ! broadcast training-set to all ranks
-      CALL bcast_training(para_env, training_matrices)
+      ! turns linked lists into matrices and syncs them across ranks
+      CALL training_list2matrix(training_lists, training_matrices, para_env)
 
       ! print some stats
       IF (pao%iw > 0) THEN
@@ -166,11 +148,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: param
-      INTEGER                                            :: iatom, ikind, natoms
+      INTEGER                                            :: iatom, ikind, natoms, nkinds, nparams
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind, kindsmap
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: hmat, positions
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pao_ioblock_type), ALLOCATABLE, DIMENSION(:)  :: xblocks
       TYPE(pao_iokind_type), ALLOCATABLE, DIMENSION(:)   :: kinds
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particle_set
@@ -181,22 +164,41 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, '(A,A)') " PAO|ML| Reading training frame from file: ", TRIM(filename)
 
-      ! parse training data
-      CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks)
+      CALL get_qs_env(qs_env, para_env=para_env)
 
-      ! check parametrization
-      IF (TRIM(param) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
-         CPABORT("Restart PAO parametrization does not match")
+      ! parse training data on first rank
+      IF (para_env%mepos == para_env%source) THEN
+         CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks)
+
+         ! check parametrization
+         IF (TRIM(param) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
+            CPABORT("Restart PAO parametrization does not match")
+
+         ! map read-in kinds onto kinds of this run
+         CALL match_kinds(pao, qs_env, kinds, kindsmap)
+         nkinds = SIZE(kindsmap)
+         natoms = SIZE(positions, 1)
+      ENDIF
+
+      ! broadcast parsed raw training data
+      CALL mp_bcast(nkinds, para_env%source, para_env%group)
+      CALL mp_bcast(natoms, para_env%source, para_env%group)
+      IF (para_env%mepos /= para_env%source) THEN
+         ALLOCATE (hmat(3, 3))
+         ALLOCATE (kindsmap(nkinds))
+         ALLOCATE (positions(natoms, 3))
+         ALLOCATE (atom2kind(natoms))
+      ENDIF
+      CALL mp_bcast(hmat, para_env%source, para_env%group)
+      CALL mp_bcast(kindsmap, para_env%source, para_env%group)
+      CALL mp_bcast(atom2kind, para_env%source, para_env%group)
+      CALL mp_bcast(positions, para_env%source, para_env%group)
 
       ! create cell from read-in h-matrix
       CALL cell_create(cell, hmat)
 
-      ! map read-in kinds onto kinds of this run
-      CALL match_kinds(pao, qs_env, kinds, kindsmap)
-
       ! create a particle_set based on read-in positions and refere to kinds of this run
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
-      natoms = SIZE(positions, 1)
       ALLOCATE (my_particle_set(natoms))
       DO iatom = 1, natoms
          ikind = kindsmap(atom2kind(iatom))
@@ -204,24 +206,30 @@ CONTAINS
          my_particle_set(iatom)%r = positions(iatom, :)
       ENDDO
 
-      ! build training points
-      DO ikind = 1, SIZE(kindsmap)
-         DO iatom = 1, SIZE(xblocks)
+      ! build linked list of training points
+      ! Afterwards all ranks will have lists with the same number of entries,
+      ! however the input and output arrays will only be allocated on one rank per entry.
+      ! We farm out the expensive calculation of the descriptor across ranks.
+      DO ikind = 1, nkinds
+         DO iatom = 1, natoms
             IF (kindsmap(atom2kind(iatom)) == ikind) THEN
                ALLOCATE (new_point)
 
-               CALL pao_ml_calc_descriptor(my_particle_set, &
-                                           qs_kind_set, &
-                                           cell, &
-                                           iatom=iatom, &
-                                           descriptor=new_point%input)
+               ! training-point input, calculate descriptor only on one rank
+               IF (MOD(iatom-1, para_env%num_pe) == para_env%mepos) THEN
+                  CALL pao_ml_calc_descriptor(my_particle_set, &
+                                              qs_kind_set, &
+                                              cell, &
+                                              iatom=iatom, &
+                                              descriptor=new_point%input)
+               ENDIF
 
-               CALL pao_ml_encode_xblock(my_particle_set, &
-                                         qs_kind_set, &
-                                         cell, &
-                                         iatom=iatom, &
-                                         xblock=xblocks(iatom)%p, &
-                                         output=new_point%output)
+               ! copy training-point output on first rank
+               IF (para_env%mepos == para_env%source) THEN
+                  nparams = SIZE(xblocks(iatom)%p, 1)
+                  ALLOCATE (new_point%output(nparams))
+                  new_point%output(:) = xblocks(iatom)%p(:, 1)
+               ENDIF
 
                ! add to linked list
                training_lists(ikind)%npoints = training_lists(ikind)%npoints+1
@@ -231,8 +239,7 @@ CONTAINS
          ENDDO
       ENDDO
 
-      DEALLOCATE (cell, my_particle_set)
-      ! ALLOCATABLEs deallocate themselfs
+      DEALLOCATE (cell, my_particle_set, hmat, kindsmap, positions, atom2kind)
 
    END SUBROUTINE add_to_training_list
 
@@ -277,14 +284,17 @@ CONTAINS
 !> \brief Turns the linked lists of training points into matrices
 !> \param training_lists ...
 !> \param training_matrices ...
+!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE training_list2matrix(training_lists, training_matrices)
+   SUBROUTINE training_list2matrix(training_lists, training_matrices, para_env)
       TYPE(training_list_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: training_lists
       TYPE(training_matrix_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: training_matrices
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      INTEGER                                            :: i, ikind, inp_size, npoints, out_size
+      INTEGER                                            :: i, ikind, inp_size, ninputs, noutputs, &
+                                                            npoints, out_size
       TYPE(training_list_type), POINTER                  :: training_list
       TYPE(training_matrix_type), POINTER                :: training_matrix
       TYPE(training_point_type), POINTER                 :: cur_point, prev_point
@@ -300,70 +310,52 @@ CONTAINS
          npoints = training_list%npoints ! number of points
          CPASSERT(npoints > 0)
 
-         inp_size = SIZE(training_list%head%input)
-         out_size = SIZE(training_list%head%output)
+         ! figure out size of input and output
+         inp_size = 0; out_size = 0
+         IF (ALLOCATED(training_list%head%input)) &
+            inp_size = SIZE(training_list%head%input)
+         IF (ALLOCATED(training_list%head%output)) &
+            out_size = SIZE(training_list%head%output)
+         CALL mp_sum(inp_size, para_env%group)
+         CALL mp_sum(out_size, para_env%group)
 
-         ! copy from link-list into arrays
+         ! allocate matices to hold all training points
          ALLOCATE (training_matrix%inputs(npoints, inp_size))
          ALLOCATE (training_matrix%outputs(npoints, out_size))
+         training_matrix%inputs(:, :) = 0.0_dp
+         training_matrix%outputs(:, :) = 0.0_dp
 
+         ! loop over all training points, consume linked-list in the process
+         ninputs = 0; noutputs = 0
          cur_point => training_list%head
          NULLIFY (training_list%head)
          DO i = 1, npoints
-            training_matrix%inputs(i, :) = cur_point%input(:)
-            training_matrix%outputs(i, :) = cur_point%output(:)
+            IF (ALLOCATED(cur_point%input)) THEN
+               training_matrix%inputs(i, :) = cur_point%input(:)
+               ninputs = ninputs+1
+            ENDIF
+            IF (ALLOCATED(cur_point%output)) THEN
+               training_matrix%outputs(i, :) = cur_point%output(:)
+               noutputs = noutputs+1
+            ENDIF
+            ! advance to next entry and deallocate the current one
             prev_point => cur_point
             cur_point => cur_point%next
-            DEALLOCATE (prev_point) ! deallocate linked-list
+            DEALLOCATE (prev_point)
          ENDDO
          training_list%npoints = 0 ! list is now empty
+
+         ! sync training_matrix across ranks
+         CALL mp_sum(training_matrix%inputs, para_env%group)
+         CALL mp_sum(training_matrix%outputs, para_env%group)
+
+         ! sanity check
+         CALL mp_sum(noutputs, para_env%group)
+         CALL mp_sum(ninputs, para_env%group)
+         CPASSERT(noutputs == npoints .AND. ninputs == npoints)
       ENDDO
 
    END SUBROUTINE training_list2matrix
-
-! **************************************************************************************************
-!> \brief Broadcasts the matrices of trainging points across all MPI ranks.
-!> \param para_env ...
-!> \param training_matrices ...
-! **************************************************************************************************
-   SUBROUTINE bcast_training(para_env, training_matrices)
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(training_matrix_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: training_matrices
-
-      INTEGER                                            :: ikind, nkinds, s1, s2
-
-      IF (para_env%mepos == para_env%source) &
-         nkinds = SIZE(training_matrices)
-      CALL mp_bcast(nkinds, para_env%source, para_env%group)
-      IF (para_env%mepos /= para_env%source) &
-         ALLOCATE (training_matrices(nkinds))
-
-      DO ikind = 1, nkinds
-         CALL mp_bcast(training_matrices(ikind)%kindname, para_env%source, para_env%group)
-
-         IF (para_env%mepos == para_env%source) THEN
-            s1 = SIZE(training_matrices(ikind)%outputs, 1)
-            s2 = SIZE(training_matrices(ikind)%outputs, 2)
-         ENDIF
-         CALL mp_bcast(s1, para_env%source, para_env%group)
-         CALL mp_bcast(s2, para_env%source, para_env%group)
-         IF (para_env%mepos /= para_env%source) &
-            ALLOCATE (training_matrices(ikind)%outputs(s1, s2))
-         CALL mp_bcast(training_matrices(ikind)%outputs, para_env%source, para_env%group)
-
-         IF (para_env%mepos == para_env%source) THEN
-            s1 = SIZE(training_matrices(ikind)%inputs, 1)
-            s2 = SIZE(training_matrices(ikind)%inputs, 2)
-         ENDIF
-         CALL mp_bcast(s1, para_env%source, para_env%group)
-         CALL mp_bcast(s2, para_env%source, para_env%group)
-         IF (para_env%mepos /= para_env%source) &
-            ALLOCATE (training_matrices(ikind)%inputs(s1, s2))
-         CALL mp_bcast(training_matrices(ikind)%inputs, para_env%source, para_env%group)
-      ENDDO
-
-   END SUBROUTINE bcast_training
 
 ! **************************************************************************************************
 !> \brief Calls the actuall learning algorthim to traing on the given matrices
@@ -407,7 +399,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_ml_predict'
 
       INTEGER                                            :: acol, arow, handle, iatom, ikind, natoms
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor, output, variances
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor, variances
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_X
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -445,17 +437,12 @@ CONTAINS
                                      descriptor)
 
          ! call actual machine learning for prediction
-         CALL pao_ml_predict_low(pao, training_matrices(ikind), descriptor, output, variances(iatom))
+         CALL pao_ml_predict_low(pao, training_matrices(ikind), &
+                                 descriptor=descriptor, &
+                                 output=block_X(:, 1), &
+                                 variance=variances(iatom))
 
-         ! decode output into block_X
-         CALL pao_ml_decode_xblock(particle_set, &
-                                   qs_kind_set, &
-                                   cell, &
-                                   iatom=iatom, &
-                                   output=output, &
-                                   xblock=block_X)
-
-         DEALLOCATE (output, descriptor)
+         DEALLOCATE (descriptor)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 
@@ -489,18 +476,13 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(training_matrix_type), INTENT(IN)             :: training_matrix
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: output
+      REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
       REAL(dp), INTENT(OUT)                              :: variance
 
-      INTEGER                                            :: npoints, width_out
-
-      CPASSERT(.NOT. ALLOCATED(output))
+      INTEGER                                            :: npoints
 
       npoints = SIZE(training_matrix%outputs, 1)
       CPASSERT(npoints > 0)
-
-      width_out = SIZE(training_matrix%outputs, 2)
-      ALLOCATE (output(width_out))
 
       SELECT CASE (pao%ml_method)
       CASE (pao_ml_gp)

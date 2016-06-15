@@ -39,14 +39,16 @@ CONTAINS
 !> \param weight ...
 !> \param min_shell ...
 !> \param max_shell ...
+!> \param min_l ...
+!> \param max_l ...
 ! **************************************************************************************************
-   SUBROUTINE calc_gaussian(basis_set, block_V, Rab, lpot, beta, weight, min_shell, max_shell)
+   SUBROUTINE calc_gaussian(basis_set, block_V, Rab, lpot, beta, weight, min_shell, max_shell, min_l, max_l)
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
       REAL(dp), DIMENSION(3)                             :: Rab
       INTEGER, INTENT(IN)                                :: lpot
       REAL(dp), INTENT(IN)                               :: beta, weight
-      INTEGER, INTENT(IN), OPTIONAL                      :: min_shell, max_shell
+      INTEGER, INTENT(IN), OPTIONAL                      :: min_shell, max_shell, min_l, max_l
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_gaussian'
 
@@ -61,6 +63,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(PRESENT(min_shell) .EQV. PRESENT(max_shell))
+      CPASSERT(PRESENT(min_l) .EQV. PRESENT(max_l))
+
       CPASSERT(MOD(lpot, 2) == 0) ! otherwise it's not rotationally invariant
       CALL init_orbital_pointers(lpot)
 
@@ -90,6 +94,10 @@ CONTAINS
             jshell_abs = SUM(basis_set%nshell(1:jset-1))+jshell
             IF (MIN(ishell_abs, jshell_abs) /= min_shell) CYCLE
             IF (MAX(ishell_abs, jshell_abs) /= max_shell) CYCLE
+         ENDIF
+         IF (PRESENT(min_l) .AND. PRESENT(min_l)) THEN
+            IF (MIN(basis_set%l(ishell, iset), basis_set%l(jshell, jset)) /= min_l) CYCLE
+            IF (MAX(basis_set%l(ishell, iset), basis_set%l(jshell, jset)) /= max_l) CYCLE
          ENDIF
 
          ! setup iset

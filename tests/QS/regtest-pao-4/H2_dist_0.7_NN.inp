@@ -23,7 +23,10 @@
         &MACHINE_LEARNING
           METHOD NEURAL_NETWORK
           TOLERANCE 0.001
-          TRAINING_FILE H2_training.txt
+          &TRAINING_SET
+            H2_dist_0.5_pao-1_0.pao
+            H2_dist_0.9_pao-1_0.pao
+          &END TRAINING_SET
         &END MACHINE_LEARNING
       &END PAO
     &END

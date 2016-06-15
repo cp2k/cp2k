@@ -48,7 +48,7 @@
       PAO_BASIS_SIZE 1
       &PAO_POTENTIAL
         MAXL 10
-        BETA 0.5
+        BETA 1.0
       &END PAO_POTENTIAL
     &END KIND
     &TOPOLOGY

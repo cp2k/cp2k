@@ -180,8 +180,7 @@ CONTAINS
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
-         IF (arow /= acol) CPABORT("pao_calc_U_exp: encountered off-diagonal block")
-         iatom = arow
+         iatom = arow; CPASSERT(arow == acol); 
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
          CPASSERT(ASSOCIATED(block_U))
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)

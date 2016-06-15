@@ -8,7 +8,6 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_gth
-   USE ai_overlap,                      ONLY: overlap_aab
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
@@ -23,16 +22,12 @@ MODULE pao_param_gth
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: gamma1
-   USE mathlib,                         ONLY: multinomial
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
-   USE orbital_pointers,                ONLY: indco,&
-                                              init_orbital_pointers,&
-                                              ncoset
    USE pao_param_fock,                  ONLY: pao_calc_U_block_fock,&
                                               pao_param_finalize_fock,&
                                               pao_param_init_fock
+   USE pao_potentials,                  ONLY: calc_gaussian
    USE pao_types,                       ONLY: pao_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -393,17 +388,24 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
       INTEGER, INTENT(IN)                                :: iatom, jatom, kterm
 
-      INTEGER                                            :: c, jkind, lpot, max_shell, min_shell, &
+      INTEGER                                            :: c, ikind, jkind, lpot, max_l, min_l, &
                                                             pot_max_projector, pot_maxl
-      REAL(KIND=dp)                                      :: beta, norm2, pot_beta, R_vdw
+      REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
+      REAL(KIND=dp)                                      :: pot_beta
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
-      CALL get_atomic_kind(particle_set(jatom)%atomic_kind, rvdw=R_vdw, kind_number=jkind)
-      CALL get_qs_kind(qs_kind_set(jkind), pao_potentials=pao_potentials)
+      CALL get_qs_env(qs_env, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set)
 
+      ! get GTH-settings from remote atom
+      CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
+      CALL get_qs_kind(qs_kind_set(jkind), pao_potentials=pao_potentials)
       IF (SIZE(pao_potentials) /= 1) &
          CPABORT("GTH parametrization requires exactly one PAO_POTENTIAL section per KIND")
 
@@ -412,24 +414,26 @@ CONTAINS
       pot_beta = pao_potentials(1)%beta
 
       c = 0
-      outer: &
-         DO lpot = 0, pot_maxl, 2
-      DO max_shell = 0, pot_max_projector
-      DO min_shell = 0, max_shell
-         c = c+1
-         IF (c == kterm) EXIT outer
-      ENDDO
-      ENDDO
+      outer: DO lpot = 0, pot_maxl, 2
+         DO max_l = 0, pot_max_projector
+         DO min_l = 0, max_l
+            c = c+1
+            IF (c == kterm) EXIT outer
+         ENDDO
+         ENDDO
       ENDDO outer
 
-      beta = 0.5_dp/(R_vdw*pot_beta)**2
+      ! get basis-set of central atom
+      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
 
-      CALL calc_gaussian(qs_env, block_V, iatom, jatom, lpot=lpot, beta=beta, &
-                         min_shell=min_shell, max_shell=max_shell)
+      Ra = particle_set(iatom)%r
+      Rb = particle_set(jatom)%r
+      Rab = pbc(ra, rb, cell)
 
-      ! normalize
-      norm2 = (2.0_dp*beta)**(-0.5_dp-lpot)*gamma1(lpot)
-      block_V = block_V/SQRT(norm2)
+      block_V = 0.0_dp
+      CALL calc_gaussian(basis_set, block_V, Rab, lpot=lpot, &
+                         min_l=min_l, max_l=max_l, beta=pot_beta, weight=1.0_dp)
 
    END SUBROUTINE gth_calc_term
 
@@ -457,203 +461,5 @@ CONTAINS
       CALL cp_dbcsr_iterator_stop(iter)
 
    END SUBROUTINE pao_param_initguess_gth
-
-! **************************************************************************************************
-!> \brief Calculates potential term of the form r**lpot * Exp(-beta*r**2)
-!> \param qs_env ...
-!> \param block_V potential term that is returned
-!> \param iatom central atom
-!> \param jatom remote atom on which the Gaussian is centered
-!> \param lpot polynomial prefactor, r**lpot
-!> \param beta exponent of the Gaussian
-!> \param min_shell ...
-!> \param max_shell ...
-! **************************************************************************************************
-   SUBROUTINE calc_gaussian(qs_env, block_V, iatom, jatom, lpot, beta, min_shell, max_shell)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
-      INTEGER, INTENT(IN)                                :: iatom, jatom, lpot
-      REAL(dp), INTENT(IN)                               :: beta
-      INTEGER, INTENT(IN)                                :: min_shell, max_shell
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_gaussian'
-      REAL(dp), PARAMETER                                :: inf_dist = 0.1*HUGE(1.0)
-
-      INTEGER :: handle, ic, ikind, iset, ishell, jset, jshell, la1_max, la1_min, la2_max, &
-         la2_min, lb_max, lb_min, na1, na2, natoms, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, &
-         npgfb
-      REAL(dp), DIMENSION(:), POINTER                    :: rpgfa1, rpgfa2, zeta1, zeta2
-      REAL(dp), DIMENSION(:, :), POINTER                 :: sab
-      REAL(KIND=dp)                                      :: coeff
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rpgfb, zetb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: saab
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-      CALL init_orbital_pointers(lpot)
-
-      CALL get_qs_env(qs_env, &
-                      natom=natoms, &
-                      cell=cell, &
-                      particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set)
-
-      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
-
-      ! setup description of potential
-      lb_min = lpot
-      lb_max = lpot
-      ncfgb = ncoset(lb_max)-ncoset(lb_min-1)
-      npgfb = 1 ! number of exponents
-      nb = npgfb*ncfgb
-
-      ! initialize exponents, using R_vdw from neighbour atom
-      ALLOCATE (rpgfb(npgfb), zetb(npgfb))
-      rpgfb(1) = inf_dist ! range of functions, we dont want screening
-      zetb(1) = beta
-
-      ! distance vector A-B
-      ra = particle_set(iatom)%r
-      rb = particle_set(jatom)%r
-      rab = pbc(ra, rb, cell)
-
-      ! loop over all set/shell combination and fill block_V
-      block_V(:, :) = 0.0_dp
-      DO iset = 1, basis_set%nset
-      DO jset = 1, basis_set%nset
-      DO ishell = 1, basis_set%nshell(iset)
-      DO jshell = 1, basis_set%nshell(jset)
-         IF (MIN(basis_set%l(ishell, iset), basis_set%l(jshell, jset)) /= min_shell) CYCLE
-         IF (MAX(basis_set%l(ishell, iset), basis_set%l(jshell, jset)) /= max_shell) CYCLE
-
-         ! setup iset
-         la1_max = basis_set%l(ishell, iset)
-         la1_min = basis_set%l(ishell, iset)
-         npgfa1 = basis_set%npgf(iset)
-         ncfga1 = ncoset(la1_max)-ncoset(la1_min-1)
-         na1 = npgfa1*ncfga1
-         zeta1 => basis_set%zet(:, iset)
-         !rpgfa1  => basis_set%pgf_radius(:,iset) !TODO: reenable screening
-         ALLOCATE (rpgfa1(npgfa1))
-         rpgfa1(:) = inf_dist ! range of functions, we dont want screening
-
-         ! setup jset
-         la2_max = basis_set%l(jshell, jset)
-         la2_min = basis_set%l(jshell, jset)
-         npgfa2 = basis_set%npgf(jset)
-         ncfga2 = ncoset(la2_max)-ncoset(la2_min-1)
-         na2 = npgfa2*ncfga2
-         zeta2 => basis_set%zet(:, jset)
-         !rpgfa2  => basis_set%pgf_radius(:,jset) !TODO: reenable screening
-         ALLOCATE (rpgfa2(npgfa2))
-         rpgfa2(:) = inf_dist ! range of functions, we dont want screening
-
-         ! calculate integrals
-         ALLOCATE (saab(na1, na2, nb))
-         saab = 0.0_dp
-         CALL overlap_aab(la1_max, la1_min, npgfa1, rpgfa1, zeta1, &
-                          la2_max, la2_min, npgfa2, rpgfa2, zeta2, &
-                          lb_max, lb_min, npgfb, rpgfb, zetb, &
-                          rab=rab, saab=saab)
-         DEALLOCATE (rpgfa1, rpgfa2)
-
-         ! sum potential terms: POW(x**2 + y**2 + z**2, lpot/2)
-         ALLOCATE (sab(na1, na2))
-         sab = 0.0_dp
-         DO ic = 1, ncfgb
-            coeff = multinomial(lpot/2, indco(:, ncoset(lpot-1)+ic)/2)
-            sab = sab+coeff*saab(:, :, ic)
-         ENDDO
-
-         CALL my_contract(sab, block_V, basis_set, iset, ishell, jset, jshell)
-         DEALLOCATE (sab, saab)
-      ENDDO
-      ENDDO
-      ENDDO
-      ENDDO
-
-      DEALLOCATE (rpgfb, zetb)
-
-      ! symmetrize
-      block_V = 0.5_dp*(block_V+TRANSPOSE(block_V))
-
-      CALL timestop(handle)
-   END SUBROUTINE calc_gaussian
-
-! **************************************************************************************************
-!> \brief Helper routine, contracts a basis block
-!> \param sab ...
-!> \param block_V ...
-!> \param basis_set ...
-!> \param iset ...
-!> \param ishell ...
-!> \param jset ...
-!> \param jshell ...
-! **************************************************************************************************
-   SUBROUTINE my_contract(sab, block_V, basis_set, iset, ishell, jset, jshell)
-      REAL(dp), DIMENSION(:, :), POINTER                 :: sab
-      REAL(dp), DIMENSION(:, :), INTENT(OUT), TARGET     :: block_V
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      INTEGER, INTENT(IN)                                :: iset, ishell, jset, jshell
-
-      INTEGER                                            :: a, b, c, d, ipgf, jpgf, l1, l2, n1, n2, &
-                                                            nn1, nn2, sgfa1, sgfa2, sgla1, sgla2
-      REAL(dp), DIMENSION(:, :), POINTER                 :: S, T1, T2, V
-
-! first and last indices of given shell in block_V.
-! This matrix is in the contracted spherical basis.
-
-      sgfa1 = basis_set%first_sgf(ishell, iset)
-      sgla1 = basis_set%last_sgf(ishell, iset)
-      sgfa2 = basis_set%first_sgf(jshell, jset)
-      sgla2 = basis_set%last_sgf(jshell, jset)
-
-      ! prepare the result matrix
-      V => block_V(sgfa1:sgla1, sgfa2:sgla2)
-
-      ! Calculate strides of sphi matrix.
-      ! This matrix is in the uncontraced cartesian basis.
-      ! It contains all shells of the set.
-      ! It's index runs over all primitive gaussians of the set
-      ! and then for each gaussian over all configurations of *the entire set*. (0->lmax)
-      nn1 = ncoset(basis_set%lmax(iset))
-      nn2 = ncoset(basis_set%lmax(jset))
-
-      ! Calculate strides of sab matrix
-      ! This matrix is also in the uncontraced cartensian basis,
-      ! however it contains only a single shell.
-      ! It's index runs over all primitive gaussians of the set
-      ! and then for each gaussian over all configrations of *the given shell*.
-      l1 = basis_set%l(ishell, iset)
-      l2 = basis_set%l(jshell, jset)
-      n1 = ncoset(l1)-ncoset(l1-1)
-      n2 = ncoset(l2)-ncoset(l2-1)
-
-      DO ipgf = 1, basis_set%npgf(iset)
-      DO jpgf = 1, basis_set%npgf(jset)
-         ! prepare first trafo-matrix
-         a = (ipgf-1)*nn1+ncoset(l1-1)+1
-         T1 => basis_set%sphi(a:a+n1-1, sgfa1:sgla1)
-
-         ! prepare second trafo-matrix
-         b = (jpgf-1)*nn2+ncoset(l2-1)+1
-         T2 => basis_set%sphi(b:b+n2-1, sgfa2:sgla2)
-
-         ! prepare SAB matrix
-         c = (ipgf-1)*n1+1
-         d = (jpgf-1)*n2+1
-         S => sab(c:c+n1-1, d:d+n2-1)
-
-         ! do the transformation
-         V = V+MATMUL(TRANSPOSE(T1), MATMUL(S, T2))
-      ENDDO
-      ENDDO
-
-   END SUBROUTINE my_contract
 
 END MODULE pao_param_gth

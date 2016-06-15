@@ -23,6 +23,10 @@ MODULE pao_types
 
    PUBLIC :: pao_env_type, training_matrix_type
 
+   TYPE filename_type
+      CHARACTER(LEN=default_path_length) :: fn
+   END TYPE filename_type
+
    TYPE pao_env_type
       ! input values
       REAL(KIND=dp)                    :: eps_pao = 0.0_dp
@@ -47,7 +51,7 @@ MODULE pao_types
       INTEGER                          :: cg_init_steps = -1
       CHARACTER(LEN=default_path_length) :: preopt_dm_file = ""
       CHARACTER(LEN=default_path_length) :: restart_file = ""
-      CHARACTER(LEN=default_path_length) :: ml_training_file = ""
+      TYPE(filename_type), DIMENSION(:), ALLOCATABLE :: ml_training_set
 
       INTEGER                          :: ml_method = -1
       REAL(KIND=dp)                    :: ml_tolerance = 0.0_dp
