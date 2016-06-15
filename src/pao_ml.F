@@ -206,37 +206,34 @@ CONTAINS
          my_particle_set(iatom)%r = positions(iatom, :)
       ENDDO
 
-      ! build linked list of training points
+      ! fill linked list with training points
       ! Afterwards all ranks will have lists with the same number of entries,
       ! however the input and output arrays will only be allocated on one rank per entry.
       ! We farm out the expensive calculation of the descriptor across ranks.
-      DO ikind = 1, nkinds
-         DO iatom = 1, natoms
-            IF (kindsmap(atom2kind(iatom)) == ikind) THEN
-               ALLOCATE (new_point)
+      DO iatom = 1, natoms
+         ALLOCATE (new_point)
 
-               ! training-point input, calculate descriptor only on one rank
-               IF (MOD(iatom-1, para_env%num_pe) == para_env%mepos) THEN
-                  CALL pao_ml_calc_descriptor(my_particle_set, &
-                                              qs_kind_set, &
-                                              cell, &
-                                              iatom=iatom, &
-                                              descriptor=new_point%input)
-               ENDIF
+         ! training-point input, calculate descriptor only on one rank
+         IF (MOD(iatom-1, para_env%num_pe) == para_env%mepos) THEN
+            CALL pao_ml_calc_descriptor(my_particle_set, &
+                                        qs_kind_set, &
+                                        cell, &
+                                        iatom=iatom, &
+                                        descriptor=new_point%input)
+         ENDIF
 
-               ! copy training-point output on first rank
-               IF (para_env%mepos == para_env%source) THEN
-                  nparams = SIZE(xblocks(iatom)%p, 1)
-                  ALLOCATE (new_point%output(nparams))
-                  new_point%output(:) = xblocks(iatom)%p(:, 1)
-               ENDIF
+         ! copy training-point output on first rank
+         IF (para_env%mepos == para_env%source) THEN
+            nparams = SIZE(xblocks(iatom)%p, 1)
+            ALLOCATE (new_point%output(nparams))
+            new_point%output(:) = xblocks(iatom)%p(:, 1)
+         ENDIF
 
-               ! add to linked list
-               training_lists(ikind)%npoints = training_lists(ikind)%npoints+1
-               new_point%next => training_lists(ikind)%head
-               training_lists(ikind)%head => new_point
-            ENDIF
-         ENDDO
+         ! add to linked list
+         ikind = kindsmap(atom2kind(iatom))
+         training_lists(ikind)%npoints = training_lists(ikind)%npoints+1
+         new_point%next => training_lists(ikind)%head
+         training_lists(ikind)%head => new_point
       ENDDO
 
       DEALLOCATE (cell, my_particle_set, hmat, kindsmap, positions, atom2kind)
@@ -278,6 +275,8 @@ CONTAINS
          ENDDO
       ENDDO
 
+      IF (ANY(kindsmap < 1)) &
+         CPABORT("PAO: Could not match all kinds from training set")
    END SUBROUTINE match_kinds
 
 ! **************************************************************************************************
