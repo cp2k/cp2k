@@ -27,6 +27,8 @@ MODULE pao_ml
    USE pao_input,                       ONLY: id2str,&
                                               pao_ml_gp,&
                                               pao_ml_nn,&
+                                              pao_ml_prior_mean,&
+                                              pao_ml_prior_zero,&
                                               pao_rotinv_param
    USE pao_io,                          ONLY: pao_ioblock_type,&
                                               pao_iokind_type,&
@@ -110,6 +112,9 @@ CONTAINS
 
       ! turns linked lists into matrices and syncs them across ranks
       CALL training_list2matrix(training_lists, training_matrices, para_env)
+
+      ! calculate and substract prior
+      CALL pao_ml_substract_prior(pao%ml_prior, training_matrices)
 
       ! print some statistics about the training set
       CALL pao_ml_print_stats(pao, training_matrices)
@@ -351,6 +356,42 @@ CONTAINS
    END SUBROUTINE training_list2matrix
 
 ! **************************************************************************************************
+!> \brief TODO
+!> \param ml_prior ...
+!> \param training_matrices ...
+! **************************************************************************************************
+   SUBROUTINE pao_ml_substract_prior(ml_prior, training_matrices)
+      INTEGER, INTENT(IN)                                :: ml_prior
+      TYPE(training_matrix_type), DIMENSION(:), TARGET   :: training_matrices
+
+      INTEGER                                            :: i, ikind, npoints, out_size
+      TYPE(training_matrix_type), POINTER                :: training_matrix
+
+      DO ikind = 1, SIZE(training_matrices)
+         training_matrix => training_matrices(ikind)
+         out_size = SIZE(training_matrix%outputs, 2)
+         npoints = SIZE(training_matrix%outputs, 1)
+         ALLOCATE (training_matrix%prior(out_size))
+
+         ! calculate prior
+         SELECT CASE (ml_prior)
+         CASE (pao_ml_prior_zero)
+            training_matrix%prior(:) = 0.0_dp
+         CASE (pao_ml_prior_mean)
+            training_matrix%prior(:) = SUM(training_matrix%outputs, 1)/REAL(npoints, dp)
+         CASE DEFAULT
+            CPABORT("PAO: unknown prior")
+         END SELECT
+
+         ! substract prior from all training points
+         DO i = 1, npoints
+            training_matrix%outputs(i, :) = training_matrix%outputs(i, :)-training_matrix%prior
+         ENDDO
+      ENDDO
+
+   END SUBROUTINE pao_ml_substract_prior
+
+! **************************************************************************************************
 !> \brief Print some statistics about the training set
 !> \param pao ...
 !> \param training_matrices ...
@@ -459,8 +500,10 @@ CONTAINS
                                  descriptor=descriptor, &
                                  output=block_X(:, 1), &
                                  variance=variances(iatom))
-
          DEALLOCATE (descriptor)
+
+         !add prior
+         block_X(:, 1) = block_X(:, 1)+training_matrices(ikind)%prior
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 

@@ -54,6 +54,7 @@ MODULE pao_types
       TYPE(filename_type), DIMENSION(:), ALLOCATABLE :: ml_training_set
 
       INTEGER                          :: ml_method = -1
+      INTEGER                          :: ml_prior = -1
       REAL(KIND=dp)                    :: ml_tolerance = 0.0_dp
       REAL(KIND=dp)                    :: gp_noise_var = 0.0_dp
       REAL(KIND=dp)                    :: gp_scale = 0.0_dp
@@ -96,6 +97,7 @@ MODULE pao_types
       CHARACTER(LEN=default_string_length)      :: kindname = ""
       REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: inputs
       REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: outputs
+      REAL(dp), DIMENSION(:), ALLOCATABLE       :: prior
       REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: NN ! Neural Network
       REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: GP ! Gaussian Process
    END TYPE training_matrix_type

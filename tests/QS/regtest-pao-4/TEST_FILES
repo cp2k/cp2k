@@ -5,6 +5,7 @@ H2_dist_0.7_pao.inp               11     2e-13     -1.162990081364273
 #
 # predict mid-point using a Gaussian Process
 H2_dist_0.7_GP.inp                11     1e-4      -1.162990081364273
+H2_dist_0.7_GP_meanprior.inp      11     1e-4      -1.162990081364273
 #
 # predict mid-point using a Neural Network
 H2_dist_0.7_NN.inp                11     1e-4      -1.162990081364273

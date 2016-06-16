@@ -44,7 +44,9 @@ MODULE pao_input
                                                pao_opt_cg = 301, &
                                                pao_opt_bfgs = 302, &
                                                pao_ml_gp = 401, &
-                                               pao_ml_nn = 402
+                                               pao_ml_nn = 402, &
+                                               pao_ml_prior_zero = 501, &
+                                               pao_ml_prior_mean = 502
 
 CONTAINS
 
@@ -159,6 +161,9 @@ CONTAINS
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%METHOD", i_val=pao%ml_method)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%METHOD", id2str(pao%ml_method)
 
+      CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%PRIOR", i_val=pao%ml_prior)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%PRIOR", id2str(pao%ml_prior)
+
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%TOLERANCE", r_val=pao%ml_tolerance)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%TOLERANCE", pao%ml_tolerance
 
@@ -211,6 +216,10 @@ CONTAINS
          s = "GAUSSIAN_PROCESS"
       CASE (pao_ml_nn)
          s = "NEURAL_NETWORK"
+      CASE (pao_ml_prior_zero)
+         s = "ZERO"
+      CASE (pao_ml_prior_mean)
+         s = "MEAN"
       CASE DEFAULT
          CPABORT("PAO: unknown id")
       END SELECT
@@ -375,6 +384,15 @@ CONTAINS
                           enum_i_vals=(/pao_ml_gp, pao_ml_nn/), &
                           enum_desc=s2a("Gaussian Process", "Neural Network"), &
                           default_i_val=pao_ml_gp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PRIOR", &
+                          description="Prior used for predictions.", &
+                          enum_c_vals=s2a("ZERO", "MEAN"), &
+                          enum_i_vals=(/pao_ml_prior_zero, pao_ml_prior_mean/), &
+                          enum_desc=s2a("Simply use zero", "Use average of training-set"), &
+                          default_i_val=pao_ml_prior_zero)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
