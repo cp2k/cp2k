@@ -9,7 +9,7 @@
 ! **************************************************************************************************
 MODULE pao_ml_gaussprocess
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: invmat
+   USE mathlib,                         ONLY: invmat_symm
    USE pao_types,                       ONLY: pao_env_type,&
                                               training_matrix_type
 #include "./base/base_uses.f90"
@@ -33,7 +33,7 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(training_matrix_type), DIMENSION(:), TARGET   :: training_matrices
 
-      INTEGER                                            :: i, ikind, info, j, npoints
+      INTEGER                                            :: i, ikind, j, npoints
       REAL(dp), DIMENSION(:), POINTER                    :: idescr, jdescr
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
@@ -51,10 +51,11 @@ CONTAINS
          ! build co-variance matrix A
          ALLOCATE (training_matrix%GP(npoints, npoints))
          DO i = 1, npoints
-         DO j = 1, npoints
+         DO j = i, npoints
             idescr => training_matrix%inputs(i, :)
             jdescr => training_matrix%inputs(j, :)
             training_matrix%GP(i, j) = kernel(pao%gp_scale, idescr, jdescr)
+            training_matrix%GP(j, i) = training_matrix%GP(i, j)
          ENDDO
          ENDDO
 
@@ -64,10 +65,10 @@ CONTAINS
          ENDDO
 
          ! invert covariance matrix
-         CALL invmat(training_matrix%GP, info) !TODO use upper triangular matrix and invmat_symm
-         CPASSERT(info == 0)
+         ! TODO : cholesky decompose only, using a solve in predict when needed
+         CALL invmat_symm(training_matrix%GP)
 
-         ! TODO print min eigenvalue to estimate reduandency of training data and estimate gp_noise?
+         ! TODO print min eigenvalue to estimate redundancy of training data and estimate gp_noise?
       ENDDO
 
    END SUBROUTINE pao_ml_gp_train
