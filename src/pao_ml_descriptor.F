@@ -14,7 +14,7 @@ MODULE pao_ml_descriptor
                                               pbc
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
-   USE pao_potentials,                  ONLY: calc_gaussian
+   USE pao_potentials,                  ONLY: pao_calc_gaussian
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               pao_descriptor_type,&
@@ -84,7 +84,7 @@ CONTAINS
                CPABORT("Not all KINDs have the same number of PAO_DESCRIPTOR sections")
             weight = pao_descriptors(idesc)%weight
             beta = pao_descriptors(idesc)%beta
-            CALL calc_gaussian(basis_set, V_block, Rab, lpot=0, beta=beta, weight=weight)
+            CALL pao_calc_gaussian(basis_set, V_block, Rab=Rab, lpot=0, beta=beta, weight=weight)
          ENDDO
 
          ! diagonalize V_block

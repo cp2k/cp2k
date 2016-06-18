@@ -9,8 +9,8 @@
 ! **************************************************************************************************
 MODULE pao_param
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
-        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_frobenius_norm, &
+        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
         cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
         cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_log_handling,                 ONLY: cp_to_string
@@ -54,11 +54,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Takes current matrix_X and recalculates derived matrices U, A, and B.
 !> \param pao ...
+!> \param qs_env ...
 !> \param ls_mstruct ...
 !> \param penalty ...
 ! **************************************************************************************************
-   SUBROUTINE pao_update_AB(pao, ls_mstruct, penalty)
+   SUBROUTINE pao_update_AB(pao, qs_env, ls_mstruct, penalty)
       TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_mstruct_type)                              :: ls_mstruct
       REAL(dp), INTENT(INOUT)                            :: penalty
 
@@ -69,7 +71,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL pao_calc_U(pao, penalty=penalty) !update matrix_U = Function of matrix_X
+      CALL pao_calc_U(pao, qs_env, penalty=penalty) !update matrix_U = Function of matrix_X
 
       !update matrix_A
       CALL cp_dbcsr_init(matrix_tmp)
@@ -178,6 +180,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initial_guess', &
          routineP = moduleN//':'//routineN
 
+      REAL(dp)                                           :: norm
       TYPE(cp_dbcsr_type)                                :: matrix_tmp
 
       SELECT CASE (pao%parameterization)
@@ -190,6 +193,9 @@ CONTAINS
       CASE DEFAULT
          CPABORT("PAO: unkown parametrization")
       END SELECT
+
+      norm = cp_dbcsr_frobenius_norm(pao%matrix_X)
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Made initial guess for matrix_X with norm:", norm
 
       IF (pao%precondition) THEN
          !TODO: multiplying a matrix into itself while retaining sparsity seems to be broken
@@ -205,16 +211,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculate new matrix U
 !> \param pao ...
+!> \param qs_env ...
 !> \param matrix_M ...
 !> \param matrix_G ...
 !> \param penalty ...
+!> \param forces ...
 ! **************************************************************************************************
-   SUBROUTINE pao_calc_U(pao, matrix_M, matrix_G, penalty)
+   SUBROUTINE pao_calc_U(pao, qs_env, matrix_M, matrix_G, penalty, forces)
       TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M, matrix_G
       REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U'
 
       INTEGER                                            :: handle
       REAL(dp)                                           :: my_penalty
@@ -226,7 +236,7 @@ CONTAINS
       CASE (pao_exp_param)
          CALL pao_calc_U_exp(pao, matrix_M, matrix_G)
       CASE (pao_fock_param, pao_rotinv_param)
-         CALL pao_calc_U_linpot(pao, my_penalty, matrix_M, matrix_G)
+         CALL pao_calc_U_linpot(pao, qs_env, my_penalty, matrix_M, matrix_G, forces)
       CASE (pao_gth_param)
          CALL pao_calc_U_gth(pao, my_penalty, matrix_M, matrix_G)
       CASE DEFAULT

@@ -13,7 +13,7 @@ MODULE pao_linpot_rotinv
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE kinds,                           ONLY: dp
-   USE pao_potentials,                  ONLY: calc_gaussian
+   USE pao_potentials,                  ONLY: pao_calc_gaussian
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -104,24 +104,31 @@ CONTAINS
 !> \param qs_env ...
 !> \param iatom ...
 !> \param kterm ...
-!> \param block_V ...
+!> \param block_V potential term
+!> \param block_M outer derivate, if provided forces are added
+!> \param forces ...
 ! **************************************************************************************************
-   SUBROUTINE linpot_rotinv_calc_term(qs_env, iatom, kterm, block_V)
+   SUBROUTINE linpot_rotinv_calc_term(qs_env, iatom, kterm, block_V, block_M, forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom, kterm
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
+      REAL(dp), DIMENSION(:, :), INTENT(OUT), OPTIONAL   :: block_V
+      REAL(dp), DIMENSION(:, :), INTENT(IN), OPTIONAL    :: block_M
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
       INTEGER :: c, i, ikind, ipot, iset, ishell, ishell_abs, jatom, jkind, jset, jshell, &
          jshell_abs, lmax, lmin, lpot, max_shell, min_shell, N, natoms, npots, nshells, pot_maxl, &
          sgfa1, sgfa2, sgla1, sgla2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: shell_l
       REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: block_D
       REAL(KIND=dp)                                      :: pot_beta, pot_weight
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: ipao_potentials, jpao_potentials
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CPASSERT(PRESENT(block_M) .EQV. PRESENT(forces))
 
       CALL get_qs_env(qs_env, &
                       natom=natoms, &
@@ -133,6 +140,12 @@ CONTAINS
       CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, pao_potentials=ipao_potentials)
       npots = SIZE(ipao_potentials)
       nshells = SUM(basis_set%nshell)
+      N = basis_set%nsgf ! primary basis-size
+
+      IF (PRESENT(block_V)) THEN
+         CPASSERT(SIZE(block_V, 1) == N .AND. SIZE(block_V, 2) == N)
+         block_V = 0.0_dp
+      ENDIF
 
       ! fill shell_l
       ALLOCATE (shell_l(nshells))
@@ -142,10 +155,6 @@ CONTAINS
          shell_l(ishell_abs) = basis_set%l(ishell, iset)
       ENDDO
       ENDDO
-
-      N = basis_set%nsgf ! primary basis-size
-      CPASSERT(SIZE(block_V, 1) == N .AND. SIZE(block_V, 2) == N)
-      block_V = 0.0_dp
 
       c = 0
 
@@ -166,6 +175,10 @@ CONTAINS
       ENDDO outer1
 
       IF (c == kterm) THEN
+         IF (PRESENT(block_M)) THEN
+            CPASSERT(SIZE(block_M, 1) == N .AND. SIZE(block_M, 2) == N)
+            ALLOCATE (block_D(N, N, 3))
+         ENDIF
          DO jatom = 1, natoms
             IF (jatom == iatom) CYCLE ! no self-interaction
             CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
@@ -177,12 +190,30 @@ CONTAINS
             Ra = particle_set(iatom)%r
             Rb = particle_set(jatom)%r
             Rab = pbc(ra, rb, cell)
-            CALL calc_gaussian(basis_set, block_V, Rab, lpot=lpot, &
-                               beta=pot_beta, weight=pot_weight, &
-                               min_shell=min_shell, max_shell=max_shell)
-         ENDDO
+            IF (PRESENT(block_V)) THEN
+               CALL pao_calc_gaussian(basis_set, block_V=block_V, &
+                                      Rab=Rab, lpot=lpot, &
+                                      beta=pot_beta, weight=pot_weight, &
+                                      min_shell=min_shell, max_shell=max_shell)
+            ENDIF
 
+            ! add forces
+            IF (PRESENT(block_M)) THEN
+               block_D = 0.0_dp
+               CALL pao_calc_gaussian(basis_set, block_D=block_D, &
+                                      Rab=Rab, lpot=lpot, &
+                                      beta=pot_beta, weight=pot_weight, &
+                                      min_shell=min_shell, max_shell=max_shell)
+               DO i = 1, 3
+                  forces(iatom, i) = forces(iatom, i)-SUM(block_M*block_D(:, :, i))
+                  forces(jatom, i) = forces(jatom, i)+SUM(block_M*block_D(:, :, i))
+               ENDDO
+            ENDIF
+         ENDDO
+         IF (PRESENT(block_M)) DEALLOCATE (block_D)
       ELSE !---------------------------------------------------------------------------------------
+
+         IF (.NOT. PRESENT(block_V)) RETURN ! terms on central atom do not contribute to forces
 
          ! spherical symmetric terms on central atom
          outer2: DO max_shell = 1, nshells

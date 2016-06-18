@@ -27,19 +27,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Builds the covariance matrix
 !> \param pao ...
-!> \param training_matrices ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_gp_train(pao, training_matrices)
+   SUBROUTINE pao_ml_gp_train(pao)
       TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(training_matrix_type), DIMENSION(:), TARGET   :: training_matrices
 
       INTEGER                                            :: i, ikind, j, npoints
       REAL(dp), DIMENSION(:), POINTER                    :: idescr, jdescr
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
       ! TODO this could be parallelized over ranks
-      DO ikind = 1, SIZE(training_matrices)
-         training_matrix => training_matrices(ikind)
+      DO ikind = 1, SIZE(pao%ml_training_matrices)
+         training_matrix => pao%ml_training_matrices(ikind)
          npoints = SIZE(training_matrix%inputs, 1) ! number of points
          CPASSERT(SIZE(training_matrix%outputs, 1) == npoints)
          CPASSERT(npoints > 0)
@@ -76,14 +74,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Uses covariance matrix to make prediction
 !> \param pao ...
-!> \param training_matrix ...
+!> \param ikind ...
 !> \param descriptor ...
 !> \param output ...
 !> \param variance ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_gp_predict(pao, training_matrix, descriptor, output, variance)
+   SUBROUTINE pao_ml_gp_predict(pao, ikind, descriptor, output, variance)
       TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(training_matrix_type), INTENT(IN)             :: training_matrix
+      INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
       REAL(dp), INTENT(OUT)                              :: variance
@@ -94,7 +92,9 @@ CONTAINS
       INTEGER                                            :: i, npoints
       REAL(dp)                                           :: cov
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: covs, weights
+      TYPE(training_matrix_type), POINTER                :: training_matrix
 
+      training_matrix => pao%ml_training_matrices(ikind)
       npoints = SIZE(training_matrix%outputs, 1)
 
       ! calculate weights

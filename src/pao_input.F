@@ -45,6 +45,7 @@ MODULE pao_input
                                                pao_opt_bfgs = 302, &
                                                pao_ml_gp = 401, &
                                                pao_ml_nn = 402, &
+                                               pao_ml_lazy = 403, &
                                                pao_ml_prior_zero = 501, &
                                                pao_ml_prior_mean = 502
 
@@ -216,6 +217,8 @@ CONTAINS
          s = "GAUSSIAN_PROCESS"
       CASE (pao_ml_nn)
          s = "NEURAL_NETWORK"
+      CASE (pao_ml_lazy)
+         s = "LAZY"
       CASE (pao_ml_prior_zero)
          s = "ZERO"
       CASE (pao_ml_prior_mean)
@@ -380,9 +383,9 @@ CONTAINS
 
       CALL keyword_create(keyword, name="METHOD", &
                           description="Machine learning scheme used to predict PAO basis sets.", &
-                          enum_c_vals=s2a("GAUSSIAN_PROCESS", "NEURAL_NETWORK"), &
-                          enum_i_vals=(/pao_ml_gp, pao_ml_nn/), &
-                          enum_desc=s2a("Gaussian Process", "Neural Network"), &
+                          enum_c_vals=s2a("GAUSSIAN_PROCESS", "NEURAL_NETWORK", "LAZY"), &
+                          enum_i_vals=(/pao_ml_gp, pao_ml_nn, pao_ml_lazy/), &
+                          enum_desc=s2a("Gaussian Process", "Neural Network", "Just rely on prior"), &
                           default_i_val=pao_ml_gp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

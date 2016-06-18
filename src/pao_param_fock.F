@@ -8,21 +8,10 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_fock
-   USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_release,&
-                                              cp_dbcsr_reserve_diag_blocks
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_types,                       ONLY: pao_env_type
-   USE particle_types,                  ONLY: particle_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_initial_guess,                ONLY: calculate_atomic_fock_matrix
-   USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -31,66 +20,9 @@ MODULE pao_param_fock
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_fock'
 
-   PUBLIC :: pao_param_init_fock, pao_param_finalize_fock, pao_calc_U_block_fock
+   PUBLIC :: pao_calc_U_block_fock
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Initialize fock parametrization
-!> \param pao ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE pao_param_init_fock(pao, qs_env)
-      TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_fock', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, &
-                      matrix_s=matrix_s, &
-                      particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set)
-
-      ! allocate matrix_H0
-      CALL cp_dbcsr_init(pao%matrix_H0)
-      CALL cp_dbcsr_create(pao%matrix_H0, template=matrix_s(1)%matrix)
-      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_H0)
-
-      ! calculate inital atomic fock matrix H0
-      ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), it's not rotationally invariant
-      ! getting H0 directly from the atomic code
-      CALL calculate_atomic_fock_matrix(pao%matrix_H0, &
-                                        particle_set, &
-                                        atomic_kind_set, &
-                                        qs_kind_set, &
-                                        output_unit=pao%iw)
-
-      CALL timestop(handle)
-   END SUBROUTINE pao_param_init_fock
-
-! **************************************************************************************************
-!> \brief Finalize fock parametrization
-!> \param pao ...
-! **************************************************************************************************
-   SUBROUTINE pao_param_finalize_fock(pao)
-      TYPE(pao_env_type), POINTER                        :: pao
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_fock', &
-         routineP = moduleN//':'//routineN
-
-      CALL cp_dbcsr_release(pao%matrix_H0)
-
-   END SUBROUTINE pao_param_finalize_fock
 
 ! **************************************************************************************************
 !> \brief Calculate new matrix U and optinally its gradient G

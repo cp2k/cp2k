@@ -24,10 +24,8 @@ MODULE pao_param_gth
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
-   USE pao_param_fock,                  ONLY: pao_calc_U_block_fock,&
-                                              pao_param_finalize_fock,&
-                                              pao_param_init_fock
-   USE pao_potentials,                  ONLY: calc_gaussian
+   USE pao_param_fock,                  ONLY: pao_calc_U_block_fock
+   USE pao_potentials,                  ONLY: pao_calc_gaussian
    USE pao_types,                       ONLY: pao_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -67,7 +65,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
-      CALL pao_param_init_fock(pao, qs_env)
 
       CALL get_qs_env(qs_env, &
                       matrix_s=matrix_s, &
@@ -124,7 +121,6 @@ CONTAINS
    SUBROUTINE pao_param_finalize_gth(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CALL pao_param_finalize_fock(pao)
       CALL cp_dbcsr_release(pao%matrix_V_terms)
       IF (pao%precondition) THEN
          CALL cp_dbcsr_release(pao%matrix_precon)
@@ -432,8 +428,8 @@ CONTAINS
       Rab = pbc(ra, rb, cell)
 
       block_V = 0.0_dp
-      CALL calc_gaussian(basis_set, block_V, Rab, lpot=lpot, &
-                         min_l=min_l, max_l=max_l, beta=pot_beta, weight=1.0_dp)
+      CALL pao_calc_gaussian(basis_set, block_V, Rab=Rab, lpot=lpot, &
+                             min_l=min_l, max_l=max_l, beta=pot_beta, weight=1.0_dp)
 
    END SUBROUTINE gth_calc_term
 

@@ -10,13 +10,21 @@
 MODULE pao_potentials
    USE ai_overlap,                      ONLY: overlap_aab
    USE ao_util,                         ONLY: exp_radius
+   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gamma1
    USE mathlib,                         ONLY: multinomial
    USE orbital_pointers,                ONLY: indco,&
                                               init_orbital_pointers,&
                                               ncoset
+   USE particle_types,                  ONLY: particle_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -25,14 +33,59 @@ MODULE pao_potentials
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_potentials'
 
-   PUBLIC :: calc_gaussian
+   PUBLIC :: pao_guess_initial_potential, pao_calc_gaussian
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Makes an educated guess for the intial potential based on positions of neighboring atoms
+!> \param qs_env ...
+!> \param iatom ...
+!> \param block_V ...
+! **************************************************************************************************
+   SUBROUTINE pao_guess_initial_potential(qs_env, iatom, block_V)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: iatom
+      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_guess_initial_potential'
+
+      INTEGER                                            :: handle, ikind, jatom, natoms
+      REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
+                      natom=natoms)
+
+      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
+
+      ! construct matrix block_V from neighboring atoms
+      block_V = 0.0_dp
+      DO jatom = 1, natoms
+         IF (jatom == iatom) CYCLE
+         Ra = particle_set(iatom)%r
+         Rb = particle_set(jatom)%r
+         Rab = pbc(ra, rb, cell)
+         CALL pao_calc_gaussian(basis_set, block_V, Rab=Rab, lpot=0, beta=1.0_dp, weight=-1.0_dp)
+      ENDDO
+
+      CALL timestop(handle)
+   END SUBROUTINE pao_guess_initial_potential
 
 ! **************************************************************************************************
 !> \brief Calculates potential term of the form r**lpot * Exp(-beta*r**2)
 !> \param basis_set ...
 !> \param block_V potential term that is returned
+!> \param block_D derivative of potential term wrt to Rab
 !> \param Rab ...
 !> \param lpot polynomial prefactor, r**lpot
 !> \param beta exponent of the Gaussian
@@ -42,35 +95,48 @@ CONTAINS
 !> \param min_l ...
 !> \param max_l ...
 ! **************************************************************************************************
-   SUBROUTINE calc_gaussian(basis_set, block_V, Rab, lpot, beta, weight, min_shell, max_shell, min_l, max_l)
+   SUBROUTINE pao_calc_gaussian(basis_set, block_V, block_D, Rab, lpot, beta, weight, min_shell, max_shell, min_l, max_l)
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
+      REAL(dp), DIMENSION(:, :), INTENT(OUT), OPTIONAL   :: block_V
+      REAL(dp), DIMENSION(:, :, :), INTENT(OUT), &
+         OPTIONAL                                        :: block_D
       REAL(dp), DIMENSION(3)                             :: Rab
       INTEGER, INTENT(IN)                                :: lpot
       REAL(dp), INTENT(IN)                               :: beta, weight
       INTEGER, INTENT(IN), OPTIONAL                      :: min_shell, max_shell, min_l, max_l
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_gaussian'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_gaussian'
 
-      INTEGER :: handle, ic, iset, ishell, ishell_abs, jset, jshell, jshell_abs, la1_max, la1_min, &
-         la2_max, la2_min, lb_max, lb_min, N, na1, na2, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, &
-         npgfb
+      INTEGER :: handle, i, ic, iset, ishell, ishell_abs, jset, jshell, jshell_abs, la1_max, &
+         la1_min, la2_max, la2_min, lb_max, lb_min, N, na1, na2, nb, ncfga1, ncfga2, ncfgb, &
+         npgfa1, npgfa2, npgfb
       REAL(dp)                                           :: coeff, norm2
       REAL(dp), DIMENSION(:), POINTER                    :: rpgfa1, rpgfa2, rpgfb, zeta1, zeta2, zetb
-      REAL(dp), DIMENSION(:, :), POINTER                 :: new_block, sab
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: saab
+      REAL(dp), DIMENSION(:, :), POINTER                 :: new_block_V, sab
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: dab, new_block_D, saab
+      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: daab
 
       CALL timeset(routineN, handle)
 
+      CPASSERT(PRESENT(block_V) .NEQV. PRESENT(block_D)) ! just to keep the code simpler
       CPASSERT(PRESENT(min_shell) .EQV. PRESENT(max_shell))
       CPASSERT(PRESENT(min_l) .EQV. PRESENT(max_l))
 
       CPASSERT(MOD(lpot, 2) == 0) ! otherwise it's not rotationally invariant
       CALL init_orbital_pointers(lpot)
 
-      N = SIZE(block_V, 1)
-      ALLOCATE (new_block(N, N))
-      new_block = 0.0_dp
+      N = basis_set%nsgf ! primary basis-size
+
+      IF (PRESENT(block_V)) THEN
+         CPASSERT(SIZE(block_V, 1) == N .AND. SIZE(block_V, 2) == N)
+         ALLOCATE (new_block_V(N, N))
+         new_block_V = 0.0_dp
+      ENDIF
+      IF (PRESENT(block_D)) THEN
+         CPASSERT(SIZE(block_D, 1) == N .AND. SIZE(block_D, 2) == N .AND. SIZE(block_D, 3) == 3)
+         ALLOCATE (new_block_D(N, N, 3))
+         new_block_D = 0.0_dp
+      ENDIF
 
       ! setup description of potential
       lb_min = lpot
@@ -119,24 +185,50 @@ CONTAINS
          rpgfa2 => basis_set%pgf_radius(:, jset)
 
          ! calculate integrals
-         ALLOCATE (saab(na1, na2, nb))
-         saab = 0.0_dp
-         CALL overlap_aab(la1_max=la1_max, la1_min=la1_min, npgfa1=npgfa1, rpgfa1=rpgfa1, zeta1=zeta1, &
-                          la2_max=la2_max, la2_min=la2_min, npgfa2=npgfa2, rpgfa2=rpgfa2, zeta2=zeta2, &
-                          lb_max=lb_max, lb_min=lb_min, npgfb=npgfb, rpgfb=rpgfb, zetb=zetb, &
-                          rab=Rab, saab=saab)
+         IF (PRESENT(block_V)) THEN
+            ALLOCATE (saab(na1, na2, nb))
+            saab = 0.0_dp
+            CALL overlap_aab(la1_max=la1_max, la1_min=la1_min, npgfa1=npgfa1, rpgfa1=rpgfa1, zeta1=zeta1, &
+                             la2_max=la2_max, la2_min=la2_min, npgfa2=npgfa2, rpgfa2=rpgfa2, zeta2=zeta2, &
+                             lb_max=lb_max, lb_min=lb_min, npgfb=npgfb, rpgfb=rpgfb, zetb=zetb, &
+                             rab=Rab, saab=saab)
+         ENDIF
+
+         IF (PRESENT(block_D)) THEN
+            ALLOCATE (daab(na1, na2, nb, 3))
+            daab = 0.0_dp
+            CALL overlap_aab(la1_max=la1_max, la1_min=la1_min, npgfa1=npgfa1, rpgfa1=rpgfa1, zeta1=zeta1, &
+                             la2_max=la2_max, la2_min=la2_min, npgfa2=npgfa2, rpgfa2=rpgfa2, zeta2=zeta2, &
+                             lb_max=lb_max, lb_min=lb_min, npgfb=npgfb, rpgfb=rpgfb, zetb=zetb, &
+                             rab=Rab, daab=daab)
+         ENDIF
 
          ! sum potential terms: POW(x**2 + y**2 + z**2, lpot/2)
-         ALLOCATE (sab(na1, na2))
-         sab = 0.0_dp
-         DO ic = 1, ncfgb
-            coeff = multinomial(lpot/2, indco(:, ncoset(lpot-1)+ic)/2)
-            sab = sab+coeff*saab(:, :, ic)
-         ENDDO
+         IF (PRESENT(block_V)) THEN
+            ALLOCATE (sab(na1, na2))
+            sab = 0.0_dp
+            DO ic = 1, ncfgb
+               coeff = multinomial(lpot/2, indco(:, ncoset(lpot-1)+ic)/2)
+               sab = sab+coeff*saab(:, :, ic)
+            ENDDO
+            CALL my_contract(sab=sab, block=new_block_V, basis_set=basis_set, &
+                             iset=iset, ishell=ishell, jset=jset, jshell=jshell)
+            DEALLOCATE (sab, saab)
+         ENDIF
 
-         CALL my_contract(sab=sab, block_V=new_block, basis_set=basis_set, &
-                          iset=iset, ishell=ishell, jset=jset, jshell=jshell)
-         DEALLOCATE (sab, saab)
+         IF (PRESENT(block_D)) THEN
+            ALLOCATE (dab(na1, na2, 3))
+            dab = 0.0_dp
+            DO ic = 1, ncfgb
+               coeff = multinomial(lpot/2, indco(:, ncoset(lpot-1)+ic)/2)
+               dab = dab+coeff*daab(:, :, ic, :)
+            ENDDO
+            DO i = 1, 3
+               CALL my_contract(sab=dab(:, :, i), block=new_block_D(:, :, i), basis_set=basis_set, &
+                                iset=iset, ishell=ishell, jset=jset, jshell=jshell)
+            ENDDO
+            DEALLOCATE (dab, daab)
+         ENDIF
       ENDDO
       ENDDO
       ENDDO
@@ -144,30 +236,38 @@ CONTAINS
 
       DEALLOCATE (rpgfb, zetb)
 
+      ! post-processing
       norm2 = (2.0_dp*beta)**(-0.5_dp-lpot)*gamma1(lpot)
+      IF (PRESENT(block_V)) THEN
+         block_V = block_V+weight*new_block_V/SQRT(norm2)
+         DEALLOCATE (new_block_V)
+         block_V = 0.5_dp*(block_V+TRANSPOSE(block_V)) ! symmetrize
+      ENDIF
 
-      block_V = block_V+weight*new_block/SQRT(norm2)
-      DEALLOCATE (new_block)
-
-      ! symmetrize
-      block_V = 0.5_dp*(block_V+TRANSPOSE(block_V))
+      IF (PRESENT(block_D)) THEN
+         block_D = block_D+weight*new_block_D/SQRT(norm2)
+         DEALLOCATE (new_block_D)
+         DO i = 1, 3
+            block_D(:, :, i) = 0.5_dp*(block_D(:, :, i)+TRANSPOSE(block_D(:, :, i))) ! symmetrize
+         ENDDO
+      ENDIF
 
       CALL timestop(handle)
-   END SUBROUTINE calc_gaussian
+   END SUBROUTINE pao_calc_gaussian
 
 ! **************************************************************************************************
 !> \brief Helper routine, contracts a basis block
 !> \param sab ...
-!> \param block_V ...
+!> \param block ...
 !> \param basis_set ...
 !> \param iset ...
 !> \param ishell ...
 !> \param jset ...
 !> \param jshell ...
 ! **************************************************************************************************
-   SUBROUTINE my_contract(sab, block_V, basis_set, iset, ishell, jset, jshell)
-      REAL(dp), DIMENSION(:, :), POINTER                 :: sab
-      REAL(dp), DIMENSION(:, :), INTENT(OUT), TARGET     :: block_V
+   SUBROUTINE my_contract(sab, block, basis_set, iset, ishell, jset, jshell)
+      REAL(dp), DIMENSION(:, :), INTENT(IN), TARGET      :: sab
+      REAL(dp), DIMENSION(:, :), INTENT(OUT), TARGET     :: block
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       INTEGER, INTENT(IN)                                :: iset, ishell, jset, jshell
 
@@ -175,7 +275,7 @@ CONTAINS
                                                             nn1, nn2, sgfa1, sgfa2, sgla1, sgla2
       REAL(dp), DIMENSION(:, :), POINTER                 :: S, T1, T2, V
 
-      ! first and last indices of given shell in block_V.
+      ! first and last indices of given shell in block.
       ! This matrix is in the contracted spherical basis.
       sgfa1 = basis_set%first_sgf(ishell, iset)
       sgla1 = basis_set%last_sgf(ishell, iset)
@@ -183,7 +283,7 @@ CONTAINS
       sgla2 = basis_set%last_sgf(jshell, jset)
 
       ! prepare the result matrix
-      V => block_V(sgfa1:sgla1, sgfa2:sgla2)
+      V => block(sgfa1:sgla1, sgfa2:sgla2)
 
       ! Calculate strides of sphi matrix.
       ! This matrix is in the uncontraced cartesian basis.

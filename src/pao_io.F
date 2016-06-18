@@ -98,7 +98,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CPASSERT(LEN_TRIM(pao%restart_file) > 0)
-      IF (pao%iw > 0) WRITE (pao%iw, '(A,A)') " PAO| Reading restart file: ", TRIM(pao%restart_file)
+      IF (pao%iw > 0) WRITE (pao%iw, '(A,A)') " PAO| Reading matrix_X from restart file: ", TRIM(pao%restart_file)
 
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
@@ -189,7 +189,6 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: label, str_in
       INTEGER                                            :: i1, i2, iatom, ikind, ipot, natoms, &
                                                             nkinds, nparams, unit_nr, xblocks_read
-      LOGICAL                                            :: check_version
       REAL(dp)                                           :: r1, r2
       REAL(dp), DIMENSION(3)                             :: pos_in
       REAL(dp), DIMENSION(3, 3)                          :: hmat_angstrom
@@ -203,21 +202,21 @@ CONTAINS
       natoms = -1
       nkinds = -1
       xblocks_read = 0
-      check_version = .FALSE.
 
       CALL open_file(file_name=filename, file_status="OLD", file_form="FORMATTED", &
                      file_action="READ", unit_number=unit_nr)
+
+      ! check if file starts with proper header !TODO: introduce a more unique header
+      READ (unit_nr, fmt=*) label, i1
+      IF (TRIM(label) /= "Version") &
+         CPABORT("PAO restart file appears to be corrupted.")
+      IF (i1 /= file_format_version) CPABORT("Restart PAO file format version is wrong")
 
       DO WHILE (.TRUE.)
          READ (unit_nr, fmt=*) label
          BACKSPACE (unit_nr)
 
-         IF (TRIM(label) == "Version") THEN
-            READ (unit_nr, fmt=*) label, i1
-            IF (i1 /= file_format_version) CPABORT("Restart PAO file format version is wrong")
-            check_version = .TRUE.
-
-         ELSE IF (TRIM(label) == "Parametrization") THEN
+         IF (TRIM(label) == "Parametrization") THEN
             READ (unit_nr, fmt=*) label, str_in
             param = str_in
 
@@ -301,7 +300,6 @@ CONTAINS
       END DO
       CALL close_file(unit_number=unit_nr)
 
-      CPASSERT(check_version)
       CPASSERT(xblocks_read == natoms) ! ensure we read all blocks
 
    END SUBROUTINE pao_read_raw

@@ -11,4 +11,7 @@ H2_pao_exp_checkgrad.inp          0
 H2_pao_fock_checkgrad.inp         0
 H2_pao_rotinv_checkgrad.inp       0
 H2_pao_gth_checkgrad.inp          0
+#
+H2_pao_fock_checkforces.inp       0
+H2_pao_rotinv_checkforces.inp     0
 #EOF

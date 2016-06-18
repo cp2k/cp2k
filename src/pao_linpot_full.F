@@ -58,12 +58,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE linpot_full_calc_term(kterm, block_V)
       INTEGER, INTENT(IN)                                :: kterm
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_calc_term', &
-         routineP = moduleN//':'//routineN
+      REAL(dp), DIMENSION(:, :), INTENT(OUT), OPTIONAL   :: block_V
 
       INTEGER                                            :: a, i, j, n
+
+      IF (.NOT. PRESENT(block_V)) RETURN ! nothing to do
 
       block_V = 0.0
       n = SIZE(block_V, 1)

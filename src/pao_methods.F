@@ -8,7 +8,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_methods
-   USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
@@ -39,6 +40,7 @@ MODULE pao_methods
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_initial_guess,                ONLY: calculate_atomic_fock_matrix
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -56,7 +58,8 @@ MODULE pao_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_methods'
 
    PUBLIC :: pao_print_atom_info
-   PUBLIC :: pao_build_orthogonalizer, pao_build_selector, pao_build_matrix_X
+   PUBLIC :: pao_build_orthogonalizer, pao_build_selector
+   PUBLIC :: pao_build_matrix_X, pao_build_core_hamiltonian
    PUBLIC :: pao_test_convergence
    PUBLIC :: pao_calc_energy, pao_check_trace_ps
    PUBLIC :: pao_read_preopt_dm
@@ -283,6 +286,44 @@ CONTAINS
    END SUBROUTINE pao_build_matrix_X
 
 ! **************************************************************************************************
+!> \brief Creates the matrix_H0 which contains the core hamiltonian
+!> \param qs_env ...
+!> \param matrix_H0 ...
+!> \param iw ...
+! **************************************************************************************************
+   SUBROUTINE pao_build_core_hamiltonian(qs_env, matrix_H0, iw)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_dbcsr_type)                                :: matrix_H0
+      INTEGER, INTENT(IN)                                :: iw
+
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env, &
+                      matrix_s=matrix_s, &
+                      particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set)
+
+      ! allocate matrix_H0
+      CALL cp_dbcsr_init(matrix_H0)
+      CALL cp_dbcsr_create(matrix_H0, template=matrix_s(1)%matrix)
+      CALL cp_dbcsr_reserve_diag_blocks(matrix_H0)
+
+      ! calculate inital atomic fock matrix H0
+      ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), because it's not rotationally invariant.
+      ! getting H0 directly from the atomic code
+      CALL calculate_atomic_fock_matrix(matrix_H0, &
+                                        particle_set, &
+                                        atomic_kind_set, &
+                                        qs_kind_set, &
+                                        output_unit=iw)
+
+   END SUBROUTINE pao_build_core_hamiltonian
+
+! **************************************************************************************************
 !> \brief Test whether the PAO optimization has reached convergence
 !> \param pao ...
 !> \param ls_scf_env ...
@@ -345,7 +386,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! calculate matrix U, which determines the pao basis
-      CALL pao_update_AB(pao, ls_scf_env%ls_mstruct, penalty)
+      CALL pao_update_AB(pao, qs_env, ls_scf_env%ls_mstruct, penalty)
 
       ! calculat S, S_inv, S_sqrt, and S_sqrt_inv in the new pao basis
       CALL pao_rebuild_S(qs_env, ls_scf_env)

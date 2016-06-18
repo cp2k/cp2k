@@ -20,7 +20,8 @@ MODULE dm_ls_scf_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE pao_types,                       ONLY: pao_env_type
+   USE pao_types,                       ONLY: pao_env_type,&
+                                              pao_finalize
    USE pexsi_types,                     ONLY: lib_pexsi_env,&
                                               lib_pexsi_finalize
    USE qs_density_mixing_types,         ONLY: mixing_storage_release,&
@@ -196,7 +197,7 @@ CONTAINS
       ENDIF
 
       IF (ls_scf_env%do_pao) &
-         CALL cp_dbcsr_release(ls_scf_env%pao_env%matrix_X)
+         CALL pao_finalize(ls_scf_env%pao_env)
 
       DEALLOCATE (ls_scf_env)
 

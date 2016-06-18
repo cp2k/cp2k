@@ -16,6 +16,7 @@ MODULE pao_param_exp
         cp_dbcsr_set, cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
+   USE pao_potentials,                  ONLY: pao_guess_initial_potential
    USE pao_types,                       ONLY: pao_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -49,14 +50,14 @@ CONTAINS
       INTEGER                                            :: acol, arow, handle, iatom, N
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:), POINTER                    :: H_evals
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H, block_ks, block_N, block_U0, &
-                                                            H_evecs
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H, block_H0, block_N, block_U0, &
+                                                            block_V0, H_evecs
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, matrix_s=matrix_s, matrix_ks=matrix_ks)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s)
 
       ! allocate matrix_U0
       CALL cp_dbcsr_init(pao%matrix_U0)
@@ -68,14 +69,17 @@ CONTAINS
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
          iatom = arow; CPASSERT(arow == acol)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_ks, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
-         CPASSERT(ASSOCIATED(block_ks) .AND. ASSOCIATED(block_N))
+         CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_N))
          N = SIZE(block_U0, 1)
+
+         ALLOCATE (block_V0(N, N))
+         CALL pao_guess_initial_potential(qs_env, iatom, block_V0)
 
          ! construct H
          ALLOCATE (block_H(N, N))
-         block_H = MATMUL(MATMUL(block_N, block_ks), block_N) ! transform into orthonormal basis
+         block_H = MATMUL(MATMUL(block_N, block_H0+block_V0), block_N) ! transform into orthonormal basis
 
          ! diagonalize H
          ALLOCATE (H_evecs(N, N), H_evals(N))
@@ -85,7 +89,7 @@ CONTAINS
          ! use eigenvectors as initial guess
          block_U0 = H_evecs
 
-         DEALLOCATE (block_H, H_evecs, H_evals)
+         DEALLOCATE (block_H, H_evecs, H_evals, block_V0)
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
 

@@ -19,7 +19,7 @@
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        MAX_PAO    1
+        MAX_PAO    0
         PARAMETERIZATION ROTINV
       &END PAO
     &END

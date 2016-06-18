@@ -18,16 +18,16 @@
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        MAX_PAO 500
-        EPS_PAO 1.0E-5
-        PARAMETERIZATION FOCK
-        REGULARIZATION 1.0E-4
-        CHECK_UNITARY_TOL 1.0E-10
-        LINPOT_INITGUESS_DELTA 0.1
-        &LINE_SEARCH
-          METHOD 3PNT
-          MAX_STEP_SIZE 10.0
-        &END LINE_SEARCH
+        MAX_PAO 0
+        PARAMETERIZATION ROTINV
+        &MACHINE_LEARNING
+          METHOD LAZY
+          PRIOR MEAN
+          &TRAINING_SET
+            H2_dist_0.5_pao-1_0.pao
+            H2_dist_0.9_pao-1_0.pao
+          &END TRAINING_SET
+        &END MACHINE_LEARNING
       &END PAO
     &END
     &XC
@@ -41,21 +41,31 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H       0.72  0.0   0.0
+      H       0.7   0.0   0.0
       H       0.0   0.0   0.0
     &END COORD
-    &KIND H
-      BASIS_SET DZVP-MOLOPT-SR-GTH
-      POTENTIAL GTH-PBE
-      PAO_BASIS_SIZE 1
-    &END KIND
     &TOPOLOGY
        &CENTER_COORDINATES
        &END
     &END
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE
+      PAO_BASIS_SIZE 1
+      &PAO_POTENTIAL
+        MAXL 0
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+        WEIGHT +1.0
+        BETA 1.0
+      &END PAO_DESCRIPTOR
+      &PAO_DESCRIPTOR
+        WEIGHT -1.0
+        BETA 0.8
+      &END PAO_DESCRIPTOR
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2_pao_fock
-  RUN_TYPE ENERGY
+  PROJECT H2_dist_0.7_GP
 &END GLOBAL

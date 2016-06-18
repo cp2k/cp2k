@@ -74,8 +74,10 @@ MODULE dm_ls_scf
    USE mathlib,                         ONLY: binomial
    USE molecule_types_new,              ONLY: molecule_of_atom,&
                                               molecule_type
-   USE pao_main,                        ONLY: pao_finalize,&
+   USE pao_main,                        ONLY: pao_forces,&
                                               pao_init,&
+                                              pao_optimization_end,&
+                                              pao_optimization_start,&
                                               pao_update
    USE particle_types,                  ONLY: particle_type
    USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
@@ -132,17 +134,18 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
-      CALL pao_init(qs_env, ls_scf_env)
+      CALL pao_optimization_start(qs_env, ls_scf_env)
 
       pao_is_done = .FALSE.
       DO WHILE (.NOT. pao_is_done)
          CALL ls_scf_init_scf(qs_env, ls_scf_env)
          CALL pao_update(qs_env, ls_scf_env, pao_is_done)
          CALL ls_scf_main(qs_env, ls_scf_env)
+         CALL pao_forces(qs_env, ls_scf_env)
          CALL ls_scf_post(qs_env, ls_scf_env)
       END DO
 
-      CALL pao_finalize(ls_scf_env)
+      CALL pao_optimization_end(ls_scf_env)
 
       CALL timestop(handle)
 
@@ -225,6 +228,9 @@ CONTAINS
             CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
          CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins)
       ENDIF
+
+      ! initialize PAO
+      CALL pao_init(qs_env, ls_scf_env)
 
       ! put the ls_scf_env in qs_env
       CALL set_qs_env(qs_env, ls_scf_env=ls_scf_env)

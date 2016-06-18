@@ -8,7 +8,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
+                                              cp_dbcsr_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -21,11 +22,20 @@ MODULE pao_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_types'
 
-   PUBLIC :: pao_env_type, training_matrix_type
+   PUBLIC :: pao_env_type, training_matrix_type, pao_finalize
 
    TYPE filename_type
       CHARACTER(LEN=default_path_length) :: fn
    END TYPE filename_type
+
+   TYPE training_matrix_type
+      CHARACTER(LEN=default_string_length)      :: kindname = ""
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: inputs
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: outputs
+      REAL(dp), DIMENSION(:), ALLOCATABLE       :: prior
+      REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: NN ! Neural Network
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: GP ! Gaussian Process
+   END TYPE training_matrix_type
 
    TYPE pao_env_type
       ! input values
@@ -69,6 +79,8 @@ MODULE pao_types
       REAL(KIND=dp)                    :: step_start_time = 0.0_dp
       REAL(KIND=dp)                    :: norm_G = 0.0_dp
       TYPE(linesearch_type)            :: linesearch
+      LOGICAL                          :: matrix_X_ready = .FALSE.
+      LOGICAL                          :: matrices_YNH0_ready = .FALSE.
       LOGICAL                          :: need_initial_scf = .FALSE.
       LOGICAL                          :: precondition = .FALSE.
 
@@ -91,15 +103,34 @@ MODULE pao_types
       TYPE(cp_dbcsr_type)              :: matrix_precon_inv
       TYPE(cp_dbcsr_type)              :: matrix_R
 
+      TYPE(training_matrix_type), ALLOCATABLE, &
+         DIMENSION(:)                  :: ml_training_matrices
+
    END TYPE
 
-   TYPE training_matrix_type
-      CHARACTER(LEN=default_string_length)      :: kindname = ""
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: inputs
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: outputs
-      REAL(dp), DIMENSION(:), ALLOCATABLE       :: prior
-      REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: NN ! Neural Network
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: GP ! Gaussian Process
-   END TYPE training_matrix_type
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Finalize the PAO environment
+!> \param pao ...
+! **************************************************************************************************
+   SUBROUTINE pao_finalize(pao)
+      TYPE(pao_env_type)                                 :: pao
+
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| finalize"
+
+      CALL cp_dbcsr_release(pao%matrix_X)
+      CALL cp_dbcsr_release(pao%matrix_Y)
+      CALL cp_dbcsr_release(pao%matrix_N)
+      CALL cp_dbcsr_release(pao%matrix_N_inv)
+      CALL cp_dbcsr_release(pao%matrix_H0)
+
+      DEALLOCATE (pao%ml_training_set)
+      IF (ALLOCATED(pao%ml_training_matrices)) &
+         DEALLOCATE (pao%ml_training_matrices)
+
+      !TODO: should finish printkey
+
+   END SUBROUTINE pao_finalize
 
 END MODULE pao_types

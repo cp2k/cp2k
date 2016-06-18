@@ -26,6 +26,7 @@ MODULE pao_ml
                                               mp_sum
    USE pao_input,                       ONLY: id2str,&
                                               pao_ml_gp,&
+                                              pao_ml_lazy,&
                                               pao_ml_nn,&
                                               pao_ml_prior_mean,&
                                               pao_ml_prior_zero,&
@@ -53,7 +54,7 @@ MODULE pao_ml
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_ml'
 
-   PUBLIC :: pao_machine_learning_init
+   PUBLIC :: pao_machine_learning_init, pao_machine_learning_predict
 
    ! linked list used to group training points by kind
    TYPE training_point_type
@@ -87,10 +88,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(training_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: training_lists
-      TYPE(training_matrix_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: training_matrices
 
-      CPASSERT(SIZE(pao%ml_training_set) > 0)
+      IF (SIZE(pao%ml_training_set) == 0) RETURN
 
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO|ML| Initializing maschine learning...'
 
@@ -111,22 +110,16 @@ CONTAINS
       ENDDO
 
       ! turns linked lists into matrices and syncs them across ranks
-      CALL training_list2matrix(training_lists, training_matrices, para_env)
+      CALL training_list2matrix(training_lists, pao%ml_training_matrices, para_env)
 
       ! calculate and substract prior
-      CALL pao_ml_substract_prior(pao%ml_prior, training_matrices)
+      CALL pao_ml_substract_prior(pao%ml_prior, pao%ml_training_matrices)
 
       ! print some statistics about the training set
-      CALL pao_ml_print_stats(pao, training_matrices)
+      CALL pao_ml_print_stats(pao%iw, pao%ml_training_matrices)
 
       ! use training-set to train model
-      CALL pao_ml_train(pao, training_matrices)
-
-      ! use trained model to predict pao basis
-      CALL pao_ml_predict(pao, qs_env, training_matrices)
-
-      ! clean up
-      DEALLOCATE (training_matrices)
+      CALL pao_ml_train(pao)
 
    END SUBROUTINE pao_machine_learning_init
 
@@ -393,25 +386,27 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Print some statistics about the training set
-!> \param pao ...
+!> \param iw ...
 !> \param training_matrices ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_print_stats(pao, training_matrices)
-      TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(training_matrix_type), DIMENSION(:)           :: training_matrices
+   SUBROUTINE pao_ml_print_stats(iw, training_matrices)
+      INTEGER, INTENT(IN)                                :: iw
+      TYPE(training_matrix_type), DIMENSION(:), TARGET   :: training_matrices
 
       INTEGER                                            :: ikind, N
+      TYPE(training_matrix_type), POINTER                :: training_matrix
 
-      IF (pao%iw <= 0) RETURN
+      IF (iw <= 0) RETURN
 
       DO ikind = 1, SIZE(training_matrices)
-         N = SIZE(training_matrices(ikind)%inputs)
-         WRITE (pao%iw, "(A,I3,A,E10.1,1X,E10.1,1X,E10.1)") " PAO|ML| Descriptor for kind: "// &
-            TRIM(training_matrices(ikind)%kindname)//" size: ", &
-            SIZE(training_matrices(ikind)%inputs, 2), " min/mean/max: ", &
-            MINVAL(training_matrices(ikind)%inputs), &
-            SUM(training_matrices(ikind)%inputs)/REAL(N, dp), &
-            MAXVAL(training_matrices(ikind)%inputs)
+         training_matrix => training_matrices(ikind)
+         N = SIZE(training_matrix%inputs)
+         WRITE (iw, "(A,I3,A,E10.1,1X,E10.1,1X,E10.1)") " PAO|ML| Descriptor for kind: "// &
+            TRIM(training_matrix%kindname)//" size: ", &
+            SIZE(training_matrix%inputs, 2), " min/mean/max: ", &
+            MINVAL(training_matrix%inputs), &
+            SUM(training_matrix%inputs)/REAL(N, dp), &
+            MAXVAL(training_matrix%inputs)
       ENDDO
 
    END SUBROUTINE pao_ml_print_stats
@@ -419,13 +414,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calls the actuall learning algorthim to traing on the given matrices
 !> \param pao ...
-!> \param training_matrices ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_train(pao, training_matrices)
+   SUBROUTINE pao_ml_train(pao)
       TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(training_matrix_type), DIMENSION(:)           :: training_matrices
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_ml_train', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_ml_train'
 
       INTEGER                                            :: handle
 
@@ -433,9 +426,11 @@ CONTAINS
 
       SELECT CASE (pao%ml_method)
       CASE (pao_ml_gp)
-         CALL pao_ml_gp_train(pao, training_matrices)
+         CALL pao_ml_gp_train(pao)
       CASE (pao_ml_nn)
-         CALL pao_ml_nn_train(pao, training_matrices)
+         CALL pao_ml_nn_train(pao)
+      CASE (pao_ml_lazy)
+         ! nothing to do
       CASE DEFAULT
          CPABORT("PAO: unkown machine learning scheme")
       END SELECT
@@ -448,14 +443,12 @@ CONTAINS
 !> \brief Fills pao%matrix_X based on machine learning predictions
 !> \param pao ...
 !> \param qs_env ...
-!> \param training_matrices ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_predict(pao, qs_env, training_matrices)
+   SUBROUTINE pao_machine_learning_predict(pao, qs_env)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(training_matrix_type), DIMENSION(:)           :: training_matrices
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_ml_predict'
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_predict'
 
       INTEGER                                            :: acol, arow, handle, iatom, ikind, natoms
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor, variances
@@ -496,14 +489,14 @@ CONTAINS
                                      descriptor)
 
          ! call actual machine learning for prediction
-         CALL pao_ml_predict_low(pao, training_matrices(ikind), &
+         CALL pao_ml_predict_low(pao, ikind=ikind, &
                                  descriptor=descriptor, &
                                  output=block_X(:, 1), &
                                  variance=variances(iatom))
          DEALLOCATE (descriptor)
 
          !add prior
-         block_X(:, 1) = block_X(:, 1)+training_matrices(ikind)%prior
+         block_X(:, 1) = block_X(:, 1)+pao%ml_training_matrices(ikind)%prior
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 
@@ -523,33 +516,36 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pao_ml_predict
+   END SUBROUTINE pao_machine_learning_predict
 
 ! **************************************************************************************************
 !> \brief Queries the actuall learning algorthim to make a prediction
 !> \param pao ...
-!> \param training_matrix ...
+!> \param ikind ...
 !> \param descriptor ...
 !> \param output ...
 !> \param variance ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_predict_low(pao, training_matrix, descriptor, output, variance)
+   SUBROUTINE pao_ml_predict_low(pao, ikind, descriptor, output, variance)
       TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(training_matrix_type), INTENT(IN)             :: training_matrix
+      INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
       REAL(dp), INTENT(OUT)                              :: variance
 
       INTEGER                                            :: npoints
 
-      npoints = SIZE(training_matrix%outputs, 1)
+      npoints = SIZE(pao%ml_training_matrices(ikind)%outputs, 1)
       CPASSERT(npoints > 0)
 
       SELECT CASE (pao%ml_method)
       CASE (pao_ml_gp)
-         CALL pao_ml_gp_predict(pao, training_matrix, descriptor, output, variance)
+         CALL pao_ml_gp_predict(pao, ikind, descriptor, output, variance)
       CASE (pao_ml_nn)
-         CALL pao_ml_nn_predict(training_matrix, descriptor, output, variance)
+         CALL pao_ml_nn_predict(pao, ikind, descriptor, output, variance)
+      CASE (pao_ml_lazy)
+         output = 0.0_dp ! let's be really lazy and just rely on the prior
+         variance = 0
       CASE DEFAULT
          CPABORT("PAO: unkown machine learning scheme")
       END SELECT

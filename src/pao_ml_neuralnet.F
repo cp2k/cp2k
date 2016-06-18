@@ -35,16 +35,22 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Uses neural network to make a prediction
-!> \param training_matrix ...
+!> \param pao ...
+!> \param ikind ...
 !> \param descriptor ...
 !> \param output ...
 !> \param variance ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_nn_predict(training_matrix, descriptor, output, variance)
-      TYPE(training_matrix_type), INTENT(IN)             :: training_matrix
+   SUBROUTINE pao_ml_nn_predict(pao, ikind, descriptor, output, variance)
+      TYPE(pao_env_type), POINTER                        :: pao
+      INTEGER, INTENT(IN)                                :: ikind
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
       REAL(dp), INTENT(OUT)                              :: variance
+
+      TYPE(training_matrix_type), POINTER                :: training_matrix
+
+      training_matrix => pao%ml_training_matrices(ikind)
 
       CALL nn_eval(training_matrix%NN, input=descriptor, prediction=output)
 
@@ -54,11 +60,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Trains the neural network on given training points
 !> \param pao ...
-!> \param training_matrices ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_nn_train(pao, training_matrices)
+   SUBROUTINE pao_ml_nn_train(pao)
       TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(training_matrix_type), DIMENSION(:), TARGET   :: training_matrices
 
       INTEGER                                            :: i, icycle, ikind, ilayer, ipoint, j, &
                                                             npoints, width, width_in, width_out
@@ -71,8 +75,8 @@ CONTAINS
       NULLIFY (rng_stream)
 
       ! TODO this could be parallelized over ranks
-      DO ikind = 1, SIZE(training_matrices)
-         training_matrix => training_matrices(ikind)
+      DO ikind = 1, SIZE(pao%ml_training_matrices)
+         training_matrix => pao%ml_training_matrices(ikind)
 
          npoints = SIZE(training_matrix%inputs, 1) ! number of points
          CPASSERT(SIZE(training_matrix%outputs, 1) == npoints)

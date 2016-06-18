@@ -11,11 +11,11 @@ MODULE pao_param_linpot
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_frobenius_norm, &
-        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
+        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
         cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_type, &
-        dbcsr_distribution_mp, dbcsr_mp_group
+        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, &
+        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_min,&
@@ -26,9 +26,8 @@ MODULE pao_param_linpot
                                               linpot_full_count_terms
    USE pao_linpot_rotinv,               ONLY: linpot_rotinv_calc_term,&
                                               linpot_rotinv_count_terms
-   USE pao_param_fock,                  ONLY: pao_calc_U_block_fock,&
-                                              pao_param_finalize_fock,&
-                                              pao_param_init_fock
+   USE pao_param_fock,                  ONLY: pao_calc_U_block_fock
+   USE pao_potentials,                  ONLY: pao_guess_initial_potential
    USE pao_types,                       ONLY: pao_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -65,7 +64,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
-      CALL pao_param_init_fock(pao, qs_env)
 
       CALL get_qs_env(qs_env, &
                       matrix_s=matrix_s, &
@@ -275,7 +273,6 @@ CONTAINS
    SUBROUTINE pao_param_finalize_linpot(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CALL pao_param_finalize_fock(pao)
       CALL cp_dbcsr_release(pao%matrix_V_terms)
       CALL cp_dbcsr_release(pao%matrix_R)
 
@@ -313,27 +310,34 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
+!> \param qs_env ...
 !> \param penalty ...
 !> \param matrix_M ...
 !> \param matrix_G ...
+!> \param forces ...
 ! **************************************************************************************************
-   SUBROUTINE pao_calc_U_linpot(pao, penalty, matrix_M, matrix_G)
+   SUBROUTINE pao_calc_U_linpot(pao, qs_env, penalty, matrix_M, matrix_G, forces)
       TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp), INTENT(INOUT)                            :: penalty
       TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M, matrix_G
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_linpot'
 
-      INTEGER                                            :: acol, arow, group, handle, iatom, n
+      INTEGER                                            :: acol, arow, group, handle, iatom, kterm, &
+                                                            n, nterms
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:), POINTER                    :: vec_M2, vec_V
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_M1, block_M2, block_R, &
-                                                            block_U, block_V, block_V_terms, &
-                                                            block_X
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_M1, block_M2, block_M3, &
+                                                            block_R, block_U, block_V, &
+                                                            block_V_terms, block_X
       REAL(KIND=dp)                                      :: min_gap, regu_energy
       TYPE(cp_dbcsr_iterator)                            :: iter
 
       CALL timeset(routineN, handle)
+
+      CPASSERT(PRESENT(matrix_G) .EQV. PRESENT(matrix_M))
 
       min_gap = HUGE(dp)
       regu_energy = 0.0_dp
@@ -352,7 +356,8 @@ CONTAINS
          ALLOCATE (vec_V(n*n))
          vec_V(:) = 0.0_dp
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=block_V_terms, found=found)
-         IF (SIZE(block_V_terms) > 0) & ! protect against corner-case of zero pao parameters
+         nterms = SIZE(block_V_terms, 2)
+         IF (nterms > 0) & ! protect against corner-case of zero pao parameters
             vec_V = MATMUL(block_V_terms, block_X(:, 1))
          block_V(1:n, 1:n) => vec_V(:) ! map vector into matrix
 
@@ -364,42 +369,56 @@ CONTAINS
          ! regularization energy
          regu_energy = regu_energy+DOT_PRODUCT(block_X(:, 1), MATMUL(block_R, block_X(:, 1)))
 
-         IF (.NOT. PRESENT(matrix_G)) THEN
+         IF (.NOT. PRESENT(matrix_G) .AND. .NOT. PRESENT(matrix_G)) THEN
             CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U)
 
-         ELSE ! TURNING POINT (if calc grad) ------------------------------------
-            CPASSERT(PRESENT(matrix_M))
-            CALL cp_dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
-            CPASSERT(ASSOCIATED(block_G))
+         ELSE ! TURNING POINT (if calc grad) -------------------------------------------------------
             CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M1, found=found)
-            ! don't check ASSOCIATED(block_M1), it might have been filtered out.
 
-            ALLOCATE (vec_M2(n*n))
-            block_M2(1:n, 1:n) => vec_M2(:) ! map vector into matrix
-            CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U, block_M1, block_M2)
-            IF (MAXVAL(ABS(block_M2-TRANSPOSE(block_M2))) > 1e-14_dp) CPABORT("Expect symmetric matrix")
-            IF (SIZE(block_V_terms) > 0) THEN ! protect against corner-case of zero pao parameters
-               block_G(:, 1) = MATMUL(vec_M2, block_V_terms)
-               block_G = block_G+2.0_dp*MATMUL(block_R, block_X) ! regularization gradient
+            ! corner-cases: block_M1 might have been filtered out or there might be zero pao parameters
+            IF (ASSOCIATED(block_M1) .AND. SIZE(block_V_terms) > 0) THEN
+               ALLOCATE (vec_M2(n*n))
+               block_M2(1:n, 1:n) => vec_M2(:) ! map vector into matrix
+               CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U, block_M1, block_M2)
+               IF (MAXVAL(ABS(block_M2-TRANSPOSE(block_M2))) > 1e-14_dp) CPABORT("matrix not symmetric")
+
+               ! gradient dE/dX
+               IF (PRESENT(matrix_G)) THEN
+                  CALL cp_dbcsr_get_block_p(matrix=matrix_G, row=iatom, col=iatom, block=block_G, found=found)
+                  CPASSERT(ASSOCIATED(block_G))
+                  block_G(:, 1) = MATMUL(vec_M2, block_V_terms)
+                  block_G = block_G+2.0_dp*MATMUL(block_R, block_X) ! regularization gradient
+               ENDIF
+
+               ! forced dE/dR
+               IF (PRESENT(forces)) THEN
+                  ALLOCATE (block_M3(n, n))
+                  DO kterm = 1, nterms
+                     block_M3 = block_M2*block_X(kterm, 1)
+                     CALL linpot_calc_term(pao, qs_env, iatom=iatom, kterm=kterm, block_M=block_M3, forces=forces)
+                  ENDDO
+                  DEALLOCATE (block_M3)
+               ENDIF
+
+               DEALLOCATE (vec_M2)
             ENDIF
-            DEALLOCATE (vec_M2)
          ENDIF
-
          DEALLOCATE (vec_V)
-
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
 
       ! sum penalty energies across ranks
       CALL mp_sum(penalty, group)
       CALL mp_sum(regu_energy, group)
-
-      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| linpot regularization energy:", regu_energy
       penalty = penalty+regu_energy
 
-      ! print smallest homo-lumo gap encountered by fock-layer
+      ! determine smallest homo-lumo gap encountered by fock-layer
       CALL mp_min(min_gap, group)
-      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| min_gap:", min_gap
+
+      IF (pao%iw > 0 .AND. .NOT. PRESENT(forces)) THEN
+         WRITE (pao%iw, *) "PAO| linpot regularization energy:", regu_energy
+         WRITE (pao%iw, *) "PAO| min_gap:", min_gap
+      ENDIF
 
       CALL timestop(handle)
 
@@ -412,18 +431,24 @@ CONTAINS
 !> \param iatom ...
 !> \param kterm ...
 !> \param block_V ...
+!> \param block_M ...
+!> \param forces ...
 ! **************************************************************************************************
-   SUBROUTINE linpot_calc_term(pao, qs_env, iatom, kterm, block_V)
+   SUBROUTINE linpot_calc_term(pao, qs_env, iatom, kterm, block_V, block_M, forces)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: iatom, kterm
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
+      REAL(dp), DIMENSION(:, :), INTENT(OUT), OPTIONAL   :: block_V
+      REAL(dp), DIMENSION(:, :), INTENT(IN), OPTIONAL    :: block_M
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
+
+      CPASSERT(PRESENT(block_M) .EQV. PRESENT(forces))
 
       SELECT CASE (pao%parameterization)
       CASE (pao_fock_param)
          CALL linpot_full_calc_term(kterm, block_V)
       CASE (pao_rotinv_param)
-         CALL linpot_rotinv_calc_term(qs_env, iatom, kterm, block_V)
+         CALL linpot_rotinv_calc_term(qs_env, iatom, kterm, block_V, block_M, forces)
       CASE DEFAULT
          CPABORT("unkown parameterization")
       END SELECT
@@ -443,20 +468,18 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, i, iatom, j, k, n, &
                                                             nterms
+      INTEGER, DIMENSION(:), POINTER                     :: pri_basis_size
       LOGICAL                                            :: found
-      REAL(dp)                                           :: norm, w
+      REAL(dp)                                           :: w
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: S, S_evecs, S_inv
       REAL(dp), DIMENSION(:), POINTER                    :: V_guess_vec
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block_H0, block_ks, block_X, V_guess, &
-                                                            V_terms
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_X, V_guess, V_terms
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
-
+      pri_basis_size => cp_dbcsr_row_block_sizes(pao%matrix_Y)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
@@ -466,16 +489,11 @@ CONTAINS
          nterms = SIZE(V_terms, 2)
          IF (nterms == 0) CYCLE ! protect against corner-case of zero pao parameters
 
-         ! retrieve block_ks and block_H0
-         CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=iatom, col=iatom, block=block_ks, found=found)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
-         CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_ks))
-
-         ! use diagonal block of Kohn-Sham matrix as initial guess
-         n = SIZE(block_ks, 1)
+         ! guess intial potential
+         N = pri_basis_size(iatom)
          ALLOCATE (V_guess_vec(n*n))
          V_guess(1:n, 1:n) => V_guess_vec
-         V_guess = block_ks-block_H0
+         CALL pao_guess_initial_potential(qs_env, iatom, V_guess)
 
          ! build overlap matrix
          ALLOCATE (S(nterms, nterms))
@@ -505,9 +523,6 @@ CONTAINS
          DEALLOCATE (V_guess_vec, S, S_evecs, S_evals, S_inv)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
-
-      norm = cp_dbcsr_frobenius_norm(pao%matrix_X)
-      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Calculated initial guess, norm(X):", norm
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_initguess_linpot

@@ -20,7 +20,7 @@
       EXTRAPOLATION_ORDER  1
       &PAO
         RESTART_FILE H2O_pao_rotinv-1_0.pao
-        MAX_PAO    1
+        MAX_PAO    0
         PARAMETERIZATION ROTINV
         &LINE_SEARCH
           METHOD ADAPT
