@@ -65,6 +65,7 @@ MODULE pao_types
 
       INTEGER                          :: ml_method = -1
       INTEGER                          :: ml_prior = -1
+      INTEGER                          :: ml_descriptor = -1
       REAL(KIND=dp)                    :: ml_tolerance = 0.0_dp
       REAL(KIND=dp)                    :: gp_noise_var = 0.0_dp
       REAL(KIND=dp)                    :: gp_scale = 0.0_dp

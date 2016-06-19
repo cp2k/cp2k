@@ -18,22 +18,16 @@
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        MAX_PAO 500
-        EPS_PAO 1.0E-5
+        MAX_PAO 0
         PARAMETERIZATION ROTINV
-        REGULARIZATION 1.0E-3
-        PRECONDITION Yes
-        LINPOT_PRECONDITION_DELTA 0.01
-        LINPOT_INITGUESS_DELTA 0.1
-        LINPOT_REGULARIZATION_DELTA 1E-6
-        LINPOT_REGULARIZATION_STRENGTH 1E-3
-        &LINE_SEARCH
-          METHOD ADAPT
-        &END LINE_SEARCH
-        &PRINT
-          &RESTART ON
-          &END RESTART
-        &END PRINT
+        &MACHINE_LEARNING
+          METHOD NEURAL_NETWORK
+          DESCRIPTOR R12
+          &TRAINING_SET
+            H2_dist_0.7_pao-1_0.pao
+            H2_dist_1.2_pao-1_0.pao
+          &END TRAINING_SET
+        &END MACHINE_LEARNING
       &END PAO
     &END
     &XC
@@ -47,7 +41,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H       0.7   0.0   0.0
+      H       0.9   0.0   0.0
       H       0.0   0.0   0.0
     &END COORD
     &TOPOLOGY
@@ -64,6 +58,11 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
+&DEBUG
+  DEBUG_FORCES YES
+  STOP_ON_MISMATCH YES 
+&END DEBUG
 &GLOBAL
-  PROJECT H2_dist_0.7_pao
+  PROJECT H2_NN_r12_checkforces
+  RUN_TYPE DEBUG
 &END GLOBAL

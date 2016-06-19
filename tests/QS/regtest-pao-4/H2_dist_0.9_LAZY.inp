@@ -24,8 +24,8 @@
           METHOD LAZY
           PRIOR MEAN
           &TRAINING_SET
-            H2_dist_0.5_pao-1_0.pao
-            H2_dist_0.9_pao-1_0.pao
+            H2_dist_0.7_pao-1_0.pao
+            H2_dist_1.2_pao-1_0.pao
           &END TRAINING_SET
         &END MACHINE_LEARNING
       &END PAO
@@ -41,7 +41,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H       0.7   0.0   0.0
+      H       0.9   0.0   0.0
       H       0.0   0.0   0.0
     &END COORD
     &TOPOLOGY
@@ -67,5 +67,5 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2_dist_0.7_GP
+  PROJECT H2_dist_0.9_LAZY
 &END GLOBAL

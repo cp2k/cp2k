@@ -47,7 +47,9 @@ MODULE pao_input
                                                pao_ml_nn = 402, &
                                                pao_ml_lazy = 403, &
                                                pao_ml_prior_zero = 501, &
-                                               pao_ml_prior_mean = 502
+                                               pao_ml_prior_mean = 502, &
+                                               pao_ml_desc_pot = 601, &
+                                               pao_ml_desc_r12 = 602
 
 CONTAINS
 
@@ -165,6 +167,9 @@ CONTAINS
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%PRIOR", i_val=pao%ml_prior)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%PRIOR", id2str(pao%ml_prior)
 
+      CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%DESCRIPTOR", i_val=pao%ml_descriptor)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "MACHINE_LEARNING%DESCRIPTOR", id2str(pao%ml_descriptor)
+
       CALL section_vals_val_get(pao_section, "MACHINE_LEARNING%TOLERANCE", r_val=pao%ml_tolerance)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "MACHINE_LEARNING%TOLERANCE", pao%ml_tolerance
 
@@ -223,6 +228,10 @@ CONTAINS
          s = "ZERO"
       CASE (pao_ml_prior_mean)
          s = "MEAN"
+      CASE (pao_ml_desc_pot)
+         s = "POTENTIAL"
+      CASE (pao_ml_desc_r12)
+         s = "R12"
       CASE DEFAULT
          CPABORT("PAO: unknown id")
       END SELECT
@@ -399,6 +408,16 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="DESCRIPTOR", &
+                          description="Descriptor used as input for machine learning.", &
+                          enum_c_vals=s2a("POTENTIAL", "R12"), &
+                          enum_i_vals=(/pao_ml_desc_pot, pao_ml_desc_r12/), &
+                          enum_desc=s2a("Eigenvalues of local potential matrix", &
+                                        "Distance between two atoms (just for testing)"), &
+                          default_i_val=pao_ml_desc_pot)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="TOLERANCE", &
                           description="Maximum variance tolerated when making predictions.", &
                           default_r_val=1.0E-2_dp)
@@ -421,7 +440,7 @@ CONTAINS
       CALL section_create(subsubsection, name="TRAINING_SET", &
                           description="Lists PAO-restart file used for training")
       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
-                          description="TODO", &
+                          description="One file name per line.", &
                           repeats=.TRUE., type_of_var=lchar_t)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)

@@ -32,7 +32,8 @@ MODULE pao_main
         pao_build_core_hamiltonian, pao_build_matrix_X, pao_build_orthogonalizer, &
         pao_build_selector, pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, &
         pao_check_trace_ps, pao_print_atom_info, pao_read_preopt_dm, pao_test_convergence
-   USE pao_ml,                          ONLY: pao_machine_learning_init,&
+   USE pao_ml,                          ONLY: pao_machine_learning_forces,&
+                                              pao_machine_learning_init,&
                                               pao_machine_learning_predict
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
                                               pao_opt_init,&
@@ -383,7 +384,8 @@ CONTAINS
       CALL pao_calc_U(pao, qs_env, matrix_M, pao%matrix_G, forces=forces)
       CALL cp_dbcsr_release(matrix_M)
 
-      ! TODO add term G * dX/d_descr * d_descr/dR
+      IF (SIZE(pao%ml_training_set) > 0) &
+         CALL pao_machine_learning_forces(pao, qs_env, pao%matrix_G, forces)
 
       CALL mp_sum(forces, para_env%group)
       DO iatom = 1, natoms

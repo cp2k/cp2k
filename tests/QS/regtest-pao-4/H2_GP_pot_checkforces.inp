@@ -18,22 +18,19 @@
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        MAX_PAO 1500
-        EPS_PAO 1.0E-6
+        MAX_PAO 0
         PARAMETERIZATION ROTINV
-        REGULARIZATION 1.0E-3
-        PRECONDITION YES
-        LINPOT_PRECONDITION_DELTA 0.01
-        LINPOT_INITGUESS_DELTA 0.1
-        LINPOT_REGULARIZATION_DELTA 1E-6
-        LINPOT_REGULARIZATION_STRENGTH 1E-3
-        &LINE_SEARCH
-          METHOD ADAPT
-        &END LINE_SEARCH
-        &PRINT
-          &RESTART ON
-          &END RESTART
-        &END PRINT
+        &MACHINE_LEARNING
+          METHOD GAUSSIAN_PROCESS
+          DESCRIPTOR POTENTIAL
+          &TRAINING_SET
+            H2_dist_0.7_pao-1_0.pao
+            H2_dist_1.2_pao-1_0.pao
+          &END TRAINING_SET
+          GP_SCALE 0.1
+          GP_NOISE_VAR 0.01
+          TOLERANCE 1E+10 !disable check
+        &END MACHINE_LEARNING
       &END PAO
     &END
     &XC
@@ -47,7 +44,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H       0.5   0.0   0.0
+      H       0.9   0.0   0.0
       H       0.0   0.0   0.0
     &END COORD
     &TOPOLOGY
@@ -61,9 +58,22 @@
       &PAO_POTENTIAL
         MAXL 0
       &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+        WEIGHT +1.0
+        BETA 1.0
+      &END PAO_DESCRIPTOR
+      &PAO_DESCRIPTOR
+        WEIGHT -1.5
+        BETA 0.8
+      &END PAO_DESCRIPTOR
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
+&DEBUG
+  DEBUG_FORCES YES
+  STOP_ON_MISMATCH YES 
+&END DEBUG
 &GLOBAL
-  PROJECT H2_dist_0.5_pao
+  PROJECT H2_GP_pot_checkforces
+  RUN_TYPE DEBUG
 &END GLOBAL

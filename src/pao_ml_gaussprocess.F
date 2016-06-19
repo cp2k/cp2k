@@ -20,7 +20,7 @@ MODULE pao_ml_gaussprocess
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_ml_gaussprocess'
 
-   PUBLIC ::pao_ml_gp_train, pao_ml_gp_predict
+   PUBLIC ::pao_ml_gp_train, pao_ml_gp_predict, pao_ml_gp_gradient
 
 CONTAINS
 
@@ -123,21 +123,85 @@ CONTAINS
    END SUBROUTINE pao_ml_gp_predict
 
 ! **************************************************************************************************
+!> \brief Calculate gradient of Gaussian process
+!> \param pao ...
+!> \param ikind ...
+!> \param descriptor ...
+!> \param outer_deriv ...
+!> \param gradient ...
+! **************************************************************************************************
+   SUBROUTINE pao_ml_gp_gradient(pao, ikind, descriptor, outer_deriv, gradient)
+      TYPE(pao_env_type), POINTER                        :: pao
+      INTEGER, INTENT(IN)                                :: ikind
+      REAL(dp), DIMENSION(:), INTENT(IN), TARGET         :: descriptor
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: outer_deriv
+      REAL(dp), DIMENSION(:), INTENT(OUT)                :: gradient
+
+      INTEGER                                            :: i, npoints
+      REAL(dp)                                           :: w
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: M
+      REAL(dp), DIMENSION(SIZE(descriptor))              :: kg
+      TYPE(training_matrix_type), POINTER                :: training_matrix
+
+      training_matrix => pao%ml_training_matrices(ikind)
+      npoints = SIZE(training_matrix%outputs, 1)
+
+      ALLOCATE (M(npoints))
+      M(:) = 0.0_dp
+      DO i = 1, npoints
+         w = SUM(outer_deriv*training_matrix%outputs(i, :))
+         M(:) = M(:)+training_matrix%GP(i, :)*w
+      ENDDO
+
+      gradient(:) = 0.0_dp
+      DO i = 1, npoints
+         kg = kernel_grad(pao%gp_scale, descriptor, training_matrix%inputs(i, :))
+         gradient(:) = gradient(:)+kg(:)*M(i)
+      ENDDO
+
+      DEALLOCATE (M)
+   END SUBROUTINE pao_ml_gp_gradient
+
+! **************************************************************************************************
 !> \brief Gaussian kernel used to measure covariance between two descriptors.
 !> \param scale ...
 !> \param descr1 ...
 !> \param descr2 ...
 !> \retval cov ...
 ! **************************************************************************************************
-   FUNCTION kernel(scale, descr1, descr2) RESULT(dist)
+   PURE FUNCTION kernel(scale, descr1, descr2) RESULT(cov)
       REAL(dp), INTENT(IN)                               :: scale
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descr1, descr2
-      REAL(dp)                                           :: dist
+      REAL(dp)                                           :: cov
 
       REAL(dp)                                           :: fdist2
+      REAL(dp), DIMENSION(SIZE(descr1))                  :: diff
 
-      fdist2 = SUM(((descr1-descr2)/scale)**2)
-      dist = EXP(-fdist2/2.0_dp)
+      diff = descr1-descr2
+      fdist2 = SUM((diff/scale)**2)
+      cov = EXP(-fdist2/2.0_dp)
    END FUNCTION kernel
+
+! **************************************************************************************************
+!> \brief Gradient of Gaussian kernel wrt descr1
+!> \param scale ...
+!> \param descr1 ...
+!> \param descr2 ...
+!> \retval cov ...
+! **************************************************************************************************
+   PURE FUNCTION kernel_grad(scale, descr1, descr2) RESULT(grad)
+      REAL(dp), INTENT(IN)                               :: scale
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: descr1, descr2
+      REAL(dp), DIMENSION(SIZE(descr1))                  :: grad
+
+      REAL(dp)                                           :: cov, fdist2
+      REAL(dp), DIMENSION(SIZE(descr1))                  :: diff
+
+      diff = descr1-descr2
+      fdist2 = SUM((diff/scale)**2)
+      cov = EXP(-fdist2/2.0_dp)
+      grad(:) = cov*(-diff/scale**2)
+
+   END FUNCTION kernel_grad
 
 END MODULE pao_ml_gaussprocess

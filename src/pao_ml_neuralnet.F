@@ -23,11 +23,11 @@ MODULE pao_ml_neuralnet
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_ml_neuralnet'
 
-   PUBLIC ::pao_ml_nn_train, pao_ml_nn_predict
+   PUBLIC ::pao_ml_nn_train, pao_ml_nn_predict, pao_ml_nn_gradient
 
    ! TODO turn these into input parameters
    REAL(dp), PARAMETER   :: step_size = 0.001_dp
-   INTEGER, PARAMETER    :: nlayers = 1
+   INTEGER, PARAMETER    :: nlayers = 3
    REAL(dp), PARAMETER   :: convergence_eps = 1e-7_dp
    INTEGER, PARAMETER    :: max_training_cycles = 50000
 
@@ -56,6 +56,63 @@ CONTAINS
 
       variance = 0.0_dp ! Neural Networks don't provide a variance
    END SUBROUTINE pao_ml_nn_predict
+
+! **************************************************************************************************
+!> \brief Calculate gradient of neural network
+!> \param pao ...
+!> \param ikind ...
+!> \param descriptor ...
+!> \param outer_deriv ...
+!> \param gradient ...
+! **************************************************************************************************
+   SUBROUTINE pao_ml_nn_gradient(pao, ikind, descriptor, outer_deriv, gradient)
+      TYPE(pao_env_type), POINTER                        :: pao
+      INTEGER, INTENT(IN)                                :: ikind
+      REAL(dp), DIMENSION(:), INTENT(IN), TARGET         :: descriptor
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: outer_deriv
+      REAL(dp), DIMENSION(:), INTENT(OUT)                :: gradient
+
+      INTEGER                                            :: i, ilayer, j, nlayers, width, width_in, &
+                                                            width_out
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: backward, forward
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: A
+
+      A => pao%ml_training_matrices(ikind)%NN
+
+      nlayers = SIZE(A, 1)
+      width = SIZE(A, 2); CPASSERT(SIZE(A, 2) == SIZE(A, 3))
+      width_in = SIZE(descriptor)
+      width_out = SIZE(outer_deriv)
+
+      ALLOCATE (forward(0:nlayers, width), backward(0:nlayers, width))
+
+      forward = 0.0_dp
+      forward(0, 1:width_in) = descriptor
+
+      DO ilayer = 1, nlayers
+      DO i = 1, width
+      DO j = 1, width
+         forward(ilayer, i) = forward(ilayer, i)+A(ilayer, i, j)*TANH(forward(ilayer-1, j))
+      ENDDO
+      ENDDO
+      ENDDO
+
+      ! Turning Point ------------------------------------------------------------------------------
+      backward = 0.0_dp
+      backward(nlayers, 1:width_out) = outer_deriv(:)
+
+      DO ilayer = nlayers, 1, -1
+      DO i = 1, width
+      DO j = 1, width
+         backward(ilayer-1, j) = backward(ilayer-1, j)+backward(ilayer, i)*A(ilayer, i, j)*(1.0_dp-TANH(forward(ilayer-1, j))**2)
+      ENDDO
+      ENDDO
+      ENDDO
+
+      gradient(:) = backward(0, 1:width_in)
+
+      DEALLOCATE (forward, backward)
+   END SUBROUTINE pao_ml_nn_gradient
 
 ! **************************************************************************************************
 !> \brief Trains the neural network on given training points
@@ -111,7 +168,7 @@ CONTAINS
             DO ipoint = 1, npoints
                CALL nn_backpropagate(training_matrix%NN, &
                                      input=training_matrix%inputs(ipoint, :), &
-                                     TARGET=training_matrix%outputs(ipoint, :), &
+                                     goal=training_matrix%outputs(ipoint, :), &
                                      gradient=gradient, &
                                      error=error)
             ENDDO
@@ -133,7 +190,7 @@ CONTAINS
             gradient = 0.0_dp
             CALL nn_backpropagate(training_matrix%NN, &
                                   input=training_matrix%inputs(ipoint, :), &
-                                  TARGET=training_matrix%outputs(ipoint, :), &
+                                  goal=training_matrix%outputs(ipoint, :), &
                                   gradient=gradient, &
                                   error=error)
 
@@ -223,13 +280,13 @@ CONTAINS
 !> \brief Uses backpropagation to calculate the gradient for a given training point
 !> \param A ...
 !> \param input ...
-!> \param TARGET ...
+!> \param goal ...
 !> \param error ...
 !> \param gradient ...
 ! **************************************************************************************************
-   SUBROUTINE nn_backpropagate(A, input, TARGET, error, gradient)
+   SUBROUTINE nn_backpropagate(A, input, goal, error, gradient)
       REAL(dp), DIMENSION(:, :, :), INTENT(IN)           :: A
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: input, TARGET
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: input, goal
       REAL(dp), INTENT(INOUT)                            :: error
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: gradient
 
@@ -241,7 +298,7 @@ CONTAINS
       nlayers = SIZE(A, 1)
       width = SIZE(A, 2); CPASSERT(SIZE(A, 2) == SIZE(A, 3))
       width_in = SIZE(input)
-      width_out = SIZE(TARGET)
+      width_out = SIZE(goal)
 
       ALLOCATE (forward(0:nlayers, width), prediction(width_out), backward(0:nlayers, width))
 
@@ -258,11 +315,11 @@ CONTAINS
 
       prediction(:) = forward(nlayers, 1:width_out)
 
-      error = error+SUM((prediction-TARGET)**2)
+      error = error+SUM((prediction-goal)**2)
 
       ! Turning Point ------------------------------------------------------------------------------
       backward = 0.0_dp
-      backward(nlayers, 1:width_out) = prediction-TARGET
+      backward(nlayers, 1:width_out) = prediction-goal
 
       DO ilayer = nlayers, 1, -1
       DO i = 1, width

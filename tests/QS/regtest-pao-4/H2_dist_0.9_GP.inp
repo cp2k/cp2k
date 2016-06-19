@@ -21,12 +21,15 @@
         MAX_PAO 0
         PARAMETERIZATION ROTINV
         &MACHINE_LEARNING
-          METHOD NEURAL_NETWORK
-          TOLERANCE 0.001
+          METHOD GAUSSIAN_PROCESS
+          DESCRIPTOR R12
           &TRAINING_SET
-            H2_dist_0.5_pao-1_0.pao
-            H2_dist_0.9_pao-1_0.pao
+            H2_dist_0.7_pao-1_0.pao
+            H2_dist_1.2_pao-1_0.pao
           &END TRAINING_SET
+          GP_SCALE 5.0
+          GP_NOISE_VAR 0.1
+          TOLERANCE 0.01
         &END MACHINE_LEARNING
       &END PAO
     &END
@@ -41,7 +44,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      H       0.7   0.0   0.0
+      H       0.9   0.0   0.0
       H       0.0   0.0   0.0
     &END COORD
     &TOPOLOGY
@@ -55,17 +58,9 @@
       &PAO_POTENTIAL
         MAXL 0
       &END PAO_POTENTIAL
-      &PAO_DESCRIPTOR
-        WEIGHT +1.0
-        BETA 1.0
-      &END PAO_DESCRIPTOR
-      &PAO_DESCRIPTOR
-        WEIGHT -1.0
-        BETA 0.8
-      &END PAO_DESCRIPTOR
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2_dist_0.7_NN
+  PROJECT H2_dist_0.9_GP
 &END GLOBAL

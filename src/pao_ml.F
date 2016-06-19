@@ -17,7 +17,7 @@ MODULE pao_ml
                                               cp_dbcsr_iterator_next_block,&
                                               cp_dbcsr_iterator_start,&
                                               cp_dbcsr_iterator_stop,&
-                                              cp_dbcsr_p_type
+                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -35,10 +35,13 @@ MODULE pao_ml
                                               pao_iokind_type,&
                                               pao_kinds_ensure_equal,&
                                               pao_read_raw
-   USE pao_ml_descriptor,               ONLY: pao_ml_calc_descriptor
-   USE pao_ml_gaussprocess,             ONLY: pao_ml_gp_predict,&
+   USE pao_ml_descriptor,               ONLY: pao_ml_calc_descriptor,&
+                                              pao_ml_descriptor_forces
+   USE pao_ml_gaussprocess,             ONLY: pao_ml_gp_gradient,&
+                                              pao_ml_gp_predict,&
                                               pao_ml_gp_train
-   USE pao_ml_neuralnet,                ONLY: pao_ml_nn_predict,&
+   USE pao_ml_neuralnet,                ONLY: pao_ml_nn_gradient,&
+                                              pao_ml_nn_predict,&
                                               pao_ml_nn_train
    USE pao_types,                       ONLY: pao_env_type,&
                                               training_matrix_type
@@ -54,7 +57,7 @@ MODULE pao_ml
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_ml'
 
-   PUBLIC :: pao_machine_learning_init, pao_machine_learning_predict
+   PUBLIC :: pao_machine_learning_init, pao_machine_learning_predict, pao_machine_learning_forces
 
    ! linked list used to group training points by kind
    TYPE training_point_type
@@ -207,7 +210,8 @@ CONTAINS
 
          ! training-point input, calculate descriptor only on one rank
          IF (MOD(iatom-1, para_env%num_pe) == para_env%mepos) THEN
-            CALL pao_ml_calc_descriptor(my_particle_set, &
+            CALL pao_ml_calc_descriptor(pao, &
+                                        my_particle_set, &
                                         qs_kind_set, &
                                         cell, &
                                         iatom=iatom, &
@@ -456,7 +460,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -466,7 +469,6 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
                       cell=cell, &
-                      matrix_s=matrix_s, &
                       particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
@@ -482,7 +484,8 @@ CONTAINS
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
 
          ! calculate decriptor
-         CALL pao_ml_calc_descriptor(particle_set, &
+         CALL pao_ml_calc_descriptor(pao, &
+                                     particle_set, &
                                      qs_kind_set, &
                                      cell, &
                                      iatom, &
@@ -493,6 +496,7 @@ CONTAINS
                                  descriptor=descriptor, &
                                  output=block_X(:, 1), &
                                  variance=variances(iatom))
+
          DEALLOCATE (descriptor)
 
          !add prior
@@ -551,5 +555,105 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE pao_ml_predict_low
+
+! **************************************************************************************************
+!> \brief Calculate forces contributed by machine learning
+!> \param pao ...
+!> \param qs_env ...
+!> \param matrix_G ...
+!> \param forces ...
+! **************************************************************************************************
+   SUBROUTINE pao_machine_learning_forces(pao, qs_env, matrix_G, forces)
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_dbcsr_type)                                :: matrix_G
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: forces
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_forces'
+
+      INTEGER                                            :: acol, arow, handle, iatom, ikind
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor, descriptor_grad
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_G
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, &
+                      para_env=para_env, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set)
+
+      CALL cp_dbcsr_iterator_start(iter, matrix_G)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_G)
+         iatom = arow; CPASSERT(arow == acol)
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+
+         ! calculate decriptor
+         CALL pao_ml_calc_descriptor(pao, &
+                                     particle_set, &
+                                     qs_kind_set, &
+                                     cell, &
+                                     iatom, &
+                                     descriptor)
+
+         ! calcaulte derivate of machine learning prediction
+         CALL pao_ml_gradient_low(pao, ikind=ikind, &
+                                  descriptor=descriptor, &
+                                  outer_deriv=block_G(:, 1), &
+                                  gradient=descriptor_grad)
+
+         ! calculate force contributions from descriptor
+         CALL pao_ml_descriptor_forces(pao, &
+                                       particle_set, &
+                                       qs_kind_set, &
+                                       cell, &
+                                       iatom, &
+                                       descriptor_grad, &
+                                       forces)
+
+         DEALLOCATE (descriptor, descriptor_grad)
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pao_machine_learning_forces
+
+! **************************************************************************************************
+!> \brief Calculate gradient of machine learning algorithm
+!> \param pao ...
+!> \param ikind ...
+!> \param descriptor ...
+!> \param outer_deriv ...
+!> \param gradient ...
+! **************************************************************************************************
+   SUBROUTINE pao_ml_gradient_low(pao, ikind, descriptor, outer_deriv, gradient)
+      TYPE(pao_env_type), POINTER                        :: pao
+      INTEGER, INTENT(IN)                                :: ikind
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor, outer_deriv
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gradient
+
+      ALLOCATE (gradient(SIZE(descriptor)))
+
+      SELECT CASE (pao%ml_method)
+      CASE (pao_ml_gp)
+         CALL pao_ml_gp_gradient(pao, ikind, descriptor, outer_deriv, gradient)
+      CASE (pao_ml_nn)
+         CALL pao_ml_nn_gradient(pao, ikind, descriptor, outer_deriv, gradient)
+      CASE (pao_ml_lazy)
+         gradient = 0.0_dp
+      CASE DEFAULT
+         CPABORT("PAO: unkown machine learning scheme")
+      END SELECT
+
+   END SUBROUTINE pao_ml_gradient_low
 
 END MODULE pao_ml
