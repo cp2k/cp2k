@@ -867,7 +867,7 @@ CONTAINS
       nlev3 = natom8**2*nlev2
       nlev4 = nimages8*nlev3
       !
-      ilevel = res/nlev4
+      ilevel = INT(res/nlev4)
       tmp = MOD(res, nlev4)
       img = tmp/nlev3+1
       tmp = MOD(tmp, nlev3)
