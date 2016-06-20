@@ -810,7 +810,8 @@ CONTAINS
                                                             ipgf, jpgf, nimages, natom, maxset, &
                                                             maxpgf
 
-      INTEGER(KIND=int_8)                                :: maxpgf8, maxset8, natom8, nimages8
+      INTEGER(KIND=int_8)                                :: maxpgf8, maxset8, natom8, nimages8, &
+                                                            nlev1, nlev2, nlev3, nlev4
 
       natom8 = natom; maxset8 = maxset; maxpgf8 = maxpgf; nimages8 = nimages
       !
@@ -820,10 +821,15 @@ CONTAINS
       ! that a given density matrix block will be decontracted several times, but cache effects on the
       ! grid make up for this.
       !
-      res = ilevel*nimages8*natom8**2*maxset8**2*maxpgf8**2+ &
-            (image-1)*natom8**2*maxset8**2*maxpgf8**2+ &
-            ((iatom-1)*natom8+jatom-1)*maxset8**2*maxpgf8**2+ &
-            ((iset-1)*maxset8+jset-1)*maxpgf8**2+ &
+      nlev1 = maxpgf8**2
+      nlev2 = maxset8**2*nlev1
+      nlev3 = natom8**2*nlev2
+      nlev4 = nimages8*nlev3
+      !
+      res = ilevel*nlev4+ &
+            (image-1)*nlev3+ &
+            ((iatom-1)*natom8+jatom-1)*nlev2+ &
+            ((iset-1)*maxset8+jset-1)*nlev1+ &
             (ipgf-1)*maxpgf8+jpgf-1
 
    END SUBROUTINE pair2int
@@ -851,27 +857,31 @@ CONTAINS
                                                             ipgf, jpgf
       INTEGER, INTENT(IN)                                :: nimages, natom, maxset, maxpgf
 
-      INTEGER(KIND=int_8)                                :: iatom8, ijatom, ijpgf, ijset, img, &
-                                                            ipgf8, iset8, jatom8, jpgf8, jset8, &
-                                                            maxpgf8, maxset8, natom8, nimages8, tmp
+      INTEGER(KIND=int_8) :: iatom8, ijatom, ijset, img, ipgf8, iset8, jatom8, jpgf8, jset8, &
+         maxpgf8, maxset8, natom8, nimages8, nlev1, nlev2, nlev3, nlev4, tmp
 
       natom8 = natom; maxset8 = maxset; maxpgf8 = maxpgf; nimages8 = nimages
-
-      ilevel = INT(res/(nimages8*natom8**2*maxset8**2*maxpgf8**2))
-      tmp = MOD(res, nimages8*natom8**2*maxset8**2*maxpgf8**2)
-      img = tmp/(natom8**2*maxset8**2*maxpgf8**2)+1
-      tmp = MOD(res, natom8**2*maxset8**2*maxpgf8**2)
-      ijatom = tmp/(maxpgf8**2*maxset8**2)
+      !
+      nlev1 = maxpgf8**2
+      nlev2 = maxset8**2*nlev1
+      nlev3 = natom8**2*nlev2
+      nlev4 = nimages8*nlev3
+      !
+      ilevel = res/nlev4
+      tmp = MOD(res, nlev4)
+      img = tmp/nlev3+1
+      tmp = MOD(tmp, nlev3)
+      ijatom = tmp/nlev2
       iatom8 = ijatom/natom8+1
       jatom8 = MOD(ijatom, natom8)+1
-      tmp = MOD(tmp, maxpgf8**2*maxset8**2)
-      ijset = tmp/maxpgf8**2
+      tmp = MOD(tmp, nlev2)
+      ijset = tmp/nlev1
       iset8 = ijset/maxset8+1
       jset8 = MOD(ijset, maxset8)+1
-      ijpgf = MOD(tmp, maxpgf8**2)
-      ipgf8 = ijpgf/maxpgf8+1
-      jpgf8 = MOD(ijpgf, maxpgf8)+1
-
+      tmp = MOD(tmp, nlev1)
+      ipgf8 = tmp/maxpgf8+1
+      jpgf8 = MOD(tmp, maxpgf8)+1
+      !
       image = INT(img)
       iatom = INT(iatom8); jatom = INT(jatom8); iset = INT(iset8); jset = INT(jset8)
       ipgf = INT(ipgf8); jpgf = INT(jpgf8)
@@ -2117,8 +2127,8 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: natom8, nim8
       INTEGER, DIMENSION(:), POINTER                     :: index
 
-! calculate list of atom pairs
-! fill pair list taking into acount symmetry
+      ! calculate list of atom pairs
+      ! fill pair list taking into acount symmetry
 
       natom8 = natoms
       nim8 = nimages
@@ -2377,7 +2387,7 @@ CONTAINS
          ! Distribute work over remaining threads assuming one is still in the alltoall
 !$OMP DO schedule(dynamic,MAX(1,send_pair_count(me)/nthread_left))
          DO i = 1, send_pair_count(me)
-            pair = MOD(atom_pair_send(send_pair_disps(me)+i), natom8**2)
+            pair = MOD(atom_pair_send(send_pair_disps(me)+i), nim8*natom8**2)
 
             arow = INT(pair/(nim8*natom8))+1
             acol = INT(MOD(pair, nim8*natom8)/nim8)+1
@@ -2423,7 +2433,7 @@ CONTAINS
          IF (l .EQ. me) CYCLE
          recv_sizes(l) = 0
          DO i = 1, recv_pair_count(l)
-            pair = MOD(atom_pair_recv(recv_pair_disps(l)+i), natom8**2)
+            pair = MOD(atom_pair_recv(recv_pair_disps(l)+i), nim8*natom8**2)
 
             arow = INT(pair/(nim8*natom8))+1
             acol = INT(MOD(pair, nim8*natom8)/nim8)+1

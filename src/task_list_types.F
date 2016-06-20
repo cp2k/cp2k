@@ -27,8 +27,8 @@ MODULE task_list_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER       :: dist_ab
       INTEGER(kind=int_8), DIMENSION(:), POINTER    :: atom_pair_send, atom_pair_recv
       INTEGER                                       :: ntasks
-      INTEGER, DIMENSION(:, :), POINTER               :: taskstart, taskstop
-      INTEGER, DIMENSION(:), POINTER                 :: npairs
+      INTEGER, DIMENSION(:, :), POINTER             :: taskstart, taskstop
+      INTEGER, DIMENSION(:), POINTER                :: npairs
    END TYPE task_list_type
 
    PUBLIC :: task_list_type
