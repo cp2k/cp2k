@@ -694,6 +694,8 @@ CONTAINS
                start_section_label//"| Force Environment number", &
                ADJUSTR(env_num(:40)), &
                start_section_label//"| Basis set file name", &
+               ADJUSTR(basis_set_file_name(:40)), &
+               start_section_label//"| Potential file name", &
                ADJUSTR(potential_file_name(:40)), &
                start_section_label//"| MM Potential file name", &
                ADJUSTR(mm_potential_file_name(:40)), &
