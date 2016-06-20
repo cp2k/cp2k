@@ -161,24 +161,21 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Computes the total harmonic link action of the helium
-!> \param pint_env ...
 !> \param helium ...
 !> \retval linkaction ...
 !> \date   2016-05-03
 !> \author Felix Uhl
 ! **************************************************************************************************
-   REAL(KIND=dp) FUNCTION helium_total_link_action(pint_env, helium) RESULT(linkaction)
+   REAL(KIND=dp) FUNCTION helium_total_link_action(helium) RESULT(linkaction)
 
       IMPLICIT NONE
-      TYPE(pint_env_type), POINTER             :: pint_env
       TYPE(helium_solvent_type), POINTER       :: helium
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_link_action', &
                                      routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp), DIMENSION(3) :: r, rp
-      INTEGER :: ibead, iatom, jatom
-      REAL(KIND=dp) :: e
+      REAL(KIND=dp), DIMENSION(3) :: r
+      INTEGER :: ibead, iatom
       INTEGER, DIMENSION(:), POINTER           :: perm
 
       perm => helium%permutation
@@ -200,21 +197,21 @@ CONTAINS
          linkaction = linkaction+(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
       END DO
       linkaction = linkaction/(2.0_dp*helium%tau*helium%hb2m)
+
       RETURN
+
    END FUNCTION helium_total_link_action
 
 ! ***************************************************************************
 !> \brief  Computes the total pair action of the helium
-!> \param pint_env ...
 !> \param helium ...
 !> \retval pairaction ...
 !> \date   2016-05-03
 !> \author Felix Uhl
 ! **************************************************************************************************
-   REAL(KIND=dp) FUNCTION helium_total_pair_action(pint_env, helium) RESULT(pairaction)
+   REAL(KIND=dp) FUNCTION helium_total_pair_action(helium) RESULT(pairaction)
 
       IMPLICIT NONE
-      TYPE(pint_env_type), POINTER             :: pint_env
       TYPE(helium_solvent_type), POINTER       :: helium
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_pair_action', &
@@ -222,7 +219,6 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3) :: r, rp
       INTEGER :: ibead, iatom, jatom
-      REAL(KIND=dp) :: e
       INTEGER, DIMENSION(:), POINTER           :: perm
 
       perm => helium%permutation
@@ -269,7 +265,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_inter_action', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER :: ibead, iatom, jatom
+      INTEGER :: ibead, iatom
       REAL(KIND=dp) :: e
 
       interaction = 0.0_dp

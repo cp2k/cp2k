@@ -954,8 +954,8 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      helium%link_action = helium_total_link_action(pint_env, helium)
-      helium%pair_action = helium_total_pair_action(pint_env, helium)
+      helium%link_action = helium_total_link_action(helium)
+      helium%pair_action = helium_total_pair_action(helium)
       helium%inter_action = helium_total_inter_action(pint_env, helium)
 
       NULLIFY (tmp_link_action)
