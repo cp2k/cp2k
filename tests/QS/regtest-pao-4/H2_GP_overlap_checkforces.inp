@@ -1,0 +1,79 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &QS
+      LS_SCF
+    &END QS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER  MT
+    &END POISSON
+    &LS_SCF
+      MAX_SCF     25
+      EPS_SCF     1.0E-8
+      S_PRECONDITIONER  NONE
+      REPORT_ALL_SPARSITIES OFF
+      PURIFICATION_METHOD TRS4
+      EXTRAPOLATION_ORDER  1
+      &PAO
+        MAX_PAO 0
+        PARAMETERIZATION ROTINV
+        &MACHINE_LEARNING
+          METHOD GAUSSIAN_PROCESS
+          DESCRIPTOR OVERLAP
+          &TRAINING_SET
+            H2_dist_0.7_pao-1_0.pao
+            H2_dist_1.2_pao-1_0.pao
+          &END TRAINING_SET
+          GP_SCALE 1.0
+          GP_NOISE_VAR 0.01
+          TOLERANCE 1E+10 !disable check
+        &END MACHINE_LEARNING
+      &END PAO
+    &END
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      H       0.9   0.0   0.0
+      H       0.0   0.0   0.0
+    &END COORD
+    &TOPOLOGY
+       &CENTER_COORDINATES
+       &END
+    &END
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE
+      PAO_BASIS_SIZE 1
+      &PAO_POTENTIAL
+        MAXL 0
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+        WEIGHT +1.0
+        BETA 1.0
+      &END PAO_DESCRIPTOR
+      &PAO_DESCRIPTOR
+        WEIGHT -1.5
+        BETA 0.8
+      &END PAO_DESCRIPTOR
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&DEBUG
+  DEBUG_FORCES YES
+  STOP_ON_MISMATCH YES 
+&END DEBUG
+&GLOBAL
+  PROJECT H2_GP_overlap_checkforces
+  RUN_TYPE DEBUG
+&END GLOBAL

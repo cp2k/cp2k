@@ -35,8 +35,7 @@ MODULE pao_ml
                                               pao_iokind_type,&
                                               pao_kinds_ensure_equal,&
                                               pao_read_raw
-   USE pao_ml_descriptor,               ONLY: pao_ml_calc_descriptor,&
-                                              pao_ml_descriptor_forces
+   USE pao_ml_descriptor,               ONLY: pao_ml_calc_descriptor
    USE pao_ml_gaussprocess,             ONLY: pao_ml_gp_gradient,&
                                               pao_ml_gp_predict,&
                                               pao_ml_gp_train
@@ -572,7 +571,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_forces'
 
       INTEGER                                            :: acol, arow, handle, iatom, ikind
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor, descriptor_grad
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descr_grad, descriptor
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -601,25 +600,25 @@ CONTAINS
                                      particle_set, &
                                      qs_kind_set, &
                                      cell, &
-                                     iatom, &
-                                     descriptor)
+                                     iatom=iatom, &
+                                     descriptor=descriptor)
 
          ! calcaulte derivate of machine learning prediction
          CALL pao_ml_gradient_low(pao, ikind=ikind, &
                                   descriptor=descriptor, &
                                   outer_deriv=block_G(:, 1), &
-                                  gradient=descriptor_grad)
+                                  gradient=descr_grad)
 
          ! calculate force contributions from descriptor
-         CALL pao_ml_descriptor_forces(pao, &
-                                       particle_set, &
-                                       qs_kind_set, &
-                                       cell, &
-                                       iatom, &
-                                       descriptor_grad, &
-                                       forces)
+         CALL pao_ml_calc_descriptor(pao, &
+                                     particle_set, &
+                                     qs_kind_set, &
+                                     cell, &
+                                     iatom=iatom, &
+                                     descr_grad=descr_grad, &
+                                     forces=forces)
 
-         DEALLOCATE (descriptor, descriptor_grad)
+         DEALLOCATE (descriptor, descr_grad)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
 

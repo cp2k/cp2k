@@ -49,7 +49,8 @@ MODULE pao_input
                                                pao_ml_prior_zero = 501, &
                                                pao_ml_prior_mean = 502, &
                                                pao_ml_desc_pot = 601, &
-                                               pao_ml_desc_r12 = 602
+                                               pao_ml_desc_overlap = 602, &
+                                               pao_ml_desc_r12 = 603
 
 CONTAINS
 
@@ -230,6 +231,8 @@ CONTAINS
          s = "MEAN"
       CASE (pao_ml_desc_pot)
          s = "POTENTIAL"
+      CASE (pao_ml_desc_overlap)
+         s = "OVERLAP"
       CASE (pao_ml_desc_r12)
          s = "R12"
       CASE DEFAULT
@@ -410,9 +413,10 @@ CONTAINS
 
       CALL keyword_create(keyword, name="DESCRIPTOR", &
                           description="Descriptor used as input for machine learning.", &
-                          enum_c_vals=s2a("POTENTIAL", "R12"), &
-                          enum_i_vals=(/pao_ml_desc_pot, pao_ml_desc_r12/), &
+                          enum_c_vals=s2a("POTENTIAL", "OVERLAP", "R12"), &
+                          enum_i_vals=(/pao_ml_desc_pot, pao_ml_desc_overlap, pao_ml_desc_r12/), &
                           enum_desc=s2a("Eigenvalues of local potential matrix", &
+                                        "Eigenvalues of local overlap matrix", &
                                         "Distance between two atoms (just for testing)"), &
                           default_i_val=pao_ml_desc_pot)
       CALL section_add_keyword(subsection, keyword)

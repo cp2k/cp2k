@@ -10,6 +10,7 @@ H2_dist_0.9_LAZY.inp              11     5e-4      -1.153696829898623
 #
 # check forces
 H2_GP_pot_checkforces.inp          0  
+H2_GP_overlap_checkforces.inp      0  
 H2_GP_r12_checkforces.inp          0
 H2_LAZY_checkforces.inp            0
 H2_NN_r12_checkforces.inp          0
