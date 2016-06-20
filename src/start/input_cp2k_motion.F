@@ -1868,13 +1868,19 @@ CONTAINS
 
       CALL section_create(subsection, name="PRINT", &
                           description="Controls the path integral-specific output", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (print_key)
 
       CALL cp_print_key_section_create(print_key, "ENERGY", &
                                        description="Controls the output of the path integral energies", &
                                        print_level=low_print_level, common_iter_levels=1)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "ACTION", &
+                                       description="Controls the output of the path integral action", &
+                                       print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -2363,7 +2369,7 @@ CONTAINS
 
       CALL section_create(subsection, name="PRINT", &
                           description="The section that controls the output of the helium code", &
-                          n_keywords=15, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=16, n_subsections=0, repeats=.FALSE.)
 
       ! *************************************************************************
       !> Printkeys for properites output
@@ -2443,6 +2449,12 @@ CONTAINS
       !
       CALL cp_print_key_section_create(print_key, "PLENGTH", &
                                        description="Controls the output of the helium permutation length", &
+                                       print_level=medium_print_level, common_iter_levels=1)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "ACTION", &
+                                       description="Controls the output of the total helium action", &
                                        print_level=medium_print_level, common_iter_levels=1)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)

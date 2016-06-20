@@ -26,9 +26,9 @@ MODULE helium_sampling
                                               helium_calc_energy,&
                                               helium_solute_e_f
    USE helium_io,                       ONLY: &
-        helium_print_accepts, helium_print_coordinates, helium_print_energy, helium_print_force, &
-        helium_print_perm, helium_print_plength, helium_print_rdf, helium_print_rho, &
-        helium_print_vector, helium_write_line
+        helium_print_accepts, helium_print_action, helium_print_coordinates, helium_print_energy, &
+        helium_print_force, helium_print_perm, helium_print_plength, helium_print_rdf, &
+        helium_print_rho, helium_print_vector, helium_write_line
    USE helium_types,                    ONLY: e_id_total,&
                                               helium_solvent_type
    USE input_constants,                 ONLY: &
@@ -378,6 +378,7 @@ CONTAINS
       CALL helium_print_accepts(helium)
       CALL helium_print_coordinates(helium)
       CALL helium_print_force(helium)
+      CALL helium_print_action(pint_env, helium)
 
       time_stop = m_walltime()
       time_used = time_stop-time_start

@@ -187,6 +187,8 @@ MODULE helium_types
       INTEGER                                :: averages_iweight !< weight for restarted averages
       LOGICAL                                :: averages_restarted !< flag indicating whether the averages have been restarted
 
+      REAL(KIND=dp) :: link_action, inter_action, pair_action
+
       !
       INTEGER                                :: rdf_nbin !< number of bins for RDF
       INTEGER                                :: rdf_iweight !< weight for restarted RDF

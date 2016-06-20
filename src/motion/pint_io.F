@@ -58,6 +58,7 @@ MODULE pint_io
    PUBLIC :: pint_write_trajectory
    PUBLIC :: pint_write_com
    PUBLIC :: pint_write_ener
+   PUBLIC :: pint_write_action
    PUBLIC :: pint_write_step_info
    PUBLIC :: pint_write_rgyr
 
@@ -562,12 +563,83 @@ CONTAINS
    END SUBROUTINE pint_write_ener
 
 ! ***************************************************************************
-!> \brief  Write step info to the output file.
+!> \brief  Writes out the actions according to PINT%PRINT%ACTION
+!> \param  pint_env path integral environment
+!> \author Felix Uhl
+! **************************************************************************************************
+   SUBROUTINE pint_write_action(pint_env)
+      TYPE(pint_env_type), POINTER                       :: pint_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_action', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: unit_nr
+      LOGICAL                                            :: file_is_new
+      REAL(kind=dp)                                      :: t
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_key
+
+      CPASSERT(ASSOCIATED(pint_env))
+      CPASSERT(pint_env%ref_count > 0)
+
+      NULLIFY (print_key, logger)
+      print_key => section_vals_get_subs_vals(pint_env%input, &
+                                              "MOTION%PINT%PRINT%ACTION")
+      logger => cp_get_default_logger()
+      IF (BTEST(cp_print_key_should_output(iteration_info=logger%iter_info, &
+                                           basis_section=print_key), cp_p_file)) THEN
+
+         unit_nr = cp_print_key_unit_nr(logger, print_key, middle_name="action", &
+                                        extension=".dat", is_new_file=file_is_new)
+
+         ! don't write the 0-th frame if the file already exists
+         IF (.NOT. file_is_new .AND. (pint_env%iter .LE. pint_env%first_step)) THEN
+            CALL cp_print_key_finished_output(unit_nr, logger, &
+                                              print_key)
+            RETURN
+         END IF
+
+         ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
+         IF (unit_nr > 0) THEN
+
+            ! please keep the format explaination up to date
+            ! keep the constant of motion the true constant of motion !
+            IF (file_is_new) THEN
+               WRITE (unit_nr, "(A8,1X,A12,1X,2(A25,1X))") &
+                  "# StepNr", &
+                  "   Time [fs]", &
+                  "       Link Action [a.u.]", &
+                  "  Potential Action [a.u.]"
+            END IF
+
+            t = cp_unit_from_cp2k(pint_env%t, "fs")
+
+            WRITE (unit_nr, "(I8,1X,F12.3,1X,5(F20.9,1X),F12.1)") &
+               pint_env%iter, &
+               t, &
+               pint_env%link_action, &
+               pint_env%pot_action
+            CALL m_flush(unit_nr)
+
+         END IF
+
+         CALL cp_print_key_finished_output(unit_nr, logger, print_key)
+      END IF
+
+      RETURN
+   END SUBROUTINE pint_write_action
+
+   ! ***************************************************************************
+   !> \brief  Write step info to the output file.
+   !> \param pint_env ...
+   !> \date   2009-11-16
+   !> \par History
+   !>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
+   !> \author Lukasz Walewski
+   ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief ...
 !> \param pint_env ...
-!> \date   2009-11-16
-!> \par History
-!>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
-!> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE pint_write_step_info(pint_env)
       TYPE(pint_env_type), POINTER                       :: pint_env

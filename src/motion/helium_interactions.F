@@ -32,6 +32,7 @@ MODULE helium_interactions
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_interactions'
 
    PUBLIC :: helium_calc_energy
+   PUBLIC :: helium_total_link_action, helium_total_pair_action, helium_total_inter_action
    PUBLIC :: helium_solute_e_f
    PUBLIC :: helium_bead_solute_e_f
    PUBLIC :: helium_intpot_scan
@@ -157,6 +158,135 @@ CONTAINS
 
       RETURN
    END SUBROUTINE helium_calc_energy
+
+! ***************************************************************************
+!> \brief  Computes the total harmonic link action of the helium
+!> \param pint_env ...
+!> \param helium ...
+!> \retval linkaction ...
+!> \date   2016-05-03
+!> \author Felix Uhl
+! **************************************************************************************************
+   REAL(KIND=dp) FUNCTION helium_total_link_action(pint_env, helium) RESULT(linkaction)
+
+      IMPLICIT NONE
+      TYPE(pint_env_type), POINTER             :: pint_env
+      TYPE(helium_solvent_type), POINTER       :: helium
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_link_action', &
+                                     routineP = moduleN//':'//routineN
+
+      REAL(KIND=dp), DIMENSION(3) :: r, rp
+      INTEGER :: ibead, iatom, jatom
+      REAL(KIND=dp) :: e
+      INTEGER, DIMENSION(:), POINTER           :: perm
+
+      perm => helium%permutation
+      linkaction = 0.0_dp
+
+      ! Harmonic Link action
+      ! (r(m-1) - r(m))**2/(4*lambda*tau)
+      DO ibead = 1, helium%beads-1
+         DO iatom = 1, helium%atoms
+            r(:) = helium%pos(:, iatom, ibead)-helium%pos(:, iatom, ibead+1)
+            CALL helium_pbc(helium, r)
+            linkaction = linkaction+(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
+         END DO
+      END DO
+      DO iatom = 1, helium%atoms
+         ! choose last bead connection according to permutation table
+         r(:) = helium%pos(:, iatom, helium%beads)-helium%pos(:, perm(iatom), 1)
+         CALL helium_pbc(helium, r)
+         linkaction = linkaction+(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
+      END DO
+      linkaction = linkaction/(2.0_dp*helium%tau*helium%hb2m)
+      RETURN
+   END FUNCTION helium_total_link_action
+
+! ***************************************************************************
+!> \brief  Computes the total pair action of the helium
+!> \param pint_env ...
+!> \param helium ...
+!> \retval pairaction ...
+!> \date   2016-05-03
+!> \author Felix Uhl
+! **************************************************************************************************
+   REAL(KIND=dp) FUNCTION helium_total_pair_action(pint_env, helium) RESULT(pairaction)
+
+      IMPLICIT NONE
+      TYPE(pint_env_type), POINTER             :: pint_env
+      TYPE(helium_solvent_type), POINTER       :: helium
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_pair_action', &
+                                     routineP = moduleN//':'//routineN
+
+      REAL(KIND=dp), DIMENSION(3) :: r, rp
+      INTEGER :: ibead, iatom, jatom
+      REAL(KIND=dp) :: e
+      INTEGER, DIMENSION(:), POINTER           :: perm
+
+      perm => helium%permutation
+      pairaction = 0.0_dp
+
+      ! He-He pair action
+      DO ibead = 1, helium%beads-1
+         DO iatom = 1, helium%atoms-1
+            DO jatom = iatom+1, helium%atoms
+               r(:) = helium%pos(:, iatom, ibead)-helium%pos(:, jatom, ibead)
+               rp(:) = helium%pos(:, iatom, ibead+1)-helium%pos(:, jatom, ibead+1)
+               CALL helium_pbc(helium, r)
+               CALL helium_pbc(helium, rp)
+               pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
+            END DO
+         END DO
+      END DO
+      !Ensure right permutation for pair action of last and first beads.
+      DO iatom = 1, helium%atoms-1
+         DO jatom = iatom+1, helium%atoms
+            r(:) = helium%pos(:, iatom, helium%beads)-helium%pos(:, jatom, helium%beads)
+            rp(:) = helium%pos(:, perm(iatom), 1)-helium%pos(:, perm(jatom), 1)
+            pairaction = pairaction+helium_eval_expansion(helium, r, rp, helium%uij, 1)
+         END DO
+      END DO
+
+      RETURN
+   END FUNCTION helium_total_pair_action
+
+! ***************************************************************************
+!> \brief  Computes the total interaction of the helium with the solute
+!> \param pint_env ...
+!> \param helium ...
+!> \retval interaction ...
+!> \date   2016-05-03
+!> \author Felix Uhl
+! **************************************************************************************************
+   REAL(KIND=dp) FUNCTION helium_total_inter_action(pint_env, helium) RESULT(interaction)
+
+      IMPLICIT NONE
+      TYPE(pint_env_type), POINTER             :: pint_env
+      TYPE(helium_solvent_type), POINTER       :: helium
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_total_inter_action', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: ibead, iatom, jatom
+      REAL(KIND=dp) :: e
+
+      interaction = 0.0_dp
+
+      ! InterAction with solute
+      IF (helium%solute_present) THEN
+         DO ibead = 1, helium%beads
+            DO iatom = 1, helium%atoms
+               CALL helium_bead_solute_e_f(pint_env, helium, &
+                                           iatom, ibead, helium%pos(:, iatom, ibead), e)
+               interaction = interaction+e*helium%tau
+            END DO
+         END DO
+      END IF
+
+      RETURN
+   END FUNCTION helium_total_inter_action
 
 ! ***************************************************************************
 !> \brief Calculate general helium-solute interaction energy (and forces)
@@ -668,7 +798,7 @@ CONTAINS
                r(c) = helium%pos(c, i, n)-helium%pos(c, i, n+1)
             END DO
             CALL helium_pbc(helium, r)
-            t = r(1)*r(1)+r(2)*r(2)+r(3)*r(3)
+            t = t+r(1)*r(1)+r(2)*r(2)+r(3)*r(3)
             DO j = 1, i-1
                DO c = 1, 3
                   r(c) = helium%pos(c, i, n)-helium%pos(c, j, n)
@@ -685,7 +815,7 @@ CONTAINS
                r(c) = helium%pos(c, i, n)-helium%pos(c, helium%permutation(i), 1)
             END DO
             CALL helium_pbc(helium, r)
-            t = r(1)*r(1)+r(2)*r(2)+r(3)*r(3)
+            t = t+r(1)*r(1)+r(2)*r(2)+r(3)*r(3)
             DO j = 1, i-1
                DO c = 1, 3
                   r(c) = helium%pos(c, i, n)-helium%pos(c, j, n)

@@ -80,7 +80,8 @@ MODULE pint_methods
    USE pint_gle,                        ONLY: pint_calc_gle_energy,&
                                               pint_gle_init,&
                                               pint_gle_step
-   USE pint_io,                         ONLY: pint_write_centroids,&
+   USE pint_io,                         ONLY: pint_write_action,&
+                                              pint_write_centroids,&
                                               pint_write_com,&
                                               pint_write_ener,&
                                               pint_write_line,&
@@ -1515,7 +1516,9 @@ CONTAINS
 
       ! write the properties at 0-th step
       CALL pint_calc_energy(pint_env)
+      CALL pint_calc_total_action(pint_env)
       CALL pint_write_ener(pint_env)
+      CALL pint_write_action(pint_env)
       CALL pint_write_centroids(pint_env)
       CALL pint_write_trajectory(pint_env)
       CALL pint_write_com(pint_env)
@@ -1541,6 +1544,7 @@ CONTAINS
          CALL pint_step(pint_env, helium_solvent=helium)
 
          CALL pint_write_ener(pint_env)
+         CALL pint_write_action(pint_env)
          CALL pint_write_centroids(pint_env)
          CALL pint_write_trajectory(pint_env)
          CALL pint_write_com(pint_env)
@@ -1873,6 +1877,7 @@ CONTAINS
 
       ! calculate the energy components
       CALL pint_calc_energy(pint_env)
+      CALL pint_calc_total_action(pint_env)
 
       ! check that the number of MD steps matches
       ! the number of force evaluations done so far
@@ -2140,5 +2145,95 @@ CONTAINS
       pint_env%e_pot_t = pint_env%kT*epot
       RETURN
    END SUBROUTINE pint_calc_nh_energy
+
+! ***************************************************************************
+!> \brief calculates the total link action of the PI system (excluding helium)
+!> \param pint_env the path integral environment
+!> \retval link_action ...
+!> \author Felix Uhl
+! **************************************************************************************************
+   FUNCTION pint_calc_total_link_action(pint_env) RESULT(link_action)
+      TYPE(pint_env_type), POINTER                       :: pint_env
+      REAL(KIND=dp)                                      :: link_action
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_link_action', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: iatom, ibead, idim, indx
+      REAL(KIND=dp)                                      :: hb2m, tau, tmp_link_action
+      REAL(KIND=dp), DIMENSION(3)                        :: r
+
+      !tau = 1/(k_B T p)
+      tau = pint_env%beta/REAL(pint_env%p, dp)
+
+      CPASSERT(ASSOCIATED(pint_env))
+      CPASSERT(pint_env%ref_count > 0)
+      link_action = 0.0_dp
+      DO iatom = 1, pint_env%ndim/3
+         ! hbar / (2.0*m)
+         hb2m = 1.0_dp/pint_env%mass((iatom-1)*3+1)
+         tmp_link_action = 0.0_dp
+         DO ibead = 1, pint_env%p-1
+            DO idim = 1, 3
+               indx = (iatom-1)*3+idim
+               r(idim) = pint_env%x(ibead, indx)-pint_env%x(ibead+1, indx)
+            END DO
+            tmp_link_action = tmp_link_action+(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
+         END DO
+         DO idim = 1, 3
+            indx = (iatom-1)*3+idim
+            r(idim) = pint_env%x(pint_env%p, indx)-pint_env%x(1, indx)
+         END DO
+         tmp_link_action = tmp_link_action+(r(1)*r(1)+r(2)*r(2)+r(3)*r(3))
+         link_action = link_action+tmp_link_action/hb2m
+      END DO
+
+      link_action = link_action/(2.0_dp*tau)
+
+      RETURN
+
+   END FUNCTION pint_calc_total_link_action
+
+! ***************************************************************************
+!> \brief calculates the potential action of the PI system (excluding helium)
+!> \param pint_env the path integral environment
+!> \retval pot_action ...
+!> \author Felix Uhl
+! **************************************************************************************************
+   FUNCTION pint_calc_total_pot_action(pint_env) RESULT(pot_action)
+      TYPE(pint_env_type), POINTER                       :: pint_env
+      REAL(KIND=dp)                                      :: pot_action
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_pot_action', &
+         routineP = moduleN//':'//routineN
+
+      CPASSERT(ASSOCIATED(pint_env))
+      CPASSERT(pint_env%ref_count > 0)
+
+      pot_action = SUM(pint_env%e_pot_bead)
+
+      RETURN
+
+   END FUNCTION pint_calc_total_pot_action
+
+! ***************************************************************************
+!> \brief calculates the total action of the PI system (excluding helium)
+!> \param pint_env the path integral environment
+!> \author Felix Uhl
+! **************************************************************************************************
+   SUBROUTINE pint_calc_total_action(pint_env)
+      TYPE(pint_env_type), POINTER                       :: pint_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_action', &
+         routineP = moduleN//':'//routineN
+
+      CPASSERT(ASSOCIATED(pint_env))
+      CPASSERT(pint_env%ref_count > 0)
+
+      pint_env%pot_action = pint_calc_total_pot_action(pint_env)
+      pint_env%link_action = pint_calc_total_link_action(pint_env)
+
+      RETURN
+   END SUBROUTINE pint_calc_total_action
 
 END MODULE pint_methods

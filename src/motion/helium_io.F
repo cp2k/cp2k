@@ -31,6 +31,9 @@ MODULE helium_io
                                               helium_is_winding,&
                                               helium_path_length,&
                                               helium_pbc
+   USE helium_interactions,             ONLY: helium_total_inter_action,&
+                                              helium_total_link_action,&
+                                              helium_total_pair_action
    USE helium_types,                    ONLY: e_id_interact,&
                                               e_id_kinetic,&
                                               e_id_potential,&
@@ -58,6 +61,7 @@ MODULE helium_io
    USE message_passing,                 ONLY: mp_gather,&
                                               mp_sum
    USE physcon,                         ONLY: angstrom
+   USE pint_types,                      ONLY: pint_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -87,6 +91,7 @@ MODULE helium_io
    PUBLIC :: helium_print_force
    PUBLIC :: helium_print_accepts
    PUBLIC :: helium_print_perm
+   PUBLIC :: helium_print_action
    PUBLIC :: helium_write_cubefile
 
 CONTAINS
@@ -909,6 +914,115 @@ CONTAINS
 
       RETURN
    END SUBROUTINE helium_print_perm
+
+! **************************************************************************************************
+!> \brief Print helium action file to HELIUM%PRINT%ACTION
+!> \param pint_env ...
+!> \param helium ...
+!> \date   2016-06-07
+!> \author Felix Uhl
+! **************************************************************************************************
+   SUBROUTINE helium_print_action(pint_env, helium)
+
+      TYPE(pint_env_type), POINTER                       :: pint_env
+      TYPE(helium_solvent_type), POINTER                 :: helium
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'helium_print_action', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=default_string_length)               :: my_middle_name, stmp
+      INTEGER                                            :: handle, irank, iteration, unit_nr
+      LOGICAL                                            :: failure, file_is_new, should_output
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_inter_action, tmp_link_action, &
+                                                            tmp_pair_action
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_key
+
+      CALL timeset(routineN, handle)
+
+      failure = .FALSE.
+
+      NULLIFY (logger, print_key)
+      logger => cp_get_default_logger()
+      print_key => section_vals_get_subs_vals(helium%input, &
+                                              "MOTION%PINT%HELIUM%PRINT%ACTION")
+      should_output = BTEST(cp_print_key_should_output( &
+                            iteration_info=logger%iter_info, &
+                            basis_section=print_key), cp_p_file)
+
+      IF (.NOT. should_output) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      helium%link_action = helium_total_link_action(pint_env, helium)
+      helium%pair_action = helium_total_pair_action(pint_env, helium)
+      helium%inter_action = helium_total_inter_action(pint_env, helium)
+
+      NULLIFY (tmp_link_action)
+      NULLIFY (tmp_pair_action)
+      NULLIFY (tmp_inter_action)
+      ALLOCATE (tmp_link_action(helium%num_env))
+      ALLOCATE (tmp_pair_action(helium%num_env))
+      ALLOCATE (tmp_inter_action(helium%num_env))
+
+      ! gather Action from all processors to logger%para_env%source
+      CALL mp_gather(helium%link_action, &
+                     tmp_link_action, &
+                     logger%para_env%source, logger%para_env%group)
+      CALL mp_gather(helium%pair_action, &
+                     tmp_pair_action, &
+                     logger%para_env%source, logger%para_env%group)
+      CALL mp_gather(helium%inter_action, &
+                     tmp_inter_action, &
+                     logger%para_env%source, logger%para_env%group)
+
+      IF (logger%para_env%ionode) THEN
+         iteration = logger%iter_info%iteration(2)
+         ! iterate over processors/helium environments
+         DO irank = 1, helium%num_env
+
+            ! generate one file per processor
+            stmp = ""
+            WRITE (stmp, *) irank
+            my_middle_name = "helium-action-"//TRIM(ADJUSTL(stmp))
+            unit_nr = cp_print_key_unit_nr( &
+                      logger, &
+                      print_key, &
+                      middle_name=TRIM(my_middle_name), &
+                      extension=".dat", &
+                      is_new_file=file_is_new)
+
+            IF (file_is_new) THEN
+               WRITE (unit_nr, '(A9,3(1X,A25))') &
+                  "#    Step", &
+                  "     He_Total_Link_Action", &
+                  "     He_Total_Pair_Action", &
+                  "     He_Total_Interaction"
+            END IF
+
+            WRITE (unit_nr, "(I9,3(1X,F25.14))") &
+               iteration, &
+               tmp_link_action(irank), &
+               tmp_pair_action(irank), &
+               tmp_inter_action(irank)
+
+            CALL m_flush(unit_nr)
+            CALL cp_print_key_finished_output(unit_nr, logger, print_key)
+
+         END DO
+      END IF
+
+      DEALLOCATE (tmp_link_action)
+      DEALLOCATE (tmp_pair_action)
+      DEALLOCATE (tmp_inter_action)
+      NULLIFY (tmp_link_action)
+      NULLIFY (tmp_pair_action)
+      NULLIFY (tmp_inter_action)
+
+      CALL timestop(handle)
+
+      RETURN
+   END SUBROUTINE helium_print_action
 
 ! ***************************************************************************
 !> \brief  Print coordinates according to HELIUM%PRINT%COORDINATES
