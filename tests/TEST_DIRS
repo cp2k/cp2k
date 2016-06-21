@@ -19,7 +19,7 @@ QS/regtest-ri-rpa                                           libint
 Fist/regtest-7-1
 QS/regtest-slab
 QS/regtest-pao-2
-QS/regtest-tddfpt-2
+QS/regtest-tddfpt-2                                         libint
 QS/regtest-ps-implicit-2-1
 Pimd
 QS/regtest-mp2-stress                                       libint 
