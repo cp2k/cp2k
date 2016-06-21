@@ -32,6 +32,8 @@ MODULE xc_libxc_wrap
    Furthermore, -I[LIBXC_DIR]/INCLUDE needs to be added to FCFLAGS.
 #else
 
+#if (XC_MAJOR_VERSION == 2)
+  ! Functionals which either have known bugs, or require parameters
   USE libxc_funcs_m,                   ONLY: XC_GGA_C_N12,&
                                              XC_GGA_C_N12_SX,&
                                              XC_GGA_K_FR_B88,&
@@ -56,19 +58,36 @@ MODULE xc_libxc_wrap
                                              XC_HYB_GGA_XC_O3LYP,&
                                              XC_HYB_GGA_XC_X3LYP,&
                                              XC_HYB_GGA_X_N12_SX,&
-#if (XC_MAJOR_VERSION == 2)
                                              XC_HYB_MGGA_X_M11,&
-#endif
                                              XC_LDA_C_1D_CSC,&
                                              XC_LDA_C_2D_PRM,&
                                              XC_LDA_C_XALPHA,&
                                              XC_LDA_X,&
                                              XC_LDA_X_1D,&
                                              XC_MGGA_X_M11_L,&
-#if (XC_MAJOR_VERSION == 2)
                                              XC_MGGA_X_MS2H,&
-#endif
                                              XC_MGGA_X_TB09
+#else
+  ! Functionals which require parameters
+  USE libxc_funcs_m,                   ONLY: XC_LDA_X,&
+                                             XC_LDA_X_1D,&
+                                             XC_LDA_C_XALPHA,&
+                                             XC_LDA_C_2D_PRM,&
+                                             XC_LDA_C_1D_CSC,&
+                                             XC_MGGA_X_TB09,&
+                                             XC_HYB_GGA_XC_HSE03,&
+                                             XC_HYB_GGA_XC_HSE06,&
+                                             XC_HYB_GGA_XC_HJS_PBE,&
+                                             XC_HYB_GGA_XC_HJS_PBE_SOL,&
+                                             XC_HYB_GGA_XC_HJS_B88,&
+                                             XC_HYB_GGA_XC_HJS_B97X,&
+                                             XC_GGA_X_LB,&
+                                             XC_GGA_X_HJS_PBE,&
+                                             XC_GGA_X_HJS_PBE_SOL,&
+                                             XC_GGA_X_HJS_B88,&
+                                             XC_GGA_X_HJS_B97X,&
+                                             XC_GGA_X_WPBEH
+#endif
   USE kinds,                           ONLY: dp
   USE xc_f90_lib_m,                    ONLY: xc_f90_func_end,&
                                              xc_f90_func_init,&
