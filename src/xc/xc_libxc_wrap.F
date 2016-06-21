@@ -56,14 +56,18 @@ MODULE xc_libxc_wrap
                                              XC_HYB_GGA_XC_O3LYP,&
                                              XC_HYB_GGA_XC_X3LYP,&
                                              XC_HYB_GGA_X_N12_SX,&
+#if (XC_MAJOR_VERSION == 2)
                                              XC_HYB_MGGA_X_M11,&
+#endif
                                              XC_LDA_C_1D_CSC,&
                                              XC_LDA_C_2D_PRM,&
                                              XC_LDA_C_XALPHA,&
                                              XC_LDA_X,&
                                              XC_LDA_X_1D,&
                                              XC_MGGA_X_M11_L,&
+#if (XC_MAJOR_VERSION == 2)
                                              XC_MGGA_X_MS2H,&
+#endif
                                              XC_MGGA_X_TB09
   USE kinds,                           ONLY: dp
   USE xc_f90_lib_m,                    ONLY: xc_f90_func_end,&
