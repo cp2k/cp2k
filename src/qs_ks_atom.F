@@ -462,6 +462,9 @@ CONTAINS
 
       IF (forces) THEN
          DEALLOCATE (dCPC_h, dCPC_s, PC_h, PC_s)
+
+      ! Wait for all threads to finish the loop before locks can be freed
+!$OMP BARRIER
 !$OMP DO
 !$       DO lock_num = 1, natom*nkind
 !$          call omp_destroy_lock(locks(lock_num))
