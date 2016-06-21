@@ -33,7 +33,7 @@ MODULE xc_libxc_wrap
 #else
 
 #if (XC_MAJOR_VERSION == 2)
-  ! Functionals which either have known bugs, or require parameters
+   ! Functionals which either have known bugs, or require parameters
   USE libxc_funcs_m,                   ONLY: XC_GGA_C_N12,&
                                              XC_GGA_C_N12_SX,&
                                              XC_GGA_K_FR_B88,&
@@ -68,7 +68,7 @@ MODULE xc_libxc_wrap
                                              XC_MGGA_X_MS2H,&
                                              XC_MGGA_X_TB09
 #else
-  ! Functionals which require parameters
+   ! Functionals which require parameters
   USE libxc_funcs_m,                   ONLY: XC_LDA_X,&
                                              XC_LDA_X_1D,&
                                              XC_LDA_C_XALPHA,&
