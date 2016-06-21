@@ -3,7 +3,11 @@
 # tested only with python 2.7.6
 
 import re
+import sys
 import os.path
+
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    sys.exit(0) #TODO implement selftest
 
 # 1) parse data #
 #################
@@ -112,8 +116,8 @@ err = [_[2] for _ in data_sorted]
 a = [_[3] for _ in data_sorted]
 w = [_[4] for _ in data_sorted]
 
-print "missing files"
-print missing
+print("missing files")
+print(missing)
 
 txt.close()
 
