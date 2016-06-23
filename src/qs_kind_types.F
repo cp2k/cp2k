@@ -123,6 +123,7 @@ MODULE qs_kind_types
 ! **************************************************************************************************
    TYPE pao_descriptor_type
       REAL(KIND=dp)                          :: beta = 0.0_dp
+      REAL(KIND=dp)                          :: screening = 0.0_dp
       REAL(KIND=dp)                          :: weight = 0.0_dp
    END TYPE pao_descriptor_type
 
@@ -1375,6 +1376,8 @@ CONTAINS
          DO ipaodesc = 1, npaodesc
             CALL section_vals_val_get(pao_desc_section, keyword_name="BETA", i_rep_section=ipaodesc, &
                                       r_val=qs_kind%pao_descriptors(ipaodesc)%beta)
+            CALL section_vals_val_get(pao_desc_section, keyword_name="SCREENING", i_rep_section=ipaodesc, &
+                                      r_val=qs_kind%pao_descriptors(ipaodesc)%screening)
             CALL section_vals_val_get(pao_desc_section, keyword_name="WEIGHT", i_rep_section=ipaodesc, &
                                       r_val=qs_kind%pao_descriptors(ipaodesc)%weight)
          ENDDO

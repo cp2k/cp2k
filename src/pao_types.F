@@ -81,6 +81,7 @@ MODULE pao_types
       REAL(KIND=dp)                    :: norm_G = 0.0_dp
       TYPE(linesearch_type)            :: linesearch
       LOGICAL                          :: matrix_X_ready = .FALSE.
+      LOGICAL                          :: matrix_P_ready = .FALSE.
       LOGICAL                          :: matrices_YNH0_ready = .FALSE.
       LOGICAL                          :: need_initial_scf = .FALSE.
       LOGICAL                          :: precondition = .FALSE.

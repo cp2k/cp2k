@@ -8,12 +8,14 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_ml_descriptor
+   USE ao_util,                         ONLY: exp_radius
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: rootpi
+   USE mathconstants,                   ONLY: pi,&
+                                              rootpi
    USE mathlib,                         ONLY: diamat_all
    USE pao_input,                       ONLY: pao_ml_desc_overlap,&
                                               pao_ml_desc_pot,&
@@ -202,13 +204,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_descriptor_overlap'
 
-      INTEGER                                            :: handle, i, idesc, ikind, j, jatom, &
-                                                            jkind, k, katom, kkind, N, natoms, &
-                                                            ndesc
+      INTEGER                                            :: handle, idesc, ikind, j, jatom, jkind, &
+                                                            k, katom, kkind, N, natoms, ndesc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: neighbor_order
-      REAL(dp)                                           :: beta_Sum, ibeta, iweight, jbeta, &
-                                                            jweight, kbeta, kweight, Rij2, Rik2, &
-                                                            Rjk2, s, w
+      REAL(dp) :: beta_sum, deriv, exponent, integral, jbeta, jweight, kbeta, kweight, &
+         normalization, Rij2, Rik2, Rjk2, sbeta, sbeta_min, screening_radius, screening_volume, w
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: block_M, block_S, S_evecs
       REAL(dp), DIMENSION(3)                             :: Ri, Rij, Rik, Rj, Rjk, Rk
@@ -220,10 +220,21 @@ CONTAINS
 
       CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
       CALL get_qs_kind(qs_kind_set(ikind), pao_descriptors=ipao_descriptors)
-      N = 10 ! TODO make max_neighbors an input param
+
       natoms = SIZE(particle_set)
       ndesc = SIZE(ipao_descriptors)
       IF (ndesc == 0) CPABORT("No PAO_DESCRIPTOR section found")
+
+      ! determine smallest screening beta
+      sbeta_min = HUGE(1.0_dp)
+      DO idesc = 1, ndesc
+         sbeta_min = MIN(sbeta_min, ipao_descriptors(idesc)%screening)
+      ENDDO
+
+      ! estimate maximum number of neighbors within screening
+      screening_radius = exp_radius(0, sbeta_min, 1.0E-12_dp, 1.0_dp) ! TODO get the EPS parameter from somewhere / precompute this elsewhere
+      screening_volume = 0.75_dp*pi*screening_radius**3
+      N = INT(screening_volume/100.0_dp) ! rule of thumb
 
       ALLOCATE (block_S(N, N), S_evals(N), S_evecs(N, N))
       IF (PRESENT(descriptor)) ALLOCATE (descriptor(N*ndesc))
@@ -241,10 +252,14 @@ CONTAINS
       CALL sort(neighbor_dist, natoms, neighbor_order)
       CPASSERT(neighbor_order(1) == iatom) !central atom should be closesd to itself
 
+      ! check if N was choosen large enough
+      IF (natoms > N) THEN
+         IF (neighbor_dist(N+1) < screening_radius) &
+            CPABORT("PAO heuristic for descriptor size broke down")
+      ENDIF
+
       DO idesc = 1, ndesc
-         block_S(:, :) = 0.0_dp
-         iweight = ipao_descriptors(idesc)%weight
-         ibeta = ipao_descriptors(idesc)%beta
+         sbeta = ipao_descriptors(idesc)%screening
 
          ! construct matrix S_block from neighboring atoms
          block_S = 0.0_dp
@@ -264,7 +279,7 @@ CONTAINS
             jbeta = jpao_descriptors(idesc)%beta
             kweight = kpao_descriptors(idesc)%weight
             kbeta = kpao_descriptors(idesc)%beta
-            beta_sum = ibeta+jbeta+kbeta
+            beta_sum = sbeta+jbeta+kbeta
 
             ! get distances
             Rj = particle_set(jatom)%r
@@ -277,14 +292,11 @@ CONTAINS
             Rjk2 = SUM(Rjk**2)
 
             ! calculate integral over three Gaussians
-            s = EXP(-(ibeta*jbeta*Rij2+ibeta*kbeta*Rik2+jbeta*kbeta*Rjk2)/beta_sum)
-            block_S(j, k) = s*rootpi/SQRT(beta_sum)
+            exponent = -(sbeta*jbeta*Rij2+sbeta*kbeta*Rik2+jbeta*kbeta*Rjk2)/beta_sum
+            integral = EXP(exponent)*rootpi/SQRT(beta_sum)
+            normalization = SQRT(jbeta*kbeta)/rootpi**2
+            block_S(j, k) = jweight*kweight*normalization*integral
          ENDDO
-         ENDDO
-
-         ! regularize in case there are not enough neigbors around
-         DO i = 1, N
-            block_S(i, i) = block_S(i, i)+1e-14_dp
          ENDDO
 
          ! diagonalize V_block
@@ -318,7 +330,7 @@ CONTAINS
                jbeta = jpao_descriptors(idesc)%beta
                kweight = kpao_descriptors(idesc)%weight
                kbeta = kpao_descriptors(idesc)%beta
-               beta_sum = ibeta+jbeta+kbeta
+               beta_sum = sbeta+jbeta+kbeta
 
                ! get distances
                Rj = particle_set(jatom)%r
@@ -331,12 +343,15 @@ CONTAINS
                Rjk2 = SUM(Rjk**2)
 
                ! calculate integral over three Gaussians
-               s = EXP(-(ibeta*jbeta*Rij2+ibeta*kbeta*Rik2+jbeta*kbeta*Rjk2)/beta_sum)
-               w = s*rootpi/SQRT(beta_sum)*2.0_dp/beta_sum*block_M(j, k)
-               forces(iatom, :) = forces(iatom, :)-ibeta*jbeta*Rij*w
-               forces(jatom, :) = forces(jatom, :)+ibeta*jbeta*Rij*w
-               forces(iatom, :) = forces(iatom, :)-ibeta*kbeta*Rik*w
-               forces(katom, :) = forces(katom, :)+ibeta*kbeta*Rik*w
+               exponent = -(sbeta*jbeta*Rij2+sbeta*kbeta*Rik2+jbeta*kbeta*Rjk2)/beta_sum
+               integral = EXP(exponent)*rootpi/SQRT(beta_sum)
+               normalization = SQRT(jbeta*kbeta)/rootpi**2
+               deriv = 2.0_dp/beta_sum*block_M(j, k)
+               w = jweight*kweight*normalization*integral*deriv
+               forces(iatom, :) = forces(iatom, :)-sbeta*jbeta*Rij*w
+               forces(jatom, :) = forces(jatom, :)+sbeta*jbeta*Rij*w
+               forces(iatom, :) = forces(iatom, :)-sbeta*kbeta*Rik*w
+               forces(katom, :) = forces(katom, :)+sbeta*kbeta*Rik*w
                forces(jatom, :) = forces(jatom, :)-jbeta*kbeta*Rjk*w
                forces(katom, :) = forces(katom, :)+jbeta*kbeta*Rjk*w
             ENDDO

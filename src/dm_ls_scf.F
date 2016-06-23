@@ -74,10 +74,10 @@ MODULE dm_ls_scf
    USE mathlib,                         ONLY: binomial
    USE molecule_types_new,              ONLY: molecule_of_atom,&
                                               molecule_type
-   USE pao_main,                        ONLY: pao_forces,&
-                                              pao_init,&
+   USE pao_main,                        ONLY: pao_init,&
                                               pao_optimization_end,&
                                               pao_optimization_start,&
+                                              pao_post_scf,&
                                               pao_update
    USE particle_types,                  ONLY: particle_type
    USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
@@ -141,7 +141,7 @@ CONTAINS
          CALL ls_scf_init_scf(qs_env, ls_scf_env)
          CALL pao_update(qs_env, ls_scf_env, pao_is_done)
          CALL ls_scf_main(qs_env, ls_scf_env)
-         CALL pao_forces(qs_env, ls_scf_env)
+         CALL pao_post_scf(qs_env, ls_scf_env, pao_is_done)
          CALL ls_scf_post(qs_env, ls_scf_env)
       END DO
 

@@ -12,8 +12,6 @@ MODULE pao_main
         cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_p_type, &
         cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type
    USE cp_external_control,             ONLY: external_control
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dm_ls_scf_qs,                    ONLY: ls_scf_qs_atomic_guess
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -24,16 +22,15 @@ MODULE pao_main
                                               linesearch_reset,&
                                               linesearch_step
    USE machine,                         ONLY: m_walltime
-   USE message_passing,                 ONLY: mp_sum
    USE pao_input,                       ONLY: parse_pao_section
    USE pao_io,                          ONLY: pao_read_restart,&
                                               pao_write_restart
    USE pao_methods,                     ONLY: &
-        pao_build_core_hamiltonian, pao_build_matrix_X, pao_build_orthogonalizer, &
+        pao_add_forces, pao_build_core_hamiltonian, pao_build_matrix_X, pao_build_orthogonalizer, &
         pao_build_selector, pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, &
-        pao_check_trace_ps, pao_print_atom_info, pao_read_preopt_dm, pao_test_convergence
-   USE pao_ml,                          ONLY: pao_machine_learning_forces,&
-                                              pao_machine_learning_init,&
+        pao_check_trace_ps, pao_guess_initial_P, pao_print_atom_info, pao_store_P, &
+        pao_test_convergence
+   USE pao_ml,                          ONLY: pao_machine_learning_init,&
                                               pao_machine_learning_predict
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
                                               pao_opt_init,&
@@ -44,7 +41,6 @@ MODULE pao_main
                                               pao_param_initial_guess,&
                                               pao_update_AB
    USE pao_types,                       ONLY: pao_env_type
-   USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
 #include "./base/base_uses.f90"
@@ -55,7 +51,7 @@ MODULE pao_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_main'
 
-   PUBLIC :: pao_init, pao_update, pao_forces, pao_optimization_start, pao_optimization_end
+   PUBLIC :: pao_init, pao_update, pao_post_scf, pao_optimization_start, pao_optimization_end
 
 CONTAINS
 
@@ -118,9 +114,10 @@ CONTAINS
       pao => ls_scf_env%pao_env
       ls_mstruct => ls_scf_env%ls_mstruct
 
-      ! init counters
+      ! reset state
       pao%step_start_time = m_walltime()
       pao%istep = 0
+      pao%matrix_P_ready = .FALSE.
 
       ! ready utility matrices
       IF (.NOT. pao%matrices_YNH0_ready) THEN
@@ -150,74 +147,29 @@ CONTAINS
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| reusing matrix_X from previous optimization"
       ENDIF
 
-      ! ready density matrix
-      ! TODO add support for ASPC
-      IF (LEN_TRIM(pao%preopt_dm_file) > 0) THEN
-         CALL pao_read_preopt_dm(pao, qs_env)
-      ELSE
-         CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env%energy_init)
-         IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') " PAO| Energy from initial atomic guess:", ls_scf_env%energy_init
-         pao%need_initial_scf = .TRUE.
-      ENDIF
-
-      CALL cp_dbcsr_init(pao%matrix_X_orig)
-
-      CALL cp_dbcsr_init(pao%matrix_G)
-      CALL cp_dbcsr_copy(pao%matrix_G, pao%matrix_X)
-      CALL cp_dbcsr_set(pao%matrix_G, 0.0_dp)
-
-      CALL cp_dbcsr_init(pao%matrix_U)
-      CALL cp_dbcsr_create(pao%matrix_U, template=matrix_s(1)%matrix, matrix_type="N", name="PAO matrix_U")
-      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U)
-
-      CALL cp_dbcsr_init(ls_mstruct%matrix_A)
-      CALL cp_dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
-
-      CALL cp_dbcsr_init(ls_mstruct%matrix_B)
-      CALL cp_dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
-
-      CALL pao_update_AB(pao, qs_env, ls_mstruct, penalty)
-      IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') " PAO| Energy from initial penalty:", penalty
-
+      ! init line-search
       section => section_vals_get_subs_vals(input, "DFT%LS_SCF%PAO%LINE_SEARCH")
       CALL linesearch_init(pao%linesearch, section, "PAO|")
 
+      ! create some more matrices
+      CALL cp_dbcsr_init(pao%matrix_X_orig)
+      CALL cp_dbcsr_init(pao%matrix_G)
+      CALL cp_dbcsr_copy(pao%matrix_G, pao%matrix_X)
+      CALL cp_dbcsr_set(pao%matrix_G, 0.0_dp)
+      CALL cp_dbcsr_init(pao%matrix_U)
+      CALL cp_dbcsr_create(pao%matrix_U, template=matrix_s(1)%matrix, matrix_type="N", name="PAO matrix_U")
+      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U)
+      CALL cp_dbcsr_init(ls_mstruct%matrix_A)
+      CALL cp_dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
+      CALL cp_dbcsr_init(ls_mstruct%matrix_B)
+      CALL cp_dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
+
+      ! fill PAO transformation matrices
+      CALL pao_update_AB(pao, qs_env, ls_mstruct, penalty)
+      IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') " PAO| Energy from initial penalty:", penalty
+
       CALL timestop(handle)
    END SUBROUTINE pao_optimization_start
-
-! **************************************************************************************************
-!> \brief Finish a PAO optimization run.
-!> \param ls_scf_env ...
-! **************************************************************************************************
-   SUBROUTINE pao_optimization_end(ls_scf_env)
-      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_optimization_end'
-
-      INTEGER                                            :: handle
-      TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
-      TYPE(pao_env_type), POINTER                        :: pao
-
-      IF (.NOT. ls_scf_env%do_pao) RETURN
-
-      pao => ls_scf_env%pao_env
-      ls_mstruct => ls_scf_env%ls_mstruct
-
-      CALL timeset(routineN, handle)
-
-      CALL pao_param_finalize(pao)
-
-      ! We keep pao%matrix_X for next scf-run, e.g. during MD or GEO-OPT
-      CALL cp_dbcsr_release(pao%matrix_X_orig)
-      CALL cp_dbcsr_release(pao%matrix_G)
-      CALL cp_dbcsr_release(pao%matrix_U)
-      CALL cp_dbcsr_release(ls_mstruct%matrix_A)
-      CALL cp_dbcsr_release(ls_mstruct%matrix_B)
-
-      CALL linesearch_finalize(pao%linesearch)
-
-      CALL timestop(handle)
-   END SUBROUTINE pao_optimization_end
 
 ! **************************************************************************************************
 !> \brief Called after the SCF optimization, updates the PAO basis.
@@ -246,6 +198,11 @@ CONTAINS
 
       ls_mstruct => ls_scf_env%ls_mstruct
       pao => ls_scf_env%pao_env
+
+      IF (.NOT. pao%matrix_P_ready) THEN
+         CALL pao_guess_initial_P(pao, qs_env, ls_scf_env)
+         pao%matrix_P_ready = .TRUE.
+      ENDIF
 
       IF (pao%max_pao == 0) THEN
          pao_is_done = .TRUE.
@@ -349,53 +306,55 @@ CONTAINS
    END SUBROUTINE pao_update
 
 ! **************************************************************************************************
-!> \brief Calculate the forces contributed by PAO
+!> \brief Calculate PAO forces and store density matrix for future ASPC extrapolations
 !> \param qs_env ...
 !> \param ls_scf_env ...
+!> \param pao_is_done ...
 ! **************************************************************************************************
-   SUBROUTINE pao_forces(qs_env, ls_scf_env)
+   SUBROUTINE pao_post_scf(qs_env, ls_scf_env, pao_is_done)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+      LOGICAL, INTENT(IN)                                :: pao_is_done
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_forces'
+      IF (.NOT. ls_scf_env%do_pao) RETURN
+      IF (.NOT. pao_is_done) RETURN
 
-      INTEGER                                            :: handle, iatom, natoms
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: forces
-      TYPE(cp_dbcsr_type)                                :: matrix_M
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      CALL pao_store_P(qs_env, ls_scf_env)
+      CALL pao_add_forces(qs_env, ls_scf_env)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Finish a PAO optimization run.
+!> \param ls_scf_env ...
+! **************************************************************************************************
+   SUBROUTINE pao_optimization_end(ls_scf_env)
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_optimization_end'
+
+      INTEGER                                            :: handle
+      TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       IF (.NOT. ls_scf_env%do_pao) RETURN
 
+      pao => ls_scf_env%pao_env
+      ls_mstruct => ls_scf_env%ls_mstruct
+
       CALL timeset(routineN, handle)
 
-      pao => ls_scf_env%pao_env
-      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Adding forces."
+      CALL pao_param_finalize(pao)
 
-      CALL get_qs_env(qs_env, &
-                      para_env=para_env, &
-                      particle_set=particle_set, &
-                      natom=natoms)
+      ! We keep pao%matrix_X for next scf-run, e.g. during MD or GEO-OPT
+      CALL cp_dbcsr_release(pao%matrix_X_orig)
+      CALL cp_dbcsr_release(pao%matrix_G)
+      CALL cp_dbcsr_release(pao%matrix_U)
+      CALL cp_dbcsr_release(ls_mstruct%matrix_A)
+      CALL cp_dbcsr_release(ls_mstruct%matrix_B)
 
-      ALLOCATE (forces(natoms, 3))
-      forces(:, :) = 0.0_dp
-      CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
-      CALL pao_calc_U(pao, qs_env, matrix_M, pao%matrix_G, forces=forces)
-      CALL cp_dbcsr_release(matrix_M)
-
-      IF (SIZE(pao%ml_training_set) > 0) &
-         CALL pao_machine_learning_forces(pao, qs_env, pao%matrix_G, forces)
-
-      CALL mp_sum(forces, para_env%group)
-      DO iatom = 1, natoms
-         particle_set(iatom)%f = particle_set(iatom)%f+forces(iatom, :)
-      ENDDO
-
-      DEALLOCATE (forces)
+      CALL linesearch_finalize(pao%linesearch)
 
       CALL timestop(handle)
-
-   END SUBROUTINE pao_forces
+   END SUBROUTINE pao_optimization_end
 
 END MODULE pao_main

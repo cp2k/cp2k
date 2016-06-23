@@ -9,7 +9,6 @@
 ! **************************************************************************************************
 MODULE pao_ml_gaussprocess
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: invmat_symm
    USE pao_types,                       ONLY: pao_env_type,&
                                               training_matrix_type
 #include "./base/base_uses.f90"
@@ -31,7 +30,7 @@ CONTAINS
    SUBROUTINE pao_ml_gp_train(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      INTEGER                                            :: i, ikind, j, npoints
+      INTEGER                                            :: i, ikind, info, j, npoints
       REAL(dp), DIMENSION(:), POINTER                    :: idescr, jdescr
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
@@ -42,11 +41,10 @@ CONTAINS
          CPASSERT(SIZE(training_matrix%outputs, 1) == npoints)
          CPASSERT(npoints > 0)
 
-         !TODO proper output
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| Building covariance matrix for kind: ", &
             TRIM(training_matrix%kindname), " from ", npoints, "training points."
 
-         ! build co-variance matrix A
+         ! build covariance matrix
          ALLOCATE (training_matrix%GP(npoints, npoints))
          DO i = 1, npoints
          DO j = i, npoints
@@ -62,11 +60,9 @@ CONTAINS
             training_matrix%GP(i, i) = training_matrix%GP(i, i)+pao%gp_noise_var**2
          ENDDO
 
-         ! invert covariance matrix
-         ! TODO : cholesky decompose only, using a solve in predict when needed
-         CALL invmat_symm(training_matrix%GP)
-
-         ! TODO print min eigenvalue to estimate redundancy of training data and estimate gp_noise?
+         ! compute cholesky decomposition of covariance matrix
+         CALL dpotrf("U", npoints, training_matrix%GP, npoints, info)
+         CPASSERT(info == 0)
       ENDDO
 
    END SUBROUTINE pao_ml_gp_train
@@ -86,40 +82,38 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
       REAL(dp), INTENT(OUT)                              :: variance
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_ml_gp_predict', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i, npoints
-      REAL(dp)                                           :: cov
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: covs, weights
+      INTEGER                                            :: i, info, npoints
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: cov, weights
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
       training_matrix => pao%ml_training_matrices(ikind)
       npoints = SIZE(training_matrix%outputs, 1)
 
+      ! calculate covariances between descriptor and training-points
+      ALLOCATE (cov(npoints))
+      DO i = 1, npoints
+         cov(i) = kernel(pao%gp_scale, descriptor, training_matrix%inputs(i, :))
+      ENDDO
+
       ! calculate weights
-      ALLOCATE (weights(npoints), covs(npoints))
-      weights = 0.0_dp
-      covs = 0.0_dp
-      DO i = 1, npoints
-         cov = kernel(pao%gp_scale, descriptor, training_matrix%inputs(i, :))
-         covs(i) = cov
-         weights(:) = weights(:)+cov*training_matrix%GP(i, :)
-      ENDDO
+      ALLOCATE (weights(npoints))
+      weights(:) = cov(:)
+      CALL DPOTRS("U", npoints, 1, training_matrix%GP, npoints, weights, npoints, info)
+      CPASSERT(info == 0)
 
-      ! calculate variance
-      variance = kernel(pao%gp_scale, descriptor, descriptor)
-      DO i = 1, npoints
-         cov = kernel(pao%gp_scale, descriptor, training_matrix%inputs(i, :))
-         variance = variance-cov*weights(i)
-      ENDDO
-
-      ! build output
+      ! calculate predicted output
       output = 0.0_dp
       DO i = 1, npoints
          output(:) = output+weights(i)*training_matrix%outputs(i, :)
       ENDDO
 
+      ! calculate prediction's variance
+      variance = kernel(pao%gp_scale, descriptor, descriptor)-DOT_PRODUCT(weights, cov)
+
+      IF (variance < 0.0_dp) &
+         CPABORT("PAO gaussian process found negative variance")
+
+      DEALLOCATE (cov, weights)
    END SUBROUTINE pao_ml_gp_predict
 
 ! **************************************************************************************************
@@ -137,29 +131,34 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: outer_deriv
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: gradient
 
-      INTEGER                                            :: i, npoints
-      REAL(dp)                                           :: w
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: M
+      INTEGER                                            :: i, info, npoints
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: cov_deriv, weights_deriv
       REAL(dp), DIMENSION(SIZE(descriptor))              :: kg
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
       training_matrix => pao%ml_training_matrices(ikind)
       npoints = SIZE(training_matrix%outputs, 1)
 
-      ALLOCATE (M(npoints))
-      M(:) = 0.0_dp
+      ! calculate derivative of weights
+      ALLOCATE (weights_deriv(npoints))
       DO i = 1, npoints
-         w = SUM(outer_deriv*training_matrix%outputs(i, :))
-         M(:) = M(:)+training_matrix%GP(i, :)*w
+         weights_deriv(i) = SUM(outer_deriv*training_matrix%outputs(i, :))
       ENDDO
 
+      ! calculate derivative of covariances
+      ALLOCATE (cov_deriv(npoints))
+      cov_deriv(:) = weights_deriv(:)
+      CALL DPOTRS("U", npoints, 1, training_matrix%GP, npoints, cov_deriv, npoints, info)
+      CPASSERT(info == 0)
+
+      ! calculate derivative of kernel
       gradient(:) = 0.0_dp
       DO i = 1, npoints
          kg = kernel_grad(pao%gp_scale, descriptor, training_matrix%inputs(i, :))
-         gradient(:) = gradient(:)+kg(:)*M(i)
+         gradient(:) = gradient(:)+kg(:)*cov_deriv(i)
       ENDDO
 
-      DEALLOCATE (M)
+      DEALLOCATE (cov_deriv, weights_deriv)
    END SUBROUTINE pao_ml_gp_gradient
 
 ! **************************************************************************************************

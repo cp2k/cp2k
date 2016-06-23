@@ -1355,6 +1355,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="SCREENING", &
+                          description="Exponent of the Gaussian screening.", &
+                          default_r_val=0.2_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="WEIGHT", &
                           description="Weight of Gaussian potential term.", &
                           default_r_val=1.0_dp)

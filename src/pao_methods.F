@@ -10,6 +10,8 @@
 MODULE pao_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE bibliography,                    ONLY: Kolafa2004,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
@@ -25,15 +27,22 @@ MODULE pao_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dm_ls_scf_methods,               ONLY: density_matrix_trs4,&
                                               ls_scf_init_matrix_S
-   USE dm_ls_scf_qs,                    ONLY: matrix_qs_to_ls
+   USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
+                                              ls_scf_qs_atomic_guess,&
+                                              matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
+   USE iterate_matrix,                  ONLY: purify_mcweeny
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE machine,                         ONLY: m_walltime
-   USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_max
-   USE pao_param,                       ONLY: pao_param_count,&
+   USE mathlib,                         ONLY: binomial,&
+                                              diamat_all
+   USE message_passing,                 ONLY: mp_max,&
+                                              mp_sum
+   USE pao_ml,                          ONLY: pao_machine_learning_forces
+   USE pao_param,                       ONLY: pao_calc_U,&
+                                              pao_param_count,&
                                               pao_update_AB
    USE pao_types,                       ONLY: pao_env_type
    USE particle_types,                  ONLY: particle_type
@@ -62,6 +71,7 @@ MODULE pao_methods
    PUBLIC :: pao_build_matrix_X, pao_build_core_hamiltonian
    PUBLIC :: pao_test_convergence
    PUBLIC :: pao_calc_energy, pao_check_trace_ps
+   PUBLIC :: pao_store_P, pao_add_forces, pao_guess_initial_P
    PUBLIC :: pao_read_preopt_dm
    PUBLIC :: pao_calc_outer_grad_lnv
    PUBLIC :: pao_check_grad
@@ -481,8 +491,8 @@ CONTAINS
          CALL cp_dbcsr_binary_read(pao%preopt_dm_file, matrix_new=matrix_tmp, &
                                    distribution=cp_dbcsr_distribution(matrix_s(1)%matrix))
          cs_pos = cp_dbcsr_checksum(matrix_tmp, pos=.TRUE.)
-         IF (pao%iw > 0) WRITE (pao%iw, '(T2,A,E20.8)') "Read restart DM "//TRIM(pao%preopt_dm_file)// &
-            " with checksum: ", cs_pos
+         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Read restart DM "// &
+            TRIM(pao%preopt_dm_file)//" with checksum: ", cs_pos
          CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix, matrix_tmp)
          CALL cp_dbcsr_release(matrix_tmp)
       ENDDO
@@ -902,5 +912,200 @@ CONTAINS
       ENDIF
 
    END FUNCTION eval_point
+
+! **************************************************************************************************
+!> \brief Stores density matrix as initial guess for next SCF optimization.
+!> \param qs_env ...
+!> \param ls_scf_env ...
+! **************************************************************************************************
+   SUBROUTINE pao_store_P(qs_env, ls_scf_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_store_P'
+
+      INTEGER                                            :: handle, ispin, istore
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(cp_dbcsr_type)                                :: matrix_tmp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
+      TYPE(pao_env_type), POINTER                        :: pao
+
+      IF (ls_scf_env%scf_history%nstore == 0) RETURN
+      CALL timeset(routineN, handle)
+      ls_mstruct => ls_scf_env%ls_mstruct
+      pao => ls_scf_env%pao_env
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s)
+
+      ls_scf_env%scf_history%istore = ls_scf_env%scf_history%istore+1
+      istore = MOD(ls_scf_env%scf_history%istore-1, ls_scf_env%scf_history%nstore)+1
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Storing density matrix for ASPC guess in slot:", istore
+
+      ! initialize storage
+      IF (ls_scf_env%scf_history%istore <= ls_scf_env%scf_history%nstore) THEN
+         DO ispin = 1, dft_control%nspins
+            CALL cp_dbcsr_init(ls_scf_env%scf_history%matrix(ispin, istore))
+            CALL cp_dbcsr_create(ls_scf_env%scf_history%matrix(ispin, istore), template=matrix_s(1)%matrix)
+         ENDDO
+      ENDIF
+
+      CALL cp_dbcsr_init(matrix_tmp)
+      CALL cp_dbcsr_create(matrix_tmp, template=ls_mstruct%matrix_B)
+
+      ! We are storing the density matrix in the non-orthonormal primary basis.
+      ! While the orthonormal basis would yield better extrapolations,
+      ! we simply can not affort to calculat S_sqrt in the primary basis.
+      DO ispin = 1, dft_control%nspins
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_mstruct%matrix_B, ls_scf_env%matrix_p(ispin), &
+                                0.0_dp, matrix_tmp)
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp, ls_mstruct%matrix_B, &
+                                0.0_dp, ls_scf_env%scf_history%matrix(ispin, istore))
+      ENDDO
+      CALL cp_dbcsr_release(matrix_tmp)
+
+      CALL timestop(handle)
+   END SUBROUTINE pao_store_P
+
+! **************************************************************************************************
+!> \brief Provide an initial guess for the density matrix
+!> \param pao ...
+!> \param qs_env ...
+!> \param ls_scf_env ...
+! **************************************************************************************************
+   SUBROUTINE pao_guess_initial_P(pao, qs_env, ls_scf_env)
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+
+      IF (ls_scf_env%scf_history%istore > 0) THEN
+         CALL pao_aspc_guess_P(pao, qs_env, ls_scf_env)
+         pao%need_initial_scf = .TRUE.
+      ELSE
+         IF (LEN_TRIM(pao%preopt_dm_file) > 0) THEN
+            CALL pao_read_preopt_dm(pao, qs_env)
+            pao%need_initial_scf = .FALSE.
+            pao%preopt_dm_file = "" ! load only for first MD step
+         ELSE
+            CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env%energy_init)
+            IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') " PAO| Energy from initial atomic guess:", ls_scf_env%energy_init
+            pao%need_initial_scf = .TRUE.
+         ENDIF
+      ENDIF
+
+   END SUBROUTINE pao_guess_initial_P
+
+! **************************************************************************************************
+!> \brief Run the Always Stable Predictor-Corrector to guess an initial density matrix
+!> \param pao ...
+!> \param qs_env ...
+!> \param ls_scf_env ...
+! **************************************************************************************************
+   SUBROUTINE pao_aspc_guess_P(pao, qs_env, ls_scf_env)
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_aspc_guess_P'
+
+      INTEGER                                            :: handle, iaspc, ispin, istore, naspc
+      REAL(dp)                                           :: alpha
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(cp_dbcsr_type)                                :: matrix_P, matrix_tmp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
+
+      CALL timeset(routineN, handle)
+      ls_mstruct => ls_scf_env%ls_mstruct
+      CPASSERT(ls_scf_env%scf_history%istore > 0)
+      CALL cite_reference(Kolafa2004)
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s)
+
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Calculating initial guess with ASPC"
+
+      CALL cp_dbcsr_init(matrix_tmp)
+      CALL cp_dbcsr_create(matrix_tmp, template=ls_mstruct%matrix_A)
+      CALL cp_dbcsr_init(matrix_P)
+      CALL cp_dbcsr_create(matrix_P, template=matrix_s(1)%matrix)
+
+      naspc = MIN(ls_scf_env%scf_history%istore, ls_scf_env%scf_history%nstore)
+      DO ispin = 1, dft_control%nspins
+         ! actual extrapolation
+         CALL cp_dbcsr_set(matrix_P, 0.0_dp)
+         DO iaspc = 1, naspc
+            alpha = (-1.0_dp)**(iaspc+1)*REAL(iaspc, KIND=dp)* &
+                    binomial(2*naspc, naspc-iaspc)/binomial(2*naspc-2, naspc-1)
+            istore = MOD(ls_scf_env%scf_history%istore-iaspc, ls_scf_env%scf_history%nstore)+1
+            CALL cp_dbcsr_add(matrix_P, ls_scf_env%scf_history%matrix(ispin, istore), 1.0_dp, alpha)
+         ENDDO
+
+         ! transform back from primary basis into pao basis
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_P, ls_mstruct%matrix_A, 0.0_dp, matrix_tmp)
+         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, ls_mstruct%matrix_A, matrix_tmp, 0.0_dp, ls_scf_env%matrix_p(ispin))
+      ENDDO
+
+      CALL cp_dbcsr_release(matrix_tmp)
+      CALL cp_dbcsr_release(matrix_P)
+
+      ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
+      DO ispin = 1, dft_control%nspins
+         IF (dft_control%nspins == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 0.5_dp)
+         ! we could go to the orthonomal basis, but it seems not worth the trouble
+         CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin), ls_scf_env%matrix_s, ls_scf_env%eps_filter, 3)
+         IF (dft_control%nspins == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 2.0_dp)
+      ENDDO
+
+      ! compute corresponding energy and ks matrix
+      CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
+
+      CALL timestop(handle)
+   END SUBROUTINE pao_aspc_guess_P
+
+! **************************************************************************************************
+!> \brief Calculate the forces contributed by PAO
+!> \param qs_env ...
+!> \param ls_scf_env ...
+! **************************************************************************************************
+   SUBROUTINE pao_add_forces(qs_env, ls_scf_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_add_forces'
+
+      INTEGER                                            :: handle, iatom, natoms
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: forces
+      TYPE(cp_dbcsr_type)                                :: matrix_M
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL timeset(routineN, handle)
+      pao => ls_scf_env%pao_env
+
+      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Adding forces."
+
+      CALL get_qs_env(qs_env, &
+                      para_env=para_env, &
+                      particle_set=particle_set, &
+                      natom=natoms)
+
+      ALLOCATE (forces(natoms, 3))
+      forces(:, :) = 0.0_dp
+      CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
+      CALL pao_calc_U(pao, qs_env, matrix_M, pao%matrix_G, forces=forces)
+      CALL cp_dbcsr_release(matrix_M)
+
+      IF (SIZE(pao%ml_training_set) > 0) &
+         CALL pao_machine_learning_forces(pao, qs_env, pao%matrix_G, forces)
+
+      CALL mp_sum(forces, para_env%group)
+      DO iatom = 1, natoms
+         particle_set(iatom)%f = particle_set(iatom)%f+forces(iatom, :)
+      ENDDO
+
+      DEALLOCATE (forces)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pao_add_forces
 
 END MODULE pao_methods
