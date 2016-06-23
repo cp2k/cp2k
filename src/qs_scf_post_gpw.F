@@ -102,7 +102,8 @@ MODULE qs_scf_post_gpw
    USE preconditioner_types,            ONLY: preconditioner_type
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
-                                              NEUMANN_BC
+                                              NEUMANN_BC,&
+                                              PERIODIC_BC
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: get_pw_grid_info
@@ -2985,7 +2986,7 @@ CONTAINS
 
          boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
          SELECT CASE (boundary_condition)
-         CASE (MIXED_PERIODIC_BC)
+         CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
             CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r%pw)
          CASE (MIXED_BC, NEUMANN_BC)
             CALL pw_shrink(pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
