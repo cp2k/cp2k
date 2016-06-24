@@ -14,7 +14,7 @@ MODULE pao_ml_descriptor
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi,&
+   USE mathconstants,                   ONLY: fourpi,&
                                               rootpi
    USE mathlib,                         ONLY: diamat_all
    USE pao_input,                       ONLY: pao_ml_desc_overlap,&
@@ -233,8 +233,8 @@ CONTAINS
 
       ! estimate maximum number of neighbors within screening
       screening_radius = exp_radius(0, sbeta_min, 1.0E-12_dp, 1.0_dp) ! TODO get the EPS parameter from somewhere / precompute this elsewhere
-      screening_volume = 0.75_dp*pi*screening_radius**3
-      N = INT(screening_volume/25.0_dp) ! rule of thumb
+      screening_volume = fourpi/3.0_dp*screening_radius**3
+      N = INT(screening_volume/45.0_dp) ! rule of thumb
 
       ALLOCATE (block_S(N, N), S_evals(N), S_evecs(N, N))
       IF (PRESENT(descriptor)) ALLOCATE (descriptor(N*ndesc))
