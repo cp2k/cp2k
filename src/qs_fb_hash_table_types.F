@@ -135,19 +135,6 @@ CONTAINS
    END SUBROUTINE fb_hash_table_add
 
 ! **************************************************************************************************
-!> \brief Associates one fb_hash_table object to another
-!> \param a : the fb_hash_table object to be associated
-!> \param b : the fb_hash_table object that a is to be associated to
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! **************************************************************************************************
-   SUBROUTINE fb_hash_table_associate(a, b)
-      TYPE(fb_hash_table_obj), INTENT(OUT)               :: a
-      TYPE(fb_hash_table_obj), INTENT(IN)                :: b
-
-      a%obj => b%obj
-   END SUBROUTINE fb_hash_table_associate
-
-! **************************************************************************************************
 !> \brief Creates and initialises an empty fb_hash_table object
 !> \param hash_table : the fb_hash_table object, its content must be NULL
 !>                     and cannot be UNDEFINED
@@ -293,7 +280,7 @@ CONTAINS
 !> \param nmax [OPTIONAL] : maximum size of the rehashed table
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! **************************************************************************************************
-   SUBROUTINE fb_hash_table_rehash(hash_table, nmax)
+   RECURSIVE SUBROUTINE fb_hash_table_rehash(hash_table, nmax)
       TYPE(fb_hash_table_obj), INTENT(INOUT)             :: hash_table
       INTEGER, INTENT(IN), OPTIONAL                      :: nmax
 
