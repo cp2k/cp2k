@@ -234,7 +234,7 @@ CONTAINS
       ! estimate maximum number of neighbors within screening
       screening_radius = exp_radius(0, sbeta_min, 1.0E-12_dp, 1.0_dp) ! TODO get the EPS parameter from somewhere / precompute this elsewhere
       screening_volume = 0.75_dp*pi*screening_radius**3
-      N = INT(screening_volume/30.0_dp) ! rule of thumb
+      N = INT(screening_volume/25.0_dp) ! rule of thumb
 
       ALLOCATE (block_S(N, N), S_evals(N), S_evecs(N, N))
       IF (PRESENT(descriptor)) ALLOCATE (descriptor(N*ndesc))
