@@ -335,31 +335,30 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dirichlet_bc_read_parameters', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, n_aac_rep, n_aap_rep, n_p_rep, &
-                                                            n_xaac_rep, parallel_plane, &
-                                                            xaa_cylindrical_apxtyp, &
-                                                            xaa_cylindrical_nsides
-      INTEGER, DIMENSION(:), POINTER                     :: aa_cuboidal_nprtn, aa_planar_nprtn, &
-                                                            planar_nprtn, xaa_cylindrical_nprtn
+      INTEGER :: aa_cylindrical_apxtyp, aa_cylindrical_nsides, i, n_aac_rep, n_aap_rep, n_p_rep, &
+         n_xaac_rep, parallel_axis, parallel_plane
+      INTEGER, DIMENSION(:), POINTER                     :: aa_cuboidal_nprtn, aa_cylindrical_nprtn, &
+                                                            aa_planar_nprtn, planar_nprtn
       LOGICAL                                            :: aa_cuboidal_explicit, &
-                                                            aa_planar_explicit, planar_explicit, &
-                                                            xaa_cylindrical_explicit
-      REAL(dp)                                           :: delta_alpha, intercept, sigma, &
-                                                            thickness, v_D, xaa_cylindrical_brad
+                                                            aa_cylindrical_explicit, &
+                                                            aa_planar_explicit, planar_explicit
+      REAL(dp)                                           :: aa_cylindrical_brad, delta_alpha, &
+                                                            intercept, sigma, thickness, v_D
       REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt, &
-         aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt, planar_Avtx, planar_Bvtx, planar_Cvtx, &
-         xaa_cylindrical_bctr, xaa_cylindrical_xxtnt
-      TYPE(section_vals_type), POINTER                   :: aa_cuboidal_section, aa_planar_section, &
-                                                            planar_section, xaa_cylindrical_section
+         aa_cylindrical_bctr, aa_cylindrical_xtnt, aa_planar_xxtnt, aa_planar_yxtnt, &
+         aa_planar_zxtnt, planar_Avtx, planar_Bvtx, planar_Cvtx
+      TYPE(section_vals_type), POINTER                   :: aa_cuboidal_section, &
+                                                            aa_cylindrical_section, &
+                                                            aa_planar_section, planar_section
 
       CALL section_vals_val_get(dbc_section, "VERBOSE_OUTPUT", l_val=params%dbc_params%verbose_output)
       aa_planar_section => section_vals_get_subs_vals(dbc_section, "AA_PLANAR")
       planar_section => section_vals_get_subs_vals(dbc_section, "PLANAR")
-      xaa_cylindrical_section => section_vals_get_subs_vals(dbc_section, "XAA_CYLINDRICAL")
+      aa_cylindrical_section => section_vals_get_subs_vals(dbc_section, "AA_CYLINDRICAL")
       aa_cuboidal_section => section_vals_get_subs_vals(dbc_section, "AA_CUBOIDAL")
       CALL section_vals_get(aa_planar_section, explicit=aa_planar_explicit, n_repetition=n_aap_rep)
       CALL section_vals_get(planar_section, explicit=planar_explicit, n_repetition=n_p_rep)
-      CALL section_vals_get(xaa_cylindrical_section, explicit=xaa_cylindrical_explicit, n_repetition=n_xaac_rep)
+      CALL section_vals_get(aa_cylindrical_section, explicit=aa_cylindrical_explicit, n_repetition=n_xaac_rep)
       CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep)
 
       IF (params%solver .EQ. pw_poisson_implicit) THEN
@@ -460,44 +459,47 @@ CONTAINS
             params%dbc_params%n_planar = 0
          END IF
 
-         IF (xaa_cylindrical_explicit) THEN
-            params%dbc_params%n_xaa_cylindrical = n_xaac_rep
-            ALLOCATE (params%dbc_params%xaa_cylindrical_nprtn(2, n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_nsides(n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_apxtyp(n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_xxtnt(2, n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_bctr(2, n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_brad(n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_vD(n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_sigma(n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_thickness(n_xaac_rep), &
-                      params%dbc_params%xaa_cylindrical_sgap(n_xaac_rep))
-            NULLIFY (xaa_cylindrical_nprtn, xaa_cylindrical_xxtnt, xaa_cylindrical_bctr)
+         IF (aa_cylindrical_explicit) THEN
+            params%dbc_params%n_aa_cylindrical = n_xaac_rep
+            ALLOCATE (params%dbc_params%aa_cylindrical_paxis(n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_nprtn(2, n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_nsides(n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_apxtyp(n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_xtnt(2, n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_bctr(2, n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_brad(n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_vD(n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_sigma(n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_thickness(n_xaac_rep), &
+                      params%dbc_params%aa_cylindrical_sgap(n_xaac_rep))
+            NULLIFY (aa_cylindrical_nprtn, aa_cylindrical_xtnt, aa_cylindrical_bctr)
             DO i = 1, n_xaac_rep
-               CALL section_vals_val_get(xaa_cylindrical_section, "N_PRTN", i_rep_section=i, i_vals=xaa_cylindrical_nprtn)
-               CALL section_vals_val_get(xaa_cylindrical_section, "N_SIDES", i_rep_section=i, i_val=xaa_cylindrical_nsides)
-               CALL section_vals_val_get(xaa_cylindrical_section, "APX_TYPE", i_rep_section=i, i_val=xaa_cylindrical_apxtyp)
-               CALL section_vals_val_get(xaa_cylindrical_section, "X_xtnt", i_rep_section=i, r_vals=xaa_cylindrical_xxtnt)
-               CALL section_vals_val_get(xaa_cylindrical_section, "BASE_CENTER", i_rep_section=i, r_vals=xaa_cylindrical_bctr)
-               CALL section_vals_val_get(xaa_cylindrical_section, "BASE_RADIUS", i_rep_section=i, r_val=xaa_cylindrical_brad)
-               CALL section_vals_val_get(xaa_cylindrical_section, "v_D", i_rep_section=i, r_val=v_D)
-               CALL section_vals_val_get(xaa_cylindrical_section, "SIGMA", i_rep_section=i, r_val=sigma)
-               CALL section_vals_val_get(xaa_cylindrical_section, "THICKNESS", i_rep_section=i, r_val=thickness)
-               CALL section_vals_val_get(xaa_cylindrical_section, "delta_alpha", i_rep_section=i, r_val=delta_alpha)
-               params%dbc_params%xaa_cylindrical_nprtn(:, i) = xaa_cylindrical_nprtn
-               params%dbc_params%xaa_cylindrical_nsides(i) = xaa_cylindrical_nsides
-               params%dbc_params%xaa_cylindrical_apxtyp(i) = xaa_cylindrical_apxtyp
-               params%dbc_params%xaa_cylindrical_xxtnt(:, i) = xaa_cylindrical_xxtnt
-               params%dbc_params%xaa_cylindrical_bctr(:, i) = xaa_cylindrical_bctr
-               params%dbc_params%xaa_cylindrical_brad(i) = xaa_cylindrical_brad
-               params%dbc_params%xaa_cylindrical_vD(i) = v_D
-               params%dbc_params%xaa_cylindrical_sigma(i) = sigma
-               params%dbc_params%xaa_cylindrical_thickness(i) = thickness
-               params%dbc_params%xaa_cylindrical_sgap(i) = delta_alpha
+               CALL section_vals_val_get(aa_cylindrical_section, "PARALLEL_AXIS", i_rep_section=i, i_val=parallel_axis)
+               CALL section_vals_val_get(aa_cylindrical_section, "N_PRTN", i_rep_section=i, i_vals=aa_cylindrical_nprtn)
+               CALL section_vals_val_get(aa_cylindrical_section, "N_SIDES", i_rep_section=i, i_val=aa_cylindrical_nsides)
+               CALL section_vals_val_get(aa_cylindrical_section, "APX_TYPE", i_rep_section=i, i_val=aa_cylindrical_apxtyp)
+               CALL section_vals_val_get(aa_cylindrical_section, "xtnt", i_rep_section=i, r_vals=aa_cylindrical_xtnt)
+               CALL section_vals_val_get(aa_cylindrical_section, "BASE_CENTER", i_rep_section=i, r_vals=aa_cylindrical_bctr)
+               CALL section_vals_val_get(aa_cylindrical_section, "BASE_RADIUS", i_rep_section=i, r_val=aa_cylindrical_brad)
+               CALL section_vals_val_get(aa_cylindrical_section, "v_D", i_rep_section=i, r_val=v_D)
+               CALL section_vals_val_get(aa_cylindrical_section, "SIGMA", i_rep_section=i, r_val=sigma)
+               CALL section_vals_val_get(aa_cylindrical_section, "THICKNESS", i_rep_section=i, r_val=thickness)
+               CALL section_vals_val_get(aa_cylindrical_section, "delta_alpha", i_rep_section=i, r_val=delta_alpha)
+               params%dbc_params%aa_cylindrical_paxis(i) = parallel_axis
+               params%dbc_params%aa_cylindrical_nprtn(:, i) = aa_cylindrical_nprtn
+               params%dbc_params%aa_cylindrical_nsides(i) = aa_cylindrical_nsides
+               params%dbc_params%aa_cylindrical_apxtyp(i) = aa_cylindrical_apxtyp
+               params%dbc_params%aa_cylindrical_xtnt(:, i) = aa_cylindrical_xtnt
+               params%dbc_params%aa_cylindrical_bctr(:, i) = aa_cylindrical_bctr
+               params%dbc_params%aa_cylindrical_brad(i) = aa_cylindrical_brad
+               params%dbc_params%aa_cylindrical_vD(i) = v_D
+               params%dbc_params%aa_cylindrical_sigma(i) = sigma
+               params%dbc_params%aa_cylindrical_thickness(i) = thickness
+               params%dbc_params%aa_cylindrical_sgap(i) = delta_alpha
             END DO
          ELSE
-            params%dbc_params%n_xaa_cylindrical = 0
-            ALLOCATE (params%dbc_params%xaa_cylindrical_nsides(n_xaac_rep))
+            params%dbc_params%n_aa_cylindrical = 0
+            ALLOCATE (params%dbc_params%aa_cylindrical_nsides(n_xaac_rep))
          END IF
 
          IF (aa_cuboidal_explicit) THEN

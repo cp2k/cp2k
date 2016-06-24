@@ -17,8 +17,8 @@ MODULE dirichlet_bc_methods
                                               cp_logger_type
    USE dirichlet_bc_types,              ONLY: &
         AA_CUBOIDAL, AA_PLANAR, CIRCUMSCRIBED, CYLINDRICAL, INSCRIBED, PLANAR, &
-        dbc_parameters_dealloc, dirichlet_bc_p_type, dirichlet_bc_type, tile_p_type, xy_plane, &
-        xz_plane, yz_plane
+        dbc_parameters_dealloc, dirichlet_bc_p_type, dirichlet_bc_type, tile_p_type, x_axis, &
+        xy_plane, xz_plane, y_axis, yz_plane, z_axis
    USE erf_fn,                          ONLY: erf
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
@@ -77,10 +77,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_boundary_region_setup', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: apx_type, dbc_id, handle, ind_end, ind_start, j, l, n_aa_cuboidal, n_aa_planar, &
-         n_dbcs, n_planar, n_xaa_cylindrical, parallel_plane, unit_nr
+      INTEGER :: apx_type, dbc_id, handle, ind_end, ind_start, j, l, n_aa_cuboidal, &
+         n_aa_cylindrical, n_aa_planar, n_dbcs, n_planar, parallel_axis, parallel_plane, unit_nr
       INTEGER, DIMENSION(3)                              :: n_prtn, npts
-      INTEGER, DIMENSION(:), POINTER                     :: xaa_cylindrical_nsides
+      INTEGER, DIMENSION(:), POINTER                     :: aa_cylindrical_nsides
       LOGICAL                                            :: verbose
       REAL(dp)                                           :: base_radius, delta_alpha, sigma, &
                                                             thickness, v_D
@@ -113,11 +113,11 @@ CONTAINS
       n_aa_planar = poisson_params%dbc_params%n_aa_planar
       n_aa_cuboidal = poisson_params%dbc_params%n_aa_cuboidal
       n_planar = poisson_params%dbc_params%n_planar
-      n_xaa_cylindrical = poisson_params%dbc_params%n_xaa_cylindrical
-      xaa_cylindrical_nsides => poisson_params%dbc_params%xaa_cylindrical_nsides
+      n_aa_cylindrical = poisson_params%dbc_params%n_aa_cylindrical
+      aa_cylindrical_nsides => poisson_params%dbc_params%aa_cylindrical_nsides
       pw_grid => pw_pool%pw_grid
       CALL setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
-      n_dbcs = n_aa_planar+n_aa_cuboidal+n_planar+SUM(xaa_cylindrical_nsides)
+      n_dbcs = n_aa_planar+n_aa_cuboidal+n_planar+SUM(aa_cylindrical_nsides)
 
       SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
       CASE (MIXED_BC, MIXED_PERIODIC_BC)
@@ -204,31 +204,32 @@ CONTAINS
          END DO
 
          l = n_aa_planar+n_aa_cuboidal+n_planar
-         DO j = 1, n_xaa_cylindrical
+         DO j = 1, n_aa_cylindrical
             ind_start = l+1
-            ind_end = l+xaa_cylindrical_nsides(j)
+            ind_end = l+aa_cylindrical_nsides(j)
 
             n_prtn = 1
-            n_prtn(1:2) = poisson_params%dbc_params%xaa_cylindrical_nprtn(:, j)
-            apx_type = poisson_params%dbc_params%xaa_cylindrical_apxtyp(j)
-            base_center = poisson_params%dbc_params%xaa_cylindrical_bctr(:, j)
-            base_radius = poisson_params%dbc_params%xaa_cylindrical_brad(j)
-            thickness = poisson_params%dbc_params%xaa_cylindrical_thickness(j)
-            delta_alpha = poisson_params%dbc_params%xaa_cylindrical_sgap(j)
-            sigma = poisson_params%dbc_params%xaa_cylindrical_sigma(j)
-            v_D = poisson_params%dbc_params%xaa_cylindrical_vD(j)
+            n_prtn(1:2) = poisson_params%dbc_params%aa_cylindrical_nprtn(:, j)
+            parallel_axis = poisson_params%dbc_params%aa_cylindrical_paxis(j)
+            apx_type = poisson_params%dbc_params%aa_cylindrical_apxtyp(j)
+            base_center = poisson_params%dbc_params%aa_cylindrical_bctr(:, j)
+            base_radius = poisson_params%dbc_params%aa_cylindrical_brad(j)
+            thickness = poisson_params%dbc_params%aa_cylindrical_thickness(j)
+            delta_alpha = poisson_params%dbc_params%aa_cylindrical_sgap(j)
+            sigma = poisson_params%dbc_params%aa_cylindrical_sigma(j)
+            v_D = poisson_params%dbc_params%aa_cylindrical_vD(j)
 
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", l+j
-               WRITE (unit_nr, '(T3,A)') "POISSON|     type : x-axis-aligned cylindrical"
+               WRITE (unit_nr, '(T3,A)') "POISSON|     type : axis-aligned cylindrical"
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
             END IF
-            CALL xaa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, &
-                                           poisson_params%dbc_params%xaa_cylindrical_xxtnt(:, j), &
-                                           base_center, base_radius, thickness, delta_alpha, sigma, v_D, &
-                                           n_prtn, verbose, dbcs(ind_start:ind_end))
+            CALL aa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, parallel_axis, &
+                                          poisson_params%dbc_params%aa_cylindrical_xtnt(:, j), &
+                                          base_center, base_radius, thickness, delta_alpha, sigma, v_D, &
+                                          n_prtn, verbose, dbcs(ind_start:ind_end))
 
-            l = l+xaa_cylindrical_nsides(j)
+            l = l+aa_cylindrical_nsides(j)
          END DO
 
       CASE (PERIODIC_BC, NEUMANN_BC)
@@ -730,7 +731,8 @@ CONTAINS
 !> \param y_locl y grid vetor of the simulation box local to this process
 !> \param z_locl z grid vetor of the simulation box local to this process
 !> \param apx_type the type of the n-gonal prism approximating the cylinder
-!> \param x_xtnt the x extent of the cylindrical region
+!> \param parallel_axis the coordinate axis that the cylindrical region extends along
+!> \param xtnt the x extent of the cylindrical region along its central axis
 !> \param base_center the y and z coordinates of the cylinder's base
 !> \param base_radius the radius of the cylinder's base
 !> \param thickness the thickness of the region
@@ -744,15 +746,16 @@ CONTAINS
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE xaa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, &
-                                        x_xtnt, base_center, base_radius, thickness, delta_alpha, &
-                                        sigma, v_D, n_prtn, verbose, dbcs)
+   SUBROUTINE aa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, parallel_axis, &
+                                       xtnt, base_center, base_radius, thickness, delta_alpha, &
+                                       sigma, v_D, n_prtn, verbose, dbcs)
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
       INTEGER, INTENT(IN), OPTIONAL                      :: apx_type
-      REAL(dp), DIMENSION(2), INTENT(IN)                 :: x_xtnt, base_center
+      INTEGER, INTENT(IN)                                :: parallel_axis
+      REAL(dp), DIMENSION(2), INTENT(IN)                 :: xtnt, base_center
       REAL(dp), INTENT(IN)                               :: base_radius, thickness, delta_alpha, &
                                                             sigma, v_D
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_prtn
@@ -760,17 +763,19 @@ CONTAINS
       TYPE(dirichlet_bc_p_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: dbcs
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xaa_cylindrical_dbc_setup', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_cylindrical_dbc_setup', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, intern_apx_type, j, n_dbcs, &
                                                             unit_nr
       LOGICAL                                            :: forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                                                             forb_xtnt4
-      REAL(dp)                                           :: h, Lx, Ly, Lz, theta, xlb, xub
+      REAL(dp)                                           :: cntrlaxis_lb, cntrlaxis_ub, h, Lx, Ly, &
+                                                            Lz, theta
       REAL(dp), DIMENSION(3)                             :: A, B, C, D, normal_vec, unit_normal
       TYPE(cp_logger_type), POINTER                      :: logger
-      REAL(dp), DIMENSION(SIZE(dbcs)+1)                  :: alpha, alpha_rotd, ylb, yub, zlb, zub
+      REAL(dp), DIMENSION(SIZE(dbcs)+1)                  :: alpha, alpha_rotd, xlb, xub, ylb, yub, &
+                                                            zlb, zub
 
       CALL timeset(routineN, handle)
 
@@ -785,26 +790,55 @@ CONTAINS
       Ly = cell_xtnts(2, 2)-cell_xtnts(1, 2)
       Lz = cell_xtnts(2, 3)-cell_xtnts(1, 3)
 
-      IF (x_xtnt(1) .LT. cell_xtnts(1, 1) .OR. x_xtnt(2) .GT. cell_xtnts(2, 1)) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "The length of the cylindrical Dirichlet region is larger than the "// &
-                       "x range of the simulation cell.")
-      END IF
-      forb_xtnt1 = base_center(1)-base_radius .LT. cell_xtnts(1, 2)
-      forb_xtnt2 = base_center(1)+base_radius .GT. cell_xtnts(2, 2)
-      forb_xtnt3 = base_center(2)-base_radius .LT. cell_xtnts(1, 3)
-      forb_xtnt4 = base_center(2)+base_radius .GT. cell_xtnts(2, 3)
-      IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
-         CPABORT("The cylinder does not fit entirely inside the simulation cell.")
-      END IF
+      SELECT CASE (parallel_axis)
+      CASE (x_axis)
+         IF (xtnt(1) .LT. cell_xtnts(1, 1) .OR. xtnt(2) .GT. cell_xtnts(2, 1)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The length of the cylindrical Dirichlet region is larger than the "// &
+                          "x range of the simulation cell.")
+         END IF
+         forb_xtnt1 = base_center(1)-base_radius .LT. cell_xtnts(1, 2)
+         forb_xtnt2 = base_center(1)+base_radius .GT. cell_xtnts(2, 2)
+         forb_xtnt3 = base_center(2)-base_radius .LT. cell_xtnts(1, 3)
+         forb_xtnt4 = base_center(2)+base_radius .GT. cell_xtnts(2, 3)
+         IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
+            CPABORT("The cylinder does not fit entirely inside the simulation cell.")
+         END IF
+      CASE (y_axis)
+         IF (xtnt(1) .LT. cell_xtnts(1, 2) .OR. xtnt(2) .GT. cell_xtnts(2, 2)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The length of the cylindrical Dirichlet region is larger than the "// &
+                          "y range of the simulation cell.")
+         END IF
+         forb_xtnt1 = base_center(1)-base_radius .LT. cell_xtnts(1, 1)
+         forb_xtnt2 = base_center(1)+base_radius .GT. cell_xtnts(2, 1)
+         forb_xtnt3 = base_center(2)-base_radius .LT. cell_xtnts(1, 3)
+         forb_xtnt4 = base_center(2)+base_radius .GT. cell_xtnts(2, 3)
+         IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
+            CPABORT("The cylinder does not fit entirely inside the simulation cell.")
+         END IF
+      CASE (z_axis)
+         IF (xtnt(1) .LT. cell_xtnts(1, 3) .OR. xtnt(2) .GT. cell_xtnts(2, 3)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The length of the cylindrical Dirichlet region is larger than the "// &
+                          "z range of the simulation cell.")
+         END IF
+         forb_xtnt1 = base_center(1)-base_radius .LT. cell_xtnts(1, 1)
+         forb_xtnt2 = base_center(1)+base_radius .GT. cell_xtnts(2, 1)
+         forb_xtnt3 = base_center(2)-base_radius .LT. cell_xtnts(1, 2)
+         forb_xtnt4 = base_center(2)+base_radius .GT. cell_xtnts(2, 2)
+         IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
+            CPABORT("The cylinder does not fit entirely inside the simulation cell.")
+         END IF
+      END SELECT
 
       intern_apx_type = CIRCUMSCRIBED
       IF (PRESENT(apx_type)) intern_apx_type = apx_type
 
       n_dbcs = SIZE(dbcs)
 
-      xlb = x_xtnt(1)
-      xub = x_xtnt(2)
+      cntrlaxis_lb = xtnt(1)
+      cntrlaxis_ub = xtnt(2)
 
       theta = twopi/n_dbcs
 
@@ -815,64 +849,176 @@ CONTAINS
       ELSE
          CPABORT("Unknown approximation type for cylinder.")
       END IF
-      IF (h .GT. MINVAL((/Ly, Lz/))) THEN
-         CPABORT("Reduce the base radius!")
-      END IF
+      SELECT CASE (parallel_axis)
+      CASE (x_axis)
+         IF (h .GT. MINVAL((/Ly, Lz/))) THEN
+            CPABORT("Reduce the base radius!")
+         END IF
+      CASE (y_axis)
+         IF (h .GT. MINVAL((/Lx, Lz/))) THEN
+            CPABORT("Reduce the base radius!")
+         END IF
+      CASE (z_axis)
+         IF (h .GT. MINVAL((/Lx, Ly/))) THEN
+            CPABORT("Reduce the base radius!")
+         END IF
+      END SELECT
 
       alpha = linspace(0.0_dp, 2*pi, n_dbcs+1)
       alpha_rotd = alpha+delta_alpha; 
-      DO j = 1, n_dbcs
-         ylb(j) = base_center(1)+h*SIN(alpha(j)); 
-         zlb(j) = base_center(2)+h*COS(alpha(j)); 
-         yub(j) = base_center(1)+h*SIN(alpha_rotd(j)); 
-         zub(j) = base_center(2)+h*COS(alpha_rotd(j)); 
-      END DO
-      ylb(n_dbcs+1) = ylb(1); 
-      yub(n_dbcs+1) = yub(1); 
-      zlb(n_dbcs+1) = zlb(1); 
-      zub(n_dbcs+1) = zub(1); 
-      DO j = 1, n_dbcs
-         ALLOCATE (dbcs(j)%dirichlet_bc)
-         dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
-         dbcs(j)%dirichlet_bc%v_D = v_D
-         dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
-         dbcs(j)%dirichlet_bc%smoothing_width = sigma
+      SELECT CASE (parallel_axis)
+      CASE (x_axis)
+         DO j = 1, n_dbcs
+            ylb(j) = base_center(1)+h*SIN(alpha(j))
+            zlb(j) = base_center(2)+h*COS(alpha(j))
+            yub(j) = base_center(1)+h*SIN(alpha_rotd(j))
+            zub(j) = base_center(2)+h*COS(alpha_rotd(j))
+         END DO
+         ylb(n_dbcs+1) = ylb(1)
+         yub(n_dbcs+1) = yub(1)
+         zlb(n_dbcs+1) = zlb(1)
+         zub(n_dbcs+1) = zub(1)
+         DO j = 1, n_dbcs
+            ALLOCATE (dbcs(j)%dirichlet_bc)
+            dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
+            dbcs(j)%dirichlet_bc%v_D = v_D
+            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
+            dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
-         A = (/xlb, yub(j), zub(j)/)
-         B = (/xlb, ylb(j+1), zlb(j+1)/)
-         C = (/xub, ylb(j+1), zlb(j+1)/)
-         D = (/xub, yub(j), zub(j)/)
-         normal_vec = vector_product((A-C), (D-B))
-         unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
+            A = (/cntrlaxis_lb, yub(j), zub(j)/)
+            B = (/cntrlaxis_lb, ylb(j+1), zlb(j+1)/)
+            C = (/cntrlaxis_ub, ylb(j+1), zlb(j+1)/)
+            D = (/cntrlaxis_ub, yub(j), zub(j)/)
+            normal_vec = vector_product((A-C), (D-B))
+            unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
 
-         dbcs(j)%dirichlet_bc%vertices(1:3, 1) = A
-         dbcs(j)%dirichlet_bc%vertices(1:3, 2) = B
-         dbcs(j)%dirichlet_bc%vertices(1:3, 3) = C
-         dbcs(j)%dirichlet_bc%vertices(1:3, 4) = D
-         dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D+thickness*unit_normal
-         dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A+thickness*unit_normal
-         dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B+thickness*unit_normal
-         dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 1) = A
+            dbcs(j)%dirichlet_bc%vertices(1:3, 2) = B
+            dbcs(j)%dirichlet_bc%vertices(1:3, 3) = C
+            dbcs(j)%dirichlet_bc%vertices(1:3, 4) = D
+            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C+thickness*unit_normal
 
-         dbcs(j)%dirichlet_bc%n_tiles = 1
+            dbcs(j)%dirichlet_bc%n_tiles = 1
 
-         IF ((unit_nr .GT. 0) .AND. verbose) THEN
-            WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
-            WRITE (unit_nr, '(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
-               "-gonal prism approximating the cylinder"
-            DO i = 1, 8
-               WRITE (unit_nr, '(T10,A,I1,3F10.3)') "   vertex ", i, &
-                  angstrom*dbcs(j)%dirichlet_bc%vertices(:, i)
-            END DO
-         END IF
+            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+               WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
+               WRITE (unit_nr, '(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
+                  "-gonal prism approximating the cylinder"
+               DO i = 1, 8
+                  WRITE (unit_nr, '(T10,A,I1,3F10.3)') "   vertex ", i, &
+                     angstrom*dbcs(j)%dirichlet_bc%vertices(:, i)
+               END DO
+            END IF
 
-         CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                     x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
-      END DO
+            CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
+                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+         END DO
+      CASE (y_axis)
+         DO j = 1, n_dbcs
+            xlb(j) = base_center(1)+h*SIN(alpha(j))
+            zlb(j) = base_center(2)+h*COS(alpha(j))
+            xub(j) = base_center(1)+h*SIN(alpha_rotd(j))
+            zub(j) = base_center(2)+h*COS(alpha_rotd(j))
+         END DO
+         xlb(n_dbcs+1) = xlb(1)
+         xub(n_dbcs+1) = xub(1)
+         zlb(n_dbcs+1) = zlb(1)
+         zub(n_dbcs+1) = zub(1)
+         DO j = 1, n_dbcs
+            ALLOCATE (dbcs(j)%dirichlet_bc)
+            dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
+            dbcs(j)%dirichlet_bc%v_D = v_D
+            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
+            dbcs(j)%dirichlet_bc%smoothing_width = sigma
+
+            A = (/xub(j), cntrlaxis_lb, zub(j)/)
+            B = (/xlb(j+1), cntrlaxis_lb, zlb(j+1)/)
+            C = (/xlb(j+1), cntrlaxis_ub, zlb(j+1)/)
+            D = (/xub(j), cntrlaxis_ub, zub(j)/)
+            normal_vec = vector_product((A-C), (D-B))
+            unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
+
+            dbcs(j)%dirichlet_bc%vertices(1:3, 1) = A
+            dbcs(j)%dirichlet_bc%vertices(1:3, 2) = B
+            dbcs(j)%dirichlet_bc%vertices(1:3, 3) = C
+            dbcs(j)%dirichlet_bc%vertices(1:3, 4) = D
+            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C+thickness*unit_normal
+
+            dbcs(j)%dirichlet_bc%n_tiles = 1
+
+            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+               WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
+               WRITE (unit_nr, '(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
+                  "-gonal prism approximating the cylinder"
+               DO i = 1, 8
+                  WRITE (unit_nr, '(T10,A,I1,3F10.3)') "   vertex ", i, &
+                     angstrom*dbcs(j)%dirichlet_bc%vertices(:, i)
+               END DO
+            END IF
+
+            CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
+                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+         END DO
+      CASE (z_axis)
+         DO j = 1, n_dbcs
+            xlb(j) = base_center(1)+h*SIN(alpha(j))
+            ylb(j) = base_center(2)+h*COS(alpha(j))
+            xub(j) = base_center(1)+h*SIN(alpha_rotd(j))
+            yub(j) = base_center(2)+h*COS(alpha_rotd(j))
+         END DO
+         xlb(n_dbcs+1) = xlb(1)
+         xub(n_dbcs+1) = xub(1)
+         ylb(n_dbcs+1) = ylb(1)
+         yub(n_dbcs+1) = yub(1)
+         DO j = 1, n_dbcs
+            ALLOCATE (dbcs(j)%dirichlet_bc)
+            dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
+            dbcs(j)%dirichlet_bc%v_D = v_D
+            dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
+            dbcs(j)%dirichlet_bc%smoothing_width = sigma
+
+            A = (/xub(j), yub(j), cntrlaxis_lb/)
+            B = (/xlb(j+1), ylb(j+1), cntrlaxis_lb/)
+            C = (/xlb(j+1), ylb(j+1), cntrlaxis_ub/)
+            D = (/xub(j), yub(j), cntrlaxis_ub/)
+            normal_vec = vector_product((A-C), (D-B))
+            unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
+
+            dbcs(j)%dirichlet_bc%vertices(1:3, 1) = A
+            dbcs(j)%dirichlet_bc%vertices(1:3, 2) = B
+            dbcs(j)%dirichlet_bc%vertices(1:3, 3) = C
+            dbcs(j)%dirichlet_bc%vertices(1:3, 4) = D
+            dbcs(j)%dirichlet_bc%vertices(1:3, 5) = D+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 6) = A+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 7) = B+thickness*unit_normal
+            dbcs(j)%dirichlet_bc%vertices(1:3, 8) = C+thickness*unit_normal
+
+            dbcs(j)%dirichlet_bc%n_tiles = 1
+
+            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+               WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
+               WRITE (unit_nr, '(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
+                  "-gonal prism approximating the cylinder"
+               DO i = 1, 8
+                  WRITE (unit_nr, '(T10,A,I1,3F10.3)') "   vertex ", i, &
+                     angstrom*dbcs(j)%dirichlet_bc%vertices(:, i)
+               END DO
+            END IF
+
+            CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
+                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+         END DO
+      END SELECT
 
       CALL timestop(handle)
 
-   END SUBROUTINE xaa_cylindrical_dbc_setup
+   END SUBROUTINE aa_cylindrical_dbc_setup
 
 ! **************************************************************************************************
 !> \brief  Creteas an evenly-spaced 1D array between two values

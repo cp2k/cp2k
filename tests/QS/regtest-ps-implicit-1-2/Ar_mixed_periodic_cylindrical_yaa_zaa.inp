@@ -1,12 +1,12 @@
 @SET PS   IMPLICIT
-@SET BC   MIXED
+@SET BC   MIXED_PERIODIC
 @SET Diag 0
 @SET OT   1
 @SET LS   off
 @SET RST  off
 
 &GLOBAL
-  PROJECT     Ar_neumann_yz_periodic_x_dirichlet_xaacyl
+  PROJECT     Ar_mixed_periodic_cylindrical_yaa_zaa
   RUN_TYPE    ENERGY
   PRINT_LEVEL MEDIUM
 &END GLOBAL
@@ -21,11 +21,10 @@
       &IMPLICIT
         BOUNDARY_CONDITIONS ${BC}
         MAX_ITER     300
-        TOL          1.0E-6
+        TOL          1.0E-8
         OR_PARAMETER 1.0
-        NEUMANN_DIRECTIONS    YZ
         &DIELECTRIC
-          DIELECTRIC_CONSTANT 1.50
+          DIELECTRIC_CONSTANT 1.00
           RHO_MIN    1.0E-4
           RHO_MAX    1.0E-3
           DERIVATIVE_METHOD cd3
@@ -33,16 +32,29 @@
         &DIRICHLET_BC
           &AA_CYLINDRICAL
             v_D         0.01
-            parallel_axis  X
-            xtnt        0.5 7.5
+            parallel_axis  Z
+            xtnt        1.5 6.5
             base_center 4.0 4.0
-            base_radius 3.5
-            apx_type    INSCRIBED
-            n_sides     6
+            base_radius 3.0
+            apx_type    CIRCUMSCRIBED
+            n_sides     7
             n_prtn      1 1 
-            thickness   0.45
-            smoothing_width 0.08
-            delta_alpha 0.12
+            thickness   0.2
+            smoothing_width 0.1
+            delta_alpha 0.10
+          &END AA_CYLINDRICAL
+          &AA_CYLINDRICAL
+            v_D         0.01
+            parallel_axis  Y
+            xtnt        3.0 5.0
+            base_center 4.0 4.0
+            base_radius 2.2
+            apx_type    INSCRIBED
+            n_sides     7
+            n_prtn      1 1 
+            thickness   0.2
+            smoothing_width 0.1
+            delta_alpha 0.05
           &END AA_CYLINDRICAL
         &END DIRICHLET_BC
       &END IMPLICIT

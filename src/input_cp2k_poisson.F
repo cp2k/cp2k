@@ -38,9 +38,12 @@ MODULE input_cp2k_poisson
         derivative_fft_use_drho, rho_dependent, spatially_dependent, spatially_rho_dependent
    USE dirichlet_bc_types,              ONLY: CIRCUMSCRIBED,&
                                               INSCRIBED,&
+                                              x_axis,&
                                               xy_plane,&
                                               xz_plane,&
-                                              yz_plane
+                                              y_axis,&
+                                              yz_plane,&
+                                              z_axis
    USE input_constants,                 ONLY: do_fist_pol_cg,&
                                               do_fist_pol_none,&
                                               do_fist_pol_sc
@@ -881,7 +884,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_xaa_cylindrical_section(subsection)
+      CALL create_aa_cylindrical_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1052,18 +1055,18 @@ CONTAINS
 !> \param section the section to be created
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE create_xaa_cylindrical_section(section)
+   SUBROUTINE create_aa_cylindrical_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_xaa_cylindrical_section', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_cylindrical_section', &
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="XAA_CYLINDRICAL", &
-                          description="Parameters for creating x-axis-aligned cylindrical Dirichlet boundary regions.", &
-                          n_keywords=10, n_subsections=0, repeats=.TRUE.)
+      CALL section_create(section, name="AA_CYLINDRICAL", &
+                          description="Parameters for creating axis-aligned cylindrical Dirichlet boundary regions.", &
+                          n_keywords=11, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -1073,9 +1076,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="X_xtnt", &
-                          description="The X extents of the cylinder.", &
-                          usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+      CALL keyword_create(keyword, name="PARALLEL_AXIS", &
+                          enum_c_vals=s2a('X', 'Y', 'Z'), &
+                          enum_i_vals=(/x_axis, y_axis, z_axis/), &
+                          description="The coordinate axis that the cylindrical region extends along.", &
+                          usage="PARALLEL_AXIS <axis>", &
+                          type_of_var=enum_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="xtnt", &
+                          description="The extents of the cylinder along its central axis.", &
+                          usage="xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1137,7 +1149,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE create_xaa_cylindrical_section
+   END SUBROUTINE create_aa_cylindrical_section
 
 ! **************************************************************************************************
 !> \brief Creates the section for creating axis-aligned cuboidal Dirichlet region.

@@ -30,9 +30,10 @@
           DERIVATIVE_METHOD cd3
         &END DIELECTRIC
         &DIRICHLET_BC
-          &XAA_CYLINDRICAL
+          &AA_CYLINDRICAL
             v_D         0.01
-            X_xtnt      0.5 7.5
+            parallel_axis  X
+            xtnt        0.5 7.5
             base_center 4.0 4.0
             base_radius 3.5
             apx_type    CIRCUMSCRIBED
@@ -40,7 +41,7 @@
             thickness   0.47
             n_prtn      1 2
             smoothing_width 0.1
-          &END XAA_CYLINDRICAL
+          &END AA_CYLINDRICAL
         &END DIRICHLET_BC
       &END IMPLICIT
     &END POISSON

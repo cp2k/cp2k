@@ -48,17 +48,18 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_sigma => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_thickness => NULL()
 
-      INTEGER                                  :: n_xaa_cylindrical
-      INTEGER, DIMENSION(:, :), POINTER         :: xaa_cylindrical_nprtn => NULL()
-      INTEGER, DIMENSION(:), POINTER           :: xaa_cylindrical_nsides => NULL()
-      INTEGER, DIMENSION(:), POINTER           :: xaa_cylindrical_apxtyp => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: xaa_cylindrical_xxtnt => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: xaa_cylindrical_bctr => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: xaa_cylindrical_brad => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: xaa_cylindrical_vD => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: xaa_cylindrical_sigma => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: xaa_cylindrical_thickness => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: xaa_cylindrical_sgap => NULL()
+      INTEGER                                  :: n_aa_cylindrical
+      INTEGER, DIMENSION(:, :), POINTER         :: aa_cylindrical_nprtn => NULL()
+      INTEGER, DIMENSION(:), POINTER           :: aa_cylindrical_paxis => NULL()
+      INTEGER, DIMENSION(:), POINTER           :: aa_cylindrical_nsides => NULL()
+      INTEGER, DIMENSION(:), POINTER           :: aa_cylindrical_apxtyp => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cylindrical_xtnt => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cylindrical_bctr => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_brad => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_vD => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_sigma => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_thickness => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_sgap => NULL()
 
       INTEGER                                  :: n_aa_cuboidal
       INTEGER, DIMENSION(:, :), POINTER         :: aa_cuboidal_nprtn => NULL()
@@ -117,6 +118,9 @@ MODULE dirichlet_bc_types
                                            xz_plane = 101, &
                                            yz_plane = 011
 
+   INTEGER, PARAMETER, PUBLIC           :: x_axis = 100, &
+                                           y_axis = 010, &
+                                           z_axis = 001
 CONTAINS
 
 ! **************************************************************************************************
@@ -232,16 +236,17 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%planar_sigma)) DEALLOCATE (dbc_params%planar_sigma)
       IF (ASSOCIATED(dbc_params%planar_thickness)) DEALLOCATE (dbc_params%planar_thickness)
 
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_nprtn)) DEALLOCATE (dbc_params%xaa_cylindrical_nprtn)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_nsides)) DEALLOCATE (dbc_params%xaa_cylindrical_nsides)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_apxtyp)) DEALLOCATE (dbc_params%xaa_cylindrical_apxtyp)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_xxtnt)) DEALLOCATE (dbc_params%xaa_cylindrical_xxtnt)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_bctr)) DEALLOCATE (dbc_params%xaa_cylindrical_bctr)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_brad)) DEALLOCATE (dbc_params%xaa_cylindrical_brad)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_vD)) DEALLOCATE (dbc_params%xaa_cylindrical_vD)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_sigma)) DEALLOCATE (dbc_params%xaa_cylindrical_sigma)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_thickness)) DEALLOCATE (dbc_params%xaa_cylindrical_thickness)
-      IF (ASSOCIATED(dbc_params%xaa_cylindrical_sgap)) DEALLOCATE (dbc_params%xaa_cylindrical_sgap)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_paxis)) DEALLOCATE (dbc_params%aa_cylindrical_paxis)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_nprtn)) DEALLOCATE (dbc_params%aa_cylindrical_nprtn)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_nsides)) DEALLOCATE (dbc_params%aa_cylindrical_nsides)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_apxtyp)) DEALLOCATE (dbc_params%aa_cylindrical_apxtyp)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_xtnt)) DEALLOCATE (dbc_params%aa_cylindrical_xtnt)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_bctr)) DEALLOCATE (dbc_params%aa_cylindrical_bctr)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_brad)) DEALLOCATE (dbc_params%aa_cylindrical_brad)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_vD)) DEALLOCATE (dbc_params%aa_cylindrical_vD)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_sigma)) DEALLOCATE (dbc_params%aa_cylindrical_sigma)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_thickness)) DEALLOCATE (dbc_params%aa_cylindrical_thickness)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_sgap)) DEALLOCATE (dbc_params%aa_cylindrical_sgap)
 
       IF (ASSOCIATED(dbc_params%aa_cuboidal_nprtn)) DEALLOCATE (dbc_params%aa_cuboidal_nprtn)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_xxtnt)) DEALLOCATE (dbc_params%aa_cuboidal_xxtnt)
