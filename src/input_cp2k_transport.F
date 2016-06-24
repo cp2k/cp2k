@@ -79,7 +79,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="N_ABSCISSAE", &
-                          description="The number of abscissae per integration interval on the real axis.", &
+                          description="The number of terms in the PEXSI's pole expansion method.", &
                           usage="N_ABSCISSAE <integer>", default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
