@@ -316,11 +316,19 @@ CONTAINS
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
       LOGICAL, INTENT(IN)                                :: pao_is_done
 
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_post_scf'
+
+      INTEGER                                            :: handle
+
       IF (.NOT. ls_scf_env%do_pao) RETURN
       IF (.NOT. pao_is_done) RETURN
 
+      CALL timeset(routineN, handle)
+
       CALL pao_store_P(qs_env, ls_scf_env)
       CALL pao_add_forces(qs_env, ls_scf_env)
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
