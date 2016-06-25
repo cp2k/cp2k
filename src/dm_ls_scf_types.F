@@ -138,6 +138,8 @@ MODULE dm_ls_scf_types
       LOGICAL :: do_transport
       LOGICAL :: do_pexsi
 
+      LOGICAL :: calculate_forces
+
       TYPE(lib_pexsi_env) :: pexsi
 
       TYPE(cp_para_env_type), POINTER :: para_env

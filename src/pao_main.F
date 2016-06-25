@@ -326,7 +326,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL pao_store_P(qs_env, ls_scf_env)
-      CALL pao_add_forces(qs_env, ls_scf_env)
+      IF (ls_scf_env%calculate_forces) CALL pao_add_forces(qs_env, ls_scf_env)
 
       CALL timestop(handle)
    END SUBROUTINE

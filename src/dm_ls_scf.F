@@ -255,7 +255,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspin, unit_nr
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, matrix_w
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -275,6 +275,7 @@ CONTAINS
       ! get basic quantities from the qs_env
       CALL get_qs_env(qs_env, nelectron_total=ls_scf_env%nelectron_total, &
                       matrix_s=matrix_s, &
+                      matrix_w=matrix_w, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       molecule_set=molecule_set, &
@@ -282,6 +283,9 @@ CONTAINS
                       has_unit_metric=ls_scf_env%has_unit_metric, &
                       para_env=ls_scf_env%para_env, &
                       nelectron_spin=ls_scf_env%nelectron_spin)
+
+      ! needs forces ? There might be a better way to flag this
+      ls_scf_env%calculate_forces = ASSOCIATED(matrix_w)
 
       ! some basic initialization of the QS side of things
       CALL ls_scf_init_qs(qs_env)
@@ -1144,8 +1148,9 @@ CONTAINS
       ENDIF
 
       ! compute the matrix_w if associated
-      CALL get_qs_env(qs_env, matrix_w=matrix_w)
-      IF (ASSOCIATED(matrix_w)) THEN
+      IF (ls_scf_env%calculate_forces) THEN
+         CALL get_qs_env(qs_env, matrix_w=matrix_w)
+         CPASSERT(ASSOCIATED(matrix_w))
          IF (ls_scf_env%do_pexsi) THEN
             CALL pexsi_to_qs(ls_scf_env, qs_env, matrix_w=ls_scf_env%pexsi%matrix_w)
          ELSE
