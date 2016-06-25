@@ -221,9 +221,9 @@ CONTAINS
             ENDIF
          ENDDO
          IF (PRESENT(block_M)) DEALLOCATE (block_D)
-      ELSE !---------------------------------------------------------------------------------------
 
-         IF (.NOT. PRESENT(block_V)) RETURN ! terms on central atom do not contribute to forces
+      ELSE IF (PRESENT(block_V)) THEN ! terms on central atom -------------------------------------
+         ! terms on central atom do not contribute to forces
 
          ! spherical symmetric terms on central atom
          outer2: DO max_shell = 1, nshells
