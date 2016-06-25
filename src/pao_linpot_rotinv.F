@@ -43,13 +43,17 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nterms
 
-      INTEGER                                            :: ipot, iset, ishell, ishell_abs, lmax, &
-                                                            lmin, lpot, max_shell, min_shell, &
-                                                            npots, nshells, pot_maxl
+      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_count_terms'
+
+      INTEGER                                            :: handle, ipot, iset, ishell, ishell_abs, &
+                                                            lmax, lmin, lpot, max_shell, &
+                                                            min_shell, npots, nshells, pot_maxl
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: shell_l
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, pao_potentials=pao_potentials)
@@ -97,6 +101,8 @@ CONTAINS
       ENDDO
       ENDDO
 
+      CALL timestop(handle)
+
    END SUBROUTINE linpot_rotinv_count_terms
 
 ! **************************************************************************************************
@@ -115,7 +121,9 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(IN), OPTIONAL    :: block_M
       REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
-      INTEGER :: c, i, ikind, ipot, iset, ishell, ishell_abs, jatom, jkind, jset, jshell, &
+      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_calc_term'
+
+      INTEGER :: c, handle, i, ikind, ipot, iset, ishell, ishell_abs, jatom, jkind, jset, jshell, &
          jshell_abs, lmax, lmin, lpot, max_shell, min_shell, N, natoms, npots, nshells, pot_maxl, &
          sgfa1, sgfa2, sgla1, sgla2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: shell_l
@@ -127,6 +135,8 @@ CONTAINS
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: ipao_potentials, jpao_potentials
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL timeset(routineN, handle)
 
       CPASSERT(PRESENT(block_M) .EQV. PRESENT(forces))
 
@@ -249,6 +259,7 @@ CONTAINS
          block_V = block_V/SQRT(SUM(block_V**2)) ! normalize
 
       ENDIF
+      CALL timestop(handle)
    END SUBROUTINE linpot_rotinv_calc_term
 
 END MODULE pao_linpot_rotinv
