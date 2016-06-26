@@ -978,10 +978,28 @@ CONTAINS
                "Wfn fit exchange-correlation energy:           ", energy%exc_aux_fit
          END IF
          IF (dft_control%do_admm) THEN
-            WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
-               "Core Hamiltonian energy:                       ", energy%core, &
-               "Hartree energy:                                ", energy%hartree, &
-               "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+            IF (psolver .EQ. pw_poisson_implicit) THEN
+               implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
+               bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+               SELECT CASE (bc)
+               CASE (MIXED_PERIODIC_BC, MIXED_BC)
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
+                     "Core Hamiltonian energy:                       ", energy%core, &
+                     "Hartree energy:                                ", implicit_ps_ehartree, &
+                     "Electric enthalpy:                             ", energy%hartree, &
+                     "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+               CASE (PERIODIC_BC, NEUMANN_BC)
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
+                     "Core Hamiltonian energy:                       ", energy%core, &
+                     "Hartree energy:                                ", energy%hartree, &
+                     "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+               END SELECT
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(/,(T3,A,T61,F20.10))") &
+                  "Core Hamiltonian energy:                       ", energy%core, &
+                  "Hartree energy:                                ", energy%hartree, &
+                  "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+            END IF
          ELSE
 !ZMP to print some variables at each step
             IF (dft_control%apply_external_density) THEN

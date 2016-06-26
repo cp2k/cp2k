@@ -289,7 +289,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bc, handle, ispin, psolver
-      REAL(kind=dp)                                      :: implicit_ps_ehartree, tot1_h, tot1_s
+      REAL(kind=dp)                                      :: exc_energy, implicit_ps_ehartree, &
+                                                            tot1_h, tot1_s
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(pw_env_type), POINTER                         :: pw_env
 
@@ -365,41 +366,38 @@ CONTAINS
                "London dispersion energy:                      ", energy%dispersion
          ELSE
             IF (dft_control%do_admm) THEN
-               WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-                  "Overlap energy of the core charge distribution:", energy%core_overlap, &
-                  "Self energy of the core charge distribution:   ", energy%core_self, &
-                  "Core Hamiltonian energy:                       ", energy%core, &
-                  "Hartree energy:                                ", energy%hartree, &
-                  "Exchange-correlation energy:                   ", energy%exc+energy%exc_aux_fit
+               exc_energy = energy%exc+energy%exc_aux_fit
             ELSE
-               IF (psolver .EQ. pw_poisson_implicit) THEN
-                  implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
-                  bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
-                  SELECT CASE (bc)
-                  CASE (MIXED_PERIODIC_BC, MIXED_BC)
-                     WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-                        "Overlap energy of the core charge distribution:", energy%core_overlap, &
-                        "Self energy of the core charge distribution:   ", energy%core_self, &
-                        "Core Hamiltonian energy:                       ", energy%core, &
-                        "Hartree energy:                                ", implicit_ps_ehartree, &
-                        "Electric enthalpy:                             ", energy%hartree, &
-                        "Exchange-correlation energy:                   ", energy%exc
-                  CASE (PERIODIC_BC, NEUMANN_BC)
-                     WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-                        "Overlap energy of the core charge distribution:", energy%core_overlap, &
-                        "Self energy of the core charge distribution:   ", energy%core_self, &
-                        "Core Hamiltonian energy:                       ", energy%core, &
-                        "Hartree energy:                                ", energy%hartree, &
-                        "Exchange-correlation energy:                   ", energy%exc
-                  END SELECT
-               ELSE
+               exc_energy = energy%exc
+            END IF
+
+            IF (psolver .EQ. pw_poisson_implicit) THEN
+               implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
+               bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+               SELECT CASE (bc)
+               CASE (MIXED_PERIODIC_BC, MIXED_BC)
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+                     "Overlap energy of the core charge distribution:", energy%core_overlap, &
+                     "Self energy of the core charge distribution:   ", energy%core_self, &
+                     "Core Hamiltonian energy:                       ", energy%core, &
+                     "Hartree energy:                                ", implicit_ps_ehartree, &
+                     "Electric enthalpy:                             ", energy%hartree, &
+                     "Exchange-correlation energy:                   ", exc_energy
+               CASE (PERIODIC_BC, NEUMANN_BC)
                   WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                      "Overlap energy of the core charge distribution:", energy%core_overlap, &
                      "Self energy of the core charge distribution:   ", energy%core_self, &
                      "Core Hamiltonian energy:                       ", energy%core, &
                      "Hartree energy:                                ", energy%hartree, &
-                     "Exchange-correlation energy:                   ", energy%exc
-               END IF
+                     "Exchange-correlation energy:                   ", exc_energy
+               END SELECT
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+                  "Overlap energy of the core charge distribution:", energy%core_overlap, &
+                  "Self energy of the core charge distribution:   ", energy%core_self, &
+                  "Core Hamiltonian energy:                       ", energy%core, &
+                  "Hartree energy:                                ", energy%hartree, &
+                  "Exchange-correlation energy:                   ", exc_energy
             END IF
             IF (energy%e_hartree /= 0.0_dp) &
                WRITE (UNIT=output_unit, FMT="(T3,A,/,T3,A,T56,F25.14)") &
