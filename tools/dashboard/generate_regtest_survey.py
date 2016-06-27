@@ -50,6 +50,9 @@ def main():
         inp_names.update(report.keys())
         tester_values[tname] = report
 
+    # remove outdated inp-names
+    inp_names = inp_names.intersection(test_defs.keys())
+
     # html-header
     output  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n'
     output += '<html><head>\n'
