@@ -55,7 +55,7 @@
 # Example 3: grep for some other values
 #    As described in Example 2, create a file, called diff_cp2k_keys.py, 
 #    where you declare the keywords that you want to grep from the output, e.g.
-#       stats_keys={'flops total':0,'average stack size':2}
+#       stats_keys={'flops total':[0],'average stack size':[1,2]}
 #    The script splits the line by the keyword in two parts and reports 
 #    the field at the given position of the right part.
 #    The file is automatically loaded from the local directory where 
@@ -92,7 +92,9 @@ def read_file(filename,field,special_keys,stats_keys):
                 nstats=1
                 for stats_key in stats_keys:
                     if stats_key in line:
-                        dict_stats[stats_key] = line.split(stats_key,2)[1].split()[stats_keys[stats_key]]
+                        for index in stats_keys[stats_key]:
+                            index_key=stats_key.strip()+' ['+str(index)+']'
+                            dict_stats[index_key] = line.split(stats_key,2)[1].split()[index]
                         break
                 if "T I M I N G" not in line and nline == 0 : continue
                 nline+=1
@@ -215,8 +217,13 @@ def main():
     print("")
 
     ref=float(files[args.file_lists[args.base-1]][1])
+    color='\033[0m'
+    endc='\033[0m'
     for filename in args.file_lists:
-        print('{0} ==> {1} : {2} : {3}'.format(files[filename][0],filename,files[filename][1],(float(files[filename][1])-ref)/ref))
+        comp=(float(files[filename][1])-ref)/ref
+        if abs(comp)>1e-15: color='\033[91m'
+        else: color='\033[0m'
+        print(('{0} ==> {1} : {2} : '+color+'{3}'+endc).format(files[filename][0],filename,files[filename][1],(float(files[filename][1])-ref)/ref))
 
     print("") 
 
@@ -240,14 +247,16 @@ def main():
     print("===== Stats report =====")
 
     if len(stats_keys) > 0:
-        for key in stats_keys:
-            sys.stdout.write(key.ljust(30))
-            for filename in args.file_lists:
-                if key not in dict_stats[filename]:
-                    sys.stdout.write(('-'*20).rjust(20))
-                    continue
-                sys.stdout.write(dict_stats[filename][key].ljust(20))
-            print("")
+        for stats_key in stats_keys:
+            for index in stats_keys[stats_key]:
+                index_key=stats_key.strip()+' ['+str(index)+']'
+                sys.stdout.write(index_key.ljust(35))
+                for filename in args.file_lists:
+                    if index_key not in dict_stats[filename]:
+                        sys.stdout.write(('-'*20).rjust(20))
+                        continue
+                    sys.stdout.write(dict_stats[filename][index_key].ljust(20))
+                print("")
     else:
         print("<None>")
 
