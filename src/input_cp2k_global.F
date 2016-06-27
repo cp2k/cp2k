@@ -421,8 +421,8 @@ CONTAINS
 
       CALL keyword_create(keyword, name="TIME_MPI", &
                           description="Include message_passing calls in the timing report (useful with CALLGRAPH).", &
-                          usage="TIME_MPI .TRUE.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          usage="TIME_MPI .FALSE.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
