@@ -473,7 +473,8 @@ CONTAINS
          CALL pw_grid_setup(my_cell%hmat, vdw_grid, grid_span=grid_span, &
                             cutoff=dispersion_env%pw_cutoff, &
                             spherical=spherical, odd=odd, fft_usage=.TRUE., &
-                            ncommensurate=ncommensurate, icommensurate=0, &
+                            !deb                        ncommensurate=ncommensurate, icommensurate=0, &
+                            ncommensurate=0, icommensurate=0, &
                             blocked=do_pw_grid_blocked_false, &
                             ref_grid=old_pw_grid, &
                             rs_dims=distribution_layout, &
