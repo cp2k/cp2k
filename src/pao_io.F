@@ -112,7 +112,7 @@ CONTAINS
 
          ! check cell
          IF (MAXVAL(ABS(hmat-cell%hmat)) > 1e-10) &
-            CPABORT("Restarting from differnt cell")
+            CPWARN("Restarting from differnt cell")
 
          ! check parametrization
          IF (TRIM(param) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
@@ -359,9 +359,9 @@ CONTAINS
          IF (pao_kind%pao_potentials(ipot)%max_projector /= pao_potentials(ipot)%max_projector) &
             CPABORT("PAO_POT_MAX_PROJECTOR does not match")
          IF (pao_kind%pao_potentials(ipot)%beta /= pao_potentials(ipot)%beta) &
-            CPABORT("PAO_POT_BETA does not match")
+            CPWARN("PAO_POT_BETA does not match")
          IF (pao_kind%pao_potentials(ipot)%weight /= pao_potentials(ipot)%weight) &
-            CPABORT("PAO_POT_WEIGHT does not match")
+            CPWARN("PAO_POT_WEIGHT does not match")
       ENDDO
 
    END SUBROUTINE pao_kinds_ensure_equal
