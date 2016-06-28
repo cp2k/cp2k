@@ -40,7 +40,8 @@ MODULE thermal_region_utils
                                               dp
    USE memory_utilities,                ONLY: reallocate
    USE particle_list_types,             ONLY: particle_list_type
-   USE physcon,                         ONLY: femtoseconds, kelvin
+   USE physcon,                         ONLY: femtoseconds,&
+                                              kelvin
    USE simpar_types,                    ONLY: simpar_type
    USE string_utilities,                ONLY: integer_to_string
    USE thermal_region_types,            ONLY: allocate_thermal_regions,&
@@ -83,7 +84,8 @@ CONTAINS
       INTEGER                                            :: i, il, ipart, ireg, nlist, nregions
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
-                                                            do_langevin_default, do_read_ngr, explicit
+                                                            do_langevin_default, do_read_ngr, &
+                                                            explicit
       REAL(KIND=dp)                                      :: temp, temp_tol
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
@@ -170,13 +172,13 @@ CONTAINS
                      IF (.NOT. do_langevin) THEN
                         CALL integer_to_string(ireg, my_region)
                         CALL cp_warn(__LOCATION__, &
-                                     "You provided NOISY_GAMMA_REGION but atoms in thermal region "//TRIM(my_region)//&
-                                     " will not undergo Langevin MD. "//&
+                                     "You provided NOISY_GAMMA_REGION but atoms in thermal region "//TRIM(my_region)// &
+                                     " will not undergo Langevin MD. "// &
                                      "NOISY_GAMMA_REGION will be ignored and its value discarded!")
                      END IF
                   ELSE
                      CALL cp_warn(__LOCATION__, &
-                                  "You provided NOISY_GAMMA_REGION but the Langevin Ensamble is not selected"//&
+                                  "You provided NOISY_GAMMA_REGION but the Langevin Ensamble is not selected"// &
                                   "NOISY_GAMMA_REGION will be ignored and its value discarded!")
                   END IF
                ELSE
@@ -325,7 +327,8 @@ CONTAINS
                      IF (thermal_regions%do_langevin(ipart)) THEN
                         WRITE (print_unit, '(A,3X)', advance='no') "L"
                         IF (noisy_gamma_region(ipart) > 0._dp) THEN
-                           WRITE (print_unit, '(10X,F20.3,3X,ES9.3)') temperature(ipart)*kelvin, noisy_gamma_region(ipart)/femtoseconds
+                           WRITE (print_unit, '(10X,F20.3,3X,ES9.3)') temperature(ipart)*kelvin, &
+                              noisy_gamma_region(ipart)/femtoseconds
                         ELSE
                            WRITE (print_unit, '(10X,F20.3)') temperature(ipart)*kelvin
                         END IF

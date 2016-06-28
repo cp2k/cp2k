@@ -1004,14 +1004,14 @@ CONTAINS
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword,name="noisy_gamma_region",&
-           description="Special imaginary Langevin Friction term "//&
-           "for Langevin Dynamics with noisy forces for the atoms in this region."//&
-           "When set, overrides the general value set by NOISY_GAMMA in the MOTION%MD%LANGEVIN section."//&
-           "When unset for a defined region, the general NOISY_GAMMA value applies.", &
-           citations=(/Kuhne2007/), usage="noisy_gamma_region 4.0E-5", &
-           type_of_var=real_t, &
-           unit_str="fs^-1")
+      CALL keyword_create(keyword=keyword, name="noisy_gamma_region", &
+                          description="Special imaginary Langevin Friction term "// &
+                          "for Langevin Dynamics with noisy forces for the atoms in this region."// &
+                          "When set, overrides the general value set by NOISY_GAMMA in the MOTION%MD%LANGEVIN section."// &
+                          "When unset for a defined region, the general NOISY_GAMMA value applies.", &
+                          citations=(/Kuhne2007/), usage="noisy_gamma_region 4.0E-5", &
+                          type_of_var=real_t, &
+                          unit_str="fs^-1")
       CALL section_add_keyword(region_section, keyword)
       CALL keyword_release(keyword)
 
