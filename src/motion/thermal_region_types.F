@@ -37,7 +37,7 @@ MODULE thermal_region_types
    TYPE thermal_region_type
       INTEGER :: region_index, npart
       INTEGER, DIMENSION(:), POINTER :: part_index
-      REAL(KIND=dp) :: ekin, temperature, temp_expected, temp_tol
+      REAL(KIND=dp) :: ekin, noisy_gamma_region, temperature, temp_expected, temp_tol
    END TYPE thermal_region_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_types'

@@ -137,7 +137,7 @@ CONTAINS
       INTEGER, POINTER                                   :: itimes
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_langevin
       REAL(KIND=dp)                                      :: c, c1, c2, c3, c4, dm, dt, gam, mass, &
-                                                            reg_temp, sigma
+                                                            noisy_gamma_region, reg_temp, sigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: var_w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pos, vel, w
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
@@ -220,10 +220,11 @@ CONTAINS
     IF (simpar%do_thermal_region) THEN
        DO ireg = 1, thermal_regions%nregions
           thermal_region => thermal_regions%thermal_region(ireg)
+          noisy_gamma_region = thermal_region%noisy_gamma_region
           DO iparticle_reg = 1, thermal_region%npart
              iparticle = thermal_region%part_index(iparticle_reg)
              reg_temp = thermal_region%temp_expected
-             var_w(iparticle) = 2.0_dp*reg_temp*simpar%dt*(simpar%gamma + simpar%noisy_gamma)
+             var_w(iparticle) = 2.0_dp*reg_temp*simpar%dt*(simpar%gamma + noisy_gamma_region)
           END DO
        END DO
     END IF

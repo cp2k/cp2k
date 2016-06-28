@@ -40,8 +40,9 @@ MODULE thermal_region_utils
                                               dp
    USE memory_utilities,                ONLY: reallocate
    USE particle_list_types,             ONLY: particle_list_type
-   USE physcon,                         ONLY: kelvin
+   USE physcon,                         ONLY: femtoseconds, kelvin
    USE simpar_types,                    ONLY: simpar_type
+   USE string_utilities,                ONLY: integer_to_string
    USE thermal_region_types,            ONLY: allocate_thermal_regions,&
                                               release_thermal_regions,&
                                               thermal_region_type,&
@@ -78,10 +79,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_thermal_regions', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(LEN=default_string_length)               :: my_region
       INTEGER                                            :: i, il, ipart, ireg, nlist, nregions
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: apply_thermostat, do_langevin, &
-                                                            do_langevin_default, explicit
+                                                            do_langevin_default, do_read_ngr, explicit
       REAL(KIND=dp)                                      :: temp, temp_tol
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles
@@ -160,6 +162,26 @@ CONTAINS
                CALL section_vals_val_get(region_sections, "TEMP_TOL", i_rep_section=ireg, &
                                          r_val=temp_tol)
                t_region%temp_tol = temp_tol
+               CALL section_vals_val_get(region_sections, "NOISY_GAMMA_REGION", i_rep_section=ireg, explicit=do_read_ngr)
+               IF (do_read_ngr) THEN
+                  CALL section_vals_val_get(region_sections, "NOISY_GAMMA_REGION", i_rep_section=ireg, &
+                                            r_val=t_region%noisy_gamma_region)
+                  IF (simpar%ensemble == langevin_ensemble) THEN
+                     IF (.NOT. do_langevin) THEN
+                        CALL integer_to_string(ireg, my_region)
+                        CALL cp_warn(__LOCATION__, &
+                                     "You provided NOISY_GAMMA_REGION but atoms in thermal region "//TRIM(my_region)//&
+                                     " will not undergo Langevin MD. "//&
+                                     "NOISY_GAMMA_REGION will be ignored and its value discarded!")
+                     END IF
+                  ELSE
+                     CALL cp_warn(__LOCATION__, &
+                                  "You provided NOISY_GAMMA_REGION but the Langevin Ensamble is not selected"//&
+                                  "NOISY_GAMMA_REGION will be ignored and its value discarded!")
+                  END IF
+               ELSE
+                  t_region%noisy_gamma_region = simpar%noisy_gamma
+               END IF
             END DO
             simpar%do_thermal_region = .TRUE.
          ELSE
@@ -258,7 +280,7 @@ CONTAINS
                                                             print_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: region_id
       LOGICAL                                            :: new_file
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: temperature
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: noisy_gamma_region, temperature
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -279,27 +301,34 @@ CONTAINS
                IF (print_unit > 0) THEN
                   IF (new_file) THEN
                      WRITE (print_unit, '(A)') "# Atoms Undergoing Langevin MD"
-                     WRITE (print_unit, '(A,3X,A,3X,A,3X,A,3X,A)') &
-                        "#", "Atom_ID", "Region_ID", "Langevin(L)/NVE(N)", "Expected_Temperature[K]"
+                     WRITE (print_unit, '(A,3X,A,3X,A,3X,A,3X,A,3X,A)') &
+                        "#", "Atom_ID", "Region_ID", "Langevin(L)/NVE(N)", "Expected_T[K]", "[NoisyGamma]"
                   END IF
                   natoms = SIZE(thermal_regions%do_langevin)
                   ALLOCATE (temperature(natoms))
                   ALLOCATE (region_id(natoms))
+                  ALLOCATE (noisy_gamma_region(natoms))
                   temperature(:) = simpar%temp_ext
                   region_id(:) = 0
+                  noisy_gamma_region(:) = simpar%noisy_gamma
                   DO ireg = 1, thermal_regions%nregions
                      DO ipart_reg = 1, thermal_regions%thermal_region(ireg)%npart
                         ipart = thermal_regions%thermal_region(ireg)%part_index(ipart_reg)
                         temperature(ipart) = thermal_regions%thermal_region(ireg)%temp_expected
                         region_id(ipart) = thermal_regions%thermal_region(ireg)%region_index
+                        noisy_gamma_region(ipart) = thermal_regions%thermal_region(ireg)%noisy_gamma_region
                      END DO
                   END DO
                   DO ipart = 1, natoms
-                     WRITE (print_unit, '(1X,I10,3X)', advance='no') ipart
+                     WRITE (print_unit, '(1X,I10,2X)', advance='no') ipart
                      WRITE (print_unit, '(I10,3X)', advance='no') region_id(ipart)
                      IF (thermal_regions%do_langevin(ipart)) THEN
                         WRITE (print_unit, '(A,3X)', advance='no') "L"
-                        WRITE (print_unit, '(F20.3)') temperature(ipart)*kelvin
+                        IF (noisy_gamma_region(ipart) > 0._dp) THEN
+                           WRITE (print_unit, '(10X,F20.3,3X,ES9.3)') temperature(ipart)*kelvin, noisy_gamma_region(ipart)/femtoseconds
+                        ELSE
+                           WRITE (print_unit, '(10X,F20.3)') temperature(ipart)*kelvin
+                        END IF
                      ELSE
                         WRITE (print_unit, '(A,3X)', advance='no') "N"
                         WRITE (print_unit, '(18X,A)') "--"
@@ -307,6 +336,7 @@ CONTAINS
                   END DO
                   DEALLOCATE (region_id)
                   DEALLOCATE (temperature)
+                  DEALLOCATE (noisy_gamma_region)
                END IF
                CALL cp_print_key_finished_output(print_unit, logger, thermal_regions%section, &
                                                  "PRINT%LANGEVIN_REGIONS")
