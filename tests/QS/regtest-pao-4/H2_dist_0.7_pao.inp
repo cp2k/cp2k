@@ -20,6 +20,7 @@
       &PAO
         MAX_PAO 500
         EPS_PAO 1.0E-5
+        MIXING 1.0
         PARAMETERIZATION ROTINV
         REGULARIZATION 1.0E-3
         PRECONDITION Yes
