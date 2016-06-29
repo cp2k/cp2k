@@ -83,34 +83,33 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Initialize radii of Gaussians to speedup screeing later on
+!> \param pao ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE pao_init_gaussian_radii(qs_env)
+   SUBROUTINE pao_init_gaussian_radii(pao, qs_env)
+      TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_init_gaussian_radii'
 
       INTEGER                                            :: handle, i, ikind
-      REAL(dp)                                           :: eps
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pao_descriptor_type), DIMENSION(:), POINTER   :: pao_descriptors
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
-      CALL get_qs_env(qs_env, dft_control=dft_control, qs_kind_set=qs_kind_set)
-      eps = dft_control%qs_control%eps_pgf_orb
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
 
       DO ikind = 1, SIZE(qs_kind_set)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           pao_potentials=pao_potentials, &
                           pao_descriptors=pao_descriptors)
          DO i = 1, SIZE(pao_potentials)
-            pao_potentials(i)%beta_radius = exp_radius(0, pao_potentials(i)%beta, eps, 1.0_dp)
+            pao_potentials(i)%beta_radius = exp_radius(0, pao_potentials(i)%beta, pao%eps_pgf, 1.0_dp)
          ENDDO
          DO i = 1, SIZE(pao_descriptors)
-            pao_descriptors(i)%beta_radius = exp_radius(0, pao_descriptors(i)%beta, eps, 1.0_dp)
-            pao_descriptors(i)%screening_radius = exp_radius(0, pao_descriptors(i)%screening, eps, 1.0_dp)
+            pao_descriptors(i)%beta_radius = exp_radius(0, pao_descriptors(i)%beta, pao%eps_pgf, 1.0_dp)
+            pao_descriptors(i)%screening_radius = exp_radius(0, pao_descriptors(i)%screening, pao%eps_pgf, 1.0_dp)
          ENDDO
       ENDDO
       CALL timestop(handle)

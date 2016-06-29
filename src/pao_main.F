@@ -80,7 +80,7 @@ CONTAINS
       ! parse input
       CALL parse_pao_section(pao, input)
 
-      CALL pao_init_gaussian_radii(qs_env)
+      CALL pao_init_gaussian_radii(pao, qs_env)
 
       ! train machine learning
       CALL pao_machine_learning_init(pao, qs_env)

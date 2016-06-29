@@ -505,12 +505,8 @@ CONTAINS
 
       ! print variances
       CALL mp_sum(variances, para_env%group)
-      IF (pao%iw > 0) THEN
-         DO iatom = 1, natoms
-            WRITE (pao%iw, *) "PAO|ML| predicting atom:", iatom, "variance:", variances(iatom)
-         ENDDO
-         WRITE (pao%iw, *) "PAO|ML| max prediction variance:", MAXVAL(variances)
-      ENDIF
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO|ML| max prediction variance:", &
+         MAXVAL(variances), " for atom:", MAXLOC(variances)
 
       IF (MAXVAL(variances) > pao%ml_tolerance) &
          CPABORT("Variance of prediction above ML_TOLERANCE.")

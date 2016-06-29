@@ -23,7 +23,8 @@ MODULE pao_input
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE input_val_types,                 ONLY: lchar_t
+   USE input_val_types,                 ONLY: lchar_t,&
+                                              real_t
    USE kinds,                           ONLY: dp
    USE linesearch,                      ONLY: linesearch_create_section
    USE pao_types,                       ONLY: pao_env_type
@@ -63,14 +64,9 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(section_vals_type), POINTER                   :: input
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'parse_pao_section', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i, ntrainfiles
+      INTEGER                                            :: i, n_rep, ntrainfiles
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: pao_section, training_set_section
-
-      NULLIFY (logger)
 
       pao_section => section_vals_get_subs_vals(input, "DFT%LS_SCF%PAO")
 
@@ -104,6 +100,12 @@ CONTAINS
       CALL section_vals_val_get(pao_section, "REGULARIZATION", r_val=pao%regularization)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "REGULARIZATION", pao%regularization
       IF (pao%regularization < 0.0_dp) CPABORT("PAO: REGULARIZATION < 0")
+
+      CALL section_vals_val_get(input, "DFT%QS%EPS_DEFAULT", r_val=pao%eps_pgf) ! default value
+      CALL section_vals_val_get(pao_section, "EPS_PGF", n_rep_val=n_rep)
+      IF (n_rep /= 0) CALL section_vals_val_get(pao_section, "EPS_PGF", r_val=pao%eps_pgf)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "EPS_PGF", pao%eps_pgf
+      IF (pao%eps_pgf < 0.0_dp) CPABORT("PAO: EPS_PGF < 0")
 
       CALL section_vals_val_get(pao_section, "PENALTY_DISTANCE", r_val=pao%penalty_dist)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "PENALTY_DISTANCE", pao%penalty_dist
@@ -271,7 +273,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="MIXING", &
                           description="Mixing fraction of new and old optimizied solutions.", &
-                          default_r_val=1.0_dp)
+                          default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -321,6 +323,12 @@ CONTAINS
       CALL keyword_create(keyword, name="PRECONDITION", &
                           description="Apply a preconditioner to the parametrization.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_PGF", &
+                          description="Sets precision for potential and descriptor matrix elements. "// &
+                          "Overrides DFT/QS/EPS_DEFAULT value.", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

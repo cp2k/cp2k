@@ -48,6 +48,7 @@ MODULE pao_types
       REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
       REAL(KIND=dp)                    :: check_grad_tol = 0.0_dp
       REAL(KIND=dp)                    :: num_grad_eps = 0.0_dp
+      REAL(KIND=dp)                    :: eps_pgf = 0.0_dp
       REAL(KIND=dp)                    :: linpot_precon_delta = 0.0_dp
       REAL(KIND=dp)                    :: linpot_init_delta = 0.0_dp
       REAL(KIND=dp)                    :: linpot_regu_delta = 0.0_dp
