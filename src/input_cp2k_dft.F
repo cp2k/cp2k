@@ -7036,7 +7036,6 @@ CONTAINS
                                        description="Controls the printing of the DOS of the Hamiltonian during rtp/emd. "// &
                                        "This requires a cubically scaling diagonalization of the Hamiltonian. "// &
                                        "Hartree-Fock NYI, values will be wrong. "// &
-                                       "Currently only implemented for density propagation. "// &
                                        "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian.", &
                                        print_level=high_print_level, common_iter_levels=3, &
                                        each_iter_names=s2a("MD"), each_iter_values=(/1/), &
