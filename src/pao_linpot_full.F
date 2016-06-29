@@ -22,7 +22,7 @@ MODULE pao_linpot_full
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_linpot_full'
 
-   PUBLIC :: linpot_full_count_terms, linpot_full_calc_term
+   PUBLIC :: linpot_full_count_terms, linpot_full_calc_terms
 
 CONTAINS
 
@@ -37,9 +37,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nterms
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_count_terms', &
-         routineP = moduleN//':'//routineN
-
       INTEGER                                            :: n
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -52,33 +49,29 @@ CONTAINS
    END SUBROUTINE linpot_full_count_terms
 
 ! **************************************************************************************************
-!> \brief Count number of linear terms in parametrization
-!> \param kterm ...
-!> \param block_V ...
+!> \brief Builds potential terms
+!> \param V_blocks ...
 ! **************************************************************************************************
-   SUBROUTINE linpot_full_calc_term(kterm, block_V)
-      INTEGER, INTENT(IN)                                :: kterm
-      REAL(dp), DIMENSION(:, :), INTENT(OUT), OPTIONAL   :: block_V
+   SUBROUTINE linpot_full_calc_terms(V_blocks)
+      REAL(dp), DIMENSION(:, :, :), INTENT(OUT)          :: V_blocks
 
-      INTEGER                                            :: a, i, j, n
+      INTEGER                                            :: i, j, kterm, n, nterms
 
-      IF (.NOT. PRESENT(block_V)) RETURN ! nothing to do
+      N = SIZE(V_blocks, 1)
+      CPASSERT(SIZE(V_blocks, 2) == N)
+      nterms = SIZE(V_blocks, 3)
 
-      block_V = 0.0
-      n = SIZE(block_V, 1)
-      IF (kterm > n+n*(n-1)/2) CPABORT("kterm out of bounds")
-
-      a = 0
-      outer: &
-         DO i = 1, SIZE(block_V, 1)
-      DO j = 1, SIZE(block_V, 2)
-         IF (i >= j) a = a+1
-         IF (a == kterm) EXIT outer
+      V_blocks = 0.0_dp
+      kterm = 0
+      DO i = 1, N
+      DO j = i, N
+         kterm = kterm+1
+         V_blocks(i, j, kterm) = 1.0_dp
+         V_blocks(j, i, kterm) = 1.0_dp
       ENDDO
-      ENDDO outer
+      ENDDO
 
-      block_V(i, j) = 1.0_dp
-      block_V(j, i) = 1.0_dp
-   END SUBROUTINE linpot_full_calc_term
+      CPASSERT(kterm == nterms)
+   END SUBROUTINE linpot_full_calc_terms
 
 END MODULE pao_linpot_full

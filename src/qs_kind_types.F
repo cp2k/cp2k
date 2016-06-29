@@ -116,6 +116,7 @@ MODULE qs_kind_types
       REAL(KIND=dp)                          :: beta = 0.0_dp
       REAL(KIND=dp)                          :: weight = 0.0_dp
       INTEGER                                :: max_projector = -1
+      REAL(KIND=dp)                          :: beta_radius = HUGE(dp)
    END TYPE pao_potential_type
 
 ! **************************************************************************************************
@@ -123,8 +124,10 @@ MODULE qs_kind_types
 ! **************************************************************************************************
    TYPE pao_descriptor_type
       REAL(KIND=dp)                          :: beta = 0.0_dp
-      REAL(KIND=dp)                          :: screening = 0.0_dp
+      REAL(KIND=dp)                          :: beta_radius = HUGE(dp)
       REAL(KIND=dp)                          :: weight = 0.0_dp
+      REAL(KIND=dp)                          :: screening = 0.0_dp
+      REAL(KIND=dp)                          :: screening_radius = HUGE(dp)
    END TYPE pao_descriptor_type
 
 !> Provides all information about a quickstep kind

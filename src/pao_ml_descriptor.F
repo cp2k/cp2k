@@ -8,7 +8,6 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_ml_descriptor
-   USE ao_util,                         ONLY: exp_radius
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
@@ -208,7 +207,7 @@ CONTAINS
                                                             k, katom, kkind, N, natoms, ndesc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: neighbor_order
       REAL(dp) :: beta_sum, deriv, exponent, integral, jbeta, jweight, kbeta, kweight, &
-         normalization, Rij2, Rik2, Rjk2, sbeta, sbeta_min, screening_radius, screening_volume, w
+         normalization, Rij2, Rik2, Rjk2, sbeta, screening_radius, screening_volume, w
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: block_M, block_S, S_evecs
       REAL(dp), DIMENSION(3)                             :: Ri, Rij, Rik, Rj, Rjk, Rk
@@ -225,14 +224,13 @@ CONTAINS
       ndesc = SIZE(ipao_descriptors)
       IF (ndesc == 0) CPABORT("No PAO_DESCRIPTOR section found")
 
-      ! determine smallest screening beta
-      sbeta_min = HUGE(1.0_dp)
+      ! determine largest screening radius
+      screening_radius = 0.0_dp
       DO idesc = 1, ndesc
-         sbeta_min = MIN(sbeta_min, ipao_descriptors(idesc)%screening)
+         screening_radius = MAX(screening_radius, ipao_descriptors(idesc)%screening_radius)
       ENDDO
 
       ! estimate maximum number of neighbors within screening
-      screening_radius = exp_radius(0, sbeta_min, 1.0E-12_dp, 1.0_dp) ! TODO get the EPS parameter from somewhere / precompute this elsewhere
       screening_volume = fourpi/3.0_dp*screening_radius**3
       N = INT(screening_volume/35.0_dp) ! rule of thumb
 

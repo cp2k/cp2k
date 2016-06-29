@@ -1,7 +1,7 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME GTH_POTENTIALS
     &QS
       LS_SCF
@@ -37,7 +37,7 @@
       H       0.0   0.0   0.0
     &END COORD
     &KIND H
-      BASIS_SET DZVP-MOLOPT-SR-GTH
+      BASIS_SET TZVP-ALL-PADE ! basis containing multiple sets
       POTENTIAL GTH-PBE
       PAO_BASIS_SIZE 1
       &PAO_POTENTIAL
