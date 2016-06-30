@@ -126,7 +126,8 @@ CONTAINS
          jshell_abs, kterm, la1_max, la1_min, la2_max, la2_min, lb_max, lb_min, lpot, N, na1, na2, &
          natoms, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, npgfb, npots, pot_maxl, sgfa1, sgfa2, &
          sgla1, sgla2
-      REAL(dp)                                           :: coeff, norm2, pot_beta, pot_weight
+      REAL(dp)                                           :: coeff, norm2, pot_beta, pot_weight, &
+                                                            rpgfa_max, tab
       REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
       REAL(dp), DIMENSION(:), POINTER                    :: rpgfa1, rpgfa2, rpgfb, zeta1, zeta2, zetb
       REAL(dp), DIMENSION(:, :), POINTER                 :: T1, T2, V12, V21
@@ -188,6 +189,9 @@ CONTAINS
             zeta2 => basis_set%zet(:, jset)
             rpgfa2 => basis_set%pgf_radius(:, jset)
 
+            ! radius of most diffuse basis-function
+            rpgfa_max = MAX(MAXVAL(rpgfa1), MAXVAL(rpgfa2))
+
             ! allocate space for integrals
             ALLOCATE (saab(na1, na2, nb), saal(na1, na2, pot_maxl/2+1))
             saal = 0.0_dp
@@ -210,6 +214,10 @@ CONTAINS
                Ra = particle_set(iatom)%r
                Rb = particle_set(jatom)%r
                Rab = pbc(ra, rb, cell)
+
+               ! distance screening
+               tab = SQRT(SUM(Rab**2))
+               IF (rpgfa_max+rpgfb(1) < tab) CYCLE
 
                ! calculate actual integrals
                saab = 0.0_dp
@@ -331,7 +339,8 @@ CONTAINS
          jshell_abs, kterm, la1_max, la1_min, la2_max, la2_min, lb_max, lb_min, lpot, N, na1, na2, &
          natoms, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, npgfb, npots, nshells, pot_maxl, &
          sgfa1, sgfa2, sgla1, sgla2
-      REAL(dp)                                           :: coeff, f, norm2, pot_beta, pot_weight
+      REAL(dp)                                           :: coeff, f, norm2, pot_beta, pot_weight, &
+                                                            rpgfa_max, tab
       REAL(dp), DIMENSION(3)                             :: Ra, Rab, Rb
       REAL(dp), DIMENSION(:), POINTER                    :: rpgfa1, rpgfa2, rpgfb, zeta1, zeta2, zetb
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_D, T1, T2
@@ -418,6 +427,9 @@ CONTAINS
             zeta2 => basis_set%zet(:, jset)
             rpgfa2 => basis_set%pgf_radius(:, jset)
 
+            ! radius of most diffuse basis-function
+            rpgfa_max = MAX(MAXVAL(rpgfa1), MAXVAL(rpgfa2))
+
             ! find bounds of set-pair and setup transformation matrices
             sgfa1 = basis_set%first_sgf(1, iset)
             sgla1 = sgfa1+basis_set%nsgf_set(iset)-1
@@ -447,6 +459,10 @@ CONTAINS
                Ra = particle_set(iatom)%r
                Rb = particle_set(jatom)%r
                Rab = pbc(ra, rb, cell)
+
+               ! distance screening
+               tab = SQRT(SUM(Rab**2))
+               IF (rpgfa_max+rpgfb(1) < tab) CYCLE
 
                ! calculate actual integrals
                daab = 0.0_dp
