@@ -970,6 +970,7 @@ CONTAINS
 !> \param dft_section ...
 !> \param spin ...
 !> \param last ...
+!> \param kpt An integer that labels the current k point, e.g. its index
 !> \date    15.05.2001
 !> \par History:
 !>       - Optionally print Cartesian MOs (20.04.2005,MK)
@@ -980,7 +981,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                          before, dft_section, spin, last)
+                                          before, dft_section, spin, last, kpt)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -990,6 +991,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: spin
       LOGICAL, INTENT(IN), OPTIONAL                      :: last
+      INTEGER, INTENT(IN), OPTIONAL                      :: kpt
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit', &
          routineP = moduleN//':'//routineN
@@ -1176,9 +1178,12 @@ CONTAINS
          CALL compress(name)
 
          ! Print headline
-
-         IF (PRESENT(spin)) THEN
+         IF (PRESENT(spin) .AND. PRESENT(kpt)) THEN
+            WRITE (UNIT=iw, FMT="(/,/,T2,A,I5)") spin//" "//TRIM(name)//" FOR K-POINT: ", kpt
+         ELSE IF (PRESENT(spin)) THEN
             WRITE (UNIT=iw, FMT="(/,/,T2,A)") spin//" "//TRIM(name)
+         ELSE IF (PRESENT(kpt)) THEN
+            WRITE (UNIT=iw, FMT="(/,/,T2,A,I5)") TRIM(name)//" FOR K-POINT: ", kpt
          ELSE
             WRITE (UNIT=iw, FMT="(/,/,T2,A)") TRIM(name)
          END IF

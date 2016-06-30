@@ -82,6 +82,7 @@ MODULE qs_scf_post_gpw
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE kpoint_types,                    ONLY: kpoint_type
    USE lapack,                          ONLY: lapack_sgesv
    USE mao_methods,                     ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi,&
@@ -175,6 +176,7 @@ MODULE qs_scf_post_gpw
    USE qs_scf_wfn_mix,                  ONLY: wfn_mix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
+   USE qs_wannier90,                    ONLY: wannier90_interface
    USE s_square_methods,                ONLY: compute_s_square
    USE scf_control_types,               ONLY: scf_control_type
    USE stm_images,                      ONLY: th_stm_image
@@ -699,6 +701,9 @@ CONTAINS
 
       ! Calculate ELF
       CALL qs_scf_post_elf(input, logger, qs_env)
+
+      ! Use Wannier90 interface
+      CALL wannier90_interface(input, logger, qs_env)
 
       ! Do active space calculation
       CALL active_space_main(input, logger, qs_env)
@@ -1941,7 +1946,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_dependent_results', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, homo, ispin, nmo, output_unit
+      INTEGER                                            :: handle, homo, ik, ispin, nmo, output_unit
       LOGICAL                                            :: all_equal, do_kpoints
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
                                                             total_abs_spin_dens
@@ -1954,7 +1959,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos_k
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2014,6 +2021,25 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
+         ELSE ! *** if we have k points, let's print the eigenvalues at each of them
+            CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+
+            IF (kpoints%nkp /= 0) THEN
+               DO ik = 1, SIZE(kpoints%kp_env)
+                  mos_k => kpoints%kp_env(ik)%kpoint_env%mos
+                  CPASSERT(ASSOCIATED(mos_k))
+
+                  IF (dft_control%nspins == 2) THEN
+                     CALL write_mo_set(mos_k(2, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                                       dft_section, spin="ALPHA", last=.TRUE., kpt=ik)
+                     CALL write_mo_set(mos_k(2, 2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                                       dft_section, spin="BETA", last=.TRUE., kpt=ik)
+                  ELSE
+                     CALL write_mo_set(mos_k(2, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                                       dft_section, last=.TRUE., kpt=ik)
+                  END IF
+               END DO
+            END IF
          END IF
 
          ! *** at the end of scf print out the projected dos per kind

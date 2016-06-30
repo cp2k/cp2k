@@ -322,23 +322,22 @@ CONTAINS
 !>        general diagonalization (no storgae of overlap decomposition), stores
 !>        MOs, calculates occupation numbers, calculates density matrices
 !>        in kpoint representation, transforms density matrices to real space
-!> \param scf_env      SCF environment
 !> \param matrix_ks    Kohn-sham matrices (RS indices, global)
 !> \param matrix_s     Overlap matrices (RS indices, global)
 !> \param kpoints      Kpoint environment
+!> \param scf_env      SCF environment
 !> \param scf_control  SCF control variables
-!> \param diis_step    Have we done a DIIS step
+!> \param update_p ...
 !> \par History
 !>      08.2014 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE do_general_diag_kp(scf_env, matrix_ks, matrix_s, kpoints, &
-                                 scf_control, diis_step)
+   SUBROUTINE do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p)
 
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
-      LOGICAL, INTENT(INOUT)                             :: diis_step
+      LOGICAL, INTENT(IN)                                :: update_p
 
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp', &
          routineP = moduleN//':'//routineN
@@ -367,20 +366,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      diis_step = .FALSE.
-      nspin = SIZE(matrix_ks, 1)
       NULLIFY (fmdummy)
-
-      IF (scf_env%mixing_method == 0) THEN
-         scf_env%iter_method = "NoMix/Diag."
-      ELSE IF (scf_env%mixing_method == 1) THEN
-         scf_env%iter_param = scf_env%p_mix_alpha
-         scf_env%iter_method = "P_Mix/Diag."
-      ELSEIF (scf_env%mixing_method > 1) THEN
-         scf_env%iter_param = scf_env%mixing_store%alpha
-         scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
-      END IF
-
       NULLIFY (sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
@@ -426,6 +412,7 @@ CONTAINS
       ! global blacs context (=groupid)
       bcntxt = kpoints%blacs_env_all%group
 
+      nspin = SIZE(matrix_ks, 1)
       DO ikpgr = 1, kplocal
          DO ispin = 1, nspin
             DO ikp = 1, nkp_groups
@@ -434,17 +421,21 @@ CONTAINS
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                IF (use_real_wfn) THEN
                   ! FT of matrices KS and S, then transfer to FM type
+                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks, ispin=ispin, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(1)%matrix)
                   ! s matrix is not spin dependent
+                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3)%matrix)
                ELSE
                   ! FT of matrices KS and S, then transfer to FM type
+                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
+                  CALL cp_dbcsr_set(cmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks, ispin=ispin, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
@@ -452,6 +443,8 @@ CONTAINS
                   CALL cp_dbcsr_desymmetrize(cmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(2)%matrix)
                   ! s matrix is not spin dependent, double the work
+                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
+                  CALL cp_dbcsr_set(cmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
@@ -516,14 +509,17 @@ CONTAINS
             END IF
          END DO
       END DO
-      ! MO occupations
-      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
 
-      ! density matrices
-      CALL kpoint_density_matrices(kpoints)
-      ! density matrices in real space
-      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                    matrix_s(1, 1)%matrix, sab_nl, fmwork)
+      IF (update_p) THEN
+         ! MO occupations
+         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+
+         ! density matrices
+         CALL kpoint_density_matrices(kpoints)
+         ! density matrices in real space
+         CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                       matrix_s(1, 1)%matrix, sab_nl, fmwork)
+      END IF
 
       CALL cp_dbcsr_deallocate_matrix(rmatrix)
       CALL cp_dbcsr_deallocate_matrix(cmatrix)

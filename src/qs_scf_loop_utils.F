@@ -292,9 +292,18 @@ CONTAINS
                        cp_to_string(scf_env%method))
       CASE (general_diag_method_nr)
          ! Diagonlization in non orthonormal case
+         diis_step = .FALSE.
+         IF (scf_env%mixing_method == 0) THEN
+            scf_env%iter_method = "NoMix/Diag."
+         ELSE IF (scf_env%mixing_method == 1) THEN
+            scf_env%iter_param = scf_env%p_mix_alpha
+            scf_env%iter_method = "P_Mix/Diag."
+         ELSEIF (scf_env%mixing_method > 1) THEN
+            scf_env%iter_param = scf_env%mixing_store%alpha
+            scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
+         END IF
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
-         CALL do_general_diag_kp(scf_env, matrix_ks, matrix_s, kpoints, &
-                                 scf_control, diis_step)
+         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE.)
       CASE (special_diag_method_nr)
          CALL get_qs_env(qs_env=qs_env, has_unit_metric=has_unit_metric)
          CPASSERT(has_unit_metric)

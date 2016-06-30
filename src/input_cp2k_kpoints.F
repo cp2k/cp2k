@@ -16,7 +16,9 @@ MODULE input_cp2k_kpoints
                                               keyword_release,&
                                               keyword_type
    USE input_section_types,             ONLY: section_add_keyword,&
+                                              section_add_subsection,&
                                               section_create,&
+                                              section_release,&
                                               section_type
    USE input_val_types,                 ONLY: char_t,&
                                               real_t
@@ -61,6 +63,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="KPOINTS", &
@@ -84,6 +87,16 @@ CONTAINS
                           description="Specify kpoint coordinates and weight. ", &
                           usage="KPOINT x  y  z  w", repeats=.TRUE., &
                           n_var=4, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="UNITS", &
+                          description="Special k-points are defined either in units"// &
+                          " of reciprocal lattice vectors or in Cartesian coordinates in uints of 2Pi/len."// &
+                          " B_VECTOR: in multiples of the reciprocal lattice vectors (b)."// &
+                          " CART_ANGSTROM: In units of 2*Pi/Angstrom."// &
+                          " CART_BOHR: In units of 2*Pi/Bohr.", &
+                          usage="UNITS <value>", type_of_var=char_t, default_c_val="B_VECTOR")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -138,6 +151,78 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      NULLIFY (subsection)
+      CALL create_bandstructure_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_kpoints_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE create_bandstructure_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_bandstructure_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="BAND_STRUCTURE", &
+                          description="Specifies the k-points used in band structure calculation.", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="FILE_NAME", &
+                          description="File name used for band structure", &
+                          usage="FILE_NAME <filename>", default_c_val="", &
+                          type_of_var=char_t, n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ADDED_MOS", &
+                          variants=(/"ADDED_BANDS"/), &
+                          description="Number of MOs/Bands added to the Band Structure calculation.", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL section_create(subsection, name="KPOINT_SET", &
+                          description="Specifies a k-point line to be calculated.", &
+                          n_keywords=0, n_subsections=0, repeats=.TRUE.)
+      ! keywords
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="SPECIAL_POINT", &
+                          description="Coordinates of a special k-point", &
+                          usage="SPECIAL_POINT 0.0 0.0 0.0", n_var=3, type_of_var=real_t, repeats=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="NPOINTS", &
+                          description="Number of k-points along the line.", &
+                          default_i_val=0)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="UNITS", &
+                          description="Special k-points are defined either in units"// &
+                          " of reciprocal lattice vectors or in Cartesian coordinates in uints of 2Pi/len."// &
+                          " B_VECTOR: in multiples of the reciprocal lattice vectors (b)."// &
+                          " CART_ANGSTROM: In units of 2*Pi/Angstrom."// &
+                          " CART_BOHR: In units of 2*Pi/Bohr.", &
+                          usage="UNITS <value>", type_of_var=char_t, default_c_val="B_VECTOR")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_bandstructure_section
 
 END MODULE input_cp2k_kpoints

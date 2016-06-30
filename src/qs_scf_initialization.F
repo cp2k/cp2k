@@ -54,6 +54,7 @@ MODULE qs_scf_initialization
    USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
    USE pw_types,                        ONLY: pw_p_type
    USE qmmm_image_charge,               ONLY: conditional_calc_image_matrix
+   USE qs_band_structure,               ONLY: calculate_band_structure
    USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                               block_davidson_env_create
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
@@ -757,6 +758,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_compute_properties', &
          routineP = moduleN//':'//routineN
 
+      LOGICAL                                            :: do_kpoints
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
@@ -780,6 +782,11 @@ CONTAINS
          ELSE
             CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env)
          ENDIF
+      END IF
+
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+      IF (do_kpoints) THEN
+         CALL calculate_band_structure(qs_env)
       END IF
 
    END SUBROUTINE qs_scf_compute_properties

@@ -31,9 +31,9 @@ MODULE mao_methods
         cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_iterator, &
         cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
         cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_replicate_all, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_trace, &
-        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        cp_dbcsr_release, cp_dbcsr_replicate_all, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, &
+        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_norm_frobenius, &
+        dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t
    USE cp_fm_diag,                      ONLY: cp_fm_geeig
@@ -325,8 +325,10 @@ CONTAINS
             xkp = 0.0_dp
             ! transform KS and S matrices to the gamma point
             CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks)
+            CALL cp_dbcsr_set(ksmat, 0.0_dp)
             CALL rskp_transform(rmatrix=ksmat, rsmat=matrix_ks, ispin=ispin, &
                                 xkp=xkp, cell_to_index=cell_to_index, sab_nl=sab_orb)
+            CALL cp_dbcsr_set(smat, 0.0_dp)
             CALL rskp_transform(rmatrix=smat, rsmat=matrix_s, ispin=1, &
                                 xkp=xkp, cell_to_index=cell_to_index, sab_nl=sab_orb)
             norb = NINT(electra(ispin))

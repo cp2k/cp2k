@@ -67,7 +67,8 @@ MODULE kpoint_methods
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               get_mo_set,&
                                               mo_set_p_type,&
-                                              mo_set_type
+                                              mo_set_type,&
+                                              set_mo_set
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               get_neighbor_list_set_p,&
                                               neighbor_list_iterate,&
@@ -109,11 +110,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=2), ALLOCATABLE, DIMENSION(:)        :: element
       INTEGER                                            :: handle, i, ik, iounit, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
       LOGICAL                                            :: inv, spez, symmo
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: weight, zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord
       TYPE(csym_type), POINTER                           :: crys_sym
 
@@ -135,7 +134,7 @@ CONTAINS
          IF (kpoint%full_grid) THEN
             ! we set up a random molecule to avoid any possible symmetry
             natom = 10
-            ALLOCATE (coord(3, natom), zeff(natom), weight(natom), atype(natom), element(natom))
+            ALLOCATE (coord(3, natom), atype(natom))
             DO i = 1, natom
                atype(i) = i
                coord(1, i) = SIN(i*0.12345_dp)
@@ -144,7 +143,7 @@ CONTAINS
             END DO
          ELSE
             natom = SIZE(particle_set)
-            ALLOCATE (coord(3, natom), zeff(natom), weight(natom), atype(natom), element(natom))
+            ALLOCATE (coord(3, natom), atype(natom))
             DO i = 1, natom
                CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=atype(i))
                coord(1:3, i) = particle_set(i)%r(1:3)
@@ -172,13 +171,21 @@ CONTAINS
          symmo = (crys_sym%isy == 1)
 
          CALL release_csym_type(crys_sym)
-         DEALLOCATE (coord, zeff, weight, atype, element)
+         DEALLOCATE (coord, atype)
 
       CASE ("GENERAL")
          ! do nothing
       CASE DEFAULT
          CPASSERT(.FALSE.)
       END SELECT
+
+      ! scaled kpoint coordinates
+      IF (kpoint%nkp > 0) THEN
+         ALLOCATE (kpoint%skp(3, kpoint%nkp))
+         DO i = 1, kpoint%nkp
+            kpoint%skp(1:3, i) = MATMUL(TRANSPOSE(cell%hmat), kpoint%xkp(1:3, i))
+         END DO
+      END IF
 
       ! check for consistency of options
       SELECT CASE (kpoint%kp_scheme)
@@ -208,7 +215,6 @@ CONTAINS
             CALL cp_warn(__LOCATION__, &
                          "A calculation using real wavefunctions is requested. "// &
                          "We could not determine if the symmetry of the system allows real wavefunctions. ")
-
          END IF
       END IF
 
@@ -372,17 +378,20 @@ CONTAINS
 !> \brief Initialize a set of MOs and density matrix for each kpoint (kpoint group)
 !> \param kpoint  Kpoint environment
 !> \param mos     Reference MOs (global)
+!> \param added_mos ...
 ! **************************************************************************************************
-   SUBROUTINE kpoint_initialize_mos(kpoint, mos)
+   SUBROUTINE kpoint_initialize_mos(kpoint, mos, added_mos)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      INTEGER, INTENT(IN), OPTIONAL                      :: added_mos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mos', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ic, ik, is, nao, nc, nelectron, &
-                                                            nkp_loc, nmo, nspin
+      INTEGER                                            :: handle, ic, ik, is, nadd, nao, nc, &
+                                                            nelectron, nkp_loc, nmo, nmorig(2), &
+                                                            nspin
       REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
@@ -396,6 +405,12 @@ CONTAINS
       CPASSERT(ASSOCIATED(kpoint))
 
       IF (ASSOCIATED(mos)) THEN
+
+         IF (PRESENT(added_mos)) THEN
+            nadd = added_mos
+         ELSE
+            nadd = 0
+         END IF
 
          IF (kpoint%use_real_wfn) THEN
             nc = 1
@@ -413,6 +428,7 @@ CONTAINS
                DO is = 1, nspin
                   CALL get_mo_set(mos(is)%mo_set, nao=nao, nmo=nmo, nelectron=nelectron, &
                                   n_el_f=n_el_f, maxocc=maxocc, flexible_electron_count=flexible_electron_count)
+                  nmo = MIN(nao, nmo+nadd)
                   DO ic = 1, nc
                      NULLIFY (kp%mos(ic, is)%mo_set)
                      CALL allocate_mo_set(kp%mos(ic, is)%mo_set, nao, nmo, nelectron, n_el_f, maxocc, &
@@ -429,6 +445,12 @@ CONTAINS
             CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=kpoint%para_env_kp)
             kpoint%blacs_env => blacs_env
 
+            ! set possible new number of MOs
+            DO is = 1, nspin
+               CALL get_mo_set(mos(is)%mo_set, nmo=nmorig(is))
+               nmo = MIN(nao, nmorig(is)+nadd)
+               CALL set_mo_set(mos(is)%mo_set, nmo=nmo)
+            END DO
             ! matrix pools for the kpoint group, information on MOs is transfered using
             ! generic mos structure
             NULLIFY (mpools)
@@ -436,6 +458,10 @@ CONTAINS
             CALL mpools_rebuild_fm_pools(mpools=mpools, mos=mos, &
                                          blacs_env=blacs_env, para_env=kpoint%para_env_kp)
             kpoint%mpools => mpools
+            ! reset old number of MOs
+            DO is = 1, nspin
+               CALL set_mo_set(mos(is)%mo_set, nmo=nmorig(is))
+            END DO
 
             ! allocate density matrices
             CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
@@ -616,9 +642,11 @@ CONTAINS
 !> \param xkp      Kpoint coordinates
 !> \param cell_to_index   mapping of cell indices to RS index
 !> \param sab_nl   Defining neighbor list
+!> \param is_complex ... Matrix to be transformed is imaginary
+!> \param rs_sign ... Matrix to be transformed is csaled by rs_sign
 ! **************************************************************************************************
    SUBROUTINE rskp_transform(rmatrix, cmatrix, rsmat, ispin, &
-                             xkp, cell_to_index, sab_nl)
+                             xkp, cell_to_index, sab_nl, is_complex, rs_sign)
 
       TYPE(cp_dbcsr_type)                                :: rmatrix
       TYPE(cp_dbcsr_type), OPTIONAL                      :: cmatrix
@@ -628,29 +656,32 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
+      LOGICAL, INTENT(IN), OPTIONAL                      :: is_complex
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rs_sign
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, iatom, ic, icol, irow, jatom
       INTEGER, DIMENSION(3)                              :: cell
-      LOGICAL                                            :: do_symmetric, found, wfn_real_only
-      REAL(KIND=dp)                                      :: arg, coskl, fsym, sinkl
+      LOGICAL                                            :: do_symmetric, found, my_complex, &
+                                                            wfn_real_only
+      REAL(KIND=dp)                                      :: arg, coskl, fsign, fsym, sinkl
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, rblock, rsblock
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
 
       CALL timeset(routineN, handle)
 
+      my_complex = .FALSE.
+      IF (PRESENT(is_complex)) my_complex = is_complex
+
+      fsign = 1.0_dp
+      IF (PRESENT(rs_sign)) fsign = rs_sign
+
       wfn_real_only = .TRUE.
       IF (PRESENT(cmatrix)) wfn_real_only = .FALSE.
-      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
 
-      IF (wfn_real_only) THEN
-         CALL cp_dbcsr_set(rmatrix, 0.0_dp)
-      ELSE
-         CALL cp_dbcsr_set(rmatrix, 0.0_dp)
-         CALL cp_dbcsr_set(cmatrix, 0.0_dp)
-      END IF
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
 
       CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -666,8 +697,13 @@ CONTAINS
          END IF
 
          arg = REAL(cell(1), dp)*xkp(1)+REAL(cell(2), dp)*xkp(2)+REAL(cell(3), dp)*xkp(3)
-         coskl = COS(twopi*arg)
-         sinkl = fsym*SIN(twopi*arg)
+         IF (my_complex) THEN
+            coskl = fsign*fsym*COS(twopi*arg)
+            sinkl = fsign*SIN(twopi*arg)
+         ELSE
+            coskl = fsign*COS(twopi*arg)
+            sinkl = fsign*fsym*SIN(twopi*arg)
+         END IF
 
          ic = cell_to_index(cell(1), cell(2), cell(3))
          IF (.NOT. do_symmetric .AND. ic < 1) ic = cell_to_index(-cell(1), -cell(2), -cell(3))

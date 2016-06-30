@@ -1471,6 +1471,9 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL create_wannier_section(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 !
       !Printing of Moments
       CALL create_dipoles_section(print_key, "MOMENTS", high_print_level)
@@ -2058,6 +2061,61 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_pdos_section
+
+! **************************************************************************************************
+!> \brief ...
+!> \param print_key ...
+! **************************************************************************************************
+   SUBROUTINE create_wannier_section(print_key)
+
+      TYPE(section_type), POINTER                        :: print_key
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_wannier_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, "WANNIER90", &
+                                       description="Interface to Wannier90 code. (EXPERIMENTAL)", &
+                                       print_level=debug_print_level, common_iter_levels=1, filename="")
+
+      CALL keyword_create(keyword, name="SEED_NAME", &
+                          description="The seedname for the Wannier90 calculation (body of filenames).", &
+                          usage="SEED_NAME  filename", default_c_val="wannier90", &
+                          n_var=1, type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MP_GRID", &
+                          description="The dimensions of the Monkhorst-Pack k-point grid. ", &
+                          usage="MP_GRID 6 6 6", n_var=-1, default_i_vals=(/10, 10, 10/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ADDED_MOS", &
+                          variants=(/"ADDED_BANDS"/), &
+                          description="Number of MOs/Bands added to the Band Structure calculation.", &
+                          default_i_val=0)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EXCLUDE_BANDS", &
+                          description="List of Bands excluded in the Wannier calculation.", &
+                          usage="EXCLUDE_BANDS b1 b2 ...", n_var=-1, repeats=.TRUE., &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="WANNIER_FUNCTIONS", &
+                          description="Number of Wannier functions to be calculated. ", &
+                          usage="WANNIER_FUNCTIONS 6", n_var=1, default_i_val=0, &
+                          repeats=.TRUE., type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_wannier_section
 
 ! **************************************************************************************************
 !> \brief ...

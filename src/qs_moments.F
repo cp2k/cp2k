@@ -27,10 +27,11 @@ MODULE qs_moments
                                               cp_cfm_p_type,&
                                               cp_cfm_release
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_deallocate_matrix, &
+        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
         cp_dbcsr_deallocate_matrix_set, cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, &
-        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
+        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_double,&
@@ -50,6 +51,8 @@ MODULE qs_moments
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_sum
@@ -57,6 +60,7 @@ MODULE qs_moments
    USE orbital_pointers,                ONLY: current_maxl,&
                                               indco,&
                                               ncoset
+   USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr,&
                                               debye
@@ -65,6 +69,8 @@ MODULE qs_moments
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -85,9 +91,9 @@ MODULE qs_moments
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_moments'
 
-! *** Public subroutines ***
-
+   ! Public subroutines
    PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
+   PUBLIC :: build_berry_kpoint_matrix
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
 
 CONTAINS
@@ -154,8 +160,7 @@ CONTAINS
       nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
 
-!   *** Allocate work storage ***
-
+      ! Allocate work storage
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, maxsgf=maxsgf)
 
@@ -266,15 +271,13 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
-!          *** Calculate the primitive integrals ***
-
+               ! Calculate the primitive integrals
                CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), &
                            rpgfa(:, iset), la_min(iset), &
                            lb_max(jset), npgfb(jset), zetb(:, jset), &
                            rpgfb(:, jset), nmoments, rac, rbc, mab)
 
-!          *** Contraction step ***
-
+               ! Contraction step
                DO i = 1, nm
 
                   CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
@@ -308,8 +311,7 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-!   *** Release work storage ***
-
+      ! Release work storage
       DEALLOCATE (mab, basis_set_list)
       DEALLOCATE (work)
       DO i = 1, nm
@@ -395,8 +397,7 @@ CONTAINS
       nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
 
-!   *** Allocate work storage ***
-
+      ! Allocate work storage
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
                            maxco=maxco, maxsgf=maxsgf)
 
@@ -507,15 +508,13 @@ CONTAINS
                ncob = npgfb(jset)*ncoset(lb_max(jset))
                sgfb = first_sgfb(1, jset)
 
-!          *** Calculate the primitive integrals ***
-
+               ! Calculate the primitive integrals
                CALL angmom(la_max(iset), npgfa(iset), zeta(:, iset), &
                            rpgfa(:, iset), la_min(iset), &
                            lb_max(jset), npgfb(jset), zetb(:, jset), &
                            rpgfb(:, jset), rac, rbc, mab)
 
-!          *** Contraction step ***
-
+               ! Contraction step
                DO i = 1, nm
 
                   CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
@@ -549,8 +548,7 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-!   *** Release work storage ***
-
+      ! Release work storage
       DEALLOCATE (mab, basis_set_list)
       DEALLOCATE (work)
       DO i = 1, nm
@@ -701,7 +699,7 @@ CONTAINS
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
 
-!          *** Calculate the primitive integrals ***
+                  ! Calculate the primitive integrals
                   CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                               lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
                               ra, rb, kvec, cosab, sinab)
@@ -726,6 +724,217 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_berry_moment_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cosmat ...
+!> \param sinmat ...
+!> \param kvec ...
+! **************************************************************************************************
+   SUBROUTINE build_berry_kpoint_matrix(qs_env, cosmat, sinmat, kvec)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: cosmat, sinmat
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: kvec
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_kpoint_matrix', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, ldab, &
+         ldsa, ldsb, ldwork, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb
+      INTEGER, DIMENSION(3)                              :: icell
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb, row_blk_sizes
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: found, use_cell_mapping
+      REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, cosab, sblock, sinab, work
+      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set, basis_set_a, basis_set_b
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, &
+                      ks_env=ks_env, &
+                      dft_control=dft_control)
+      nimg = dft_control%nimages
+      IF (nimg > 1) THEN
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+         use_cell_mapping = .TRUE.
+      ELSE
+         use_cell_mapping = .FALSE.
+      END IF
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, cell=cell, &
+                      sab_orb=sab_orb)
+
+      nkind = SIZE(qs_kind_set)
+      natom = SIZE(particle_set)
+      ALLOCATE (basis_set_list(nkind))
+      DO ikind = 1, nkind
+         qs_kind => qs_kind_set(ikind)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set)
+         IF (ASSOCIATED(basis_set)) THEN
+            basis_set_list(ikind)%gto_basis_set => basis_set
+         ELSE
+            NULLIFY (basis_set_list(ikind)%gto_basis_set)
+         END IF
+      END DO
+
+      ALLOCATE (row_blk_sizes(natom))
+      CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
+                            basis=basis_set_list)
+      CALL get_ks_env(ks_env, dbcsr_dist=dbcsr_dist)
+      ! (re)allocate matrix sets
+      CALL cp_dbcsr_allocate_matrix_set(sinmat, 1, nimg)
+      CALL cp_dbcsr_allocate_matrix_set(cosmat, 1, nimg)
+      DO i = 1, nimg
+         ! sin
+         ALLOCATE (sinmat(1, i)%matrix)
+         CALL cp_dbcsr_init(sinmat(1, i)%matrix)
+         CALL cp_dbcsr_create(matrix=sinmat(1, i)%matrix, &
+                              name="SINMAT", &
+                              dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                              nze=0)
+         CALL cp_dbcsr_alloc_block_from_nbl(sinmat(1, i)%matrix, sab_orb)
+         CALL cp_dbcsr_set(sinmat(1, i)%matrix, 0.0_dp)
+         ! cos
+         ALLOCATE (cosmat(1, i)%matrix)
+         CALL cp_dbcsr_init(cosmat(1, i)%matrix)
+         CALL cp_dbcsr_create(matrix=cosmat(1, i)%matrix, &
+                              name="COSMAT", &
+                              dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                              nze=0)
+         CALL cp_dbcsr_alloc_block_from_nbl(cosmat(1, i)%matrix, sab_orb)
+         CALL cp_dbcsr_set(cosmat(1, i)%matrix, 0.0_dp)
+      END DO
+
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
+      ldab = ldwork
+      ALLOCATE (cosab(ldab, ldab))
+      ALLOCATE (sinab(ldab, ldab))
+      ALLOCATE (work(ldwork, ldwork))
+
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
+                                iatom=iatom, jatom=jatom, r=rab, cell=icell)
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         ! basis ikind
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nseta = basis_set_a%nset
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         sphi_a => basis_set_a%sphi
+         zeta => basis_set_a%zet
+         ! basis jkind
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsetb = basis_set_b%nset
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         sphi_b => basis_set_b%sphi
+         zetb => basis_set_b%zet
+
+         ldsa = SIZE(sphi_a, 1)
+         ldsb = SIZE(sphi_b, 1)
+
+         IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+         ELSE
+            irow = jatom
+            icol = iatom
+         END IF
+
+         IF (use_cell_mapping) THEN
+            ic = cell_to_index(icell(1), icell(2), icell(3))
+            CPASSERT(ic > 0)
+         ELSE
+            ic = 1
+         END IF
+
+         NULLIFY (sblock)
+         CALL cp_dbcsr_get_block_p(matrix=sinmat(1, ic)%matrix, &
+                                   row=irow, col=icol, BLOCK=sblock, found=found)
+         CPASSERT(found)
+         NULLIFY (cblock)
+         CALL cp_dbcsr_get_block_p(matrix=cosmat(1, ic)%matrix, &
+                                   row=irow, col=icol, BLOCK=cblock, found=found)
+         CPASSERT(found)
+
+         ra(:) = pbc(particle_set(iatom)%r(:), cell)
+         rb(:) = ra+rab
+         dab = SQRT(rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3))
+
+         DO iset = 1, nseta
+
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1, iset)
+
+            DO jset = 1, nsetb
+
+               IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
+
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               sgfb = first_sgfb(1, jset)
+
+               ! Calculate the primitive integrals
+               CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
+                           lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
+                           ra, rb, kvec, cosab, sinab)
+               CALL contract_cossin(cblock, sblock, &
+                                    iatom, ncoa, nsgfa(iset), sgfa, sphi_a, ldsa, &
+                                    jatom, ncob, nsgfb(jset), sgfb, sphi_b, ldsb, &
+                                    cosab, sinab, ldab, work, ldwork)
+
+            END DO
+         END DO
+
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      DEALLOCATE (cosab)
+      DEALLOCATE (sinab)
+      DEALLOCATE (work)
+      DEALLOCATE (basis_set_list)
+      DEALLOCATE (row_blk_sizes)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_berry_kpoint_matrix
 
 ! **************************************************************************************************
 !> \brief ...
