@@ -2030,12 +2030,12 @@ CONTAINS
                   CPASSERT(ASSOCIATED(mos_k))
 
                   IF (dft_control%nspins == 2) THEN
-                     CALL write_mo_set(mos_k(2, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                     CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
                                        dft_section, spin="ALPHA", last=.TRUE., kpt=ik)
-                     CALL write_mo_set(mos_k(2, 2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                     CALL write_mo_set(mos_k(1, 2)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
                                        dft_section, spin="BETA", last=.TRUE., kpt=ik)
                   ELSE
-                     CALL write_mo_set(mos_k(2, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
+                     CALL write_mo_set(mos_k(1, 1)%mo_set, atomic_kind_set, qs_kind_set, particle_set, 4, &
                                        dft_section, last=.TRUE., kpt=ik)
                   END IF
                END DO
