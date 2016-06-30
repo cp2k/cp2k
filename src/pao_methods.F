@@ -433,7 +433,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! calculate matrix U, which determines the pao basis
-      CALL pao_update_AB(pao, qs_env, ls_scf_env%ls_mstruct, penalty)
+      CALL pao_update_AB(pao, qs_env, ls_scf_env%ls_mstruct, penalty=penalty)
 
       ! calculat S, S_inv, S_sqrt, and S_sqrt_inv in the new pao basis
       CALL pao_rebuild_S(qs_env, ls_scf_env)
@@ -1120,6 +1120,15 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Adding forces."
 
+      IF (pao%max_pao /= 0) THEN
+         IF (pao%penalty_strength /= 0.0_dp) &
+            CPABORT("PAO forces require PENALTY_STRENGTH or MAX_PAO set to zero")
+         IF (pao%linpot_regu_strength /= 0.0_dp) &
+            CPABORT("PAO forces require LINPOT_REGULARIZATION_STRENGTH or MAX_PAO set to zero")
+         IF (pao%regularization /= 0.0_dp) &
+            CPABORT("PAO forces require REGULARIZATION or MAX_PAO set to zero")
+      ENDIF
+
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
                       particle_set=particle_set, &
@@ -1128,7 +1137,7 @@ CONTAINS
       ALLOCATE (forces(natoms, 3))
       forces(:, :) = 0.0_dp
       CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
-      CALL pao_calc_U(pao, qs_env, matrix_M, pao%matrix_G, forces=forces)
+      CALL pao_calc_U(pao, qs_env, matrix_M, pao%matrix_G, forces=forces) ! without penalty terms
       CALL cp_dbcsr_release(matrix_M)
 
       IF (SIZE(pao%ml_training_set) > 0) &

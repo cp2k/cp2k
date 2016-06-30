@@ -100,7 +100,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_optimization_start'
 
       INTEGER                                            :: handle
-      REAL(dp)                                           :: penalty
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -167,8 +166,7 @@ CONTAINS
       CALL cp_dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
 
       ! fill PAO transformation matrices
-      CALL pao_update_AB(pao, qs_env, ls_mstruct, penalty)
-      IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') " PAO| Energy from initial penalty:", penalty
+      CALL pao_update_AB(pao, qs_env, ls_mstruct)
 
       CALL timestop(handle)
    END SUBROUTINE pao_optimization_start
@@ -188,7 +186,7 @@ CONTAINS
 
       INTEGER                                            :: handle, icycle
       LOGICAL                                            :: cycle_converged, do_mixing, should_stop
-      REAL(KIND=dp)                                      :: energy
+      REAL(KIND=dp)                                      :: energy, penalty
       TYPE(cp_dbcsr_type)                                :: matrix_M, matrix_X_mixing
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -244,9 +242,9 @@ CONTAINS
 
          IF (pao%linesearch%starts) THEN
             icycle = icycle+1
-            ! calc new gradient
+            ! calc new gradient including penalty terms
             CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
-            CALL pao_calc_U(pao, qs_env, matrix_M, pao%matrix_G)
+            CALL pao_calc_U(pao, qs_env, matrix_M=matrix_M, matrix_G=pao%matrix_G, penalty=penalty)
             CALL cp_dbcsr_release(matrix_M)
             CALL pao_check_grad(pao, qs_env, ls_scf_env)
 

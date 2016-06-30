@@ -37,8 +37,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pao_calc_U_block_fock(pao, iatom, penalty, min_gap, V, U, M1, G)
       TYPE(pao_env_type), POINTER                        :: pao
-      INTEGER                                            :: iatom
-      REAL(dp), INTENT(INOUT)                            :: penalty, min_gap
+      INTEGER, INTENT(IN)                                :: iatom
+      REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
+      REAL(dp), INTENT(INOUT)                            :: min_gap
       REAL(dp), DIMENSION(:, :), POINTER                 :: V, U
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: M1, G
 
@@ -50,7 +51,7 @@ CONTAINS
       REAL(dp)                                           :: alpha, beta, denom, diff, gap
       REAL(dp), DIMENSION(:), POINTER                    :: H_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_N, D1, D2, H, H0, H_evecs, M2, M3, &
-                                                            M4, M5, M6, M7, M8, Y
+                                                            M4, M5, Y
 
       CALL timeset(routineN, handle)
 
@@ -83,18 +84,20 @@ CONTAINS
          min_gap = MIN(min_gap, gap)
       ENDIF
 
-      ! penalty terms: occupied and virtual eigenvalues repel each other
-      alpha = pao%penalty_strength
-      beta = pao%penalty_dist
-      DO i = 1, m
-      DO j = m+1, n
-         diff = H_evals(i)-H_evals(j)
-         penalty = penalty+alpha*EXP(-(diff/beta)**2)
-      ENDDO
-      ENDDO
+      IF (PRESENT(penalty)) THEN
+         ! penalty terms: occupied and virtual eigenvalues repel each other
+         alpha = pao%penalty_strength
+         beta = pao%penalty_dist
+         DO i = 1, m
+         DO j = m+1, n
+            diff = H_evals(i)-H_evals(j)
+            penalty = penalty+alpha*EXP(-(diff/beta)**2)
+         ENDDO
+         ENDDO
 
-      ! regularization energy
-      penalty = penalty+pao%regularization*SUM(V**2)
+         ! regularization energy
+         penalty = penalty+pao%regularization*SUM(V**2)
+      ENDIF
 
       IF (PRESENT(G)) THEN ! TURNING POINT (if calc grad) -------------------------
 
@@ -128,33 +131,32 @@ CONTAINS
          M4 = MATMUL(MATMUL(H_evecs, M3), TRANSPOSE(H_evecs))
 
          ! gradient contribution from penalty terms
-         ALLOCATE (D2(n, n), M5(n, n))
-         D2 = 0.0_dp
-         DO i = 1, n
-         DO j = 1, n
-            IF (i <= m .EQV. j <= m) CYCLE
-            diff = H_evals(i)-H_evals(j)
-            D2(i, i) = D2(i, i)-2.0_dp*alpha*diff/beta**2*EXP(-(diff/beta)**2)
-         ENDDO
-         ENDDO
-         M5 = MATMUL(MATMUL(H_evecs, D2), TRANSPOSE(H_evecs))
-
-         ! combine M1*dH/dH_evecs with dE_penalty/dH_evecs
-         ALLOCATE (M6(n, n))
-         M6 = M4+M5
+         IF (PRESENT(penalty)) THEN
+            ALLOCATE (D2(n, n))
+            D2 = 0.0_dp
+            DO i = 1, n
+            DO j = 1, n
+               IF (i <= m .EQV. j <= m) CYCLE
+               diff = H_evals(i)-H_evals(j)
+               D2(i, i) = D2(i, i)-2.0_dp*alpha*diff/beta**2*EXP(-(diff/beta)**2)
+            ENDDO
+            ENDDO
+            M4 = M4+MATMUL(MATMUL(H_evecs, D2), TRANSPOSE(H_evecs))
+            DEALLOCATE (D2)
+         ENDIF
 
          ! dH / dV, return to non-orthonormal basis
-         ALLOCATE (M7(n, n))
-         M7 = MATMUL(MATMUL(block_N, M6), block_N)
+         ALLOCATE (M5(n, n))
+         M5 = MATMUL(MATMUL(block_N, M4), block_N)
 
          ! add regularization gradient
-         ALLOCATE (M8(n, n))
-         M8 = M7+2.0_dp*pao%regularization*V
+         IF (PRESENT(penalty)) &
+            M5 = M5+2.0_dp*pao%regularization*V
 
          ! symmetrize
-         G = 0.5_dp*(M8+TRANSPOSE(M8)) ! the final gradient
+         G = 0.5_dp*(M5+TRANSPOSE(M5)) ! the final gradient
 
-         DEALLOCATE (D1, D2, M2, M3, M4, M5, M6, M7, M8)
+         DEALLOCATE (D1, M2, M3, M4, M5)
       ENDIF
 
       DEALLOCATE (H, H_evals, H_evecs)

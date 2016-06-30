@@ -233,7 +233,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pao_calc_U_gth(pao, penalty, matrix_M1, matrix_G)
       TYPE(pao_env_type), POINTER                        :: pao
-      REAL(dp), INTENT(INOUT)                            :: penalty
+      REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
       TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M1, matrix_G
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_gth'
@@ -323,7 +323,8 @@ CONTAINS
       DEALLOCATE (world_X, world_G)
 
       ! sum penalty energies across ranks
-      CALL mp_sum(penalty, group)
+      IF (PRESENT(penalty)) &
+         CALL mp_sum(penalty, group)
 
       ! print smallest homo-lumo gap encountered by fock-layer
       CALL mp_min(min_gap, group)

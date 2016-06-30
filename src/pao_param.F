@@ -62,9 +62,9 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_mstruct_type)                              :: ls_mstruct
-      REAL(dp), INTENT(INOUT)                            :: penalty
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: penalty
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_update_AB', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_update_AB'
 
       INTEGER                                            :: handle
       TYPE(cp_dbcsr_type)                                :: matrix_tmp
@@ -221,29 +221,27 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M, matrix_G
-      REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
+      REAL(dp), INTENT(OUT), OPTIONAL                    :: penalty
       REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U'
 
       INTEGER                                            :: handle
-      REAL(dp)                                           :: my_penalty
 
       CALL timeset(routineN, handle)
-      my_penalty = 0.0_dp
+
+      IF (PRESENT(penalty)) penalty = 0.0_dp
 
       SELECT CASE (pao%parameterization)
       CASE (pao_exp_param)
          CALL pao_calc_U_exp(pao, matrix_M, matrix_G)
       CASE (pao_fock_param, pao_rotinv_param)
-         CALL pao_calc_U_linpot(pao, qs_env, my_penalty, matrix_M, matrix_G, forces)
+         CALL pao_calc_U_linpot(pao, qs_env, penalty, matrix_M, matrix_G, forces)
       CASE (pao_gth_param)
-         CALL pao_calc_U_gth(pao, my_penalty, matrix_M, matrix_G)
+         CALL pao_calc_U_gth(pao, penalty, matrix_M, matrix_G)
       CASE DEFAULT
          CPABORT("PAO: unkown parametrization")
       END SELECT
-
-      IF (PRESENT(penalty)) penalty = my_penalty
 
       CALL pao_assert_unitary(pao, pao%matrix_U, pao%matrix_Y)
       CALL timestop(handle)

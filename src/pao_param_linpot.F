@@ -327,7 +327,7 @@ CONTAINS
    SUBROUTINE pao_calc_U_linpot(pao, qs_env, penalty, matrix_M, matrix_G, forces)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(dp), INTENT(INOUT)                            :: penalty
+      REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
       TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M, matrix_G
       REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
@@ -376,10 +376,11 @@ CONTAINS
          block_V = 0.5_dp*(block_V+TRANSPOSE(block_V)) ! symmetrize exactly
 
          ! regularization energy
-         regu_energy = regu_energy+DOT_PRODUCT(block_X(:, 1), MATMUL(block_R, block_X(:, 1)))
+         IF (PRESENT(penalty)) &
+            regu_energy = regu_energy+DOT_PRODUCT(block_X(:, 1), MATMUL(block_R, block_X(:, 1)))
 
          IF (.NOT. PRESENT(matrix_G) .AND. .NOT. PRESENT(matrix_G)) THEN
-            CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U)
+            CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, min_gap=min_gap, V=block_V, U=block_U)
 
          ELSE ! TURNING POINT (if calc grad) -------------------------------------------------------
             CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M1, found=found)
@@ -388,7 +389,8 @@ CONTAINS
             IF (ASSOCIATED(block_M1) .AND. SIZE(block_V_terms) > 0) THEN
                ALLOCATE (vec_M2(n*n))
                block_M2(1:n, 1:n) => vec_M2(:) ! map vector into matrix
-               CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U, block_M1, block_M2)
+               CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, min_gap=min_gap, &
+                                          V=block_V, U=block_U, M1=block_M1, G=block_M2)
                IF (MAXVAL(ABS(block_M2-TRANSPOSE(block_M2))) > 1e-14_dp) CPABORT("matrix not symmetric")
 
                ! gradient dE/dX
@@ -396,7 +398,8 @@ CONTAINS
                   CALL cp_dbcsr_get_block_p(matrix=matrix_G, row=iatom, col=iatom, block=block_G, found=found)
                   CPASSERT(ASSOCIATED(block_G))
                   block_G(:, 1) = MATMUL(vec_M2, block_V_terms)
-                  block_G = block_G+2.0_dp*MATMUL(block_R, block_X) ! regularization gradient
+                  IF (PRESENT(penalty)) &
+                     block_G = block_G+2.0_dp*MATMUL(block_R, block_X) ! regularization gradient
                ENDIF
 
                ! forced dE/dR
@@ -416,10 +419,12 @@ CONTAINS
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
 
-      ! sum penalty energies across ranks
-      CALL mp_sum(penalty, group)
-      CALL mp_sum(regu_energy, group)
-      penalty = penalty+regu_energy
+      IF (PRESENT(penalty)) THEN
+         ! sum penalty energies across ranks
+         CALL mp_sum(penalty, group)
+         CALL mp_sum(regu_energy, group)
+         penalty = penalty+regu_energy
+      ENDIF
 
       ! determine smallest homo-lumo gap encountered by fock-layer
       CALL mp_min(min_gap, group)
