@@ -2554,7 +2554,7 @@ CONTAINS
       END IF ! print key
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                                           dft_section, "PRINT%ENERGY_WINDOWS"), cp_p_file).AND..NOT.do_kpoints) THEN
+                                           dft_section, "PRINT%ENERGY_WINDOWS"), cp_p_file) .AND. .NOT. do_kpoints) THEN
          CALL energy_windows(qs_env)
       ENDIF
 
