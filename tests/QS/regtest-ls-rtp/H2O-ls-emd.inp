@@ -17,13 +17,6 @@
            &END EACH
            STRIDE 3 3 3
          &END CURRENT
-         &ENERGY_WINDOWS
-           &EACH
-             MD 2
-           &END EACH
-           N_WINDOWS 10
-           PRINT_CUBES
-         &END
        &END PRINT
     &END
     BASIS_SET_FILE_NAME BASIS_SET
@@ -63,6 +56,13 @@
          FILENAME output
          PERIODIC .FALSE.
       &END MOMENTS
+      &ENERGY_WINDOWS
+         &EACH
+           MD 2
+         &END EACH
+         N_WINDOWS 10
+         PRINT_CUBES
+       &END
     &END PRINT
   &END DFT
   &SUBSYS

@@ -1669,6 +1669,38 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      !DOS from density matrix
+      CALL cp_print_key_section_create(print_key, "ENERGY_WINDOWS", &
+                                       description="Controls the printing of the DOS from the density matrix. "// &
+                                       "This allows the calculation of the DOS even in density matrix based/linear scaling. "// &
+                                       "However, it requires a cubically scaling diagonalization of the Hamiltonian. "// &
+                                       "Hartree-Fock NYI, values will be wrong. "// &
+                                       "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian.", &
+                                       print_level=high_print_level, common_iter_levels=3, &
+                                       each_iter_names=s2a("MD"), each_iter_values=(/1/), &
+                                       add_last=add_last_numeric, filename="energy-windows")
+      CALL keyword_create(keyword, name="N_WINDOWS", &
+                          description="The number of energy windows.", &
+                          usage="N_WINDOWS 200", &
+                          default_i_val=100)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="PRINT_CUBES", &
+                          description="Print the energy windows to cube files", &
+                          usage="DENSITY_PROPAGATION .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the energy windows cube files (if enabled) "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       ! Xray diffraction
       CALL cp_print_key_section_create( &
          print_key_section=print_key, &
@@ -7085,36 +7117,6 @@ CONTAINS
                           description="Specifies the maximum index of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
                           default_i_val=3)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL section_add_subsection(print_section, print_key)
-      CALL section_release(print_key)
-
-      CALL cp_print_key_section_create(print_key, "ENERGY_WINDOWS", &
-                                       description="Controls the printing of the DOS of the Hamiltonian during rtp/emd. "// &
-                                       "This requires a cubically scaling diagonalization of the Hamiltonian. "// &
-                                       "Hartree-Fock NYI, values will be wrong. "// &
-                                       "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian.", &
-                                       print_level=high_print_level, common_iter_levels=3, &
-                                       each_iter_names=s2a("MD"), each_iter_values=(/1/), &
-                                       add_last=add_last_numeric, filename="energy-windows")
-      CALL keyword_create(keyword, name="N_WINDOWS", &
-                          description="The number of energy windows.", &
-                          usage="N_WINDOWS 200", &
-                          default_i_val=100)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="PRINT_CUBES", &
-                          description="Print the energy windows to cube files", &
-                          usage="DENSITY_PROPAGATION .TRUE.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="STRIDE", &
-                          description="The stride (X,Y,Z) used to write the energy windows cube files (if enabled) "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)

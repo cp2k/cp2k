@@ -10,22 +10,17 @@
 
 MODULE rt_propagation_output
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_binary_write, cp_dbcsr_checksum, &
-        cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
+        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
         cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-        cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-        cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_distribution_mp, dbcsr_mp_group
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
-                                              cp_dbcsr_sm_fm_multiply
+        cp_dbcsr_filter, cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
+        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, &
+        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-   USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_double,&
                                               cp_fm_struct_release,&
@@ -35,7 +30,6 @@ MODULE rt_propagation_output
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -52,9 +46,7 @@ MODULE rt_propagation_output
                                               real_time_propagation
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
+                                              section_vals_type
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -73,12 +65,10 @@ MODULE rt_propagation_output
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_current,               ONLY: calculate_jrho_resp
    USE qs_linres_types,                 ONLY: current_env_type
    USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
@@ -208,10 +198,6 @@ CONTAINS
       IF (rtp%converged) THEN
          CALL make_moment(qs_env)
          dft_section => section_vals_get_subs_vals(input, "DFT")
-         IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                                              dft_section, "REAL_TIME_PROPAGATION%PRINT%ENERGY_WINDOWS"), cp_p_file)) THEN
-            CALL energy_windows(qs_env)
-         ENDIF
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_new=rho_new)
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -770,162 +756,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE rt_current
-
-! **************************************************************************************************
-!> \brief Calculates the eigenstates of the Hamiltonian. This is done through diagonalization and therefore scales cubically.
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE energy_windows(qs_env)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'energy_windows', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
-
-      CHARACTER(len=40)                                  :: ext
-      INTEGER                                            :: handle, i, lanzcos_max_iter, last, nao, &
-                                                            nelectron_total, newton_schulz_order, &
-                                                            next, nwindows, print_unit, unit_nr
-      INTEGER, DIMENSION(:), POINTER                     :: stride(:)
-      LOGICAL                                            :: print_cube
-      REAL(KIND=dp)                                      :: bin_width, fermi_level, filter_eps, &
-                                                            lanzcos_threshold, total_rho
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
-      TYPE(cp_dbcsr_type)                                :: matrix_ks_nosym, S_half, S_minus_half, &
-                                                            tmp
-      TYPE(cp_dbcsr_type), POINTER                       :: window
-      TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, window_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: eigenvectors, matrix_ks_fm, P_window_fm, &
-                                                            window_fm
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: rho_g, rho_r
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(qs_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, ls_scf_section
-
-      CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      unit_nr = cp_logger_get_default_io_unit(logger)
-      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, matrix_ks=matrix_ks, pw_env=pw_env, rho=rho, &
-                      input=input, nelectron_total=nelectron_total, subsys=subsys, ks_env=ks_env, matrix_s=matrix_s)
-      CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
-      CALL qs_subsys_get(subsys, particles=particles)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-
-      !reading the input
-      dft_section => section_vals_get_subs_vals(input, "DFT")
-      ls_scf_section => section_vals_get_subs_vals(input, "DFT%LS_SCF")
-      CALL section_vals_val_get(dft_section, "REAL_TIME_PROPAGATION%PRINT%ENERGY_WINDOWS%N_WINDOWS", i_val=nwindows)
-      CALL section_vals_val_get(dft_section, "REAL_TIME_PROPAGATION%PRINT%ENERGY_WINDOWS%PRINT_CUBES", l_val=print_cube)
-      NULLIFY (stride)
-      ALLOCATE (stride(3))
-      stride = section_get_ivals(dft_section, "REAL_TIME_PROPAGATION%PRINT%ENERGY_WINDOWS%STRIDE")
-      CALL section_vals_val_get(ls_scf_section, "EPS_FILTER", r_val=filter_eps)
-      CALL section_vals_val_get(ls_scf_section, "EPS_LANCZOS", r_val=lanzcos_threshold)
-      CALL section_vals_val_get(ls_scf_section, "MAX_ITER_LANCZOS", i_val=lanzcos_max_iter)
-      CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=newton_schulz_order)
-
-      !Initialize data
-      CALL cp_dbcsr_get_info(matrix=matrix_ks(1)%matrix, nfullrows_total=nao)
-      CALL cp_dbcsr_init(matrix_ks_nosym)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_dbcsr_init(S_minus_half)
-      CALL cp_dbcsr_create(S_minus_half, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_dbcsr_init(S_half)
-      CALL cp_dbcsr_create(S_half, template=matrix_s(1)%matrix, matrix_type="N")
-      NULLIFY (rho_r, rho_g)
-      ALLOCATE (rho_r, rho_g)
-      NULLIFY (rho_r%pw, rho_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, context=blacs_env, nrow_global=nao, ncol_global=nao)
-      CALL cp_fm_create(matrix_ks_fm, ao_ao_fmstruct)
-      ALLOCATE (eigenvalues(nao))
-      CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
-      ALLOCATE (window)
-      CALL cp_dbcsr_init(window)
-      CALL cp_dbcsr_create(window, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_fm_create(P_window_fm, ao_ao_fmstruct)
-
-      !calculate S_minus_half
-      CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, filter_eps, &
-                                     newton_schulz_order, lanzcos_threshold, lanzcos_max_iter)
-
-      !get the full ks matrix
-      CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix, matrix_ks_nosym)
-      CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, matrix_ks_nosym, zero, tmp, filter_eps=filter_eps) !switching to orthonormal basis
-      CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, matrix_ks_nosym, filter_eps=filter_eps)
-      CALL copy_dbcsr_to_fm(matrix_ks_nosym, matrix_ks_fm)
-
-      !diagonalize the full ks matrix
-      CALL choose_eigv_solver(matrix_ks_fm, eigenvectors, eigenvalues)
-      fermi_level = eigenvalues((nelectron_total+MOD(nelectron_total, 2))/2)
-      IF (unit_nr > 0) WRITE (unit_nr, *) " Creating energy windows. Fermi level: ", fermi_level
-
-      !create energy windows
-
-      bin_width = (eigenvalues(SIZE(eigenvalues))-eigenvalues(1))/(nwindows+1)
-      next = 1
-      DO i = 1, nwindows
-         last = next
-         DO WHILE (eigenvalues(next) < eigenvalues(1)+i*bin_width)
-            next = next+1
-         END DO
-         IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", eigenvalues(1)+i*bin_width, " Number of states: ", next-last
-         IF (print_cube) THEN
-            !print the energy window to a cube file
-            CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next-last) !not sure how bad this is now load balanced due to using the same blacs_env
-            CALL cp_fm_create(window_fm, window_fm_struct)
-            CALL cp_fm_to_fm(eigenvectors, window_fm, next-last, last, 1) !copy the mos in the energy window into a separate matrix
-            CALL cp_gemm("N", "T", nao, nao, next-last, one, window_fm, window_fm, zero, P_window_fm) !calculate the density caused by the mos in the energy window
-            CALL copy_fm_to_dbcsr(P_window_fm, tmp)
-            !ensure the correct sparsity
-            CALL cp_dbcsr_copy(window, rho_ao(1)%matrix)
-            CALL cp_dbcsr_copy_into_existing(window, tmp)
-            CALL calculate_rho_elec(matrix_p=window, &
-                                    rho=rho_r, &
-                                    rho_gspace=rho_g, &
-                                    total_rho=total_rho, &
-                                    ks_env=ks_env)
-            WRITE (ext, "(A14,I5.5,A5)") "-ENERGY-WINDOW", i, ".cube"
-            print_unit = cp_print_key_unit_nr(logger, dft_section, "REAL_TIME_PROPAGATION%PRINT%ENERGY_WINDOWS", &
-                                              extension=ext, file_status="REPLACE", file_action="WRITE", &
-                                              log_filename=.FALSE.)
-            CALL cp_pw_to_cube(rho_r%pw, print_unit, "EMD current", particles=particles, stride=stride)
-            CALL cp_print_key_finished_output(print_unit, logger, dft_section, &
-                                              "REAL_TIME_PROPAGATION%PRINT%ENERGY_WINDOWS")
-            CALL cp_fm_release(window_fm)
-            CALL cp_fm_struct_release(window_fm_struct)
-         END IF
-      END DO
-
-      !clean up
-      CALL cp_dbcsr_release(matrix_ks_nosym)
-      CALL cp_dbcsr_release(tmp)
-      CALL cp_dbcsr_release(window)
-      CALL cp_dbcsr_release(S_minus_half)
-      CALL cp_dbcsr_release(S_half)
-      DEALLOCATE (window)
-      CALL cp_fm_struct_release(ao_ao_fmstruct)
-      CALL cp_fm_release(matrix_ks_fm)
-      CALL cp_fm_release(eigenvectors)
-      CALL cp_fm_release(P_window_fm)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-      DEALLOCATE (rho_r, rho_g)
-      DEALLOCATE (eigenvalues)
-      DEALLOCATE (STRIDE)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE energy_windows
 
 END MODULE rt_propagation_output

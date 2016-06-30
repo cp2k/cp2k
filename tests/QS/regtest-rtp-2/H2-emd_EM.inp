@@ -8,14 +8,14 @@
        EXP_ACCURACY 1.0E-9
        EPS_ITER 1.0E-9
        INITIAL_WFN SCF_WFN
-       &PRINT
-         &ENERGY_WINDOWS
-           &EACH
-             MD 2
-           &END EACH
-           N_WINDOWS 10
-           PRINT_CUBES
-         &END
+    &END
+    &PRINT
+       &ENERGY_WINDOWS
+         &EACH
+           MD 2
+         &END EACH
+         N_WINDOWS 10
+         PRINT_CUBES
        &END
     &END
     BASIS_SET_FILE_NAME BASIS_SET
