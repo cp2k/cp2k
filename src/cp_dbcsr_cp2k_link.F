@@ -24,14 +24,15 @@ MODULE cp_dbcsr_cp2k_link
         cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, cp_dbcsr_reserve_blocks, cp_dbcsr_set, &
         cp_dbcsr_type, dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
         dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-        dbcsr_get_conf_nstacks, dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, &
-        dbcsr_get_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_filtering, &
-        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
-        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-        dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, &
-        dbcsr_set_conf_use_mpi_exp, dbcsr_set_conf_use_mpi_filtering, dbcsr_type_no_symmetry, &
-        has_acc, has_mpi, mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, &
-        mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
+        dbcsr_get_conf_nstacks, dbcsr_get_conf_num_layers_3D, dbcsr_get_conf_randmat_seed, &
+        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
+        dbcsr_get_conf_use_mpi_filtering, dbcsr_set_conf_avg_elements_images, &
+        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, &
+        dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
+        dbcsr_set_conf_use_mpi_filtering, dbcsr_type_no_symmetry, has_acc, has_mpi, &
+        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, mm_name_blas, &
+        mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -82,7 +83,8 @@ CONTAINS
 
       INTEGER                                            :: avg_elements_images, comm_thread_load, &
                                                             error_handle, max_ele_block, &
-                                                            mm_driver, mm_ss, randmat_seed
+                                                            mm_driver, mm_ss, num_layers, &
+                                                            randmat_seed
       INTEGER, DIMENSION(3)                              :: nstacks
       LOGICAL                                            :: use_comm_thread, use_mpi_exp, &
                                                             use_mpi_filtering
@@ -106,6 +108,8 @@ CONTAINS
                                 "use_mpi_filtering", l_val=use_mpi_filtering)
       CALL section_vals_val_get(dbcsr_section, &
                                 "use_mpi_exp", l_val=use_mpi_exp)
+      CALL section_vals_val_get(dbcsr_section, &
+                                "num_layers_3D", i_val=num_layers)
       CALL section_vals_val_get(dbcsr_section, &
                                 "use_comm_thread", l_val=use_comm_thread)
       CALL section_vals_val_get(dbcsr_section, &
@@ -150,6 +154,8 @@ CONTAINS
       CALL dbcsr_set_conf_use_comm_thread(use_comm_thread)
       CALL dbcsr_set_conf_comm_thread_load(comm_thread_load)
       CALL dbcsr_set_conf_randmat_seed(randmat_seed)
+      IF (num_layers > 0) &
+         CALL dbcsr_set_conf_num_layers_3D(num_layers)
 
       CALL timestop(error_handle)
    END SUBROUTINE cp_dbcsr_config
@@ -213,6 +219,13 @@ CONTAINS
          ENDIF
 
          IF (has_mpi) THEN
+            IF (dbcsr_get_conf_num_layers_3D() < 2) THEN
+               WRITE (UNIT=unit_num, FMT='(1X,A,T75,A)') &
+                  "DBCSR| Number of 3D layers", "SINGLE"
+            ELSE
+               WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
+                  "DBCSR| Number of 3D layers", dbcsr_get_conf_num_layers_3D()
+            ENDIF
             WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &
                "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem()
             WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &

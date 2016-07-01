@@ -38,6 +38,7 @@ MODULE dbcsr_config
    PUBLIC :: dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
 
    PUBLIC :: dbcsr_set_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_exp
+   PUBLIC :: dbcsr_set_conf_num_layers_3D, dbcsr_get_conf_num_layers_3D
    PUBLIC :: dbcsr_set_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_filtering
    PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
    PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
@@ -61,6 +62,7 @@ MODULE dbcsr_config
              mm_name_smm, &
              mm_name_xsmm
    PUBLIC :: use_mpi_exp, use_mpi_filtering, use_comm_thread, comm_thread_load
+   PUBLIC :: num_layers_3D
    PUBLIC :: max_elements_per_block, avg_elements_images
    !
    PUBLIC :: is_initialized
@@ -154,6 +156,9 @@ MODULE dbcsr_config
 
    ! RMA MPI filtering
    LOGICAL, SAVE :: use_mpi_filtering = .TRUE.
+
+   ! 3D layers
+   INTEGER, SAVE :: num_layers_3D = 1
 
    ! Configuration of an MPI progress thread
    LOGICAL, SAVE :: use_comm_thread = .TRUE.
@@ -454,6 +459,36 @@ CONTAINS
 
       mpi_exp = use_mpi_exp
    END FUNCTION dbcsr_get_conf_use_mpi_exp
+
+! **************************************************************************************************
+!> \brief ...
+!> \param nlayers ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_set_conf_num_layers_3D(nlayers)
+      INTEGER, INTENT(IN)                                :: nlayers
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_num_layers_3D', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: error_handle
+
+      CALL timeset(routineN, error_handle)
+      num_layers_3D = nlayers
+      CALL timestop(error_handle)
+   END SUBROUTINE dbcsr_set_conf_num_layers_3D
+
+! **************************************************************************************************
+!> \brief ...
+!> \retval nlayers ...
+! **************************************************************************************************
+   FUNCTION dbcsr_get_conf_num_layers_3D() RESULT(nlayers)
+      INTEGER                                            :: nlayers
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_num_layers_3D', &
+         routineP = moduleN//':'//routineN
+
+      nlayers = num_layers_3D
+   END FUNCTION dbcsr_get_conf_num_layers_3D
 
 ! **************************************************************************************************
 !> \brief ...

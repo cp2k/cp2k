@@ -417,6 +417,52 @@
   END SUBROUTINE mp_alltoall_d44
 
 ! *****************************************************************************
+!> \brief All-to-all data exchange, rank 5 data, equal sizes
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param group ...
+!> \note see mp_alltoall_d
+! *****************************************************************************
+  SUBROUTINE mp_alltoall_d55 ( sb, rb, count, group )
+
+    REAL(kind=real_8), DIMENSION(:, :, :, :, :), &
+      INTENT(IN)                             :: sb
+    REAL(kind=real_8), DIMENSION(:, :, :, :, :), &
+      INTENT(OUT)                            :: rb
+    INTEGER, INTENT(IN)                      :: count, group
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_d55', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen, np
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_alltoall ( sb, count, MPI_DOUBLE_PRECISION, &
+         rb, count, MPI_DOUBLE_PRECISION, group, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoall @ "//routineN )
+    CALL mpi_comm_size ( group, np, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_comm_size @ "//routineN )
+    msglen = 2 * count * np
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
+#else
+    MARK_USED(count)
+    MARK_USED(group)
+    rb=sb
+#endif
+    CALL mp_timestop(handle)
+
+  END SUBROUTINE mp_alltoall_d55
+
+! *****************************************************************************
 !> \brief All-to-all data exchange, rank-4 data to rank-5 data
 !> \param sb ...
 !> \param rb ...

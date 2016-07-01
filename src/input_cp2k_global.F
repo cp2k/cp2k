@@ -23,10 +23,10 @@ MODULE input_cp2k_global
         accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
         accdrv_posterior_buffers, accdrv_posterior_streams, accdrv_priority_buffers, &
         accdrv_priority_streams, dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_max_ele_block, &
-        dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
-        dbcsr_get_conf_use_mpi_filtering, mm_driver_auto, mm_driver_blas, mm_driver_matmul, &
-        mm_driver_smm, mm_driver_xsmm, mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, &
-        mm_name_xsmm, multrec_limit
+        dbcsr_get_conf_num_layers_3D, dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, &
+        dbcsr_get_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_filtering, mm_driver_auto, &
+        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, mm_name_auto, &
+        mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -580,6 +580,13 @@ CONTAINS
                           //" during the operations.", &
                           usage="use_mpi_exp F", &
                           default_l_val=dbcsr_get_conf_use_mpi_exp())
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="num_layers_3D", &
+                          description="Number of layers for the 3D multplication algorithm.", &
+                          usage="num_layers_3D 1", &
+                          default_i_val=dbcsr_get_conf_num_layers_3D())
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       !
