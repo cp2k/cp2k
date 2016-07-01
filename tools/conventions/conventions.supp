@@ -172,7 +172,7 @@ dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "merge_in
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "call_rec_sort_index"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "cannon_multiply_low"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "cannon_multiply_low_exp"
-dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "cannon_multiply_low_rma"
+dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "cannon_multiply_low_clusters"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_make_images_dense"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_cannon_multiply"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "rec_sort_index"
