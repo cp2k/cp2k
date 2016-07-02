@@ -5504,6 +5504,8 @@ CONTAINS
 
          ENDDO
 
+         CALL cp_dbcsr_iterator_stop(iter)
+
          ALLOCATE (buffer_send(0:para_env_sub%num_pe-1))
          ALLOCATE (buffer_rec(0:para_env_sub%num_pe-1))
 
@@ -5551,6 +5553,11 @@ CONTAINS
 
             END IF
 
+         END DO
+
+         DO imepos = 0, para_env_sub%num_pe-1
+            DEALLOCATE (buffer_send(imepos)%sizes)
+            DEALLOCATE (buffer_rec(imepos)%sizes)
          END DO
 
          DEALLOCATE (buffer_send, buffer_rec)
