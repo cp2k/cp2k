@@ -164,6 +164,7 @@ MODULE qs_ks_types
                                                                gamma_matrix => Null(), &
                                                                matrix_s_aux_fit => Null(), &
                                                                matrix_s_aux_fit_vs_orb => Null(), &
+                                                               matrix_s_RI_aux => Null(), &
                                                                matrix_ks_aux_fit => Null(), &
                                                                matrix_ks_aux_fit_im => Null(), &
                                                                matrix_ks_aux_fit_dft => Null(), &
@@ -269,6 +270,7 @@ CONTAINS
 !> \param matrix_s ...
 !> \param matrix_s_aux_fit ...
 !> \param matrix_s_aux_fit_vs_orb ...
+!> \param matrix_s_RI_aux ...
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
@@ -347,7 +349,7 @@ CONTAINS
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, &
                          matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
                          kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-                         matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix, &
+                         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          rho, rho_aux_fit, rho_aux_fit_buffer, &
                          rho_buffer, rho_xc, &
@@ -371,7 +373,7 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
+         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
@@ -450,6 +452,7 @@ CONTAINS
       IF (PRESENT(matrix_ks_aux_fit_hfx)) matrix_ks_aux_fit_hfx => ks_env%matrix_ks_aux_fit_hfx
       IF (PRESENT(matrix_s_aux_fit)) matrix_s_aux_fit => ks_env%matrix_s_aux_fit
       IF (PRESENT(matrix_s_aux_fit_vs_orb)) matrix_s_aux_fit_vs_orb => ks_env%matrix_s_aux_fit_vs_orb
+      IF (PRESENT(matrix_s_RI_aux)) matrix_s_RI_aux => ks_env%matrix_s_RI_aux
       IF (PRESENT(matrix_w_mp2)) matrix_w_mp2 => ks_env%matrix_w_mp2
       IF (PRESENT(matrix_p_mp2)) matrix_p_mp2 => ks_env%matrix_p_mp2
       IF (PRESENT(gamma_matrix)) gamma_matrix => ks_env%gamma_matrix
@@ -544,6 +547,7 @@ CONTAINS
 !> \param matrix_s ...
 !> \param matrix_s_aux_fit ...
 !> \param matrix_s_aux_fit_vs_orb ...
+!> \param matrix_s_RI_aux ...
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
@@ -594,7 +598,7 @@ CONTAINS
                          potential_changed, forces_up_to_date, &
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
                          matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, &
-                         matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix, &
+                         matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
@@ -612,7 +616,7 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
+         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
@@ -669,6 +673,7 @@ CONTAINS
       IF (PRESENT(matrix_ks_aux_fit_hfx)) ks_env%matrix_ks_aux_fit_hfx => matrix_ks_aux_fit_hfx
       IF (PRESENT(matrix_s_aux_fit)) ks_env%matrix_s_aux_fit => matrix_s_aux_fit
       IF (PRESENT(matrix_s_aux_fit_vs_orb)) ks_env%matrix_s_aux_fit_vs_orb => matrix_s_aux_fit_vs_orb
+      IF (PRESENT(matrix_s_RI_aux)) ks_env%matrix_s_RI_aux => matrix_s_RI_aux
       IF (PRESENT(matrix_w_mp2)) ks_env%matrix_w_mp2 => matrix_w_mp2
       IF (PRESENT(matrix_p_mp2)) ks_env%matrix_p_mp2 => matrix_p_mp2
       IF (PRESENT(gamma_matrix)) ks_env%gamma_matrix => gamma_matrix
@@ -782,6 +787,8 @@ CONTAINS
                CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit)
             IF (ASSOCIATED(ks_env%matrix_s_aux_fit_vs_orb)) &
                CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit_vs_orb)
+            IF (ASSOCIATED(ks_env%matrix_s_RI_aux)) &
+               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_RI_aux)
             IF (ASSOCIATED(ks_env%matrix_w_mp2)) &
                CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_w_mp2)
             IF (ASSOCIATED(ks_env%matrix_p_mp2)) &

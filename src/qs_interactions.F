@@ -97,7 +97,7 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: aux_basis_set, aux_fit_basis_set, &
                                                             lri_basis, mao_basis, orb_basis_set, &
-                                                            soft_basis
+                                                            ri_aux_basis_set, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
 
       CALL timeset(routineN, handle)
@@ -118,6 +118,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis, basis_type="LRI")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_aux_basis_set, basis_type="RI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=mao_basis, basis_type="MAO")
          CALL get_qs_kind(qs_kind_set(ikind), soft_basis_set=soft_basis)
          CALL get_qs_kind(qs_kind_set(ikind), &
@@ -251,6 +252,14 @@ CONTAINS
          IF (ASSOCIATED(aux_basis_set)) THEN
 
             CALL init_interaction_radii_orb_basis(aux_basis_set, qs_control%eps_pgf_orb)
+
+         END IF
+
+         ! Calculate the RI aux orbital basis function radii
+
+         IF (ASSOCIATED(RI_aux_basis_set)) THEN
+
+            CALL init_interaction_radii_orb_basis(RI_aux_basis_set, qs_control%eps_pgf_orb)
 
          END IF
 

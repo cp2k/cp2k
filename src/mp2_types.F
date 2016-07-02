@@ -45,7 +45,9 @@ MODULE mp2_types
              init_TShPSC_lmax
 
    PUBLIC :: mp2_env_create, mp2_env_release, mp2_biel_type, &
-             pair_list_type_mp2
+             pair_list_type_mp2, offset_type, &
+             offset_row_col_from_LLL, one_dim_int_array, &
+             two_dim_int_array
 
    INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
@@ -73,11 +75,12 @@ MODULE mp2_types
    END TYPE
 
    TYPE mp2_gpw_type
-      REAL(KIND=dp)            :: eps_grid, eps_filter
+      REAL(KIND=dp)            :: eps_grid, eps_filter, eps_pgf_orb_S
       INTEGER                  :: print_level
       REAL(KIND=dp)            :: cutoff
       REAL(KIND=dp)            :: relative_cutoff
       LOGICAL                  :: do_mult_2c
+      LOGICAL                  :: do_os
    END TYPE mp2_gpw_type
 
    TYPE ri_mp2_type
@@ -97,6 +100,42 @@ MODULE mp2_types
       LOGICAL                  :: do_admm
       LOGICAL                  :: do_im_time
       LOGICAL                  :: do_RI_overlap
+   END TYPE
+
+   TYPE ri_rpa_im_time_util
+      INTEGER                  :: color_sub_row
+      INTEGER                  :: color_sub_col
+      INTEGER                  :: color_sub_P
+      INTEGER                  :: n_group_row
+      INTEGER                  :: n_group_col
+      INTEGER                  :: n_group_P
+      INTEGER                  :: cut_RI
+      INTEGER                  :: n_group_RI_orig
+      INTEGER, ALLOCATABLE, DIMENSION(:)  :: sizes_array_prim_row, starts_array_prim_row, &
+                                             ends_array_prim_row, sizes_array_prim_col, &
+                                             starts_array_prim_col, ends_array_prim_col, &
+                                             sizes_array_prim_fullrow, starts_array_prim_fullrow, &
+                                             ends_array_prim_fullrow, sizes_array_prim_fullcol, &
+                                             starts_array_prim_fullcol, ends_array_prim_fullcol, &
+                                             start_row_data_block, end_row_data_block, &
+                                             start_col_data_block, end_col_data_block, &
+                                             my_group_L_starts_im_time, my_group_L_ends_im_time, &
+                                             my_group_L_sizes_im_time, mepos_P_from_RI_row, &
+                                             row_blk_offset_RI
+   END TYPE
+
+   TYPE ri_rpa_im_time_2d_util
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)  :: offset_combi_block
+   END TYPE
+
+   TYPE ri_rpa_im_time_type
+      INTEGER                  :: cut_memory
+      LOGICAL                  :: memory_info
+      REAL(KIND=dp)            :: eps_comm, eps_filter_im_time
+      INTEGER                  :: group_size_P, group_size_3c, add_cut_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_row_cm, starts_array_row_cm, &
+                                            ends_array_row_cm, sizes_array_col_cm, &
+                                            starts_array_col_cm, ends_array_col_cm
    END TYPE
 
    TYPE ri_g0w0_type
@@ -158,6 +197,14 @@ MODULE mp2_types
       TYPE(mp2_gpw_type)       :: mp2_gpw
       TYPE(ri_mp2_type)        :: ri_mp2
       TYPE(ri_rpa_type)        :: ri_rpa
+      TYPE(ri_rpa_im_time_util), &
+         DIMENSION(:), &
+         ALLOCATABLE            :: ri_rpa_im_time_util
+      TYPE(ri_rpa_im_time_2d_util), &
+         DIMENSION(:, :), &
+         ALLOCATABLE            :: ri_rpa_im_time_2d_util
+      TYPE(ri_rpa_im_time_type) &
+         :: ri_rpa_im_time
       TYPE(ri_g0w0_type)       :: ri_g0w0
       TYPE(ri_basis_opt)       :: ri_opt_param
       TYPE(grad_util)          :: ri_grad
@@ -194,6 +241,26 @@ MODULE mp2_types
       TYPE(pair_list_element_type), DIMENSION(:), ALLOCATABLE :: elements
       INTEGER :: n_element
    END TYPE pair_list_type_mp2
+
+   TYPE offset_type
+      INTEGER, DIMENSION(:), POINTER :: offset_occ
+      INTEGER, DIMENSION(:), POINTER :: LLL
+   END TYPE
+
+   TYPE one_dim_int_array
+      INTEGER, DIMENSION(:), ALLOCATABLE    :: array
+   END TYPE
+
+   TYPE two_dim_int_array
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: array
+   END TYPE
+
+   TYPE offset_row_col_from_LLL
+      INTEGER, DIMENSION(:), POINTER :: rows
+      INTEGER, DIMENSION(:), POINTER :: cols
+      INTEGER, DIMENSION(:), POINTER :: offset
+      INTEGER, DIMENSION(:), POINTER :: blocksize
+   END TYPE
 
 CONTAINS
 

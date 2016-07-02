@@ -348,6 +348,7 @@ CONTAINS
 !> \param matrix_s ...
 !> \param matrix_s_aux_fit ...
 !> \param matrix_s_aux_fit_vs_orb ...
+!> \param matrix_s_RI_aux ...
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
@@ -458,8 +459,8 @@ CONTAINS
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
-                         matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, matrix_p_mp2, &
-                         gamma_matrix, rho, rho_aux_fit, rho_aux_fit_buffer, &
+                         matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, &
+                         matrix_w_mp2, matrix_p_mp2, gamma_matrix, rho, rho_aux_fit, rho_aux_fit_buffer, &
                          rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, mpools_aux_fit, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, id_nr, local_particles, &
@@ -512,8 +513,8 @@ CONTAINS
                                                             matrix_s_kp, matrix_w_kp
       TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_ks_aux_fit, &
          matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_s, &
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, matrix_p_mp2, &
-         gamma_matrix
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, &
+         matrix_p_mp2, gamma_matrix
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_aux_fit, rho_aux_fit_buffer, &
                                                             rho_buffer, rho_xc
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
@@ -712,6 +713,7 @@ CONTAINS
                       matrix_s=matrix_s, &
                       matrix_s_aux_fit=matrix_s_aux_fit, &
                       matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
+                      matrix_s_RI_aux=matrix_s_RI_aux, &
                       matrix_w=matrix_w, &
                       matrix_w_mp2=matrix_w_mp2, &
                       matrix_p_mp2=matrix_p_mp2, &

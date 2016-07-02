@@ -834,9 +834,9 @@ CONTAINS
          l_col = MIN(dbcsr_nfullcols_total(matrix_right), &
                      dbcsr_nfullcols_total(matrix_c))
       ENDIF
-      IF (f_row .GT. l_row) &
+      IF (f_row .GT. l_row .AND. l_row .GT. 0) &
          CPABORT("Last row smaller than first row")
-      IF (f_col .GT. l_col) &
+      IF (f_col .GT. l_col .AND. l_col .GT. 0) &
          CPABORT("Last col smaller than first col")
       !
       ! Product data needs to be retained when

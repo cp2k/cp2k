@@ -8,6 +8,7 @@
 !> \par History
 !>      06.2012 created [Mauro Del Ben]
 !>      04.2015 GW routines added [Jan Wilhelm]
+!>      10.2015 Cubic-scaling RPA routines added [Jan Wilhelm]
 ! **************************************************************************************************
 MODULE rpa_ri_gpw
    USE bibliography,                    ONLY: DelBen2013,&
@@ -17,9 +18,11 @@ MODULE rpa_ri_gpw
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_deallocate_matrix_set, &
-        cp_dbcsr_desymmetrize, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_p_type, &
-        cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
+        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, &
+        cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_syrk,&
@@ -56,7 +59,8 @@ MODULE rpa_ri_gpw
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff
    USE mp2_laplace,                     ONLY: laplace_minimax_approx
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
-                                              mp2_type
+                                              mp2_type,&
+                                              two_dim_int_array
    USE rpa_communication,               ONLY: fm_redistribute,&
                                               initialize_buffer,&
                                               release_buffer
@@ -103,6 +107,14 @@ CONTAINS
 !> \param unit_nr ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param my_do_gw ...
+!> \param do_im_time ...
+!> \param mat_munu ...
+!> \param mat_P_local ...
+!> \param mat_P_global ...
+!> \param mat_M ...
+!> \param mat_3c_overl_int ...
+!> \param my_Lrows ...
+!> \param eps_filter ...
 !> \param BIb_C_beta ...
 !> \param homo_beta ...
 !> \param Eigenval_beta ...
@@ -113,21 +125,16 @@ CONTAINS
 !> \param BIb_C_gw_beta ...
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
-!> \param do_im_time ...
-!> \param mat_munu ...
-!> \param mat_B_munu ...
-!> \param my_Lrows ...
-!> \param eps_filter ...
 ! **************************************************************************************************
    SUBROUTINE rpa_ri_compute_en(Erpa, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub, color_sub, &
                                 ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                 starts_array, starts_B_virtual, starts_B_all, mo_coeff, &
                                 Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                unit_nr, do_ri_sos_laplace_mp2, my_do_gw, &
+                                unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, &
+                                mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, eps_filter, &
                                 BIb_C_beta, homo_beta, Eigenval_beta, &
                                 ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
-                                mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, &
-                                do_im_time, mat_munu, mat_B_munu, my_Lrows, eps_filter)
+                                mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
       REAL(KIND=dp)                                      :: Erpa
       TYPE(mp2_type), POINTER                            :: mp2_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_gw
@@ -139,7 +146,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: nmo, homo, dimen_RI, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, unit_nr
-      LOGICAL                                            :: do_ri_sos_laplace_mp2, my_do_gw
+      LOGICAL                                            :: do_ri_sos_laplace_mp2, my_do_gw, &
+                                                            do_im_time
+      TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
+                                                            mat_M
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
+      REAL(KIND=dp)                                      :: eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          OPTIONAL                                        :: BIb_C_beta
       INTEGER, OPTIONAL                                  :: homo_beta
@@ -152,13 +165,6 @@ CONTAINS
          OPTIONAL                                        :: BIb_C_gw_beta
       INTEGER, OPTIONAL                                  :: gw_corr_lev_occ_beta, &
                                                             gw_corr_lev_virt_beta
-      LOGICAL, OPTIONAL                                  :: do_im_time
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mat_B_munu
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         OPTIONAL                                        :: my_Lrows
-      REAL(KIND=dp), OPTIONAL                            :: eps_filter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_ri_compute_en', &
          routineP = moduleN//':'//routineN
@@ -177,18 +183,18 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_ia, ends_ia_beta, ends_nm_gw, sizes_ia, &
          sizes_ia_beta, sizes_nm_gw, starts_ia, starts_ia_beta, starts_nm_gw, sub_proc_map
       LOGICAL                                            :: check_fit, do_minimax_quad, &
-                                                            my_do_im_time, my_open_shell, &
-                                                            skip_integ_group_opt
+                                                            my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, Emin, Emin_beta, &
          ext_scaling, fermi_level_offset, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, &
          mem_real, needed_mem, omega_max_fit, stop_crit
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, BIb_C_2D_beta, BIb_C_2D_gw, &
                                                             BIb_C_2D_gw_beta
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_Q_omega
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, fm_mat_Q_gemm_beta, &
          fm_mat_R_gw, fm_mat_R_gw_beta, fm_mat_R_gw_gemm, fm_mat_R_gw_gemm_beta, fm_mat_S, &
          fm_mat_S_beta, fm_mat_S_gw, fm_mat_S_gw_beta, fm_mo_coeff_occ, fm_mo_coeff_occ_beta, &
-         fm_mo_coeff_virt, fm_mo_coeff_virt_beta, fm_scaled_dm_occ, fm_scaled_dm_virt
+         fm_mo_coeff_virt, fm_mo_coeff_virt_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
 
       CALL timeset(routineN, handle)
@@ -203,9 +209,6 @@ CONTAINS
           PRESENT(starts_B_virtual_beta) .AND. &
           PRESENT(homo_beta) .AND. &
           PRESENT(Eigenval_beta)) my_open_shell = .TRUE.
-
-      my_do_im_time = .FALSE.
-      IF (PRESENT(do_im_time)) my_do_im_time = do_im_time
 
       virtual = nmo-homo
 
@@ -251,10 +254,16 @@ CONTAINS
       END IF
       allowed_memory = mp2_env%mp2_memory
 
+      my_group_L_size = sizes_array(color_sub)
+      my_group_L_start = starts_array(color_sub)
+      my_group_L_end = ends_array(color_sub)
+
       ngroup = para_env%num_pe/para_env_sub%num_pe
 
-      ! for imaginary time, we have other memory
-      IF (my_do_im_time) THEN
+      ! for imaginary time, we have other memory and other groups
+      IF (do_im_time) THEN
+
+         color_sub = para_env%mepos/mp2_env%ri_rpa_im_time%group_size_3c
 
          integ_group_size = ngroup
          best_num_integ_point = num_integ_points
@@ -383,12 +392,8 @@ CONTAINS
       pos_integ_group = MOD(color_sub, integ_group_size)
       color_rpa_group = color_sub/integ_group_size
 
-      my_group_L_size = sizes_array(color_sub)
-      my_group_L_start = starts_array(color_sub)
-      my_group_L_end = ends_array(color_sub)
-
       ! reordering is not necessary for imaginary time
-      IF (.NOT. my_do_im_time) THEN
+      IF (.NOT. do_im_time) THEN
 
          my_B_virtual_start = starts_B_virtual(para_env_sub%mepos)
          my_B_virtual_end = ends_B_virtual(para_env_sub%mepos)
@@ -435,7 +440,7 @@ CONTAINS
 
       ! not necessary for imaginary time
 
-      IF (my_do_im_time) THEN
+      IF (do_im_time) THEN
 
          dimen_ia = homo*virtual
 
@@ -510,18 +515,18 @@ CONTAINS
                             my_group_L_size, my_group_L_start, my_group_L_end, &
                             para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                             nrow_block_mat, ncol_block_mat, &
-                            do_im_time=my_do_im_time, fm_scaled_dm_occ=fm_scaled_dm_occ, &
-                            fm_scaled_dm_virt=fm_scaled_dm_virt, mo_coeff=mo_coeff, &
+                            do_im_time=do_im_time, fm_scaled_dm_occ_tau=fm_scaled_dm_occ_tau, &
+                            fm_scaled_dm_virt_tau=fm_scaled_dm_virt_tau, mo_coeff=mo_coeff, &
                             fm_mo_coeff_occ=fm_mo_coeff_occ, &
                             fm_mo_coeff_virt=fm_mo_coeff_virt, &
                             nmo=nmo, homo=homo, num_integ_points=num_integ_points, &
                             fm_mat_Q_omega=fm_mat_Q_omega, &
-                            do_gw=my_do_gw, mat_B_munu=mat_B_munu)
+                            do_gw=my_do_gw)
 
       IF (my_open_shell) THEN
 
          ! for imaginary time, we only have to build beta mo coefficients
-         IF (my_do_im_time) THEN
+         IF (do_im_time) THEN
 
             CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff_beta, &
                                            nmo, homo)
@@ -587,21 +592,17 @@ CONTAINS
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                              my_do_gw, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, ext_scaling, omega_max_fit, &
                              stop_crit, check_fit, fermi_level_offset, crossing_search, &
-                             max_iter_fit, &
-                             mp2_env%ri_rpa%mm_style, do_minimax_quad, &
-                             homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
-                             fm_mat_Q_gemm_beta, fm_mat_Q_beta, fm_mat_S_gw_beta, &
-                             gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, &
-                             do_im_time=my_do_im_time, fm_scaled_dm_occ=fm_scaled_dm_occ, &
-                             fm_scaled_dm_virt=fm_scaled_dm_virt, &
-                             fm_mo_coeff_occ=fm_mo_coeff_occ, &
-                             fm_mo_coeff_virt=fm_mo_coeff_virt, &
-                             fm_mat_Q_omega=fm_mat_Q_omega, &
-                             mat_munu=mat_munu, mat_B_munu=mat_B_munu, my_Lrows=my_Lrows, &
-                             my_group_L_size=my_group_L_size, my_group_L_start=my_group_L_start, &
-                             ngroup=ngroup, eps_filter=eps_filter, sizes_array=sizes_array, &
-                             fm_mo_coeff_occ_beta=fm_mo_coeff_occ_beta, &
-                             fm_mo_coeff_virt_beta=fm_mo_coeff_virt_beta)
+                             max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
+                             do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                             fm_mat_Q_omega, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
+                             mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
+                             my_group_L_size, my_group_L_start, eps_filter, &
+                             fm_mo_coeff_occ_beta=fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta=fm_mo_coeff_virt_beta, &
+                             homo_beta=homo_beta, virtual_beta=virtual_beta, dimen_ia_beta=dimen_ia_beta, &
+                             Eigenval_beta=Eigenval_beta, fm_mat_S_beta=fm_mat_S_beta, &
+                             fm_mat_Q_gemm_beta=fm_mat_Q_gemm_beta, fm_mat_Q_beta=fm_mat_Q_beta, &
+                             fm_mat_S_gw_beta=fm_mat_S_gw_beta, gw_corr_lev_occ_beta=gw_corr_lev_occ_beta, &
+                             gw_corr_lev_virt_beta=gw_corr_lev_virt_beta)
          END IF
       ELSE
          IF (do_ri_sos_laplace_mp2) THEN
@@ -618,20 +619,15 @@ CONTAINS
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                              my_do_gw, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, ext_scaling, omega_max_fit, &
                              stop_crit, check_fit, fermi_level_offset, crossing_search, &
-                             max_iter_fit, &
-                             mp2_env%ri_rpa%mm_style, do_minimax_quad, &
-                             do_im_time=my_do_im_time, fm_scaled_dm_occ=fm_scaled_dm_occ, &
-                             fm_scaled_dm_virt=fm_scaled_dm_virt, &
-                             fm_mo_coeff_occ=fm_mo_coeff_occ, &
-                             fm_mo_coeff_virt=fm_mo_coeff_virt, &
-                             fm_mat_Q_omega=fm_mat_Q_omega, &
-                             mat_munu=mat_munu, mat_B_munu=mat_B_munu, my_Lrows=my_Lrows, &
-                             my_group_L_size=my_group_L_size, my_group_L_start=my_group_L_start, &
-                             ngroup=ngroup, eps_filter=eps_filter, sizes_array=sizes_array)
+                             max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
+                             do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                             fm_mat_Q_omega, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
+                             mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
+                             my_group_L_size, my_group_L_start, eps_filter)
          END IF
       END IF
 
-      IF (.NOT. my_do_im_time) THEN
+      IF (.NOT. do_im_time) THEN
 
          DEALLOCATE (sizes_ia)
          DEALLOCATE (starts_ia)
@@ -647,18 +643,16 @@ CONTAINS
 
       CALL cp_para_env_release(para_env_RPA)
 
-      IF (.NOT. my_do_im_time) THEN
+      IF (.NOT. do_im_time) THEN
          CALL cp_fm_release(fm_mat_S)
+         CALL cp_fm_release(fm_mat_Q_gemm)
       END IF
-      !XXX CALL cp_fm_release(fm_mat_G)
-      CALL cp_fm_release(fm_mat_Q_gemm)
       CALL cp_fm_release(fm_mat_Q)
-      IF (my_open_shell .AND. (.NOT. my_do_im_time)) THEN
+      IF (my_open_shell .AND. (.NOT. do_im_time)) THEN
          DEALLOCATE (sizes_ia_beta)
          DEALLOCATE (starts_ia_beta)
          DEALLOCATE (ends_ia_beta)
          CALL cp_fm_release(fm_mat_S_beta)
-         !XXX CALL cp_fm_release(fm_mat_G_beta)
          CALL cp_fm_release(fm_mat_Q_gemm_beta)
          CALL cp_fm_release(fm_mat_Q_beta)
       END IF
@@ -831,8 +825,8 @@ CONTAINS
 !> \param blacs_env_ext_S ...
 !> \param do_gw_open_shell ...
 !> \param do_im_time ...
-!> \param fm_scaled_dm_occ ...
-!> \param fm_scaled_dm_virt ...
+!> \param fm_scaled_dm_occ_tau ...
+!> \param fm_scaled_dm_virt_tau ...
 !> \param mo_coeff ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
@@ -841,7 +835,6 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param fm_mat_Q_omega ...
 !> \param do_gw ...
-!> \param mat_B_munu ...
 ! **************************************************************************************************
    SUBROUTINE create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_ia, dimen_ia_for_block_size, color_rpa_group, &
@@ -851,11 +844,9 @@ CONTAINS
                                para_env_RPA, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                                nrow_block_mat, ncol_block_mat, beta_case, &
                                blacs_env_ext, blacs_env_ext_S, do_gw_open_shell, &
-                               do_im_time, fm_scaled_dm_occ, fm_scaled_dm_virt, mo_coeff, &
+                               do_im_time, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, mo_coeff, &
                                fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                               nmo, homo, &
-                               num_integ_points, fm_mat_Q_omega, do_gw, &
-                               mat_B_munu)
+                               nmo, homo, num_integ_points, fm_mat_Q_omega, do_gw)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -868,15 +859,15 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: beta_case
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext, blacs_env_ext_S
       LOGICAL, OPTIONAL                                  :: do_gw_open_shell, do_im_time
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_scaled_dm_occ, fm_scaled_dm_virt, &
-                                                            mo_coeff, fm_mo_coeff_occ, &
+      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff, fm_mo_coeff_occ, &
                                                             fm_mo_coeff_virt
       INTEGER, OPTIONAL                                  :: nmo, homo, num_integ_points
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: fm_mat_Q_omega
       LOGICAL, OPTIONAL                                  :: do_gw
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mat_B_munu
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_integ_mat', &
          routineP = moduleN//':'//routineN
@@ -884,22 +875,19 @@ CONTAINS
       INTEGER :: comm_exchange, comm_rpa, dummy_proc, end_col_block, end_row_block, grid_2D(2), &
          handle, handle2, handle3, i, i_global, i_local, i_sub, iiB, iii, iproc, iproc_col, &
          iproc_row, itmp(2), j_global, j_local, j_sub, jjB, mepos_in_RPA_group, my_num_col_blocks, &
-         my_num_row_blocks, my_pcol, my_prow, mypcol, myprow, nblkcols_local, nblkcols_total, &
-         nblkrows_local, nblkrows_total, ncol_block, ncol_local, nfullcols_local, nfullcols_total, &
-         nfullrows_local, nfullrows_total, npcol, nprow, nrow_block, nrow_local, num_rec_cols, &
-         number_of_rec, number_of_send, proc_receive, proc_receive_static
-      INTEGER :: proc_send, proc_send_static, proc_shift, rec_counter, rec_ia_end, rec_ia_size, &
-         rec_ia_start, rec_L_end, rec_L_size, rec_L_start, rec_pcol, rec_prow, ref_send_pcol, &
-         ref_send_prow, row_col_proc_ratio, send_counter, send_pcol, send_prow, size_rec_buffer, &
-         size_send_buffer, start_col_block, start_row_block, sub_sub_color
+         my_num_row_blocks, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
+         nrow_local, num_rec_cols, number_of_rec, number_of_send, proc_receive, &
+         proc_receive_static, proc_send, proc_send_static, proc_shift, rec_counter, rec_ia_end, &
+         rec_ia_size, rec_ia_start, rec_L_end, rec_L_size, rec_L_start, rec_pcol, rec_prow
+      INTEGER :: ref_send_pcol, ref_send_prow, row_col_proc_ratio, send_counter, send_pcol, &
+         send_prow, size_rec_buffer, size_send_buffer, start_col_block, start_row_block, &
+         sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
                                                             map_send_size, req_send, RPA_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: blocks_ranges_col, blocks_ranges_row, grid_2_mepos, &
          grid_ref_2_send_pos, group_grid_2_mepos, mepos_2_grid, RPA_info_end, RPA_info_size, &
          RPA_info_start
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: block_distribution_M
-      INTEGER, DIMENSION(:), POINTER :: col_blk_offset, col_blk_size, col_indices, local_cols, &
-         local_rows, proc_col_dist, proc_row_dist, row_blk_offset, row_blk_size, row_indices
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_beta_case, my_blacs_ext, &
                                                             my_blacs_S_ext, my_do_gw, &
                                                             my_do_im_time, my_gw_open_shell
@@ -925,11 +913,11 @@ CONTAINS
       my_gw_open_shell = .FALSE.
       IF (PRESENT(do_gw_open_shell)) my_gw_open_shell = do_gw_open_shell
 
-      my_do_im_time = .FALSE.
-      IF (PRESENT(do_im_time)) my_do_im_time = do_im_time
-
       my_do_gw = .FALSE.
       IF (PRESENT(do_gw)) my_do_gw = do_gw
+
+      my_do_im_time = .FALSE.
+      IF (PRESENT(do_gw)) my_do_im_time = do_im_time
 
       ! create the RPA para_env
       IF (.NOT. my_beta_case) THEN
@@ -1520,18 +1508,21 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
 
       IF (.NOT. my_gw_open_shell) THEN
-         ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
-         NULLIFY (fm_mat_Q_gemm)
-         NULLIFY (fm_struct)
-         !CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_RI,&
-         !                         ncol_global=dimen_RI,para_env=para_env_RPA)
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
-                                  ncol_global=dimen_RI, para_env=para_env_RPA, &
-                                  nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
-         CALL cp_fm_create(fm_mat_Q_gemm, fm_struct, name="fm_mat_Q_gemm")
-         CALL cp_fm_struct_release(fm_struct)
 
-         CALL cp_fm_set_all(matrix=fm_mat_Q_gemm, alpha=0.0_dp)
+         IF (.NOT. my_do_im_time) THEN
+            ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
+            NULLIFY (fm_mat_Q_gemm)
+            NULLIFY (fm_struct)
+            !CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_RI,&
+            !                         ncol_global=dimen_RI,para_env=para_env_RPA)
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
+                                     ncol_global=dimen_RI, para_env=para_env_RPA, &
+                                     nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
+            CALL cp_fm_create(fm_mat_Q_gemm, fm_struct, name="fm_mat_Q_gemm")
+            CALL cp_fm_struct_release(fm_struct)
+
+            CALL cp_fm_set_all(matrix=fm_mat_Q_gemm, alpha=0.0_dp)
+         END IF
 
          ! create the Q matrix with a different blacs env
          NULLIFY (blacs_env_Q)
@@ -1555,41 +1546,32 @@ CONTAINS
       ! in case we do imaginary time, we allocate fm_scaled_dm_occ and fm_scaled_dm_virt
       IF (my_do_im_time) THEN
 
-         CALL cp_fm_create(fm_scaled_dm_occ, mo_coeff%matrix_struct)
-         CALL cp_fm_set_all(fm_scaled_dm_occ, 0.0_dp)
+!         CALL cp_fm_create(fm_scaled_dm_occ, mo_coeff%matrix_struct)
+!         CALL cp_fm_set_all(fm_scaled_dm_occ, 0.0_dp)
+!
+!         CALL cp_fm_create(fm_scaled_dm_virt, mo_coeff%matrix_struct)
+!         CALL cp_fm_set_all(fm_scaled_dm_virt, 0.0_dp)
 
-         CALL cp_fm_create(fm_scaled_dm_virt, mo_coeff%matrix_struct)
-         CALL cp_fm_set_all(fm_scaled_dm_virt, 0.0_dp)
+         ALLOCATE (fm_scaled_dm_occ_tau(num_integ_points))
+         DO iii = 1, num_integ_points
+            CALL cp_fm_create(fm_scaled_dm_occ_tau(iii)%matrix, mo_coeff%matrix_struct)
+            CALL cp_fm_set_all(fm_scaled_dm_occ_tau(iii)%matrix, 0.0_dp)
+         END DO
+
+         ALLOCATE (fm_scaled_dm_virt_tau(num_integ_points))
+         DO iii = 1, num_integ_points
+            CALL cp_fm_create(fm_scaled_dm_virt_tau(iii)%matrix, mo_coeff%matrix_struct)
+            CALL cp_fm_set_all(fm_scaled_dm_virt_tau(iii)%matrix, 0.0_dp)
+         END DO
 
          CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, &
                                         nmo, homo)
 
-         ! in case we do GW, we directly work with Q(it) (or Pi(it)) and do not need Q(iw)
-         IF (.NOT. my_do_gw) THEN
-            ALLOCATE (fm_mat_Q_omega(num_integ_points))
-            DO iii = 1, num_integ_points
-               CALL cp_fm_create(fm_mat_Q_omega(iii)%matrix, fm_mat_Q%matrix_struct)
-               CALL cp_fm_set_all(fm_mat_Q_omega(iii)%matrix, 0.0_dp)
-            END DO
-         END IF
-
-         CALL cp_dbcsr_get_info(mat_B_munu(1)%matrix, nblkrows_total, nblkcols_total, &
-                                nfullrows_total, nfullcols_total, &
-                                nblkrows_local, nblkcols_local, &
-                                nfullrows_local, nfullcols_local, &
-                                my_prow, my_pcol, &
-                                local_rows, local_cols, proc_row_dist, proc_col_dist, &
-                                row_blk_size, col_blk_size, row_blk_offset, col_blk_offset)
-
-         ALLOCATE (block_distribution_M(ngroup, nblkrows_total, nblkcols_total))
-         block_distribution_M = 0
-
-         ! take care: color_sub starts with 0
-         block_distribution_M(color_sub+1, local_rows, local_cols) = para_env%mepos
-
-         CALL mp_sum(block_distribution_M, para_env%group)
-
-         DEALLOCATE (block_distribution_M)
+         ALLOCATE (fm_mat_Q_omega(num_integ_points))
+         DO iii = 1, num_integ_points
+            CALL cp_fm_create(fm_mat_Q_omega(iii)%matrix, fm_mat_Q%matrix_struct)
+            CALL cp_fm_set_all(fm_mat_Q_omega(iii)%matrix, 0.0_dp)
+         END DO
 
       END IF ! imag. time
 
@@ -1683,6 +1665,23 @@ CONTAINS
 !> \param max_iter_fit ...
 !> \param mm_style ...
 !> \param do_minimax_quad ...
+!> \param do_im_time ...
+!> \param fm_mo_coeff_occ ...
+!> \param fm_mo_coeff_virt ...
+!> \param fm_mat_Q_omega ...
+!> \param fm_scaled_dm_occ_tau ...
+!> \param fm_scaled_dm_virt_tau ...
+!> \param mat_munu ...
+!> \param mat_P_local ...
+!> \param mat_P_global ...
+!> \param mat_M ...
+!> \param mat_3c_overl_int ...
+!> \param my_Lrows ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param eps_filter ...
+!> \param fm_mo_coeff_occ_beta ...
+!> \param fm_mo_coeff_virt_beta ...
 !> \param homo_beta ...
 !> \param virtual_beta ...
 !> \param dimen_ia_beta ...
@@ -1693,22 +1692,6 @@ CONTAINS
 !> \param fm_mat_S_gw_beta ...
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
-!> \param do_im_time ...
-!> \param fm_scaled_dm_occ ...
-!> \param fm_scaled_dm_virt ...
-!> \param fm_mo_coeff_occ ...
-!> \param fm_mo_coeff_virt ...
-!> \param fm_mat_Q_omega ...
-!> \param mat_munu ...
-!> \param mat_B_munu ...
-!> \param my_Lrows ...
-!> \param my_group_L_size ...
-!> \param my_group_L_start ...
-!> \param ngroup ...
-!> \param eps_filter ...
-!> \param sizes_array ...
-!> \param fm_mo_coeff_occ_beta ...
-!> \param fm_mo_coeff_virt_beta ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
@@ -1717,14 +1700,14 @@ CONTAINS
                           my_do_gw, gw_corr_lev_occ, gw_corr_lev_virt, num_poles, ext_scaling, omega_max_fit, &
                           stop_crit, check_fit, fermi_level_offset, crossing_search, &
                           max_iter_fit, mm_style, do_minimax_quad, &
+                          do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mat_Q_omega, &
+                          fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, mat_munu, mat_P_local, &
+                          mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, my_group_L_size, my_group_L_start, &
+                          eps_filter, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
                           homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
                           fm_mat_Q_gemm_beta, fm_mat_Q_beta, fm_mat_S_gw_beta, &
-                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, &
-                          do_im_time, fm_scaled_dm_occ, fm_scaled_dm_virt, &
-                          fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mat_Q_omega, mat_munu, mat_B_munu, &
-                          my_Lrows, my_group_L_size, my_group_L_start, &
-                          ngroup, eps_filter, &
-                          sizes_array, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta)
+                          gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
+
       REAL(KIND=dp)                                      :: Erpa
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA, para_env_sub
@@ -1742,68 +1725,76 @@ CONTAINS
       LOGICAL                                            :: check_fit
       REAL(KIND=dp)                                      :: fermi_level_offset
       INTEGER                                            :: crossing_search, max_iter_fit, mm_style
-      LOGICAL                                            :: do_minimax_quad
+      LOGICAL                                            :: do_minimax_quad, do_im_time
+      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
+      TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
+                                                            mat_M
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
+      INTEGER                                            :: my_group_L_size, my_group_L_start
+      REAL(KIND=dp)                                      :: eps_filter
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
+                                                            fm_mo_coeff_virt_beta
       INTEGER, OPTIONAL                                  :: homo_beta, virtual_beta, dimen_ia_beta
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_S_beta, fm_mat_Q_gemm_beta, &
                                                             fm_mat_Q_beta, fm_mat_S_gw_beta
       INTEGER, OPTIONAL                                  :: gw_corr_lev_occ_beta, &
                                                             gw_corr_lev_virt_beta
-      LOGICAL, OPTIONAL                                  :: do_im_time
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_scaled_dm_occ, fm_scaled_dm_virt, &
-                                                            fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: fm_mat_Q_omega
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: mat_B_munu
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         OPTIONAL                                        :: my_Lrows
-      INTEGER, OPTIONAL                                  :: my_group_L_size, my_group_L_start, ngroup
-      REAL(KIND=dp), OPTIONAL                            :: eps_filter
-      INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: sizes_array
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mo_coeff_occ_beta, &
-                                                            fm_mo_coeff_virt_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_num_int', routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp)                                   :: im_unit, re_unit
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: Lambda, Lambda_without_offset
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
-      INTEGER :: avirt, contour_def_end, contour_def_level_tot, contour_def_start, count_ev_sc_GW, &
-         gw_corr_lev_tot, handle, handle2, handle3, handle4, i_ener, i_global, i_mo, ierr, iiB, &
-         iii, index_contour_def, info_chol, iocc, iquad, iter_ev_sc, j_global, j_mo, jjB, jquad, &
-         m_global, m_global_beta, max_size_RI_group, my_num_dgemm_call, n_global, n_global_beta, &
-         n_level_gw, n_level_gw_ref, ncol_local, nm_global, nmo, nrow_local, num_fit_points, &
-         num_real_freq_cont_def, num_residues, num_var, num_x_nodes_max, num_x_nodes_min, &
-         num_x_nodes_min_temp, num_x_nodes_step, number_of_rec, number_of_rec_beta
-      INTEGER :: number_of_send, number_of_send_beta
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, map_rec_size, &
-         map_rec_size_beta, map_send_size, map_send_size_beta, mo_from_jquad, residue_from_jquad, &
-         RPA_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source, local_size_source_beta
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL :: do_contour_def, do_mix_exchange, do_ri_Sigma_x, first_cycle, first_cycle_im_time, &
-         first_cycle_im_time_beta, my_do_im_time, my_open_shell, remove_neg_virt_energies
+      INTEGER :: avirt, col_start_local, color_sub_col, color_sub_row, contour_def_end, &
+         contour_def_level_tot, contour_def_start, count_ev_sc_GW, cut_memory, cut_RI, &
+         group_size_P, gw_corr_lev_tot, handle, handle2, handle3, handle4, i_cut_RI, i_ener, &
+         i_global, i_mem, i_mo, ierr, iiB, index_contour_def, info_chol, iocc, iquad, iter_ev_sc, &
+         j_global, j_mem, j_mo, jjB, jquad, m_global, m_global_beta, my_group_L_size_im_time, &
+         my_num_dgemm_call, n_global, n_global_beta, n_group_col, n_group_row, n_level_gw, &
+         n_level_gw_ref, n_local_col, n_local_row, nblkrows_total, ncol_local, ngroup_RI_orig, &
+         nm_global
+      INTEGER :: nmo, nrow_local, num_fit_points, num_real_freq_cont_def, num_residues, num_var, &
+         num_x_nodes_max, num_x_nodes_min, num_x_nodes_min_temp, num_x_nodes_step, number_of_rec, &
+         number_of_rec_beta, number_of_send, number_of_send_beta, row_start_local
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, ends_array_col_cm, &
+         ends_array_row_cm, map_rec_size, map_rec_size_beta, map_send_size, map_send_size_beta, &
+         mepos_P_from_RI_row, mo_from_jquad, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
+         residue_from_jquad, RPA_proc_map, starts_array_col_cm, starts_array_row_cm
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: ends_array_prim_col, ends_array_prim_fullcol, &
+         ends_array_prim_fullrow, ends_array_prim_row, local_size_source, local_size_source_beta, &
+         sizes_array_prim_col, sizes_array_prim_row, starts_array_prim_col, &
+         starts_array_prim_fullcol, starts_array_prim_fullrow, starts_array_prim_row
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_indices, row_blk_size, &
+                                                            row_indices
+      LOGICAL                                            :: do_contour_def, do_mix_exchange, &
+                                                            do_ri_Sigma_x, first_cycle, &
+                                                            my_open_shell, remove_neg_virt_energies
       REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, e_fermi, E_Range, &
-         eigen_diff, Emax, Emax_beta, Emin, Emin_beta, FComega, frac_rix, ls_error, max_error_min, &
-         my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, t_end, t_start, tau, tau_old
+         eigen_diff, Emax, Emax_beta, Emin, Emin_beta, eps_comm, eps_filter_im_time, FComega, &
+         frac_rix, ls_error, max_error_min, my_flop_rate, omega, omega_i, omega_old, &
+         sign_occ_virt, t_end, t_start, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
          Eigenval_scf_beta, Lambda_Im, Lambda_Re, m_value, m_value_beta, Q_log, real_freq, tau_tj, &
          tau_wj, tj, trace_Qomega, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
          vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_omega_fit_gw_sign, vec_omega_gw, &
          vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, vec_Sigma_x_gw, &
-         vec_Sigma_x_gw_beta, vec_tau_fit_gw_sign, vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, &
-         z_value_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows_transposed, tau_wj_2d, &
-                                                            trace_2d, vec_W_gw_store
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_munu_P_occ, mat_M_munu_P_virt
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_M_munu_occ, mat_M_munu_virt
+         vec_Sigma_x_gw_beta, vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_mat_M, my_Lrows_transposed, &
+                                                            tau_wj_2d
+      TYPE(cp_dbcsr_p_type)                              :: mat_M_P_munu_occ, mat_M_P_munu_virt
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt
+      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc_occ, mat_dm_loc_virt
       TYPE(cp_fm_type), POINTER :: fm_mat_L, fm_mat_S_contour_def, fm_mat_S_contour_def_beta, &
          fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_rec_beta, &
                                                             buffer_send, buffer_send_beta
+      TYPE(two_dim_int_array), ALLOCATABLE, &
+         DIMENSION(:, :)                                 :: offset_combi_block
 
       CALL timeset(routineN, handle)
 
@@ -1815,9 +1806,6 @@ CONTAINS
           PRESENT(fm_mat_S_beta) .AND. &
           PRESENT(fm_mat_Q_gemm_beta) .AND. &
           PRESENT(fm_mat_Q_beta)) my_open_shell = .TRUE.
-
-      my_do_im_time = .FALSE.
-      IF (PRESENT(do_im_time)) my_do_im_time = do_im_time
 
       do_contour_def = .FALSE.
 
@@ -1832,7 +1820,7 @@ CONTAINS
       ALLOCATE (trace_Qomega(dimen_RI))
 
       ! set up the least-square time grid and other matrices specifically for imag time
-      IF (my_do_im_time) THEN
+      IF (do_im_time) THEN
 
          ALLOCATE (tau_tj(num_integ_points))
          tau_tj = 0.0_dp
@@ -1843,53 +1831,162 @@ CONTAINS
          ALLOCATE (tau_wj(num_integ_points))
          tau_wj = 0.0_dp
 
-         ! determine maximum size of aux. bf group
-         max_size_RI_group = MAXVAL(sizes_array)
+         eps_comm = mp2_env%ri_rpa_im_time%eps_comm
+         group_size_P = mp2_env%ri_rpa_im_time%group_size_P
+         cut_memory = mp2_env%ri_rpa_im_time%cut_memory
+         cut_RI = mp2_env%ri_rpa_im_time_util(1)%cut_RI
+         eps_filter_im_time = mp2_env%ri_rpa_im_time%eps_filter_im_time
+         ngroup_RI_orig = mp2_env%ri_rpa_im_time_util(1)%n_group_RI_orig
 
-         NULLIFY (mat_M_munu_occ)
-         CALL cp_dbcsr_init_p(mat_M_munu_occ)
-!JW 2del      CALL cp_dbcsr_create(matrix=mat_M_munu_occ,template=mat_munu%matrix)
-         CALL cp_dbcsr_copy(mat_M_munu_occ, mat_munu%matrix)
-         CALL cp_dbcsr_set(mat_M_munu_occ, 0.0_dp)
+         ALLOCATE (my_group_L_starts_im_time(cut_RI))
+         my_group_L_starts_im_time(:) = mp2_env%ri_rpa_im_time_util(1)%my_group_L_starts_im_time
+         ALLOCATE (my_group_L_sizes_im_time(cut_RI))
+         my_group_L_sizes_im_time(:) = mp2_env%ri_rpa_im_time_util(1)%my_group_L_sizes_im_time
 
-         NULLIFY (mat_M_munu_virt)
-         CALL cp_dbcsr_init_p(mat_M_munu_virt)
-!JW 2del      CALL cp_dbcsr_create(matrix=mat_M_munu_virt,template=mat_munu%matrix)
-         CALL cp_dbcsr_copy(mat_M_munu_virt, mat_munu%matrix)
-         CALL cp_dbcsr_set(mat_M_munu_virt, 0.0_dp)
+         NULLIFY (mat_dm_loc_occ)
+         CALL cp_dbcsr_init_p(mat_dm_loc_occ)
+         CALL cp_dbcsr_copy(mat_dm_loc_occ, mat_munu%matrix)
+         CALL cp_dbcsr_set(mat_dm_loc_occ, 1.0_dp)
 
-         CALL timeset(routineN//"_im_time_alloc_trace_2d", handle4)
+         DO i_cut_RI = 1, cut_RI
 
-         ALLOCATE (trace_2d(my_group_L_size, dimen_RI))
-         trace_2d(:, :) = 0.0_dp
+            my_group_L_size_im_time = my_group_L_sizes_im_time(i_cut_RI)
 
-         CALL timestop(handle4)
+            CALL cp_dbcsr_filter(mat_3c_overl_int(i_cut_RI)%matrix, &
+                                 eps_filter*SQRT(REAL(my_group_L_size_im_time)))
 
-         CALL timeset(routineN//"_im_time_alloc_mat_M_munu_P_occ", handle4)
-
-         NULLIFY (mat_M_munu_P_occ)
-         CALL cp_dbcsr_allocate_matrix_set(mat_M_munu_P_occ, my_group_L_size)
-         DO iii = 1, my_group_L_size
-            ALLOCATE (mat_M_munu_P_occ(iii)%matrix)
-
-            CALL cp_dbcsr_init(mat_M_munu_P_occ(iii)%matrix)
-            CALL cp_dbcsr_desymmetrize(mat_B_munu(1)%matrix, mat_M_munu_P_occ(iii)%matrix)
-            CALL cp_dbcsr_set(mat_M_munu_P_occ(iii)%matrix, 0.0_dp)
          END DO
 
-         CALL timestop(handle4)
+         CALL filter_dm(mat_dm_loc_occ, mat_3c_overl_int, para_env_sub, cut_RI, para_env%num_pe)
 
-         CALL timeset(routineN//"_im_time_alloc_mat_M_munu_P_virt", handle4)
+         NULLIFY (mat_dm_loc_virt)
+         CALL cp_dbcsr_init_p(mat_dm_loc_virt)
+         CALL cp_dbcsr_copy(mat_dm_loc_virt, mat_munu%matrix)
+         CALL cp_dbcsr_set(mat_dm_loc_virt, 0.0_dp)
 
-         NULLIFY (mat_M_munu_P_virt)
-         CALL cp_dbcsr_allocate_matrix_set(mat_M_munu_P_virt, max_size_RI_group)
-         DO iii = 1, max_size_RI_group
-            ALLOCATE (mat_M_munu_P_virt(iii)%matrix)
+         CALL filter_dm(mat_dm_loc_virt, mat_3c_overl_int, para_env_sub, cut_RI, para_env%num_pe)
 
-            CALL cp_dbcsr_init(mat_M_munu_P_virt(iii)%matrix)
-            CALL cp_dbcsr_desymmetrize(mat_B_munu(1)%matrix, mat_M_munu_P_virt(iii)%matrix)
-            CALL cp_dbcsr_set(mat_M_munu_P_virt(iii)%matrix, 0.0_dp)
+         CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
+         CALL cp_dbcsr_filter(mat_munu%matrix, 1.0_dp)
+
+         CALL timeset(routineN//"_im_time_alloc_mat", handle4)
+
+         NULLIFY (mat_M_P_munu_occ%matrix)
+         ALLOCATE (mat_M_P_munu_occ%matrix)
+         CALL cp_dbcsr_init(mat_M_P_munu_occ%matrix)
+         CALL cp_dbcsr_create(mat_M_P_munu_occ%matrix, template=mat_M%matrix)
+
+         NULLIFY (mat_M_P_munu_virt%matrix)
+         ALLOCATE (mat_M_P_munu_virt%matrix)
+         CALL cp_dbcsr_init(mat_M_P_munu_virt%matrix)
+         CALL cp_dbcsr_create(mat_M_P_munu_virt%matrix, template=mat_M%matrix)
+
+         NULLIFY (mat_M_mu_Pnu_occ)
+         CALL cp_dbcsr_allocate_matrix_set(mat_M_mu_Pnu_occ, cut_RI)
+         DO i_cut_RI = 1, cut_RI
+            ALLOCATE (mat_M_mu_Pnu_occ(i_cut_RI)%matrix)
+            CALL cp_dbcsr_init(mat_M_mu_Pnu_occ(i_cut_RI)%matrix)
+            CALL cp_dbcsr_create(matrix=mat_M_mu_Pnu_occ(i_cut_RI)%matrix, &
+                                 template=mat_3c_overl_int(i_cut_RI)%matrix)
          END DO
+
+         NULLIFY (mat_M_mu_Pnu_virt)
+         CALL cp_dbcsr_allocate_matrix_set(mat_M_mu_Pnu_virt, cut_RI)
+         DO i_cut_RI = 1, cut_RI
+            ALLOCATE (mat_M_mu_Pnu_virt(i_cut_RI)%matrix)
+            CALL cp_dbcsr_init(mat_M_mu_Pnu_virt(i_cut_RI)%matrix)
+            CALL cp_dbcsr_create(matrix=mat_M_mu_Pnu_virt(i_cut_RI)%matrix, &
+                                 template=mat_3c_overl_int(i_cut_RI)%matrix)
+         END DO
+
+         n_group_row = mp2_env%ri_rpa_im_time_util(1)%n_group_row
+         ALLOCATE (sizes_array_prim_row(0:n_group_row-1, cut_memory))
+         DO i_mem = 1, cut_memory
+            sizes_array_prim_row(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%sizes_array_prim_row(:)
+         END DO
+         ALLOCATE (starts_array_prim_row(0:n_group_row-1, cut_memory))
+         DO i_mem = 1, cut_memory
+            starts_array_prim_row(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%starts_array_prim_row(:)
+         END DO
+         ALLOCATE (ends_array_prim_row(0:n_group_row-1, cut_memory))
+         DO i_mem = 1, cut_memory
+            ends_array_prim_row(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%ends_array_prim_row(:)
+         END DO
+
+         ALLOCATE (starts_array_prim_fullrow(0:n_group_row-1, cut_memory))
+         DO i_mem = 1, cut_memory
+            starts_array_prim_fullrow(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%starts_array_prim_fullrow(:)
+         END DO
+         ALLOCATE (ends_array_prim_fullrow(0:n_group_row-1, cut_memory))
+         DO i_mem = 1, cut_memory
+            ends_array_prim_fullrow(:, i_mem) = mp2_env%ri_rpa_im_time_util(i_mem)%ends_array_prim_fullrow(:)
+         END DO
+
+         n_group_col = mp2_env%ri_rpa_im_time_util(1)%n_group_col
+         ALLOCATE (sizes_array_prim_col(0:n_group_col-1, cut_memory))
+         DO j_mem = 1, cut_memory
+            sizes_array_prim_col(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%sizes_array_prim_col(:)
+         END DO
+         ALLOCATE (starts_array_prim_col(0:n_group_col-1, cut_memory))
+         DO j_mem = 1, cut_memory
+            starts_array_prim_col(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%starts_array_prim_col(:)
+         END DO
+         ALLOCATE (ends_array_prim_col(0:n_group_col-1, cut_memory))
+         DO j_mem = 1, cut_memory
+            ends_array_prim_col(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%ends_array_prim_col(:)
+         END DO
+
+         ALLOCATE (starts_array_prim_fullcol(0:n_group_col-1, cut_memory))
+         DO j_mem = 1, cut_memory
+            starts_array_prim_fullcol(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%starts_array_prim_fullcol(:)
+         END DO
+         ALLOCATE (ends_array_prim_fullcol(0:n_group_col-1, cut_memory))
+         DO j_mem = 1, cut_memory
+            ends_array_prim_fullcol(:, j_mem) = mp2_env%ri_rpa_im_time_util(j_mem)%ends_array_prim_fullcol(:)
+         END DO
+
+         ALLOCATE (offset_combi_block(cut_memory, cut_memory))
+
+         color_sub_row = mp2_env%ri_rpa_im_time_util(1)%color_sub_row
+         color_sub_col = mp2_env%ri_rpa_im_time_util(1)%color_sub_col
+
+         DO i_mem = 1, cut_memory
+            DO j_mem = 1, cut_memory
+
+               n_local_row = sizes_array_prim_row(color_sub_row, i_mem)
+               row_start_local = starts_array_prim_row(color_sub_row, i_mem)
+
+               n_local_col = sizes_array_prim_col(color_sub_col, j_mem)
+               col_start_local = starts_array_prim_col(color_sub_col, j_mem)
+
+               ALLOCATE (offset_combi_block(i_mem, j_mem)%array(row_start_local:row_start_local+n_local_row-1, &
+                                                                col_start_local:col_start_local+n_local_col-1))
+               offset_combi_block(i_mem, j_mem)%array(:, :) = &
+                  mp2_env%ri_rpa_im_time_2d_util(i_mem, j_mem)%offset_combi_block(:, :)
+
+            END DO
+         END DO
+
+         ALLOCATE (starts_array_row_cm(cut_memory))
+         starts_array_row_cm(:) = mp2_env%ri_rpa_im_time%starts_array_row_cm(:)
+         ALLOCATE (ends_array_row_cm(cut_memory))
+         ends_array_row_cm(:) = mp2_env%ri_rpa_im_time%ends_array_row_cm(:)
+
+         ALLOCATE (starts_array_col_cm(cut_memory))
+         starts_array_col_cm(:) = mp2_env%ri_rpa_im_time%starts_array_col_cm(:)
+         ALLOCATE (ends_array_col_cm(cut_memory))
+         ends_array_col_cm(:) = mp2_env%ri_rpa_im_time%ends_array_col_cm(:)
+
+         ! allocatable arrays for fast filling of dbcsr matrices
+         CALL cp_dbcsr_get_info(mat_M_P_munu_occ%matrix, row_blk_size=row_blk_size, &
+                                col_blk_size=col_blk_size, nblkrows_total=nblkrows_total)
+         ALLOCATE (buffer_mat_M(MAXVAL(row_blk_size), MAXVAL(col_blk_size)))
+
+         ALLOCATE (mepos_P_from_RI_row(nblkrows_total))
+         mepos_P_from_RI_row(:) = mp2_env%ri_rpa_im_time_util(1)%mepos_P_from_RI_row(:)
+
+         ! allocatable arrays for fast filling of dbcsr matrices
+         CALL cp_dbcsr_get_info(mat_P_global%matrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
 
          CALL timestop(handle4)
 
@@ -1947,7 +2044,7 @@ CONTAINS
          wj(:) = wj(:)*Emin
 
          ! set up the minimax time grid
-         IF (my_do_im_time) THEN
+         IF (do_im_time) THEN
 
             ALLOCATE (x_tw(2*num_integ_points))
             x_tw = 0.0_dp
@@ -1976,7 +2073,7 @@ CONTAINS
             tau_tj(:) = tau_tj(:)/Emin
             tau_wj(:) = tau_wj(:)/Emin
 
-            !JW hack that should be defined in the input
+            ! hack that could be defined in the input
             num_x_nodes_min = 5*num_integ_points
 
             num_x_nodes_max = 5*num_integ_points
@@ -2037,14 +2134,18 @@ CONTAINS
 
       END IF
 
-      ! initialize buffer for matrix redistribution
-      CALL initialize_buffer(fm_mat_Q_gemm, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, &
-                             number_of_rec, number_of_send, &
-                             map_send_size, map_rec_size, local_size_source, para_env_RPA)
-      IF (my_open_shell .AND. (.NOT. my_do_im_time)) THEN
-         CALL initialize_buffer(fm_mat_Q_gemm_beta, fm_mat_Q_beta, RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
-                                number_of_rec_beta, number_of_send_beta, &
-                                map_send_size_beta, map_rec_size_beta, local_size_source_beta, para_env_RPA)
+      IF (.NOT. do_im_time) THEN
+
+         ! initialize buffer for matrix redistribution
+         CALL initialize_buffer(fm_mat_Q_gemm, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, &
+                                number_of_rec, number_of_send, &
+                                map_send_size, map_rec_size, local_size_source, para_env_RPA)
+         IF (my_open_shell) THEN
+            CALL initialize_buffer(fm_mat_Q_gemm_beta, fm_mat_Q_beta, RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
+                                   number_of_rec_beta, number_of_send_beta, &
+                                   map_send_size_beta, map_rec_size_beta, local_size_source_beta, para_env_RPA)
+         END IF
+
       END IF
 
       IF (my_open_shell) THEN
@@ -2105,14 +2206,7 @@ CONTAINS
          END IF
 
          ALLOCATE (vec_W_gw(dimen_nm_gw))
-
          vec_W_gw = 0.0_dp
-
-         IF (my_do_im_time) THEN
-            ! hack JW for testing; vec_W_gw_store has to be removed afterwards
-            ALLOCATE (vec_W_gw_store(dimen_nm_gw, num_integ_points))
-            vec_W_gw_store = 0.0_dp
-         END IF
 
          IF (my_open_shell) THEN
             ALLOCATE (vec_W_gw_beta(dimen_nm_gw))
@@ -2143,13 +2237,6 @@ CONTAINS
                num_fit_points = num_fit_points+1
             END IF
          END DO
-
-         ! allocate imaginary time matrices
-         IF (my_do_im_time) THEN
-            num_fit_points = 2*num_integ_points
-            ALLOCATE (vec_tau_fit_gw_sign(2*num_fit_points))
-            vec_tau_fit_gw_sign = 0.0_dp
-         END IF
 
          ! create new arrays containing omega values at which we calculate vec_Sigma_c_gw
          ALLOCATE (vec_omega_fit_gw(num_fit_points))
@@ -2230,9 +2317,7 @@ CONTAINS
 
                ! The same for beta
                IF (my_open_shell) THEN
-
                   IF (m_global_beta <= homo_beta) THEN
-
                      ! loop over auxiliary basis functions
                      DO jjB = 1, ncol_local
 
@@ -2242,11 +2327,8 @@ CONTAINS
                            fm_mat_S_gw_beta%local_data(iiB, jjB)**2
 
                      END DO
-
                   END IF
-
                END IF
-
             END DO
 
             CALL mp_sum(vec_Sigma_x_gw, para_env%group)
@@ -2391,68 +2473,74 @@ CONTAINS
          END IF
 
          ! calculate Q_PQ(it)
-         IF (my_do_im_time) THEN
+         IF (do_im_time) THEN
 
-            first_cycle_im_time = .TRUE.
-            first_cycle_im_time_beta = .TRUE.
             e_fermi = (Eigenval(homo)+Eigenval(homo+1))*0.5_dp
             tau = 0.0_dp
             tau_old = 0.0_dp
 
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
+               "MEMORY_INFO| Memory cut:", cut_memory
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
+               "MEMORY_INFO| Im. time group size for RI functions:", mp2_env%ri_rpa_im_time%group_size_3c
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
+               "MEMORY_INFO| Im. time group size for local P matrix:", mp2_env%ri_rpa_im_time%group_size_P
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
-               "DBCSR_INFO| Eps filter for imaginary time:", eps_filter
+               "SPARSITY_INFO| Eps pgf orb for imaginary time:", mp2_env%mp2_gpw%eps_grid
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
+               "SPARSITY_INFO| Eps filter for imaginary time:", eps_filter
+            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
+               "SPARSITY_INFO| Second eps filter for imaginary time:", eps_filter_im_time
 
-            ! iteration over time points
-            DO jquad = 1, num_integ_points
+            ! imag. time RPA only with Minimax
+            CPASSERT(do_minimax_quad)
 
-               CALL timeset(routineN//"_im_time_mat_op", handle3)
+            ! compute the matrix Q(it) and Fourier transform it directly to fm_mat_Q_omega(iw)
+            CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
+                                        fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                        fm_mat_Q, mat_dm_loc_occ, mat_dm_loc_virt, mat_P_local, &
+                                        mat_P_global, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
+                                        mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int, &
+                                        tau_wj_2d, tj, wj, tau_tj, do_minimax_quad, &
+                                        e_fermi, eps_filter, eps_comm, a_scaling, alpha, &
+                                        eps_filter_im_time, Eigenval, nmo, n_group_col, dimen_RI, &
+                                        group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                        unit_nr, mp2_env, para_env, para_env_sub, &
+                                        sizes_array_prim_col, starts_array_prim_col, ends_array_prim_col, &
+                                        sizes_array_prim_row, starts_array_prim_row, ends_array_prim_row, &
+                                        starts_array_prim_fullcol, ends_array_prim_fullcol, &
+                                        starts_array_prim_fullrow, ends_array_prim_fullrow, &
+                                        my_group_L_starts_im_time, my_group_L_sizes_im_time, &
+                                        offset_combi_block, starts_array_row_cm, &
+                                        ends_array_row_cm, starts_array_col_cm, &
+                                        ends_array_col_cm, mepos_P_from_RI_row, buffer_mat_M)
 
-               tau_old = tau
+            ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
+            IF (my_open_shell) THEN
 
-               IF (do_minimax_quad) THEN
-                  tau = tau_tj(jquad)
-               ELSE
-                  tau = a_scaling/TAN(tj(jquad))
-               END IF
+               CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
+                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                           fm_mat_Q, mat_dm_loc_occ, mat_dm_loc_virt, mat_P_local, mat_P_global, &
+                                           mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
+                                           mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int, &
+                                           tau_wj_2d, tj, wj, tau_tj, do_minimax_quad, &
+                                           e_fermi, eps_filter, eps_comm, a_scaling, alpha, &
+                                           eps_filter_im_time, Eigenval, nmo, n_group_col, dimen_RI, &
+                                           group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                           unit_nr, mp2_env, para_env, para_env_sub, &
+                                           sizes_array_prim_col, starts_array_prim_col, ends_array_prim_col, &
+                                           sizes_array_prim_row, starts_array_prim_row, ends_array_prim_row, &
+                                           starts_array_prim_fullcol, ends_array_prim_fullcol, &
+                                           starts_array_prim_fullrow, ends_array_prim_fullrow, &
+                                           my_group_L_starts_im_time, my_group_L_sizes_im_time, &
+                                           offset_combi_block, starts_array_row_cm, &
+                                           ends_array_row_cm, starts_array_col_cm, &
+                                           ends_array_col_cm, mepos_P_from_RI_row, buffer_mat_M)
 
-               ! compute the matrix Q(it) and Fourier transform it directly to fm_mat_Q_omega(iw)
-! take care for beta case we have to set first_cycle_im_time_beta to true !!!!!!!!!!!
-               CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ, &
-                                           fm_scaled_dm_virt, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                           fm_mat_Q, mat_M_munu_occ, mat_M_munu_virt, mat_M_munu_P_occ, &
-                                           mat_M_munu_P_virt, mat_B_munu, mat_munu, trace_2d, tau_wj_2d, tj, wj, &
-                                           first_cycle_im_time, do_minimax_quad, &
-                                           tau, tau_old, e_fermi, eps_filter, a_scaling, alpha, &
-                                           Eigenval, nmo, my_group_L_size, &
-                                           my_group_L_start, dimen_RI, max_size_RI_group, ngroup, &
-                                           num_integ_points, jquad, mp2_env, para_env, para_env_sub)
-
-               first_cycle_im_time = .FALSE.
-
-               ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
-               IF (my_open_shell) THEN
-
-                  CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ, &
-                                              fm_scaled_dm_virt, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                              fm_mat_Q, mat_M_munu_occ, mat_M_munu_virt, mat_M_munu_P_occ, &
-                                              mat_M_munu_P_virt, mat_B_munu, mat_munu, trace_2d, tau_wj_2d, tj, wj, &
-                                              first_cycle_im_time_beta, do_minimax_quad, &
-                                              tau, tau_old, e_fermi, eps_filter, a_scaling, alpha, &
-                                              Eigenval, nmo, my_group_L_size, &
-                                              my_group_L_start, dimen_RI, max_size_RI_group, ngroup, &
-                                              num_integ_points, jquad, mp2_env, para_env, para_env_sub)
-
-                  first_cycle_im_time_beta = .FALSE.
-
-               END IF
-
-               CALL timestop(handle3)
-
-            END DO !jquad time points loop
+            END IF
 
             ALLOCATE (my_Lrows_transposed(my_group_L_size, dimen_RI))
 
-            ! JW hack OMP statement missing
             DO iiB = 1, my_group_L_size
                DO jjB = 1, dimen_RI
                   my_Lrows_transposed(iiB, jjB) = my_Lrows(jjB, iiB)
@@ -2462,7 +2550,7 @@ CONTAINS
             DEALLOCATE (my_Lrows)
 
             CALL fill_fm_with_2d_array(fm_mat_L, my_Lrows_transposed, para_env, my_group_L_start, my_group_L_size, &
-                                       dimen_RI, ngroup)
+                                       dimen_RI, ngroup_RI_orig)
 
             DEALLOCATE (my_Lrows_transposed)
 
@@ -2602,12 +2690,12 @@ CONTAINS
 
             END IF
 
-            IF (my_do_im_time) THEN
+            IF (do_im_time) THEN
 
-               ! hack; is necessary that buffer_release does not complain
-               CALL fm_redistribute(fm_mat_Q_gemm, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, &
-                                    number_of_send, &
-                                    map_send_size, map_rec_size, local_size_source, para_env_RPA)
+!               ! hack; is necessary that buffer_release does not complain
+!               CALL fm_redistribute(fm_mat_Q_gemm, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, &
+!                                    number_of_send, &
+!                                    map_send_size, map_rec_size, local_size_source, para_env_RPA)
 
                ! in case we do imag time, we already calculated fm_mat_Q by a Fourier transform from im. time
                CALL cp_fm_to_fm(fm_mat_Q_omega(jquad)%matrix, fm_mat_Q)
@@ -3149,7 +3237,7 @@ CONTAINS
          Erpa = Erpa/(pi*2.0_dp)
          IF (do_minimax_quad) Erpa = Erpa/2.0_dp
 
-         IF (.NOT. my_do_im_time) THEN
+         IF (.NOT. do_im_time) THEN
 
             IF (para_env_RPA%mepos == 0) my_flop_rate = my_flop_rate/REAL(MAX(my_num_dgemm_call, 1), KIND=dp)/1.0E9_dp
             CALL mp_sum(my_flop_rate, para_env%group)
@@ -3375,10 +3463,21 @@ CONTAINS
          END IF
       END IF
 
-      IF (my_do_im_time) THEN
+      IF (do_im_time) THEN
 
-         CALL cp_fm_release(fm_scaled_dm_occ)
-         CALL cp_fm_release(fm_scaled_dm_virt)
+!         CALL cp_fm_release(fm_scaled_dm_occ)
+!         CALL cp_fm_release(fm_scaled_dm_virt)
+
+         DO iquad = 1, num_integ_points
+            CALL cp_fm_release(fm_scaled_dm_occ_tau(iquad)%matrix)
+         END DO
+         DEALLOCATE (fm_scaled_dm_occ_tau)
+
+         DO iquad = 1, num_integ_points
+            CALL cp_fm_release(fm_scaled_dm_virt_tau(iquad)%matrix)
+         END DO
+         DEALLOCATE (fm_scaled_dm_virt_tau)
+
          CALL cp_fm_release(fm_mo_coeff_occ)
          CALL cp_fm_release(fm_mo_coeff_virt)
 
@@ -3390,33 +3489,28 @@ CONTAINS
          CALL cp_fm_release(fm_mat_L)
          CALL cp_fm_release(fm_mat_work)
 
-         CALL cp_dbcsr_release_p(mat_M_munu_occ)
-         CALL cp_dbcsr_release_p(mat_M_munu_virt)
+         CALL cp_dbcsr_release_p(mat_dm_loc_occ)
+         CALL cp_dbcsr_release_p(mat_dm_loc_virt)
 
-         CALL cp_dbcsr_deallocate_matrix_set(mat_M_munu_P_occ)
-         CALL cp_dbcsr_deallocate_matrix_set(mat_M_munu_P_virt)
+         DO iquad = 1, num_integ_points
+            CALL cp_fm_release(fm_mat_Q_omega(iquad)%matrix)
+         END DO
+         DEALLOCATE (fm_mat_Q_omega)
 
-         DEALLOCATE (trace_2d)
+         CALL cp_dbcsr_release(mat_M_P_munu_occ%matrix)
+         DEALLOCATE (mat_M_P_munu_occ%matrix)
+         CALL cp_dbcsr_release(mat_M_P_munu_virt%matrix)
+         DEALLOCATE (mat_M_P_munu_virt%matrix)
 
-         IF (my_do_gw) THEN
-            DEALLOCATE (vec_tau_fit_gw_sign)
-            DEALLOCATE (vec_W_gw_store)
-         END IF
+!         CALL cp_dbcsr_release(mat_M_mu_Pnu_occ%matrix)
+!         DEALLOCATE(mat_M_mu_Pnu_occ%matrix)
+!         CALL cp_dbcsr_release(mat_M_mu_Pnu_virt%matrix)
+!         DEALLOCATE(mat_M_mu_Pnu_virt%matrix)
 
-         IF (.NOT. my_do_gw) THEN
-            DO iquad = 1, num_integ_points
-               CALL cp_fm_release(fm_mat_Q_omega(iquad)%matrix)
-            END DO
-            DEALLOCATE (fm_mat_Q_omega)
-         END IF
+         CALL cp_dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_occ)
+         CALL cp_dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_virt)
 
-         CALL cp_dbcsr_deallocate_matrix_set(mat_B_munu)
-
-!JW 2del      DO iii=1,my_group_L_size
-!        CALL cp_dbcsr_release(mat_B_munu(iii)%matrix)
-!        DEALLOCATE(mat_B_munu(iii)%matrix)
-!      END DO
-!      DEALLOCATE(mat_B_munu)
+         DEALLOCATE (buffer_mat_M)
 
       END IF
 
@@ -5350,6 +5444,149 @@ CONTAINS
          END IF ! imag. frequency / real frequency
 
       END IF ! check contour deformation for n_global
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_dm_loc ...
+!> \param mat_3c_overl_int ...
+!> \param para_env_sub ...
+!> \param cut_RI ...
+!> \param num_pe ...
+! **************************************************************************************************
+   SUBROUTINE filter_dm(mat_dm_loc, mat_3c_overl_int, para_env_sub, cut_RI, num_pe)
+
+      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      INTEGER                                            :: cut_RI, num_pe
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_dm', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: blk, col, handle, i_cut_RI, imepos, &
+                                                            max_loc_col, min_loc_col, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: max_col_group, min_col_group
+      INTEGER, DIMENSION(:), POINTER                     :: local_cols
+      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
+      LOGICAL                                            :: eliminate_data_block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
+      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: buffer_rec, buffer_send
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (min_col_group(cut_RI))
+      ALLOCATE (max_col_group(cut_RI))
+
+      DO i_cut_RI = 1, cut_RI
+
+         CALL cp_dbcsr_get_info(mat_3c_overl_int(i_cut_RI)%matrix, &
+                                local_cols=local_cols)
+
+         min_loc_col = MAXVAL(local_cols)
+         max_loc_col = 1
+
+         CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int(i_cut_RI)%matrix)
+         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+            CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
+
+            IF (col > max_loc_col) THEN
+               max_loc_col = col
+            END IF
+
+            IF (col < min_loc_col) THEN
+               min_loc_col = col
+            END IF
+
+         ENDDO
+
+         ALLOCATE (buffer_send(0:para_env_sub%num_pe-1))
+         ALLOCATE (buffer_rec(0:para_env_sub%num_pe-1))
+
+         DO imepos = 0, para_env_sub%num_pe-1
+            ALLOCATE (buffer_send(imepos)%sizes(2))
+            buffer_send(imepos)%sizes(1) = min_loc_col
+            buffer_send(imepos)%sizes(2) = max_loc_col
+
+            ALLOCATE (buffer_rec(imepos)%sizes(2))
+         END DO
+
+         IF (num_pe > 1) THEN
+
+            ALLOCATE (req_array(0:para_env_sub%num_pe-1, 2))
+
+            DO imepos = 0, para_env_sub%num_pe-1
+               CALL mp_isend(buffer_send(imepos)%sizes, imepos, para_env_sub%group, req_array(imepos, 1), tag=2)
+               CALL mp_irecv(buffer_rec(imepos)%sizes, imepos, para_env_sub%group, req_array(imepos, 2), tag=2)
+            END DO
+
+            CALL mp_waitall(req_array(:, 1:2))
+
+            DEALLOCATE (req_array)
+
+         ELSE
+
+            buffer_rec(0)%sizes = buffer_send(0)%sizes
+
+         END IF
+
+         min_col_group(i_cut_RI) = min_loc_col
+         max_col_group(i_cut_RI) = max_loc_col
+
+         DO imepos = 0, para_env_sub%num_pe-1
+
+            IF (buffer_rec(imepos)%sizes(1) < min_col_group(i_cut_RI)) THEN
+
+               min_col_group(i_cut_RI) = buffer_rec(imepos)%sizes(1)
+
+            END IF
+
+            IF (buffer_rec(imepos)%sizes(2) > max_col_group(i_cut_RI)) THEN
+
+               max_col_group(i_cut_RI) = buffer_rec(imepos)%sizes(2)
+
+            END IF
+
+         END DO
+
+         DEALLOCATE (buffer_send, buffer_rec)
+
+      END DO
+
+      CALL cp_dbcsr_set(mat_dm_loc, 2.0_dp)
+
+      CALL cp_dbcsr_iterator_start(iter, mat_dm_loc)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
+
+         eliminate_data_block = .TRUE.
+
+         DO i_cut_RI = 1, cut_RI
+
+            IF ((col <= max_col_group(i_cut_RI) .AND. col >= min_col_group(i_cut_RI)) .OR. &
+                (row <= max_col_group(i_cut_RI) .AND. row >= min_col_group(i_cut_RI))) THEN
+               eliminate_data_block = .FALSE.
+            END IF
+
+         END DO
+
+         ! we need row and col check since the scaled density matrices are symmetric dbcsr matrices
+         IF (eliminate_data_block) THEN
+            data_block(:, :) = 0.0_dp
+         END IF
+
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL cp_dbcsr_filter(mat_dm_loc, 1.0_dp)
+
+      CALL cp_dbcsr_set(mat_dm_loc, 0.0_dp)
+
+      DEALLOCATE (min_col_group, max_col_group)
 
       CALL timestop(handle)
 

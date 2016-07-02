@@ -168,11 +168,11 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
       TYPE(virial_type), POINTER                         :: virial
 
-! If SCF has not converged we should abort MP2 calculation
-!JW 2del    IF (qs_env%mp2_env%hf_fail) THEN
-!       CALL cp_abort(__LOCATION__,"SCF not converged: "//&
-!                      "not possible to run MP2")
-!    ENDIF
+      ! If SCF has not converged we should abort MP2 calculation
+      IF (qs_env%mp2_env%hf_fail) THEN
+         CALL cp_abort(__LOCATION__, "SCF not converged: "// &
+                       "not possible to run MP2")
+      ENDIF
 
       NULLIFY (virial, dft_control, blacs_env)
       CALL timeset(routineN, handle)
@@ -1299,12 +1299,6 @@ CONTAINS
       CALL qs_ks_build_kohn_sham_matrix(qs_env=qs_env, calculate_forces=.FALSE., &
                                         just_energy=.FALSE.)
 
-!JW    PRINT *, 'matrix_ks_aux_fit after qs_ks_build_kohn_sham_matrix: '
-!JW    CALL cp_dbcsr_print(matrix_ks_aux_fit(1)%matrix,error=error)
-
-!JW    PRINT *, 'matrix_ks after build ks matrix: '
-!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
-
       ! set the DFT functional and HF fraction back
       CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
                                 i_val=myfun)
@@ -1347,9 +1341,6 @@ CONTAINS
 
       energy_dummy%ex = 0.0_dp
 
-!JW    PRINT *, 'matrix_ks before int 4 c:'
-!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
-
       ! in most cases, we calculate the exchange self-energy here. But if we do only RI for
       ! the exchange self-energy, we do not calculate exchange here
       IF (.NOT. do_ri_Sigma_x .OR. do_mix_exchange) THEN
@@ -1372,23 +1363,11 @@ CONTAINS
 
       END IF
 
-!JW    PRINT *, 'matrix_ks after int 4 c:'
-!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
-
-!JW    PRINT *, 'rho_ao for auxiliary basis hopefully'
-!JW    CALL cp_dbcsr_print(rho_ao(1)%matrix,error=error)
-
-!JW    PRINT *, 'matrix_ks_aux_fit after int 4c: '
-!JW    CALL cp_dbcsr_print(matrix_ks_aux_fit(1)%matrix,error=error)
-
       ! transform Fock-Matrix (calculated in integrate_four_center, written in matrix_ks_aux_fit in case
       ! of ADMM) from ADMM basis to primary basis
       IF (do_admm_rpa) THEN
          CALL admm_mo_merge_ks_matrix(qs_env)
       END IF
-
-!JW    PRINT *, 'matrix_ks after merging: '
-!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
 
       do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
 

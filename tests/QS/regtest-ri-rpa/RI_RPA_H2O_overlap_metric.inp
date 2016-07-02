@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  RI_RPA_H2O_minimax
+  PROJECT  RI_RPA_H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -40,13 +40,11 @@
         METHOD  RI_RPA_GPW
         RI OVERLAP
         &WFC_GPW
-          OBARA_SAIKA_OVERLAP TRUE
+          CUTOFF  100
+          REL_CUTOFF 20
         &END
-        ERI_METHOD MME
         &RI_RPA
-          RPA_NUM_QUAD_POINTS  6
-          MINIMAX
-          IM_TIME
+          RPA_NUM_QUAD_POINTS 40
           &HF
             FRACTION 1.0000000
             &SCREENING

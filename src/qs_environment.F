@@ -227,9 +227,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ikind, method_id, natom, nkind
-      LOGICAL                                            :: do_et, do_exx, do_hfx, do_kpoints, &
-                                                            mp2_present, my_qmmm, qmmm_decoupl, &
-                                                            use_ref_cell
+      LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
+                                                            do_kpoints, mp2_present, my_qmmm, &
+                                                            qmmm_decoupl, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -355,8 +355,14 @@ CONTAINS
          IF (do_exx) THEN
             ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
             natom = SIZE(particle_set)
+
+            ! do_exx in call of hfx_create decides whether to go without ADMM (do_exx=.TRUE.) or with
+            ! ADMM (do_exx=.FALSE.)
+            CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=do_admm_rpa)
+
             CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set, &
-                            qs_kind_set, dft_control, my_cell, do_exx=.TRUE.)
+                            qs_kind_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa))
+
          END IF
       END IF
 

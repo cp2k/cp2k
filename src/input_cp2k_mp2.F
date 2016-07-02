@@ -540,7 +540,7 @@ CONTAINS
          keyword=keyword, &
          name="IM_TIME", &
          variants=(/"IMAG_TIME"/), &
-         description="Decide whether to calculate Q-matrix for imaginary times.", &
+         description="Decide whether to calculate Q-matrix for imaginary time.", &
          usage="IM_TIME", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -554,6 +554,11 @@ CONTAINS
 
       ! here we generate a G0W0 subsection to use if G0W0 is desired
       CALL create_ri_g0w0(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      ! here we generate a RPA imag. time subsection to use
+      CALL create_ri_im_time(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -813,6 +818,91 @@ CONTAINS
 !> \brief ...
 !> \param section ...
 ! **************************************************************************************************
+   SUBROUTINE create_ri_im_time(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_im_time', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "IM_TIME", &
+                          description="Parameters influencing the RI-G0W0 method", &
+                          n_keywords=12, n_subsections=0, repeats=.FALSE., &
+                          citations=(/DelBen2013/))
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="MEMORY_CUT", &
+                          description="Cuts the memory of the M_munu_P^occ/virt matrix by the factor given. "// &
+                          "The calculation is slowed down when using a high value of MEMORY_CUT. A high value for "// &
+                          "MEMORY_CUT is recommended for large systems in order not to run out of memory.", &
+                          usage="MEMORY_CUT 16", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MEMORY_INFO", &
+                          description="Decide whether to print memory info on the sparse matrices.", &
+                          usage="MEMORY_INFO", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="GROUP_SIZE_3c", &
+                          description="Group size used for cutting the RI index P in (alpha beta P) and for "// &
+                          "the multiplication M^occ/virt(it)=(alpha beta P)*D^occ/virt. Has to be increased "// &
+                          "for larger systems, at least linearly with system size, at most quadratically in  "// &
+                          "system size.", &
+                          usage="GROUP_SIZE_3c 8", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="GROUP_SIZE_P", &
+                          description="Group size used for the calculation of P(it)=(Mocc(it))^T*Mvirt(it). "// &
+                          "Default is to use a single process. A larger group size (for example the node size), "// &
+                          "could be recommended for larger systems, since the P matrix is replicated in every group. ", &
+                          usage="GROUP_SIZE_P 8", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="ADD_CUT_RI", &
+                          variants=(/"ADD_RI_CUT"/), &
+                          description="Additional cutting of the RI range for the three-center overlap integrals. "// &
+                          "Default is to use no cutting. Recommended for larger systems for better load balancing. ", &
+                          usage="ADD_CUT_RI 8", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="EPS_COMM", &
+         description="Screening for the communication of data. If numbers are smaller than EPS_COMM,  "// &
+         "they won't be communicated.", &
+         usage="EPS_COMM 1.0E-10 ", type_of_var=real_t, &
+         default_r_val=1.0E-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="EPS_FILTER_IM_TIME", &
+         description="Determines threshold for DBCSR based multiply P(it)=(Mocc(it))^T*Mvirt(it). Threshold "// &
+         "for Mocc/virt(it)=(abP)*D_ad^occ/virt(it) is determined by EPS_FILTER in WFC_GPW.", &
+         usage="EPS_FILTER_IM_TIME 1.0E-05 ", type_of_var=real_t, &
+         default_r_val=1.0E-06_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
    SUBROUTINE create_wfc_gpw(section)
       TYPE(section_type), POINTER                        :: section
 
@@ -875,6 +965,24 @@ CONTAINS
                                         "Everything is written out, useful for debugging purposes only"), &
                           enum_i_vals=(/silent_print_level, low_print_level, medium_print_level, &
                                         high_print_level, debug_print_level/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OBARA_SAIKA_OVERLAP", &
+                          variants=(/"OSO"/), &
+                          description="Use Obara-Saika integrals for two- and three-center integrals.", &
+                          usage="OSO", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="EPS_PGF_ORB_S", &
+         description="Screening for overlap matrix in RI. Usually, it is best to choose this parameter "// &
+         "to be very small since the inversion of overlap matrix might be ill-conditioned.", &
+         usage="EPS_PGF_ORB_S 1.0E-10 ", type_of_var=real_t, &
+         default_r_val=1.0E-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
