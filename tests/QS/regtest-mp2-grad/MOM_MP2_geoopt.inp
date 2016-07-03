@@ -59,7 +59,7 @@
       &HF
         FRACTION  1.0
         &SCREENING
-          EPS_SCHWARZ          1.0E-7
+          EPS_SCHWARZ          1.0E-8
           SCREEN_ON_INITIAL_P  FALSE
         &END SCREENING
         &INTERACTION_POTENTIAL
@@ -83,7 +83,7 @@
           CUTOFF      100
           REL_CUTOFF  25
           EPS_FILTER  1.0E-5
-          EPS_GRID    1.0E-4
+          EPS_GRID    1.0E-7
         &END
         MEMORY    500
         NUMBER_PROC  1
