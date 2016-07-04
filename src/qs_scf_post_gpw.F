@@ -3169,7 +3169,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'energy_windows', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      CHARACTER(len=40)                                  :: ext
+      CHARACTER(len=40)                                  :: ext, title
       INTEGER                                            :: handle, i, lanzcos_max_iter, last, nao, &
                                                             nelectron_total, newton_schulz_order, &
                                                             next, nwindows, print_unit, unit_nr
@@ -3290,7 +3290,8 @@ CONTAINS
             print_unit = cp_print_key_unit_nr(logger, dft_section, "PRINT%ENERGY_WINDOWS", &
                                               extension=ext, file_status="REPLACE", file_action="WRITE", &
                                               log_filename=.FALSE.)
-            CALL cp_pw_to_cube(rho_r%pw, print_unit, "EMD current", particles=particles, stride=stride)
+            WRITE (title, "(A14,I5)") "ENERGY WINDOW ", i
+            CALL cp_pw_to_cube(rho_r%pw, print_unit, title, particles=particles, stride=stride)
             CALL cp_print_key_finished_output(print_unit, logger, dft_section, &
                                               "PRINT%ENERGY_WINDOWS")
             CALL cp_fm_release(window_fm)
