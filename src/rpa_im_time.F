@@ -2023,7 +2023,9 @@ CONTAINS
       ! Fill the dbcsr matrix
       CALL timeset("fill_dbcsr_mat_M", handle1)
 
-      color_sub_row = para_env%mepos/n_group_col
+      color_sub_P = para_env%mepos/group_size_P
+
+      color_sub_row = color_sub_P/n_group_col
       color_sub_col = MODULO(para_env%mepos, n_group_col)
 
       row_offset_prim = starts_array_prim_row(color_sub_row, i_mem)
