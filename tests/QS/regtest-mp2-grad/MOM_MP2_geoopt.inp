@@ -39,7 +39,7 @@
     &END QS
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 1.0E-7
+      EPS_SCF 2.0E-7
       MAX_SCF 30
       ADDED_MOS 5
 
@@ -49,7 +49,7 @@
       &END MOM
 
       &OUTER_SCF
-        EPS_SCF  1.0E-7
+        EPS_SCF  2.0E-7
         MAX_SCF  2
       &END
     &END SCF

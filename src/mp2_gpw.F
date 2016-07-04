@@ -294,10 +294,10 @@ CONTAINS
 
          group_size_3c = mp2_env%ri_rpa_im_time%group_size_3c
 
-         IF(group_size_3c > para_env%num_pe) THEN
+         IF (group_size_3c > para_env%num_pe) THEN
 
-           group_size_3c = para_env%num_pe
-           mp2_env%ri_rpa_im_time%group_size_3c = para_env%num_pe
+            group_size_3c = para_env%num_pe
+            mp2_env%ri_rpa_im_time%group_size_3c = para_env%num_pe
 
          END IF
 
@@ -2442,10 +2442,10 @@ CONTAINS
 
       group_size_P = mp2_env%ri_rpa_im_time%group_size_P
 
-      IF(group_size_P > para_env%num_pe) THEN
+      IF (group_size_P > para_env%num_pe) THEN
 
-        group_size_P = para_env%num_pe
-        mp2_env%ri_rpa_im_time%group_size_P = para_env%num_pe
+         group_size_P = para_env%num_pe
+         mp2_env%ri_rpa_im_time%group_size_P = para_env%num_pe
 
       END IF
 
