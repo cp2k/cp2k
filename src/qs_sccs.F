@@ -349,9 +349,9 @@ CONTAINS
 
          ! Calculate the (quantum) volume of the solute cavity
          f = 1.0_dp/(eps0-1.0_dp)
-!$OMP       PARALLEL DO DEFAULT(NONE) &
-!$OMP                   PRIVATE(i,j,k) &
-!$OMP                   SHARED(eps0,eps_elec,f,lb,theta,ub)
+!$OMP    PARALLEL DO DEFAULT(NONE) &
+!$OMP                PRIVATE(i,j,k) &
+!$OMP                SHARED(eps0,eps_elec,f,lb,theta,ub)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
@@ -359,7 +359,7 @@ CONTAINS
                END DO
             END DO
          END DO
-!$OMP       END PARALLEL DO
+!$OMP    END PARALLEL DO
          cavity_volume = accurate_sum(theta%cr3d)*dvol
          CALL mp_sum(cavity_volume, para_env%group)
 
@@ -376,9 +376,9 @@ CONTAINS
 
          ! Calculate the norm of the gradient of the electronic density in r-space
          norm_drho_elec => work_r3d(5)%pw
-!$OMP       PARALLEL DO DEFAULT(NONE) &
-!$OMP                   PRIVATE(i,j,k) &
-!$OMP                   SHARED(drho_elec,lb,norm_drho_elec,ub)
+!$OMP    PARALLEL DO DEFAULT(NONE) &
+!$OMP                PRIVATE(i,j,k) &
+!$OMP                SHARED(drho_elec,lb,norm_drho_elec,ub)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
@@ -391,7 +391,7 @@ CONTAINS
                END DO
             END DO
          END DO
-!$OMP       END PARALLEL DO
+!$OMP    END PARALLEL DO
 
          ! Optional output of the norm of the density gradient in cube file format
          filename = "DENSITY_GRADIENT"
@@ -451,10 +451,10 @@ CONTAINS
             END DO
 
             ! Calculate the contribution of the cavitation energy to the Kohn-Sham potential
-!$OMP         PARALLEL DO DEFAULT(NONE) &
-!$OMP                     PRIVATE(di,dj,i,j,k,norm_drho2) &
-!$OMP                     SHARED(d2rho_elec,drho_elec,lb,norm_drho_elec,sccs_control) &
-!$OMP                     SHARED(theta,ub,v_sccs)
+!$OMP       PARALLEL DO DEFAULT(NONE) &
+!$OMP                   PRIVATE(di,dj,i,j,k,norm_drho2) &
+!$OMP                   SHARED(d2rho_elec,drho_elec,lb,norm_drho_elec,sccs_control) &
+!$OMP                   SHARED(theta,ub,v_sccs)
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
@@ -471,7 +471,7 @@ CONTAINS
                   END DO
                END DO
             END DO
-!$OMP         END PARALLEL DO
+!$OMP       END PARALLEL DO
             CALL pw_scale(v_sccs, dvol)
             DO di = 1, 3
                DO dj = 1, 3
@@ -501,10 +501,10 @@ CONTAINS
 
       ! Build the initial (rho_iter = 0) total charge density (solute plus polarisation) in r-space
       ! eps_elec <- ln(eps_elec)
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 PRIVATE(i,j,k) &
-!$OMP                 SHARED(eps_elec,lb,message,output_unit,para_env,ub) &
-!$OMP                 SHARED(rho_solute,rho_tot_zero)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(i,j,k) &
+!$OMP             SHARED(eps_elec,lb,message,output_unit,para_env,ub) &
+!$OMP             SHARED(rho_solute,rho_tot_zero)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -519,7 +519,7 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP     END PARALLEL DO
+!$OMP END PARALLEL DO
 
       ! Reassign pointers due to new content
       ln_eps_elec => eps_elec
@@ -603,12 +603,12 @@ CONTAINS
          f = 0.5_dp/twopi
          rho_delta_avg = 0.0_dp
          rho_delta_max = 0.0_dp
-!$OMP       PARALLEL DO DEFAULT(NONE) &
-!$OMP                   PRIVATE(i,j,k,rho_delta,rho_iter_new) &
-!$OMP                   SHARED(dln_eps_elec,dphi_tot,f,lb,rho_iter_old,ub) &
-!$OMP                   SHARED(rho_tot,rho_tot_zero,sccs_control) &
-!$OMP                   REDUCTION(+:rho_delta_avg) &
-!$OMP                   REDUCTION(MAX:rho_delta_max)
+!$OMP    PARALLEL DO DEFAULT(NONE) &
+!$OMP                PRIVATE(i,j,k,rho_delta,rho_iter_new) &
+!$OMP                SHARED(dln_eps_elec,dphi_tot,f,lb,rho_iter_old,ub) &
+!$OMP                SHARED(rho_tot,rho_tot_zero,sccs_control) &
+!$OMP                REDUCTION(+:rho_delta_avg) &
+!$OMP                REDUCTION(MAX:rho_delta_max)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
@@ -625,7 +625,7 @@ CONTAINS
                END DO
             END DO
          END DO
-!$OMP       END PARALLEL DO
+!$OMP    END PARALLEL DO
 
          CALL mp_sum(rho_delta_avg, para_env%group)
          rho_delta_avg = rho_delta_avg/REAL(ngpts, KIND=dp)
@@ -754,10 +754,10 @@ CONTAINS
 
       ! Calculate SCCS contribution to the Kohn-Sham potential
       f = -0.25_dp*dvol/twopi
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 PRIVATE(dphi2,i,j,k) &
-!$OMP                 SHARED(calculate_stress_tensor,f,deps_elec,dphi_tot) &
-!$OMP                 SHARED(dvol,lb,ub,v_sccs)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(dphi2,i,j,k) &
+!$OMP             SHARED(calculate_stress_tensor,f,deps_elec,dphi_tot) &
+!$OMP             SHARED(dvol,lb,ub,v_sccs)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -768,7 +768,7 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP     END PARALLEL DO
+!$OMP END PARALLEL DO
 
       ! Release work storage
       NULLIFY (phi_solute)
@@ -834,10 +834,10 @@ CONTAINS
       ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
 
       ! Calculate the dielectric function and its derivative
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 PRIVATE(dt,i,j,k,rho,t,x,y) &
-!$OMP                 SHARED(deps_elec,diff,dq,eps_elec,epsilon_solvent,f,lb,ub) &
-!$OMP                 SHARED(ln_rho_max,rho_elec,q,rho_max,rho_min)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(dt,i,j,k,rho,t,x,y) &
+!$OMP             SHARED(deps_elec,diff,dq,eps_elec,epsilon_solvent,f,lb,ub) &
+!$OMP             SHARED(ln_rho_max,rho_elec,q,rho_max,rho_min)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -864,7 +864,7 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP     END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -907,10 +907,10 @@ CONTAINS
       ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
 
       ! Calculate the smoothed dielectric function and its derivative
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 PRIVATE(i,j,k,p,rho,s,t) &
-!$OMP                 SHARED(df,deps_elec,eps_elec,epsilon_solvent,f,lb,ub) &
-!$OMP                 SHARED(q,rho_elec,twobeta)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(i,j,k,p,rho,s,t) &
+!$OMP             SHARED(df,deps_elec,eps_elec,epsilon_solvent,f,lb,ub) &
+!$OMP             SHARED(q,rho_elec,twobeta)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -928,7 +928,7 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP     END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -1094,10 +1094,10 @@ CONTAINS
       ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
 
       ! Calculate finite difference between two isosurfaces
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 PRIVATE(eps_elec,i,j,k,l,rho,t,theta,x,y) &
-!$OMP                 SHARED(delta_rho,diff,dtheta,e,epsilon_solvent,f,lb) &
-!$OMP                 SHARED(ln_rho_max,norm_drho_elec,rho_elec,q,rho_max,rho_min,ub)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(eps_elec,i,j,k,l,rho,t,theta,x,y) &
+!$OMP             SHARED(delta_rho,diff,dtheta,e,epsilon_solvent,f,lb) &
+!$OMP             SHARED(ln_rho_max,norm_drho_elec,rho_elec,q,rho_max,rho_min,ub)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -1123,7 +1123,7 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP     END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
@@ -1173,10 +1173,10 @@ CONTAINS
       ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
 
       ! Calculate finite difference between two isosurfaces
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 PRIVATE(eps_elec,i,j,k,l,p,rho,s,t,theta) &
-!$OMP                 SHARED(delta_rho,dtheta,e,epsilon_solvent,f,lb) &
-!$OMP                 SHARED(norm_drho_elec,q,rho_elec,twobeta,ub)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(eps_elec,i,j,k,l,p,rho,s,t,theta) &
+!$OMP             SHARED(delta_rho,dtheta,e,epsilon_solvent,f,lb) &
+!$OMP             SHARED(norm_drho_elec,q,rho_elec,twobeta,ub)
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
             DO i = lb(1), ub(1)
@@ -1196,7 +1196,7 @@ CONTAINS
             END DO
          END DO
       END DO
-!$OMP     END PARALLEL DO
+!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
