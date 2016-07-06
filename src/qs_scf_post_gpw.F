@@ -24,9 +24,9 @@ MODULE qs_scf_post_gpw
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_type
+        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
+        cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_info, cp_dbcsr_init, &
+        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -3167,6 +3167,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'energy_windows', routineP = moduleN//':'//routineN
+      LOGICAL, PARAMETER                                 :: debug = .FALSE.
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       CHARACTER(len=40)                                  :: ext, title
@@ -3175,11 +3176,11 @@ CONTAINS
                                                             next, nwindows, print_unit, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
       LOGICAL                                            :: print_cube
-      REAL(KIND=dp)                                      :: bin_width, fermi_level, filter_eps, &
-                                                            lanzcos_threshold, total_rho
+      REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, fermi_level, filter_eps, &
+         frob_norm, lanzcos_threshold, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
       TYPE(cp_dbcsr_type)                                :: matrix_ks_nosym, S_half, S_minus_half, &
                                                             tmp
       TYPE(cp_dbcsr_type), POINTER                       :: window
@@ -3193,6 +3194,7 @@ CONTAINS
       TYPE(pw_p_type), POINTER                           :: rho_g, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section, input, ls_scf_section
 
@@ -3200,9 +3202,10 @@ CONTAINS
 
       logger => cp_get_default_logger()
       unit_nr = cp_logger_get_default_io_unit(logger)
-      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, matrix_ks=matrix_ks, pw_env=pw_env, &
+      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, matrix_ks=matrix_ks, pw_env=pw_env, rho=rho, &
                       input=input, nelectron_total=nelectron_total, subsys=subsys, ks_env=ks_env, matrix_s=matrix_s)
       CALL qs_subsys_get(subsys, particles=particles)
+      CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       !reading the input
@@ -3259,10 +3262,37 @@ CONTAINS
       IF (unit_nr > 0) WRITE (unit_nr, *) " Creating energy windows. Fermi level: ", fermi_level
       !Rotate the eigenvectors back out of the orthonormal basis
       CALL copy_dbcsr_to_fm(S_minus_half, S_minus_half_fm)
-      CALL cp_gemm("N", "T", nao, nao, nao, one, S_minus_half_fm, eigenvectors, zero, eigenvectors_nonorth) !calculate the density caused by the mos in the energy window
+      CALL cp_gemm("N", "N", nao, nao, nao, one, S_minus_half_fm, eigenvectors, zero, eigenvectors_nonorth) !calculate the density caused by the mos in the energy window
+
+      IF (debug) THEN !Currently only debug, since it is only implemented for even spins
+         !check difference to actual density
+         CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=nelectron_total/2)
+         CALL cp_fm_create(window_fm, window_fm_struct)
+         CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, nelectron_total/2, 1, 1)
+         CALL cp_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
+         !ensure the correct sparsity
+         CALL copy_fm_to_dbcsr(P_window_fm, tmp)
+         CALL cp_dbcsr_copy(window, matrix_ks(1)%matrix)
+         CALL cp_dbcsr_copy_into_existing(window, tmp)
+         CALL calculate_rho_elec(matrix_p=window, &
+                                 rho=rho_r, &
+                                 rho_gspace=rho_g, &
+                                 total_rho=total_rho, &
+                                 ks_env=ks_env)
+         density_total = pw_integrate_function(rho_r%pw)
+         IF (unit_nr > 0) WRITE (unit_nr, *) " Ground-state density: ", density_total
+         frob_norm = cp_dbcsr_frobenius_norm(window)
+         IF (unit_nr > 0) WRITE (unit_nr, *) " Frob norm of calculated ground-state density matrix: ", frob_norm
+         CALL cp_dbcsr_add(window, rho_ao(1)%matrix, one, -one)
+         frob_norm = cp_dbcsr_frobenius_norm(rho_ao(1)%matrix)
+         IF (unit_nr > 0) WRITE (unit_nr, *) " Frob norm of current density matrix: ", frob_norm
+         frob_norm = cp_dbcsr_frobenius_norm(window)
+         IF (unit_nr > 0) WRITE (unit_nr, *) " Difference between calculated ground-state density and current density: ", frob_norm
+         CALL cp_fm_release(window_fm)
+         CALL cp_fm_struct_release(window_fm_struct)
+      END IF
 
       !create energy windows
-
       bin_width = (eigenvalues(SIZE(eigenvalues))-eigenvalues(1))/(nwindows+1)
       next = 1
       DO i = 1, nwindows
@@ -3270,13 +3300,12 @@ CONTAINS
          DO WHILE (eigenvalues(next) < eigenvalues(1)+i*bin_width)
             next = next+1
          END DO
-         IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", eigenvalues(1)+i*bin_width, " Number of states: ", next-last
          IF (print_cube) THEN
             !print the energy window to a cube file
             CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next-last) !not sure how bad this is now load balanced due to using the same blacs_env
             CALL cp_fm_create(window_fm, window_fm_struct)
-            CALL cp_fm_to_fm(eigenvectors, window_fm, next-last, last, 1) !copy the mos in the energy window into a separate matrix
-            CALL cp_gemm("N", "T", nao, nao, next-last, one, window_fm, window_fm, zero, P_window_fm) !calculate the density caused by the mos in the energy window
+            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next-last, last, 1) !copy the mos in the energy window into a separate matrix
+            CALL cp_gemm("N", "T", nao, nao, next-last, 2*one, window_fm, window_fm, zero, P_window_fm) !calculate the density caused by the mos in the energy window
             CALL copy_fm_to_dbcsr(P_window_fm, tmp)
             !ensure the correct sparsity
             CALL cp_dbcsr_copy(window, matrix_ks(1)%matrix)
@@ -3296,6 +3325,11 @@ CONTAINS
                                               "PRINT%ENERGY_WINDOWS")
             CALL cp_fm_release(window_fm)
             CALL cp_fm_struct_release(window_fm_struct)
+            density_ewindow_total = pw_integrate_function(rho_r%pw)
+            IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", eigenvalues(1)+i*bin_width, " Number of states: ", next-last, &
+               " Grid Density ", density_ewindow_total
+         ELSE
+            IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", eigenvalues(1)+i*bin_width, " Number of states: ", next-last
          END IF
       END DO
 
