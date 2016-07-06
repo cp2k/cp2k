@@ -16,7 +16,7 @@ QS/regtest-gpw-4
 QS/regtest-rel
 QS/regtest-gpw-5
 QS/regtest-ri-rpa                                           libint 
-QS/regtest-rpa-cubic-scaling/                               libint
+QS/regtest-rpa-cubic-scaling                                libint
 Fist/regtest-7-1
 QS/regtest-slab
 QS/regtest-pao-2
