@@ -963,6 +963,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    newdirs=""
    for dir in ${dirs}
    do
+     dir=${dir%/}
      match="no"
      t=1
      # Match to exclusion list
@@ -977,7 +978,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
         restrictmatch="no"
         t=1
         while [ $t -le ${ndirstorestrict} ]; do
-           if [[ "${restrict_dirs[t]}" == "${dir}" ]]; then
+           if [[ "${restrict_dirs[t]%/}" == "${dir}" ]]; then
               restrictmatch="yes"
            fi
            let t=t+1
@@ -1006,12 +1007,11 @@ if [[ ${skiptest} != "skiptest" ]]; then
      done
    
      # If not excluded add to list of dirs
-     if [[ "${match}" == "no" && "${restrictmatch}" == "yes" && "$featurematch" == "yes" ]]; then
+     if [[ "${match}" == "no" && "${restrictmatch}" == "yes" && "${featurematch}" == "yes" ]]; then
         new_dirs="$new_dirs $dir"
      fi
    done
    dirs=$new_dirs
-   
    
    # Just to be sure, clean possible existing status files.
    cd ${dir_out}
