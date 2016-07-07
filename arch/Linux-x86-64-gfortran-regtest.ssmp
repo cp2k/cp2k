@@ -1,4 +1,4 @@
-# Tested with: GFortran 4.9.1, LAPACK 3.5.0
+# Tested with: GFortran 4.9.2, LAPACK 3.5.0
 CC         = gcc
 CPP        =
 FC         = gfortran
