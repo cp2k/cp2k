@@ -1,4 +1,4 @@
-# Tested with: GFortran 4.9.1, MPICH 3.1, LAPACK 3.5.0, ScaLAPACK 2.0.2
+# Tested with: GFortran 4.9.2, MPICH 3.1, LAPACK 3.5.0, ScaLAPACK 2.0.2
 CC         = gcc
 CPP        =
 FC         = mpif90
