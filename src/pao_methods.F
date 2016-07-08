@@ -1087,7 +1087,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          IF (dft_control%nspins == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 0.5_dp)
          ! we could go to the orthonomal basis, but it seems not worth the trouble
-         CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin), ls_scf_env%matrix_s, ls_scf_env%eps_filter, 3)
+         ! TODO : 10 iterations is a conservative upper bound, figure out when it fails
+         CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin), ls_scf_env%matrix_s, ls_scf_env%eps_filter, 10)
          IF (dft_control%nspins == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 2.0_dp)
       ENDDO
 
