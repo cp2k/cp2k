@@ -6825,26 +6825,26 @@ CONTAINS
                nthread = 1
 !$             nthread = omp_get_max_threads()
 
-               CALL neighbor_list_iterator_create(nl_iterator, sab_orb_sub)
+               CALL neighbor_list_iterator_create(nl_iterator, sab_orb_sub, nthread=nthread)
 
 !$OMP   PARALLEL DEFAULT(NONE) &
 !$OMP   SHARED (nthread,atom_RI,first_sgf_RI,l_max_RI,l_min_RI,npgf_RI,nset_RI,nsgf_RI,rpgf_RI,set_radius_RI,sphi_RI,zet_RI,&
-!$OMP           iatom_outer,jatom_outer,rab_outer,kind_of,my_group_L_start,row_blk_start,LLL_set_end,&
+!$OMP           iatom_outer,jatom_outer,rab_outer,kind_of,my_group_L_start,row_blk_start,&
 !$OMP           mat_3c_overl_int,nl_iterator,qs_kind_set,ncoset,my_group_L_size,row_blk_sizes,&
-!$OMP           col_blk_sizes, sab_orb_sub,i_cut_RI) &
+!$OMP           col_blk_sizes, i_cut_RI) &
 !$OMP   PRIVATE (mepos,iatom,jatom,rab,set_RI,raRI,rbRI,dab,daRI,dbRI,ikind,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,&
 !$OMP            set_radius_a,sphi_a,zeta,jkind,first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,&
 !$OMP            iset,jset,LLL_set_start,nco_RI,ncoa,ncob,sgf_RI,sgfa,sgfb,isgf_RI,isgfa,jsgfb,LLL,row,col,old_row,&
-!$OMP            block,block_transposed,&
+!$OMP            block,block_transposed,LLL_set_end, &
 !$OMP            offset_row_due_to_LLL,offset_col_due_to_LLL,block_start_row,block_end_row,block_start_col,block_end_col,&
 !$OMP            handle2,s_abRI,s_abRI_contr,s_abRI_contr_transposed,basis_set_a,basis_set_b)
 
                mepos = 0
 !$             mepos = omp_get_thread_num()
 
-               DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
 
-                  CALL get_iterator_info(nl_iterator, &
+                  CALL get_iterator_info(nl_iterator, mepos=mepos, &
                                          iatom=iatom, jatom=jatom, r=rab)
 
                   DO set_RI = 1, nset_RI
