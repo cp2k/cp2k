@@ -187,16 +187,16 @@
               data_p => data_diag
            ENDIF
            max_norm = 0.0_sp
-           nblks = meta_p(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
-           row => meta_p(refs_displ(imeta_displ,mi,ui)+slot_coo_l:&
-                         meta_p(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
-                                refs_displ(imeta_displ,mi,ui):3)
-           col => meta_p(refs_displ(imeta_displ,mi,ui)+slot_coo_l+1:&
-                         meta_p(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
-                                refs_displ(imeta_displ,mi,ui):3)
-           bps => meta_p(refs_displ(imeta_displ,mi,ui)+slot_coo_l+2:&
-                         meta_p(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
-                                refs_displ(imeta_displ,mi,ui):3)
+           nblks = meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_nblks)
+           row => meta_p(refs_displ(imeta,mi,ui)+slot_coo_l:&
+                         meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
+                                refs_displ(imeta,mi,ui):3)
+           col => meta_p(refs_displ(imeta,mi,ui)+slot_coo_l+1:&
+                         meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
+                                refs_displ(imeta,mi,ui):3)
+           bps => meta_p(refs_displ(imeta,mi,ui)+slot_coo_l+2:&
+                         meta_p(refs_displ(imeta,mi,ui)+dbcsr_slot_size)+&
+                                refs_displ(imeta,mi,ui):3)
            !$omp do
            DO blk = 1, nblks
               IF (bps(blk).NE.0) THEN
@@ -208,8 +208,8 @@
                          col_blk_size(local_col(col(blk))) - 1
                  ENDIF
                  max_norm = MAX(max_norm,&
-                      SQRT (REAL(SUM(ABS(data_p(bps(blk)+refs_displ(idata_displ,mi,ui):&
-                                                bpe+refs_displ(idata_displ,mi,ui)))**2), KIND=sp)))
+                      SQRT (REAL(SUM(ABS(data_p(bps(blk)+refs_displ(idata,mi,ui):&
+                                                bpe+refs_displ(idata,mi,ui)))**2), KIND=sp)))
               ENDIF
            ENDDO
            !$omp end do
