@@ -103,6 +103,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init', routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
       SELECT CASE (pao%parameterization)
       CASE (pao_exp_param)
          CALL pao_param_init_exp(pao, qs_env)
@@ -113,6 +117,8 @@ CONTAINS
       CASE DEFAULT
          CPABORT("PAO: unkown parametrization")
       END SELECT
+
+      CALL timestop(handle)
 
    END SUBROUTINE pao_param_init
 
@@ -126,6 +132,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
       SELECT CASE (pao%parameterization)
       CASE (pao_exp_param)
          CALL pao_param_finalize_exp(pao)
@@ -136,6 +146,8 @@ CONTAINS
       CASE DEFAULT
          CPABORT("PAO: unkown parametrization")
       END SELECT
+
+      CALL timestop(handle)
 
    END SUBROUTINE pao_param_finalize
 
@@ -155,6 +167,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
       SELECT CASE (pao%parameterization)
       CASE (pao_exp_param)
          CALL pao_param_count_exp(qs_env, ikind=ikind, nparams=nparams)
@@ -165,6 +181,8 @@ CONTAINS
       CASE DEFAULT
          CPABORT("PAO: unkown parametrization")
       END SELECT
+
+      CALL timestop(handle)
 
    END SUBROUTINE pao_param_count
 
@@ -180,8 +198,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initial_guess', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
       REAL(dp)                                           :: norm
       TYPE(cp_dbcsr_type)                                :: matrix_tmp
+
+      CALL timeset(routineN, handle)
 
       SELECT CASE (pao%parameterization)
       CASE (pao_exp_param)
@@ -205,6 +226,8 @@ CONTAINS
                                 0.0_dp, pao%matrix_X, retain_sparsity=.TRUE.)
          CALL cp_dbcsr_release(matrix_tmp)
       ENDIF
+
+      CALL timestop(handle)
 
    END SUBROUTINE pao_param_initial_guess
 
