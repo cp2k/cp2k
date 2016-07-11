@@ -41,7 +41,7 @@ MODULE pao_methods
                                               diamat_all
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sum
-   USE pao_ml,                          ONLY: pao_machine_learning_forces
+   USE pao_ml,                          ONLY: pao_ml_forces
    USE pao_param,                       ONLY: pao_calc_U,&
                                               pao_param_count,&
                                               pao_update_AB
@@ -1142,7 +1142,7 @@ CONTAINS
       CALL cp_dbcsr_release(matrix_M)
 
       IF (SIZE(pao%ml_training_set) > 0) &
-         CALL pao_machine_learning_forces(pao, qs_env, pao%matrix_G, forces)
+         CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)
 
       CALL mp_sum(forces, para_env%group)
       DO iatom = 1, natoms

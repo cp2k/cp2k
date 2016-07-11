@@ -56,7 +56,7 @@ MODULE pao_ml
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_ml'
 
-   PUBLIC :: pao_machine_learning_init, pao_machine_learning_predict, pao_machine_learning_forces
+   PUBLIC :: pao_ml_init, pao_ml_predict, pao_ml_forces
 
    ! linked list used to group training points by kind
    TYPE training_point_type
@@ -78,12 +78,11 @@ CONTAINS
 !> \param pao ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE pao_machine_learning_init(pao, qs_env)
+   SUBROUTINE pao_ml_init(pao, qs_env)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_init', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_ml_init', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -123,7 +122,7 @@ CONTAINS
       ! use training-set to train model
       CALL pao_ml_train(pao)
 
-   END SUBROUTINE pao_machine_learning_init
+   END SUBROUTINE pao_ml_init
 
 ! **************************************************************************************************
 !> \brief Reads the given file and adds it's training points to linked lists.
@@ -447,11 +446,11 @@ CONTAINS
 !> \param pao ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE pao_machine_learning_predict(pao, qs_env)
+   SUBROUTINE pao_ml_predict(pao, qs_env)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_predict'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_ml_predict'
 
       INTEGER                                            :: acol, arow, handle, iatom, ikind, natoms
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descriptor, variances
@@ -515,7 +514,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pao_machine_learning_predict
+   END SUBROUTINE pao_ml_predict
 
 ! **************************************************************************************************
 !> \brief Queries the actuall learning algorthim to make a prediction
@@ -558,13 +557,13 @@ CONTAINS
 !> \param matrix_G ...
 !> \param forces ...
 ! **************************************************************************************************
-   SUBROUTINE pao_machine_learning_forces(pao, qs_env, matrix_G, forces)
+   SUBROUTINE pao_ml_forces(pao, qs_env, matrix_G, forces)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_type)                                :: matrix_G
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_machine_learning_forces'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_ml_forces'
 
       INTEGER                                            :: acol, arow, handle, iatom, ikind
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: descr_grad, descriptor
@@ -620,7 +619,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE pao_machine_learning_forces
+   END SUBROUTINE pao_ml_forces
 
 ! **************************************************************************************************
 !> \brief Calculate gradient of machine learning algorithm

@@ -30,8 +30,8 @@ MODULE pao_main
         pao_build_selector, pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, &
         pao_check_trace_ps, pao_guess_initial_P, pao_init_gaussian_radii, pao_print_atom_info, &
         pao_store_P, pao_test_convergence
-   USE pao_ml,                          ONLY: pao_machine_learning_init,&
-                                              pao_machine_learning_predict
+   USE pao_ml,                          ONLY: pao_ml_init,&
+                                              pao_ml_predict
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
                                               pao_opt_init,&
                                               pao_opt_new_dir
@@ -83,7 +83,7 @@ CONTAINS
       CALL pao_init_gaussian_radii(pao, qs_env)
 
       ! train machine learning
-      CALL pao_machine_learning_init(pao, qs_env)
+      CALL pao_ml_init(pao, qs_env)
 
       CALL timestop(handle)
    END SUBROUTINE pao_init
@@ -137,13 +137,13 @@ CONTAINS
          IF (LEN_TRIM(pao%restart_file) > 0) THEN
             CALL pao_read_restart(pao, qs_env)
          ELSE IF (SIZE(pao%ml_training_set) > 0) THEN
-            CALL pao_machine_learning_predict(pao, qs_env)
+            CALL pao_ml_predict(pao, qs_env)
          ELSE
             CALL pao_param_initial_guess(pao, qs_env)
          ENDIF
          pao%matrix_X_ready = .TRUE.
       ELSE IF (SIZE(pao%ml_training_set) > 0) THEN
-         CALL pao_machine_learning_predict(pao, qs_env)
+         CALL pao_ml_predict(pao, qs_env)
       ELSE
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| reusing matrix_X from previous optimization"
       ENDIF
