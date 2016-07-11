@@ -65,6 +65,7 @@ MODULE mp2_ri_gpw
                                               m_walltime
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_allgather,&
+                                              mp_alltoall,&
                                               mp_comm_split_direct,&
                                               mp_max,&
                                               mp_min,&
@@ -74,7 +75,8 @@ MODULE mp2_ri_gpw
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types_new,              ONLY: molecule_type
    USE mp2_ri_grad_util,                ONLY: complete_gamma
-   USE mp2_types,                       ONLY: mp2_type,&
+   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
+                                              mp2_type,&
                                               one_dim_int_array
    USE orbital_pointers,                ONLY: ncoset
    USE particle_methods,                ONLY: get_particle_set
@@ -113,6 +115,7 @@ MODULE mp2_ri_gpw
                                               realspace_grid_p_type,&
                                               rs_grid_release,&
                                               rs_grid_retain
+   USE rpa_im_time,                     ONLY: communicate_buffer
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
@@ -174,7 +177,7 @@ CONTAINS
 !> \param calc_PQ_cond_num ...
 !> \param calc_forces ...
 !> \param blacs_env_sub ...
-!> \param my_do_gw ...END IF
+!> \param my_do_gw ...
 !> \param starts_B_all ...
 !> \param sizes_B_all ...
 !> \param ends_B_all ...
@@ -428,9 +431,11 @@ CONTAINS
             "RI_INFO| Number of Eigenvalue of (P|Q) smaller than 10^(-3):", num_small_eigen
       END IF
 
-      ! replicate the necessary row of the L^{-1} matrix on each proc
-      CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L, &
-                      my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+      IF (.NOT. do_im_time) THEN
+         ! replicate the necessary row of the L^{-1} matrix on each proc
+         CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L, &
+                         my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+      END IF
       ! clean the L^{-1} matrix
       CALL cp_fm_release(fm_matrix_L)
 
@@ -505,8 +510,8 @@ CONTAINS
       DO LLL = my_group_L_start, my_group_L_end
          i_counter = i_counter+1
 
-         ! if we do Obara Saika for the three-center overlap integrals, cycle
-         IF (do_im_time) CYCLE
+         ! if we do Obara Saika for the three-center overlap integrals, exit
+         IF (do_im_time) EXIT
 
          ! pseudo psi_L
          CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
@@ -676,19 +681,15 @@ CONTAINS
                                          my_group_L_ends_im_time, my_group_L_sizes_im_time, &
                                          nmo, dimen_RI, cut_RI, sab_orb_sub, sab_orb_all)
 
-      END IF
-
-      DEALLOCATE (my_Lrows)
-
-      IF (do_im_time) THEN
-
          ! transfer entries of fm_matrix_L_RI_metric to RPA
-         CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L_RI_metric, &
-                         my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+         CALL grep_Lcols_nonblocking(para_env_L, dimen_RI, fm_matrix_L_RI_metric, &
+                                     my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
          CALL cp_fm_release(fm_matrix_L_RI_metric)
          CALL cp_para_env_release(para_env_L)
 
       ELSE
+
+         DEALLOCATE (my_Lrows)
 
          CALL cp_fm_release(fm_BIb_jb)
          DEALLOCATE (local_col_row_info)
@@ -702,6 +703,8 @@ CONTAINS
             DEALLOCATE (local_col_row_info_beta)
          END IF
 
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
+
       END IF
 
       IF (my_do_gw) THEN
@@ -714,12 +717,6 @@ CONTAINS
             CALL cp_dbcsr_release(matrix_in_jm_beta)
             CALL cp_fm_release(fm_BIb_gw_beta)
          END IF
-      END IF
-
-      IF (.NOT. do_im_time) THEN
-
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
-
       END IF
 
       DEALLOCATE (sub_proc_map)
@@ -2637,6 +2634,181 @@ CONTAINS
       DEALLOCATE (local_col_row_info)
       DEALLOCATE (rec_col_row_info)
       DEALLOCATE (proc_map)
+      DEALLOCATE (local_L)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param para_env_L ...
+!> \param dimen_RI ...
+!> \param fm_matrix_L ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param my_group_L_size ...
+!> \param my_Lrows ...
+!> \author Jan Wilhelm, replace old grep_Lcols by a new one with nonblocking MPI
+! **************************************************************************************************
+   SUBROUTINE grep_Lcols_nonblocking(para_env_L, dimen_RI, fm_matrix_L, &
+                                     my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+      TYPE(cp_para_env_type), POINTER                    :: para_env_L
+      INTEGER                                            :: dimen_RI
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      INTEGER                                            :: my_group_L_start, my_group_L_end, &
+                                                            my_group_L_size
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_Lcols_nonblocking', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: end_idx, handle, i_element, i_global, &
+                                                            iiB, imepos_L, j_global, jjB, L_end, &
+                                                            L_start, ncol_local, nrow_local, &
+                                                            start_idx
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: offset_buffer_send, sizes_rec, sizes_send
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: L_start_end
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L, local_L_internal
+      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: buffer_rec, buffer_send
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (my_Lrows(dimen_RI, my_group_L_size))
+      my_Lrows = 0.0_dp
+
+      ALLOCATE (L_start_end(0:para_env_L%num_pe-1, 2))
+      L_start_end = 0
+
+      L_start_end(para_env_L%mepos, 1) = my_group_L_start
+      L_start_end(para_env_L%mepos, 2) = my_group_L_end
+
+      ! get the L ranges from the other members of the para_env_L
+      CALL mp_sum(L_start_end, para_env_L%group)
+
+      CALL cp_fm_get_info(matrix=fm_matrix_L, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices, &
+                          local_data=local_L_internal)
+
+      ALLOCATE (local_L(nrow_local, ncol_local))
+      local_L = local_L_internal(1:nrow_local, 1:ncol_local)
+
+      ! since fm_matrix_L is fully replicated in every para_env_L, we only communicate inside para_env_L
+      ALLOCATE (sizes_rec(0:para_env_L%num_pe-1))
+      ALLOCATE (sizes_send(0:para_env_L%num_pe-1))
+      sizes_rec = 0
+      sizes_send = 0
+
+      ! write info how many elements a process receives
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO imepos_L = 0, para_env_L%num_pe-1
+            L_start = L_start_end(imepos_L, 1)
+            L_end = L_start_end(imepos_L, 2)
+            IF (j_global >= L_start .AND. j_global <= L_end) THEN
+               sizes_send(imepos_L) = sizes_send(imepos_L)+nrow_local
+            END IF
+         END DO
+      END DO
+
+      IF (para_env_L%num_pe > 1) THEN
+         CALL mp_alltoall(sizes_send, sizes_rec, 1, para_env_L%group)
+      ELSE
+         sizes_rec(0) = sizes_send(0)
+      END IF
+
+      ALLOCATE (buffer_rec(0:para_env_L%num_pe-1))
+      ALLOCATE (buffer_send(0:para_env_L%num_pe-1))
+
+      ! allocate data message and corresponding indices
+      DO imepos_L = 0, para_env_L%num_pe-1
+
+         ALLOCATE (buffer_rec(imepos_L)%msg(sizes_rec(imepos_L)))
+         buffer_rec(imepos_L)%msg = 0.0_dp
+
+         ALLOCATE (buffer_send(imepos_L)%msg(sizes_send(imepos_L)))
+         buffer_send(imepos_L)%msg = 0.0_dp
+
+         ALLOCATE (buffer_rec(imepos_L)%indx(sizes_rec(imepos_L), 2))
+         buffer_rec(imepos_L)%indx = 0
+
+         ALLOCATE (buffer_send(imepos_L)%indx(sizes_send(imepos_L), 2))
+         buffer_send(imepos_L)%indx = 0
+
+      END DO
+
+      ALLOCATE (offset_buffer_send(0:para_env_L%num_pe-1))
+      offset_buffer_send = 0
+
+      ! write matrix elements and info
+      DO jjB = 1, ncol_local
+
+         j_global = col_indices(jjB)
+
+         DO imepos_L = 0, para_env_L%num_pe-1
+
+            L_start = L_start_end(imepos_L, 1)
+            L_end = L_start_end(imepos_L, 2)
+
+            IF (j_global >= L_start .AND. j_global <= L_end) THEN
+
+               start_idx = offset_buffer_send(imepos_L)+1
+               end_idx = offset_buffer_send(imepos_L)+nrow_local
+
+               DO iiB = 1, nrow_local
+
+                  i_global = row_indices(iiB)
+
+                  buffer_send(imepos_L)%indx(start_idx+iiB-1, 1) = i_global
+                  buffer_send(imepos_L)%indx(start_idx+iiB-1, 2) = j_global
+
+               END DO
+
+               buffer_send(imepos_L)%msg(start_idx:end_idx) = local_L(1:nrow_local, jjB)
+
+               offset_buffer_send(imepos_L) = offset_buffer_send(imepos_L)+nrow_local
+
+            END IF
+
+         END DO
+
+      END DO
+
+      ALLOCATE (req_array(1:para_env_L%num_pe, 4))
+
+      CALL communicate_buffer(para_env_L, sizes_rec, sizes_send, buffer_rec, buffer_send, req_array)
+
+      ! accumulate data on L
+      DO imepos_L = 0, para_env_L%num_pe-1
+         DO i_element = 1, sizes_rec(imepos_L)
+            i_global = buffer_rec(imepos_L)%indx(i_element, 1)
+            j_global = buffer_rec(imepos_L)%indx(i_element, 2)
+
+            my_Lrows(i_global, j_global-my_group_L_start+1) = buffer_rec(imepos_L)%msg(i_element)
+         END DO
+      END DO
+
+      DEALLOCATE (offset_buffer_send, req_array)
+
+      DO imepos_L = 0, para_env_L%num_pe-1
+         DEALLOCATE (buffer_send(imepos_L)%msg)
+         DEALLOCATE (buffer_send(imepos_L)%indx)
+      END DO
+
+      DO imepos_L = 0, para_env_L%num_pe-1
+         DEALLOCATE (buffer_rec(imepos_L)%msg)
+         DEALLOCATE (buffer_rec(imepos_L)%indx)
+      END DO
+
+      DEALLOCATE (buffer_rec, buffer_send)
+
+      DEALLOCATE (sizes_rec, sizes_send)
       DEALLOCATE (local_L)
 
       CALL timestop(handle)
@@ -6267,8 +6439,8 @@ CONTAINS
 
                               CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                                             lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                                       l_max_RI(set_RI), npgf_RI(set_RI), zet_RI(:, set_RI), rpgf_RI(:, set_RI), l_min_RI(set_RI), &
-                                            rab, dab, raRI, daRI, rbRI, dbRI, s_abRI)
+                                            l_max_RI(set_RI), npgf_RI(set_RI), zet_RI(:, set_RI), rpgf_RI(:, set_RI), &
+                                            l_min_RI(set_RI), rab, dab, raRI, daRI, rbRI, dbRI, s_abRI)
 
                               ALLOCATE (s_abRI_contr(nsgfa(iset), nsgfb(jset), nsgf_RI(set_RI)))
 
@@ -6775,8 +6947,8 @@ CONTAINS
 
                               CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
                                             lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                                       l_max_RI(set_RI), npgf_RI(set_RI), zet_RI(:, set_RI), rpgf_RI(:, set_RI), l_min_RI(set_RI), &
-                                            rab, dab, raRI, daRI, rbRI, dbRI, s_abRI)
+                                            l_max_RI(set_RI), npgf_RI(set_RI), zet_RI(:, set_RI), rpgf_RI(:, set_RI), &
+                                            l_min_RI(set_RI), rab, dab, raRI, daRI, rbRI, dbRI, s_abRI)
 
                               ALLOCATE (s_abRI_contr(nsgfa(iset), nsgfb(jset), nsgf_RI(set_RI)))
 

@@ -18,11 +18,11 @@ MODULE rpa_ri_gpw
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, &
-        cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
+        cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
+        cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
+        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
+        cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_syrk,&
@@ -65,7 +65,8 @@ MODULE rpa_ri_gpw
                                               initialize_buffer,&
                                               release_buffer
    USE rpa_im_time,                     ONLY: compute_fm_mat_Q_omega,&
-                                              fill_fm_with_2d_array
+                                              fill_fm_with_2d_array,&
+                                              setup_mat_for_mem_cut_3c
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -1760,14 +1761,15 @@ CONTAINS
       INTEGER :: nmo, nrow_local, num_fit_points, num_real_freq_cont_def, num_residues, num_var, &
          num_x_nodes_max, num_x_nodes_min, num_x_nodes_min_temp, num_x_nodes_step, number_of_rec, &
          number_of_rec_beta, number_of_send, number_of_send_beta, row_start_local
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, ends_array_col_cm, &
-         ends_array_row_cm, map_rec_size, map_rec_size_beta, map_send_size, map_send_size_beta, &
-         mepos_P_from_RI_row, mo_from_jquad, my_group_L_sizes_im_time, my_group_L_starts_im_time, &
-         residue_from_jquad, RPA_proc_map, starts_array_col_cm, starts_array_row_cm
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, ends_array_cm, map_rec_size, &
+         map_rec_size_beta, map_send_size, map_send_size_beta, mepos_P_from_RI_row, mo_from_jquad, &
+         my_group_L_sizes_im_time, my_group_L_starts_im_time, residue_from_jquad, RPA_proc_map, &
+         starts_array_cm
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: ends_array_prim_col, ends_array_prim_fullcol, &
          ends_array_prim_fullrow, ends_array_prim_row, local_size_source, local_size_source_beta, &
          sizes_array_prim_col, sizes_array_prim_row, starts_array_prim_col, &
          starts_array_prim_fullcol, starts_array_prim_fullrow, starts_array_prim_row
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_rows_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_indices, row_blk_size, &
                                                             row_indices
       LOGICAL                                            :: do_contour_def, do_mix_exchange, &
@@ -1787,7 +1789,9 @@ CONTAINS
                                                             tau_wj_2d
       TYPE(cp_dbcsr_p_type)                              :: mat_M_P_munu_occ, mat_M_P_munu_virt
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc_occ, mat_dm_loc_virt
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut, &
+                                                            mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
+      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
       TYPE(cp_fm_type), POINTER :: fm_mat_L, fm_mat_S_contour_def, fm_mat_S_contour_def_beta, &
          fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
@@ -1843,11 +1847,6 @@ CONTAINS
          ALLOCATE (my_group_L_sizes_im_time(cut_RI))
          my_group_L_sizes_im_time(:) = mp2_env%ri_rpa_im_time_util(1)%my_group_L_sizes_im_time
 
-         NULLIFY (mat_dm_loc_occ)
-         CALL cp_dbcsr_init_p(mat_dm_loc_occ)
-         CALL cp_dbcsr_copy(mat_dm_loc_occ, mat_munu%matrix)
-         CALL cp_dbcsr_set(mat_dm_loc_occ, 1.0_dp)
-
          DO i_cut_RI = 1, cut_RI
 
             my_group_L_size_im_time = my_group_L_sizes_im_time(i_cut_RI)
@@ -1857,14 +1856,38 @@ CONTAINS
 
          END DO
 
-         CALL filter_dm(mat_dm_loc_occ, mat_3c_overl_int, para_env_sub, cut_RI, para_env%num_pe)
+         NULLIFY (mat_dm_loc)
+         CALL cp_dbcsr_init_p(mat_dm_loc)
+         CALL cp_dbcsr_desymmetrize(mat_munu%matrix, mat_dm_loc)
 
-         NULLIFY (mat_dm_loc_virt)
-         CALL cp_dbcsr_init_p(mat_dm_loc_virt)
-         CALL cp_dbcsr_copy(mat_dm_loc_virt, mat_munu%matrix)
-         CALL cp_dbcsr_set(mat_dm_loc_virt, 0.0_dp)
+         CALL get_local_rows_of_mat_3c_overl_int(mat_3c_overl_int, para_env_sub, cut_RI, non_zero_rows_3c)
 
-         CALL filter_dm(mat_dm_loc_virt, mat_3c_overl_int, para_env_sub, cut_RI, para_env%num_pe)
+         NULLIFY (mat_dm_loc_occ_cut)
+         CALL cp_dbcsr_allocate_matrix_set(mat_dm_loc_occ_cut, cut_RI, cut_memory)
+
+         DO i_mem = 1, cut_memory
+            DO i_cut_RI = 1, cut_RI
+
+               ALLOCATE (mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix)
+               CALL cp_dbcsr_init(mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix)
+               CALL cp_dbcsr_create(matrix=mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix, &
+                                    template=mat_dm_loc)
+            END DO
+         END DO
+
+         NULLIFY (mat_dm_loc_virt_cut)
+         CALL cp_dbcsr_allocate_matrix_set(mat_dm_loc_virt_cut, cut_RI, cut_memory)
+
+         DO i_mem = 1, cut_memory
+            DO i_cut_RI = 1, cut_RI
+
+               ALLOCATE (mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix)
+               CALL cp_dbcsr_init(mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix)
+               CALL cp_dbcsr_create(matrix=mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix, &
+                                    template=mat_dm_loc)
+
+            END DO
+         END DO
 
          CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
          CALL cp_dbcsr_filter(mat_munu%matrix, 1.0_dp)
@@ -1967,15 +1990,10 @@ CONTAINS
             END DO
          END DO
 
-         ALLOCATE (starts_array_row_cm(cut_memory))
-         starts_array_row_cm(:) = mp2_env%ri_rpa_im_time%starts_array_row_cm(:)
-         ALLOCATE (ends_array_row_cm(cut_memory))
-         ends_array_row_cm(:) = mp2_env%ri_rpa_im_time%ends_array_row_cm(:)
-
-         ALLOCATE (starts_array_col_cm(cut_memory))
-         starts_array_col_cm(:) = mp2_env%ri_rpa_im_time%starts_array_col_cm(:)
-         ALLOCATE (ends_array_col_cm(cut_memory))
-         ends_array_col_cm(:) = mp2_env%ri_rpa_im_time%ends_array_col_cm(:)
+         ALLOCATE (starts_array_cm(cut_memory))
+         starts_array_cm(:) = mp2_env%ri_rpa_im_time%starts_array_cm(:)
+         ALLOCATE (ends_array_cm(cut_memory))
+         ends_array_cm(:) = mp2_env%ri_rpa_im_time%ends_array_cm(:)
 
          ! allocatable arrays for fast filling of dbcsr matrices
          CALL cp_dbcsr_get_info(mat_M_P_munu_occ%matrix, row_blk_size=row_blk_size, &
@@ -1999,6 +2017,9 @@ CONTAINS
          CALL cp_fm_create(fm_mat_L, fm_mat_Q%matrix_struct)
          CALL cp_fm_to_fm(fm_mat_Q, fm_mat_L)
          CALL cp_fm_set_all(matrix=fm_mat_L, alpha=0.0_dp)
+
+         CALL setup_mat_for_mem_cut_3c(mat_3c_overl_int_cut, mat_3c_overl_int, cut_memory, cut_RI, &
+                                       starts_array_cm, ends_array_cm, my_group_L_sizes_im_time, eps_filter)
 
       END IF
 
@@ -2498,44 +2519,46 @@ CONTAINS
             ! compute the matrix Q(it) and Fourier transform it directly to fm_mat_Q_omega(iw)
             CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
                                         fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                        fm_mat_Q, mat_dm_loc_occ, mat_dm_loc_virt, mat_P_local, &
+                                        fm_mat_Q, mat_dm_loc, mat_P_local, &
                                         mat_P_global, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-                                        mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int, &
+                                        mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
+                                        mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                         tau_wj_2d, tj, wj, tau_tj, do_minimax_quad, &
                                         e_fermi, eps_filter, eps_comm, a_scaling, alpha, &
                                         eps_filter_im_time, Eigenval, nmo, n_group_col, dimen_RI, &
                                         group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
                                         unit_nr, mp2_env, para_env, para_env_sub, &
-                                        sizes_array_prim_col, starts_array_prim_col, ends_array_prim_col, &
-                                        sizes_array_prim_row, starts_array_prim_row, ends_array_prim_row, &
+                                        starts_array_prim_col, ends_array_prim_col, &
+                                        starts_array_prim_row, ends_array_prim_row, &
                                         starts_array_prim_fullcol, ends_array_prim_fullcol, &
                                         starts_array_prim_fullrow, ends_array_prim_fullrow, &
                                         my_group_L_starts_im_time, my_group_L_sizes_im_time, &
-                                        offset_combi_block, starts_array_row_cm, &
-                                        ends_array_row_cm, starts_array_col_cm, &
-                                        ends_array_col_cm, mepos_P_from_RI_row, buffer_mat_M)
+                                        offset_combi_block, starts_array_cm, &
+                                        ends_array_cm, mepos_P_from_RI_row, non_zero_rows_3c, &
+                                        buffer_mat_M)
 
             ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
             IF (my_open_shell) THEN
 
                CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
                                            fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                           fm_mat_Q, mat_dm_loc_occ, mat_dm_loc_virt, mat_P_local, mat_P_global, &
+                                           fm_mat_Q, mat_dm_loc, mat_P_local, mat_P_global, &
                                            mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-                                           mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int, &
+                                           mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
+                                           mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                            tau_wj_2d, tj, wj, tau_tj, do_minimax_quad, &
                                            e_fermi, eps_filter, eps_comm, a_scaling, alpha, &
                                            eps_filter_im_time, Eigenval, nmo, n_group_col, dimen_RI, &
                                            group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
                                            unit_nr, mp2_env, para_env, para_env_sub, &
-                                           sizes_array_prim_col, starts_array_prim_col, ends_array_prim_col, &
-                                           sizes_array_prim_row, starts_array_prim_row, ends_array_prim_row, &
+                                           starts_array_prim_col, ends_array_prim_col, &
+                                           starts_array_prim_row, ends_array_prim_row, &
                                            starts_array_prim_fullcol, ends_array_prim_fullcol, &
                                            starts_array_prim_fullrow, ends_array_prim_fullrow, &
                                            my_group_L_starts_im_time, my_group_L_sizes_im_time, &
-                                           offset_combi_block, starts_array_row_cm, &
-                                           ends_array_row_cm, starts_array_col_cm, &
-                                           ends_array_col_cm, mepos_P_from_RI_row, buffer_mat_M)
+                                           offset_combi_block, starts_array_cm, &
+                                           ends_array_cm, mepos_P_from_RI_row, non_zero_rows_3c, &
+                                           buffer_mat_M)
 
             END IF
 
@@ -3489,8 +3512,10 @@ CONTAINS
          CALL cp_fm_release(fm_mat_L)
          CALL cp_fm_release(fm_mat_work)
 
-         CALL cp_dbcsr_release_p(mat_dm_loc_occ)
-         CALL cp_dbcsr_release_p(mat_dm_loc_virt)
+         CALL cp_dbcsr_release_p(mat_dm_loc)
+
+         CALL cp_dbcsr_deallocate_matrix_set(mat_dm_loc_occ_cut)
+         CALL cp_dbcsr_deallocate_matrix_set(mat_dm_loc_virt_cut)
 
          DO iquad = 1, num_integ_points
             CALL cp_fm_release(fm_mat_Q_omega(iquad)%matrix)
@@ -3510,7 +3535,13 @@ CONTAINS
          CALL cp_dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_occ)
          CALL cp_dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_virt)
 
+         CALL cp_dbcsr_deallocate_matrix_set(mat_3c_overl_int_cut)
+
          DEALLOCATE (buffer_mat_M)
+
+!         DEALLOCATE(max_col_group,min_col_group)
+
+         DEALLOCATE (non_zero_rows_3c)
 
       END IF
 
@@ -5451,149 +5482,98 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_dm_loc ...
 !> \param mat_3c_overl_int ...
 !> \param para_env_sub ...
 !> \param cut_RI ...
-!> \param num_pe ...
+!> \param non_zero_rows_3c ...
 ! **************************************************************************************************
-   SUBROUTINE filter_dm(mat_dm_loc, mat_3c_overl_int, para_env_sub, cut_RI, num_pe)
+   SUBROUTINE get_local_rows_of_mat_3c_overl_int(mat_3c_overl_int, para_env_sub, cut_RI, non_zero_rows_3c)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER                                            :: cut_RI, num_pe
+      INTEGER                                            :: cut_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_rows_3c
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'filter_dm', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_local_rows_of_mat_3c_overl_int', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, col, handle, i_cut_RI, imepos, &
-                                                            max_loc_col, min_loc_col, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: max_col_group, min_col_group
-      INTEGER, DIMENSION(:), POINTER                     :: local_cols
-      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
-      LOGICAL                                            :: eliminate_data_block
+      INTEGER                                            :: blk, block_counter, col, handle, &
+                                                            i_cut_RI, iblk, imepos, &
+                                                            maxblkrows_local, maxlength, &
+                                                            nblkrows_local, row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblkrows_local_from_other_proc
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_rows_3c_tmp
+      LOGICAL                                            :: new_row
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (min_col_group(cut_RI))
-      ALLOCATE (max_col_group(cut_RI))
+      CALL cp_dbcsr_get_info(mat_3c_overl_int(1)%matrix, nblkrows_local)
+
+      ALLOCATE (nblkrows_local_from_other_proc(0:para_env_sub%num_pe-1))
+      nblkrows_local_from_other_proc = 0
+
+      nblkrows_local_from_other_proc(para_env_sub%mepos) = nblkrows_local
+
+      CALL mp_sum(nblkrows_local_from_other_proc, para_env_sub%group)
+
+      maxblkrows_local = MAXVAL(nblkrows_local_from_other_proc)
+
+      ALLOCATE (non_zero_rows_3c_tmp(1:cut_RI, 1:maxblkrows_local, 0:(para_env_sub%num_pe-1)))
+      non_zero_rows_3c_tmp = 0
 
       DO i_cut_RI = 1, cut_RI
 
-         CALL cp_dbcsr_get_info(mat_3c_overl_int(i_cut_RI)%matrix, &
-                                local_cols=local_cols)
-
-         min_loc_col = MAXVAL(local_cols)
-         max_loc_col = 1
+         block_counter = 0
 
          CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int(i_cut_RI)%matrix)
          DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
             CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
 
-            IF (col > max_loc_col) THEN
-               max_loc_col = col
-            END IF
+            new_row = .TRUE.
 
-            IF (col < min_loc_col) THEN
-               min_loc_col = col
+            DO iblk = 1, block_counter
+               IF (non_zero_rows_3c_tmp(i_cut_RI, iblk, para_env_sub%mepos) == row) THEN
+                  new_row = .FALSE.
+                  EXIT
+               END IF
+            END DO
+
+            IF (new_row) THEN
+               block_counter = block_counter+1
+               non_zero_rows_3c_tmp(i_cut_RI, block_counter, para_env_sub%mepos) = row
             END IF
 
          ENDDO
 
          CALL cp_dbcsr_iterator_stop(iter)
 
-         ALLOCATE (buffer_send(0:para_env_sub%num_pe-1))
-         ALLOCATE (buffer_rec(0:para_env_sub%num_pe-1))
-
-         DO imepos = 0, para_env_sub%num_pe-1
-            ALLOCATE (buffer_send(imepos)%sizes(2))
-            buffer_send(imepos)%sizes(1) = min_loc_col
-            buffer_send(imepos)%sizes(2) = max_loc_col
-
-            ALLOCATE (buffer_rec(imepos)%sizes(2))
-         END DO
-
-         IF (num_pe > 1) THEN
-
-            ALLOCATE (req_array(0:para_env_sub%num_pe-1, 2))
-
-            DO imepos = 0, para_env_sub%num_pe-1
-               CALL mp_isend(buffer_send(imepos)%sizes, imepos, para_env_sub%group, req_array(imepos, 1), tag=2)
-               CALL mp_irecv(buffer_rec(imepos)%sizes, imepos, para_env_sub%group, req_array(imepos, 2), tag=2)
-            END DO
-
-            CALL mp_waitall(req_array(:, 1:2))
-
-            DEALLOCATE (req_array)
-
-         ELSE
-
-            buffer_rec(0)%sizes = buffer_send(0)%sizes
-
-         END IF
-
-         min_col_group(i_cut_RI) = min_loc_col
-         max_col_group(i_cut_RI) = max_loc_col
-
-         DO imepos = 0, para_env_sub%num_pe-1
-
-            IF (buffer_rec(imepos)%sizes(1) < min_col_group(i_cut_RI)) THEN
-
-               min_col_group(i_cut_RI) = buffer_rec(imepos)%sizes(1)
-
-            END IF
-
-            IF (buffer_rec(imepos)%sizes(2) > max_col_group(i_cut_RI)) THEN
-
-               max_col_group(i_cut_RI) = buffer_rec(imepos)%sizes(2)
-
-            END IF
-
-         END DO
-
-         DO imepos = 0, para_env_sub%num_pe-1
-            DEALLOCATE (buffer_send(imepos)%sizes)
-            DEALLOCATE (buffer_rec(imepos)%sizes)
-         END DO
-
-         DEALLOCATE (buffer_send, buffer_rec)
-
       END DO
 
-      CALL cp_dbcsr_set(mat_dm_loc, 2.0_dp)
+      CALL mp_sum(non_zero_rows_3c_tmp, para_env_sub%group)
 
-      CALL cp_dbcsr_iterator_start(iter, mat_dm_loc)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
+      maxlength = 0
 
-         eliminate_data_block = .TRUE.
-
+      DO imepos = 0, para_env_sub%num_pe-1
          DO i_cut_RI = 1, cut_RI
-
-            IF ((col <= max_col_group(i_cut_RI) .AND. col >= min_col_group(i_cut_RI)) .OR. &
-                (row <= max_col_group(i_cut_RI) .AND. row >= min_col_group(i_cut_RI))) THEN
-               eliminate_data_block = .FALSE.
-            END IF
-
+            DO iblk = 1, maxblkrows_local
+               IF (non_zero_rows_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
+                  IF (maxlength < iblk) THEN
+                     maxlength = iblk
+                  END IF
+               END IF
+            END DO
          END DO
+      END DO
 
-         ! we need row and col check since the scaled density matrices are symmetric dbcsr matrices
-         IF (eliminate_data_block) THEN
-            data_block(:, :) = 0.0_dp
-         END IF
+      ! save memory with a smaller non_zero_rows_3c
+      ALLOCATE (non_zero_rows_3c(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1)))
 
-      ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      non_zero_rows_3c(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1)) = &
+         non_zero_rows_3c_tmp(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1))
 
-      CALL cp_dbcsr_filter(mat_dm_loc, 1.0_dp)
-
-      CALL cp_dbcsr_set(mat_dm_loc, 0.0_dp)
-
-      DEALLOCATE (min_col_group, max_col_group)
+      DEALLOCATE (non_zero_rows_3c_tmp, nblkrows_local_from_other_proc)
 
       CALL timestop(handle)
 

@@ -1,4 +1,5 @@
 Cubic_RPA_H2O_standard.inp                             11      1e-08           
 Cubic_RPA_H2O_check_filtering.inp                      11      1e-08
 Cubic_RPA_H2O_check_group_sizes.inp                    11      1e-08
+Cubic_RPA_2x_H2_check_filtering.inp                    11      1e-08
 #EOF

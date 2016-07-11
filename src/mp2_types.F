@@ -133,9 +133,8 @@ MODULE mp2_types
       LOGICAL                  :: memory_info
       REAL(KIND=dp)            :: eps_comm, eps_filter_im_time
       INTEGER                  :: group_size_P, group_size_3c, add_cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_row_cm, starts_array_row_cm, &
-                                            ends_array_row_cm, sizes_array_col_cm, &
-                                            starts_array_col_cm, ends_array_col_cm
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_cm, starts_array_cm, &
+                                            ends_array_cm
    END TYPE
 
    TYPE ri_g0w0_type

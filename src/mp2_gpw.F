@@ -23,14 +23,14 @@ MODULE mp2_gpw
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_clear_mempools, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
-        cp_dbcsr_distribution_new, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
-        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_mp_new, cp_dbcsr_mp_release, cp_dbcsr_multiply, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, cp_dbcsr_set, &
-        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_mp_obj, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_default, dbcsr_type_symmetric
+        cp_dbcsr_clear_mempools, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution_new, &
+        cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, &
+        cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_mp_new, cp_dbcsr_mp_release, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+        cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, cp_dbcsr_set, cp_dbcsr_type, &
+        dbcsr_distribution_obj, dbcsr_mp_obj, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_dist2d_to_dist,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -615,7 +615,7 @@ CONTAINS
          END IF
 
          IF (do_im_time) THEN
-            CALL clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, &
+            CALL clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
                                   para_env_sub_im_time_3c, para_env_sub_im_time_P, mp2_env)
          END IF
 
@@ -2497,40 +2497,29 @@ CONTAINS
                              nfullrows_total=nfullrows_total, &
                              nfullcols_total=nfullcols_total)
 
+      ! mat_munu has to be square matrix
+      CPASSERT(nfullrows_total == nfullcols_total)
+
       ! cut the memory of mat_M
       cut_memory = mp2_env%ri_rpa_im_time%cut_memory
 
       ! here: memory_cut
       ngroup = cut_memory
-      ALLOCATE (mp2_env%ri_rpa_im_time%sizes_array_row_cm(cut_memory))
-      mp2_env%ri_rpa_im_time%sizes_array_row_cm(:) = 0
-      ALLOCATE (mp2_env%ri_rpa_im_time%starts_array_row_cm(cut_memory))
-      mp2_env%ri_rpa_im_time%starts_array_row_cm(:) = 0
-      ALLOCATE (mp2_env%ri_rpa_im_time%ends_array_row_cm(cut_memory))
-      mp2_env%ri_rpa_im_time%ends_array_row_cm(:) = 0
-
-      ALLOCATE (mp2_env%ri_rpa_im_time%sizes_array_col_cm(cut_memory))
-      mp2_env%ri_rpa_im_time%sizes_array_col_cm(:) = 0
-      ALLOCATE (mp2_env%ri_rpa_im_time%starts_array_col_cm(cut_memory))
-      mp2_env%ri_rpa_im_time%starts_array_col_cm(:) = 0
-      ALLOCATE (mp2_env%ri_rpa_im_time%ends_array_col_cm(cut_memory))
-      mp2_env%ri_rpa_im_time%ends_array_col_cm(:) = 0
+      ALLOCATE (mp2_env%ri_rpa_im_time%sizes_array_cm(cut_memory))
+      mp2_env%ri_rpa_im_time%sizes_array_cm(:) = 0
+      ALLOCATE (mp2_env%ri_rpa_im_time%starts_array_cm(cut_memory))
+      mp2_env%ri_rpa_im_time%starts_array_cm(:) = 0
+      ALLOCATE (mp2_env%ri_rpa_im_time%ends_array_cm(cut_memory))
+      mp2_env%ri_rpa_im_time%ends_array_cm(:) = 0
 
       DO igroup = 1, ngroup
 
          itmp = get_limit(nfullrows_total, ngroup, igroup-1)
 
-         CALL get_start_end_size_indx(mp2_env%ri_rpa_im_time%starts_array_row_cm(igroup), &
-                                      mp2_env%ri_rpa_im_time%ends_array_row_cm(igroup), &
-                                      mp2_env%ri_rpa_im_time%sizes_array_row_cm(igroup), &
+         CALL get_start_end_size_indx(mp2_env%ri_rpa_im_time%starts_array_cm(igroup), &
+                                      mp2_env%ri_rpa_im_time%ends_array_cm(igroup), &
+                                      mp2_env%ri_rpa_im_time%sizes_array_cm(igroup), &
                                       nblkrows_total, itmp(1), itmp(2), row_blk_offset, row_blk_sizes_prim)
-
-         itmp = get_limit(nfullcols_total, ngroup, igroup-1)
-
-         CALL get_start_end_size_indx(mp2_env%ri_rpa_im_time%starts_array_col_cm(igroup), &
-                                      mp2_env%ri_rpa_im_time%ends_array_col_cm(igroup), &
-                                      mp2_env%ri_rpa_im_time%sizes_array_col_cm(igroup), &
-                                      nblkcols_total, itmp(1), itmp(2), col_blk_offset, col_blk_sizes_prim)
 
       ENDDO
 
@@ -2557,7 +2546,7 @@ CONTAINS
 
          DO igroup = 0, ngroup-1
 
-            nfullrows_to_split = mp2_env%ri_rpa_im_time%sizes_array_row_cm(i_mem)
+            nfullrows_to_split = mp2_env%ri_rpa_im_time%sizes_array_cm(i_mem)
 
             itmp = get_limit(nfullrows_to_split, ngroup, igroup)
 
@@ -2620,7 +2609,7 @@ CONTAINS
 
          DO igroup = 0, ngroup-1
 
-            nfullcols_to_split = mp2_env%ri_rpa_im_time%sizes_array_col_cm(j_mem)
+            nfullcols_to_split = mp2_env%ri_rpa_im_time%sizes_array_cm(j_mem)
 
             itmp = get_limit(nfullcols_to_split, ngroup, igroup)
 
@@ -2840,18 +2829,16 @@ CONTAINS
 !> \param mat_P_local ...
 !> \param mat_P_global ...
 !> \param mat_M ...
-!> \param mat_3c_overl_int ...
 !> \param para_env_sub_im_time_3c ...
 !> \param para_env_sub_im_time_P ...
 !> \param mp2_env ...
 !> \author Jan Wilhelm
 ! **************************************************************************************************
-   SUBROUTINE clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, &
+   SUBROUTINE clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
                                para_env_sub_im_time_3c, para_env_sub_im_time_P, mp2_env)
 
       TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
                                                             mat_M
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_im_time_3c, &
                                                             para_env_sub_im_time_P
       TYPE(mp2_type)                                     :: mp2_env
@@ -2874,8 +2861,6 @@ CONTAINS
 
       CALL cp_dbcsr_release(mat_M%matrix)
       DEALLOCATE (mat_M%matrix)
-
-      CALL cp_dbcsr_deallocate_matrix_set(mat_3c_overl_int)
 
       CALL cp_para_env_release(para_env_sub_im_time_P)
 
@@ -2903,12 +2888,9 @@ CONTAINS
 
       DEALLOCATE (mp2_env%ri_rpa_im_time_util)
 
-      DEALLOCATE (mp2_env%ri_rpa_im_time%sizes_array_row_cm, &
-                  mp2_env%ri_rpa_im_time%starts_array_row_cm, &
-                  mp2_env%ri_rpa_im_time%ends_array_row_cm, &
-                  mp2_env%ri_rpa_im_time%sizes_array_col_cm, &
-                  mp2_env%ri_rpa_im_time%starts_array_col_cm, &
-                  mp2_env%ri_rpa_im_time%ends_array_col_cm)
+      DEALLOCATE (mp2_env%ri_rpa_im_time%sizes_array_cm, &
+                  mp2_env%ri_rpa_im_time%starts_array_cm, &
+                  mp2_env%ri_rpa_im_time%ends_array_cm)
 
       CALL timestop(handle)
 
