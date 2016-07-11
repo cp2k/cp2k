@@ -135,8 +135,8 @@ CONTAINS
       DO ikind = 1, SIZE(pao%ml_training_matrices)
          training_matrix => pao%ml_training_matrices(ikind)
 
-         npoints = SIZE(training_matrix%inputs, 1) ! number of points
-         CPASSERT(SIZE(training_matrix%outputs, 1) == npoints)
+         npoints = SIZE(training_matrix%inputs, 2) ! number of points
+         CPASSERT(SIZE(training_matrix%outputs, 2) == npoints)
          CPASSERT(npoints > 0)
 
          !TODO proper output
@@ -144,8 +144,8 @@ CONTAINS
             TRIM(training_matrix%kindname), " from ", npoints, "training points."
 
          ! determine network width and allocate it
-         width_in = SIZE(training_matrix%inputs, 2)
-         width_out = SIZE(training_matrix%outputs, 2)
+         width_in = SIZE(training_matrix%inputs, 1)
+         width_out = SIZE(training_matrix%outputs, 1)
          width = MAX(width_in, width_out)
          ALLOCATE (training_matrix%NN(nlayers, width, width))
 
@@ -167,8 +167,8 @@ CONTAINS
             gradient = 0.0_dp
             DO ipoint = 1, npoints
                CALL nn_backpropagate(training_matrix%NN, &
-                                     input=training_matrix%inputs(ipoint, :), &
-                                     goal=training_matrix%outputs(ipoint, :), &
+                                     input=training_matrix%inputs(:, ipoint), &
+                                     goal=training_matrix%outputs(:, ipoint), &
                                      gradient=gradient, &
                                      error=error)
             ENDDO
@@ -189,8 +189,8 @@ CONTAINS
             error = 0.0_dp
             gradient = 0.0_dp
             CALL nn_backpropagate(training_matrix%NN, &
-                                  input=training_matrix%inputs(ipoint, :), &
-                                  goal=training_matrix%outputs(ipoint, :), &
+                                  input=training_matrix%inputs(:, ipoint), &
+                                  goal=training_matrix%outputs(:, ipoint), &
                                   gradient=gradient, &
                                   error=error)
 
@@ -201,15 +201,15 @@ CONTAINS
 
                training_matrix%NN(ilayer, i, j) = bak+eps
                CALL nn_eval(training_matrix%NN, &
-                            input=training_matrix%inputs(ipoint, :), &
+                            input=training_matrix%inputs(:, ipoint), &
                             prediction=prediction)
-               error1 = SUM((training_matrix%outputs(ipoint, :)-prediction)**2)
+               error1 = SUM((training_matrix%outputs(:, ipoint)-prediction)**2)
 
                training_matrix%NN(ilayer, i, j) = bak-eps
                CALL nn_eval(training_matrix%NN, &
-                            input=training_matrix%inputs(ipoint, :), &
+                            input=training_matrix%inputs(:, ipoint), &
                             prediction=prediction)
-               error2 = SUM((training_matrix%outputs(ipoint, :)-prediction)**2)
+               error2 = SUM((training_matrix%outputs(:, ipoint)-prediction)**2)
 
                training_matrix%NN(ilayer, i, j) = bak
                num_grad = (error1-error2)/(2.0_dp*eps)
@@ -227,9 +227,9 @@ CONTAINS
          ALLOCATE (prediction(width_out))
          DO ipoint = 1, npoints
             CALL nn_eval(training_matrix%NN, &
-                         input=training_matrix%inputs(ipoint, :), &
+                         input=training_matrix%inputs(:, ipoint), &
                          prediction=prediction)
-            error = MAXVAL(ABS(training_matrix%outputs(ipoint, :)-prediction))
+            error = MAXVAL(ABS(training_matrix%outputs(:, ipoint)-prediction))
             IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| ", TRIM(training_matrix%kindname), &
                " verify training-point:", ipoint, "SQRT(error):", SQRT(error)
          ENDDO

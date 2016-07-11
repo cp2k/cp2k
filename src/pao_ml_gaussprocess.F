@@ -37,8 +37,8 @@ CONTAINS
       ! TODO this could be parallelized over ranks
       DO ikind = 1, SIZE(pao%ml_training_matrices)
          training_matrix => pao%ml_training_matrices(ikind)
-         npoints = SIZE(training_matrix%inputs, 1) ! number of points
-         CPASSERT(SIZE(training_matrix%outputs, 1) == npoints)
+         npoints = SIZE(training_matrix%inputs, 2) ! number of points
+         CPASSERT(SIZE(training_matrix%outputs, 2) == npoints)
          CPASSERT(npoints > 0)
 
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| Building covariance matrix for kind: ", &
@@ -48,8 +48,8 @@ CONTAINS
          ALLOCATE (training_matrix%GP(npoints, npoints))
          DO i = 1, npoints
          DO j = i, npoints
-            idescr => training_matrix%inputs(i, :)
-            jdescr => training_matrix%inputs(j, :)
+            idescr => training_matrix%inputs(:, i)
+            jdescr => training_matrix%inputs(:, j)
             training_matrix%GP(i, j) = kernel(pao%gp_scale, idescr, jdescr)
             training_matrix%GP(j, i) = training_matrix%GP(i, j)
          ENDDO
@@ -87,12 +87,12 @@ CONTAINS
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
       training_matrix => pao%ml_training_matrices(ikind)
-      npoints = SIZE(training_matrix%outputs, 1)
+      npoints = SIZE(training_matrix%outputs, 2)
 
       ! calculate covariances between descriptor and training-points
       ALLOCATE (cov(npoints))
       DO i = 1, npoints
-         cov(i) = kernel(pao%gp_scale, descriptor, training_matrix%inputs(i, :))
+         cov(i) = kernel(pao%gp_scale, descriptor, training_matrix%inputs(:, i))
       ENDDO
 
       ! calculate weights
@@ -104,7 +104,7 @@ CONTAINS
       ! calculate predicted output
       output = 0.0_dp
       DO i = 1, npoints
-         output(:) = output+weights(i)*training_matrix%outputs(i, :)
+         output(:) = output+weights(i)*training_matrix%outputs(:, i)
       ENDDO
 
       ! calculate prediction's variance
@@ -137,12 +137,12 @@ CONTAINS
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
       training_matrix => pao%ml_training_matrices(ikind)
-      npoints = SIZE(training_matrix%outputs, 1)
+      npoints = SIZE(training_matrix%outputs, 2)
 
       ! calculate derivative of weights
       ALLOCATE (weights_deriv(npoints))
       DO i = 1, npoints
-         weights_deriv(i) = SUM(outer_deriv*training_matrix%outputs(i, :))
+         weights_deriv(i) = SUM(outer_deriv*training_matrix%outputs(:, i))
       ENDDO
 
       ! calculate derivative of covariances
@@ -154,7 +154,7 @@ CONTAINS
       ! calculate derivative of kernel
       gradient(:) = 0.0_dp
       DO i = 1, npoints
-         kg = kernel_grad(pao%gp_scale, descriptor, training_matrix%inputs(i, :))
+         kg = kernel_grad(pao%gp_scale, descriptor, training_matrix%inputs(:, i))
          gradient(:) = gradient(:)+kg(:)*cov_deriv(i)
       ENDDO
 

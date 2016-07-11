@@ -314,8 +314,8 @@ CONTAINS
          CALL mp_sum(out_size, para_env%group)
 
          ! allocate matices to hold all training points
-         ALLOCATE (training_matrix%inputs(npoints, inp_size))
-         ALLOCATE (training_matrix%outputs(npoints, out_size))
+         ALLOCATE (training_matrix%inputs(inp_size, npoints))
+         ALLOCATE (training_matrix%outputs(out_size, npoints))
          training_matrix%inputs(:, :) = 0.0_dp
          training_matrix%outputs(:, :) = 0.0_dp
 
@@ -325,11 +325,11 @@ CONTAINS
          NULLIFY (training_list%head)
          DO i = 1, npoints
             IF (ALLOCATED(cur_point%input)) THEN
-               training_matrix%inputs(i, :) = cur_point%input(:)
+               training_matrix%inputs(:, i) = cur_point%input(:)
                ninputs = ninputs+1
             ENDIF
             IF (ALLOCATED(cur_point%output)) THEN
-               training_matrix%outputs(i, :) = cur_point%output(:)
+               training_matrix%outputs(:, i) = cur_point%output(:)
                noutputs = noutputs+1
             ENDIF
             ! advance to next entry and deallocate the current one
@@ -365,8 +365,8 @@ CONTAINS
 
       DO ikind = 1, SIZE(training_matrices)
          training_matrix => training_matrices(ikind)
-         out_size = SIZE(training_matrix%outputs, 2)
-         npoints = SIZE(training_matrix%outputs, 1)
+         out_size = SIZE(training_matrix%outputs, 1)
+         npoints = SIZE(training_matrix%outputs, 2)
          ALLOCATE (training_matrix%prior(out_size))
 
          ! calculate prior
@@ -374,14 +374,14 @@ CONTAINS
          CASE (pao_ml_prior_zero)
             training_matrix%prior(:) = 0.0_dp
          CASE (pao_ml_prior_mean)
-            training_matrix%prior(:) = SUM(training_matrix%outputs, 1)/REAL(npoints, dp)
+            training_matrix%prior(:) = SUM(training_matrix%outputs, 2)/REAL(npoints, dp)
          CASE DEFAULT
             CPABORT("PAO: unknown prior")
          END SELECT
 
          ! substract prior from all training points
          DO i = 1, npoints
-            training_matrix%outputs(i, :) = training_matrix%outputs(i, :)-training_matrix%prior
+            training_matrix%outputs(:, i) = training_matrix%outputs(:, i)-training_matrix%prior
          ENDDO
       ENDDO
 
@@ -406,7 +406,7 @@ CONTAINS
          N = SIZE(training_matrix%inputs)
          WRITE (iw, "(A,I3,A,E10.1,1X,E10.1,1X,E10.1)") " PAO|ML| Descriptor for kind: "// &
             TRIM(training_matrix%kindname)//" size: ", &
-            SIZE(training_matrix%inputs, 2), " min/mean/max: ", &
+            SIZE(training_matrix%inputs, 1), " min/mean/max: ", &
             MINVAL(training_matrix%inputs), &
             SUM(training_matrix%inputs)/REAL(N, dp), &
             MAXVAL(training_matrix%inputs)
@@ -534,7 +534,7 @@ CONTAINS
 
       INTEGER                                            :: npoints
 
-      npoints = SIZE(pao%ml_training_matrices(ikind)%outputs, 1)
+      npoints = SIZE(pao%ml_training_matrices(ikind)%outputs, 2)
       CPASSERT(npoints > 0)
 
       SELECT CASE (pao%ml_method)
