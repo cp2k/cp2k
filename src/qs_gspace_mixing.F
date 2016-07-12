@@ -573,7 +573,6 @@ CONTAINS
                   mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = rho_g(ispin)%pw%cc(ig)
                END DO
             END IF
-
 !
             IF (mixing_store%gmix_p) THEN
                CALL cp_dbcsr_set(mixing_store%rho_ao_mix, 0.0_dp)
@@ -1964,7 +1963,6 @@ CONTAINS
          END IF
 
       END IF
-
 !   *** allocate broyden buffer ***
       IF (mixing_method == broyden_mixing_nr) THEN
          IF (.NOT. ASSOCIATED(mixing_store%rhoin_old)) THEN
@@ -2087,7 +2085,6 @@ CONTAINS
             END IF
          END IF
       END IF
-
 !   *** allocate broyden buffer ***
       IF (mixing_method == broyden_mixing_new_nr) THEN
          IF (.NOT. ASSOCIATED(mixing_store%u_vec)) THEN

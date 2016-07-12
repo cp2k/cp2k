@@ -238,6 +238,18 @@ CONTAINS
 
          END IF
 
+         IF (qs_env%kg_env%energy_correction) THEN
+         IF (ASSOCIATED(qs_env%kg_env%ec_env%task_list)) THEN
+            CALL deallocate_task_list(qs_env%kg_env%ec_env%task_list)
+         END IF
+         CALL allocate_task_list(qs_env%kg_env%ec_env%task_list)
+         ! generate the subset task list from the neighborlist
+         CALL generate_qs_task_list(ks_env, qs_env%kg_env%ec_env%task_list, &
+                                    reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., &
+                                    skip_load_balance_distributed=skip_load_balance_distributed, &
+                                    sab_orb_external=qs_env%kg_env%sab_orb_full)
+         END IF
+
       END IF
 
       CALL timestop(handle)

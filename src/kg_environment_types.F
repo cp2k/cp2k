@@ -12,10 +12,14 @@
 ! **************************************************************************************************
 MODULE kg_environment_types
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
+                                              cp_dbcsr_p_type,&
+                                              cp_dbcsr_type
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
+   USE kinds,                           ONLY: dp
    USE molecule_types_new,              ONLY: molecule_type
+   USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
+                                              qs_dispersion_type
    USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                               neighbor_list_set_p_type
    USE task_list_types,                 ONLY: deallocate_task_list,&
@@ -28,12 +32,45 @@ MODULE kg_environment_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
 
-   PUBLIC :: kg_environment_type, kg_env_release
+   PUBLIC :: kg_environment_type, kg_env_release, energy_correction_type
 
    TYPE subset_type
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
       TYPE(task_list_type), POINTER :: task_list
    END TYPE subset_type
+
+! *****************************************************************************
+!> \brief Contains information on the energy correction functional for KG
+!> \par History
+!>       03.2014 created
+!> \author JGH
+! *****************************************************************************
+   TYPE energy_correction_type
+      CHARACTER(len=20)                             :: ec_name
+      INTEGER                                       :: energy_functional
+      INTEGER                                       :: ks_solver
+      INTEGER                                       :: factorization
+      REAL(KIND=dp)                                 :: eps_default
+      ! energy components
+      REAL(KIND=dp)                                 :: etotal
+      REAL(KIND=dp)                                 :: eband, exc, ehartree, vhxc
+      REAL(KIND=dp)                                 :: edispersion
+      ! full neighbor list and corresponding task list
+      TYPE(neighbor_list_set_p_type), &
+         DIMENSION(:), POINTER                       :: sab_orb
+      TYPE(task_list_type), POINTER                :: task_list
+      ! the XC function to be used for the correction, dispersion info
+      TYPE(section_vals_type), POINTER              :: xc_section
+      TYPE(qs_dispersion_type), POINTER             :: dispersion_env
+      ! matrices in complete basis
+      ! KS: Kohn-Sham; H: Core; S: overlap; T: kinetic energy; Z: factorisation of S^-1
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_ks
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_h
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_s
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_t
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_p
+!      TYPE(cp_dbcsr_type), POINTER                  :: matrix_z
+   END TYPE energy_correction_type
 
 ! **************************************************************************************************
 !> \brief Contains all the info needed for KG runs...
@@ -65,6 +102,8 @@ MODULE kg_environment_types
       INTEGER                                       :: maxdegree
       INTEGER                                       :: coloring_method
       INTEGER                                       :: tnadd_method
+      LOGICAL                                       :: energy_correction
+      TYPE(energy_correction_type)                  :: ec_env
    END TYPE kg_environment_type
 
 CONTAINS
@@ -116,7 +155,28 @@ CONTAINS
 
       IF (ALLOCATED(kg_env%atom_to_molecule)) DEALLOCATE (kg_env%atom_to_molecule)
 
-      IF (ASSOCIATED(kg_env%tnadd_mat)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
+      ! energy correction
+      IF (kg_env%energy_correction) THEN
+         ! neighbor list
+         IF (ASSOCIATED(kg_env%ec_env%sab_orb)) THEN
+            DO iab = 1, SIZE(kg_env%ec_env%sab_orb)
+               CALL deallocate_neighbor_list_set(kg_env%ec_env%sab_orb(iab)%neighbor_list_set)
+            END DO
+            DEALLOCATE (kg_env%ec_env%sab_orb)
+            CALL deallocate_task_list(kg_env%ec_env%task_list)
+         END IF
+         ! operator matrices
+         IF (ASSOCIATED(kg_env%ec_env%matrix_ks)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_ks)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_h)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_h)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_s)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_s)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_t)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_t)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_p)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_p)
+!         IF (ASSOCIATED(kg_env%ec_env%matrix_z)) CALL cp_dbcsr_deallocate_matrix(kg_env%ec_env%matrix_z)
+         ! dispersion environment
+         IF (ASSOCIATED(kg_env%ec_env%dispersion_env)) THEN
+            CALL qs_dispersion_release(kg_env%ec_env%dispersion_env)
+         END IF
+      END IF
 
       DEALLOCATE (kg_env)
 

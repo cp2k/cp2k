@@ -22,9 +22,12 @@ MODULE kg_environment
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE external_potential_types,        ONLY: get_potential,&
                                               local_potential_type
-   USE input_constants,                 ONLY: kg_tnadd_atomic,&
+   USE input_constants,                 ONLY: kg_ec_functional_harris,&
+                                              kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
-                                              xc_funct_no_shortcut
+                                              xc_funct_no_shortcut,&
+                                              xc_vdw_fun_nonloc,&
+                                              xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: &
         section_vals_create, section_vals_duplicate, section_vals_get, section_vals_get_subs_vals, &
         section_vals_release, section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
@@ -40,6 +43,10 @@ MODULE kg_environment
                                               mp_max
    USE molecule_types_new,              ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
+   USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
+   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
+   USE qs_dispersion_utils,             ONLY: qs_dispersion_env_set
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -73,49 +80,66 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Allocates and intitializes kg_env
+!> \param qs_env ...
 !> \param kg_env the object to create
+!> \param qs_kind_set ...
 !> \param input ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
 ! **************************************************************************************************
-   SUBROUTINE kg_env_create(kg_env, input)
+   SUBROUTINE kg_env_create(qs_env, kg_env, qs_kind_set, input)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
 
       CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', routineP = moduleN//':'//routineN
 
       ALLOCATE (kg_env)
-      CALL init_kg_env(kg_env, input)
+      CALL init_kg_env(qs_env, kg_env, qs_kind_set, input)
    END SUBROUTINE kg_env_create
 
 ! **************************************************************************************************
 !> \brief Initializes kg_env
+!> \param qs_env ...
 !> \param kg_env ...
+!> \param qs_kind_set ...
 !> \param input ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
 ! **************************************************************************************************
-   SUBROUTINE init_kg_env(kg_env, input)
+   SUBROUTINE init_kg_env(qs_env, kg_env, qs_kind_set, input)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kg_env', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ke_sections
       LOGICAL                                            :: is_set
-      TYPE(section_vals_type), POINTER                   :: kef_section, xc_fun_section, &
-                                                            xc_fun_section_kg, xc_section, &
-                                                            xc_section_kg
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(section_vals_type), POINTER                   :: kef_section, nl_section, pp_section, &
+                                                            xc_fun_section, xc_fun_section_kg, &
+                                                            xc_section, xc_section_kg
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (atomic_kind_set, dispersion_env, para_env)
       NULLIFY (kg_env%sab_orb_full)
       NULLIFY (kg_env%sac_kin)
       NULLIFY (kg_env%subset_of_mol)
       NULLIFY (kg_env%subset)
       NULLIFY (kg_env%tnadd_mat)
+      NULLIFY (kg_env%ec_env%sab_orb)
+      NULLIFY (kg_env%ec_env%matrix_ks, kg_env%ec_env%matrix_h, kg_env%ec_env%matrix_s)
+      NULLIFY (kg_env%ec_env%matrix_t, kg_env%ec_env%matrix_p)
+      NULLIFY (kg_env%ec_env%task_list)
+      NULLIFY (kg_env%ec_env%dispersion_env)
 
       kg_env%nsubsets = 0
 
@@ -123,6 +147,55 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%KG_METHOD%COLORING_METHOD", i_val=kg_env%coloring_method)
       ! get method for nonadditive kinetic energy embedding potential
       CALL section_vals_val_get(input, "DFT%KG_METHOD%TNADD_METHOD", i_val=kg_env%tnadd_method)
+      CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%_SECTION_PARAMETERS_", &
+                                l_val=kg_env%energy_correction)
+      IF (kg_env%energy_correction) THEN
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%ALGORITHM", &
+                                   i_val=kg_env%ec_env%ks_solver)
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%ENERGY_FUNCTIONAL", &
+                                   i_val=kg_env%ec_env%energy_functional)
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%FACTORIZATION", &
+                                   i_val=kg_env%ec_env%factorization)
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%EPS_DEFAULT", &
+                                   r_val=kg_env%ec_env%eps_default)
+         ! set functional
+         SELECT CASE (kg_env%ec_env%energy_functional)
+         CASE (kg_ec_functional_harris)
+            kg_env%ec_env%ec_name = "Harris"
+         CASE DEFAULT
+            CPABORT("unknown kg energy correction")
+         END SELECT
+
+         ! select the XC section
+         NULLIFY (xc_section, xc_section_kg)
+         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+         xc_section_kg => section_vals_get_subs_vals(input, "DFT%KG_METHOD%ENERGY_CORRECTION%XC")
+         IF (ASSOCIATED(xc_section_kg)) THEN
+            kg_env%ec_env%xc_section => xc_section_kg
+         ELSE
+            kg_env%ec_env%xc_section => xc_section
+            CPABORT("KG energy correction with full embedding requires a special XC section")
+!          CALL cp_assert(kg_env%tnadd_method /= kg_tnadd_embed, cp_fatal_level, cp_assertion_failed, routineP, &
+!          "KG energy correction with full embedding requires a special XC section "// &
+!          "in the ENERGY_CORRECTION section. There should be no KE functional in this section.")
+         END IF
+         ! dispersion
+         ALLOCATE (dispersion_env)
+         NULLIFY (xc_section)
+         xc_section => kg_env%ec_env%xc_section
+         CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, para_env=para_env)
+         CALL qs_dispersion_env_set(dispersion_env, xc_section)
+         IF (dispersion_env%type == xc_vdw_fun_pairpot) THEN
+            NULLIFY (pp_section)
+            pp_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%PAIR_POTENTIAL")
+            CALL qs_dispersion_pairpot_init(atomic_kind_set, qs_kind_set, dispersion_env, pp_section, para_env)
+         ELSE IF (dispersion_env%type == xc_vdw_fun_nonloc) THEN
+            NULLIFY (nl_section)
+            nl_section => section_vals_get_subs_vals(xc_section, "VDW_POTENTIAL%NON_LOCAL")
+            CALL qs_dispersion_nonloc_init(dispersion_env, para_env)
+         END IF
+         kg_env%ec_env%dispersion_env => dispersion_env
+      END IF
 
       IF (kg_env%tnadd_method == kg_tnadd_embed) THEN
          ! generate a new XC section with only the KE functional

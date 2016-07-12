@@ -51,10 +51,11 @@ MODULE input_cp2k_dft
         do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, &
         do_taylor, ehrenfest, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
         eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, gaussian, &
-        gaussian_env, general_roks, hf_model, high_spin_roks, history_guess, kg_color_dsatur, &
-        kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
-        mao_basis_ext, mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, no_excitations, &
-        no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, &
+        gaussian_env, general_roks, hf_model, high_spin_roks, history_guess, kg_cholesky, &
+        kg_color_dsatur, kg_color_greedy, kg_ec_diagonalization, kg_ec_functional_harris, &
+        kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, mao_basis_ext, &
+        mao_basis_orb, mao_basis_prim, mao_projection, mopac_guess, no_excitations, no_guess, &
+        numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, &
         op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, &
         orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
         ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
@@ -4608,7 +4609,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: print_key, subsection, subsubsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "KG_METHOD", &
@@ -4678,6 +4679,65 @@ CONTAINS
 
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      !!!!!!!!!!!!!!!  ENERGY_CORRECTION SECTION !!!!!!!!!!!!!!!!!!!
+      NULLIFY (keyword, subsection, print_key)
+      CALL section_create(subsection, name="ENERGY_CORRECTION", &
+                          description="Sets the various options for the Energy Correction", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the energy_correction", &
+                          usage="&ENERGY_CORRECTION T", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      ! add a special XC section
+      NULLIFY (subsubsection)
+      CALL create_xc_section(subsubsection)
+      CALL section_add_subsection(subsection, subsubsection)
+      CALL section_release(subsubsection)
+
+      CALL keyword_create(keyword, name="ENERGY_FUNCTIONAL", &
+                          description="Functional used in energy correction", &
+                          usage="ENERGY_FUNCTIONAL HARRIS", &
+                          default_i_val=kg_ec_functional_harris, &
+                          enum_c_vals=s2a("HARRIS"), &
+                          enum_desc=s2a("Harris functional"), &
+                          enum_i_vals=(/kg_ec_functional_harris/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ALGORITHM", &
+                          description="Algorithm used to solve KS equation", &
+                          usage="ALGORITHM DIAGONALIZATION", &
+                          default_i_val=kg_ec_diagonalization, &
+                          enum_c_vals=s2a("DIAGONALIZATION"), &
+                          enum_desc=s2a("Diagonalization of KS matrix."), &
+                          enum_i_vals=(/kg_ec_diagonalization/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FACTORIZATION", &
+                          description="Algorithm used to calculate factorization of overlap matrix", &
+                          usage="FACTORIZATION CHOLESKY", &
+                          default_i_val=kg_cholesky, &
+                          enum_c_vals=s2a("CHOLESKY"), &
+                          enum_desc=s2a("Cholesky factorization of overlap matrix"), &
+                          enum_i_vals=(/kg_cholesky/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_DEFAULT", &
+                          description="Threshold used for accuracy estimates within energy correction algorithms. ", &
+                          usage="EPS_DEFAULT 1.0E-6 ", default_r_val=1.0E-12_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

@@ -940,6 +940,13 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: kg_tnadd_embed = 100, &
                                                kg_tnadd_atomic = 200
 
+   ! kg energy corrections
+   INTEGER, PARAMETER, PUBLIC               :: kg_ec_diagonalization = 1001
+
+   INTEGER, PARAMETER, PUBLIC               :: kg_ec_functional_harris = 2001
+
+   INTEGER, PARAMETER, PUBLIC               :: kg_cholesky = 3001
+
    ! swarm parameters
    INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt = 1
 
