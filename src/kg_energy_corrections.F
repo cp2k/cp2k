@@ -641,7 +641,7 @@ CONTAINS
          ec_env%eband = eband
          ec_env%etotal = ec_env%eband+ec_env%ehartree+ec_env%exc-ec_env%vhxc+ec_env%edispersion
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A,T16,F16.10)') "Etotal   ", ec_env%etotal
+            WRITE (unit_nr, '(T2,A,T16,F16.10)') "HF Etotal   ", ec_env%etotal
             WRITE (unit_nr, '(T2,A,T16,F16.10)') "Eband    ", ec_env%eband
             WRITE (unit_nr, '(T2,A,T16,F16.10)') "Ehartree ", ec_env%ehartree
             WRITE (unit_nr, '(T2,A,T16,F16.10)') "Exc      ", ec_env%exc
