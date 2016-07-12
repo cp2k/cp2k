@@ -148,8 +148,7 @@ CONTAINS
          END IF
          CALL build_core_hamiltonian(qs_env, kg_env, my_calc_forces)
          CALL build_ks_matrix(qs_env, kg_env, my_calc_forces, unit_nr)
-!         CALL kg_inverse_factorization(qs_env,kg_env,error)
-         CALL ks_solver(qs_env, kg_env, calculate_forces, unit_nr)
+         CALL ks_solver(qs_env, kg_env, unit_nr)
          CALL ec_energy(qs_env, kg_env%ec_env, unit_nr)
 !          CALL kg_response_solver(qs_env,kg_env,calculate_forces,error)
 
@@ -463,11 +462,10 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
 
-   SUBROUTINE ks_solver(qs_env, kg_env, calculate_forces, unit_nr)
+   SUBROUTINE ks_solver(qs_env, kg_env, unit_nr)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ks_solver', routineP = moduleN//':'//routineN
