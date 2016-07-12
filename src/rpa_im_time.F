@@ -192,6 +192,9 @@ CONTAINS
 
          tau = tau_tj(jquad)
 
+         IF (memory_info .AND. unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "RPA_IM_TIME_INFO| Started with time point: ", jquad
+
          CALL timeset(routineN//"_im_time_repl_subgr", handle4)
 
          ! replicate fm_scaled_dm_occ (+filtering) to every subgroup into sparse matrix mat_dm_loc_occ/mat_dm_loc_occ_cut
@@ -2351,8 +2354,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_mat_for_mem_cut_2c', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: blk, col, col_size, handle, i_cut_RI, i_mem, row, row_end_in_data_block, &
-         row_offset, row_size, row_start_in_data_block
+      INTEGER                                            :: blk, col, handle, i_cut_RI, i_mem, row, &
+                                                            row_end_in_data_block, row_offset, &
+                                                            row_size, row_start_in_data_block
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_dbcsr_iterator)                            :: iter
 
@@ -2399,7 +2403,7 @@ CONTAINS
                   END IF
 
                   IF (row_offset > starts_array_cm(i_mem) .AND. &
-                      row_offset+col_size-1 <= starts_array_cm(i_mem)) THEN
+                      row_offset+row_size-1 <= starts_array_cm(i_mem)) THEN
 
                      row_start_in_data_block = starts_array_cm(i_mem)
 

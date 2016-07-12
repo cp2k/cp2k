@@ -1,5 +1,5 @@
 RI_RPA_H2O.inp                                        11      1e-09             -17.16012453993439
-RI_RPA_H2O_overlap_metric.inp                         11      1e-09             
+RI_RPA_H2O_overlap_metric.inp                         11      1e-09             -17.159915456243539
 RI_RPA_CH3.inp                                        11    1.0E-14             -7.416548172697896
 RI_RPA_H2O_SYRK.inp                                   11      7e-09            -17.160124539934376
 RI_RPA_minimax_H_atom.inp                             11      1e-08           -0.51012290148468298
