@@ -1,15 +1,15 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!                    
+!   CP2K: A general program to perform molecular dynamics simulations                              !                    
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !                    
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Routines for a Harris type energy correction on top of a
 !>        Kim-Gordon calculation
 !> \par History
 !>       03.2014 created
 !> \author JGH
-! *****************************************************************************
+! **************************************************************************************************
 MODULE kg_energy_corrections
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE core_ppl,                        ONLY: build_core_ppl
