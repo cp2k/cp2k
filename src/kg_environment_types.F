@@ -163,7 +163,6 @@ CONTAINS
                CALL deallocate_neighbor_list_set(kg_env%ec_env%sab_orb(iab)%neighbor_list_set)
             END DO
             DEALLOCATE (kg_env%ec_env%sab_orb)
-            CALL deallocate_task_list(kg_env%ec_env%task_list)
          END IF
          ! operator matrices
          IF (ASSOCIATED(kg_env%ec_env%matrix_ks)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_ks)
@@ -172,6 +171,9 @@ CONTAINS
          IF (ASSOCIATED(kg_env%ec_env%matrix_t)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_t)
          IF (ASSOCIATED(kg_env%ec_env%matrix_p)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_p)
 !         IF (ASSOCIATED(kg_env%ec_env%matrix_z)) CALL cp_dbcsr_deallocate_matrix(kg_env%ec_env%matrix_z)
+         IF (ASSOCIATED(kg_env%ec_env%task_list)) THEN
+            CALL deallocate_task_list(kg_env%ec_env%task_list)
+         END IF
          ! dispersion environment
          IF (ASSOCIATED(kg_env%ec_env%dispersion_env)) THEN
             CALL qs_dispersion_release(kg_env%ec_env%dispersion_env)

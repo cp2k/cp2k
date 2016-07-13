@@ -445,6 +445,8 @@ CONTAINS
                               dft_control%qs_control%eps_filter_matrix)
       ENDDO
 
+      DEALLOCATE (v_rspace)
+
       CALL timestop(handle)
 
    END SUBROUTINE build_ks_matrix
@@ -534,6 +536,7 @@ CONTAINS
 
          ! factorization
          ref_matrix => ec_env%matrix_s(1, 1)%matrix
+         NULLIFY (ortho_dbcsr, buf1_dbcsr, buf2_dbcsr)
          CALL cp_dbcsr_init_p(ortho_dbcsr)
          CALL cp_dbcsr_create(ortho_dbcsr, template=ref_matrix, &
                               matrix_type=dbcsr_type_no_symmetry)
@@ -580,6 +583,7 @@ CONTAINS
          CALL cp_dbcsr_release(ortho_dbcsr)
          CALL cp_dbcsr_release(buf1_dbcsr)
          CALL cp_dbcsr_release(buf2_dbcsr)
+         DEALLOCATE (ortho_dbcsr, buf1_dbcsr, buf2_dbcsr)
          DEALLOCATE (eigenvalues)
 
 !dbg
