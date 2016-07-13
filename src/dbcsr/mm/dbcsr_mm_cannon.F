@@ -157,7 +157,7 @@ MODULE dbcsr_mm_cannon
         mp_allgather, mp_alltoall, mp_bcast, mp_gather, mp_gatherv, mp_iallgather, mp_ibcast, &
         mp_irecv, mp_iscatter, mp_isend, mp_isum, mp_max, mp_min, mp_request_null, mp_rget, &
         mp_sendrecv, mp_sum, mp_testall, mp_testany, mp_wait, mp_waitall, mp_win_create, &
-        mp_win_free, mp_win_lock_all, mp_win_unlock_all
+        mp_win_flush_all, mp_win_free, mp_win_lock_all, mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
@@ -561,8 +561,8 @@ CONTAINS
          nimages_left_rows, nimages_match, nimages_right_cols, npcols, nprows, numnodes, &
          output_unit
       INTEGER(KIND=int_8)                                :: my_flop
-      LOGICAL :: ab_dense, has_clusters, keep_product_data, keep_sparsity, new_left, new_right, &
-         product_reindex, release_tdist, use_dense_mult
+      LOGICAL :: ab_dense, has_clusters, keep_product_data, keep_sparsity, product_reindex, &
+         release_tdist, transpose_left, transpose_right, use_dense_mult
       REAL(KIND=dp)                                      :: cs
       TYPE(array_i1d_obj) :: dense_col_sizes, dense_k_sizes, dense_row_sizes, k_vmap, m_map, &
          n_map, old_product_col_blk_offsets, old_product_col_blk_sizes, &
@@ -650,7 +650,7 @@ CONTAINS
       SELECT CASE (transa_l)
       CASE (dbcsr_no_transpose)
          matrix_left = matrix_a
-         new_left = .FALSE.
+         transpose_left = .FALSE.
       CASE (dbcsr_transpose)
          CALL dbcsr_init(matrix_left)
          IF (dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_antisymmetric) THEN
@@ -665,14 +665,14 @@ CONTAINS
                                       shallow_data_copy=.TRUE., redistribute=.FALSE., &
                                       transpose_distribution=.FALSE.)
          ENDIF
-         new_left = .TRUE.
+         transpose_left = .TRUE.
       CASE (dbcsr_conjugate_transpose)
          CALL dbcsr_init(matrix_left)
          CALL dbcsr_new_transposed(matrix_left, matrix_a, &
                                    shallow_data_copy=.FALSE., redistribute=.FALSE., &
                                    transpose_distribution=.FALSE.)
          CALL dbcsr_conjg(matrix_left)
-         new_left = .TRUE.
+         transpose_left = .TRUE.
       CASE DEFAULT
          CPABORT("wrong transa_l = "//transa_l)
       END SELECT
@@ -680,7 +680,7 @@ CONTAINS
       SELECT CASE (transb_l)
       CASE (dbcsr_no_transpose)
          matrix_right = matrix_b
-         new_right = .FALSE.
+         transpose_right = .FALSE.
       CASE (dbcsr_transpose)
          CALL dbcsr_init(matrix_right)
          IF (dbcsr_get_matrix_type(matrix_b) .EQ. dbcsr_type_antisymmetric) THEN
@@ -695,14 +695,14 @@ CONTAINS
                                       shallow_data_copy=.TRUE., redistribute=.FALSE., &
                                       transpose_distribution=.FALSE.)
          ENDIF
-         new_right = .TRUE.
+         transpose_right = .TRUE.
       CASE (dbcsr_conjugate_transpose)
          CALL dbcsr_init(matrix_right)
          CALL dbcsr_new_transposed(matrix_right, matrix_b, &
                                    shallow_data_copy=.FALSE., redistribute=.FALSE., &
                                    transpose_distribution=.FALSE.)
          CALL dbcsr_conjg(matrix_right)
-         new_right = .TRUE.
+         transpose_right = .TRUE.
       CASE DEFAULT
          CPABORT("wrong transb_l = "//transb_l)
       END SELECT
@@ -747,7 +747,7 @@ CONTAINS
                      dbcsr_distribution_has_col_clusters(matrix_right%m%dist)
       !
       ! Temporary check for experimental MPI algorithms, exclude transpose matrix case
-      IF (new_right .OR. new_left .OR. (has_clusters .AND. nprows .NE. npcols)) THEN
+      IF (transpose_right .OR. transpose_left .OR. (has_clusters .AND. nprows .NE. npcols)) THEN
          my_use_mpi_exp = .FALSE.
          IF (use_mpi_exp .AND. num_multiplications .EQ. 0) &
             CPWARN('Cannot run experimental algorithm! Use isend/irecv algorithm instead.')
@@ -1097,8 +1097,8 @@ CONTAINS
          CALL timestop(handle2)
       ENDIF
       !
-      IF (new_left) CALL dbcsr_release(matrix_left)
-      IF (new_right) CALL dbcsr_release(matrix_right)
+      IF (transpose_left) CALL dbcsr_release(matrix_left)
+      IF (transpose_right) CALL dbcsr_release(matrix_right)
       IF (release_tdist) THEN
          CALL dbcsr_distribution_no_threads(product_matrix%m%dist)
       ENDIF
@@ -4741,7 +4741,7 @@ CONTAINS
                !
                common_unmerged(:) = .FALSE.
                !
-               IF (.TRUE. .OR. min_nimages .EQ. 1 .OR. has_acc) THEN
+               IF (min_nimages .EQ. 1 .OR. has_acc) THEN
                   CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
                   IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data)
                   CALL merge_calc(buffers_calc%right, &
@@ -4989,6 +4989,8 @@ CONTAINS
             buffer%get_requests_map(2, buffer%nrequests) = v_ki+1
             !
             meta_get => buffer%meta(meta_offset+1:meta_size)
+            ! Workaround for OpenMPI RMA bug
+            meta_get(dbcsr_slot_size) = -999
             CALL mp_rget(meta_get, recv_punmerged, &
                          meta_win, &
                          buffer_orig%meta, &
@@ -5512,7 +5514,8 @@ CONTAINS
 !$OMP         right_vunmerged,left_vunmerged,right_nofiltered,left_nofiltered,myprow,&
 !$OMP         right_vmerged,left_vmerged,left_displ_vunmerged,right_displ_vunmerged,&
 !$OMP         right_no_empty_images_displ,left_no_empty_images_displ,do_scatter,&
-!$OMP         local_meta_size_scatter,v_k_scatter,nimages_scatter) &
+!$OMP         local_meta_size_scatter,v_k_scatter,nimages_scatter,&
+!$OMP         left_col_total_nimages,right_row_total_nimages) &
 !$OMP PRIVATE (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol,right_vrow,&
 !$OMP          right_vcol,left_vrow,left_vcol,meta_size_image,iproc,v_k_loc,&
 !$OMP          do_k_scatter)
@@ -5575,8 +5578,8 @@ CONTAINS
 !$OMP    SCHEDULE(guided)
          DO v_ki = 0, min_nimages-1
             !
-            recv_vrow = v_ki+right_vrow
-            recv_vcol = v_ki+left_vcol
+            recv_vrow = MOD(v_ki+right_vrow, right_row_total_nimages)
+            recv_vcol = MOD(v_ki+left_vcol, left_col_total_nimages)
             !
             DO v_ci = right_vcol, right_col_nimages+right_vcol-1
                IF (right_refs_meta_size(v_ci, recv_vrow) .NE. 0) THEN
@@ -5849,6 +5852,7 @@ CONTAINS
                ! Right
                CALL cannon_transfer_rma(v_ki, buffers_comm%right%vprow, &
                                         right_row_nimages, right_col_nimages, &
+                                        right_row_total_nimages, &
                                         right_vunmerged(:, metronome), right_vmerged(:, :, metronome), &
                                         right_displ_vunmerged, &
                                         right_v_i, right_nofiltered(:, :, metronome), right_set_displ, &
@@ -5863,6 +5867,7 @@ CONTAINS
                ! Left
                CALL cannon_transfer_rma(v_ki, buffers_comm%left%vpcol, &
                                         left_col_nimages, left_row_nimages, &
+                                        left_col_total_nimages, &
                                         left_vunmerged(:, metronome), left_vmerged(:, :, metronome), &
                                         left_displ_vunmerged, &
                                         left_v_i, left_nofiltered(:, :, metronome), left_set_displ, &
@@ -6290,6 +6295,7 @@ CONTAINS
 !> \param vpunmerged ...
 !> \param unmerged_nimages ...
 !> \param merged_nimages ...
+!> \param unmerged_total_nimages ...
 !> \param vunmerged ...
 !> \param vmerged ...
 !> \param displ_vunmerged ...
@@ -6319,6 +6325,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cannon_transfer_rma(v_ki, vpunmerged, &
                                   unmerged_nimages, merged_nimages, &
+                                  unmerged_total_nimages, &
                                   vunmerged, vmerged, &
                                   displ_vunmerged, &
                                   v_i, nofiltered, set_displ, &
@@ -6330,7 +6337,7 @@ CONTAINS
                                   data_get, data_type_byte, &
                                   buffer_orig, meta_offset_diag, data_offset_diag)
       INTEGER, INTENT(IN)                                :: v_ki, vpunmerged, unmerged_nimages, &
-                                                            merged_nimages
+                                                            merged_nimages, unmerged_total_nimages
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: vunmerged
       INTEGER, DIMENSION(:, 0:), INTENT(IN)              :: vmerged
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: displ_vunmerged
@@ -6362,7 +6369,7 @@ CONTAINS
 ! Left  : merged => row, unmerged => col
 ! Right : merged => col, unmerged => row
 
-      recv_vunmerged = v_ki+vpunmerged
+      recv_vunmerged = MOD(v_ki+vpunmerged, unmerged_total_nimages)
       recv_punmerged = recv_vunmerged/unmerged_nimages
       refs_displ_unmerged_first(:) = 0
       DO ui = 1, vunmerged(v_ki)
@@ -6427,6 +6434,8 @@ CONTAINS
                   buffer%nrequests = buffer%nrequests+1
                   buffer%get_requests_map(2, buffer%nrequests) = v_ki+1
                   meta_get => buffer%meta(meta_offset+1:meta_size)
+                  ! Workaround for OpenMPI RMA bug
+                  meta_get(dbcsr_slot_size) = -999
                   CALL mp_rget(meta_get, recv_punmerged, &
                                meta_win, &
                                buffer_orig%meta, &
@@ -8143,6 +8152,19 @@ CONTAINS
       DO ui = 1, nimages_unmerged-1
          ioffset_first(ui+1) = ioffset_first(ui)+vunmerged(ui)
       ENDDO
+      ! Workaround for OpenMPI RMA bug
+      IF (meta_buffer(offset_images(imeta, ioffset_first(uf)+1)+dbcsr_slot_size) .EQ. -999) THEN
+         CALL cp_warn(__LOCATION__, "MPI_rget operation didn't complete! "// &
+                      "Probably you are using buggy OpenMPI version. "// &
+                      "Try to enforce communication with window flush.")
+         IF (do_merge_rows) THEN
+            CALL mp_win_flush_all(buffers_orig%left%data_win)
+            CALL mp_win_flush_all(buffers_orig%left%meta_win)
+         ELSE
+            CALL mp_win_flush_all(buffers_orig%right%data_win)
+            CALL mp_win_flush_all(buffers_orig%right%meta_win)
+         ENDIF
+      ENDIF
       !
       ncommons_unmerged = 0
       !

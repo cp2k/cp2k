@@ -147,7 +147,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,A,A)') REPEAT("-", 30), " KG energy correction ", REPEAT("-", 29)
          END IF
          CALL build_core_hamiltonian(qs_env, kg_env, my_calc_forces)
-         CALL build_ks_matrix(qs_env, kg_env, my_calc_forces, unit_nr)
+         CALL build_ks_matrix(qs_env, kg_env, unit_nr)
          CALL ks_solver(qs_env, kg_env, unit_nr)
          CALL ec_energy(qs_env, kg_env%ec_env, unit_nr)
 !          CALL kg_response_solver(qs_env,kg_env,calculate_forces,error)
@@ -267,16 +267,14 @@ CONTAINS
 !> \brief calculate the complete KS matrix
 !> \param qs_env ...
 !> \param kg_env ...
-!> \param calculate_forces ...
 !> \param unit_nr ...
 !> \par History
 !>      03.2014 adapted from qs_ks_build_kohn_sham_matrix [JGH]
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE build_ks_matrix(qs_env, kg_env, calculate_forces, unit_nr)
+   SUBROUTINE build_ks_matrix(qs_env, kg_env, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kg_environment_type), POINTER                 :: kg_env
-      LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_ks_matrix', &
@@ -455,7 +453,6 @@ CONTAINS
 !> \brief  Solve KS equation for a given matrix
 !> \param qs_env ...
 !> \param kg_env ...
-!> \param calculate_forces ...
 !> \param unit_nr ...
 !> \par History
 !>      03.2014 adapted from qs_ks_build_kohn_sham_matrix [JGH]

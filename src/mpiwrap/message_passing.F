@@ -165,7 +165,7 @@ MODULE message_passing
 
    ! one-sided communication
    PUBLIC :: mp_win_create, mp_win_free, mp_win_lock_all, &
-             mp_win_unlock_all, mp_rget
+             mp_win_unlock_all, mp_rget, mp_win_flush_all
 
    ! vector types
    PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
@@ -3322,6 +3322,35 @@ CONTAINS
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_win_free
+
+! **************************************************************************************************
+!> \brief Window flush
+!> \param win ...
+! **************************************************************************************************
+   SUBROUTINE mp_win_flush_all(win)
+      INTEGER, INTENT(IN)                                :: win
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_flush_all', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ierr
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+      CALL mpi_win_flush_all(win, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_win_flush_all @ "//routineN)
+#else
+      MARK_USED(win)
+      CPABORT("mp_win_flush_all requires MPI-3 standard")
+#endif
+#else
+      MARK_USED(win)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_win_flush_all
 
 ! **************************************************************************************************
 !> \brief Window lock
