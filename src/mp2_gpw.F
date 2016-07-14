@@ -192,7 +192,7 @@ CONTAINS
                                                             blacs_env_sub_mat_munu
       TYPE(cp_dbcsr_p_type)                              :: mat_M, mat_munu, mat_P_global, &
                                                             mat_P_local
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int, matrix_s
       TYPE(cp_dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, mo_coeff_gw, &
          mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_beta
@@ -330,7 +330,8 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       molecule_set=molecule_set, &
                       molecule_kind_set=molecule_kind_set, &
-                      dft_control=dft_control)
+                      dft_control=dft_control, &
+                      matrix_s=matrix_s)
 
       CALL create_mat_munu(mat_munu, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                            atom2d, molecule_kind_set, &
@@ -599,7 +600,7 @@ CONTAINS
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                    starts_array, starts_B_virtual, starts_B_all, mo_coeff, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, &
+                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, matrix_s, &
                                    mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
                                    mp2_env%mp2_gpw%eps_filter, BIb_C_beta, homo_beta, Eigenval_beta, &
                                    ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
@@ -609,7 +610,7 @@ CONTAINS
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                    starts_array, starts_B_virtual, starts_B_all, mo_coeff, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, &
+                                   unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, matrix_s, &
                                    mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
                                    mp2_env%mp2_gpw%eps_filter)
          END IF
@@ -2249,7 +2250,11 @@ CONTAINS
                               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
                               nze=0)
 
-         CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, sab_orb_sub)
+         IF (.NOT. my_do_im_time) THEN
+
+            CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix, sab_orb_sub)
+
+         END IF
 
       END IF
 
@@ -2413,7 +2418,6 @@ CONTAINS
                                                             row_blk_sizes, row_blk_sizes_prim
       INTEGER, DIMENSION(:, :), POINTER                  :: col_blk_sizes
       LOGICAL                                            :: blacs_repeatable
-      REAL(kind=dp)                                      :: eps_mp2_old
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global, blacs_env_sub_P
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
@@ -2426,19 +2430,13 @@ CONTAINS
       END DO
       DEALLOCATE (sab_orb_all)
 
-      ! for imaginary time, we need a non-sparse dbcsr matrix mat_munu
-      eps_mp2_old = mp2_env%mp2_gpw%eps_grid
-      mp2_env%mp2_gpw%eps_grid = 1.0E-290_dp
-
       CALL create_mat_munu(mat_munu, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                            atom2d, molecule_kind_set, &
                            molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub_im_time_3c, &
                            eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old, &
-                           unit_nr)
+                           unit_nr, do_im_time=.TRUE.)
 
       CALL cp_blacs_env_release(blacs_env_sub_im_time_3c)
-
-      mp2_env%mp2_gpw%eps_grid = eps_mp2_old
 
       group_size_P = mp2_env%ri_rpa_im_time%group_size_P
 
@@ -3078,8 +3076,8 @@ CONTAINS
 !> \param row_blk_sizes ...
 !> \author Jan Wilhelm
 ! **************************************************************************************************
-  SUBROUTINE get_start_end_size_indx(start_indx, end_indx, size_indx, nblkrows_total, itmp_1, itmp_2, row_blk_offset, row_blk_sizes)
-
+   SUBROUTINE get_start_end_size_indx(start_indx, end_indx, size_indx, nblkrows_total, itmp_1, itmp_2, &
+                                      row_blk_offset, row_blk_sizes)
       INTEGER                                            :: start_indx, end_indx, size_indx, &
                                                             nblkrows_total, itmp_1, itmp_2
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_offset, row_blk_sizes

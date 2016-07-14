@@ -109,6 +109,7 @@ CONTAINS
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param my_do_gw ...
 !> \param do_im_time ...
+!> \param matrix_s ...
 !> \param mat_munu ...
 !> \param mat_P_local ...
 !> \param mat_P_global ...
@@ -131,7 +132,7 @@ CONTAINS
                                 ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                 starts_array, starts_B_virtual, starts_B_all, mo_coeff, &
                                 Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, &
+                                unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, matrix_s, &
                                 mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, eps_filter, &
                                 BIb_C_beta, homo_beta, Eigenval_beta, &
                                 ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
@@ -149,6 +150,7 @@ CONTAINS
                                                             gw_corr_lev_virt, unit_nr
       LOGICAL                                            :: do_ri_sos_laplace_mp2, my_do_gw, &
                                                             do_im_time
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
                                                             mat_M
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
@@ -596,7 +598,7 @@ CONTAINS
                              max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
                              do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                              fm_mat_Q_omega, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                             mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
+                             mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, matrix_s, my_Lrows, &
                              my_group_L_size, my_group_L_start, eps_filter, &
                              fm_mo_coeff_occ_beta=fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta=fm_mo_coeff_virt_beta, &
                              homo_beta=homo_beta, virtual_beta=virtual_beta, dimen_ia_beta=dimen_ia_beta, &
@@ -623,7 +625,7 @@ CONTAINS
                              max_iter_fit, mp2_env%ri_rpa%mm_style, do_minimax_quad, &
                              do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                              fm_mat_Q_omega, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                             mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
+                             mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, matrix_s, my_Lrows, &
                              my_group_L_size, my_group_L_start, eps_filter)
          END IF
       END IF
@@ -1677,6 +1679,7 @@ CONTAINS
 !> \param mat_P_global ...
 !> \param mat_M ...
 !> \param mat_3c_overl_int ...
+!> \param matrix_s ...
 !> \param my_Lrows ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
@@ -1703,8 +1706,8 @@ CONTAINS
                           max_iter_fit, mm_style, do_minimax_quad, &
                           do_im_time, fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mat_Q_omega, &
                           fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, mat_munu, mat_P_local, &
-                          mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, my_group_L_size, my_group_L_start, &
-                          eps_filter, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                          mat_P_global, mat_M, mat_3c_overl_int, matrix_s, my_Lrows, my_group_L_size, &
+                          my_group_L_start, eps_filter, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
                           homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
                           fm_mat_Q_gemm_beta, fm_mat_Q_beta, fm_mat_S_gw_beta, &
                           gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
@@ -1732,7 +1735,7 @@ CONTAINS
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
                                                             mat_M
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int, matrix_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       INTEGER                                            :: my_group_L_size, my_group_L_start
       REAL(KIND=dp)                                      :: eps_filter
@@ -2519,8 +2522,8 @@ CONTAINS
             ! compute the matrix Q(it) and Fourier transform it directly to fm_mat_Q_omega(iw)
             CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
                                         fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                        fm_mat_Q, mat_dm_loc, mat_P_local, &
-                                        mat_P_global, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
+                                        fm_mat_Q, mat_P_local, &
+                                        mat_P_global, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
                                         mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                         mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                         tau_wj_2d, tj, wj, tau_tj, do_minimax_quad, &
@@ -2542,8 +2545,8 @@ CONTAINS
 
                CALL compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
                                            fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                           fm_mat_Q, mat_dm_loc, mat_P_local, mat_P_global, &
-                                           mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
+                                           fm_mat_Q, mat_P_local, mat_P_global, &
+                                           mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
                                            mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                            mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                            tau_wj_2d, tj, wj, tau_tj, do_minimax_quad, &

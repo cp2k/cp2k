@@ -15,11 +15,11 @@ MODULE rpa_im_time
         cp_dbcsr_get_occupation, cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, &
         cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
         cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-        cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+        cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_set_submatrix,&
@@ -36,7 +36,6 @@ MODULE rpa_im_time
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type,&
                                               two_dim_int_array
-   USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -62,11 +61,11 @@ CONTAINS
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
 !> \param fm_mat_Q ...
-!> \param mat_dm_loc ...
 !> \param mat_P_local ...
 !> \param mat_P_global ...
 !> \param mat_M_mu_Pnu_occ ...
 !> \param mat_M_mu_Pnu_virt ...
+!> \param matrix_s ...
 !> \param mat_M_muP_occ ...
 !> \param mat_M_muP_virt ...
 !> \param mat_3c_overl_int_cut ...
@@ -115,10 +114,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_fm_mat_Q_omega(fm_mat_Q_omega, fm_scaled_dm_occ_tau, &
                                      fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                     fm_mat_Q, mat_dm_loc, mat_P_local, mat_P_global, &
-                                     mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, mat_M_muP_occ, mat_M_muP_virt, &
-                                     mat_3c_overl_int_cut, mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
-                                     tau_wj_2d, tj, wj, tau_tj, &
+                                     fm_mat_Q, mat_P_local, mat_P_global, &
+                                     mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, mat_M_muP_occ, &
+                                     mat_M_muP_virt, mat_3c_overl_int_cut, mat_dm_loc_occ_cut, &
+                                     mat_dm_loc_virt_cut, tau_wj_2d, tj, wj, tau_tj, &
                                      do_minimax_quad, e_fermi, eps_filter, eps_comm, a_scaling, alpha, &
                                      eps_filter_im_time, Eigenval, nmo, n_group_col, dimen_RI, &
                                      group_size_P, num_integ_points, jquad, cut_memory, cut_RI, unit_nr, &
@@ -136,9 +135,9 @@ CONTAINS
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                                             fm_mat_Q
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
       TYPE(cp_dbcsr_p_type)                              :: mat_P_local, mat_P_global
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
+                                                            matrix_s
       TYPE(cp_dbcsr_p_type)                              :: mat_M_muP_occ, mat_M_muP_virt
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut, &
                                                             mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
@@ -174,6 +173,7 @@ CONTAINS
       LOGICAL                                            :: first_cycle_im_time, &
                                                             first_cycle_omega_loop, memory_info
       REAL(KIND=dp)                                      :: omega, omega_old, tau, weight, weight_old
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_dm_occ_global, mat_dm_virt_global
 
       ! has to be set, otherwise, compiler complains
       tau = 0.0_dp
@@ -183,7 +183,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL precompute_fm_scaled_dm_tau(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
-                                       fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, e_fermi)
+                                       fm_mo_coeff_occ, fm_mo_coeff_virt, mat_dm_occ_global, mat_dm_virt_global, &
+                                       matrix_s, Eigenval, e_fermi, eps_filter, memory_info, unit_nr, para_env)
 
       first_cycle_im_time = .TRUE.
 
@@ -197,25 +198,21 @@ CONTAINS
 
          CALL timeset(routineN//"_im_time_repl_subgr", handle4)
 
-         ! replicate fm_scaled_dm_occ (+filtering) to every subgroup into sparse matrix mat_dm_loc_occ/mat_dm_loc_occ_cut
-         CALL replicate_mat_to_subgroup_im_time(para_env, para_env_sub, fm_scaled_dm_occ_tau(jquad)%matrix, nmo, &
-                                                mat_dm_loc, mat_dm_loc_occ_cut, starts_array_cm, ends_array_cm, &
-                                                cut_memory, cut_RI, non_zero_rows_3c, first_cycle_im_time, &
-                                                eps_filter, do_occ=.TRUE., do_virt=.FALSE.)
-
-         ! the same for the virtual scaled density matrix
-         CALL replicate_mat_to_subgroup_im_time(para_env, para_env_sub, fm_scaled_dm_virt_tau(jquad)%matrix, nmo, &
-                                                mat_dm_loc, mat_dm_loc_virt_cut, starts_array_cm, ends_array_cm, &
-                                                cut_memory, cut_RI, non_zero_rows_3c, first_cycle_im_time, &
-                                                eps_filter, do_occ=.FALSE., do_virt=.TRUE.)
-
          CALL mp_sync(para_env%group)
 
          CALL timestop(handle4)
 
-         DO i_mem = 1, cut_memory
+         DO j_mem = 1, cut_memory
 
-            DO j_mem = 1, cut_memory
+            CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_virt_global(jquad)%matrix, nmo, &
+                                          mat_dm_loc_virt_cut, starts_array_cm, ends_array_cm, &
+                                          j_mem, cut_RI, non_zero_rows_3c)
+
+            DO i_mem = 1, cut_memory
+
+               CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_occ_global(jquad)%matrix, nmo, &
+                                             mat_dm_loc_occ_cut, starts_array_cm, ends_array_cm, &
+                                             i_mem, cut_RI, non_zero_rows_3c)
 
                CALL timeset(routineN//"_calc_M", handle5)
 
@@ -244,6 +241,12 @@ CONTAINS
                                          ! last_column=ends_array_cm(i_mem)*my_group_L_size, &
                                          filter_eps=eps_filter*SQRT(REAL(my_group_L_size)))
 
+               END DO
+
+               ! free the occupied density matrix
+               DO i_cut_RI = 1, cut_RI
+                  CALL cp_dbcsr_set(mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix, 0.0_dp)
+                  CALL cp_dbcsr_filter(mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix, 1.0_dp)
                END DO
 
                IF (first_cycle_im_time .AND. memory_info) THEN
@@ -358,11 +361,19 @@ CONTAINS
 
                first_cycle_im_time = .FALSE.
 
-            END DO ! cut memory j
+            END DO ! cut memory i
 
-         END DO ! cut memory i
+            ! free the virtual density matrix
+            DO i_cut_RI = 1, cut_RI
+               CALL cp_dbcsr_set(mat_dm_loc_virt_cut(i_cut_RI, j_mem)%matrix, 0.0_dp)
+               CALL cp_dbcsr_filter(mat_dm_loc_virt_cut(i_cut_RI, j_mem)%matrix, 1.0_dp)
+            END DO
+
+         END DO ! cut memory j
 
       END DO ! time points
+
+      CALL clean_up(mat_dm_occ_global, mat_dm_virt_global)
 
       CALL timestop(handle)
 
@@ -372,122 +383,101 @@ CONTAINS
 !> \brief ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param fm_scaled_dm ...
+!> \param mat_dm_global ...
 !> \param nmo ...
-!> \param mat_dm_loc ...
 !> \param mat_dm_loc_cut ...
 !> \param starts_array_cm ...
 !> \param ends_array_cm ...
-!> \param cut_memory ...
+!> \param i_mem ...
 !> \param cut_RI ...
 !> \param non_zero_rows_3c ...
-!> \param first_cycle_im_time ...
-!> \param eps_filter ...
-!> \param do_occ ...
-!> \param do_virt ...
 ! **************************************************************************************************
-   SUBROUTINE replicate_mat_to_subgroup_im_time(para_env, para_env_sub, fm_scaled_dm, nmo, &
-                                                mat_dm_loc, mat_dm_loc_cut, starts_array_cm, &
-                                                ends_array_cm, cut_memory, cut_RI, non_zero_rows_3c, &
-                                                first_cycle_im_time, eps_filter, do_occ, do_virt)
+   SUBROUTINE replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_global, nmo, &
+                                       mat_dm_loc_cut, starts_array_cm, ends_array_cm, &
+                                       i_mem, cut_RI, non_zero_rows_3c)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm
+      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_global
       INTEGER                                            :: nmo
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_dm_loc_cut
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm
-      INTEGER                                            :: cut_memory, cut_RI
+      INTEGER                                            :: i_mem, cut_RI
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_rows_3c
-      LOGICAL                                            :: first_cycle_im_time
-      REAL(KIND=dp)                                      :: eps_filter
-      LOGICAL                                            :: do_occ, do_virt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup_im_time', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_dm_to_subgroup', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: blk, col, col_offset, col_size, end_idx, handle, i_element, i_global, igroup, &
-         iiB, imepos, imepos_sub, iproc, itmp(2), j_global, jjB, mu_end, mu_start, my_mu_end, &
-         my_mu_size, my_mu_start, ncol_local, ngroup, nrow_local, row, row_offset, row_size, &
-         start_idx
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, offset_buffer_send, &
-                                                            proc_map, sizes_array, sizes_rec, &
-                                                            sizes_send, starts_array
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER :: block_counter, block_offset, block_size, col, col_from_buffer, col_offset, &
+         col_size, handle, handle1, i_block, i_cut_RI, i_entry, i_mepos, igroup, imepos, &
+         imepos_sub, msg_offset, nblkrows_total, ngroup, num_blocks, num_pe_sub, offset, row, &
+         row_from_buffer, row_offset, row_size
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: blk_counter, cols_to_allocate_all, &
+         counter_blk_to_alloc, entry_counter, num_entries_blocks_rec, num_entries_blocks_send, &
+         row_block_from_index, rows_to_allocate_all, sizes_rec, sizes_send
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cols_to_allocate, rows_to_allocate
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_offset, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: req_array
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block, local_C, local_C_internal
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_coeff
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(do_occ .NEQV. do_virt)
+      CALL timeset("get_sizes_D", handle1)
 
-      ALLOCATE (sizes_array(0:para_env_sub%num_pe-1))
-      ALLOCATE (starts_array(0:para_env_sub%num_pe-1))
-      starts_array = 0
-      ALLOCATE (ends_array(0:para_env_sub%num_pe-1))
-      ends_array = 0
+      NULLIFY (data_block)
 
-      DO iproc = 0, para_env_sub%num_pe-1
-         itmp = get_limit(nmo, para_env_sub%num_pe, iproc)
-         starts_array(iproc) = itmp(1)
-         ends_array(iproc) = itmp(2)
-         sizes_array(iproc) = itmp(2)-itmp(1)+1
-      ENDDO
+      ALLOCATE (num_entries_blocks_send(0:2*para_env%num_pe-1))
+      num_entries_blocks_send(:) = 0
 
-      my_mu_size = sizes_array(para_env_sub%mepos)
-      my_mu_start = starts_array(para_env_sub%mepos)
-      my_mu_end = ends_array(para_env_sub%mepos)
-
-      ! local storage for the C matrix
-      ALLOCATE (C(my_mu_size, nmo))
-      C = 0.0_dp
-
-      CALL cp_fm_get_info(matrix=fm_scaled_dm, &
-                          matrix_struct=fm_struct_coeff, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          local_data=local_C_internal)
-
-      ALLOCATE (local_C(nrow_local, ncol_local))
-      local_C = local_C_internal(1:nrow_local, 1:ncol_local)
-      NULLIFY (local_C_internal)
-
-      ALLOCATE (sizes_rec(0:para_env%num_pe-1))
-      ALLOCATE (sizes_send(0:para_env%num_pe-1))
-      sizes_rec = 0
-      sizes_send = 0
+      ALLOCATE (num_entries_blocks_rec(0:2*para_env%num_pe-1))
+      num_entries_blocks_rec(:) = 0
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
-      ! check again whether total number of processes is a multiple of number of processes in the subgroup
-      CPASSERT(MODULO(para_env%num_pe, para_env_sub%num_pe) == 0)
 
-      ! write info how many elements a process receives
-      DO iiB = 1, nrow_local
-         i_global = row_indices(iiB)
-         DO imepos_sub = 0, para_env_sub%num_pe-1
-            mu_start = starts_array(imepos_sub)
-            mu_end = ends_array(imepos_sub)
-            IF (i_global >= mu_start .AND. i_global <= mu_end) THEN
-               DO igroup = 0, ngroup-1
-                  sizes_send(imepos_sub+igroup*para_env_sub%num_pe) = &
-                     sizes_send(imepos_sub+igroup*para_env_sub%num_pe)+ncol_local
-               END DO
-            END IF
-         END DO
+      num_pe_sub = para_env_sub%num_pe
+
+      CALL cp_dbcsr_iterator_start(iter, mat_dm_global)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+
+         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                           row_size=row_size, col_size=col_size, &
+                                           row_offset=row_offset, col_offset=col_offset)
+
+         ! check whether block is in the range of the memory cutoff
+         IF (row_offset+row_size-1 >= starts_array_cm(i_mem) .AND. row_offset < ends_array_cm(i_mem)) THEN
+
+            CALL cp_dbcsr_get_stored_coordinates(mat_dm_loc_cut(1, 1)%matrix, row, col, imepos_sub)
+
+            DO igroup = 0, ngroup-1
+
+               imepos = imepos_sub+igroup*num_pe_sub
+
+               num_entries_blocks_send(2*imepos) = num_entries_blocks_send(2*imepos)+row_size*col_size
+               num_entries_blocks_send(2*imepos+1) = num_entries_blocks_send(2*imepos+1)+1
+
+            END DO
+
+         END IF
+
       END DO
 
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle1)
+
+      CALL timeset("send_sizes_D", handle1)
+
       IF (para_env%num_pe > 1) THEN
-         CALL mp_alltoall(sizes_send, sizes_rec, 1, para_env%group)
+         CALL mp_alltoall(num_entries_blocks_send, num_entries_blocks_rec, 2, para_env%group)
       ELSE
-         sizes_rec(0) = sizes_send(0)
+         num_entries_blocks_rec(0:1) = num_entries_blocks_send(0:1)
       END IF
+
+      CALL timestop(handle1)
+
+      CALL timeset("get_data_D", handle1)
 
       ALLOCATE (buffer_rec(0:para_env%num_pe-1))
       ALLOCATE (buffer_send(0:para_env%num_pe-1))
@@ -495,239 +485,237 @@ CONTAINS
       ! allocate data message and corresponding indices
       DO imepos = 0, para_env%num_pe-1
 
-         ALLOCATE (buffer_rec(imepos)%msg(sizes_rec(imepos)))
+         ALLOCATE (buffer_rec(imepos)%msg(num_entries_blocks_rec(2*imepos)))
          buffer_rec(imepos)%msg = 0.0_dp
 
-         ALLOCATE (buffer_send(imepos)%msg(sizes_send(imepos)))
+         ALLOCATE (buffer_send(imepos)%msg(num_entries_blocks_send(2*imepos)))
          buffer_send(imepos)%msg = 0.0_dp
 
-         ALLOCATE (buffer_rec(imepos)%indx(sizes_rec(imepos), 2))
+         ALLOCATE (buffer_rec(imepos)%indx(num_entries_blocks_rec(2*imepos+1), 3))
          buffer_rec(imepos)%indx = 0
 
-         ALLOCATE (buffer_send(imepos)%indx(sizes_send(imepos), 2))
+         ALLOCATE (buffer_send(imepos)%indx(num_entries_blocks_send(2*imepos+1), 3))
          buffer_send(imepos)%indx = 0
 
       END DO
 
-      ALLOCATE (offset_buffer_send(0:para_env_sub%num_pe-1))
-      offset_buffer_send = 0
+      ALLOCATE (entry_counter(0:para_env%num_pe-1))
+      entry_counter(:) = 0
 
-      ! write matrix elements and info
-      DO iiB = 1, nrow_local
+      ALLOCATE (blk_counter(0:para_env%num_pe-1))
+      blk_counter = 0
 
-         i_global = row_indices(iiB)
+      CALL cp_dbcsr_iterator_start(iter, mat_dm_global)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-         DO imepos_sub = 0, para_env_sub%num_pe-1
+         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                           row_size=row_size, col_size=col_size, &
+                                           row_offset=row_offset, col_offset=col_offset)
 
-            mu_start = starts_array(imepos_sub)
-            mu_end = ends_array(imepos_sub)
+         ! check whether block is in the range of the memory cutoff
+         IF (row_offset+row_size-1 >= starts_array_cm(i_mem) .AND. row_offset < ends_array_cm(i_mem)) THEN
 
-            IF (i_global >= mu_start .AND. i_global <= mu_end) THEN
+            CALL cp_dbcsr_get_stored_coordinates(mat_dm_loc_cut(1, 1)%matrix, row, col, imepos_sub)
 
-               start_idx = offset_buffer_send(imepos_sub)+1
-               end_idx = offset_buffer_send(imepos_sub)+ncol_local
+            DO igroup = 0, ngroup-1
 
-               DO igroup = 0, ngroup-1
+               imepos = imepos_sub+igroup*num_pe_sub
 
-                  DO jjB = 1, ncol_local
+               msg_offset = entry_counter(imepos)
 
-                     j_global = col_indices(jjB)
+               block_size = row_size*col_size
 
-                     buffer_send(imepos_sub+igroup*para_env_sub%num_pe)%indx(start_idx+jjB-1, 1) = i_global
-                     buffer_send(imepos_sub+igroup*para_env_sub%num_pe)%indx(start_idx+jjB-1, 2) = j_global
+               buffer_send(imepos)%msg(msg_offset+1:msg_offset+block_size) = &
+                  RESHAPE(data_block(1:row_size, 1:col_size), (/block_size/))
 
-                  END DO
+               entry_counter(imepos) = entry_counter(imepos)+block_size
 
-                  buffer_send(imepos_sub+igroup*para_env_sub%num_pe)%msg(start_idx:end_idx) = &
-                     local_C(iiB, 1:ncol_local)
+               blk_counter(imepos) = blk_counter(imepos)+1
 
-               END DO
+               block_offset = blk_counter(imepos)
 
-               offset_buffer_send(imepos_sub) = offset_buffer_send(imepos_sub)+ncol_local
+               buffer_send(imepos)%indx(block_offset, 1) = row
+               buffer_send(imepos)%indx(block_offset, 2) = col
+               buffer_send(imepos)%indx(block_offset, 3) = msg_offset
+
+            END DO
+
+         END IF
+
+      END DO
+
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle1)
+
+      CALL timeset("send_data_D", handle1)
+
+      ALLOCATE (req_array(1:para_env%num_pe, 4))
+
+      ALLOCATE (sizes_rec(0:para_env%num_pe-1))
+      ALLOCATE (sizes_send(0:para_env%num_pe-1))
+
+      DO imepos = 0, para_env%num_pe-1
+
+         sizes_send(imepos) = num_entries_blocks_send(2*imepos)
+         sizes_rec(imepos) = num_entries_blocks_rec(2*imepos)
+
+      END DO
+
+      CALL communicate_buffer(para_env, sizes_rec, sizes_send, buffer_rec, buffer_send, req_array)
+
+      DEALLOCATE (req_array, sizes_rec, sizes_send)
+
+      CALL timestop(handle1)
+
+      CALL timeset("row_block_from_index", handle1)
+
+      CALL cp_dbcsr_get_info(mat_dm_loc_cut(1, 1)%matrix, &
+                             nblkrows_total=nblkrows_total, &
+                             row_blk_offset=row_blk_offset, &
+                             row_blk_size=row_blk_size)
+
+      ALLOCATE (row_block_from_index(nmo))
+      row_block_from_index = 0
+
+      DO i_entry = 1, nmo
+         DO i_block = 1, nblkrows_total
+
+            IF (i_entry >= row_blk_offset(i_block) .AND. i_entry <= row_blk_offset(i_block)+row_blk_size(i_block)-1) THEN
+
+               row_block_from_index(i_entry) = i_block
+
+            END IF
+
+         END DO
+      END DO
+
+      CALL timestop(handle1)
+
+      CALL timeset("reserve_blocks_D", handle1)
+
+      num_blocks = 0
+
+      ! get the number of blocks, which have to be allocated
+      DO imepos = 0, para_env%num_pe-1
+         num_blocks = num_blocks+num_entries_blocks_rec(2*imepos+1)
+      END DO
+
+      ALLOCATE (rows_to_allocate_all(num_blocks))
+      rows_to_allocate_all = 0
+
+      ALLOCATE (cols_to_allocate_all(num_blocks))
+      cols_to_allocate_all = 0
+
+      block_counter = 0
+
+      DO i_mepos = 0, para_env%num_pe-1
+
+         DO i_block = 1, num_entries_blocks_rec(2*i_mepos+1)
+
+            block_counter = block_counter+1
+
+            rows_to_allocate_all(block_counter) = buffer_rec(i_mepos)%indx(i_block, 1)
+            cols_to_allocate_all(block_counter) = buffer_rec(i_mepos)%indx(i_block, 2)
+
+         END DO
+
+      END DO
+
+      ALLOCATE (rows_to_allocate(num_blocks, cut_RI))
+      rows_to_allocate = 0
+      ALLOCATE (cols_to_allocate(num_blocks, cut_RI))
+      cols_to_allocate = 0
+
+      ALLOCATE (counter_blk_to_alloc(cut_RI))
+      counter_blk_to_alloc = 0
+
+      DO i_cut_RI = 1, cut_RI
+
+         DO i_block = 1, num_blocks
+
+            row = rows_to_allocate_all(i_block)
+            col = cols_to_allocate_all(i_block)
+
+            IF (ANY(non_zero_rows_3c(i_cut_RI, :, :) == col)) THEN
+
+               counter_blk_to_alloc(i_cut_RI) = counter_blk_to_alloc(i_cut_RI)+1
+               block_counter = counter_blk_to_alloc(i_cut_RI)
+
+               rows_to_allocate(block_counter, i_cut_RI) = row
+               cols_to_allocate(block_counter, i_cut_RI) = col
 
             END IF
 
          END DO
 
+         CALL cp_dbcsr_set(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, 0.0_dp)
+         CALL cp_dbcsr_filter(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, 1.0_dp)
+         CALL cp_dbcsr_reserve_blocks(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, &
+                                      rows=rows_to_allocate(1:counter_blk_to_alloc(i_cut_RI), i_cut_RI), &
+                                      cols=cols_to_allocate(1:counter_blk_to_alloc(i_cut_RI), i_cut_RI))
+         CALL cp_dbcsr_finalize(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix)
+         CALL cp_dbcsr_set(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, 0.0_dp)
+
       END DO
 
-      DEALLOCATE (offset_buffer_send)
+      DEALLOCATE (rows_to_allocate_all, cols_to_allocate_all)
 
-      ALLOCATE (req_array(1:para_env%num_pe, 4))
+      DO i_cut_RI = 1, cut_RI
 
-      CALL communicate_buffer(para_env, sizes_rec, sizes_send, buffer_rec, buffer_send, req_array)
+         CALL cp_dbcsr_iterator_start(iter, mat_dm_loc_cut(i_cut_RI, i_mem)%matrix)
 
-      ! accumulate data on C
-      DO imepos = 0, para_env%num_pe-1
-         DO i_element = 1, sizes_rec(imepos)
-            i_global = buffer_rec(imepos)%indx(i_element, 1)
-            j_global = buffer_rec(imepos)%indx(i_element, 2)
-            C(i_global-my_mu_start+1, j_global) = buffer_rec(imepos)%msg(i_element)
-         END DO
-      END DO
+         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-      DEALLOCATE (sizes_rec, sizes_send, req_array)
+            CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                              row_size=row_size, col_size=col_size)
 
-      DO imepos = 0, para_env%num_pe-1
-         DEALLOCATE (buffer_send(imepos)%msg)
-         DEALLOCATE (buffer_send(imepos)%indx)
-      END DO
+            DO imepos = 0, para_env%num_pe-1
+
+               DO i_block = 1, num_entries_blocks_rec(2*imepos+1)
+
+                  row_from_buffer = buffer_rec(imepos)%indx(i_block, 1)
+                  col_from_buffer = buffer_rec(imepos)%indx(i_block, 2)
+                  offset = buffer_rec(imepos)%indx(i_block, 3)
+
+                  IF (row == row_from_buffer .AND. col == col_from_buffer) THEN
+
+                     data_block(1:row_size, 1:col_size) = &
+                        RESHAPE(buffer_rec(imepos)%msg(offset+1:offset+row_size*col_size), &
+                                (/row_size, col_size/))
+
+                  END IF
+
+               END DO
+
+            END DO
+
+         END DO ! blocks
+
+         CALL cp_dbcsr_iterator_stop(iter)
+
+      END DO ! cut_RI
+
+      CALL timestop(handle1)
 
       DO imepos = 0, para_env%num_pe-1
          DEALLOCATE (buffer_rec(imepos)%msg)
          DEALLOCATE (buffer_rec(imepos)%indx)
+         DEALLOCATE (buffer_send(imepos)%msg)
+         DEALLOCATE (buffer_send(imepos)%indx)
       END DO
 
       DEALLOCATE (buffer_rec, buffer_send)
-
-      ! proc_map, for the sub_group
-      ALLOCATE (proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
-      DO iiB = 0, para_env_sub%num_pe-1
-         proc_map(iiB) = iiB
-         proc_map(-iiB-1) = para_env_sub%num_pe-iiB-1
-         proc_map(para_env_sub%num_pe+iiB) = iiB
-      END DO
-
-      ! all levels
-      CALL build_mat_dm_loc(para_env_sub, mat_dm_loc, C, &
-                            nmo, blk, row, col, row_size, col_size, row_offset, &
-                            col_offset, i_global, j_global, my_mu_start, my_mu_end, &
-                            iter, data_block, ends_array, proc_map, &
-                            sizes_array, starts_array)
-
-      ! only filter the mat_dm_loc in case the virtuals are filled in since also the
-      ! occ are filled in and the occ dm has smaller entries
-      IF (do_virt) THEN
-         CALL cp_dbcsr_filter(mat_dm_loc, eps_filter)
-      END IF
-
-      CALL setup_mat_for_mem_cut_2c(mat_dm_loc_cut, mat_dm_loc, cut_memory, cut_RI, &
-                                    starts_array_cm, ends_array_cm, non_zero_rows_3c, &
-                                    eps_filter, first_cycle_im_time)
-
-      DEALLOCATE (proc_map)
-      DEALLOCATE (sizes_array)
-      DEALLOCATE (starts_array)
-      DEALLOCATE (ends_array)
-      DEALLOCATE (local_C)
+      DEALLOCATE (num_entries_blocks_send, num_entries_blocks_rec)
+      DEALLOCATE (entry_counter)
+      DEALLOCATE (blk_counter)
+      DEALLOCATE (row_block_from_index)
+      DEALLOCATE (rows_to_allocate, cols_to_allocate)
+      DEALLOCATE (counter_blk_to_alloc)
 
       CALL timestop(handle)
 
-   END SUBROUTINE replicate_mat_to_subgroup_im_time
-
-! **************************************************************************************************
-!> \brief fill dbcsr matrix mat_dm_loc
-!> \param para_env_sub ...
-!> \param mat_dm_loc ...
-!> \param Cread ...
-!> \param number_of_level ...
-!> \param blk ...
-!> \param row ...
-!> \param col ...
-!> \param row_size ...
-!> \param col_size ...
-!> \param row_offset ...
-!> \param col_offset ...
-!> \param i_global ...
-!> \param j_global ...
-!> \param my_mu_start ...
-!> \param my_mu_end ...
-!> \param iter ...
-!> \param data_block ...
-!> \param ends_array ...
-!> \param proc_map ...
-!> \param sizes_array ...
-!> \param starts_array ...
-!> \author Jan Wilhelm
-! **************************************************************************************************
-   SUBROUTINE build_mat_dm_loc(para_env_sub, mat_dm_loc, Cread, &
-                               number_of_level, blk, row, col, row_size, col_size, row_offset, &
-                               col_offset, i_global, j_global, my_mu_start, my_mu_end, &
-                               iter, data_block, ends_array, proc_map, &
-                               sizes_array, starts_array)
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Cread
-      INTEGER                                            :: number_of_level, blk, row, col, &
-                                                            row_size, col_size, row_offset, &
-                                                            col_offset, i_global, j_global, &
-                                                            my_mu_start, my_mu_end
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, proc_map, sizes_array, &
-                                                            starts_array
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mat_dm_loc', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, i, j, proc_receive, proc_send, &
-                                                            proc_shift, rec_mu_end, rec_mu_size, &
-                                                            rec_mu_start
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rec_C
-
-      CALL timeset(routineN, handle)
-
-      ! accumulate data on mat_dm_loc starting from myself
-      CALL cp_dbcsr_iterator_start(iter, mat_dm_loc)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
-                                           row_size=row_size, col_size=col_size, &
-                                           row_offset=row_offset, col_offset=col_offset)
-         DO i = 1, row_size
-            i_global = row_offset+i-1
-            IF (i_global >= my_mu_start .AND. i_global <= my_mu_end) THEN
-               DO j = 1, col_size
-                  j_global = col_offset+j-1
-                  data_block(i, j) = Cread(i_global-my_mu_start+1, col_offset+j-1)
-               ENDDO
-            END IF
-         ENDDO
-      ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
-
-      ! start ring communication in the subgroup for collecting the data from the other
-      ! proc (occupied)
-      DO proc_shift = 1, para_env_sub%num_pe-1
-         proc_send = proc_map(para_env_sub%mepos+proc_shift)
-         proc_receive = proc_map(para_env_sub%mepos-proc_shift)
-
-         rec_mu_start = starts_array(proc_receive)
-         rec_mu_end = ends_array(proc_receive)
-         rec_mu_size = sizes_array(proc_receive)
-
-         ALLOCATE (rec_C(rec_mu_size, number_of_level))
-         rec_C = 0.0_dp
-
-         ! then send and receive the real data
-         CALL mp_sendrecv(Cread, proc_send, rec_C, proc_receive, para_env_sub%group)
-
-         ! accumulate data on mat_dm_loc the data received from proc_rec
-         CALL cp_dbcsr_iterator_start(iter, mat_dm_loc)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
-                                              row_size=row_size, col_size=col_size, &
-                                              row_offset=row_offset, col_offset=col_offset)
-            DO i = 1, row_size
-               i_global = row_offset+i-1
-               IF (i_global >= rec_mu_start .AND. i_global <= rec_mu_end) THEN
-                  DO j = 1, col_size
-                     j_global = col_offset+j-1
-                     data_block(i, j) = rec_C(i_global-rec_mu_start+1, col_offset+j-1)
-                  ENDDO
-               END IF
-            ENDDO
-         ENDDO
-         CALL cp_dbcsr_iterator_stop(iter)
-
-         DEALLOCATE (rec_C)
-
-      END DO
-
-      DEALLOCATE (Cread)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE build_mat_dm_loc
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1103,18 +1091,21 @@ CONTAINS
 !> \param unit_nr ...
 !> \param matrix_name ...
 !> \param para_env ...
+!> \param one_number ...
 ! **************************************************************************************************
-   SUBROUTINE print_occupation_2c(mat_munu, unit_nr, matrix_name, para_env)
+   SUBROUTINE print_occupation_2c(mat_munu, unit_nr, matrix_name, para_env, one_number)
       TYPE(cp_dbcsr_type), POINTER                       :: mat_munu
       INTEGER                                            :: unit_nr
       CHARACTER(len=*)                                   :: matrix_name
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, OPTIONAL                                  :: one_number
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_occupation_2c', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, imepos
       INTEGER, DIMENSION(:, :), POINTER                  :: req_array
+      LOGICAL                                            :: my_one_number
       REAL(KIND=dp)                                      :: local_occupation, max_occupation, &
                                                             min_occupation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupation
@@ -1122,6 +1113,12 @@ CONTAINS
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
       CALL timeset(routineN, handle)
+
+      IF (PRESENT(one_number)) THEN
+         my_one_number = one_number
+      ELSE
+         my_one_number = .FALSE.
+      END IF
 
       local_occupation = cp_dbcsr_get_occupation(mat_munu)
 
@@ -1173,9 +1170,19 @@ CONTAINS
 
       DEALLOCATE (buffer_send, buffer_rec, occupation)
 
-      ! print fraction of non-zero blocks
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T64,ES7.1,A,T74,ES7.1)") &
-         "MATRIX_INFO| Frac. of non-zero bl. in ", matrix_name, ":", min_occupation, ' -', max_occupation
+      IF (my_one_number) THEN
+
+         ! print fraction of non-zero blocks
+         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T74,ES7.1)") &
+            "MATRIX_INFO| Frac. of non-zero bl. in ", matrix_name, ":", max_occupation
+
+      ELSE
+
+         ! print fraction of non-zero blocks
+         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,A,A,T64,ES7.1,A,T74,ES7.1)") &
+            "MATRIX_INFO| Frac. of non-zero bl. in ", matrix_name, ":", min_occupation, ' -', max_occupation
+
+      END IF
 
       CALL timestop(handle)
 
@@ -1283,19 +1290,32 @@ CONTAINS
 !> \param nmo ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
+!> \param mat_dm_occ_global ...
+!> \param mat_dm_virt_global ...
+!> \param matrix_s ...
 !> \param Eigenval ...
 !> \param e_fermi ...
+!> \param eps_filter ...
+!> \param memory_info ...
+!> \param unit_nr ...
+!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE precompute_fm_scaled_dm_tau(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
-                                          fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, e_fermi)
+                                          fm_mo_coeff_occ, fm_mo_coeff_virt, mat_dm_occ_global, mat_dm_virt_global, &
+                                          matrix_s, Eigenval, e_fermi, eps_filter, memory_info, unit_nr, para_env)
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj
       INTEGER                                            :: num_integ_points, nmo
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_dm_occ_global, mat_dm_virt_global, &
+                                                            matrix_s
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      REAL(KIND=dp)                                      :: e_fermi
+      REAL(KIND=dp)                                      :: e_fermi, eps_filter
+      LOGICAL                                            :: memory_info
+      INTEGER                                            :: unit_nr
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'precompute_fm_scaled_dm_tau', &
          routineP = moduleN//':'//routineN
@@ -1399,6 +1419,51 @@ CONTAINS
          first_cycle_im_time = .FALSE.
 
       END DO ! tau points
+
+      ! transfer fm density matrices to dbcsr matrix
+      NULLIFY (mat_dm_occ_global)
+      CALL cp_dbcsr_allocate_matrix_set(mat_dm_occ_global, num_integ_points)
+      DO jquad = 1, num_integ_points
+         ALLOCATE (mat_dm_occ_global(jquad)%matrix)
+         CALL cp_dbcsr_init(mat_dm_occ_global(jquad)%matrix)
+         CALL cp_dbcsr_create(matrix=mat_dm_occ_global(jquad)%matrix, &
+                              template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(fm_scaled_dm_occ_tau(jquad)%matrix, &
+                               mat_dm_occ_global(jquad)%matrix, &
+                               keep_sparsity=.FALSE.)
+
+         CALL cp_dbcsr_filter(mat_dm_occ_global(jquad)%matrix, eps_filter)
+
+      END DO
+
+      NULLIFY (mat_dm_virt_global)
+      CALL cp_dbcsr_allocate_matrix_set(mat_dm_virt_global, num_integ_points)
+      DO jquad = 1, num_integ_points
+         ALLOCATE (mat_dm_virt_global(jquad)%matrix)
+         CALL cp_dbcsr_init(mat_dm_virt_global(jquad)%matrix)
+         CALL cp_dbcsr_create(matrix=mat_dm_virt_global(jquad)%matrix, &
+                              template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(fm_scaled_dm_virt_tau(jquad)%matrix, &
+                               mat_dm_virt_global(jquad)%matrix, &
+                               keep_sparsity=.FALSE.)
+
+         CALL cp_dbcsr_filter(mat_dm_virt_global(jquad)%matrix, eps_filter)
+
+      END DO
+
+      IF (memory_info) THEN
+
+         DO jquad = 1, num_integ_points
+            CALL print_occupation_2c(mat_dm_occ_global(jquad)%matrix, unit_nr, "D_occ(it)", para_env, one_number=.TRUE.)
+         END DO
+
+         DO jquad = 1, num_integ_points
+            CALL print_occupation_2c(mat_dm_virt_global(jquad)%matrix, unit_nr, "D_virt(it)", para_env, one_number=.TRUE.)
+         END DO
+
+      END IF
 
       CALL timestop(handle)
 
@@ -2330,110 +2395,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_dm_loc_cut ...
-!> \param mat_dm_loc ...
-!> \param cut_memory ...
-!> \param cut_RI ...
-!> \param starts_array_cm ...
-!> \param ends_array_cm ...
-!> \param non_zero_rows_3c ...
-!> \param eps_filter ...
-!> \param first_cycle_im_time ...
-! **************************************************************************************************
-   SUBROUTINE setup_mat_for_mem_cut_2c(mat_dm_loc_cut, mat_dm_loc, cut_memory, cut_RI, starts_array_cm, &
-                                       ends_array_cm, non_zero_rows_3c, eps_filter, first_cycle_im_time)
-
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_dm_loc_cut
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
-      INTEGER                                            :: cut_memory, cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_rows_3c
-      REAL(KIND=dp)                                      :: eps_filter
-      LOGICAL                                            :: first_cycle_im_time
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_mat_for_mem_cut_2c', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: blk, col, handle, i_cut_RI, i_mem, row, &
-                                                            row_end_in_data_block, row_offset, &
-                                                            row_size, row_start_in_data_block
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
-
-      CALL timeset(routineN, handle)
-
-      DO i_mem = 1, cut_memory
-
-         DO i_cut_RI = 1, cut_RI
-
-            CALL cp_dbcsr_set(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, 0.0_dp)
-
-            IF (first_cycle_im_time) THEN
-
-               CALL cp_dbcsr_copy(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, mat_dm_loc)
-
-               CALL cp_dbcsr_iterator_start(iter, mat_dm_loc_cut(i_cut_RI, i_mem)%matrix)
-               DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-                  CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
-                                                    row_size=row_size, row_offset=row_offset)
-
-                  ! set the block to zero if it is outside the range for cutting the mu-sigma combined index
-                  IF (row_offset > ends_array_cm(i_mem) .OR. &
-                      row_offset+row_size-1 < starts_array_cm(i_mem)) THEN
-
-                     data_block = 0.0_dp
-
-                  END IF
-
-                  ! screen blocks since corresponding blocks in 3c overlap integrals may be
-                  ! all zero and block in dm_loc is not needed
-                  IF (.NOT. ANY(non_zero_rows_3c(i_cut_RI, :, :) == col)) THEN
-
-                     data_block = 0.0_dp
-
-                  END IF
-
-                  IF (row_offset >= ends_array_cm(i_mem) .AND. &
-                      row_offset+row_size-1 < ends_array_cm(i_mem)) THEN
-
-                     row_end_in_data_block = ends_array_cm(i_mem)-row_offset+1
-
-                     data_block(row_end_in_data_block+1:row_size, :) = 0.0_dp
-
-                  END IF
-
-                  IF (row_offset > starts_array_cm(i_mem) .AND. &
-                      row_offset+row_size-1 <= starts_array_cm(i_mem)) THEN
-
-                     row_start_in_data_block = starts_array_cm(i_mem)
-
-                     data_block(1:row_start_in_data_block-1, :) = 0.0_dp
-
-                  END IF
-
-               END DO
-
-               CALL cp_dbcsr_iterator_stop(iter)
-
-            ELSE
-
-               CALL cp_dbcsr_copy(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, mat_dm_loc, keep_sparsity=.TRUE.)
-
-            END IF
-
-            ! remove the small and zeroed blocks
-            CALL cp_dbcsr_filter(mat_dm_loc_cut(i_cut_RI, i_mem)%matrix, eps_filter)
-
-         END DO
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
 !> \param para_env ...
 !> \param num_entries_rec ...
 !> \param num_entries_send ...
@@ -2492,6 +2453,19 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat_dm_occ_global ...
+!> \param mat_dm_virt_global ...
+! **************************************************************************************************
+   SUBROUTINE clean_up(mat_dm_occ_global, mat_dm_virt_global)
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_dm_occ_global, mat_dm_virt_global
+
+      CALL cp_dbcsr_deallocate_matrix_set(mat_dm_occ_global)
+      CALL cp_dbcsr_deallocate_matrix_set(mat_dm_virt_global)
 
    END SUBROUTINE
 
