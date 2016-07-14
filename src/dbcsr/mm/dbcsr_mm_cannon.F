@@ -747,7 +747,7 @@ CONTAINS
                      dbcsr_distribution_has_col_clusters(matrix_right%m%dist)
       !
       ! Temporary check for experimental MPI algorithms, exclude transpose matrix case
-      IF (transpose_right .OR. transpose_left .OR. (has_clusters .AND. nprows .NE. npcols)) THEN
+      IF (transpose_right .OR. transpose_left) THEN
          my_use_mpi_exp = .FALSE.
          IF (use_mpi_exp .AND. num_multiplications .EQ. 0) &
             CPWARN('Cannot run experimental algorithm! Use isend/irecv algorithm instead.')
@@ -5068,7 +5068,7 @@ CONTAINS
       INTEGER, DIMENSION(dbcsr_slot_nblkrows_total:&
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
       LOGICAL :: do_bcast, do_diagonal, do_k_scatter, do_rec, do_scatter, is_diagonal, &
-         keep_sparsity, left_set_displ, otf_filtering, right_set_displ
+         is_not_virtual, keep_sparsity, left_set_displ, otf_filtering, right_set_displ
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: common_unmerged
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: left_nofiltered, right_nofiltered
       REAL(kind=sp)                                      :: filter_eps_sp, min_row_max_epss
@@ -5172,12 +5172,18 @@ CONTAINS
       CALL dbcsr_mp_grid_setup(product_mp_obj)
       CALL dbcsr_mp_grid_setup(left_mp_obj)
       CALL dbcsr_mp_grid_setup(right_mp_obj)
-      do_bcast = right_col_nimages .NE. 1 .AND. left_row_nimages .NE. 1
       is_diagonal = myprow .EQ. mypcol
+      is_not_virtual = right_row_mult .EQ. right_row_nimages .AND. &
+                       right_col_mult .EQ. right_col_nimages
+      do_bcast = right_col_nimages .NE. 1 .AND. &
+                 left_row_nimages .NE. 1 .AND. &
+                 is_not_virtual
       do_scatter = right_npcols .GT. 1 .AND. .NOT. is_diagonal .AND. &
-                   right_col_nimages .GT. 1 .AND. .NOT. has_acc
+                   right_col_nimages .GT. 1 .AND. .NOT. has_acc .AND. &
+                   is_not_virtual
       do_diagonal = right_npcols .GT. 1 .AND. is_diagonal .AND. &
-                    right_col_nimages .GT. 1 .AND. .NOT. has_acc
+                    right_col_nimages .GT. 1 .AND. .NOT. has_acc .AND. &
+                    is_not_virtual
       !
       ! Dummy checks
       ! subcommunicators
@@ -5216,7 +5222,8 @@ CONTAINS
       !
       ! Exchange product matrix blocks coodinates
       IF (keep_sparsity .AND. right_npcols .GT. 1 .AND. &
-          right_col_nimages .GT. 1 .AND. .NOT. has_acc) THEN
+          right_col_nimages .GT. 1 .AND. .NOT. has_acc .AND. &
+          is_not_virtual) THEN
          IF (do_diagonal) THEN
             meta_size_scatter = product_matrix%m%index(dbcsr_slot_size)
          ENDIF
@@ -5264,7 +5271,8 @@ CONTAINS
       ENDIF
       !
       CALL timeset(routineN//"_scatter", handle2)
-      IF (right_npcols .GT. 1 .AND. right_col_nimages .GT. 1 .AND. .NOT. has_acc) THEN
+      IF (right_npcols .GT. 1 .AND. right_col_nimages .GT. 1 .AND. &
+          .NOT. has_acc .AND. is_not_virtual) THEN
          CALL mp_waitall(requests_scatter)
          IF (keep_sparsity) THEN
             CALL mp_wait(request_product_matrix)
@@ -5832,8 +5840,8 @@ CONTAINS
             DO v_ki = 0, min_nimages-1
                ! Right
                CALL cannon_transfer_rma(v_ki, buffers_comm%right%vprow, &
-                                        right_row_nimages, right_col_nimages, &
-                                        right_row_total_nimages, &
+                                        right_row_nimages, right_row_total_nimages, &
+                                        do_bcast, &
                                         right_vunmerged(:, metronome), right_vmerged(:, :, metronome), &
                                         right_displ_vunmerged, &
                                         right_v_i, right_nofiltered(:, :, metronome), right_set_displ, &
@@ -5847,8 +5855,8 @@ CONTAINS
                                         right_meta_offset_diag, right_data_offset_diag)
                ! Left
                CALL cannon_transfer_rma(v_ki, buffers_comm%left%vpcol, &
-                                        left_col_nimages, left_row_nimages, &
-                                        left_col_total_nimages, &
+                                        left_col_nimages, left_col_total_nimages, &
+                                        do_bcast, &
                                         left_vunmerged(:, metronome), left_vmerged(:, :, metronome), &
                                         left_displ_vunmerged, &
                                         left_v_i, left_nofiltered(:, :, metronome), left_set_displ, &
@@ -6275,8 +6283,8 @@ CONTAINS
 !> \param v_ki ...
 !> \param vpunmerged ...
 !> \param unmerged_nimages ...
-!> \param merged_nimages ...
 !> \param unmerged_total_nimages ...
+!> \param do_bcast ...
 !> \param vunmerged ...
 !> \param vmerged ...
 !> \param displ_vunmerged ...
@@ -6305,8 +6313,8 @@ CONTAINS
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE cannon_transfer_rma(v_ki, vpunmerged, &
-                                  unmerged_nimages, merged_nimages, &
-                                  unmerged_total_nimages, &
+                                  unmerged_nimages, unmerged_total_nimages, &
+                                  do_bcast, &
                                   vunmerged, vmerged, &
                                   displ_vunmerged, &
                                   v_i, nofiltered, set_displ, &
@@ -6318,7 +6326,8 @@ CONTAINS
                                   data_get, data_type_byte, &
                                   buffer_orig, meta_offset_diag, data_offset_diag)
       INTEGER, INTENT(IN)                                :: v_ki, vpunmerged, unmerged_nimages, &
-                                                            merged_nimages, unmerged_total_nimages
+                                                            unmerged_total_nimages
+      LOGICAL, INTENT(IN)                                :: do_bcast
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: vunmerged
       INTEGER, DIMENSION(:, 0:), INTENT(IN)              :: vmerged
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: displ_vunmerged
@@ -6366,7 +6375,7 @@ CONTAINS
             data_size = data_size+refs_data_size(displ_vunmerged(recv_vunmerged)+ui)
             !
             ! Check for diagonal images and do the local copy
-            IF (merged_nimages .GT. 1 .AND. vmerged(ui, v_ki) .EQ. recv_vunmerged) THEN
+            IF (do_bcast .AND. vmerged(ui, v_ki) .EQ. recv_vunmerged) THEN
                buffer%nrequests = buffer%nrequests+1
                buffer%get_requests_map(1, buffer%nrequests) = v_ki+1
                buffer%get_requests_map(2, buffer%nrequests) = v_ki+1
@@ -6450,7 +6459,7 @@ CONTAINS
             buffer%offset(:, v_i+1) = buffer%offset(:, v_i)
             dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
          ENDIF
-         IF (merged_nimages .GT. 1 .AND. vmerged(ui, v_ki) .EQ. recv_vunmerged) THEN
+         IF (do_bcast .AND. vmerged(ui, v_ki) .EQ. recv_vunmerged) THEN
             meta_offset_diag = meta_offset_diag+ &
                                refs_meta_size(vmerged(ui, v_ki), recv_vunmerged)
             data_offset_diag = data_offset_diag+ &
