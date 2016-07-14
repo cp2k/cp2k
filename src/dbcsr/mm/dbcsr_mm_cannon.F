@@ -1635,7 +1635,7 @@ CONTAINS
       ALLOCATE (img_refs_rows(nimages_unmerged), img_refs_cols(nimages_unmerged))
       !
       g2l_map_rows(:) = 0
-      IF (is_left .OR. .NOT. (nrows_images .GT. 1 .OR. do_symmetry)) THEN
+      IF (is_left .OR. nrows_images .EQ. 1) THEN
          ! Use merge global -> local indexing
          DO row = 1, nblkrows_local
             g2l_map_rows(local_rows(row)) = row
@@ -1643,27 +1643,16 @@ CONTAINS
          img_refs_rows(1) = nblkrows_local
       ELSE
          img_refs_rows(:) = 0
-         IF (nrows_images .GT. 1) THEN
-            DO row = 1, nblkrows_local
-               row_img = row_img_dist(local_rows(row))
-               mi = MOD(row_img-1, nrows_images)+1
-               img_refs_rows(mi) = img_refs_rows(mi)+1
-               g2l_map_rows(local_rows(row)) = img_refs_rows(mi)
-            ENDDO
-         ELSE
-            ! Symmetric case, swap row with col images
-            img_refs_rows(:) = 0
-            DO row = 1, nblkrows_local
-               col_img = col_img_dist(local_rows(row))
-               mi = MOD(col_img-1, ncols_images)+1
-               img_refs_rows(mi) = img_refs_rows(mi)+1
-               g2l_map_rows(local_rows(row)) = img_refs_rows(mi)
-            ENDDO
-         ENDIF
+         DO row = 1, nblkrows_local
+            row_img = row_img_dist(local_rows(row))
+            mi = MOD(row_img-1, nrows_images)+1
+            img_refs_rows(mi) = img_refs_rows(mi)+1
+            g2l_map_rows(local_rows(row)) = img_refs_rows(mi)
+         ENDDO
       ENDIF
       !
       g2l_map_cols(:) = 0
-      IF (.NOT. is_left .OR. .NOT. (ncols_images .GT. 1 .OR. do_symmetry)) THEN
+      IF (.NOT. is_left .OR. ncols_images .EQ. 1) THEN
          ! Use merge global -> local indexing
          DO col = 1, nblkcols_local
             g2l_map_cols(local_cols(col)) = col
@@ -1671,22 +1660,12 @@ CONTAINS
          img_refs_cols(1) = nblkcols_local
       ELSE
          img_refs_cols(:) = 0
-         IF (ncols_images .GT. 1) THEN
-            DO col = 1, nblkcols_local
-               col_img = col_img_dist(local_cols(col))
-               mi = MOD(col_img-1, ncols_images)+1
-               img_refs_cols(mi) = img_refs_cols(mi)+1
-               g2l_map_cols(local_cols(col)) = img_refs_cols(mi)
-            ENDDO
-         ELSE
-            ! Symmetric case, swap col with row images
-            DO col = 1, nblkcols_local
-               row_img = row_img_dist(local_cols(col))
-               mi = MOD(row_img-1, nrows_images)+1
-               img_refs_cols(mi) = img_refs_cols(mi)+1
-               g2l_map_cols(local_cols(col)) = img_refs_cols(mi)
-            ENDDO
-         ENDIF
+         DO col = 1, nblkcols_local
+            col_img = col_img_dist(local_cols(col))
+            mi = MOD(col_img-1, ncols_images)+1
+            img_refs_cols(mi) = img_refs_cols(mi)+1
+            g2l_map_cols(local_cols(col)) = img_refs_cols(mi)
+         ENDDO
       ENDIF
       !
       IF (is_left) THEN
@@ -2329,10 +2308,12 @@ CONTAINS
                   refs_size(imeta, 0:nthreads-1, mi, ui, ilocal_proc)+size_index_unmerged
                !
                DO dst_proc = 1, nprocs_sym
-                  IF (recv_refs(imeta, nthreads, mi, ui, dst_proc) .GT. recv_refs(imeta, 0, mi, ui, dst_proc)) THEN
+                  IF (recv_refs(imeta, nthreads, mi, ui, dst_proc) .GT. &
+                      recv_refs(imeta, 0, mi, ui, dst_proc)) THEN
                      DO it = 0, nthreads-1
                         ! Copy meta, block by block
-                        IF (recv_refs(imeta, it+1, mi, ui, dst_proc) .GT. recv_refs(imeta, it, mi, ui, dst_proc)) THEN
+                        IF (recv_refs(imeta, it+1, mi, ui, dst_proc) .GT. &
+                            recv_refs(imeta, it, mi, ui, dst_proc)) THEN
                            DO blk = recv_refs(imeta, it, mi, ui, dst_proc), &
                                     recv_refs(imeta, it+1, mi, ui, dst_proc)-1, 3
                               buffer%meta(refs_size(imeta, it, mi, ui, ilocal_proc)) = &
