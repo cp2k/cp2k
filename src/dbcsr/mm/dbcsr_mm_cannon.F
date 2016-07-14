@@ -255,7 +255,6 @@ MODULE dbcsr_mm_cannon
    INTEGER, DIMENSION(8), PRIVATE  :: requests
    INTEGER, DIMENSION(4), PRIVATE  :: requests_diag
    INTEGER, DIMENSION(2), PRIVATE  :: requests_scatter
-   LOGICAL, PRIVATE                :: my_use_mpi_exp
 
    TYPE dbcsr_mm_multrec_type_p
       TYPE(dbcsr_mm_multrec_type), POINTER :: p => Null()
@@ -746,17 +745,8 @@ CONTAINS
                      dbcsr_distribution_has_row_clusters(matrix_right%m%dist) .OR. &
                      dbcsr_distribution_has_col_clusters(matrix_right%m%dist)
       !
-      ! Temporary check for experimental MPI algorithms, exclude transpose matrix case
-      IF (transpose_right .OR. transpose_left) THEN
-         my_use_mpi_exp = .FALSE.
-         IF (use_mpi_exp .AND. num_multiplications .EQ. 0) &
-            CPWARN('Cannot run experimental algorithm! Use isend/irecv algorithm instead.')
-      ELSE
-         my_use_mpi_exp = use_mpi_exp
-      ENDIF
-      !
       ! No dense multiplication and local indexing when 2D clustering is used.
-      IF (my_use_mpi_exp) THEN
+      IF (use_mpi_exp) THEN
          use_dense_mult = .FALSE.
       ENDIF
       ! we skip dense multiply for (anti)symmetric matrices (slowdown for S/H * C)
@@ -885,7 +875,7 @@ CONTAINS
       !
       ! Compute number of images (rows and columns)
       ! By construction clusters require RMA algo
-      IF (my_use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_left%m%dist)) THEN
+      IF (use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_left%m%dist)) THEN
          nimages_left_rows = dbcsr_distribution_num_local_row_clusters(matrix_left%m%dist)* &
                              dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%m%dist))
       ELSE
@@ -893,10 +883,10 @@ CONTAINS
          nimages_left_rows = dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%m%dist))
       ENDIF
       !
-      IF (my_use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_left%m%dist)) THEN
+      IF (use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_left%m%dist)) THEN
          nimages_match = dbcsr_distribution_num_local_col_clusters(matrix_left%m%dist)* &
                          dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%m%dist))
-      ELSE IF (my_use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_right%m%dist)) THEN
+      ELSE IF (use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_right%m%dist)) THEN
          nimages_match = dbcsr_distribution_num_local_row_clusters(matrix_right%m%dist)* &
                          dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_right%m%dist))
       ELSE
@@ -908,7 +898,7 @@ CONTAINS
                          dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%m%dist)))
       ENDIF
       !
-      IF (my_use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_right%m%dist)) THEN
+      IF (use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_right%m%dist)) THEN
          nimages_right_cols = dbcsr_distribution_num_local_col_clusters(matrix_right%m%dist)* &
                               dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%m%dist))
       ELSE
@@ -1011,7 +1001,7 @@ CONTAINS
       CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
       product_matrix%m%valid = .FALSE.
       !
-      IF (my_use_mpi_exp) THEN
+      IF (use_mpi_exp) THEN
          !
          max_nblocks = product_matrix%m%nblks
          !
@@ -1019,6 +1009,7 @@ CONTAINS
          CALL dbcsr_make_buffers(matrix_right, rdist_right, .FALSE., &
                                  f_k, l_k, f_col, l_col, &
                                  PRESENT(filter_eps), &
+                                 transpose_right, &
                                  has_acc, &
                                  alpha)
          !
@@ -1026,6 +1017,7 @@ CONTAINS
          CALL dbcsr_make_buffers(matrix_left, rdist_left, .TRUE., &
                                  f_row, l_row, f_k, l_k, &
                                  PRESENT(filter_eps), &
+                                 transpose_left, &
                                  has_acc)
       ELSE
          product_matrix%m%nblks = 0
@@ -1061,7 +1053,7 @@ CONTAINS
       f_k = 0; l_k = 0
       !
       my_flop = 0
-      IF (my_use_mpi_exp) THEN
+      IF (use_mpi_exp) THEN
          IF (has_clusters) THEN
             IF (do_layers_3D .AND. num_multiplications .EQ. 0) &
                CPWARN('Cannot make layers with clusters distribution!')
@@ -1131,7 +1123,7 @@ CONTAINS
          CALL dbcsr_release(product_matrix)
       ENDIF
       !
-      IF (.NOT. my_use_mpi_exp) THEN
+      IF (.NOT. use_mpi_exp) THEN
          CALL dbcsr_destroy_array(m2s_left)
          DEALLOCATE (m2s_left)
          CALL dbcsr_destroy_array(m2s_right)
@@ -1337,19 +1329,20 @@ CONTAINS
 !> \param f_col ...
 !> \param l_col ...
 !> \param otf_filtering ...
+!> \param transpose ...
 !> \param has_acc ...
 !> \param alpha ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE dbcsr_make_buffers(matrix, imgdist, is_left, &
                                  f_row, l_row, f_col, l_col, &
-                                 otf_filtering, has_acc, &
-                                 alpha)
+                                 otf_filtering, transpose, &
+                                 has_acc, alpha)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
-      LOGICAL, INTENT(IN)                                :: otf_filtering, has_acc
+      LOGICAL, INTENT(IN)                                :: otf_filtering, transpose, has_acc
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: alpha
 
       LOGICAL                                            :: do_scale
@@ -1363,10 +1356,10 @@ CONTAINS
       !
       IF (do_scale) THEN
          CALL make_buffers(matrix, imgdist, is_left, &
-                           f_row, l_row, f_col, l_col, otf_filtering, has_acc, alpha)
+                           f_row, l_row, f_col, l_col, otf_filtering, transpose, has_acc, alpha)
       ELSE
          CALL make_buffers(matrix, imgdist, is_left, &
-                           f_row, l_row, f_col, l_col, otf_filtering, has_acc)
+                           f_row, l_row, f_col, l_col, otf_filtering, transpose, has_acc)
       ENDIF
    END SUBROUTINE dbcsr_make_buffers
 
@@ -1380,19 +1373,20 @@ CONTAINS
 !> \param f_col ...
 !> \param l_col ...
 !> \param otf_filtering ...
+!> \param transpose ...
 !> \param has_acc ...
 !> \param scale_value ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE make_buffers(matrix, imgdist, is_left, &
                            f_row, l_row, f_col, l_col, &
-                           otf_filtering, has_acc, &
+                           otf_filtering, transpose, has_acc, &
                            scale_value)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
-      LOGICAL, INTENT(IN)                                :: otf_filtering, has_acc
+      LOGICAL, INTENT(IN)                                :: otf_filtering, transpose, has_acc
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: scale_value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_buffers', routineP = moduleN//':'//routineN
@@ -1524,10 +1518,10 @@ CONTAINS
          nprocs_sym = dbcsr_mp_numnodes(mp_obj)
       ELSE
          sym_p = blacs2mpi(mypcol, myprow)
-         IF (do_symmetry) THEN
+         IF (do_symmetry .OR. transpose) THEN
             ! Symmetric case requires a communication with the
             ! symmetric processor
-            nprocs_sym = nsymmetries
+            nprocs_sym = 2
          ELSE
             nprocs_sym = 1
          ENDIF
@@ -1747,7 +1741,7 @@ CONTAINS
 !$OMP         meta_size_diag,data_size_diag,pdiag,buffer,&
 !$OMP         left_total_row_counts,otf_filtering,meta_size_diag_scatter,&
 !$OMP         request_meta_size_diag,request_data_size_diag,&
-!$OMP         no_empty_images,local_no_empty_images,&
+!$OMP         no_empty_images,local_no_empty_images,transpose,&
 !$OMP         request_no_empty_images,irequests,do_win_free,do_win_create,&
 !$OMP         meta_size_scatter,data_size_scatter,iproc,&
 !$OMP         scatter_images_proc,scatter_images,do_virt,handle2,&
@@ -1826,7 +1820,7 @@ CONTAINS
                                   shifting='0')
             IF (do_virt) THEN
                dst_proc = blacs2mpi(prow, pcol)+1
-            ELSEIF (do_symmetry) THEN
+            ELSEIF (do_symmetry .OR. transpose) THEN
                ! Avoid unnecessary copy of data for diagonal procs
                IF (blacs2mpi(prow, pcol) .EQ. mynode .OR. is_diagonal) THEN
                   dst_proc = ilocal_proc
@@ -1848,7 +1842,7 @@ CONTAINS
       ENDDO
       CALL dbcsr_iterator_stop(iter)
       ! Avoid unnecessary copy if data is already local
-      IF (do_virt .OR. (do_symmetry .AND. .NOT. is_diagonal)) THEN
+      IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
 !$OMP BARRIER
 !$OMP MASTER
          ALLOCATE (recv_refs(idata:imeta, &
@@ -1883,7 +1877,7 @@ CONTAINS
          ENDDO
 !$OMP END DO
       ENDIF
-      IF (do_virt .OR. (do_symmetry .AND. (.NOT. is_diagonal))) THEN
+      IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. (.NOT. is_diagonal))) THEN
 !$OMP DO COLLAPSE(4)
          DO dst_proc = 1, nprocs_sym
             DO ui = 1, nimages_unmerged
@@ -2046,7 +2040,7 @@ CONTAINS
       ENDIF
       !
       ! Take offsets for virtual and symmetric case
-      IF (do_virt .OR. (do_symmetry .AND. (.NOT. is_diagonal))) THEN
+      IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. (.NOT. is_diagonal))) THEN
          ! Set recv buffer sizes and offsets
          recv_size(:, 1) = 1
          IF (do_virt) recv_displ(:, 1) = 0
@@ -2168,7 +2162,7 @@ CONTAINS
                                   shifting='0')
             IF (do_virt) THEN
                dst_proc = blacs2mpi(prow, pcol)+1
-            ELSEIF (do_symmetry .OR. is_diagonal) THEN
+            ELSEIF (do_symmetry .OR. transpose .OR. is_diagonal) THEN
                IF (is_diagonal) THEN
                   IF (do_bcast .AND. (ui .EQ. mi .OR. nimages_merged .EQ. 1)) THEN
                      data_buffer_p => buffer%data_diag
@@ -2214,7 +2208,7 @@ CONTAINS
             ENDIF
             !
             ! Set meta data (global indexing)
-            IF (do_virt .OR. (do_symmetry .AND. blacs2mpi(prow, pcol) .NE. mynode)) THEN
+            IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. blacs2mpi(prow, pcol) .NE. mynode)) THEN
                meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)) = stored_row
                meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)+1) = stored_col
                ! Reset data position per each proc
@@ -2238,7 +2232,7 @@ CONTAINS
       ENDDO
       CALL dbcsr_iterator_stop(iter)
       !
-      IF (do_virt .OR. (do_symmetry .AND. .NOT. is_diagonal)) THEN
+      IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
 !$OMP BARRIER
 !$OMP MASTER
          CALL dbcsr_data_init(data_recv)
@@ -2286,7 +2280,7 @@ CONTAINS
             IF (local_refs_size(imeta, mi, ui) .EQ. 0) CYCLE
             !
             ! Insert symmetric/remote data in local buffers
-            IF (do_virt .OR. (do_symmetry .AND. .NOT. is_diagonal)) THEN
+            IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
                IF (do_virt) THEN
                   ! Reset refs displacement
                   refs_size(:, 0, mi, ui, ilocal_proc) = local_refs_displ(:, mi, ui)+1
@@ -2442,7 +2436,7 @@ CONTAINS
                               size_index_unmerged, is_left)
       ENDIF
       !
-      IF (do_virt .OR. (do_symmetry .AND. .NOT. is_diagonal)) THEN
+      IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
          CALL dbcsr_data_release(data_recv)
          DEALLOCATE (meta_recv, recv_refs)
       ENDIF
@@ -2582,7 +2576,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-      IF (my_use_mpi_exp) &
+      IF (use_mpi_exp) &
          CPABORT("RMA algo not supported here!")
       IF (.NOT. dbcsr_valid_index(source)) &
          CPABORT("Matrix not initialized.")
