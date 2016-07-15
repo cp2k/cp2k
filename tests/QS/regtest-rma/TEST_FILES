@@ -4,4 +4,5 @@ H2O-OT-ASPC-1_clusters.inp                             1      4e-14             
 H2-big-nimages.inp                                    11      2e-13            -27.808422055041138
 H2-big-nimages_clusters.inp                           11      2e-13            -27.808422055041142
 H2-big-nimages_clusters_nofilter.inp                  11      2e-13            -27.808422055041142
+H2O_grad_gpw.inp                                      11      7e-11            -17.082584774463687
 #EOF
