@@ -612,9 +612,11 @@ CONTAINS
                      cpc_h_mix = 0.0_dp
                      cpc_s_mix = 0.0_dp
                      DO jb = 1, nb
-                        cpc_h_mix(:, :) = cpc_h_mix(:, :)+alpha_c(jb)*mixing_store%cpc_h_in_buffer(jb, iatom, ispin)%r_coef(:, :)+ &
+                        cpc_h_mix(:, :) = cpc_h_mix(:, :)+ &
+                                          alpha_c(jb)*mixing_store%cpc_h_in_buffer(jb, iatom, ispin)%r_coef(:, :)+ &
                                           alpha_c(jb)*beta*mixing_store%cpc_h_res_buffer(jb, iatom, ispin)%r_coef(:, :)
-                        cpc_s_mix(:, :) = cpc_s_mix(:, :)+alpha_c(jb)*mixing_store%cpc_s_in_buffer(jb, iatom, ispin)%r_coef(:, :)+ &
+                        cpc_s_mix(:, :) = cpc_s_mix(:, :)+ &
+                                          alpha_c(jb)*mixing_store%cpc_s_in_buffer(jb, iatom, ispin)%r_coef(:, :)+ &
                                           alpha_c(jb)*beta*mixing_store%cpc_s_res_buffer(jb, iatom, ispin)%r_coef(:, :)
                      END DO
                      rho_atom(iatom)%cpc_h(ispin)%r_coef = alpha_pulay*rho_atom(iatom)%cpc_h(ispin)%r_coef+ &

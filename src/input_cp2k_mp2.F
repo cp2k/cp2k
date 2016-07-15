@@ -10,7 +10,8 @@
 !> \author MDB
 ! **************************************************************************************************
 MODULE input_cp2k_mp2
-   USE bibliography,                    ONLY: DelBen2012,&
+   USE bibliography,                    ONLY: Bates2013,&
+                                              DelBen2012,&
                                               DelBen2013,&
                                               DelBen2015,&
                                               DelBen2015b,&
@@ -524,6 +525,17 @@ CONTAINS
 
       CALL keyword_create( &
          keyword=keyword, &
+         name="RI_AXK", &
+         variants=(/"AXK"/), &
+         description="Decide whether to perform an RPA-AXK calculation.", &
+         usage="RI_AXK", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword=keyword, &
          name="ADMM", &
          description="Decide whether to perform ADMM in the exact exchange calc. for RPA and/or GW. "// &
          "Not really recommended. In most cases, the Hartree-Fock exchange is not expensive "// &
@@ -562,7 +574,33 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      ! here we generate a RI_AXK subsection
+      CALL create_ri_axk(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_ri_rpa
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_ri_axk(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_axk', routineP = moduleN//':'//routineN
+
+      !TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "RI_AXK", &
+                          description="Parameters influencing the RI-RPA-AXK method", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE., &
+                          citations=(/Bates2013/))
+
+      !NULLIFY (keyword, subsection)
+
+   END SUBROUTINE create_ri_axk
 
 ! **************************************************************************************************
 !> \brief ...

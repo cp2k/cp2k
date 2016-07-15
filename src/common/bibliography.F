@@ -77,7 +77,8 @@ MODULE bibliography
                             Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, &
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
-                            Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006
+                            Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
+                            Bates2013
 
 CONTAINS
 
@@ -3434,6 +3435,31 @@ CONTAINS
                          "DI 10.1103/PhysRevLett.96.115504", &
                          "ER"), &
                          DOI="10.1103/PhysRevLett.96.115504")
+
+      CALL add_reference(key=Bates2013, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Bates, JE", &
+                         "Furche, F", &
+                         "AF Bates, Jefferson E.", &
+                         "Furche, Filipp", &
+                         "TI Communication: Random phase approximation renormalized many-body", &
+                         "perturbation theory", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "RI Furche, Filipp/G-2020-2011", &
+                         "TC 19", &
+                         "Z9 19", &
+                         "SN 0021-9606", &
+                         "EI 1089-7690", &
+                         "PD NOV 7", &
+                         "PY 2013", &
+                         "VL 139", &
+                         "IS 17", &
+                         "AR 171103", &
+                         "DI 10.1063/1.4827254", &
+                         "UT WOS:000326922300003", &
+                         "PM 24206280", &
+                         "ER"), &
+                         DOI="10.1063/1.4827254")
 
    END SUBROUTINE add_all_references
 

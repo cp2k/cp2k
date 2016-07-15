@@ -11,7 +11,8 @@
 !>      10.2015 Cubic-scaling RPA routines added [Jan Wilhelm]
 ! **************************************************************************************************
 MODULE rpa_ri_gpw
-   USE bibliography,                    ONLY: DelBen2013,&
+   USE bibliography,                    ONLY: Bates2013,&
+                                              DelBen2013,&
                                               DelBen2015,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -21,14 +22,16 @@ MODULE rpa_ri_gpw
         cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
         cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
         cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
+        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+        cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_invert,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_syrk,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -62,6 +65,7 @@ MODULE rpa_ri_gpw
                                               mp2_type,&
                                               two_dim_int_array
    USE rpa_communication,               ONLY: fm_redistribute,&
+                                              gamma_fm_to_dbcsr,&
                                               initialize_buffer,&
                                               release_buffer
    USE rpa_im_time,                     ONLY: compute_fm_mat_Q_omega,&
@@ -204,6 +208,10 @@ CONTAINS
 
       CALL cite_reference(DelBen2013)
       CALL cite_reference(DelBen2015)
+
+      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+         CALL cite_reference(Bates2013)
+      ENDIF
 
       my_open_shell = .FALSE.
       IF (PRESENT(BIb_C_beta) .AND. &
@@ -670,6 +678,13 @@ CONTAINS
             CALL cp_fm_release(fm_mat_S_gw_beta)
          END IF
       END IF
+
+      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+         CALL cp_dbcsr_release(mp2_env%ri_rpa%mo_coeff_o)
+         DEALLOCATE (mp2_env%ri_rpa%mo_coeff_o)
+         CALL cp_dbcsr_release(mp2_env%ri_rpa%mo_coeff_v)
+         DEALLOCATE (mp2_env%ri_rpa%mo_coeff_v)
+      ENDIF
 
       CALL timestop(handle)
 
@@ -1763,15 +1778,17 @@ CONTAINS
          nm_global
       INTEGER :: nmo, nrow_local, num_fit_points, num_real_freq_cont_def, num_residues, num_var, &
          num_x_nodes_max, num_x_nodes_min, num_x_nodes_min_temp, num_x_nodes_step, number_of_rec, &
-         number_of_rec_beta, number_of_send, number_of_send_beta, row_start_local
+         number_of_rec_axk, number_of_rec_beta, number_of_send, number_of_send_axk, &
+         number_of_send_beta, row_start_local
       INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, ends_array_cm, map_rec_size, &
-         map_rec_size_beta, map_send_size, map_send_size_beta, mepos_P_from_RI_row, mo_from_jquad, &
-         my_group_L_sizes_im_time, my_group_L_starts_im_time, residue_from_jquad, RPA_proc_map, &
-         starts_array_cm
+         map_rec_size_axk, map_rec_size_beta, map_send_size, map_send_size_axk, &
+         map_send_size_beta, mepos_P_from_RI_row, mo_from_jquad, my_group_L_sizes_im_time, &
+         my_group_L_starts_im_time, residue_from_jquad, RPA_proc_map, starts_array_cm
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: ends_array_prim_col, ends_array_prim_fullcol, &
-         ends_array_prim_fullrow, ends_array_prim_row, local_size_source, local_size_source_beta, &
-         sizes_array_prim_col, sizes_array_prim_row, starts_array_prim_col, &
-         starts_array_prim_fullcol, starts_array_prim_fullrow, starts_array_prim_row
+         ends_array_prim_fullrow, ends_array_prim_row, local_size_source, local_size_source_axk, &
+         local_size_source_beta, sizes_array_prim_col, sizes_array_prim_row, &
+         starts_array_prim_col, starts_array_prim_fullcol, starts_array_prim_fullrow, &
+         starts_array_prim_row
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_rows_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_indices, row_blk_size, &
                                                             row_indices
@@ -1798,8 +1815,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER :: fm_mat_L, fm_mat_S_contour_def, fm_mat_S_contour_def_beta, &
          fm_mat_S_gw_work, fm_mat_S_gw_work_beta, fm_mat_work
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_rec_beta, &
-                                                            buffer_send, buffer_send_beta
+         DIMENSION(:)                                    :: buffer_rec, buffer_rec_axk, &
+                                                            buffer_rec_beta, buffer_send, &
+                                                            buffer_send_axk, buffer_send_beta
       TYPE(two_dim_int_array), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: offset_combi_block
 
@@ -2169,6 +2187,12 @@ CONTAINS
                                    number_of_rec_beta, number_of_send_beta, &
                                    map_send_size_beta, map_rec_size_beta, local_size_source_beta, para_env_RPA)
          END IF
+         ! Another buffer for AXK RPA
+         IF (mp2_env%ri_rpa%do_ri_axk) THEN
+            CALL initialize_buffer(fm_mat_Q, fm_mat_Q_gemm, RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
+                                   number_of_rec_axk, number_of_send_axk, &
+                                   map_send_size_axk, map_rec_size_axk, local_size_source_axk, para_env_RPA)
+         ENDIF
 
       END IF
 
@@ -3070,6 +3094,18 @@ CONTAINS
 
             CALL timestop(handle3)
 
+            ! Calculate R^(1/2) in case of AXK
+            IF (mp2_env%ri_rpa%do_ri_axk) THEN
+               IF (jquad <= num_integ_points) THEN
+                  CALL compute_R_half(fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
+                                      para_env_sub, &
+                                      para_env_RPA, RPA_proc_map, eigenval, fm_mat_S, homo, virtual, omega, &
+                                      buffer_send_axk, buffer_rec_axk, &
+                                      number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
+                                      local_size_source_axk, mat_munu, mp2_env)
+               ENDIF
+            ENDIF
+
             ! the actual G0W0 calculation
             IF (my_do_gw) THEN
                CALL timeset(routineN//"_G0W0_matrix_operations", handle2)
@@ -3439,6 +3475,12 @@ CONTAINS
       CALL release_buffer(RPA_proc_map, buffer_rec, buffer_send, &
                           number_of_rec, number_of_send, &
                           map_send_size, map_rec_size, local_size_source)
+
+      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+         CALL release_buffer(RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
+                             number_of_rec_axk, number_of_send_axk, &
+                             map_send_size_axk, map_rec_size_axk, local_size_source_axk)
+      ENDIF
 
       IF (my_open_shell) THEN
          CALL release_buffer(RPA_proc_map, buffer_rec_beta, buffer_send_beta, &
@@ -5616,5 +5658,246 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_Q ...
+!> \param fm_mat_Q_gemm ...
+!> \param dimen_RI ...
+!> \param dimen_ia ...
+!> \param para_env_sub ...
+!> \param para_env_RPA ...
+!> \param RPA_proc_map ...
+!> \param eig ...
+!> \param fm_mat_S ...
+!> \param homo ...
+!> \param virtual ...
+!> \param omega ...
+!> \param buffer_send_axk ...
+!> \param buffer_rec_axk ...
+!> \param number_of_send_axk ...
+!> \param map_send_size_axk ...
+!> \param map_rec_size_axk ...
+!> \param local_size_source_axk ...
+!> \param mat_munu ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE compute_R_half(fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
+                             para_env_sub, para_env_RPA, &
+                             RPA_proc_map, eig, fm_mat_S, homo, virtual, omega, &
+                             buffer_send_axk, buffer_rec_axk, &
+                             number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
+                             local_size_source_axk, mat_munu, mp2_env)
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
+      INTEGER                                            :: dimen_RI, dimen_ia
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: RPA_proc_map
+      REAL(KIND=dp), DIMENSION(:)                        :: Eig
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      INTEGER                                            :: homo, virtual
+      REAL(KIND=dp)                                      :: omega
+      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: buffer_send_axk, buffer_rec_axk
+      INTEGER                                            :: number_of_send_axk
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_send_size_axk, map_rec_size_axk
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source_axk
+      TYPE(cp_dbcsr_p_type)                              :: mat_munu
+      TYPE(mp2_type), POINTER                            :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_R_half', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: avirt, handle5, i_global, iib, iocc, &
+                                                            j_global, jjb, kkb, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: eigen_diff, eps_filter
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
+                                                            dbcsr_Gamma_munu_P
+      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o, mo_coeff_v
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
+                                                            fm_mat_R_half, fm_mat_R_half_gemm, &
+                                                            fm_mat_U
+
+      CALL timeset(routineN, handle5)
+
+      ! Eigenvalues
+      ALLOCATE (eigenval(dimen_RI))
+      eigenval = 0.0_dp
+      ! create the R_half and U matrices with a different blacs env similar to Q
+      ! and a tmp_Q needed for diagonalization
+
+      NULLIFY (fm_mat_U)
+      NULLIFY (fm_mat_Q_tmp)
+      NULLIFY (fm_mat_R_half)
+      NULLIFY (fm_mat_Q_tmp)
+      NULLIFY (fm_struct)
+
+      CALL cp_fm_get_info(matrix=fm_mat_Q, &
+                          matrix_struct=fm_struct)
+      CALL cp_fm_create(fm_mat_U, fm_struct, name="fm_mat_U")
+      CALL cp_fm_create(fm_mat_R_half, fm_struct, name="fm_mat_R_half")
+      CALL cp_fm_create(fm_mat_Q_tmp, fm_struct, name="fm_mat_Q_tmp")
+
+      ! Copy Q to Q_tmp
+      !CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_Q_tmp)
+      CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_tmp)
+
+      CALL cp_fm_set_all(matrix=fm_mat_U, alpha=0.0_dp)
+
+      ! Diagonalize Q
+      CALL choose_eigv_solver(fm_mat_Q_tmp, fm_mat_U, eigenval)
+
+      !Calculate diagonal matrix for R_half
+
+      ! U*diag stored in U, whereas eigenvectors are in fm_mat_Q_tmp
+      CALL cp_fm_to_fm(fm_mat_Q_tmp, fm_mat_U)
+      ! Manipulate eigenvalues to get diagonal matrix
+      CALL cp_fm_get_info(matrix=fm_mat_U, &
+                          nrow_local=nrow_local, &
+                          row_indices=row_indices)
+!$OMP  PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,i_global) &
+!$OMP              SHARED(nrow_local,row_indices,eigenval,dimen_RI)
+      DO iiB = 1, nrow_local
+         i_global = row_indices(iiB)
+         IF (i_global <= dimen_RI) THEN
+            eigenval(i_global) = &
+               SQRT((1.0_dp/(eigenval(i_global)**2))*LOG(1.0_dp+eigenval(i_global)) &
+                    -1.0_dp/(eigenval(i_global)*(eigenval(i_global)+1.0_dp)))
+         END IF
+      END DO
+
+      CALL cp_fm_column_scale(fm_mat_U, eigenval)
+
+      ! Get R_half by multiplication
+      CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                   matrix_a=fm_mat_U, matrix_b=fm_mat_Q_tmp, beta=0.0_dp, &
+                   matrix_c=fm_mat_R_half)
+
+      ! get info of fm_mat_S and initialize Gamma_3
+      NULLIFY (fm_mat_Gamma_3)
+      CALL cp_fm_create(fm_mat_Gamma_3, fm_mat_S%matrix_struct)
+      CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
+      CALL cp_fm_get_info(matrix=fm_mat_S, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      ! Update G with a new value of Omega
+
+      ! Here eig are orbital energies, don't confuse with eigenval, which are eigenvalues of Q!
+
+!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Eig,fm_mat_S,virtual,homo,omega)
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+
+            iocc = MAX(1, i_global-1)/virtual+1
+            avirt = i_global-(iocc-1)*virtual
+            eigen_diff = eig(avirt+homo)-eig(iocc)
+
+            fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
+                                            2*SQRT(eigen_diff/(eigen_diff**2+omega**2))
+
+         END DO
+      END DO
+
+      ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
+      NULLIFY (fm_mat_R_half_gemm)
+      CALL cp_fm_create(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
+      CALL cp_fm_set_all(matrix=fm_mat_R_half_gemm, alpha=0.0_dp)
+
+      CALL fm_redistribute(fm_mat_R_half, fm_mat_R_half_gemm, RPA_proc_map, buffer_rec_axk, buffer_send_axk, &
+                           number_of_send_axk, &
+                           map_send_size_axk, map_rec_size_axk, local_size_source_axk, para_env_RPA)
+
+      ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = S'*R^(1/2) )
+      CALL cp_gemm(transa="N", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                   matrix_a=fm_mat_S, matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
+                   matrix_c=fm_mat_Gamma_3)
+
+      !CALL mp_sum(fm_mat_Gamma_3%local_data, para_env%group)
+
+      ! Remove extra factor from S after the multiplication
+!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,eig,fm_mat_S,virtual,homo,omega)
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+
+            iocc = MAX(1, i_global-1)/virtual+1
+            avirt = i_global-(iocc-1)*virtual
+            eigen_diff = eig(avirt+homo)-eig(iocc)
+
+            fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/(2* &
+                                                                           SQRT(eigen_diff/(eigen_diff**2+omega**2)))
+
+         END DO
+      END DO
+
+      ! Reveal mo coefficients in dbcsr format
+      NULLIFY (mo_coeff_o, mo_coeff_v)
+      mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
+      mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
+
+      ! Copy Gamma_ia_P^3 to dbcsr matrix set
+      CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_sub, &
+                             homo, virtual, mo_coeff_o)
+      ! Create more dbcsr matrices
+      CALL cp_fm_get_info(matrix=fm_mat_S, &
+                          ncol_local=ncol_local)
+
+      NULLIFY (dbcsr_Gamma_inu_P)
+      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_inu_P, ncol_local)
+      NULLIFY (dbcsr_Gamma_munu_P)
+      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, ncol_local)
+      eps_filter = mp2_env%mp2_gpw%eps_filter
+
+      DO kkb = 1, ncol_local
+         NULLIFY (dbcsr_Gamma_inu_P(kkb)%matrix)
+         CALL cp_dbcsr_init_p(dbcsr_Gamma_inu_P(kkb)%matrix)
+         CALL cp_dbcsr_create(dbcsr_Gamma_inu_P(kkb)%matrix, template=mo_coeff_o)
+         CALL cp_dbcsr_set(dbcsr_Gamma_inu_P(kkb)%matrix, 0.0_dp)
+         ! Do dbcsr multiplication: transform the virtual index
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(kkb)%matrix, &
+                                0.0_dp, dbcsr_Gamma_inu_P(kkb)%matrix, filter_eps=eps_filter)
+         NULLIFY (dbcsr_Gamma_munu_P(kkb)%matrix)
+         CALL cp_dbcsr_init_p(dbcsr_Gamma_munu_P(kkb)%matrix)
+         CALL cp_dbcsr_create(dbcsr_Gamma_munu_P(kkb)%matrix, template=mat_munu%matrix, &
+                              matrix_type=dbcsr_type_no_symmetry)
+         CALL cp_dbcsr_set(dbcsr_Gamma_munu_P(kkb)%matrix, 0.0_dp)
+         !Do dbcsr multiplication: transform the occupied index
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(kkb)%matrix, mo_coeff_o, &
+                                0.0_dp, dbcsr_Gamma_munu_P(kkb)%matrix, filter_eps=eps_filter)
+      ENDDO
+
+      DO kkb = 1, ncol_local
+         CALL cp_dbcsr_release(dbcsr_Gamma_3(kkb)%matrix)
+         CALL cp_dbcsr_release(dbcsr_Gamma_inu_P(kkb)%matrix)
+         CALL cp_dbcsr_release(dbcsr_Gamma_munu_P(kkb)%matrix)
+         DEALLOCATE (dbcsr_Gamma_3(kkb)%matrix)
+         DEALLOCATE (dbcsr_Gamma_inu_P(kkb)%matrix)
+         DEALLOCATE (dbcsr_Gamma_munu_P(kkb)%matrix)
+      ENDDO
+      DEALLOCATE (dbcsr_Gamma_3)
+      DEALLOCATE (dbcsr_Gamma_inu_P)
+      DEALLOCATE (dbcsr_Gamma_munu_P)
+
+      ! Release stuff
+      CALL cp_fm_release(fm_mat_Q_tmp)
+      CALL cp_fm_release(fm_mat_U)
+      CALL cp_fm_release(fm_mat_R_half)
+      CALL cp_fm_release(fm_mat_R_half_gemm)
+      CALL cp_fm_release(fm_mat_Gamma_3)
+      DEALLOCATE (eigenval)
+
+      CALL timestop(handle5)
+
+   END SUBROUTINE compute_R_half
 
 END MODULE rpa_ri_gpw

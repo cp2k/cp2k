@@ -10,10 +10,26 @@
 !>      12.2012 created [Mauro Del Ben]
 ! **************************************************************************************************
 MODULE rpa_communication
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                              cp_dbcsr_init,&
+                                              cp_dbcsr_p_type,&
+                                              cp_dbcsr_type,&
+                                              dbcsr_type_no_symmetry
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                              cp_dbcsr_m_by_n_from_template
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_indxg2l,&
                                               cp_fm_indxg2p,&
                                               cp_fm_indxl2g,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
@@ -23,17 +39,23 @@ MODULE rpa_communication
                                               mp_wait,&
                                               mp_waitall
    USE mp2_types,                       ONLY: integ_mat_buffer_type
+   USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
+   TYPE index_map
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
+   END TYPE
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_communication'
 
    PUBLIC :: initialize_buffer, &
              fm_redistribute, &
-             release_buffer
+             release_buffer, &
+             gamma_fm_to_dbcsr
 
 CONTAINS
 
@@ -541,5 +563,389 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE release_buffer
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_Gamma_3 ...
+!> \param dbcsr_Gamma_3 ...
+!> \param para_env_sub ...
+!> \param homo ...
+!> \param virtual ...
+!> \param mo_coeff_o ...
+! **************************************************************************************************
+   SUBROUTINE gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_sub, &
+                                homo, virtual, mo_coeff_o)
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dbcsr_Gamma_3
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      INTEGER                                            :: homo, virtual
+      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_fm_to_dbcsr', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: dimen_ia, dummy_proc, handle, i, i_global, i_local, iaia, iib, iii, iproc, &
+         itmp(2), j_global, j_local, jjb, jjj, kkb, my_ia_end, my_ia_size, my_ia_start, mypcol, &
+         myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, number_of_rec, &
+         number_of_send, proc_receive, proc_send, proc_shift, rec_counter, rec_iaia_end, &
+         rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
+         send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_ia, iii_vet, map_rec_size, &
+                                                            map_send_size, req_send, sizes_ia, &
+                                                            starts_ia, sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
+                                                            indices_map_my, mepos_2_grid
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: part_ia
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: fm_ia
+      TYPE(index_map), ALLOCATABLE, DIMENSION(:)         :: indices_rec
+      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: buffer_rec, buffer_send
+
+      CALL timeset(routineN, handle)
+
+      dimen_ia = virtual*homo
+
+      ! create sub blacs env
+      NULLIFY (blacs_env)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_sub)
+
+      ! create the fm_ia buffer matrix
+      NULLIFY (fm_ia)
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=homo, &
+                               ncol_global=virtual, para_env=para_env_sub)
+      CALL cp_fm_create(fm_ia, fm_struct, name="fm_ia")
+
+      ! release structure
+      CALL cp_fm_struct_release(fm_struct)
+      ! release blacs_env
+      CALL cp_blacs_env_release(blacs_env)
+
+      ! get array information
+      CALL cp_fm_get_info(matrix=fm_ia, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices, &
+                          nrow_block=nrow_block, &
+                          ncol_block=ncol_block)
+      myprow = fm_ia%matrix_struct%context%mepos(1)
+      mypcol = fm_ia%matrix_struct%context%mepos(2)
+      nprow = fm_ia%matrix_struct%context%num_pe(1)
+      npcol = fm_ia%matrix_struct%context%num_pe(2)
+
+      ALLOCATE (sizes_ia(0:para_env_sub%num_pe-1))
+      sizes_ia = 0
+      ALLOCATE (starts_ia(0:para_env_sub%num_pe-1))
+      starts_ia = 0
+      ALLOCATE (ends_ia(0:para_env_sub%num_pe-1))
+      ends_ia = 0
+
+      DO iproc = 0, para_env_sub%num_pe-1
+         itmp = get_limit(dimen_ia, para_env_sub%num_pe, iproc)
+         starts_ia(iproc) = itmp(1)
+         ends_ia(iproc) = itmp(2)
+         sizes_ia(iproc) = itmp(2)-itmp(1)+1
+      END DO
+
+      my_ia_start = starts_ia(para_env_sub%mepos)
+      my_ia_end = ends_ia(para_env_sub%mepos)
+      my_ia_size = sizes_ia(para_env_sub%mepos)
+
+      ! 0) create array containing the processes position and supporting infos
+      ALLOCATE (grid_2_mepos(0:nprow-1, 0:npcol-1))
+      grid_2_mepos = 0
+      ALLOCATE (mepos_2_grid(0:para_env_sub%num_pe-1, 2))
+      mepos_2_grid = 0
+      ! fill the info array
+      grid_2_mepos(myprow, mypcol) = para_env_sub%mepos
+      mepos_2_grid(para_env_sub%mepos, 1) = myprow
+      mepos_2_grid(para_env_sub%mepos, 2) = mypcol
+      ! sum infos
+      CALL mp_sum(grid_2_mepos, para_env_sub%group)
+      CALL mp_sum(mepos_2_grid, para_env_sub%group)
+
+      ! loop over local index range and define the sending map
+      ALLOCATE (map_send_size(0:para_env_sub%num_pe-1))
+      map_send_size = 0
+      DO iaia = my_ia_start, my_ia_end
+         i_global = (iaia-1)/virtual+1
+         j_global = MOD(iaia-1, virtual)+1
+         send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
+                                   fm_ia%matrix_struct%first_p_pos(1), nprow)
+         send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
+                                   fm_ia%matrix_struct%first_p_pos(2), npcol)
+         proc_send = grid_2_mepos(send_prow, send_pcol)
+         map_send_size(proc_send) = map_send_size(proc_send)+1
+      END DO
+
+      ! loop over local data of fm_ia and define the receiving map
+      ALLOCATE (map_rec_size(0:para_env_sub%num_pe-1))
+      map_rec_size = 0
+      part_ia = FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
+
+      DO iiB = 1, nrow_local
+         i_global = row_indices(iiB)
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            iaia = (i_global-1)*virtual+j_global
+            proc_receive = INT(FLOAT(iaia-1)/part_ia)
+            proc_receive = MAX(0, proc_receive)
+            proc_receive = MIN(proc_receive, para_env_sub%num_pe-1)
+            DO
+               itmp = get_limit(dimen_ia, para_env_sub%num_pe, proc_receive)
+               IF (iaia >= itmp(1) .AND. iaia <= itmp(2)) EXIT
+               IF (iaia < itmp(1)) proc_receive = proc_receive-1
+               IF (iaia > itmp(2)) proc_receive = proc_receive+1
+            END DO
+            map_rec_size(proc_receive) = map_rec_size(proc_receive)+1
+         END DO
+      END DO
+
+      ! create the sub_proc_map
+      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
+      DO i = 0, para_env_sub%num_pe-1
+         sub_proc_map(i) = i
+         sub_proc_map(-i-1) = para_env_sub%num_pe-i-1
+         sub_proc_map(para_env_sub%num_pe+i) = i
+      END DO
+      ! allocate the buffer for sending data
+      number_of_send = 0
+      DO proc_shift = 1, para_env_sub%num_pe-1
+         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+         IF (map_send_size(proc_send) > 0) THEN
+            number_of_send = number_of_send+1
+         END IF
+      END DO
+      ! allocate the structure that will hold the messages to be sent
+      ALLOCATE (buffer_send(number_of_send))
+      ! and the map from the grid of processess to the message position
+      ALLOCATE (grid_ref_2_send_pos(0:nprow-1, 0:npcol-1))
+      grid_ref_2_send_pos = 0
+      ! finally allocate each message
+      send_counter = 0
+      DO proc_shift = 1, para_env_sub%num_pe-1
+         proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+         size_send_buffer = map_send_size(proc_send)
+         IF (map_send_size(proc_send) > 0) THEN
+            send_counter = send_counter+1
+            ! allocate the sending buffer (msg)
+            ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
+            buffer_send(send_counter)%proc = proc_send
+            ! get the pointer to prow, pcol of the process that has
+            ! to receive this message
+            ref_send_prow = mepos_2_grid(proc_send, 1)
+            ref_send_pcol = mepos_2_grid(proc_send, 2)
+            ! save the rank of the process that has to receive this message
+            grid_ref_2_send_pos(ref_send_prow, ref_send_pcol) = send_counter
+         END IF
+      END DO
+
+      ! allocate the buffer for receiving data
+      number_of_rec = 0
+      DO proc_shift = 1, para_env_sub%num_pe-1
+         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+         IF (map_rec_size(proc_receive) > 0) THEN
+            number_of_rec = number_of_rec+1
+         END IF
+      END DO
+
+      ! allocate the structure that will hold the messages to be received
+      ! and relative indeces
+      ALLOCATE (buffer_rec(number_of_rec))
+      ALLOCATE (indices_rec(number_of_rec))
+      ! finally allocate each message and fill the array of indeces
+      rec_counter = 0
+      DO proc_shift = 1, para_env_sub%num_pe-1
+         proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+         size_rec_buffer = map_rec_size(proc_receive)
+         IF (map_rec_size(proc_receive) > 0) THEN
+            rec_counter = rec_counter+1
+            ! prepare the buffer for receive
+            ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
+            buffer_rec(rec_counter)%proc = proc_receive
+            ! create the indices array
+            ALLOCATE (indices_rec(rec_counter)%map(2, size_rec_buffer))
+            indices_rec(rec_counter)%map = 0
+            rec_iaia_start = starts_ia(proc_receive)
+            rec_iaia_end = ends_ia(proc_receive)
+            rec_iaia_size = sizes_ia(proc_receive)
+            iii = 0
+            DO iaia = rec_iaia_start, rec_iaia_end
+               i_global = (iaia-1)/virtual+1
+               j_global = MOD(iaia-1, virtual)+1
+               rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
+                                        fm_ia%matrix_struct%first_p_pos(1), nprow)
+               rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
+                                        fm_ia%matrix_struct%first_p_pos(2), npcol)
+               IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
+               iii = iii+1
+               i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
+                                       fm_ia%matrix_struct%first_p_pos(1), nprow)
+               j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
+                                       fm_ia%matrix_struct%first_p_pos(2), npcol)
+               indices_rec(rec_counter)%map(1, iii) = i_local
+               indices_rec(rec_counter)%map(2, iii) = j_local
+            END DO
+         END IF
+      END DO
+
+      ! and create the index map for my local data
+      IF (map_rec_size(para_env_sub%mepos) > 0) THEN
+         size_rec_buffer = map_rec_size(para_env_sub%mepos)
+         ALLOCATE (indices_map_my(2, size_rec_buffer))
+         indices_map_my = 0
+         iii = 0
+         DO iaia = my_ia_start, my_ia_end
+            i_global = (iaia-1)/virtual+1
+            j_global = MOD(iaia-1, virtual)+1
+            rec_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
+                                     fm_ia%matrix_struct%first_p_pos(1), nprow)
+            rec_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
+                                     fm_ia%matrix_struct%first_p_pos(2), npcol)
+            IF (grid_2_mepos(rec_prow, rec_pcol) /= para_env_sub%mepos) CYCLE
+            iii = iii+1
+            i_local = cp_fm_indxg2l(i_global, nrow_block, dummy_proc, &
+                                    fm_ia%matrix_struct%first_p_pos(1), nprow)
+            j_local = cp_fm_indxg2l(j_global, ncol_block, dummy_proc, &
+                                    fm_ia%matrix_struct%first_p_pos(2), npcol)
+            indices_map_my(1, iii) = i_local
+            indices_map_my(2, iii) = j_local
+         END DO
+      END IF
+
+      ! Allocate dbcsr_Gamma_3
+      NULLIFY (dbcsr_Gamma_3)
+
+      CALL cp_fm_get_info(matrix=fm_mat_Gamma_3, &
+                          ncol_local=ncol_local)
+
+      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_3, ncol_local)
+
+      ! auxiliary vector of indeces for the send buffer
+      ALLOCATE (iii_vet(number_of_send))
+      ! vector for the send requests
+      ALLOCATE (req_send(number_of_send))
+      ! loop over auxiliary basis function and redistribute into a fm
+      ! and then compy the fm into a dbcsr matrix
+
+      DO kkB = 1, ncol_local
+         ! zero the matries of the buffers and post the messages to be received
+         CALL cp_fm_set_all(matrix=fm_ia, alpha=0.0_dp)
+         rec_counter = 0
+         DO proc_shift = 1, para_env_sub%num_pe-1
+            proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+            IF (map_rec_size(proc_receive) > 0) THEN
+               rec_counter = rec_counter+1
+               buffer_rec(rec_counter)%msg = 0.0_dp
+               CALL mp_irecv(buffer_rec(rec_counter)%msg, proc_receive, para_env_sub%group, &
+                             buffer_rec(rec_counter)%msg_req)
+            END IF
+         END DO
+         ! fill the sending buffer and send the messages
+         DO send_counter = 1, number_of_send
+            buffer_send(send_counter)%msg = 0.0_dp
+         END DO
+         iii_vet = 0
+         jjj = 0
+         DO iaia = my_ia_start, my_ia_end
+            i_global = (iaia-1)/virtual+1
+            j_global = MOD(iaia-1, virtual)+1
+            send_prow = cp_fm_indxg2p(i_global, nrow_block, dummy_proc, &
+                                      fm_ia%matrix_struct%first_p_pos(1), nprow)
+            send_pcol = cp_fm_indxg2p(j_global, ncol_block, dummy_proc, &
+                                      fm_ia%matrix_struct%first_p_pos(2), npcol)
+            proc_send = grid_2_mepos(send_prow, send_pcol)
+            ! we don't need to send to ourselves
+            IF (grid_2_mepos(send_prow, send_pcol) == para_env_sub%mepos) THEN
+               ! filling fm_ia with local data
+               jjj = jjj+1
+               i_local = indices_map_my(1, jjj)
+               j_local = indices_map_my(2, jjj)
+               fm_ia%local_data(i_local, j_local) = &
+                  fm_mat_Gamma_3%local_data(iaia-my_ia_start+1, kkB)
+
+            ELSE
+               send_counter = grid_ref_2_send_pos(send_prow, send_pcol)
+               iii_vet(send_counter) = iii_vet(send_counter)+1
+               iii = iii_vet(send_counter)
+               buffer_send(send_counter)%msg(iii) = &
+                  fm_mat_Gamma_3%local_data(iaia-my_ia_start+1, kkB)
+            END IF
+         END DO
+         req_send = 0
+         send_counter = 0
+         DO proc_shift = 1, para_env_sub%num_pe-1
+            proc_send = sub_proc_map(para_env_sub%mepos+proc_shift)
+            IF (map_send_size(proc_send) > 0) THEN
+               send_counter = send_counter+1
+               CALL mp_isend(buffer_send(send_counter)%msg, proc_send, para_env_sub%group, &
+                             buffer_send(send_counter)%msg_req)
+               req_send(send_counter) = buffer_send(send_counter)%msg_req
+            END IF
+         END DO
+
+         ! receive the messages and fill the fm_ia
+         rec_counter = 0
+         DO proc_shift = 1, para_env_sub%num_pe-1
+            proc_receive = sub_proc_map(para_env_sub%mepos-proc_shift)
+            size_rec_buffer = map_rec_size(proc_receive)
+            IF (map_rec_size(proc_receive) > 0) THEN
+               rec_counter = rec_counter+1
+               ! wait for the message
+               CALL mp_wait(buffer_rec(rec_counter)%msg_req)
+               DO iii = 1, size_rec_buffer
+                  i_local = indices_rec(rec_counter)%map(1, iii)
+                  j_local = indices_rec(rec_counter)%map(2, iii)
+                  fm_ia%local_data(i_local, j_local) = buffer_rec(rec_counter)%msg(iii)
+               END DO
+            END IF
+         END DO
+
+         ! wait all
+         CALL mp_waitall(req_send(:))
+
+         ! now create the DBCSR matrix and copy fm_ia into it
+         ALLOCATE (dbcsr_Gamma_3(kkB)%matrix)
+         CALL cp_dbcsr_init(dbcsr_Gamma_3(kkB)%matrix)
+         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB)%matrix, &
+                                            template=mo_coeff_o, &
+                                            m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(fm_ia, dbcsr_Gamma_3(kkB)%matrix, keep_sparsity=.FALSE.)
+
+      END DO
+
+      ! Deallocate memory
+
+      DEALLOCATE (iii_vet)
+      DEALLOCATE (req_send)
+      IF (map_rec_size(para_env_sub%mepos) > 0) THEN
+         DEALLOCATE (indices_map_my)
+      END IF
+      DO rec_counter = 1, number_of_rec
+         DEALLOCATE (indices_rec(rec_counter)%map)
+         DEALLOCATE (buffer_rec(rec_counter)%msg)
+      END DO
+      DEALLOCATE (indices_rec)
+      DEALLOCATE (buffer_rec)
+      DO send_counter = 1, number_of_send
+         DEALLOCATE (buffer_send(send_counter)%msg)
+      END DO
+      DEALLOCATE (buffer_send)
+      DEALLOCATE (map_send_size)
+      DEALLOCATE (map_rec_size)
+      DEALLOCATE (sub_proc_map)
+      DEALLOCATE (grid_2_mepos)
+      DEALLOCATE (mepos_2_grid)
+
+      ! release buffer matrix
+      CALL cp_fm_release(fm_ia)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE gamma_fm_to_dbcsr
 
 END MODULE rpa_communication

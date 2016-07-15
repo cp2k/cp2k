@@ -100,6 +100,9 @@ MODULE mp2_types
       LOGICAL                  :: do_admm
       LOGICAL                  :: do_im_time
       LOGICAL                  :: do_RI_overlap
+      LOGICAL                  :: do_ri_axk
+      TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, &
+                                                  mo_coeff_v
    END TYPE
 
    TYPE ri_rpa_im_time_util

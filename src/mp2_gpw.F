@@ -538,6 +538,15 @@ CONTAINS
          my_group_L_start = starts_array(color_sub)
          my_group_L_end = ends_array(color_sub)
       END IF
+      ! Copy mo coeffs for RPA AXK
+      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+         NULLIFY (mp2_env%ri_rpa%mo_coeff_o)
+         CALL cp_dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_o)
+         CALL cp_dbcsr_copy(mp2_env%ri_rpa%mo_coeff_o, mo_coeff_o, name="mo_coeff_o")
+         NULLIFY (mp2_env%ri_rpa%mo_coeff_v)
+         CALL cp_dbcsr_init_p(mp2_env%ri_rpa%mo_coeff_v)
+         CALL cp_dbcsr_copy(mp2_env%ri_rpa%mo_coeff_v, mo_coeff_v, name="mo_coeff_v")
+      ENDIF
 
       IF (.NOT. do_im_time) THEN
 
@@ -564,14 +573,17 @@ CONTAINS
       END IF
 
       IF (.NOT. calc_forces) THEN
+         IF (.NOT. mp2_env%ri_rpa%do_ri_axk) THEN
 
-         CALL cp_dbcsr_release(mat_munu%matrix)
-         DEALLOCATE (mat_munu%matrix)
+            CALL cp_dbcsr_release(mat_munu%matrix)
+            DEALLOCATE (mat_munu%matrix)
 
-         DO i = 1, SIZE(sab_orb_sub)
-            CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
-         END DO
-         DEALLOCATE (sab_orb_sub)
+            DO i = 1, SIZE(sab_orb_sub)
+               CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
+            END DO
+            DEALLOCATE (sab_orb_sub)
+
+         ENDIF
 
       END IF
 
@@ -618,6 +630,19 @@ CONTAINS
          IF (do_im_time) THEN
             CALL clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
                                   para_env_sub_im_time_3c, para_env_sub_im_time_P, mp2_env)
+         END IF
+
+         ! Release some memory for AXK
+         IF (mp2_env%ri_rpa%do_ri_axk) THEN
+
+            CALL cp_dbcsr_release(mat_munu%matrix)
+            DEALLOCATE (mat_munu%matrix)
+
+            DO i = 1, SIZE(sab_orb_sub)
+               CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
+            END DO
+            DEALLOCATE (sab_orb_sub)
+
          END IF
 
       ELSE

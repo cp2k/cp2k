@@ -115,6 +115,9 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME", &
                                 l_val=mp2_env%ri_rpa%do_im_time)
 
+      CALL section_vals_val_get(mp2_section, "RI_RPA%AXK", &
+                                l_val=mp2_env%ri_rpa%do_ri_axk)
+
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CORR_MOS_OCC", &
                                 i_val=mp2_env%ri_g0w0%corr_mos_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%RI_G0W0%CORR_MOS_VIRT", &
