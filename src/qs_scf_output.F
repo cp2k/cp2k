@@ -201,10 +201,8 @@ CONTAINS
          IF (output_unit > 0) WRITE (output_unit, '(T3,A,I4,A,I4,A,/)') &
             "outer SCF loop converged in", scf_env%outer_scf%iter_count, &
             " iterations or ", total_steps, " steps"
-      END IF
-
-      IF (scf_env%outer_scf%iter_count > scf_control%outer_scf%max_scf &
-          .OR. should_stop) THEN
+      ELSE IF (scf_env%outer_scf%iter_count > scf_control%outer_scf%max_scf &
+               .OR. should_stop) THEN
          IF (output_unit > 0) WRITE (output_unit, '(T3,A,I4,A,I4,A,/)') &
             "outer SCF loop FAILED to converge after ", &
             scf_env%outer_scf%iter_count, " iterations or ", total_steps, " steps"
