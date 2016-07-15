@@ -46,8 +46,8 @@ MODULE dbcsr_mm_cannon
                                               use_mpi_filtering
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
-        dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, dbcsr_data_init, &
-        dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
+        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, dbcsr_data_host2dev, &
+        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
         dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
         dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar, dbcsr_scalar_are_equal, &
         dbcsr_scalar_fill_all, dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_scalar_set_type, &
@@ -2008,7 +2008,7 @@ CONTAINS
       ! Allocate data and meta buffers
       do_win_create(:) = .TRUE.
       IF (do_win_free) THEN
-         IF (buffer%grp .EQ. mygrp) THEN
+         IF (buffer%grp .EQ. mygrp .AND. dbcsr_data_get_type(buffer%data) .NE. data_type) THEN
             do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (data_size+10)
             do_win_create(2) = SIZE(buffer%meta) .LT. meta_size
             CALL mp_sum(do_win_create, mygrp)
@@ -2024,8 +2024,7 @@ CONTAINS
       buffer%grp = mygrp
       !
       IF (is_diagonal .AND. do_bcast) THEN
-         CALL resize_buffer_diag(buffer, data_type, &
-                                 data_size_diag, meta_size_diag, &
+         CALL resize_buffer_diag(buffer, data_size_diag, meta_size_diag, &
                                  data_memory_type=memtype_mpi_buffer)
       ENDIF
       !
@@ -2510,8 +2509,7 @@ CONTAINS
          CALL mp_wait(request_meta_size_diag)
          CALL mp_wait(request_data_size_diag)
          IF (.NOT. is_diagonal) THEN
-            CALL resize_buffer_diag(buffer, data_type, &
-                                    data_size_diag, meta_size_diag, &
+            CALL resize_buffer_diag(buffer, data_size_diag, meta_size_diag, &
                                     data_memory_type=memtype_mpi_buffer)
          ENDIF
          !
@@ -2527,9 +2525,15 @@ CONTAINS
          CALL ensure_array_size(local_meta_scatter, ub=local_meta_size_scatter, &
                                 nocopy=.TRUE., memory_type=memtype_mpi_buffer)
          IF (dbcsr_data_valid(local_data_scatter)) THEN
-            CALL dbcsr_data_ensure_size(local_data_scatter, local_data_size_scatter, &
-                                        nocopy=.TRUE.)
-         ELSE
+            IF (dbcsr_data_get_type(local_data_scatter) .EQ. data_type) THEN
+               CALL dbcsr_data_ensure_size(local_data_scatter, local_data_size_scatter, &
+                                           nocopy=.TRUE.)
+            ELSE
+               ! Invalid data because of different data_type
+               CALL dbcsr_data_release(local_data_scatter)
+            ENDIF
+         ENDIF
+         IF (.NOT. dbcsr_data_valid(local_data_scatter)) THEN
             CALL dbcsr_data_init(local_data_scatter)
             CALL dbcsr_data_new(local_data_scatter, data_type=data_type, &
                                 data_size=local_data_size_scatter, memory_type=memtype_mpi_buffer)
@@ -4969,6 +4973,7 @@ CONTAINS
             meta_get => buffer%meta(meta_offset+1:meta_size)
             ! Workaround for OpenMPI RMA bug
             meta_get(dbcsr_slot_size) = -999
+            buffer%get_requests(:, buffer%nrequests) = mp_request_null
             CALL mp_rget(meta_get, recv_punmerged, &
                          meta_win, &
                          buffer_orig%meta, &
@@ -6423,6 +6428,7 @@ CONTAINS
                   meta_get => buffer%meta(meta_offset+1:meta_size)
                   ! Workaround for OpenMPI RMA bug
                   meta_get(dbcsr_slot_size) = -999
+                  buffer%get_requests(:, buffer%nrequests) = mp_request_null
                   CALL mp_rget(meta_get, recv_punmerged, &
                                meta_win, &
                                buffer_orig%meta, &
@@ -6848,6 +6854,7 @@ CONTAINS
                            dbcsr_type_no_symmetry, &
                            array_data(template_matrix%m%row_blk_size), array_data(template_matrix%m%col_blk_size), &
                            template_matrix%m%row_blk_size, template_matrix%m%col_blk_size, &
+                           data_type=dbcsr_data_get_type(data_buffer), &
                            data_buffer=data_buffer, &
                            max_rbs=template_matrix%m%max_rbs, max_cbs=template_matrix%m%max_cbs, &
                            row_blk_offset=template_matrix%m%row_blk_offset, col_blk_offset=template_matrix%m%col_blk_offset, &
@@ -7884,6 +7891,15 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: requests_size
       TYPE(dbcsr_memtype_type), INTENT(IN)               :: data_memory_type
 
+      IF (buffer%is_valid) THEN
+         ! Invalid buffers if data_type is different
+         IF (dbcsr_data_get_type(buffer%data) .NE. data_type) THEN
+            CALL dbcsr_data_release(buffer%data)
+            CALL dbcsr_data_release(buffer%data_diag)
+            buffer%is_valid = .FALSE.
+         ENDIF
+      ENDIF
+      !
       IF (.NOT. buffer%is_valid) THEN
          ! First initialization
          CALL dbcsr_data_init(buffer%data)
@@ -7922,32 +7938,23 @@ CONTAINS
 !> \brief Resize diagonal buffer
 !>
 !> \param buffer ...
-!> \param data_type ...
 !> \param data_size_diag ...
 !> \param meta_size_diag ...
 !> \param data_memory_type ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE resize_buffer_diag(buffer, data_type, &
-                                 data_size_diag, meta_size_diag, &
+   SUBROUTINE resize_buffer_diag(buffer, data_size_diag, meta_size_diag, &
                                  data_memory_type)
       TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
-      INTEGER, INTENT(IN)                                :: data_type, data_size_diag, meta_size_diag
+      INTEGER, INTENT(IN)                                :: data_size_diag, meta_size_diag
       TYPE(dbcsr_memtype_type), INTENT(IN)               :: data_memory_type
 
-      IF (.NOT. buffer%is_valid) CPABORT("Buffer not initialized!")
+      IF (.NOT. (buffer%is_valid .AND. &
+                 dbcsr_data_valid(buffer%data_diag))) CPABORT("Buffer not initialized!")
       !
-      IF (dbcsr_data_valid(buffer%data_diag)) THEN
-         CALL dbcsr_data_ensure_size(buffer%data_diag, data_size_diag, nocopy=.TRUE.)
-      ELSE
-         CALL dbcsr_data_init(buffer%data_diag)
-         CALL dbcsr_data_new(buffer%data_diag, data_type=data_type, &
-                             data_size=data_size_diag, memory_type=data_memory_type)
-         CALL dbcsr_data_set_size_referenced(buffer%data_diag, data_size_diag)
-      ENDIF
-      !
+      CALL dbcsr_data_ensure_size(buffer%data_diag, data_size_diag, nocopy=.TRUE.)
       CALL ensure_array_size(buffer%meta_diag, ub=meta_size_diag, nocopy=.TRUE., &
-                             memory_type=memtype_mpi_buffer)
+                             memory_type=data_memory_type)
    END SUBROUTINE resize_buffer_diag
 
 ! **************************************************************************************************
