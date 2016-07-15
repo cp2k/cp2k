@@ -200,6 +200,7 @@ MODULE dbcsr_mm_cannon
    TYPE dbcsr_buffer
       TYPE(dbcsr_data_obj)               :: DATA, data_diag
       INTEGER                            :: vprow, vpcol
+      INTEGER                            :: grp
       INTEGER                            :: data_win, meta_win
       INTEGER, DIMENSION(:), POINTER     :: meta => Null(), &
                                             meta_diag => Null()
@@ -1465,7 +1466,8 @@ CONTAINS
       ncols_images = imgdist%i%col_decimation
       col_mult = imgdist%i%col_multiplicity
       col_img_dist => array_data(imgdist%i%col_image)
-      mp_obj = dbcsr_distribution_mp(set_dist)
+      mp_obj = dbcsr_distribution_mp(imgdist%i%main)
+      CALL dbcsr_mp_grid_setup(mp_obj)
       grp = dbcsr_mp_group(mp_obj)
       blacs2mpi => dbcsr_mp_pgrid(mp_obj)
       mynode = dbcsr_mp_mynode(mp_obj)
@@ -1475,8 +1477,6 @@ CONTAINS
          CPABORT("Row distribution references unexistent processor rows")
       IF (MAXVAL(col_dist) .GT. UBOUND(blacs2mpi, 2)) &
          CPABORT("Col distribution references unexistent processor cols")
-      IF (.NOT. dbcsr_mp_has_subgroups(mp_obj)) &
-         CPABORT("Experimental MPI algorithms require subcommunicators!")
       ! Check threads configuration
       NULLIFY (threads_dist)
 !$    IF (.NOT. dbcsr_distribution_has_threads(dbcsr_distribution(matrix))) &
@@ -2008,9 +2008,11 @@ CONTAINS
       ! Allocate data and meta buffers
       do_win_create(:) = .TRUE.
       IF (do_win_free) THEN
-         do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (data_size+10)
-         do_win_create(2) = SIZE(buffer%meta) .LT. meta_size
-         CALL mp_sum(do_win_create, mygrp)
+         IF (buffer%grp .EQ. mygrp) THEN
+            do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (data_size+10)
+            do_win_create(2) = SIZE(buffer%meta) .LT. meta_size
+            CALL mp_sum(do_win_create, mygrp)
+         ENDIF
          IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
          IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
       ENDIF
@@ -2019,6 +2021,7 @@ CONTAINS
                        data_memory_type=memtype_mpi_buffer)
       IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data, mygrp, buffer%data_win)
       IF (do_win_create(2)) CALL mp_win_create(buffer%meta, mygrp, buffer%meta_win)
+      buffer%grp = mygrp
       !
       IF (is_diagonal .AND. do_bcast) THEN
          CALL resize_buffer_diag(buffer, data_type, &
@@ -4189,6 +4192,9 @@ CONTAINS
       left_mp_obj = dbcsr_distribution_mp(imgdist_left%i%main)
       right_mp_obj = dbcsr_distribution_mp(imgdist_right%i%main)
       product_mp_obj = dbcsr_distribution_mp(product_matrix%m%dist)
+      CALL dbcsr_mp_grid_setup(left_mp_obj)
+      CALL dbcsr_mp_grid_setup(right_mp_obj)
+      CALL dbcsr_mp_grid_setup(product_mp_obj)
       numnodes = dbcsr_mp_numnodes(product_mp_obj)
       mynode = dbcsr_mp_mynode(product_mp_obj)
       myprow = dbcsr_mp_myprow(product_mp_obj)
@@ -4209,9 +4215,6 @@ CONTAINS
       right_row_total_nimages = right_nprows*right_row_nimages
       grp_right = dbcsr_mp_my_col_group(right_mp_obj)
       grp_left = dbcsr_mp_my_row_group(left_mp_obj)
-      CALL dbcsr_mp_grid_setup(product_mp_obj)
-      CALL dbcsr_mp_grid_setup(left_mp_obj)
-      CALL dbcsr_mp_grid_setup(right_mp_obj)
       !
       ! Dummy checks
       ! subcommunicators
@@ -5142,6 +5145,9 @@ CONTAINS
       left_mp_obj = dbcsr_distribution_mp(imgdist_left%i%main)
       right_mp_obj = dbcsr_distribution_mp(imgdist_right%i%main)
       product_mp_obj = dbcsr_distribution_mp(product_matrix%m%dist)
+      CALL dbcsr_mp_grid_setup(left_mp_obj)
+      CALL dbcsr_mp_grid_setup(right_mp_obj)
+      CALL dbcsr_mp_grid_setup(product_mp_obj)
       numnodes = dbcsr_mp_numnodes(product_mp_obj)
       mynode = dbcsr_mp_mynode(product_mp_obj)
       myprow = dbcsr_mp_myprow(product_mp_obj)
@@ -5163,9 +5169,6 @@ CONTAINS
       grp_right = dbcsr_mp_my_col_group(right_mp_obj)
       grp_gather = dbcsr_mp_my_row_group(right_mp_obj)
       grp_left = dbcsr_mp_my_row_group(left_mp_obj)
-      CALL dbcsr_mp_grid_setup(product_mp_obj)
-      CALL dbcsr_mp_grid_setup(left_mp_obj)
-      CALL dbcsr_mp_grid_setup(right_mp_obj)
       is_diagonal = myprow .EQ. mypcol
       is_not_virtual = right_row_mult .EQ. right_row_nimages .AND. &
                        right_col_mult .EQ. right_col_nimages
