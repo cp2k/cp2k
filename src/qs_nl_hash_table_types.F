@@ -1,9 +1,9 @@
-!------------------------------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations                            !
-!   Copyright (C) 2000 - 2016  CP2K developers group                                             !
-!------------------------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief A simple hash table of integer keys, using hash function:
 !>          H(k) = (k*p) mod n + 1
 !>        where:
@@ -21,7 +21,7 @@
 !>         When we look up, we use the same probing sequence.
 !>
 !>         Derived from  qs_fb_hash_table_types.F  (Mark Tucker, Jun 2016)
-! ************************************************************************************************
+! **************************************************************************************************
 MODULE qs_nl_hash_table_types
 
    USE kinds,                           ONLY: int_8
@@ -59,17 +59,17 @@ MODULE qs_nl_hash_table_types
    INTEGER, PARAMETER, PRIVATE :: EXPAND_FACTOR = 2
    INTEGER, PARAMETER, PRIVATE :: SHRINK_FACTOR = 2
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief hash table entry data type
 !> \param key       : key of the entry
 !> \param val       : value of the entry
-! ************************************************************************************************
+! **************************************************************************************************
    TYPE nl_hash_table_element
       INTEGER(KIND=int_8) :: key
       TYPE(neighbor_list_task_type), POINTER :: val
    END TYPE nl_hash_table_element
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief data defining a hash table using open addressing for collision
 !>        resolvation. Uses simple entry structure to be memory efficient
 !>        as well as small overhead
@@ -79,7 +79,7 @@ MODULE qs_nl_hash_table_types
 !> \param prime     : prime number used in the hash function
 !> \param id_nr     : unique id for the object
 !> \param ref_count : reference counter for the object
-! ************************************************************************************************
+! **************************************************************************************************
    TYPE nl_hash_table_data
       INTEGER :: id_nr, ref_count
       TYPE(nl_hash_table_element), DIMENSION(:), POINTER :: table => NULL()
@@ -88,18 +88,18 @@ MODULE qs_nl_hash_table_types
       INTEGER :: prime
    END TYPE nl_hash_table_data
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief the object container which allows for the creation of an array
 !>        of pointers to nl_hash_table objects
 !> \param obj : pointer to the nl_hash_table object
-! ************************************************************************************************
+! **************************************************************************************************
    TYPE nl_hash_table_obj
       TYPE(nl_hash_table_data), POINTER, PRIVATE :: obj => NULL()
    END TYPE nl_hash_table_obj
 
 CONTAINS
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Add element to a hash table, auto resize if necessary
 !> \param hash_table : the nl_hash_table object
 !> \param key        : key of the element
@@ -143,7 +143,7 @@ CONTAINS
       hash_table%obj%table(islot)%val => val
    END SUBROUTINE nl_hash_table_add
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Creates and initialises an empty nl_hash_table object
 !> \param hash_table : the nl_hash_table object, its content must be NULL and cannot be UNDEFINED
 !> \param nmax       : total size of the table, optional. If absent default size is 1.
@@ -208,7 +208,7 @@ CONTAINS
       END IF
    END SUBROUTINE nl_hash_table_get
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Retrieve value from a hash table given a specified index
 !> \param hash_table : the nl_hash_table object
 !> \param idx        : the index to retrieve the data for
@@ -234,7 +234,7 @@ CONTAINS
 
    END SUBROUTINE nl_hash_table_get_from_index
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief check if the object has data associated to it
 !> \param hash_table : the nl_hash_table object in question
 !> \retval res       : true if hash_table%obj is associated, false otherwise
@@ -246,7 +246,7 @@ CONTAINS
       res = ASSOCIATED(hash_table%obj)
    END FUNCTION nl_hash_table_has_data
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Initialises a nl_hash_table object
 !> \param hash_table : the nl_hash_table object, its content must be NULL and cannot be UNDEFINED
 !> \param nmax       : new size of the table, optional. If absent use the old size
@@ -293,7 +293,7 @@ CONTAINS
       hash_table%obj%nelements = 0
    END SUBROUTINE nl_hash_table_init
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Initialises a nl_hash_table object
 !> \param hash_table : the nl_hash_table object, its content must be NULL and cannot be UNDEFINED
 !> \param key ...
@@ -321,7 +321,7 @@ CONTAINS
       END IF
    END SUBROUTINE nl_hash_table_is_null
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Nullifies a nl_hash_table object
 !> \param hash_table : the nl_hash_table object
 ! **************************************************************************************************
@@ -331,7 +331,7 @@ CONTAINS
       NULLIFY (hash_table%obj)
    END SUBROUTINE nl_hash_table_nullify
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Rehash table. If nmax is present, then also change the table size
 !>        to MAX(nmax, number_of_non_empty_elements).
 !> \param hash_table      : the nl_hash_table object
@@ -371,7 +371,7 @@ CONTAINS
       DEALLOCATE (tmp_table)
    END SUBROUTINE nl_hash_table_rehash
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief releases given object
 !> \param hash_table : the nl_hash_table object in question
 ! **************************************************************************************************
@@ -408,7 +408,7 @@ CONTAINS
       END IF
    END SUBROUTINE nl_hash_table_release
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Remove element from a table, automatic resize if necessary
 !> \param hash_table : the nl_hash_table object
 !> \param key        : key of the element to be removed
@@ -444,7 +444,7 @@ CONTAINS
       END IF
    END SUBROUTINE nl_hash_table_remove
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief retains given object
 !> \param hash_table : the nl_hash_table object in question
 ! **************************************************************************************************
@@ -463,7 +463,7 @@ CONTAINS
       hash_table%obj%ref_count = hash_table%obj%ref_count+1
    END SUBROUTINE nl_hash_table_retain
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief outputs the current information about the table
 !> \param hash_table : the nl_hash_table object in question
 !> \param nelements  : number of non-empty slots in the table
@@ -486,7 +486,7 @@ CONTAINS
       IF (PRESENT(prime)) prime = hash_table%obj%prime
    END SUBROUTINE nl_hash_table_status
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Linear probing algorithm for the hash table
 !> \param hash_table : the nl_hash_table object
 !> \param key        : key to locate
@@ -520,7 +520,7 @@ CONTAINS
       islot = 0
    END FUNCTION nl_hash_table_linear_probe
 
-! ************************************************************************************************
+! **************************************************************************************************
 !> \brief Hash function
 !> \param hash_table : the nl_hash_table object
 !> \param key        : key to locate
