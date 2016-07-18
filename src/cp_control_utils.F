@@ -87,7 +87,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
-      INTEGER                                            :: excitations, i, method_id, nrep, stat, &
+      INTEGER                                            :: excitations, i, method_id, nrep, &
                                                             xc_deriv_method_id
       LOGICAL                                            :: do_ot, do_rtp, is_present, l_param, &
                                                             not_SE, was_present
@@ -326,7 +326,7 @@ CONTAINS
       tmp_section => section_vals_get_subs_vals(dft_section, "PERIODIC_EFIELD")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_period_efield)
       IF (dft_control%apply_period_efield) THEN
-         ALLOCATE (dft_control%period_efield, stat=stat)
+         ALLOCATE (dft_control%period_efield)
          CALL section_vals_val_get(tmp_section, "POLARISATION", r_vals=pol)
          dft_control%period_efield%polarisation(1:3) = pol(1:3)
          CALL section_vals_val_get(tmp_section, "D_FILTER", r_vals=pol)
