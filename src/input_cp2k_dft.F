@@ -5788,6 +5788,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="D_FILTER", &
+                          description="Filter for displacement field (x,y,z-dirction)", &
+                          usage="D_FILTER  1.0 0.0 0.0", &
+                          repeats=.FALSE., n_var=3, &
+                          type_of_var=real_t, default_r_vals=(/1.0_dp, 1.0_dp, 1.0_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_per_efield_section
 ! **************************************************************************************************
 !> \brief creates the section for time dependent nonperiodic fields

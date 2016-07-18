@@ -327,10 +327,10 @@ CONTAINS
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_period_efield)
       IF (dft_control%apply_period_efield) THEN
          ALLOCATE (dft_control%period_efield, stat=stat)
-         ALLOCATE (dft_control%period_efield%polarisation(3), stat=stat)
-         CALL section_vals_val_get(tmp_section, "POLARISATION", &
-                                   r_vals=pol)
-         dft_control%period_efield%polarisation = pol
+         CALL section_vals_val_get(tmp_section, "POLARISATION", r_vals=pol)
+         dft_control%period_efield%polarisation(1:3) = pol(1:3)
+         CALL section_vals_val_get(tmp_section, "D_FILTER", r_vals=pol)
+         dft_control%period_efield%d_filter(1:3) = pol(1:3)
          CALL section_vals_val_get(tmp_section, "INTENSITY", &
                                    r_val=dft_control%period_efield%strength)
          dft_control%period_efield%displacement_field = .FALSE.

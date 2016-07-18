@@ -38,7 +38,7 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE rtp_control_type
       LOGICAL                              :: converged
-      REAL(KIND=dp)                      :: eps_ener
+      REAL(KIND=dp)                        :: eps_ener
       INTEGER                              :: max_iter
       INTEGER                              :: mat_exp
       INTEGER                              :: propagator
@@ -70,16 +70,16 @@ MODULE cp_control_types
       INTEGER                              :: dispersion_type
       LOGICAL                              :: dftb3_diagonal
       LOGICAL                              :: hb_sr_damp
-      REAL(KIND=dp)                      :: hb_sr_para
-      REAL(KIND=dp)                      :: eps_disp
-      REAL(KIND=dp)                      :: epscn
-      REAL(KIND=dp)                      :: rcdisp
-      REAL(KIND=dp), DIMENSION(3)        :: sd3
+      REAL(KIND=dp)                        :: hb_sr_para
+      REAL(KIND=dp)                        :: eps_disp
+      REAL(KIND=dp)                        :: epscn
+      REAL(KIND=dp)                        :: rcdisp
+      REAL(KIND=dp), DIMENSION(3)          :: sd3
       LOGICAL                              :: do_ewald
       CHARACTER(LEN=default_path_length)   :: sk_file_path
       CHARACTER(LEN=default_path_length)   :: sk_file_list
       CHARACTER(LEN=default_string_length), &
-         DIMENSION(:, :), POINTER         :: sk_pair_list
+         DIMENSION(:, :), POINTER          :: sk_pair_list
       CHARACTER(LEN=default_path_length)   :: uff_force_field
       CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
    END TYPE dftb_control_type
@@ -93,97 +93,96 @@ MODULE cp_control_types
       LOGICAL                              :: do_scc
       LOGICAL                              :: do_scp
       INTEGER                              :: sto_ng
-      REAL(KIND=dp)                      :: rcdisp
-      REAL(KIND=dp)                      :: epscn
-      REAL(KIND=dp), DIMENSION(3)        :: sd3
+      REAL(KIND=dp)                        :: rcdisp
+      REAL(KIND=dp)                        :: epscn
+      REAL(KIND=dp), DIMENSION(3)          :: sd3
       CHARACTER(LEN=default_path_length)   :: parameter_file
       CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
-      REAL(KIND=dp)                      :: epspair
+      REAL(KIND=dp)                        :: epspair
    END TYPE scptb_control_type
 
 ! **************************************************************************************************
 ! \brief Control parameters for semi empirical calculations
 ! **************************************************************************************************
    TYPE semi_empirical_control_type
-      LOGICAL               :: orthogonal_basis
-      LOGICAL               :: analytical_gradients
-      LOGICAL               :: force_kdsod_EX
-      LOGICAL               :: do_ewald, do_ewald_r3, do_ewald_gks
-      INTEGER               :: integral_screening, periodic_type
-      INTEGER               :: max_multipole
-      INTEGER               :: ga_ncells
-      REAL(KIND=dp)       :: delta
+      LOGICAL                              :: orthogonal_basis
+      LOGICAL                              :: analytical_gradients
+      LOGICAL                              :: force_kdsod_EX
+      LOGICAL                              :: do_ewald, do_ewald_r3, do_ewald_gks
+      INTEGER                              :: integral_screening, periodic_type
+      INTEGER                              :: max_multipole
+      INTEGER                              :: ga_ncells
+      REAL(KIND=dp)                        :: delta
       ! Dispersion pair potential
-      LOGICAL               :: dispersion
-      REAL(KIND=dp)                      :: rcdisp
-      REAL(KIND=dp)                      :: epscn
-      REAL(KIND=dp), DIMENSION(3)        :: sd3
+      LOGICAL                              :: dispersion
+      REAL(KIND=dp)                        :: rcdisp
+      REAL(KIND=dp)                        :: epscn
+      REAL(KIND=dp), DIMENSION(3)          :: sd3
       CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
       ! Parameters controlling the evaluation of the integrals
-      REAL(KIND=dp)       :: cutoff_lrc, taper_lrc, range_lrc
-      REAL(KIND=dp)       :: cutoff_cou, taper_cou, range_cou
-      REAL(KIND=dp)       :: cutoff_exc, taper_exc, range_exc
-      REAL(KIND=dp)       :: taper_scr, range_scr
+      REAL(KIND=dp)                        :: cutoff_lrc, taper_lrc, range_lrc
+      REAL(KIND=dp)                        :: cutoff_cou, taper_cou, range_cou
+      REAL(KIND=dp)                        :: cutoff_exc, taper_exc, range_exc
+      REAL(KIND=dp)                        :: taper_scr, range_scr
    END TYPE semi_empirical_control_type
 
 ! **************************************************************************************************
 ! \brief Control parameters for GAPW method within QUICKSTEP ***
 ! **************************************************************************************************
    TYPE gapw_control_type
-      REAL(KIND=dp)                 :: eps_fit, &
-                                       eps_iso, &
-                                       eps_Vrho0, &
-                                       eps_svd, &
-                                       eps_cpc
-      INTEGER                         :: ladd_rho0, &
-                                         lmax_rho0, &
-                                         lmax_sphere, &
-                                         quadrature
-      LOGICAL                         :: lrho1_eq_lrho0
-      LOGICAL                         :: alpha0_hard_from_input, &
-                                         force_paw, &
-                                         non_paw_atoms, &
-                                         nopaw_as_gpw
-      REAL(KIND=dp)                 :: alpha0_hard
-      REAL(KIND=dp)                 :: max_rad_local
+      REAL(KIND=dp)                        :: eps_fit, &
+                                              eps_iso, &
+                                              eps_Vrho0, &
+                                              eps_svd, &
+                                              eps_cpc
+      INTEGER                              :: ladd_rho0, &
+                                              lmax_rho0, &
+                                              lmax_sphere, &
+                                              quadrature
+      LOGICAL                              :: lrho1_eq_lrho0
+      LOGICAL                              :: alpha0_hard_from_input, &
+                                              force_paw, &
+                                              non_paw_atoms, &
+                                              nopaw_as_gpw
+      REAL(KIND=dp)                        :: alpha0_hard
+      REAL(KIND=dp)                        :: max_rad_local
    END TYPE gapw_control_type
 ! **************************************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! **************************************************************************************************
    TYPE efield_type
-      REAL(KIND=dp)                 :: actual_time
+      REAL(KIND=dp)                        :: actual_time
       REAL(KIND=dp), DIMENSION(:), POINTER :: polarisation
-      INTEGER                         :: envelop_id
-      REAL(kind=dp), DIMENSION(:), &
-         POINTER :: envelop_r_vars
-      INTEGER, DIMENSION(:), &
-         POINTER :: envelop_i_vars
-      REAL(kind=dp)                   :: strength
-      REAL(KIND=dp)                   :: phase_offset
-      REAL(KIND=dp)                   :: wavelength
+      INTEGER                              :: envelop_id
+      REAL(KIND=dp), DIMENSION(:), POINTER :: envelop_r_vars
+      INTEGER, DIMENSION(:), POINTER       :: envelop_i_vars
+      REAL(KIND=dp)                        :: strength
+      REAL(KIND=dp)                        :: phase_offset
+      REAL(KIND=dp)                        :: wavelength
    END TYPE efield_type
 
    TYPE efield_p_type
-      TYPE(efield_type), POINTER       :: efield
+      TYPE(efield_type), POINTER           :: efield
    END TYPE efield_p_type
 ! **************************************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! **************************************************************************************************
    TYPE period_efield_type
-      LOGICAL                         :: displacement_field
-      REAL(KIND=dp), DIMENSION(:), POINTER :: polarisation
-      REAL(kind=dp)                   :: strength
+      LOGICAL                              :: displacement_field
+      REAL(KIND=dp), DIMENSION(3)          :: polarisation
+      REAL(KIND=dp), DIMENSION(3)          :: d_filter
+      REAL(KIND=dp)                        :: strength
    END TYPE period_efield_type
 
 ! **************************************************************************************************
 ! \brief some parameters useful for mulliken_restraints
 ! **************************************************************************************************
    TYPE mulliken_restraint_type
-      INTEGER                         :: ref_count
-      REAL(KIND=dp)                 :: strength
-      REAL(KIND=dp)                 :: TARGET
-      INTEGER                         :: natoms
-      INTEGER, POINTER, DIMENSION(:)  :: atoms
+      INTEGER                              :: ref_count
+      REAL(KIND=dp)                        :: strength
+      REAL(KIND=dp)                        :: TARGET
+      INTEGER                              :: natoms
+      INTEGER, POINTER, DIMENSION(:)       :: atoms
    END TYPE mulliken_restraint_type
 
 ! **************************************************************************************************
@@ -826,7 +825,6 @@ CONTAINS
             CALL efield_fields_release(dft_control%efield_fields)
             CALL sccs_control_release(dft_control%sccs_control)
             IF (ASSOCIATED(dft_control%period_efield)) THEN
-               DEALLOCATE (dft_control%period_efield%polarisation)
                DEALLOCATE (dft_control%period_efield)
             END IF
             IF (ASSOCIATED(dft_control%rtp_control)) THEN

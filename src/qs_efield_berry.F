@@ -695,7 +695,8 @@ CONTAINS
                                                             ener_field, fab, fieldpol(3), focc, &
                                                             hmat(3, 3), occ, omega, qi(3), &
                                                             rlog(3), zlog(3)
-      REAL(dp), DIMENSION(3)                             :: forcea, forceb, kvec, ra, rab, rb, ria
+      REAL(dp), DIMENSION(3)                             :: dfilter, forcea, forceb, kvec, ra, rab, &
+                                                            rb, ria
       REAL(dp), DIMENSION(:, :), POINTER                 :: cosab, iblock, rblock, sinab, work
       REAL(dp), DIMENSION(:, :, :), POINTER              :: dcosab, dsinab, force_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
@@ -745,6 +746,8 @@ CONTAINS
          CPABORT("Stress tensor for periodic D-field not implemented")
       END IF
 
+      dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
+
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
       fieldpol = fieldpol*dft_control%period_efield%strength
@@ -789,7 +792,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=occ, uniform_occupation=uniform)
          IF (.NOT. uniform) THEN
-            CPABORT("Berry phase moments for non uniform MOs' occupation numbers not implemented")
+            CPABORT("Berry phase moments for non uniform MO occupation numbers not implemented")
          END IF
       END DO
 
@@ -1101,13 +1104,13 @@ CONTAINS
       ! Energy
       ener_field = 0.0_dp
       DO i = 1, 3
-         ener_field = ener_field+(fieldpol(i)-2._dp*twopi*ci(i))**2
+         ener_field = ener_field+dfilter(i)*(fieldpol(i)-2._dp*twopi*ci(i))**2
       END DO
       energy%efield = 0.25_dp*omega/twopi*ener_field
 
       IF (.NOT. just_energy) THEN
          DO i = 1, 3
-            di(i) = -omega*(fieldpol(i)-2._dp*twopi*ci(i))
+            di(i) = -omega*(fieldpol(i)-2._dp*twopi*ci(i))*dfilter(i)
          END DO
          ! Add the result to mo_derivativs
          DO ispin = 1, dft_control%nspins

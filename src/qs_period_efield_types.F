@@ -28,8 +28,8 @@ MODULE qs_period_efield_types
              set_efield_matrices
 
    TYPE efield_berry_type
-      REAL(KIND=dp)                                         :: field_energy
-      REAL(KIND=dp), DIMENSION(3)                           :: polarisation
+      REAL(KIND=dp)                                          :: field_energy
+      REAL(KIND=dp), DIMENSION(3)                            :: polarisation
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER           :: cosmat
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER           :: sinmat
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER           :: dipmat
