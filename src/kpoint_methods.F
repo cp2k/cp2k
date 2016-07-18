@@ -46,6 +46,7 @@ MODULE kpoint_methods
    USE input_constants,                 ONLY: smear_fermi_dirac
    USE k290,                            ONLY: csym_type,&
                                               kp_sym_gen,&
+                                              print_crys_symmetry,&
                                               release_csym_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -169,6 +170,8 @@ CONTAINS
          inv = (crys_sym%li > 0)
          ! symmorphic group without special translation
          symmo = (crys_sym%isy == 1)
+         ! print output
+         IF (kpoint%symmetry) CALL print_crys_symmetry(crys_sym)
 
          CALL release_csym_type(crys_sym)
          DEALLOCATE (coord, atype)
