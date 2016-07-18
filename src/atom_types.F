@@ -2083,12 +2083,12 @@ CONTAINS
       basis%nprim = 0
       basis%nbas = 0
       DO i = 1, nset
-         DO j = lmin(i), lmax(i)
+         DO j = lmin(i), MIN(lmax(i), 3)
             basis%nprim(j) = basis%nprim(j)+npgf(i)
          END DO
          DO j = 1, nshell(i)
             k = l(j, i)
-            basis%nbas(k) = basis%nbas(k)+1
+            IF (k <= 3) basis%nbas(k) = basis%nbas(k)+1
          END DO
       END DO
 
