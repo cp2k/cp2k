@@ -28,6 +28,7 @@ MODULE atom_admm_methods
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
+                                              section_vals_release,&
                                               section_vals_remove_values,&
                                               section_vals_type,&
                                               section_vals_val_set
@@ -416,7 +417,12 @@ CONTAINS
       CALL atom_int_release(ref_int)
       CALL atom_int_release(admm_int)
       CALL release_atom_basis(admm_basis)
+      DEALLOCATE (ref_int, admm_int, admm_basis)
       DEALLOCATE (ovlap, sinv, tmat, siref)
+
+      CALL section_vals_release(xc_pbex)
+      CALL section_vals_release(xc_optx)
+      CALL section_vals_release(xc_section)
 
       IF (iw > 0) THEN
          WRITE (iw, '(/,T2,A)') &
