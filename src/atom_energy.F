@@ -5,6 +5,7 @@
 
 ! **************************************************************************************************
 MODULE atom_energy
+   USE atom_admm_methods,               ONLY: atom_admm
    USE atom_electronic_structure,       ONLY: calculate_atom
    USE atom_fit,                        ONLY: atom_fit_density,&
                                               atom_fit_kgpot
@@ -95,9 +96,9 @@ CONTAINS
       TYPE(atom_potential_type), POINTER                 :: ae_pot, p_pot
       TYPE(atom_state), POINTER                          :: state
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER :: basis_section, external_vxc_section, method_section, &
-         opt_section, potential_section, powell_section, xc_section, zmp_restart_section, &
-         zmp_section
+      TYPE(section_vals_type), POINTER :: admm_section, basis_section, external_vxc_section, &
+         method_section, opt_section, potential_section, powell_section, xc_section, &
+         zmp_restart_section, zmp_section
 
       CALL timeset(routineN, handle)
 
@@ -448,6 +449,14 @@ CONTAINS
          END IF
       END IF
       CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%ANALYZE_BASIS")
+
+      ! Analyse ADMM approximation
+      iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%ADMM", extension=".log")
+      admm_section => section_vals_get_subs_vals(atom_section, "PRINT%ADMM")
+      IF (iw > 0) THEN
+         CALL atom_admm(atom_info, admm_section, iw)
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%ADMM")
 
       ! clean up
       IF (had_ae) THEN

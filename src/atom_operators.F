@@ -15,9 +15,9 @@ MODULE atom_operators
         sg_coulomb, sg_erf, sg_erfc, sg_exchange, sg_gpot, sg_kinetic, sg_kinnuc, sg_nuclear, &
         sg_overlap, sg_proj_ol, sto_kinetic, sto_nuclear, sto_overlap
    USE atom_types,                      ONLY: &
-        atom_basis_gridrep, atom_basis_type, atom_integrals, atom_potential_type, atom_state, &
-        cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, num_basis, release_atom_basis, &
-        sto_basis, upf_pseudo
+        atom_basis_gridrep, atom_basis_type, atom_compare_grids, atom_integrals, &
+        atom_potential_type, atom_state, cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, &
+        num_basis, release_atom_basis, sto_basis, upf_pseudo
    USE atom_utils,                      ONLY: &
         atom_solve, contract2, contract2add, contract4, coulomb_potential_numeric, integrate_grid, &
         numpot_matrix, slater_density, wigner_slater_functional
@@ -43,7 +43,7 @@ MODULE atom_operators
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_operators'
 
    PUBLIC :: atom_int_setup, atom_ppint_setup, atom_int_release, atom_ppint_release
-   PUBLIC :: atom_relint_setup, atom_relint_release
+   PUBLIC :: atom_relint_setup, atom_relint_release, atom_basis_projection_overlap
 
 ! **************************************************************************************************
 
@@ -933,6 +933,81 @@ CONTAINS
       END DO
 
    END SUBROUTINE dkh_integrals
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ovlap ...
+!> \param basis_a ...
+!> \param basis_b ...
+! **************************************************************************************************
+   SUBROUTINE atom_basis_projection_overlap(ovlap, basis_a, basis_b)
+      REAL(KIND=dp), DIMENSION(:, :, 0:), INTENT(OUT)    :: ovlap
+      TYPE(atom_basis_type), INTENT(IN)                  :: basis_a, basis_b
+
+      INTEGER                                            :: i, j, l, ma, mb, na, nb
+      LOGICAL                                            :: ebas
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: omat
+
+      ebas = (basis_a%basis_type == basis_b%basis_type)
+
+      ovlap = 0.0_dp
+
+      IF (ebas) THEN
+         SELECT CASE (basis_a%basis_type)
+         CASE DEFAULT
+            CPABORT("")
+         CASE (GTO_BASIS)
+            DO l = 0, 3
+               na = basis_a%nbas(l)
+               nb = basis_b%nbas(l)
+               CALL sg_overlap(ovlap(1:na, 1:nb, l), l, basis_a%am(1:na, l), basis_b%am(1:nb, l))
+            END DO
+         CASE (CGTO_BASIS)
+            DO l = 0, 3
+               na = basis_a%nbas(l)
+               nb = basis_b%nbas(l)
+               ma = basis_a%nprim(l)
+               mb = basis_b%nprim(l)
+               ALLOCATE (omat(ma, mb))
+               CALL sg_overlap(omat(1:ma, 1:mb), l, basis_a%am(1:ma, l), basis_b%am(1:mb, l))
+               ovlap(1:na, 1:nb, l) = MATMUL(TRANSPOSE(basis_a%cm(1:ma, 1:na, l)), &
+                                             MATMUL(omat(1:ma, 1:mb), basis_b%cm(1:mb, 1:nb, l)))
+               DEALLOCATE (omat)
+            END DO
+         CASE (STO_BASIS)
+            DO l = 0, 3
+               na = basis_a%nbas(l)
+               nb = basis_b%nbas(l)
+               CALL sto_overlap(ovlap(1:na, 1:nb, l), basis_a%ns(1:na, l), basis_b%as(1:nb, l), &
+                                basis_a%ns(1:na, l), basis_b%as(1:nb, l))
+            END DO
+         CASE (NUM_BASIS)
+            CPASSERT(atom_compare_grids(basis_a%grid, basis_b%grid))
+            DO l = 0, 3
+               na = basis_a%nbas(l)
+               nb = basis_b%nbas(l)
+               DO j = 1, nb
+                  DO i = 1, na
+                     ovlap(i, j, l) = integrate_grid(basis_a%bf(:, i, l), basis_b%bf(:, j, l), basis_a%grid)
+                  END DO
+               END DO
+            END DO
+         END SELECT
+      ELSE
+         CPASSERT(atom_compare_grids(basis_a%grid, basis_b%grid))
+         DO l = 0, 3
+            na = basis_a%nbas(l)
+            nb = basis_b%nbas(l)
+            DO j = 1, nb
+               DO i = 1, na
+                  ovlap(i, j, l) = integrate_grid(basis_a%bf(:, i, l), basis_b%bf(:, j, l), basis_a%grid)
+               END DO
+            END DO
+         END DO
+      END IF
+
+   END SUBROUTINE atom_basis_projection_overlap
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param integrals ...

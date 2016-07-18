@@ -705,25 +705,25 @@ CONTAINS
       END IF
       WRITE (iw, '(A2,A)') gthpot%symbol, ADJUSTL(TRIM(gthpot%pname))
       WRITE (iw, '(4I5)') gthpot%econf
-      WRITE (iw, '(F18.12,I8,5F18.12)') gthpot%rc, gthpot%ncl, (gthpot%cl(i), i=1, gthpot%ncl)
+      WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%rc, gthpot%ncl, (gthpot%cl(i), i=1, gthpot%ncl)
       IF (gthpot%lpotextended) THEN
          WRITE (iw, '(A,I5)') "  LPOT", gthpot%nexp_lpot
          DO i = 1, gthpot%nexp_lpot
-            WRITE (iw, '(F18.12,I8,5F18.12)') gthpot%alpha_lpot(i), gthpot%nct_lpot(i), &
+            WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%alpha_lpot(i), gthpot%nct_lpot(i), &
                (gthpot%cval_lpot(j, i), j=1, gthpot%nct_lpot(i))
          END DO
       END IF
       IF (gthpot%lsdpot) THEN
          WRITE (iw, '(A,I5)') "  LSD ", gthpot%nexp_lsd
          DO i = 1, gthpot%nexp_lsd
-            WRITE (iw, '(F18.12,I8,5F18.12)') gthpot%alpha_lsd(i), gthpot%nct_lsd(i), &
+            WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%alpha_lsd(i), gthpot%nct_lsd(i), &
                (gthpot%cval_lsd(j, i), j=1, gthpot%nct_lsd(i))
          END DO
       END IF
       IF (gthpot%nlcc) THEN
          WRITE (iw, '(A,I5)') " NLCC ", gthpot%nexp_nlcc
          DO i = 1, gthpot%nexp_nlcc
-            WRITE (iw, '(F18.12,I8,5F18.12)') gthpot%alpha_nlcc(i), gthpot%nct_nlcc(i), &
+            WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%alpha_nlcc(i), gthpot%nct_nlcc(i), &
                (gthpot%cval_nlcc(j, i)*4.0_dp*pi, j=1, gthpot%nct_nlcc(i))
          END DO
       END IF
@@ -736,9 +736,9 @@ CONTAINS
       END DO
       WRITE (iw, '(I8)') n
       DO i = 0, n-1
-         WRITE (iw, '(F18.12,I8,5F18.12)') gthpot%rcnl(i), gthpot%nl(i), (gthpot%hnl(1, k, i), k=1, gthpot%nl(i))
+         WRITE (iw, '(F20.14,I8,5F20.14)') gthpot%rcnl(i), gthpot%nl(i), (gthpot%hnl(1, k, i), k=1, gthpot%nl(i))
          DO j = 2, gthpot%nl(i)
-            WRITE (iw, '(T20,5F18.12)') (gthpot%hnl(j, k, i), k=j, gthpot%nl(i))
+            WRITE (iw, '(T20,5F20.14)') (gthpot%hnl(j, k, i), k=j, gthpot%nl(i))
          END DO
       END DO
       IF (.NOT. PRESENT(iunit)) CALL close_file(unit_number=iw)

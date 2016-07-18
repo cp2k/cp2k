@@ -65,15 +65,15 @@ MODULE atom_types
       INTEGER                                       :: basis_type
       INTEGER, DIMENSION(0:3)                       :: nbas
       INTEGER, DIMENSION(0:3)                       :: nprim
-      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: am !GTO exponents
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: cm !Contraction coeffs
-      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: as !STO exponents
-      INTEGER, DIMENSION(:, :), POINTER                :: ns !STO n-quantum numbers
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: bf !num. bsf
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: dbf !derivatives (num)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: ddbf !2nd derivatives (num)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: am !GTO exponents
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: cm !Contraction coeffs
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: as !STO exponents
+      INTEGER, DIMENSION(:, :), POINTER             :: ns !STO n-quantum numbers
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: bf !num. bsf
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: dbf !derivatives (num)
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ddbf !2nd derivatives (num)
       REAL(KIND=dp)                                 :: eps_eig
-      TYPE(grid_atom_type), POINTER                  :: grid
+      TYPE(grid_atom_type), POINTER                 :: grid
       LOGICAL                                       :: geometrical
       REAL(KIND=dp)                                 :: aval, cval
       INTEGER, DIMENSION(0:3)                       :: start
@@ -82,8 +82,8 @@ MODULE atom_types
 !> Provides all information about a pseudopotential
 ! **************************************************************************************************
    TYPE atom_gthpot_type
-      CHARACTER(LEN=2)                             :: symbol
-      CHARACTER(LEN=default_string_length)         :: pname
+      CHARACTER(LEN=2)                              :: symbol
+      CHARACTER(LEN=default_string_length)          :: pname
       INTEGER, DIMENSION(0:3)                       :: econf
       REAL(dp)                                      :: zion
       REAL(dp)                                      :: rc
@@ -91,31 +91,31 @@ MODULE atom_types
       REAL(dp), DIMENSION(5)                        :: cl
       INTEGER, DIMENSION(0:3)                       :: nl
       REAL(dp), DIMENSION(0:3)                      :: rcnl
-      REAL(dp), DIMENSION(4, 4, 0:3)                  :: hnl
+      REAL(dp), DIMENSION(4, 4, 0:3)                :: hnl
       ! type extensions
       ! NLCC
-      LOGICAL                                    :: nlcc
-      INTEGER                                    :: nexp_nlcc
-      REAL(KIND=dp), DIMENSION(10)             :: alpha_nlcc
-      INTEGER, DIMENSION(10)                     :: nct_nlcc
-      REAL(KIND=dp), DIMENSION(4, 10)           :: cval_nlcc
+      LOGICAL                                       :: nlcc
+      INTEGER                                       :: nexp_nlcc
+      REAL(KIND=dp), DIMENSION(10)                  :: alpha_nlcc
+      INTEGER, DIMENSION(10)                        :: nct_nlcc
+      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_nlcc
       ! LSD potential
-      LOGICAL                                    :: lsdpot
-      INTEGER                                    :: nexp_lsd
-      REAL(KIND=dp), DIMENSION(10)             :: alpha_lsd
-      INTEGER, DIMENSION(10)                     :: nct_lsd
-      REAL(KIND=dp), DIMENSION(4, 10)           :: cval_lsd
+      LOGICAL                                       :: lsdpot
+      INTEGER                                       :: nexp_lsd
+      REAL(KIND=dp), DIMENSION(10)                  :: alpha_lsd
+      INTEGER, DIMENSION(10)                        :: nct_lsd
+      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_lsd
       ! extended local potential
-      LOGICAL                                    :: lpotextended
-      INTEGER                                    :: nexp_lpot
-      REAL(KIND=dp), DIMENSION(10)             :: alpha_lpot
-      INTEGER, DIMENSION(10)                     :: nct_lpot
-      REAL(KIND=dp), DIMENSION(4, 10)           :: cval_lpot
+      LOGICAL                                       :: lpotextended
+      INTEGER                                       :: nexp_lpot
+      REAL(KIND=dp), DIMENSION(10)                  :: alpha_lpot
+      INTEGER, DIMENSION(10)                        :: nct_lpot
+      REAL(KIND=dp), DIMENSION(4, 10)               :: cval_lpot
    END TYPE atom_gthpot_type
 
    TYPE atom_ecppot_type
-      CHARACTER(LEN=2)                             :: symbol
-      CHARACTER(LEN=default_string_length)         :: pname
+      CHARACTER(LEN=2)                              :: symbol
+      CHARACTER(LEN=default_string_length)          :: pname
       INTEGER, DIMENSION(0:3)                       :: econf
       REAL(dp)                                      :: zion
       INTEGER                                       :: lmax
@@ -124,9 +124,9 @@ MODULE atom_types
       REAL(dp), DIMENSION(1:10)                     :: aloc ! coefficient
       REAL(dp), DIMENSION(1:10)                     :: bloc ! exponent
       INTEGER, DIMENSION(0:10)                      :: npot ! # terms
-      INTEGER, DIMENSION(1:10, 0:10)                 :: nrpot ! r**(n-2)
-      REAL(dp), DIMENSION(1:10, 0:10)                :: apot ! coefficient
-      REAL(dp), DIMENSION(1:10, 0:10)                :: bpot ! exponent
+      INTEGER, DIMENSION(1:10, 0:10)                :: nrpot ! r**(n-2)
+      REAL(dp), DIMENSION(1:10, 0:10)               :: apot ! coefficient
+      REAL(dp), DIMENSION(1:10, 0:10)               :: bpot ! exponent
    END TYPE atom_ecppot_type
 
    TYPE atom_potential_type
@@ -144,21 +144,21 @@ MODULE atom_types
 !> Provides all information on states and occupation
 ! **************************************************************************************************
    TYPE atom_state
-      REAL(KIND=dp), DIMENSION(0:3, 10)               :: occ
-      REAL(KIND=dp), DIMENSION(0:3, 10)               :: core
-      REAL(KIND=dp), DIMENSION(0:3, 10)               :: occupation
+      REAL(KIND=dp), DIMENSION(0:3, 10)             :: occ
+      REAL(KIND=dp), DIMENSION(0:3, 10)             :: core
+      REAL(KIND=dp), DIMENSION(0:3, 10)             :: occupation
       INTEGER                                       :: maxl_occ
-      INTEGER, DIMENSION(0:3)                        :: maxn_occ
+      INTEGER, DIMENSION(0:3)                       :: maxn_occ
       INTEGER                                       :: maxl_calc
-      INTEGER, DIMENSION(0:3)                        :: maxn_calc
+      INTEGER, DIMENSION(0:3)                       :: maxn_calc
       INTEGER                                       :: multiplicity
-      REAL(KIND=dp), DIMENSION(0:3, 10)               :: occa, occb
+      REAL(KIND=dp), DIMENSION(0:3, 10)             :: occa, occb
    END TYPE atom_state
 
 !> Holds atomic integrals
 ! **************************************************************************************************
    TYPE eri
-      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: int
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: int
    END TYPE eri
 
    TYPE atom_integrals
@@ -168,43 +168,43 @@ MODULE atom_types
       LOGICAL                                       :: eri_exchange
       LOGICAL                                       :: all_nu
       INTEGER, DIMENSION(0:3)                       :: n, nne
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: ovlp, kin, core, clsd
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: utrans, uptrans
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: hnl
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: conf
-      TYPE(eri), DIMENSION(20)                       :: ceri
-      TYPE(eri), DIMENSION(20)                       :: eeri
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: ovlp, kin, core, clsd
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: utrans, uptrans
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hnl
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: conf
+      TYPE(eri), DIMENSION(20)                      :: ceri
+      TYPE(eri), DIMENSION(20)                      :: eeri
       INTEGER                                       :: dkhstat = 0
       INTEGER                                       :: zorastat = 0
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: tzora
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: hdkh
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: tzora
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hdkh
    END TYPE atom_integrals
 
 !> Holds atomic orbitals and energies
 ! **************************************************************************************************
    TYPE atom_orbitals
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: wfn, wfna, wfnb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: pmat, pmata, pmatb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: ener, enera, enerb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: refene, refchg, refnod
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: wrefene, wrefchg, wrefnod
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: crefene, crefchg, crefnod
-      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: wpsir0
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rcmax
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wfn, wfna, wfnb
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: pmat, pmata, pmatb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: ener, enera, enerb
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: refene, refchg, refnod
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wrefene, wrefchg, wrefnod
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: crefene, crefchg, crefnod
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: wpsir0
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: rcmax
    END TYPE atom_orbitals
 
 !> Operator matrices
 ! **************************************************************************************************
    TYPE opmat_type
       INTEGER, DIMENSION(0:3)                       :: n
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: op
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: op
    END TYPE opmat_type
 
 !> Operator grids
 ! **************************************************************************************************
    TYPE opgrid_type
-      REAL(KIND=dp), DIMENSION(:), POINTER            :: op
-      TYPE(grid_atom_type), POINTER                  :: grid
+      REAL(KIND=dp), DIMENSION(:), POINTER          :: op
+      TYPE(grid_atom_type), POINTER                 :: grid
    END TYPE opgrid_type
 
 !> All energies
@@ -273,8 +273,9 @@ MODULE atom_types
    PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
    PUBLIC :: atom_orbitals, eri, atom_potential_type, atom_gthpot_type
    PUBLIC :: atom_optimization_type
+   PUBLIC :: atom_compare_grids
    PUBLIC :: create_atom_type, release_atom_type, set_atom
-   PUBLIC :: create_atom_orbs
+   PUBLIC :: create_atom_orbs, release_atom_orbs
    PUBLIC :: init_atom_basis, atom_basis_gridrep, release_atom_basis
    PUBLIC :: init_atom_potential, release_atom_potential
    PUBLIC :: read_atom_opt_section
@@ -2734,6 +2735,34 @@ CONTAINS
       END IF
 
    END SUBROUTINE read_ecp_potential
+! **************************************************************************************************
+!> \brief ...
+!> \param grid1 ...
+!> \param grid2 ...
+!> \retval is_equal ...
+! **************************************************************************************************
+   FUNCTION atom_compare_grids(grid1, grid2) RESULT(is_equal)
+      TYPE(grid_atom_type)                               :: grid1, grid2
+      LOGICAL                                            :: is_equal
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: dr, dw
+
+      is_equal = .TRUE.
+      IF (grid1%nr == grid2%nr) THEN
+         DO i = 1, grid2%nr
+            dr = ABS(grid1%rad(i)-grid2%rad(i))
+            dw = ABS(grid1%wr(i)-grid2%wr(i))
+            IF (dr+dw > 1.0e-12_dp) THEN
+               is_equal = .FALSE.
+               EXIT
+            END IF
+         END DO
+      ELSE
+         is_equal = .FALSE.
+      END IF
+
+   END FUNCTION atom_compare_grids
 ! **************************************************************************************************
 
 END MODULE atom_types

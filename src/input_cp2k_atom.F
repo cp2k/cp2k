@@ -196,7 +196,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key
+      TYPE(section_type), POINTER                        :: print_key, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="print", &
@@ -332,6 +332,32 @@ CONTAINS
                                        print_level=debug_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
+
+      ! ADMM Analysis
+      CALL cp_print_key_section_create(print_key, "ADMM", &
+                                       description="Analysis of ADMM approximation to exact exchange", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+
+      NULLIFY (subsection)
+      CALL section_create(subsection, name="ADMM_BASIS", &
+                          description="Section of basis set information for ADMM calculations.", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE.)
+      CALL atom_basis_section(subsection)
+      CALL section_add_subsection(print_key, subsection)
+      CALL section_release(subsection)
+!     CALL keyword_create(keyword, name="OVERLAP_CONDITION_NUMBER", &
+!                         description="Condition number of the basis set overlap matrix calculated for a cubic crystal", &
+!                         usage="OVERLAP_CONDITION_NUMBER <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
+!     CALL section_add_keyword(print_key, keyword)
+!     CALL keyword_release(keyword)
+!     CALL keyword_create(keyword, name="COMPLETENESS", &
+!                         description="Calculate a completeness estimate for the basis set.", &
+!                         usage="COMPLETENESS <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
+!     CALL section_add_keyword(print_key, keyword)
+!     CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
    END SUBROUTINE create_atom_print_section
 
 ! **************************************************************************************************

@@ -846,7 +846,7 @@ CONTAINS
 
          fopt = HUGE(0._dp)
          ostate%state = 0
-
+         CALL powell_optimize(ostate%nvar, x, ostate)
          DO
 
             IF (ostate%state == 2) THEN

@@ -9,7 +9,8 @@
 ! **************************************************************************************************
 MODULE atom_xc
 
-   USE atom_types,                      ONLY: atom_type,&
+   USE atom_types,                      ONLY: atom_basis_type,&
+                                              atom_type,&
                                               gth_pseudo,&
                                               opmat_type,&
                                               upf_pseudo
@@ -27,7 +28,8 @@ MODULE atom_xc
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: fourpi
+   USE mathconstants,                   ONLY: fourpi,&
+                                              pi
    USE xc_atom,                         ONLY: xc_rho_set_atom_update
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_create,&
@@ -53,6 +55,7 @@ MODULE atom_xc
 ! ZMP added public subroutines calculate_atom_zmp, calculate_atom_ext_vxc
    PUBLIC :: calculate_atom_vxc_lda, calculate_atom_vxc_lsd, &
              calculate_atom_zmp, calculate_atom_ext_vxc
+   PUBLIC :: atom_vxc_lda, atom_vxc_lsd, atom_dpot_lda
 
 ! **************************************************************************************************
 
@@ -482,9 +485,9 @@ CONTAINS
             END IF
             IF (needs%laplace_rho_spin) THEN
                ALLOCATE (lap(nr, 2))
-               CALL atom_density(lap(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, &
+               CALL atom_density(lap(:, 1), atom%orbitals%pmata, atom%basis, atom%state%maxl_occ, &
                                  typ="LAP", rr=atom%basis%grid%rad2)
-               CALL atom_density(lap(:, 2), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, &
+               CALL atom_density(lap(:, 2), atom%orbitals%pmatb, atom%basis, atom%state%maxl_occ, &
                                  typ="LAP", rr=atom%basis%grid%rad2)
                IF (nlcc) THEN
                   xfun = 0.0_dp
@@ -606,6 +609,412 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_atom_vxc_lsd
+
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param pmat ...
+!> \param maxl ...
+!> \param xc_section ...
+!> \param fexc ...
+!> \param xcmat ...
+! **************************************************************************************************
+   SUBROUTINE atom_vxc_lda(basis, pmat, maxl, xc_section, fexc, xcmat)
+      TYPE(atom_basis_type), POINTER                     :: basis
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: pmat
+      INTEGER, INTENT(IN)                                :: maxl
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      REAL(KIND=dp), INTENT(OUT)                         :: fexc
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: xcmat
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lda', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: deriv_order, handle, l, myfun, n1, n2, &
+                                                            n3, nr, nspins
+      INTEGER, DIMENSION(2, 3)                           :: bounds
+      LOGICAL                                            :: lsd
+      REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_type), POINTER                  :: deriv
+      TYPE(xc_rho_cflags_type)                           :: needs
+      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+
+! -------------------------------------------------------------------------
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(xc_section))
+
+      NULLIFY (rho_set)
+
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
+
+      IF (myfun == xc_none) THEN
+         fexc = 0._dp
+      ELSE
+         CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", r_val=density_cut)
+         CALL section_vals_val_get(xc_section, "GRADIENT_CUTOFF", r_val=gradient_cut)
+         CALL section_vals_val_get(xc_section, "TAU_CUTOFF", r_val=tau_cut)
+
+         lsd = .FALSE.
+         nspins = 1
+         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+
+         ! Prepare the structures needed to calculate and store the xc derivatives
+
+         ! Array dimension: here anly one dimensional arrays are used,
+         ! i.e. only the first column of deriv_data is read.
+         ! The other to dimensions  are set to size equal 1
+         nr = basis%grid%nr
+         bounds(1:2, 1:3) = 1
+         bounds(2, 1) = nr
+
+         ! create a place where to put the derivatives
+         NULLIFY (deriv_set)
+         CALL xc_dset_create(deriv_set, local_bounds=bounds)
+         ! create the place where to store the argument for the functionals
+         CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
+                                drho_cutoff=gradient_cut, tau_cutoff=tau_cut)
+         ! allocate the required 3d arrays where to store rho and drho
+         CALL xc_rho_set_atom_update(rho_set, needs, nspins, bounds)
+
+         NULLIFY (rho, drho, tau)
+         IF (needs%rho) THEN
+            ALLOCATE (rho(nr, 1))
+            CALL atom_density(rho(:, 1), pmat, basis, maxl, typ="RHO")
+         END IF
+         IF (needs%norm_drho) THEN
+            ALLOCATE (drho(nr, 1))
+            CALL atom_density(drho(:, 1), pmat, basis, maxl, typ="DER")
+         END IF
+         IF (needs%tau) THEN
+            ALLOCATE (tau(nr, 1))
+            CALL atom_density(tau(:, 1), pmat, basis, maxl, typ="KIN", rr=basis%grid%rad2)
+         END IF
+         IF (needs%laplace_rho) THEN
+            ALLOCATE (lap(nr, 1))
+            CALL atom_density(lap(:, 1), pmat, basis, maxl, typ="LAP", rr=basis%grid%rad2)
+         END IF
+
+         CALL fill_rho_set(rho_set, nspins, needs, rho, drho, tau, lap, nr)
+
+         CALL xc_dset_zero_all(deriv_set)
+
+         deriv_order = 1
+         CALL xc_functionals_eval(xc_fun_section, lsd=lsd, rho_set=rho_set, deriv_set=deriv_set, &
+                                  deriv_order=deriv_order)
+
+         ! Integration to get the matrix elements and energy
+         deriv => xc_dset_get_derivative(deriv_set, "", allocate_deriv=.FALSE.)
+         CALL xc_derivative_get(deriv, deriv_data=xcpot)
+         fexc = fourpi*integrate_grid(xcpot(:, 1, 1), basis%grid)
+
+         IF (needs%rho) THEN
+            deriv => xc_dset_get_derivative(deriv_set, "(rho)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            CALL numpot_matrix(xcmat, xcpot(:, 1, 1), basis, 0)
+            DEALLOCATE (rho)
+         END IF
+         IF (needs%norm_drho) THEN
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            CALL numpot_matrix(xcmat, xcpot(:, 1, 1), basis, 1)
+            DEALLOCATE (drho)
+         END IF
+         IF (needs%tau) THEN
+            deriv => xc_dset_get_derivative(deriv_set, "(tau)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            n1 = SIZE(xcmat, 1)
+            n2 = SIZE(xcmat, 2)
+            n3 = SIZE(xcmat, 3)
+            ALLOCATE (taumat(n1, n2, 0:n3-1))
+            taumat = 0._dp
+
+            xcpot(:, 1, 1) = 0.5_dp*xcpot(:, 1, 1)
+            CALL numpot_matrix(xcmat, xcpot(:, 1, 1), basis, 2)
+            xcpot(:, 1, 1) = xcpot(:, 1, 1)/basis%grid%rad2(:)
+            CALL numpot_matrix(taumat, xcpot(:, 1, 1), basis, 0)
+            DO l = 0, 3
+               xcmat(:, :, l) = xcmat(:, :, l)+REAL(l*(l+1), dp)*taumat(:, :, l)
+            END DO
+
+            DEALLOCATE (tau)
+            DEALLOCATE (taumat)
+         END IF
+
+         ! Release the xc structure used to store the xc derivatives
+         CALL xc_dset_release(deriv_set)
+         CALL xc_rho_set_release(rho_set)
+
+      END IF !xc_none
+
+      CALL timestop(handle)
+
+   END SUBROUTINE atom_vxc_lda
+
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param pmata ...
+!> \param pmatb ...
+!> \param maxl ...
+!> \param xc_section ...
+!> \param fexc ...
+!> \param xcmata ...
+!> \param xcmatb ...
+! **************************************************************************************************
+   SUBROUTINE atom_vxc_lsd(basis, pmata, pmatb, maxl, xc_section, fexc, xcmata, xcmatb)
+      TYPE(atom_basis_type), POINTER                     :: basis
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: pmata, pmatb
+      INTEGER, INTENT(IN)                                :: maxl
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      REAL(KIND=dp), INTENT(OUT)                         :: fexc
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: xcmata, xcmatb
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_vxc_lsd', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: deriv_order, handle, l, myfun, n1, n2, &
+                                                            n3, nr, nspins
+      INTEGER, DIMENSION(2, 3)                           :: bounds
+      LOGICAL                                            :: lsd
+      REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_type), POINTER                  :: deriv
+      TYPE(xc_rho_cflags_type)                           :: needs
+      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+
+! -------------------------------------------------------------------------
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(xc_section))
+
+      NULLIFY (rho_set)
+
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
+
+      IF (myfun == xc_none) THEN
+         fexc = 0._dp
+      ELSE
+         CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", r_val=density_cut)
+         CALL section_vals_val_get(xc_section, "GRADIENT_CUTOFF", r_val=gradient_cut)
+         CALL section_vals_val_get(xc_section, "TAU_CUTOFF", r_val=tau_cut)
+
+         lsd = .TRUE.
+         nspins = 2
+         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+
+         ! Prepare the structures needed to calculate and store the xc derivatives
+
+         ! Array dimension: here anly one dimensional arrays are used,
+         ! i.e. only the first column of deriv_data is read.
+         ! The other to dimensions  are set to size equal 1
+         nr = basis%grid%nr
+         bounds(1:2, 1:3) = 1
+         bounds(2, 1) = nr
+
+         ! create a place where to put the derivatives
+         NULLIFY (deriv_set)
+         CALL xc_dset_create(deriv_set, local_bounds=bounds)
+         ! create the place where to store the argument for the functionals
+         CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
+                                drho_cutoff=gradient_cut, tau_cutoff=tau_cut)
+         ! allocate the required 3d arrays where to store rho and drho
+         CALL xc_rho_set_atom_update(rho_set, needs, nspins, bounds)
+
+         NULLIFY (rho, drho, tau)
+         IF (needs%rho_spin) THEN
+            ALLOCATE (rho(nr, 2))
+            CALL atom_density(rho(:, 1), pmata, basis, maxl, typ="RHO")
+            CALL atom_density(rho(:, 2), pmatb, basis, maxl, typ="RHO")
+         END IF
+         IF (needs%norm_drho_spin) THEN
+            ALLOCATE (drho(nr, 2))
+            CALL atom_density(drho(:, 1), pmata, basis, maxl, typ="DER")
+            CALL atom_density(drho(:, 2), pmatb, basis, maxl, typ="DER")
+         END IF
+         IF (needs%tau_spin) THEN
+            ALLOCATE (tau(nr, 2))
+            CALL atom_density(tau(:, 1), pmata, basis, maxl, typ="KIN", rr=basis%grid%rad2)
+            CALL atom_density(tau(:, 2), pmatb, basis, maxl, typ="KIN", rr=basis%grid%rad2)
+         END IF
+         IF (needs%laplace_rho_spin) THEN
+            ALLOCATE (lap(nr, 2))
+            CALL atom_density(lap(:, 1), pmata, basis, maxl, typ="LAP", rr=basis%grid%rad2)
+            CALL atom_density(lap(:, 2), pmatb, basis, maxl, typ="LAP", rr=basis%grid%rad2)
+         END IF
+
+         CALL fill_rho_set(rho_set, nspins, needs, rho, drho, tau, lap, nr)
+
+         CALL xc_dset_zero_all(deriv_set)
+
+         deriv_order = 1
+         CALL xc_functionals_eval(xc_fun_section, lsd=lsd, rho_set=rho_set, deriv_set=deriv_set, &
+                                  deriv_order=deriv_order)
+
+         ! Integration to get the matrix elements and energy
+         deriv => xc_dset_get_derivative(deriv_set, "", allocate_deriv=.FALSE.)
+         CALL xc_derivative_get(deriv, deriv_data=xcpot)
+         fexc = fourpi*integrate_grid(xcpot(:, 1, 1), basis%grid)
+
+         IF (needs%rho_spin) THEN
+            deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            CALL numpot_matrix(xcmata, xcpot(:, 1, 1), basis, 0)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhob)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            CALL numpot_matrix(xcmatb, xcpot(:, 1, 1), basis, 0)
+            DEALLOCATE (rho)
+         END IF
+         IF (needs%norm_drho_spin) THEN
+            ! drhoa
+            NULLIFY (deriv)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            CALL numpot_matrix(xcmata, xcpot(:, 1, 1), basis, 1)
+            ! drhob
+            NULLIFY (deriv)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            CALL numpot_matrix(xcmatb, xcpot(:, 1, 1), basis, 1)
+            ! Cross Terms
+            NULLIFY (deriv)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+            IF (ASSOCIATED(deriv)) THEN
+               CALL xc_derivative_get(deriv, deriv_data=xcpot)
+               CALL numpot_matrix(xcmata, xcpot(:, 1, 1), basis, 1)
+               CALL numpot_matrix(xcmatb, xcpot(:, 1, 1), basis, 1)
+            END IF
+            DEALLOCATE (drho)
+         END IF
+         IF (needs%tau_spin) THEN
+            n1 = SIZE(xcmata, 1)
+            n2 = SIZE(xcmata, 2)
+            n3 = SIZE(xcmata, 3)
+            ALLOCATE (taumat(n1, n2, 0:n3-1))
+
+            deriv => xc_dset_get_derivative(deriv_set, "(tau_a)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            taumat = 0._dp
+            xcpot(:, 1, 1) = 0.5_dp*xcpot(:, 1, 1)
+            CALL numpot_matrix(xcmata, xcpot(:, 1, 1), basis, 2)
+            xcpot(:, 1, 1) = xcpot(:, 1, 1)/basis%grid%rad2(:)
+            CALL numpot_matrix(taumat, xcpot(:, 1, 1), basis, 0)
+            DO l = 0, 3
+               xcmata(:, :, l) = xcmata(:, :, l)+REAL(l*(l+1), dp)*taumat(:, :, l)
+            END DO
+
+            deriv => xc_dset_get_derivative(deriv_set, "(tau_b)", allocate_deriv=.FALSE.)
+            CALL xc_derivative_get(deriv, deriv_data=xcpot)
+            taumat = 0._dp
+            xcpot(:, 1, 1) = 0.5_dp*xcpot(:, 1, 1)
+            CALL numpot_matrix(xcmatb, xcpot(:, 1, 1), basis, 2)
+            xcpot(:, 1, 1) = xcpot(:, 1, 1)/basis%grid%rad2(:)
+            CALL numpot_matrix(taumat, xcpot(:, 1, 1), basis, 0)
+            DO l = 0, 3
+               xcmatb(:, :, l) = xcmatb(:, :, l)+REAL(l*(l+1), dp)*taumat(:, :, l)
+            END DO
+
+            DEALLOCATE (tau)
+            DEALLOCATE (taumat)
+         END IF
+
+         ! Release the xc structure used to store the xc derivatives
+         CALL xc_dset_release(deriv_set)
+         CALL xc_rho_set_release(rho_set)
+
+      END IF !xc_none
+
+      CALL timestop(handle)
+
+   END SUBROUTINE atom_vxc_lsd
+
+! **************************************************************************************************
+!> \brief ...
+!> \param basis0 ...
+!> \param pmat0 ...
+!> \param basis1 ...
+!> \param pmat1 ...
+!> \param maxl ...
+!> \param functional ...
+!> \param dfexc ...
+!> \param linxpar ...
+! **************************************************************************************************
+   SUBROUTINE atom_dpot_lda(basis0, pmat0, basis1, pmat1, maxl, functional, dfexc, linxpar)
+      TYPE(atom_basis_type), POINTER                     :: basis0
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: pmat0
+      TYPE(atom_basis_type), POINTER                     :: basis1
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: pmat1
+      INTEGER, INTENT(IN)                                :: maxl
+      CHARACTER(LEN=*), INTENT(IN)                       :: functional
+      REAL(KIND=dp), INTENT(OUT)                         :: dfexc
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: linxpar
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'atom_dpot_lda', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER :: alx = 0.20_dp, blx = -0.06_dp, &
+         fs = -0.75_dp*(3._dp/pi)**(1._dp/3._dp)
+
+      INTEGER                                            :: handle, ir, nr
+      REAL(KIND=dp)                                      :: a, b, fx
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta, drho0, drho1, pot0, pot1, rho0, &
+                                                            rho1
+
+! -------------------------------------------------------------------------
+
+      CALL timeset(routineN, handle)
+
+      nr = basis0%grid%nr
+
+      ALLOCATE (rho0(nr), drho0(nr))
+      CALL atom_density(rho0, pmat0, basis0, maxl, typ="RHO")
+      CALL atom_density(drho0, pmat0, basis0, maxl, typ="DER")
+      !
+      ALLOCATE (rho1(nr), drho1(nr))
+      CALL atom_density(rho1, pmat1, basis1, maxl, typ="RHO")
+      CALL atom_density(drho1, pmat1, basis1, maxl, typ="DER")
+      !
+      ALLOCATE (delta(nr))
+      fx = 4.0_dp/3.0_dp
+      delta(1:nr) = fs*(rho0(1:nr)**fx-rho1(1:nr)**fx)
+
+      SELECT CASE (TRIM (functional))
+      CASE ("LINX")
+         IF (PRESENT(linxpar)) THEN
+            a = linxpar(1)
+            b = linxpar(2)
+         ELSE
+            a = alx
+            b = blx
+         END IF
+         ALLOCATE (pot0(nr), pot1(nr))
+         DO ir = 1, nr
+            IF (rho0(ir) > 1.e-12_dp) THEN
+               pot0(ir) = 0.5_dp*drho0(ir)/(3._dp*pi*pi*rho0(ir)**fx)
+            ELSE
+               pot0(ir) = 0._dp
+            END IF
+         END DO
+         pot1(1:nr) = 1._dp+(a*pot0(1:nr)**2)/(1._dp+b*pot0(1:nr)**2)
+         pot1(1:nr) = pot1(1:nr)*delta(1:nr)
+         dfexc = fourpi*integrate_grid(pot1(1:nr), basis0%grid)
+         DEALLOCATE (pot0, pot1)
+      CASE DEFAULT
+         CPABORT("Unknown functional in atom_dpot_lda")
+      END SELECT
+
+      DEALLOCATE (rho0, rho1, drho0, drho1, delta)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE atom_dpot_lda
 
 ! **************************************************************************************************
 !> \brief ...
