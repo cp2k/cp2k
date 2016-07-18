@@ -2102,6 +2102,8 @@ CONTAINS
 
       IF (current_env%full) THEN
          CALL current_build_chi_many_centers(current_env, qs_env, iB)
+      ELSE IF (current_env%nbr_center(1) > 1) THEN
+         CALL current_build_chi_many_centers(current_env, qs_env, iB)
       ELSE
          CALL current_build_chi_one_center(current_env, qs_env, iB)
       ENDIF
@@ -2569,7 +2571,7 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op_mom_ao, op_p_ao
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_mom_der_ao
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_p, psi1_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2588,7 +2590,7 @@ CONTAINS
       !
       NULLIFY (dft_control, mos, para_env, mo_coeff, op_mom_ao, &
                op_mom_der_ao, center_list, centers_set, &
-               op_p_ao, psi1_p, psi1_rxp, psi1_D, buf, cell, psi0_order)
+               op_p_ao, psi1_p, psi1_rxp, buf, cell, psi0_order)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -2615,7 +2617,6 @@ CONTAINS
                            centers_set=centers_set, &
                            psi1_p=psi1_p, &
                            psi1_rxp=psi1_rxp, &
-                           psi1_D=psi1_D, &
                            nstates=nstates, &
                            psi0_order=psi0_order)
       !

@@ -594,7 +594,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: state_list
       INTEGER, DIMENSION(:), POINTER                     :: bounds, list, nbox, &
                                                             selected_states_on_atom_list
-      LOGICAL                                            :: gapw, is0, uniform_occupation
+      LOGICAL                                            :: force_no_full, gapw, is0, &
+                                                            uniform_occupation
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: state_done
       REAL(dp)                                           :: center(3), center2(3), dist, mdist, &
                                                             r(3), rab(3)
@@ -753,6 +754,9 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown orbital center, try again...")
       END SELECT
+
+      CALL section_vals_val_get(current_section, "FORCE_NO_FULL", l_val=force_no_full)
+      IF (force_no_full) current_env%full = .FALSE.
       !
       ! Check if restat also psi0 should be restarted
       !IF(current_env%restart_current .AND. scf_control%density_guess/=restart_guess)THEN

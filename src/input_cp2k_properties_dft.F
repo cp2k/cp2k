@@ -349,6 +349,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="FORCE_NO_FULL", &
+                          description="Avoid the calculation of the state dependent perturbation term, "// &
+                          "even if the orbital centers are set at Wannier centers or at Atom centers", &
+                          usage="FORCE_NO_FULL T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="SELECTED_STATES_ON_ATOM_LIST", &
                           description="Indexes of the atoms for selecting"// &
                           " the states to be used for the response calculations.", &
