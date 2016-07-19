@@ -378,18 +378,27 @@ MODULE cp_control_types
       INTEGER                                   :: nstates
       !> number of additional excited states in the active space
       INTEGER                                   :: added_states
-      !> number of additional occupied molecular orbitals in the active space
-      INTEGER                                   :: added_occ_mos
       !> maximal number of iterations to be performed
       INTEGER                                   :: niters
+      !> maximal number of Krylov space vectors
+      INTEGER                                   :: nkvs
+      !> maximal number of orthogonalisation iterations
+      INTEGER                                   :: nreortho
       !> target accuracy
       REAL(kind=dp)                             :: conv
       !> energy threshold which controls when excited states are considered to be degenerate
       REAL(kind=dp)                             :: degenerate_eps
       !> the smallest excitation amplitude to print
       REAL(kind=dp)                             :: min_excitation_amplitude
+      !> threshold which controls when two wavefunctions considered to be orthogonal:
+      !> maxabs(Ci^T * S * Cj) <= orthogonal_eps
+      REAL(kind=dp)                             :: orthogonal_eps
       !> should all degenerate excited states be automatically added to the active space
       LOGICAL                                   :: add_degenerate
+      !> take into account exact exchange contributions while expanding Krylov space
+      LOGICAL                                   :: hfx_residual
+      !> compute triplet excited states using spin-unpolarised molecular orbitals
+      LOGICAL                                   :: rks_triplets
       !> compute transition dipole moments and oscillator strengths
       LOGICAL                                   :: trans_dipole
    END TYPE tddfpt2_control_type

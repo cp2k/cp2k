@@ -1075,14 +1075,18 @@ CONTAINS
 
       CALL section_vals_val_get(t_section, "NSTATES", i_val=t_control%nstates)
       CALL section_vals_val_get(t_section, "ADDED_STATES", i_val=t_control%added_states)
-      CALL section_vals_val_get(t_section, "ADDED_OCC_MOS", i_val=t_control%added_occ_mos)
       CALL section_vals_val_get(t_section, "MAX_ITER", i_val=t_control%niters)
+      CALL section_vals_val_get(t_section, "MAX_KV", i_val=t_control%nkvs)
+      CALL section_vals_val_get(t_section, "MAX_REORTHO", i_val=t_control%nreortho)
 
       CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%conv)
       CALL section_vals_val_get(t_section, "DEGENERATE_EPS", r_val=t_control%degenerate_eps)
       CALL section_vals_val_get(t_section, "MIN_AMPLITUDE", r_val=t_control%min_excitation_amplitude)
+      CALL section_vals_val_get(t_section, "ORTHOGONAL_EPS", r_val=t_control%orthogonal_eps)
 
       CALL section_vals_val_get(t_section, "ADD_DEGENERATE_STATES", l_val=t_control%add_degenerate)
+      CALL section_vals_val_get(t_section, "HFX_RESIDUAL", l_val=t_control%hfx_residual)
+      CALL section_vals_val_get(t_section, "RKS_TRIPLETS", l_val=t_control%rks_triplets)
 
       IF (t_control%conv < 0) &
          t_control%conv = ABS(t_control%conv)

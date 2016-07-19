@@ -9,7 +9,6 @@
   &DFT
     &TDDFPT2
        NSTATES        3
-       ADDED_STATES   9
        MAX_ITER 10
 
        CONVERGENCE    [eV] 1.0e-3

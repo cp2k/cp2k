@@ -4102,10 +4102,9 @@ CONTAINS
       CALL section_create(section, "TDDFPT2", &
                           description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
-                          "Currently limited for singlet states and spin-restricted density "// &
-                          "and can be used with Gaussian and Plane Waves (GPW) method only. "// &
+                          "Can be used with Gaussian and Plane Waves (GPW) method only. "// &
                           "The keyword 'FORCE_EVAL%DFT%EXCITATIONS tddfpt' is no longer needed.", &
-                          n_keywords=8, n_subsections=1, repeats=.FALSE., &
+                          n_keywords=12, n_subsections=1, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
 
       NULLIFY (keyword, print_key, subsection)
@@ -4122,16 +4121,7 @@ CONTAINS
                           description="Number of additional excited states in the active space "// &
                           "(-1 means all virtual orbitals).", &
                           n_var=1, type_of_var=integer_t, &
-                          default_i_val=10)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="ADDED_OCC_MOS", &
-                          description="Number of additional occupied molecular orbitals in the active space "// &
-                          "(0 means as few as possible, -1 means all occupied orbitals). "// &
-                          "For debug purpose only; excitation energies should not depend on the actual value used.", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=0)
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4142,11 +4132,27 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="MAX_KV", &
+                          description="Maximal number of Krylov space vectors. "// &
+                          "Davidson iterations will be restarted upon reaching this limit.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=5000)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_REORTHO", &
+                          description="Maximal number of orthogonalisation iterations. "// &
+                          "Davidson iterations will be restarted if orthogonality is not reached.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Real
       CALL keyword_create(keyword, name="CONVERGENCE", &
                           description="Target accuracy for excited state energies.", &
                           n_var=1, type_of_var=real_t, unit_str="hartree", &
-                          default_r_val=1.0e-6_dp)
+                          default_r_val=1.0e-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4160,7 +4166,16 @@ CONTAINS
       CALL keyword_create(keyword, name="MIN_AMPLITUDE", &
                           description="The smallest excitation amplitude to print.", &
                           n_var=1, type_of_var=real_t, &
-                          default_r_val=1.0e-2_dp)
+                          default_r_val=5.0e-2_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ORTHOGONAL_EPS", &
+                          description="The largest possible overlap between the ground state and "// &
+                          "orthogonalised excited state wave-functions. Davidson iterations will be restarted "// &
+                          "when the overlap goes beyond this threshold in order to prevent numerical instability.", &
+                          n_var=1, type_of_var=real_t, &
+                          default_r_val=1.0e-4_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4169,6 +4184,22 @@ CONTAINS
                           description="Automatically include degenerate excited states into the active space.", &
                           n_var=1, type_of_var=logical_t, &
                           default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="HFX_RESIDUAL", &
+                          description="Take into account exact exchange terms while expanding Krylov space. "// &
+                          "This could potentially reduce the number of Davidson iterations at "// &
+                          "some additional computational costs. Make sense for hybrid functionals only.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="RKS_TRIPLETS", &
+                          description="Compute triplet excited states using spin-unpolarised molecular orbitals.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
