@@ -6,4 +6,5 @@ H2-big-nimages_clusters.inp                           11      2e-13            -
 H2-big-nimages_clusters_nofilter.inp                  11      2e-13            -27.808422055041142
 H2O_grad_gpw.inp                                      11      7e-11            -17.082584774463687
 OH-H2O-bsse.inp                                        5    1.0E-14                      -0.112213
+H2O-6.inp                                              1      2e-14             -17.14603641576940
 #EOF

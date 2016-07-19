@@ -27,6 +27,7 @@ MODULE dbcsr_mm_cannon
    USE array_types,                     ONLY: array_data,&
                                               array_equality,&
                                               array_exists,&
+                                              array_get,&
                                               array_hold,&
                                               array_i1d_obj,&
                                               array_nullify,&
@@ -37,6 +38,7 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_block_real_neg,&
                                               dbcsr_block_scale,&
                                               dbcsr_block_transpose_aa,&
+                                              dbcsr_data_clear,&
                                               dbcsr_data_set
    USE dbcsr_config,                    ONLY: default_resize_factor,&
                                               has_acc,&
@@ -51,7 +53,7 @@ MODULE dbcsr_mm_cannon
         dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
         dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar, dbcsr_scalar_are_equal, &
         dbcsr_scalar_fill_all, dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_scalar_set_type, &
-        dbcsr_scalar_zero
+        dbcsr_scalar_zero, dbcsr_type_1d_to_2d
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
    USE dbcsr_dist_methods,              ONLY: &
         dbcsr_distribution_col_dist, dbcsr_distribution_get_num_images_1d, &
@@ -139,7 +141,8 @@ MODULE dbcsr_mm_cannon
         dbcsr_type_real_4, dbcsr_type_real_8
    USE dbcsr_util,                      ONLY: count_bins,&
                                               dbcsr_checksum,&
-                                              dbcsr_verify_matrix
+                                              dbcsr_verify_matrix,&
+                                              find_block_of_element
    USE dbcsr_work_operations,           ONLY: dbcsr_add_wm_from_matrix,&
                                               dbcsr_create,&
                                               dbcsr_finalize,&
@@ -1393,15 +1396,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'make_buffers', routineP = moduleN//':'//routineN
 
       INTEGER :: blk, blk_p, bp, col, col_img, col_mult, col_size, data_size, data_size_diag, &
-         data_type, dst_proc, grp, handle, handle2, iproc, irequests, it, ithread, &
-         local_no_empty_images, meta_size, meta_size_diag, meta_size_diag_scatter, mygrp, &
-         mygrp_scatter, mynode, mypcol, myprow, myt, nblkcols_local, nblkrows_local, nblocks, &
-         ncols_images, nimages_merged, nimages_unmerged, nprocs, nprocs_scatter, nprocs_sym, &
-         nrows_images, nsymmetries, nthreads, nze, pcol, pdiag, prow, request_data_size_diag, &
-         request_data_size_scatter, request_meta_size_diag, request_meta_size_scatter
-      INTEGER :: request_no_empty_images, row, row_img, row_mult, row_size, scatter_images, &
-         scatter_images_proc, size_index_unmerged, stored_col, stored_row, sym_p, symmetry_i, &
-         total_no_empty_images, tr_col_size, tr_row_size
+         data_type, dst_proc, f_col_f, f_row_f, grp, handle, handle2, iproc, irequests, it, &
+         ithread, l_col_l, l_row_l, local_no_empty_images, meta_size, meta_size_diag, &
+         meta_size_diag_scatter, mygrp, mygrp_scatter, mynode, mypcol, myprow, myt, &
+         nblkcols_local, nblkrows_local, nblocks, ncols_images, nimages_merged, nimages_unmerged, &
+         nprocs, nprocs_scatter, nprocs_sym, nrows_images, nsymmetries, nthreads, nze, pcol, &
+         pdiag, prow, request_data_size_diag, request_data_size_scatter, request_meta_size_diag
+      INTEGER :: request_meta_size_scatter, request_no_empty_images, row, row_img, row_mult, &
+         row_size, scatter_images, scatter_images_proc, size_index_unmerged, stored_col, &
+         stored_row, sym_p, symmetry_i, total_no_empty_images, tr_col_size, tr_row_size
       INTEGER, ALLOCATABLE, DIMENSION(:) :: data_displ_scatter, data_size_scatter, g2l_map_cols, &
          g2l_map_rows, img_map, img_refs, img_refs_cols, img_refs_rows, &
          meta_displ_cluster_scatter, meta_displ_scatter, meta_size_cluster_scatter, &
@@ -1411,6 +1414,7 @@ CONTAINS
                                                             send_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: local_refs_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: recv_refs, refs_displ, refs_size
+      INTEGER, DIMENSION(2)                              :: block_col_bounds, block_row_bounds
       INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, local_cols, local_refs_data_size, &
          local_rows, meta_buffer_p, no_empty_images, no_empty_images_displ, row_dist, &
          row_img_dist, threads_dist
@@ -1421,11 +1425,13 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: global_indices
       INTEGER, POINTER                                   :: coli, rowi
       INTEGER, TARGET                                    :: mi, ui
-      LOGICAL                                            :: do_bcast, do_scatter, do_symmetry, &
-                                                            do_virt, do_win_free, is_diagonal, tr
+      LOGICAL :: do_bcast, do_crop, do_part_crop_col, do_part_crop_f_col, do_part_crop_f_row, &
+         do_part_crop_l_col, do_part_crop_l_row, do_part_crop_row, do_scatter, do_symmetry, &
+         do_virt, do_win_free, is_diagonal, tr
       LOGICAL, DIMENSION(2)                              :: do_win_create
       REAL(kind=sp), DIMENSION(:), POINTER               :: local_max_norms, max_norms
       TYPE(dbcsr_buffer), POINTER                        :: buffer
+      TYPE(dbcsr_data_obj)                               :: data_block
       TYPE(dbcsr_data_obj), POINTER                      :: data_buffer_p
       TYPE(dbcsr_data_obj), TARGET                       :: data_recv, data_send
       TYPE(dbcsr_distribution_obj)                       :: set_dist
@@ -1484,6 +1490,10 @@ CONTAINS
 !$    threads_dist => array_data(dbcsr_distribution_thread_dist(dbcsr_distribution(matrix)))
       !
       ! Crop matrix
+      do_crop = .FALSE.
+      do_part_crop_row = .FALSE.
+      do_part_crop_col = .FALSE.
+      ! Set no limits
       IF (ANY((/f_row, l_row, f_col, l_col/) .NE. 0)) THEN
          IF (f_row .LT. 0) &
             CPABORT("Invalid first row bound.")
@@ -1494,9 +1504,70 @@ CONTAINS
          IF (l_col .GT. dbcsr_nfullcols_total(matrix)) &
             CPABORT("Invalid last column bound.")
          !
-         ! For the moment crop is not supported for experimental MPI algorithm
-         CPABORT("Crop not supported for experimental MPI algo yet.")
+         do_crop = .TRUE.
          !
+         ! Convert bounds to block addressing
+         do_part_crop_f_row = .FALSE.
+         IF (f_row .EQ. 0) THEN
+            block_row_bounds(1) = 1
+         ELSE
+            CALL find_block_of_element(f_row, block_row_bounds(1), &
+                                       dbcsr_nblkrows_total(matrix), &
+                                       dbcsr_row_block_offsets(matrix), &
+                                       hint=0)
+            do_part_crop_f_row = array_get(dbcsr_row_block_offsets(matrix), block_row_bounds(1)) .NE. f_row
+            IF (do_part_crop_f_row) THEN
+               ! Block offset of last cleared row
+               f_row_f = f_row-array_get(dbcsr_row_block_offsets(matrix), block_row_bounds(1))
+            ENDIF
+         ENDIF
+         !
+         do_part_crop_l_row = .FALSE.
+         IF (l_row .EQ. 0) THEN
+            block_row_bounds(2) = dbcsr_nblkrows_total(matrix)
+         ELSE
+            CALL find_block_of_element(l_row, block_row_bounds(2), &
+                                       dbcsr_nblkrows_total(matrix), &
+                                       dbcsr_row_block_offsets(matrix), &
+                                       hint=0)
+            do_part_crop_l_row = (array_get(dbcsr_row_block_offsets(matrix), block_row_bounds(2)+1)-1) .NE. l_row
+            IF (do_part_crop_l_row) THEN
+               ! Block offset of first cleared row
+               l_row_l = 2+l_row-array_get(dbcsr_row_block_offsets(matrix), block_row_bounds(2))
+            ENDIF
+         ENDIF
+         do_part_crop_row = do_part_crop_f_row .OR. do_part_crop_l_row
+         !
+         do_part_crop_f_col = .FALSE.
+         IF (f_col .EQ. 0) THEN
+            block_col_bounds(1) = 1
+         ELSE
+            CALL find_block_of_element(f_col, block_col_bounds(1), &
+                                       dbcsr_nblkcols_total(matrix), &
+                                       dbcsr_col_block_offsets(matrix), &
+                                       hint=0)
+            do_part_crop_f_col = array_get(dbcsr_col_block_offsets(matrix), block_col_bounds(1)) .NE. f_col
+            IF (do_part_crop_f_col) THEN
+               ! Block offset of last cleared col
+               f_col_f = f_col-array_get(dbcsr_col_block_offsets(matrix), block_col_bounds(1))
+            ENDIF
+         ENDIF
+         !
+         do_part_crop_l_col = .FALSE.
+         IF (l_col .EQ. 0) THEN
+            block_col_bounds(2) = dbcsr_nblkcols_total(matrix)
+         ELSE
+            CALL find_block_of_element(l_col, block_col_bounds(2), &
+                                       dbcsr_nblkcols_total(matrix), &
+                                       dbcsr_col_block_offsets(matrix), &
+                                       hint=0)
+            do_part_crop_l_col = (array_get(dbcsr_col_block_offsets(matrix), block_col_bounds(2)+1)-1) .NE. l_col
+            IF (do_part_crop_l_col) THEN
+               ! Block offset of first cleared col
+               l_col_l = 2+l_col-array_get(dbcsr_col_block_offsets(matrix), block_col_bounds(2))
+            ENDIF
+         ENDIF
+         do_part_crop_col = do_part_crop_f_col .OR. do_part_crop_l_col
       ENDIF
       !
       IF (dbcsr_has_symmetry(matrix)) THEN
@@ -1721,7 +1792,7 @@ CONTAINS
 !$OMP          nze,symmetry_i,row_img,col_img,rowi,coli,&
 !$OMP          tr_row_size,tr_col_size,prow,pcol,dst_proc,&
 !$OMP          data_buffer_p,meta_buffer_p,&
-!$OMP          mi,ui,it,nblocks) &
+!$OMP          mi,ui,it,nblocks,data_block) &
 !$OMP SHARED (nthreads,refs_size,refs_displ,matrix,nsymmetries,do_symmetry,&
 !$OMP         row_img_dist,col_img_dist,imgdist,row_dist,col_dist,&
 !$OMP         is_left,local_refs_size,nimages_merged,nimages_unmerged,&
@@ -1748,7 +1819,10 @@ CONTAINS
 !$OMP         request_meta_size_scatter,mygrp_scatter,do_scatter,&
 !$OMP         request_data_size_scatter,meta_displ_scatter,data_displ_scatter,&
 !$OMP         local_meta_size_scatter,local_data_size_scatter,nprocs_sym,&
-!$OMP         meta_displ_cluster_scatter,meta_size_cluster_scatter,global_indices) &
+!$OMP         meta_displ_cluster_scatter,meta_size_cluster_scatter,global_indices,&
+!$OMP         do_crop,do_part_crop_row,do_part_crop_col,block_row_bounds,block_col_bounds,&
+!$OMP         do_part_crop_f_row,do_part_crop_l_row,do_part_crop_f_col,do_part_crop_l_col,&
+!$OMP         f_row_f,l_row_l,f_col_f,l_col_l) &
 !$OMP         REDUCTION(MAX : max_nblocks)
       ithread = 0
 !$    ithread = omp_get_thread_num()
@@ -1809,6 +1883,13 @@ CONTAINS
             ELSE
                IF (row .EQ. col) CYCLE
                stored_row = col; stored_col = row
+            ENDIF
+            ! Apply cropping
+            IF (do_crop) THEN
+               IF (stored_row .LT. block_row_bounds(1)) CYCLE
+               IF (stored_row .GT. block_row_bounds(2)) CYCLE
+               IF (stored_col .LT. block_col_bounds(1)) CYCLE
+               IF (stored_col .GT. block_col_bounds(2)) CYCLE
             ENDIF
             row_img = row_img_dist(stored_row)
             col_img = col_img_dist(stored_col)
@@ -2008,7 +2089,7 @@ CONTAINS
       ! Allocate data and meta buffers
       do_win_create(:) = .TRUE.
       IF (do_win_free) THEN
-         IF (buffer%grp .EQ. mygrp .AND. dbcsr_data_get_type(buffer%data) .NE. data_type) THEN
+         IF (buffer%grp .EQ. mygrp .AND. dbcsr_data_get_type(buffer%data) .EQ. data_type) THEN
             do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (data_size+10)
             do_win_create(2) = SIZE(buffer%meta) .LT. meta_size
             CALL mp_sum(do_win_create, mygrp)
@@ -2129,6 +2210,11 @@ CONTAINS
 !$OMP END MASTER
 !$OMP BARRIER
       !
+      IF (do_part_crop_row .OR. do_part_crop_col) THEN
+         CALL dbcsr_data_init(data_block)
+         CALL dbcsr_data_new(data_block, dbcsr_type_1d_to_2d(data_type))
+      ENDIF
+      !
       IF (do_virt) THEN
          data_buffer_p => data_send
          meta_buffer_p => meta_send
@@ -2153,6 +2239,13 @@ CONTAINS
                IF (row .EQ. col) CYCLE
                stored_row = col; stored_col = row; tr = blk_p .GT. 0
                tr_row_size = row_size; tr_col_size = col_size
+            ENDIF
+            ! Apply cropping
+            IF (do_crop) THEN
+               IF (stored_row .LT. block_row_bounds(1)) CYCLE
+               IF (stored_row .GT. block_row_bounds(2)) CYCLE
+               IF (stored_col .LT. block_col_bounds(1)) CYCLE
+               IF (stored_col .GT. block_col_bounds(2)) CYCLE
             ENDIF
             row_img = row_img_dist(stored_row)
             col_img = col_img_dist(stored_col)
@@ -2209,6 +2302,32 @@ CONTAINS
                                         scale_value)
             ENDIF
             !
+            ! Apply cropping for partial blocks
+            IF (do_part_crop_row .OR. do_part_crop_col) THEN
+               CALL dbcsr_data_set_pointer( &
+                  area=data_block, &
+                  rsize=row_size, &
+                  csize=col_size, &
+                  pointee=data_buffer_p, &
+                  source_lb=refs_size(idata, myt, mi, ui, dst_proc))
+               IF (do_part_crop_row) THEN
+                  IF (do_part_crop_f_row .AND. stored_row .EQ. block_row_bounds(1)) THEN
+                     CALL dbcsr_data_clear(data_block, ub=f_row_f)
+                  ENDIF
+                  IF (do_part_crop_l_row .AND. stored_row .EQ. block_row_bounds(2)) THEN
+                     CALL dbcsr_data_clear(data_block, lb=l_row_l)
+                  ENDIF
+               ENDIF
+               IF (do_part_crop_col) THEN
+                  IF (do_part_crop_f_col .AND. stored_col .EQ. block_col_bounds(1)) THEN
+                     CALL dbcsr_data_clear(data_block, ub2=f_col_f)
+                  ENDIF
+                  IF (do_part_crop_l_col .AND. stored_col .EQ. block_col_bounds(2)) THEN
+                     CALL dbcsr_data_clear(data_block, lb2=l_col_l)
+                  ENDIF
+               ENDIF
+            ENDIF
+            !
             ! Set meta data (global indexing)
             IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. blacs2mpi(prow, pcol) .NE. mynode)) THEN
                meta_buffer_p(refs_size(imeta, myt, mi, ui, dst_proc)) = stored_row
@@ -2233,6 +2352,11 @@ CONTAINS
          ENDDO
       ENDDO
       CALL dbcsr_iterator_stop(iter)
+      !
+      IF (do_part_crop_row .OR. do_part_crop_col) THEN
+         CALL dbcsr_data_clear_pointer(data_block)
+         CALL dbcsr_data_release(data_block)
+      ENDIF
       !
       IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
 !$OMP BARRIER
@@ -4675,7 +4799,8 @@ CONTAINS
                                     buffers_comm%right, right_refs_meta_size, right_refs_data_size, &
                                     right_meta_size, right_data_size, &
                                     right_meta_offset, right_data_offset, &
-                                    buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, metronome .GT. 0, &
+                                    buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, &
+                                    metronome .GT. 0, &
                                     data_get, data_type_byte, buffers_orig%right)
                ! Left
                CALL cannon_transfer(v_ki, buffers_comm%left%vpcol, &
@@ -4687,7 +4812,8 @@ CONTAINS
                                     buffers_comm%left, left_refs_meta_size, left_refs_data_size, &
                                     left_meta_size, left_data_size, &
                                     left_meta_offset, left_data_offset, &
-                                    buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, metronome .GT. 0, &
+                                    buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, &
+                                    metronome .GT. 0, &
                                     data_get, data_type_byte, buffers_orig%left)
             ENDDO
             ! Set the referenced sizes to the actual data moved via MPI
@@ -4942,7 +5068,7 @@ CONTAINS
                                                             data_offset
       INTEGER, INTENT(IN)                                :: meta_win, data_win, mypunmerged
       LOGICAL, INTENT(IN)                                :: save_statistics
-      TYPE(dbcsr_data_obj)                               :: data_get
+      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: data_get
       INTEGER, INTENT(IN)                                :: data_type_byte
       TYPE(dbcsr_buffer), INTENT(IN)                     :: buffer_orig
 
@@ -6347,7 +6473,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: meta_offset, data_offset
       INTEGER, INTENT(IN)                                :: meta_win, data_win, mypunmerged
       LOGICAL, INTENT(IN)                                :: save_statistics
-      TYPE(dbcsr_data_obj)                               :: data_get
+      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: data_get
       INTEGER, INTENT(IN)                                :: data_type_byte
       TYPE(dbcsr_buffer), INTENT(IN)                     :: buffer_orig
       INTEGER, INTENT(INOUT)                             :: meta_offset_diag, data_offset_diag
