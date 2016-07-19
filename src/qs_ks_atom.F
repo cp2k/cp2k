@@ -142,7 +142,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
-      TYPE(neighbor_list_task_type), POINTER             :: task
+      TYPE(neighbor_list_task_type), POINTER             :: next_task, task
       TYPE(nl_hash_table_obj)                            :: nl_hash_table
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -258,7 +258,7 @@ CONTAINS
       CALL nl_hash_table_create(nl_hash_table, nmax=nl_table_num_slots)
       ! ... and population
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0) ! build hash table in serial, so don't pass mepos
-         ALLOCATE (task) ! They are deallocated when the nl_hash_table is released
+         ALLOCATE (task) ! They must be deallocated before the nl_hash_table is released
          CALL get_iterator_task(nl_iterator, task) ! build hash table in serial, so don't pass mepos
          ! tasks with the same key access the same blocks of H & P
          IF (task%iatom <= task%jatom) THEN
@@ -287,7 +287,7 @@ CONTAINS
 !$OMP                 , mat_h, mat_p, dCPC_h, dCPC_s, PC_h, PC_s     &
 !$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
 !$OMP                 , basis_set_a, basis_set_b, img                &
-!$OMP                 , found                                        &
+!$OMP                 , found, next_task                             &
 !$OMP                 , kkind, orb_basis, paw_atom, nsetc, maxsoc    &
 !$OMP                 , iac, alist_ac, kac, n_cont_a, list_a         &
 !$OMP                 , ibc, alist_bc, kbc, n_cont_b, list_b         &
@@ -492,8 +492,11 @@ CONTAINS
 
                ENDDO ! kkind
 
-               is_task_valid = ASSOCIATED(task%next)
-               IF (is_task_valid) task = task%next
+               next_task = task%next
+               ! We are done with this task, we can deallocate it
+               DEALLOCATE (task)
+               is_task_valid = ASSOCIATED(next_task)
+               IF (is_task_valid) task = next_task
 
             END DO
 
