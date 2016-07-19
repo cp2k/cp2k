@@ -2092,8 +2092,8 @@ CONTAINS
          IF (buffer%grp .EQ. mygrp .AND. dbcsr_data_get_type(buffer%data) .EQ. data_type) THEN
             do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (data_size+10)
             do_win_create(2) = SIZE(buffer%meta) .LT. meta_size
-            CALL mp_sum(do_win_create, mygrp)
          ENDIF
+         CALL mp_sum(do_win_create, mygrp)
          IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
          IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
       ENDIF
