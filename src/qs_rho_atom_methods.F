@@ -65,7 +65,11 @@ MODULE qs_rho_atom_methods
    USE whittaker,                       ONLY: whittaker_c0a,&
                                               whittaker_ci
 
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
+!$ USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+!$                                            omp_get_thread_num,&
+!$                                            omp_lock_kind,&
+!$                                            omp_init_lock, omp_set_lock,&
+!$                                            omp_unset_lock, omp_destroy_lock
 
 #include "./base/base_uses.f90"
 
@@ -504,6 +508,9 @@ CONTAINS
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: p_block_spin
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
+!$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
+!$    INTEGER                                            :: lock, number_of_locks
+
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control)
@@ -586,6 +593,7 @@ CONTAINS
 !$OMP                 , nkind, qs_kind_set                &
 !$OMP                 , oce, eps_cpc                      &
 !$OMP                 , rho_atom                          &
+!$OMP                 , natom, locks, number_of_locks     &
 !$OMP                 )                                   &
 !$OMP          PRIVATE( p_block_spin, ispin               &
 !$OMP                 , PC1, CPC, p_matrix, istat         &
@@ -613,6 +621,17 @@ CONTAINS
 
       ALLOCATE (PC1(max_nsgf*max_gau), CPC(max_gau*max_gau), p_matrix(max_nsgf, max_nsgf), STAT=istat)
       CPASSERT(istat == 0)
+
+      number_of_locks = nspins*natom
+!$OMP SINGLE
+!$    ALLOCATE (locks(number_of_locks))
+!$OMP END SINGLE
+
+!$OMP DO
+!$    DO lock = 1, number_of_locks
+!$       call omp_init_lock(locks(lock))
+!$    END DO
+!$OMP END DO
 
       mepos = 0
 !$    mepos = omp_get_thread_num()
@@ -728,7 +747,7 @@ CONTAINS
                         r_coef_h => rho_atom(katom)%cpc_h(ispin)%r_coef
                         r_coef_s => rho_atom(katom)%cpc_s(ispin)%r_coef
 
-!$OMP CRITICAL(qs_rho_atom_methods_proj_blk)
+!$                      CALL omp_set_lock(locks((katom-1)*nspins+ispin))
                         IF (iatom <= jatom) THEN
                            CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
@@ -740,7 +759,7 @@ CONTAINS
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
                                          PC1, CPC, factor, distab)
                         ENDIF
-!$OMP END CRITICAL(qs_rho_atom_methods_proj_blk)
+!$                      CALL omp_unset_lock(locks((katom-1)*nspins+ispin))
 
                      END DO
                      EXIT !search loop over jatom-katom list
@@ -749,6 +768,17 @@ CONTAINS
             END DO
          END DO
       END DO
+      ! Wait for all threads to finish the loop before locks can be freed
+!$OMP BARRIER
+
+!$OMP DO
+!$    DO lock = 1, number_of_locks
+!$       call omp_destroy_lock(locks(lock))
+!$    END DO
+!$OMP END DO
+!$OMP SINGLE
+!$    DEALLOCATE (locks)
+!$OMP END SINGLE NOWAIT
 
       DEALLOCATE (PC1, CPC, p_block_spin, p_matrix)
 !$OMP END PARALLEL
