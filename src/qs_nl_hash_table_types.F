@@ -372,7 +372,8 @@ CONTAINS
    END SUBROUTINE nl_hash_table_rehash
 
 ! **************************************************************************************************
-!> \brief releases the hash table.  Note that the tasks stored in the table must
+!> \brief releases the hash table.  Note that deallocating tasks stored in the table
+!>        is the responsibility of the caller
 !> \param hash_table : the nl_hash_table object in question
 ! **************************************************************************************************
    SUBROUTINE nl_hash_table_release(hash_table)
