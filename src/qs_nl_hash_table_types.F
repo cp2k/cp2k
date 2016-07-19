@@ -383,6 +383,7 @@ CONTAINS
 
       INTEGER                                            :: k
       LOGICAL                                            :: check_ok
+      TYPE(neighbor_list_task_type), POINTER             :: next
 
       IF (ASSOCIATED(hash_table%obj)) THEN
          check_ok = hash_table%obj%ref_count > 0
@@ -392,9 +393,12 @@ CONTAINS
             hash_table%obj%ref_count = 1
 
             DO k = 1, hash_table%obj%nmax
-               IF (ASSOCIATED(hash_table%obj%table(k)%val)) THEN
+               DO WHILE (ASSOCIATED(hash_table%obj%table(k)%val))
+                  ! Follow the linked list, deallocating as we go
+                  next = hash_table%obj%table(k)%val%next
                   DEALLOCATE (hash_table%obj%table(k)%val)
-               END IF
+                  hash_table%obj%table(k)%val = next
+               END DO 
             END DO
 
             IF (ASSOCIATED(hash_table%obj%table)) THEN

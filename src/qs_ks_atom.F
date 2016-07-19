@@ -258,7 +258,7 @@ CONTAINS
       CALL nl_hash_table_create(nl_hash_table, nmax=nl_table_num_slots)
       ! ... and population
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0) ! build hash table in serial, so don't pass mepos
-         ALLOCATE (task)
+         ALLOCATE (task) ! They are deallocated when the nl_hash_table is released
          CALL get_iterator_task(nl_iterator, task) ! build hash table in serial, so don't pass mepos
          ! tasks with the same key access the same blocks of H & P
          IF (task%iatom <= task%jatom) THEN
