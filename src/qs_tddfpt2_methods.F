@@ -482,7 +482,7 @@ CONTAINS
          CALL tddfpt_compute_ritz_vects(ritz_vects=ritz_vects(:, 1:nstates), Aop_ritz=Aop_ritz(:, 1:nstates), &
                                         evals=evals_last(1:nvects_exists+nvects_new), &
                                         Aop_evects=Aop_evects(:, 1:nvects_exists+nvects_new), &
-                                        K_ia_munu=K_ia_munu(:, 1:nvects_new), &
+                                        K_ia_munu=K_ia_munu(:, 1:nvects_exists+nvects_new), &
                                         evects=evects(:, 1:nvects_exists+nvects_new), gs_mos=gs_mos)
 
          conv = MAXVAL(ABS(evals_last(1:nstates)-evals_prev(1:nstates)))
@@ -2071,7 +2071,6 @@ CONTAINS
 
                DO jvect = 1, ivect
                   CALL cp_fm_trace(K_ia_munu(ispin, jvect)%matrix, rho_jb_fm, trace)
-                  ! alpha = 4.0_dp due to closed-shell orbitals
                   Atilde(jvect, ivect) = Atilde(jvect, ivect)+alpha_hfx*trace
                END DO
             END DO
