@@ -1093,6 +1093,8 @@
     IF (msglen>0) THEN
        CALL mpi_iallreduce(MPI_IN_PLACE,msg,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid,request,ierr)
        IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallreduce @ "//routineN )
+    ELSE
+       request = mp_request_null
     ENDIF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
