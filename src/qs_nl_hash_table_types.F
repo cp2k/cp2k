@@ -398,7 +398,7 @@ CONTAINS
                   next = hash_table%obj%table(k)%val%next
                   DEALLOCATE (hash_table%obj%table(k)%val)
                   hash_table%obj%table(k)%val = next
-               END DO 
+               END DO
             END DO
 
             IF (ASSOCIATED(hash_table%obj%table)) THEN
