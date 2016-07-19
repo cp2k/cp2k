@@ -492,11 +492,11 @@ CONTAINS
 
                ENDDO ! kkind
 
-               next_task = task%next
+               next_task => task%next
                ! We are done with this task, we can deallocate it
                DEALLOCATE (task)
                is_task_valid = ASSOCIATED(next_task)
-               IF (is_task_valid) task = next_task
+               IF (is_task_valid) task => next_task
 
             END DO
 
