@@ -148,7 +148,8 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_finalize,&
                                               dbcsr_special_finalize,&
                                               dbcsr_work_create
-   USE kinds,                           ONLY: dp,&
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
                                               int_4,&
                                               int_8,&
                                               real_4,&
@@ -157,10 +158,11 @@ MODULE dbcsr_mm_cannon
    USE machine,                         ONLY: default_output_unit,&
                                               m_memory
    USE message_passing,                 ONLY: &
-        mp_allgather, mp_alltoall, mp_bcast, mp_gather, mp_gatherv, mp_iallgather, mp_ibcast, &
-        mp_irecv, mp_iscatter, mp_isend, mp_isum, mp_max, mp_min, mp_request_null, mp_rget, &
-        mp_sendrecv, mp_sum, mp_testall, mp_testany, mp_wait, mp_waitall, mp_win_create, &
-        mp_win_flush_all, mp_win_free, mp_win_lock_all, mp_win_unlock_all
+        mp_allgather, mp_alltoall, mp_bcast, mp_comm_free, mp_comm_null, mp_comm_split_direct, &
+        mp_gather, mp_gatherv, mp_iallgather, mp_ibcast, mp_irecv, mp_iscatter, mp_isend, mp_isum, &
+        mp_max, mp_min, mp_request_null, mp_rget, mp_sendrecv, mp_sum, mp_testall, mp_testany, &
+        mp_wait, mp_waitall, mp_win_create, mp_win_flush_all, mp_win_free, mp_win_lock_all, &
+        mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
@@ -188,7 +190,6 @@ MODULE dbcsr_mm_cannon
    TYPE(dbcsr_mpi_statistics_type), PRIVATE, SAVE :: dbcsr_mpi_statistics
    INTEGER, PRIVATE, SAVE :: max_nblocks = 0
    INTEGER, PRIVATE, SAVE :: num_multiplications = 0
-   LOGICAL, PRIVATE, SAVE :: do_layers_3D = .FALSE.
    REAL, PRIVATE, SAVE :: marketing_flops = 0
    REAL, PRIVATE, SAVE :: max_memory = 0
 
@@ -203,7 +204,8 @@ MODULE dbcsr_mm_cannon
    TYPE dbcsr_buffer
       TYPE(dbcsr_data_obj)               :: DATA, data_diag
       INTEGER                            :: vprow, vpcol
-      INTEGER                            :: grp
+      INTEGER                            :: grp = mp_comm_null, &
+                                            grp3D = mp_comm_null
       INTEGER                            :: data_win, meta_win
       INTEGER, DIMENSION(:), POINTER     :: meta => Null(), &
                                             meta_diag => Null()
@@ -211,15 +213,15 @@ MODULE dbcsr_mm_cannon
                                                get_requests_map, &
                                                offset
       INTEGER                            :: nrequests
+      INTEGER                            :: num_layers_3D = 1
       TYPE(dbcsr_1d_array_type)          :: buffer
-      LOGICAL                            :: is_valid = .FALSE.
+      LOGICAL                            :: is_valid = .FALSE., &
+                                            has_rma_win = .FALSE.
    END TYPE dbcsr_buffer
 
    TYPE dbcsr_buffers
       TYPE(dbcsr_buffer)             :: left, right
       TYPE(dbcsr_data_obj)           :: trs_stackbuf
-      LOGICAL                        :: has_rma_left_win = .FALSE., &
-                                        has_rma_right_win = .FALSE.
    END TYPE dbcsr_buffers
 
    ! Buffers
@@ -560,12 +562,13 @@ CONTAINS
       REAL(real_8), PARAMETER                            :: make_dense_occ_thresh = 1.0_dp
 
       CHARACTER                                          :: transa_l, transb_l
+      CHARACTER(len=default_string_length)               :: msg
       INTEGER :: comm, f_col, f_k, f_row, handle, handle2, ithread, l_col, l_k, l_row, &
-         nimages_left_rows, nimages_match, nimages_right_cols, npcols, nprows, numnodes, &
-         output_unit
+         my_num_layers_3D, nimages_left_rows, nimages_match, nimages_right_cols, npcols, nprows, &
+         numnodes, output_unit
       INTEGER(KIND=int_8)                                :: my_flop
-      LOGICAL :: ab_dense, has_clusters, keep_product_data, keep_sparsity, product_reindex, &
-         release_tdist, transpose_left, transpose_right, use_dense_mult
+      LOGICAL :: ab_dense, do_layers_3D, has_clusters, keep_product_data, keep_sparsity, &
+         product_reindex, release_tdist, transpose_left, transpose_right, use_dense_mult
       REAL(KIND=dp)                                      :: cs
       TYPE(array_i1d_obj) :: dense_col_sizes, dense_k_sizes, dense_row_sizes, k_vmap, m_map, &
          n_map, old_product_col_blk_offsets, old_product_col_blk_sizes, &
@@ -722,9 +725,15 @@ CONTAINS
       use_dense_mult = .NOT. PRESENT(filter_eps)
       IF (has_acc) use_dense_mult = .FALSE.
       !
+      has_clusters = dbcsr_distribution_has_row_clusters(matrix_left%m%dist) .OR. &
+                     dbcsr_distribution_has_col_clusters(matrix_left%m%dist) .OR. &
+                     dbcsr_distribution_has_row_clusters(matrix_right%m%dist) .OR. &
+                     dbcsr_distribution_has_col_clusters(matrix_right%m%dist)
+      !
       ! Checks for 3D algorithm
       nprows = dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_c%m%dist))
       npcols = dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_c%m%dist))
+      my_num_layers_3D = 1
       IF (num_layers_3D .GT. 1) THEN
          IF (use_mpi_exp) THEN
             IF (nprows .NE. npcols) THEN
@@ -736,18 +745,23 @@ CONTAINS
                do_layers_3D = ((nprows/INT(SQRT(REAL(MIN(1, num_layers_3D)))))**2)* &
                               num_layers_3D .EQ. (nprows*npcols)
             ENDIF
-            IF (.NOT. do_layers_3D .AND. num_multiplications .EQ. 0) &
-               CPWARN('Cannot make 3D layers!')
+            IF (.NOT. do_layers_3D .AND. num_multiplications .EQ. 0) THEN
+               WRITE (UNIT=msg, FMT='(A,I3,A,I5,A)') "Cannot make 3D layers with ", num_layers_3D, &
+                  " layers and ", nprows*npcols, " ranks! Run with a single layer."
+               CPWARN(msg)
+            ENDIF
+            IF (do_layers_3D) THEN
+               IF (has_clusters) THEN
+                  CPWARN('Cannot make 3D layers with clusters distribution!')
+               ELSE
+                  my_num_layers_3D = num_layers_3D
+               ENDIF
+            ENDIF
          ELSE
             IF (num_multiplications .EQ. 0) &
                CPWARN('Cannot make 3D layers without experimental MPI algorithm enabled!')
          ENDIF
       ENDIF
-      !
-      has_clusters = dbcsr_distribution_has_row_clusters(matrix_left%m%dist) .OR. &
-                     dbcsr_distribution_has_col_clusters(matrix_left%m%dist) .OR. &
-                     dbcsr_distribution_has_row_clusters(matrix_right%m%dist) .OR. &
-                     dbcsr_distribution_has_col_clusters(matrix_right%m%dist)
       !
       ! No dense multiplication and local indexing when 2D clustering is used.
       IF (use_mpi_exp) THEN
@@ -1015,6 +1029,7 @@ CONTAINS
                                  PRESENT(filter_eps), &
                                  transpose_right, &
                                  has_acc, &
+                                 my_num_layers_3D, &
                                  alpha)
          !
          ! Left buffer images
@@ -1022,7 +1037,8 @@ CONTAINS
                                  f_row, l_row, f_k, l_k, &
                                  PRESENT(filter_eps), &
                                  transpose_left, &
-                                 has_acc)
+                                 has_acc, &
+                                 my_num_layers_3D)
       ELSE
          product_matrix%m%nblks = 0
          product_matrix%m%nze = 0
@@ -1059,8 +1075,6 @@ CONTAINS
       my_flop = 0
       IF (use_mpi_exp) THEN
          IF (has_clusters) THEN
-            IF (do_layers_3D .AND. num_multiplications .EQ. 0) &
-               CPWARN('Cannot make layers with clusters distribution!')
             CALL cannon_multiply_low_clusters(rdist_left, rdist_right, &
                                               matrix_left, matrix_right, product_matrix, &
                                               retain_sparsity=retain_sparsity, &
@@ -1335,18 +1349,20 @@ CONTAINS
 !> \param otf_filtering ...
 !> \param transpose ...
 !> \param has_acc ...
+!> \param my_num_layers_3D ...
 !> \param alpha ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE dbcsr_make_buffers(matrix, imgdist, is_left, &
                                  f_row, l_row, f_col, l_col, &
                                  otf_filtering, transpose, &
-                                 has_acc, alpha)
+                                 has_acc, my_num_layers_3D, alpha)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
       LOGICAL, INTENT(IN)                                :: otf_filtering, transpose, has_acc
+      INTEGER, INTENT(IN)                                :: my_num_layers_3D
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: alpha
 
       LOGICAL                                            :: do_scale
@@ -1360,10 +1376,14 @@ CONTAINS
       !
       IF (do_scale) THEN
          CALL make_buffers(matrix, imgdist, is_left, &
-                           f_row, l_row, f_col, l_col, otf_filtering, transpose, has_acc, alpha)
+                           f_row, l_row, f_col, l_col, &
+                           otf_filtering, transpose, has_acc, &
+                           my_num_layers_3D, alpha)
       ELSE
          CALL make_buffers(matrix, imgdist, is_left, &
-                           f_row, l_row, f_col, l_col, otf_filtering, transpose, has_acc)
+                           f_row, l_row, f_col, l_col, &
+                           otf_filtering, transpose, has_acc, &
+                           my_num_layers_3D)
       ENDIF
    END SUBROUTINE dbcsr_make_buffers
 
@@ -1379,18 +1399,20 @@ CONTAINS
 !> \param otf_filtering ...
 !> \param transpose ...
 !> \param has_acc ...
+!> \param my_num_layers_3D ...
 !> \param scale_value ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE make_buffers(matrix, imgdist, is_left, &
                            f_row, l_row, f_col, l_col, &
                            otf_filtering, transpose, has_acc, &
-                           scale_value)
+                           my_num_layers_3D, scale_value)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
       LOGICAL, INTENT(IN)                                :: otf_filtering, transpose, has_acc
+      INTEGER, INTENT(IN)                                :: my_num_layers_3D
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: scale_value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_buffers', routineP = moduleN//':'//routineN
@@ -1425,9 +1447,9 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: global_indices
       INTEGER, POINTER                                   :: coli, rowi
       INTEGER, TARGET                                    :: mi, ui
-      LOGICAL :: do_bcast, do_crop, do_part_crop_col, do_part_crop_f_col, do_part_crop_f_row, &
-         do_part_crop_l_col, do_part_crop_l_row, do_part_crop_row, do_scatter, do_symmetry, &
-         do_virt, do_win_free, is_diagonal, tr
+      LOGICAL :: do_bcast, do_crop, do_layers_3D, do_part_crop_col, do_part_crop_f_col, &
+         do_part_crop_f_row, do_part_crop_l_col, do_part_crop_l_row, do_part_crop_row, do_scatter, &
+         do_symmetry, do_virt, is_diagonal, tr
       LOGICAL, DIMENSION(2)                              :: do_win_create
       REAL(kind=sp), DIMENSION(:), POINTER               :: local_max_norms, max_norms
       TYPE(dbcsr_buffer), POINTER                        :: buffer
@@ -1634,9 +1656,6 @@ CONTAINS
          ALLOCATE (left_no_empty_images_displ(nprocs))
          no_empty_images_displ => left_no_empty_images_displ
          do_scatter = .FALSE.
-         !
-         do_win_free = buffers_orig%has_rma_left_win
-         buffers_orig%has_rma_left_win = .TRUE.
       ELSE
          ! merging over cols
          nimages_merged = ncols_images
@@ -1683,10 +1702,13 @@ CONTAINS
          ENDIF
          local_meta_size_scatter = 0
          local_data_size_scatter = 0
-         !
-         do_win_free = buffers_orig%has_rma_right_win
-         buffers_orig%has_rma_right_win = .TRUE.
       ENDIF
+      !
+      ! 3D layers
+      do_layers_3D = my_num_layers_3D .GT. 1
+      IF (do_layers_3D .AND. nimages_merged .GT. 1) &
+         CPABORT("Cannot make 3D layers with 2D images distribution")
+      CALL make_layers_3D(mp_obj, my_num_layers_3D, buffer)
       !
       do_bcast = nimages_merged .GT. 1 .AND. .NOT. do_virt
       !
@@ -1813,7 +1835,7 @@ CONTAINS
 !$OMP         left_total_row_counts,otf_filtering,meta_size_diag_scatter,&
 !$OMP         request_meta_size_diag,request_data_size_diag,&
 !$OMP         no_empty_images,local_no_empty_images,transpose,&
-!$OMP         request_no_empty_images,irequests,do_win_free,do_win_create,&
+!$OMP         request_no_empty_images,irequests,do_win_create,&
 !$OMP         meta_size_scatter,data_size_scatter,iproc,&
 !$OMP         scatter_images_proc,scatter_images,do_virt,handle2,&
 !$OMP         request_meta_size_scatter,mygrp_scatter,do_scatter,&
@@ -2088,7 +2110,7 @@ CONTAINS
       !
       ! Allocate data and meta buffers
       do_win_create(:) = .TRUE.
-      IF (do_win_free) THEN
+      IF (buffer%has_rma_win) THEN
          IF (buffer%grp .EQ. mygrp .AND. dbcsr_data_get_type(buffer%data) .EQ. data_type) THEN
             do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (data_size+10)
             do_win_create(2) = SIZE(buffer%meta) .LT. meta_size
@@ -2096,6 +2118,8 @@ CONTAINS
          CALL mp_sum(do_win_create, mygrp)
          IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
          IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
+      ELSE
+         buffer%has_rma_win = .TRUE.
       ENDIF
       CALL buffer_init(buffer, data_type, &
                        data_size, meta_size, &
@@ -2680,6 +2704,42 @@ CONTAINS
       !
       CALL timestop(handle)
    END SUBROUTINE make_buffers
+
+! **************************************************************************************************
+!> \brief Make communicators for 3D layers
+!> \param mp_obj ...
+!> \param my_num_layers_3D ...
+!> \param buffer ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE make_layers_3D(mp_obj, my_num_layers_3D, buffer)
+      TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_obj
+      INTEGER, INTENT(IN)                                :: my_num_layers_3D
+      TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
+
+      INTEGER                                            :: color, key, mygrp, mypcol, myprow, side
+
+      IF (my_num_layers_3D .LE. 1) RETURN
+      !
+      ! Check if any existing communicator can be reused
+      mygrp = dbcsr_mp_group(mp_obj)
+      IF (buffer%grp .EQ. mygrp .AND. buffer%num_layers_3D .EQ. my_num_layers_3D) RETURN
+      !
+      ! Free any previous 3D communicator
+      IF (buffer%num_layers_3D .GT. 1) CALL mp_comm_free(buffer%grp3D)
+      !
+      ! Create a new 3D communicator
+      myprow = dbcsr_mp_myprow(mp_obj)
+      mypcol = dbcsr_mp_mypcol(mp_obj)
+      side = INT(SQRT(REAL(dbcsr_mp_numnodes(mp_obj)/my_num_layers_3D)))
+      ! Row-wise order for color
+      color = MOD(myprow, side)*side+MOD(mypcol, side)
+      ! Original rank for ordering
+      key = dbcsr_mp_mynode(mp_obj)
+      !
+      CALL mp_comm_split_direct(mygrp, buffer%grp3D, color, key)
+      buffer%num_layers_3D = my_num_layers_3D
+   END SUBROUTINE make_layers_3D
 
 ! **************************************************************************************************
 !> \brief Creates row and column images of a matrix.
@@ -8092,15 +8152,25 @@ CONTAINS
    SUBROUTINE buffers_release(buffers)
       TYPE(dbcsr_buffers), INTENT(INOUT)                 :: buffers
 
-      IF (buffers%has_rma_right_win) THEN
+      IF (buffers%right%has_rma_win) THEN
          CALL mp_win_free(buffers_orig%right%data_win)
          CALL mp_win_free(buffers_orig%right%meta_win)
-         buffers%has_rma_right_win = .FALSE.
+         buffers%right%has_rma_win = .FALSE.
+         buffers%right%grp = mp_comm_null
+         IF (buffers%right%num_layers_3D .GT. 1) THEN
+            CALL mp_comm_free(buffers%right%grp3D)
+            buffers%right%num_layers_3D = 1
+         ENDIF
       ENDIF
-      IF (buffers%has_rma_left_win) THEN
+      IF (buffers%left%has_rma_win) THEN
          CALL mp_win_free(buffers_orig%left%data_win)
          CALL mp_win_free(buffers_orig%left%meta_win)
-         buffers%has_rma_left_win = .FALSE.
+         buffers%left%has_rma_win = .FALSE.
+         buffers%left%grp = mp_comm_null
+         IF (buffers%left%num_layers_3D .GT. 1) THEN
+            CALL mp_comm_free(buffers%left%grp3D)
+            buffers%left%num_layers_3D = 1
+         ENDIF
       ENDIF
       !
       IF (buffers%left%is_valid) THEN
