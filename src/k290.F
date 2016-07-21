@@ -42,7 +42,7 @@ MODULE k290
 !>
 ! **************************************************************************************************
   TYPE csym_type
-      INTEGER                                     :: plevel
+      INTEGER                                     :: plevel = 1
       INTEGER                                     :: istriz = -1
       INTEGER                                     :: punit
       INTEGER                                     :: nat, nsp, iq1, iq2, iq3, nkpoint, ntvec
