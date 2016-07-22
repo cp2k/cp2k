@@ -267,6 +267,13 @@ CONTAINS
             DEALLOCATE (kpoint%kp_env)
          END IF
 
+         IF (ASSOCIATED(kpoint%kp_sym)) THEN
+            DO ik = 1, SIZE(kpoint%kp_sym)
+               CALL kpoint_sym_release(kpoint%kp_sym(ik)%kpoint_sym)
+            END DO
+            DEALLOCATE (kpoint%kp_sym)
+         END IF
+
          DEALLOCATE (kpoint)
 
       END IF
