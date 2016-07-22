@@ -35,6 +35,7 @@ MODULE k290
 !>       NC ..... Total number of elements in the point group
 !>       INDPG .. Point group index
 !>       IB ..... List of the rotations constituting the point group
+!>       F0 ..... List of corresponding atoms for symmetry operations
 !>       V ...... Nonprimitive translations (for nonsymmorphic groups)
 !>       XB ..... Cartesian standard origin or coordinates
 !>       ORIGIN . Crystal standard origin or coordinates
@@ -48,6 +49,9 @@ MODULE k290
       INTEGER                                     :: nat, nsp, iq1, iq2, iq3, nkpoint, ntvec
       REAL(KIND=dp), DIMENSION (:,:), POINTER     :: xkappa
       INTEGER, DIMENSION (:), POINTER             :: ty
+      INTEGER, DIMENSION (:,:), POINTER           :: f0
+      INTEGER, DIMENSION (:), POINTER             :: lwght
+      INTEGER, DIMENSION (:,:), POINTER           :: lrot
       REAL(KIND=dp)                               :: a1(3), a2(3), a3(3), alat
       REAL(KIND=dp)                               :: strain(3,3) = 0.0_dp
       REAL(KIND=dp)                               :: wvk0(3) = 0.0_dp
@@ -128,6 +132,15 @@ CONTAINS
     IF ( ASSOCIATED(csym%ty) ) THEN
        DEALLOCATE(csym%ty)
     END IF
+    IF ( ASSOCIATED(csym%f0) ) THEN
+       DEALLOCATE(csym%f0)
+    END IF
+    IF ( ASSOCIATED(csym%lwght) ) THEN
+       DEALLOCATE(csym%lwght)
+    END IF
+    IF ( ASSOCIATED(csym%lrot) ) THEN
+       DEALLOCATE(csym%lrot)
+    END IF
 
     DEALLOCATE(csym)
 
@@ -166,10 +179,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ik, isum, n, nat, nhash, nkk, &
                                                             nkpts, nsp
-      INTEGER, ALLOCATABLE                               :: f0(:,:), includ(:), isc(:), list(:), &
-                                                            lrot(:,:), lwght(:)
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: includ, isc, list
       REAL(KIND=dp)                                      :: wsum
-      REAL(KIND=dp), ALLOCATABLE                         :: rlist(:,:), rx(:,:), tvec(:,:), wvkl(:,:)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rlist, rx, tvec, wvkl
 
     CALL timeset(routineN,handle)
 
@@ -181,6 +193,7 @@ CONTAINS
     !..allocate arrays for coordinates and atom types
     ALLOCATE (csym%xkappa(3,nat))
     ALLOCATE (csym%ty(nat))
+    ALLOCATE (csym%f0(49,nat))
     !..count number of atom types
     csym%ty = types
     nsp = 0
@@ -230,14 +243,14 @@ CONTAINS
     ALLOCATE (rx(3,nat))
     ALLOCATE (tvec(3,nat))
     ALLOCATE (isc(nat))
-    ALLOCATE (f0(49,nat))
     ALLOCATE (wvkl(3,nkk))
-    ALLOCATE (lwght(nkk))
-    ALLOCATE (lrot(48,nkk))
     ALLOCATE (includ(nkk))
     nhash = MAX(2000,nkk/10)
     ALLOCATE (list(nkk+nhash))
     ALLOCATE (rlist(3,nkk))
+    !..symmetry info on kpoint relations
+    ALLOCATE (csym%lwght(nkk))
+    ALLOCATE (csym%lrot(48,nkk))
 
     IF ( PRESENT(iounit) ) THEN
        csym%punit = iounit
@@ -252,28 +265,28 @@ CONTAINS
     !..calculate symmetry operations and generate kpoints
     CALL k290prg(csym%punit,csym%nat,csym%nkpoint,csym%iq1,csym%iq2,csym%iq3,&
          csym%istriz,csym%a1,csym%a2,csym%a3,csym%alat,csym%strain,csym%xkappa,&
-         rx,tvec,csym%ty,isc,f0,csym%ntvec,csym%wvk0,csym%ihg,csym%ihc,csym%isy,&
+         rx,tvec,csym%ty,isc,csym%f0,csym%ntvec,csym%wvk0,csym%ihg,csym%ihc,csym%isy,&
          csym%li,csym%nc,csym%indpg,csym%ib,csym%v,csym%r,csym%origin,csym%xb,&
-         wvkl,lwght,lrot,nhash,includ,list,rlist,csym%delta)
+         wvkl,csym%lwght,csym%lrot,nhash,includ,list,rlist,csym%delta)
     IF ( PRESENT(xkpoint) ) THEN
        !..return kpoints and weights
        CPASSERT(PRESENT(wkpoint))
        isum=0
        nkpts=0
        DO ik=1,nkk
-          IF(lwght(ik) == 0) EXIT
+          IF(csym%lwght(ik) == 0) EXIT
           nkpts=ik
-          isum = isum + lwght(nkpts)
+          isum = isum + csym%lwght(nkpts)
        END DO
        wsum=REAL(isum,KIND=dp)
        ALLOCATE (xkpoint(3,nkpts),wkpoint(nkpts))
        DO ik=1,nkpts
-          wkpoint(ik) = REAL(lwght(ik),KIND=dp)/wsum
+          wkpoint(ik) = REAL(csym%lwght(ik),KIND=dp)/wsum
           xkpoint(1:3,ik) = wvkl(1:3,ik)
        END DO
     END IF
     !..deallocate intermediate arrays
-    DEALLOCATE (rx,tvec,isc,f0,wvkl,lwght,lrot,includ,list,rlist)
+    DEALLOCATE (rx,tvec,isc,wvkl,includ,list,rlist)
 
     CALL timestop(handle)
 

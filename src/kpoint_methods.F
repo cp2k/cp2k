@@ -18,9 +18,11 @@ MODULE kpoint_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
+        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
+        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_numnodes, &
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -53,6 +55,8 @@ MODULE kpoint_methods
                                               kpoint_env_create,&
                                               kpoint_env_p_type,&
                                               kpoint_env_type,&
+                                              kpoint_sym_create,&
+                                              kpoint_sym_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
@@ -111,11 +115,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ik, iounit, natom
+      INTEGER                                            :: handle, i, ik, iounit, is, natom, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
       LOGICAL                                            :: inv, spez, symmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord
+      REAL(KIND=dp), DIMENSION(3)                        :: skp, xkp
       TYPE(csym_type), POINTER                           :: crys_sym
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
       CALL timeset(routineN, handle)
 
@@ -129,6 +135,9 @@ CONTAINS
          ALLOCATE (kpoint%xkp(3, 1), kpoint%wkp(1))
          kpoint%xkp(1:3, 1) = 0.0_dp
          kpoint%wkp(1) = 1.0_dp
+         ALLOCATE (kpoint%kp_sym(1))
+         NULLIFY (kpoint%kp_sym(1)%kpoint_sym)
+         CALL kpoint_sym_create(kpoint%kp_sym(1)%kpoint_sym)
       CASE ("MONKHORST-PACK", "MACDONALD")
          NULLIFY (crys_sym)
 
@@ -172,12 +181,49 @@ CONTAINS
          symmo = (crys_sym%isy == 1)
          ! print output
          IF (kpoint%symmetry) CALL print_crys_symmetry(crys_sym)
+         ! transfer symmetry information
+         ALLOCATE (kpoint%kp_sym(kpoint%nkp))
+         DO ik = 1, kpoint%nkp
+            NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
+            CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
+            kpsym => kpoint%kp_sym(ik)%kpoint_sym
+            ns = crys_sym%lwght(ik)
+            IF (ns > 1) THEN
+               ! we need more than one (=identity) symmetry operation, to do symmetrization
+               IF (ns == 2 .AND. SUM(crys_sym%lrot(1:2, ik)) == 0) THEN
+                  ! we have only identity and inversion, no symmetrization needed
+               ELSE
+                  ! set up the symmetrization information
+                  natom = SIZE(particle_set)
+                  kpsym%apply_symmetry = .TRUE.
+                  kpsym%nwght = ns
+                  ALLOCATE (kpsym%rot(3, 3, ns))
+                  ALLOCATE (kpsym%xkp(3, ns))
+                  ALLOCATE (kpsym%f0(natom, ns))
+                  skp(1:3) = MATMUL(TRANSPOSE(cell%hmat), kpoint%xkp(1:3, ik))
+                  DO is = 1, ns
+                     i = crys_sym%lrot(is, ik)
+                     kpsym%rot(1:3, 1:3, is) = crys_sym%r(1:3, 1:3, i)
+                     kpsym%f0(1:natom, is) = crys_sym%f0(is, 1:natom)
+                     xkp(1:3) = MATMUL(crys_sym%r(1:3, 1:3, i), skp(1:3))+crys_sym%v(1:3, i)
+                     kpsym%xkp(1:3, is) = xkp(1)*cell%h_inv(1:3, 1)+ &
+                                          xkp(2)*cell%h_inv(1:3, 2)+ &
+                                          xkp(3)*cell%h_inv(1:3, 3)
+                  END DO
+               END IF
+            END IF
+         END DO
 
          CALL release_csym_type(crys_sym)
          DEALLOCATE (coord, atype)
 
       CASE ("GENERAL")
-         ! do nothing
+         ! default: no symmetry settings
+         ALLOCATE (kpoint%kp_sym(kpoint%nkp))
+         DO i = 1, kpoint%nkp
+            NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
+            CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
+         END DO
       CASE DEFAULT
          CPASSERT(.FALSE.)
       END SELECT
@@ -762,10 +808,9 @@ CONTAINS
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
 
-! first collect all the eigenvalues
-
       CALL timeset(routineN, handle)
 
+      ! first collect all the eigenvalues
       CALL get_kpoint_info(kpoint, nkp=nkp)
       kp => kpoint%kp_env(1)%kpoint_env
       nspin = SIZE(kp%mos, 2)
@@ -876,6 +921,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! test for full kpoint grid
+!     IF (.NOT. kpoint%full_grid) &
+!        CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
+!                      "Reduced grids not yet working correctly")
+
       IF (PRESENT(energy_weighted)) THEN
          wtype = energy_weighted
       ELSE
@@ -973,37 +1023,40 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: bcntxt, handle, iatom, ic, icell, icol, &
-                                                            ik, ikk, irow, ispin, jatom, nc, nimg, &
-                                                            nkp, nspin
-      INTEGER, DIMENSION(3)                              :: cell
+      INTEGER                                            :: bcntxt, handle, ic, ik, ikk, is, ispin, &
+                                                            nc, nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_symmetric, found, my_kpgrp, real_only
-      REAL(KIND=dp)                                      :: arg, coskl, fc, sinkl
+      LOGICAL                                            :: my_kpgrp, real_only
+      REAL(KIND=dp)                                      :: wkpx
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, dblock, rblock, xkp
-      TYPE(cp_dbcsr_type), POINTER                       :: cpmat, rpmat
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(cp_dbcsr_type), POINTER                       :: cpmat, rpmat, scpmat, srpmat
       TYPE(cp_fm_type), POINTER                          :: fmdummy
       TYPE(cp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
       CALL timeset(routineN, handle)
 
-      ! test for full kpoint grid
-      IF (.NOT. kpoint%full_grid) &
-         CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
-                       "Reduced grids not yet working correctly")
-
       ! work storage
-      ALLOCATE (rpmat, cpmat)
+      ALLOCATE (rpmat)
       CALL cp_dbcsr_init(rpmat)
-      CALL cp_dbcsr_init(cpmat)
       CALL cp_dbcsr_create(rpmat, template=tempmat, matrix_type=dbcsr_type_symmetric)
-      CALL cp_dbcsr_create(cpmat, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(rpmat, sab_nl)
+      ALLOCATE (cpmat)
+      CALL cp_dbcsr_init(cpmat)
+      CALL cp_dbcsr_create(cpmat, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(cpmat, sab_nl)
+      IF (.NOT. kpoint%full_grid) THEN
+         ALLOCATE (srpmat)
+         CALL cp_dbcsr_init(srpmat)
+         CALL cp_dbcsr_create(srpmat, template=rpmat)
+         CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
+         ALLOCATE (scpmat)
+         CALL cp_dbcsr_init(scpmat)
+         CALL cp_dbcsr_create(scpmat, template=cpmat)
+         CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
+      END IF
 
       CALL get_kpoint_info(kpoint, nkp=nkp, xkp=xkp, wkp=wkp, &
                            para_env_inter_kp=para_env_inter_kp, &
@@ -1052,58 +1105,222 @@ CONTAINS
                CALL copy_fm_to_dbcsr(fmwork(2)%matrix, cpmat, keep_sparsity=.TRUE.)
             END IF
 
-            ! transformation
-            CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
-            CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
-            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
+            ! symmetrization
+            kpsym => kpoint%kp_sym(ik)%kpoint_sym
+            CPASSERT(ASSOCIATED(kpsym))
 
-               ! fc = +/-1 sign change from above, is used to get correct sign due to
-               !           a<->b ==> cell = -cell
-               irow = iatom
-               icol = jatom
-               fc = -1.0_dp
-               IF (do_symmetric .AND. iatom > jatom) THEN
-                  irow = jatom
-                  icol = iatom
-                  fc = 1.0_dp
-               END IF
-               icell = cell_to_index(cell(1), cell(2), cell(3))
-               arg = REAL(cell(1), dp)*xkp(1, ik)+REAL(cell(2), dp)*xkp(2, ik)+REAL(cell(3), dp)*xkp(3, ik)
-               coskl = wkp(ik)*COS(twopi*arg)
-               sinkl = wkp(ik)*fc*SIN(twopi*arg)
-
-               CALL cp_dbcsr_get_block_p(matrix=denmat(ispin, icell)%matrix, row=irow, col=icol, &
-                                         block=dblock, found=found)
-               CPASSERT(found)
-
-               IF (real_only) THEN
-                  CALL cp_dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, &
-                                            block=rblock, found=found)
-                  CPASSERT(found)
-                  dblock = dblock+coskl*rblock
-               ELSE
-                  CALL cp_dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, &
-                                            block=rblock, found=found)
-                  CPASSERT(found)
-                  CALL cp_dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, &
-                                            block=cblock, found=found)
-                  CPASSERT(found)
-                  dblock = dblock+coskl*rblock
-                  dblock = dblock+sinkl*cblock
-               END IF
-            END DO
-            CALL neighbor_list_iterator_release(nl_iterator)
+            IF (kpsym%apply_symmetry) THEN
+               wkpx = wkp(ik)/REAL(kpsym%nwght)
+               DO is = 1, kpsym%nwght
+                  IF (real_only) THEN
+                     CALL symtrans(srpmat, rpmat, kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), symmetric=.TRUE.)
+                  ELSE
+                     CALL symtrans(srpmat, rpmat, kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), symmetric=.TRUE.)
+                     CALL symtrans(scpmat, cpmat, kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), antisymmetric=.TRUE.)
+                  END IF
+                  CALL transform_dmat(denmat, srpmat, scpmat, ispin, real_only, sab_nl, &
+                                      cell_to_index, kpsym%xkp(1:3, is), wkpx)
+               END DO
+            ELSE
+               ! transformation
+               CALL transform_dmat(denmat, rpmat, cpmat, ispin, real_only, sab_nl, &
+                                   cell_to_index, xkp(1:3, ik), wkp(ik))
+            END IF
 
          END DO
       END DO
 
       CALL cp_dbcsr_deallocate_matrix(rpmat)
       CALL cp_dbcsr_deallocate_matrix(cpmat)
+      IF (.NOT. kpoint%full_grid) THEN
+         CALL cp_dbcsr_deallocate_matrix(srpmat)
+         CALL cp_dbcsr_deallocate_matrix(scpmat)
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_transform
+
+! **************************************************************************************************
+!> \brief real space density matrices in DBCSR format
+!> \param denmat  Real space (DBCSR) density matrix
+!> \param rpmat ...
+!> \param cpmat ...
+!> \param ispin ...
+!> \param real_only ...
+!> \param sab_nl ...
+!> \param cell_to_index ...
+!> \param xkp ...
+!> \param wkp ...
+! **************************************************************************************************
+   SUBROUTINE transform_dmat(denmat, rpmat, cpmat, ispin, real_only, sab_nl, cell_to_index, xkp, wkp)
+
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: denmat
+      TYPE(cp_dbcsr_type), POINTER                       :: rpmat, cpmat
+      INTEGER, INTENT(IN)                                :: ispin
+      LOGICAL, INTENT(IN)                                :: real_only
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
+      REAL(KIND=dp), INTENT(IN)                          :: wkp
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_dmat', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, iatom, icell, icol, irow, jatom
+      INTEGER, DIMENSION(3)                              :: cell
+      LOGICAL                                            :: do_symmetric, found
+      REAL(KIND=dp)                                      :: arg, coskl, fc, sinkl
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, dblock, rblock
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+
+      CALL timeset(routineN, handle)
+
+      ! transformation
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, cell=cell)
+
+         ! fc = +/-1 sign change from above, is used to get correct sign due to
+         !           a<->b ==> cell = -cell
+         irow = iatom
+         icol = jatom
+         fc = -1.0_dp
+         IF (do_symmetric .AND. iatom > jatom) THEN
+            irow = jatom
+            icol = iatom
+            fc = 1.0_dp
+         END IF
+         icell = cell_to_index(cell(1), cell(2), cell(3))
+         arg = REAL(cell(1), dp)*xkp(1)+REAL(cell(2), dp)*xkp(2)+REAL(cell(3), dp)*xkp(3)
+         coskl = wkp*COS(twopi*arg)
+         sinkl = wkp*fc*SIN(twopi*arg)
+
+         CALL cp_dbcsr_get_block_p(matrix=denmat(ispin, icell)%matrix, row=irow, col=icol, &
+                                   block=dblock, found=found)
+         CPASSERT(found)
+
+         IF (real_only) THEN
+            CALL cp_dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
+            CPASSERT(found)
+            dblock = dblock+coskl*rblock
+         ELSE
+            CALL cp_dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
+            CPASSERT(found)
+            CALL cp_dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
+            CPASSERT(found)
+            dblock = dblock+coskl*rblock
+            dblock = dblock+sinkl*cblock
+         END IF
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE transform_dmat
+
+! **************************************************************************************************
+!> \brief Symmetrization of density matrix - transform to new k-point
+!> \param smat density matrix at new kpoint
+!> \param pmat reference density matrix
+!> \param rot Rotation matrix
+!> \param f0 Permutation of atoms under transformation
+!> \param symmetric Symmetric matrix
+!> \param antisymmetric Anti-Symmetric matrix
+! **************************************************************************************************
+   SUBROUTINE symtrans(smat, pmat, rot, f0, symmetric, antisymmetric)
+      TYPE(cp_dbcsr_type), POINTER                       :: smat, pmat
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: f0
+      LOGICAL, INTENT(IN), OPTIONAL                      :: symmetric, antisymmetric
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'symtrans', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, iatom, icol, ip, irow, jcol, jp, &
+                                                            jrow, natom, numnodes
+      LOGICAL                                            :: asym, dorot, found, perm, sym, trans
+      REAL(KIND=dp)                                      :: dr, fsign
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, sblock
+      TYPE(cp_dbcsr_iterator)                            :: iter
+
+      CALL timeset(routineN, handle)
+
+      ! check symmetry options
+      sym = .FALSE.
+      IF (PRESENT(symmetric)) sym = symmetric
+      asym = .FALSE.
+      IF (PRESENT(antisymmetric)) asym = antisymmetric
+
+      CPASSERT(.NOT. (sym .AND. asym))
+      CPASSERT((sym .OR. asym))
+
+      ! do we have permutation of atoms
+      natom = SIZE(f0)
+      perm = .FALSE.
+      DO iatom = 1, natom
+         IF (f0(iatom) == iatom) CYCLE
+         perm = .TRUE.
+         EXIT
+      END DO
+
+      ! do we have a real rotation
+      dorot = .FALSE.
+      IF (ABS(SUM(ABS(rot))-3.0_dp) > 1.e-12_dp) dorot = .TRUE.
+      dr = ABS(rot(1, 1)-1.0_dp)+ABS(rot(2, 2)-1.0_dp)+ABS(rot(3, 3)-1.0_dp)
+      IF (ABS(dr) > 1.e-12_dp) dorot = .TRUE.
+
+      fsign = 1.0_dp
+      IF (asym) fsign = -1.0_dp
+
+      IF (dorot .OR. perm) THEN
+         CALL cp_dbcsr_set(smat, 0.0_dp)
+         IF (perm) THEN
+            numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(cp_dbcsr_distribution(pmat)))
+            IF (numnodes == 1) THEN
+               ! the matrices are local to this process
+               CALL cp_dbcsr_iterator_start(iter, pmat)
+               DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+                  CALL cp_dbcsr_iterator_next_block(iter, irow, icol, pblock)
+                  ip = f0(irow)
+                  jp = f0(icol)
+                  IF (ip <= jp) THEN
+                     jrow = ip
+                     jcol = jp
+                     trans = .FALSE.
+                  ELSE
+                     jrow = jp
+                     jcol = ip
+                     trans = .TRUE.
+                  END IF
+                  CALL cp_dbcsr_get_block_p(matrix=smat, row=jrow, col=jcol, BLOCK=sblock, found=found)
+                  CPASSERT(found)
+                  IF (trans) THEN
+                     sblock = fsign*TRANSPOSE(pblock)
+                  ELSE
+                     sblock = pblock
+                  END IF
+               END DO
+               CALL cp_dbcsr_iterator_stop(iter)
+               !
+            ELSE
+               ! distributed matrices, most general code needed
+               ! CALL cp_dbcsr_get_stored_coordinates(pmat, row, col, pos)
+            END IF
+         ELSE
+            ! no atom permutations, this is always local
+            ! ignore rotations for now
+            CALL cp_dbcsr_copy(smat, pmat)
+         END IF
+      ELSE
+         ! this is the identity operation, just copy the matrix
+         CALL cp_dbcsr_copy(smat, pmat)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE symtrans
 
 ! **************************************************************************************************
 

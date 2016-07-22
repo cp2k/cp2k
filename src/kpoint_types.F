@@ -50,6 +50,8 @@ MODULE kpoint_types
    PUBLIC :: read_kpoint_section, write_kpoint_info
    PUBLIC :: kpoint_env_type, kpoint_env_p_type
    PUBLIC :: kpoint_env_create
+   PUBLIC :: kpoint_sym_type, kpoint_sym_p_type
+   PUBLIC :: kpoint_sym_create
 
 ! **************************************************************************************************
 !> \brief Keeps information about a specific k-point
@@ -77,6 +79,27 @@ MODULE kpoint_types
    TYPE kpoint_env_p_type
       TYPE(kpoint_env_type), POINTER                    :: kpoint_env
    END TYPE kpoint_env_p_type
+
+! **************************************************************************************************
+!> \brief Keeps symmetry information about a specific k-point
+!> \param apply_symmetry ...
+!> \param nwght     kpoint multiplicity
+!> \param xkp       kpoint coordinates
+!> \param rot       rotation matrices
+!> \param f0        atom permutation
+!> \author JGH
+! **************************************************************************************************
+   TYPE kpoint_sym_type
+      LOGICAL                                           :: apply_symmetry
+      INTEGER                                           :: nwght
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER          :: rot
+      INTEGER, DIMENSION(:, :), POINTER                  :: f0
+   END TYPE kpoint_sym_type
+
+   TYPE kpoint_sym_p_type
+      TYPE(kpoint_sym_type), POINTER                    :: kpoint_sym
+   END TYPE kpoint_sym_p_type
 
 ! **************************************************************************************************
 !> \brief Contains information about kpoints
@@ -144,6 +167,8 @@ MODULE kpoint_types
       ! environment
       TYPE(kpoint_env_p_type), DIMENSION(:), &
          POINTER                              :: kp_env => Null()
+      TYPE(kpoint_sym_p_type), DIMENSION(:), &
+         POINTER                              :: kp_sym => Null()
       TYPE(qs_matrix_pools_type), POINTER     :: mpools => Null()
    END TYPE kpoint_type
 
@@ -754,6 +779,59 @@ CONTAINS
       IF (PRESENT(mos)) mos => kpoint_env%mos
 
    END SUBROUTINE get_kpoint_env
+
+! **************************************************************************************************
+!> \brief Create a single kpoint symmetry environment
+!> \param kp_sym  ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE kpoint_sym_create(kp_sym)
+      TYPE(kpoint_sym_type), POINTER                     :: kp_sym
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_sym_create', &
+         routineP = moduleN//':'//routineN
+
+      CPASSERT(.NOT. ASSOCIATED(kp_sym))
+
+      ALLOCATE (kp_sym)
+
+      kp_sym%nwght = 0
+      kp_sym%apply_symmetry = .FALSE.
+
+      NULLIFY (kp_sym%rot)
+      NULLIFY (kp_sym%xkp)
+      NULLIFY (kp_sym%f0)
+
+   END SUBROUTINE kpoint_sym_create
+
+! **************************************************************************************************
+!> \brief Release a single kpoint symmetry environment
+!> \param kp_sym  ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE kpoint_sym_release(kp_sym)
+      TYPE(kpoint_sym_type), POINTER                     :: kp_sym
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_sym_release', &
+         routineP = moduleN//':'//routineN
+
+      IF (ASSOCIATED(kp_sym)) THEN
+
+         IF (ASSOCIATED(kp_sym%rot)) THEN
+            DEALLOCATE (kp_sym%rot)
+         END IF
+         IF (ASSOCIATED(kp_sym%xkp)) THEN
+            DEALLOCATE (kp_sym%xkp)
+         END IF
+         IF (ASSOCIATED(kp_sym%f0)) THEN
+            DEALLOCATE (kp_sym%f0)
+         END IF
+
+         DEALLOCATE (kp_sym)
+
+      END IF
+
+   END SUBROUTINE kpoint_sym_release
 
 ! **************************************************************************************************
 
