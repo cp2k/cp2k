@@ -1533,7 +1533,8 @@ CONTAINS
     ! Exchange the data and metadata structures.
     CALL mp_allgather (send_meta, recv_meta, metalen*recv_count(1,:),&
          rm_disp-1, mp_group)
-    CALL dbcsr_allgatherv (send_data, recv_data, recv_count(2,:),&
+    CALL dbcsr_allgatherv (send_data, dbcsr_data_get_size(send_data),&
+         recv_data, recv_count(2,:),&
          rd_disp-1, mp_group)
     ! Release the send buffer. If it had a non-zero size then it was a
     ! pointer into the regular matrix and the data pointer should be

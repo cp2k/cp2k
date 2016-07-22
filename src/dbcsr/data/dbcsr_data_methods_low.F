@@ -51,7 +51,7 @@ MODULE dbcsr_data_methods_low
              dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
              dbcsr_scalar_get_type, dbcsr_scalar_set_type, &
              dbcsr_scalar_fill_all, dbcsr_scalar_get_value, &
-             dbcsr_data_valid
+             dbcsr_data_valid, dbcsr_data_unique
    PUBLIC :: dbcsr_data_init, dbcsr_data_hold, &
              dbcsr_data_get_size, dbcsr_data_get_type
    PUBLIC :: dbcsr_get_data, &
@@ -123,6 +123,18 @@ CONTAINS
 
       data_type = area%d%data_type
    END FUNCTION dbcsr_data_get_type
+
+! **************************************************************************************************
+!> \brief Returns if there is a single reference of the data
+!> \param[in] area         data area
+!> \retval unique          true if reference is 1
+! **************************************************************************************************
+   PURE FUNCTION dbcsr_data_unique(area) RESULT(unique)
+      TYPE(dbcsr_data_obj), INTENT(IN)                   :: area
+      LOGICAL                                            :: unique
+
+      unique = area%d%refcount .EQ. 1
+   END FUNCTION dbcsr_data_unique
 
 ! **************************************************************************************************
 !> \brief ...

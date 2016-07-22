@@ -691,14 +691,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allgather of encapsulated data
 !> \param send_data ...
+!> \param scount ...
 !> \param recv_data ...
 !> \param recv_count ...
 !> \param recv_displ ...
 !> \param gid ...
 !> \note see mp_allgatherv_dv
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_allgatherv(send_data, recv_data, recv_count, recv_displ, gid)
+   SUBROUTINE dbcsr_allgatherv(send_data, scount, recv_data, recv_count, recv_displ, gid)
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: send_data
+      INTEGER, INTENT(IN)                                :: scount
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: recv_data
       INTEGER, DIMENSION(:), INTENT(IN)                  :: recv_count, recv_displ
       INTEGER, INTENT(IN)                                :: gid
@@ -711,16 +713,16 @@ CONTAINS
                         dbcsr_wrong_args_error, routineN, "Data type mismatch", __LINE__)
       SELECT CASE (dbcsr_data_get_type (send_data))
       CASE (dbcsr_type_real_4)
-         CALL mp_allgather(send_data%d%r_sp, recv_data%d%r_sp, &
+         CALL mp_allgather(send_data%d%r_sp(1:scount), recv_data%d%r_sp, &
                            recv_count, recv_displ, gid)
       CASE (dbcsr_type_real_8)
-         CALL mp_allgather(send_data%d%r_dp, recv_data%d%r_dp, &
+         CALL mp_allgather(send_data%d%r_dp(1:scount), recv_data%d%r_dp, &
                            recv_count, recv_displ, gid)
       CASE (dbcsr_type_complex_4)
-         CALL mp_allgather(send_data%d%c_sp, recv_data%d%c_sp, &
+         CALL mp_allgather(send_data%d%c_sp(1:scount), recv_data%d%c_sp, &
                            recv_count, recv_displ, gid)
       CASE (dbcsr_type_complex_8)
-         CALL mp_allgather(send_data%d%c_dp, recv_data%d%c_dp, &
+         CALL mp_allgather(send_data%d%c_dp(1:scount), recv_data%d%c_dp, &
                            recv_count, recv_displ, gid)
       CASE default
          CPABORT("Invalid data type")

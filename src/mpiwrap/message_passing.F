@@ -389,12 +389,12 @@ MODULE message_passing
          mp_iscatter_d, &
          mp_iscatter_c, &
          mp_iscatter_z, &
-         mp_iscatter_iv, &
-         mp_iscatter_lv, &
-         mp_iscatter_rv, &
-         mp_iscatter_dv, &
-         mp_iscatter_cv, &
-         mp_iscatter_zv, &
+         mp_iscatter_iv2, &
+         mp_iscatter_lv2, &
+         mp_iscatter_rv2, &
+         mp_iscatter_dv2, &
+         mp_iscatter_cv2, &
+         mp_iscatter_zv2, &
          mp_iscatterv_iv, &
          mp_iscatterv_lv, &
          mp_iscatterv_rv, &

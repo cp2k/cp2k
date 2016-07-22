@@ -1597,13 +1597,13 @@
 !> \par MPI mapping
 !>      mpi_scatter
 ! *****************************************************************************
-  SUBROUTINE mp_iscatter_rv(msg_scatter,msg,root,gid,request)
-    REAL(kind=real_4), INTENT(IN)                      :: msg_scatter(:)
+  SUBROUTINE mp_iscatter_rv2(msg_scatter,msg,root,gid,request)
+    REAL(kind=real_4), INTENT(IN)                      :: msg_scatter(:, :)
     REAL(kind=real_4), INTENT(INOUT)                   :: msg(:)
     INTEGER, INTENT(IN)                      :: root, gid
     INTEGER, INTENT(INOUT)                   :: request
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatter_rv', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatter_rv2', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, msglen
@@ -1635,7 +1635,7 @@
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)
-  END SUBROUTINE mp_iscatter_rv
+  END SUBROUTINE mp_iscatter_rv2
 
 ! *****************************************************************************
 !> \brief Scatters data from one processes to all others
