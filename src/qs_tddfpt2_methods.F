@@ -11,6 +11,7 @@ MODULE qs_tddfpt2_methods
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
                                               cp_dbcsr_copy,&
                                               cp_dbcsr_deallocate_matrix,&
+                                              cp_dbcsr_deallocate_matrix_set,&
                                               cp_dbcsr_init_p,&
                                               cp_dbcsr_p_type,&
                                               cp_dbcsr_set,&
@@ -400,7 +401,7 @@ CONTAINS
       CALL qs_rho_get(rho_ij_struct, rho_r=rho_ij_r)
 
       DO ispin = 1, nspins
-         CALL cp_gemm('N', 'T', nao, nao, SIZE(gs_mos(ispin)%vectors_mo_occ), 1.0_dp, &
+         CALL cp_gemm('N', 'T', nao, nao, SIZE(gs_mos(ispin)%evals_occ), 1.0_dp, &
                       gs_mos(ispin)%matrix_mos_occ, gs_mos(ispin)%matrix_mos_occ, 0.0_dp, rho_ij_fm)
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, rho_ij_fm, S_C0_C0T(ispin)%matrix, &
@@ -955,7 +956,7 @@ CONTAINS
          nmo_occ_selected_spin = nmo_occ_selected(ispin)
          nmo_virt_selected_spin = nmo_virt_selected(ispin)
 
-         DO imo_occ = 1, nmo_occ_selected_spin !nmo_occ_avail_spin - nmo_occ_selected(ispin) + 1, nmo_occ_avail_spin
+         DO imo_occ = 1, nmo_occ_selected_spin
             e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail_spin-imo_occ+1)
 
             DO imo_virt = 1, nmo_virt_selected_spin
@@ -1848,7 +1849,6 @@ CONTAINS
       NULLIFY (rho_ia_struct)
       CALL qs_rho_create(rho_ia_struct)
       CALL qs_rho_set(rho_ia_struct, rho_ao=rho_ia_ao)
-      CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.TRUE., rebuild_grids=.FALSE.)
 
       NULLIFY (K_ia_munu_dbcsr)
       CALL cp_dbcsr_allocate_matrix_set(K_ia_munu_dbcsr, nspins)
@@ -1873,7 +1873,6 @@ CONTAINS
             CALL copy_fm_to_dbcsr(rho_ia_fm, rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
             CALL cp_dbcsr_set(K_ia_munu_dbcsr(ispin)%matrix, 0.0_dp)
          END DO
-         CALL qs_rho_update_rho(rho_ia_struct, qs_env)
 
          CALL tddft_hfx_matrix(qs_env, rho_ia_struct, K_ia_munu_dbcsr)
 
@@ -1884,15 +1883,7 @@ CONTAINS
 
       ! *** clean up ***
       CALL cp_fm_release(rho_ia_fm)
-
-      DO ispin = 1, SIZE(K_ia_munu_dbcsr)
-         IF (ASSOCIATED(K_ia_munu_dbcsr(ispin)%matrix)) THEN
-            CALL cp_dbcsr_deallocate_matrix(K_ia_munu_dbcsr(ispin)%matrix)
-         END IF
-      END DO
-      DEALLOCATE (K_ia_munu_dbcsr)
-
-      !CALL cp_dbcsr_deallocate_matrix(K_ia_munu%matrix)
+      CALL cp_dbcsr_deallocate_matrix_set(K_ia_munu_dbcsr)
       CALL qs_rho_release(rho_ia_struct)
 
       DEALLOCATE (nmo_occ)
@@ -2051,7 +2042,7 @@ CONTAINS
       IF (do_hfx) THEN
          ALLOCATE (nmo_occ(nspins))
          DO ispin = 1, nspins
-            nmo_occ(ispin) = SIZE(gs_mos(ispin)%vectors_mo_occ)
+            nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
          END DO
 
          NULLIFY (fm_struct, rho_jb_fm)
