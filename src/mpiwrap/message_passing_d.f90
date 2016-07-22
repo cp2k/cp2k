@@ -1631,7 +1631,7 @@
 #else
     MARK_USED(root)
     MARK_USED(gid)
-    msg = msg_scatter
+    msg(:) = msg_scatter(:,1)
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)
