@@ -9,8 +9,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qmmm_types_low
-   USE eri_mme_types,                   ONLY: eri_mme_param,&
-                                              eri_mme_release
+   USE cp_eri_mme_types,                ONLY: cp_eri_mme_finalize,&
+                                              cp_eri_mme_param
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
@@ -18,7 +18,8 @@ MODULE qmmm_types_low
    USE force_field_types,               ONLY: deallocate_inp_info,&
                                               init_inp_info,&
                                               input_info_type
-   USE input_constants,                 ONLY: do_qmmm_none
+   USE input_constants,                 ONLY: do_eri_mme,&
+                                              do_qmmm_none
    USE kinds,                           ONLY: dp
    USE particle_types,                  ONLY: allocate_particle_set,&
                                               deallocate_particle_set,&
@@ -181,11 +182,11 @@ MODULE qmmm_types_low
       INTEGER                                    :: state_image_matrix
       INTEGER, DIMENSION(:), POINTER             :: image_mm_list
       TYPE(particle_type), DIMENSION(:), POINTER :: particles_all
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: image_forcesMM
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: image_forcesMM
       REAL(KIND=dp)                              :: V0
       REAL(KIND=dp)                              :: eta
       INTEGER                                    :: image_matrix_method
-      TYPE(eri_mme_param)                        :: eri_mme_param
+      TYPE(cp_eri_mme_param)                     :: eri_mme_param
    END TYPE image_charge_type
 
 ! **************************************************************************************************
@@ -447,6 +448,11 @@ CONTAINS
                CALL add_shell_release(qmmm_env%added_shells)
             END IF
             IF (ASSOCIATED(qmmm_env%image_charge_pot)) THEN
+               IF (qmmm_env%image_charge) THEN
+                  IF (qmmm_env%image_charge_pot%image_matrix_method .EQ. do_eri_mme) THEN
+                     CALL cp_eri_mme_finalize(qmmm_env%image_charge_pot%eri_mme_param)
+                  ENDIF
+               ENDIF
                CALL qmmm_image_charge_dealloc(qmmm_env%image_charge_pot)
             END IF
             IF (ASSOCIATED(qmmm_env%ewald_env)) THEN
@@ -537,7 +543,6 @@ CONTAINS
          IF (ASSOCIATED(image_charge_pot%image_forcesMM)) THEN
             DEALLOCATE (image_charge_pot%image_forcesMM)
          END IF
-         CALL eri_mme_release(image_charge_pot%eri_mme_param)
          DEALLOCATE (image_charge_pot)
       END IF
    END SUBROUTINE qmmm_image_charge_dealloc

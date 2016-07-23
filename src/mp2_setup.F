@@ -10,11 +10,11 @@
 !> \author MDB
 ! **************************************************************************************************
 MODULE mp2_setup
+   USE cp_eri_mme_types,                ONLY: cp_eri_mme_init_read_input
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE eri_mme_types,                   ONLY: eri_mme_init_read_input
    USE input_constants,                 ONLY: do_eri_mme
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -220,7 +220,7 @@ CONTAINS
       IF (mp2_env%eri_method .EQ. do_eri_mme) THEN
          eri_mme_section => section_vals_get_subs_vals(mp2_section, "ERI_MME")
          ALLOCATE (mp2_env%eri_mme_param)
-         CALL eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
+         CALL cp_eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
       ENDIF
 
       ! Set some parameters in case of P screening

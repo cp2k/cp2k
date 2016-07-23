@@ -16,6 +16,7 @@ MODULE input_cp2k_mp2
                                               DelBen2015,&
                                               DelBen2015b,&
                                               Rybkin2016
+   USE cp_eri_mme_types,                ONLY: create_eri_mme_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -23,7 +24,6 @@ MODULE input_cp2k_mp2
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
-   USE eri_mme_types,                   ONLY: create_eri_mme_section
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
         mp2_method_direct, mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, numerical, &

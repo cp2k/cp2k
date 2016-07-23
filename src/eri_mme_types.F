@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Types and initialization routines for Minimax-Ewald method for electron
+!> \brief Types and initialization / release routines for Minimax-Ewald method for electron
 !>        repulsion integrals.
 !> \par History
 !>       2015 09 created
@@ -13,24 +13,16 @@
 
 MODULE eri_mme_types
 
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_section_create,&
-                                              cp_print_key_unit_nr,&
-                                              medium_print_level
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE eri_mme_error_control,           ONLY: calibrate_cutoff,&
+                                              cutoff_minimax_error
+   USE eri_mme_gaussian,                ONLY: get_minimax_coeff_v_gspace
+   USE eri_mme_util,                    ONLY: G_abs_min,&
+                                              R_abs_min
    USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: det_3x3,&
+                                              inv_3x3
+   USE orbital_pointers,                ONLY: init_orbital_pointers
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,189 +33,178 @@ MODULE eri_mme_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_types'
 
-   REAL(KIND=dp), PARAMETER, PUBLIC :: lattice_sum_prec = 1.0E-20_dp ! truncation threshold for summing PGFs
-   INTEGER, PARAMETER, PUBLIC :: dynamic_lattice_space = 0, rec_lattice_space = 1, dir_lattice_space = 2
    INTEGER, PARAMETER, PUBLIC :: n_minimax_max = 53
 
    PUBLIC :: eri_mme_param, &
-             eri_mme_init_read_input, &
+             eri_mme_init, &
              eri_mme_release, &
-             create_eri_mme_section
+             eri_mme_set_params
 
    TYPE eri_mme_param
-      TYPE(section_vals_type), &
-         POINTER                    :: mme_section => NULL()
       INTEGER                          :: n_minimax
       REAL(KIND=dp), POINTER, &
-         DIMENSION(:)               :: minimax_aw => NULL()
-      REAL(KIND=dp), DIMENSION(3, 3) :: hmat, h_inv
-      REAL(KIND=dp)                  :: vol
+         DIMENSION(:)                  :: minimax_aw => NULL()
+      REAL(KIND=dp), DIMENSION(3, 3)   :: hmat, h_inv
+      REAL(KIND=dp)                    :: vol
       LOGICAL                          :: is_ortho
-      REAL(KIND=dp)                  :: cutoff
+      REAL(KIND=dp)                    :: cutoff
       LOGICAL                          :: do_calib_cutoff
       LOGICAL                          :: print_calib
-      REAL(KIND=dp)                  :: cutoff_min, cutoff_max, cutoff_delta, &
-                                        cutoff_eps, error_tot
-      INTEGER                          :: G_count, R_count
-      REAL(KIND=dp)                  :: G_min, R_min
+      REAL(KIND=dp)                    :: cutoff_min, cutoff_max, cutoff_delta, &
+                                          cutoff_eps, err_mm, err_c
+      REAL(KIND=dp)                    :: G_min, R_min
       LOGICAL                          :: is_valid
-      INTEGER                          :: l_max
+      LOGICAL                          :: debug
+      REAL(KIND=dp)                    :: debug_delta
+      REAL(KIND=dp)                    :: C_mm
+      INTEGER                          :: unit_nr
    END TYPE eri_mme_param
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Create main input section
-!> \param section ...
-! **************************************************************************************************
-   SUBROUTINE create_eri_mme_section(section)
-      TYPE(section_type), INTENT(INOUT), POINTER         :: section
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_eri_mme_section', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
-
-      NULLIFY (keyword, print_key, subsection)
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "ERI_MME", &
-                          description="Parameters for the calculation of electron repulsion "// &
-                          "integrals (ERI) using the Minimax-Ewald (MME) method. "// &
-                          "Note: N_MINIMAX is the only parameter to be tuned for accuracy, "// &
-                          "all other parameters can be left to default. "// &
-                          "Method may not yet be sufficiently accurate since the number "// &
-                          "of terms in minimax approximation is limited to 15 in the current "// &
-                          "implementation.", &
-                          n_keywords=5, n_subsections=1)
-
-      CALL keyword_create(keyword, &
-                          name="N_MINIMAX", &
-                          description="Number of terms in minimax approximation of "// &
-                          "reciprocal space potential. ", &
-                          default_i_val=20)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, &
-                          name="CUTOFF", &
-                          description="User-defined energy cutoff to be used only if "// &
-                          "DO_CALIBRATE_CUTOFF is set to .FALSE. ", &
-                          default_r_val=300.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, &
-                          name="DO_CALIBRATE_CUTOFF", &
-                          description="Whether the energy cutoff shall be calibrated to "// &
-                          "minimize upper bound error estimate. ", &
-                          default_l_val=.TRUE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL cp_print_key_section_create(print_key, "ERI_MME_INFO", &
-                                       description="Controls the printing info.", &
-                                       print_level=medium_print_level, filename="__STD_OUT__")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-      CALL keyword_create(keyword, &
-                          name="PRINT_CALIB", &
-                          description="Print detailed info on calibration. ", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_create(subsection, "CUTOFF_CALIB", &
-                          description="Parameters for the calibration of the energy cutoff by "// &
-                          "minimizing the errors due to finite cutoff and minimax approximation. "// &
-                          "Implemented as bisection of error(minimax) - error(cutoff). Not "// &
-                          "implemented for non-orthorhombic cells. ", &
-                          n_keywords=5, n_subsections=0)
-
-      CALL keyword_create(keyword, &
-                          name="MIN", &
-                          description="Initial guess of lower bound for cutoff. ", &
-                          default_r_val=10.0_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, &
-                          name="MAX", &
-                          description="Initial guess of upper bound for cutoff. ", &
-                          default_r_val=10000.0_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, &
-                          name="DELTA", &
-                          description="Relative widening of cutoff interval in case starting "// &
-                          "values are not valid. ", &
-                          default_r_val=0.9_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, &
-                          name="EPS", &
-                          description="Relative cutoff precision required to stop calibration. ", &
-                          default_r_val=0.01_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-   END SUBROUTINE create_eri_mme_section
-
-! **************************************************************************************************
-!> \brief Read input and initialize parameter type
-!> \param mme_section ...
+!> \brief ...
 !> \param param ...
+!> \param n_minimax ...
+!> \param cutoff ...
+!> \param do_calib_cutoff ...
+!> \param cutoff_min ...
+!> \param cutoff_max ...
+!> \param cutoff_eps ...
+!> \param cutoff_delta ...
+!> \param debug ...
+!> \param debug_delta ...
+!> \param unit_nr ...
+!> \param print_calib ...
 ! **************************************************************************************************
-   SUBROUTINE eri_mme_init_read_input(mme_section, param)
-      TYPE(section_vals_type), INTENT(INOUT), POINTER    :: mme_section
+   SUBROUTINE eri_mme_init(param, n_minimax, cutoff, do_calib_cutoff, &
+                           cutoff_min, cutoff_max, cutoff_eps, cutoff_delta, &
+                           debug, debug_delta, unit_nr, print_calib)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'eri_mme_init_read_input', &
-         routineP = moduleN//':'//routineN
+      INTEGER, INTENT(IN)                                :: n_minimax
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      LOGICAL, INTENT(IN)                                :: do_calib_cutoff
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff_min, cutoff_max, cutoff_eps, &
+                                                            cutoff_delta
+      LOGICAL, INTENT(IN)                                :: debug
+      REAL(KIND=dp), INTENT(IN)                          :: debug_delta
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN)                                :: print_calib
 
       CHARACTER(len=2)                                   :: string
-      INTEGER                                            :: unit_nr
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: subsection
 
-      logger => cp_get_default_logger()
-      unit_nr = cp_print_key_unit_nr(logger, mme_section, "ERI_MME_INFO", &
-                                     extension=".eri_mme")
-
-      NULLIFY (subsection)
-      CALL section_vals_val_get(mme_section, "N_MINIMAX", i_val=param%n_minimax)
       WRITE (string, '(I2)') n_minimax_max
-      IF (param%n_minimax .GT. n_minimax_max) &
+      IF (n_minimax .GT. n_minimax_max) &
          CPABORT("The maximum allowed number of minimax points N_MINIMAX is "//TRIM(string))
-      CALL section_vals_val_get(mme_section, "CUTOFF", r_val=param%cutoff)
-      CALL section_vals_val_get(mme_section, "DO_CALIBRATE_CUTOFF", l_val=param%do_calib_cutoff)
-      CALL section_vals_val_get(mme_section, "PRINT_CALIB", l_val=param%print_calib)
-      subsection => section_vals_get_subs_vals(mme_section, "CUTOFF_CALIB")
-      CALL section_vals_val_get(subsection, "MIN", r_val=param%cutoff_min)
-      CALL section_vals_val_get(subsection, "MAX", r_val=param%cutoff_max)
-      CALL section_vals_val_get(subsection, "EPS", r_val=param%cutoff_eps)
-      CALL section_vals_val_get(subsection, "DELTA", r_val=param%cutoff_delta)
-      param%mme_section => mme_section
 
-      ALLOCATE (param%minimax_aw(2*param%n_minimax))
+      param%n_minimax = n_minimax
+      param%cutoff = cutoff
+      param%do_calib_cutoff = do_calib_cutoff
+      param%cutoff_min = cutoff_min
+      param%cutoff_max = cutoff_max
+      param%cutoff_eps = cutoff_eps
+      param%cutoff_delta = cutoff_delta
+      param%debug = debug
+      param%debug_delta = debug_delta
+      param%print_calib = print_calib
+      param%unit_nr = unit_nr
 
       param%is_valid = .FALSE.
+      ALLOCATE (param%minimax_aw(2*param%n_minimax))
+   END SUBROUTINE eri_mme_init
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(/T2, A, T78, I3/)') "ERI_MME| Number of terms in minimax approximation:", param%n_minimax
+! **************************************************************************************************
+!> \brief Set parameters for MME method with manual specification of basis parameters.
+!>        Takes care of cutoff calibration if requested.
+!> \param param ...
+!> \param hmat ...
+!> \param is_ortho ...
+!> \param zet_err_minimax Exponent used to estimate error of minimax approximation.
+!> \param zet_err_cutoff  Exponents used to estimate error of finite cutoff.
+!> \param l_err_cutoff    Total ang. mom. quantum numbers l to be combined with exponents in
+!>                        zet_err_cutoff.
+!> \param l_max           Maximum total angular momentum quantum number
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE eri_mme_set_params(param, hmat, is_ortho, zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max, para_env)
+      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
+      LOGICAL, INTENT(IN)                                :: is_ortho
+      REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_err_cutoff
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: l_err_cutoff
+      INTEGER, INTENT(IN)                                :: l_max
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_set_params', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, l_mm
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: l_c
+      LOGICAL                                            :: s_only
+      REAL(KIND=dp)                                      :: cutoff, E_mm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet_c
+
+      CALL timeset(routineN, handle)
+
+      ! Note: in MP2 default logger hacked and does not use global default print level
+      s_only = l_max .EQ. 0
+
+      CPASSERT(PRESENT(l_err_cutoff) .OR. s_only)
+
+      IF (PRESENT(l_err_cutoff)) THEN
+         CPASSERT(SIZE(zet_err_cutoff) .EQ. SIZE(l_err_cutoff))
       ENDIF
 
-      CALL cp_print_key_finished_output(unit_nr, logger, param%mme_section, "ERI_MME_INFO")
+      CALL init_orbital_pointers(l_max)
 
-   END SUBROUTINE eri_mme_init_read_input
+      ! l values for minimax error estimate (l_mm) and for cutoff error estimate (l_c)
+      l_mm = MERGE(0, 1, s_only)
+      ALLOCATE (l_c(SIZE(zet_err_cutoff)), zet_c(SIZE(zet_err_cutoff)))
+      IF (s_only) THEN
+         l_c(:) = 0
+      ELSE
+         l_c(:) = l_err_cutoff(:)
+      ENDIF
+
+      ! cell info
+      ! Note: we recompute basic quantities from hmat to avoid dependency on cp2k cell type
+      param%hmat = hmat
+      param%h_inv = inv_3x3(hmat)
+      param%vol = ABS(det_3x3(hmat))
+      param%is_ortho = is_ortho
+
+      ! Minimum lattice vectors
+      param%G_min = G_abs_min(param%h_inv)
+      param%R_min = R_abs_min(param%hmat)
+
+      ! cutoff calibration not yet implemented for general cell
+      IF (.NOT. param%is_ortho) THEN
+         param%do_calib_cutoff = .FALSE.
+      ENDIF
+
+      ! Cutoff calibration and error estimate for orthorhombic cell
+      IF (param%do_calib_cutoff) THEN
+         CALL calibrate_cutoff(param%hmat, param%h_inv, param%G_min, param%vol, &
+                               zet_err_minimax, l_mm, zet_err_cutoff, l_c, param%n_minimax, &
+                               param%cutoff_min, param%cutoff_max, param%cutoff_eps, &
+                               param%cutoff_delta, cutoff, param%err_mm, param%err_c, &
+                               param%C_mm, para_env, param%print_calib, param%unit_nr)
+
+         param%cutoff = cutoff
+      ELSE IF (param%is_ortho) THEN
+         CALL cutoff_minimax_error(param%cutoff, param%hmat, param%h_inv, param%vol, param%G_min, &
+                                   zet_err_minimax, l_mm, zet_err_cutoff, l_c, param%n_minimax, &
+                                   param%minimax_aw, param%err_mm, param%err_c, param%C_mm, para_env)
+      ENDIF
+
+      CALL get_minimax_coeff_v_gspace(param%n_minimax, param%cutoff, param%G_min, param%minimax_aw, &
+                                      E_mm)
+
+      param%is_valid = .TRUE.
+
+      CALL timestop(handle)
+   END SUBROUTINE eri_mme_set_params
 
 ! **************************************************************************************************
 !> \brief ...
@@ -231,9 +212,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eri_mme_release(param)
       TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_release', &
-         routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(param%minimax_aw)) DEALLOCATE (param%minimax_aw)
    END SUBROUTINE eri_mme_release

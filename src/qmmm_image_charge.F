@@ -14,7 +14,7 @@ MODULE qmmm_image_charge
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_eri_mme_interface,            ONLY: eri_mme_2c_integrate_s
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_2c_integrate_s
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -804,8 +804,8 @@ CONTAINS
 
       CALL get_qs_env(qs_env, para_env=para_env)
 
-      CALL eri_mme_2c_integrate_s(qmmm_env%image_charge_pot%eri_mme_param, &
-                                  zeta, zeta, ra, ra, image_matrix, para_env)
+      CALL cp_eri_mme_2c_integrate_s(qmmm_env%image_charge_pot%eri_mme_param, &
+                                     zeta, zeta, ra, ra, image_matrix, para_env)
 
       CALL timestop(handle)
    END SUBROUTINE calculate_image_matrix_mme

@@ -4,8 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Low-level routines for Minimax-Ewald (MME) method for electron repulsion
-!>        integrals.
+!> \brief Ewald sums to represent integrals in direct and reciprocal lattice.
 !> \par History
 !>       2015 09 created
 !> \author Patrick Seewald
@@ -37,19 +36,22 @@ MODULE eri_mme_lattice_summation
                (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp), &
                (1.0_dp, 0.0_dp), (0.0_dp, 1.0_dp), (-1.0_dp, 0.0_dp), (0.0_dp, -1.0_dp)]
 
-   PUBLIC :: pgf_sum_gspace_1d, &
-             pgf_sum_rspace_1d, pgf_sum_gspace_3d, pgf_sum_rspace_3d, pgf_sum_gspace_1d_deltal, &
-             R_abs_min, G_abs_min
+   PUBLIC :: pgf_sum_2c_gspace_1d, &
+             pgf_sum_2c_rspace_1d, &
+             pgf_sum_2c_gspace_3d, &
+             pgf_sum_2c_rspace_3d, &
+             pgf_sum_2c_gspace_1d_deltal
+
+   REAL(KIND=dp), PARAMETER, PUBLIC :: lattice_sum_prec = 1.0E-20_dp ! truncation threshold for summing PGFs
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Compute Ewald-like sum in G space in 1 dimension
+!> \brief Compute Ewald-like sum for 2-center ERIs in G space in 1 dimension
 !>        S_G(l, alpha) = (-i)^l*inv_lgth*sum_G( C(l, alpha, G) exp(iGR) ), with
 !>                        C(l, alpha, r) = r^l exp(-alpha*r^2),
 !>        dG = inv_lgth*twopi and G = -G_bound*dG, (-G_bound + 1)*dG, ..., G_bound*dG
 !>             for all l < = l_max.
-!>        TODO: maybe get rid of complex numbers
 !> \param S_G ...
 !> \param R ...
 !> \param alpha ...
@@ -58,12 +60,12 @@ CONTAINS
 !> \param G_c ...
 !> \note  S_G is real.
 ! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_gspace_1d(S_G, R, alpha, inv_lgth, G_min, G_c)
+   PURE SUBROUTINE pgf_sum_2c_gspace_1d(S_G, R, alpha, inv_lgth, G_min, G_c)
       REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: R, alpha, inv_lgth
       INTEGER, INTENT(IN)                                :: G_min, G_c
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_gspace_1d', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_gspace_1d', &
          routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp)                                   :: exp_tot
@@ -87,10 +89,10 @@ CONTAINS
       ENDDO
 
       S_G(:) = REAL(S_G_c(0:l_max)*i_pow(0:l_max))*inv_lgth
-   END SUBROUTINE pgf_sum_gspace_1d
+   END SUBROUTINE pgf_sum_2c_gspace_1d
 
 ! **************************************************************************************************
-!> \brief Compute Ewald-like sum in R space in 1 dimension
+!> \brief Compute Ewald-like sum for 2-center ERIs in R space in 1 dimension
 !>        S_R(l, alpha) = SQRT(alpha/pi) sum_R'( H(l, alpha, R-R') ),
 !>        with H(l, alpha, R) = (-d/dR)^l exp(-alpha*R^2),
 !>        dR = lgth and R' = -R_min*dR, (-R_min + 1)*dR, ..., R_max*dR,
@@ -101,15 +103,15 @@ CONTAINS
 !> \param lgth ...
 !> \param R_min ...
 !> \param R_max ...
-!> \note  result is equivalent to pgf_sum_gspace_1d with
+!> \note  result is equivalent to pgf_sum_2c_gspace_1d with
 !>              S_R(l, alpha) = S_G(l, 1/(4*alpha))
 ! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_rspace_1d(S_R, R, alpha, lgth, R_min, R_max)
+   PURE SUBROUTINE pgf_sum_2c_rspace_1d(S_R, R, alpha, lgth, R_min, R_max)
       REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_R
       REAL(KIND=dp), INTENT(IN)                          :: R, alpha, lgth
       INTEGER, INTENT(IN)                                :: R_min, R_max
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_rspace_1d', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_rspace_1d', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: k, l, l_max
@@ -120,7 +122,6 @@ CONTAINS
       l_max = UBOUND(S_R, 1)
 
       ! 1) compute sum over C(l, alpha, R - R') instead of H(l, alpha, R - R')
-
       S_R(:) = 0.0_dp
       Rp = R+R_min*dR
       DO k = R_min, R_max
@@ -133,11 +134,10 @@ CONTAINS
          ENDDO
       ENDDO
 
-      ! 2) transform C --> H
-
+      ! 2) C --> H
       CALL create_hermite_to_cartesian(alpha, l_max, h_to_c)
-      S_R = MATMUL(h_to_c, S_R)*SQRT(alpha/pi)
-   END SUBROUTINE pgf_sum_rspace_1d
+      S_R = MATMUL(TRANSPOSE(h_to_c), S_R)*SQRT(alpha/pi)
+   END SUBROUTINE pgf_sum_2c_rspace_1d
 
 ! **************************************************************************************************
 !> \brief Compute 1d sum
@@ -156,13 +156,13 @@ CONTAINS
 !> \param prefactor ...
 !> \note  needed for cutoff error estimate
 ! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_gspace_1d_deltal(S_G, alpha, inv_lgth, G_min, G_c, delta_l, prefactor)
+   PURE SUBROUTINE pgf_sum_2c_gspace_1d_deltal(S_G, alpha, inv_lgth, G_min, G_c, delta_l, prefactor)
       REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)        :: S_G
       REAL(KIND=dp), INTENT(IN)                          :: alpha, inv_lgth
       INTEGER, INTENT(IN)                                :: G_min, G_c
       REAL(KIND=dp), INTENT(IN)                          :: delta_l, prefactor
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_gspace_1d_deltal', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgf_sum_2c_gspace_1d_deltal', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: k, l, l_max
@@ -185,10 +185,10 @@ CONTAINS
          ENDIF
       ENDDO
 
-   END SUBROUTINE pgf_sum_gspace_1d_deltal
+   END SUBROUTINE pgf_sum_2c_gspace_1d_deltal
 
 ! **************************************************************************************************
-!> \brief As pgf_sum_gspace_1d but 3d sum required for non-orthorhombic cells
+!> \brief As pgf_sum_2c_gspace_1d but 3d sum required for non-orthorhombic cells
 !> \param S_G ...
 !> \param R ...
 !> \param alpha ...
@@ -198,7 +198,7 @@ CONTAINS
 !> \param vol ...
 !> \note  MMME Method is not very efficient for non-orthorhombic cells
 ! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_gspace_3d(S_G, R, alpha, h_inv, G_min, G_c, vol)
+   PURE SUBROUTINE pgf_sum_2c_gspace_3d(S_G, R, alpha, h_inv, G_min, G_c, vol)
       REAL(KIND=dp), DIMENSION(0:, 0:, 0:), &
          INTENT(INOUT)                                   :: S_G
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
@@ -253,10 +253,10 @@ CONTAINS
       ENDDO
       ENDDO
       S_G(:, :, :) = REAL(Ig(:, :, :), KIND=dp)
-   END SUBROUTINE pgf_sum_gspace_3d
+   END SUBROUTINE pgf_sum_2c_gspace_3d
 
 ! **************************************************************************************************
-!> \brief As pgf_sum_rspace_1d but 3d sum required for non-orthorhombic cells
+!> \brief As pgf_sum_2c_rspace_1d but 3d sum required for non-orthorhombic cells
 !> \param S_R ...
 !> \param R ...
 !> \param alpha ...
@@ -265,7 +265,7 @@ CONTAINS
 !> \param R_max ...
 !> \note  MMME Method is not very efficient for non-orthorhombic cells
 ! **************************************************************************************************
-   PURE SUBROUTINE pgf_sum_rspace_3d(S_R, R, alpha, hmat, R_min, R_max)
+   PURE SUBROUTINE pgf_sum_2c_rspace_3d(S_R, R, alpha, hmat, R_min, R_max)
       REAL(KIND=dp), DIMENSION(0:, 0:, 0:), &
          INTENT(INOUT)                                   :: S_R
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: R
@@ -331,7 +331,7 @@ CONTAINS
          DO lly = 0, ll-llx
             llz = ll-llx-lly
             S_R(lx, ly, lz) = S_R(lx, ly, lz)+ &
-                              h_to_c(lx, llx)*h_to_c(ly, lly)*h_to_c(lz, llz)* &
+                              h_to_c(llx, lx)*h_to_c(lly, ly)*h_to_c(llz, lz)* &
                               S_R_C(llx, lly, llz)
          ENDDO
          ENDDO
@@ -341,74 +341,6 @@ CONTAINS
       ENDDO
       S_R(:, :, :) = S_R(:, :, :)*(alpha/pi)**1.5_dp
 
-   END SUBROUTINE pgf_sum_rspace_3d
-
-! **************************************************************************************************
-!> \brief Find minimum length of R vectors, for a general (not necessarily
-!>        orthorhombic) cell.
-!> \param hmat ...
-!> \retval R_m ...
-! **************************************************************************************************
-   PURE FUNCTION R_abs_min(hmat) RESULT(R_m)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
-      REAL(KIND=dp)                                      :: R_m
-
-      INTEGER                                            :: sx, sy, sz
-      INTEGER, DIMENSION(3)                              :: sxyz
-      REAL(KIND=dp)                                      :: R_sq
-      REAL(KIND=dp), DIMENSION(3)                        :: R
-
-      R_m = 0.0_dp
-
-      DO sx = -1, 1
-      DO sy = -1, 1
-      DO sz = -1, 1
-         IF (.NOT. (sx == 0 .AND. sy == 0 .AND. sz == 0)) THEN
-            sxyz = [sx, sy, sz]
-            R = MATMUL(hmat, sxyz)
-            R_sq = R(1)**2+R(2)**2+R(3)**2
-            IF (R_sq < R_m .OR. R_m < EPSILON(R_m)) R_m = R_sq
-         ENDIF
-      ENDDO
-      ENDDO
-      ENDDO
-      R_m = SQRT(R_m)
-
-   END FUNCTION R_abs_min
-
-! **************************************************************************************************
-!> \brief Find minimum length of G vectors, for a general (not necessarily
-!>        orthorhombic) cell.
-!> \param h_inv ...
-!> \retval G_m ...
-! **************************************************************************************************
-   PURE FUNCTION G_abs_min(h_inv) RESULT(G_m)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
-      REAL(KIND=dp)                                      :: G_m
-
-      INTEGER                                            :: gx, gy, gz
-      INTEGER, DIMENSION(3)                              :: gxyz
-      REAL(KIND=dp)                                      :: G_sq
-      REAL(KIND=dp), DIMENSION(3)                        :: G
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: H
-
-      H = twopi*TRANSPOSE(h_inv)
-      G_m = 0.0_dp
-
-      DO gx = -1, 1
-      DO gy = -1, 1
-      DO gz = -1, 1
-         IF (.NOT. (gx == 0 .AND. gy == 0 .AND. gz == 0)) THEN
-            gxyz = [gx, gy, gz]
-            G = MATMUL(H, gxyz)
-            G_sq = G(1)**2+G(2)**2+G(3)**2
-            IF (G_sq < G_m .OR. G_m < EPSILON(G_m)) G_m = G_sq
-         ENDIF
-      ENDDO
-      ENDDO
-      ENDDO
-      G_m = SQRT(G_m)
-
-   END FUNCTION G_abs_min
+   END SUBROUTINE pgf_sum_2c_rspace_3d
 
 END MODULE eri_mme_lattice_summation

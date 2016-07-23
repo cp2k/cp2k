@@ -33,8 +33,9 @@ MODULE mp2_ri_gpw
         dbcsr_distribution_obj, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template
-   USE cp_eri_mme_interface,            ONLY: eri_mme_2c_integrate,&
-                                              eri_mme_set_params
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_2c_integrate
+   USE cp_eri_mme_types,                ONLY: cp_eri_mme_param,&
+                                              cp_eri_mme_set_params
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: cp_fm_syevx
@@ -52,7 +53,6 @@ MODULE mp2_ri_gpw
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE eri_mme_types,                   ONLY: eri_mme_param
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -282,11 +282,11 @@ CONTAINS
                                                             wfn_size
       TYPE(cp_dbcsr_type) :: matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, &
          matrix_in_jm, matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
+      TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_gw, fm_BIb_gw_beta, fm_BIb_jb, &
                                                             fm_BIb_jb_beta, fm_matrix_L, &
                                                             fm_matrix_L_RI_metric
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
-      TYPE(eri_mme_param), POINTER                       :: eri_param
       TYPE(pw_p_type)                                    :: psi_L
 
       CALL timeset(routineN, handle)
@@ -408,7 +408,7 @@ CONTAINS
 
       ! Preparations for ERI MME method to compute 2c ERIs
       IF (qs_env%mp2_env%eri_method .EQ. do_eri_mme) THEN
-         CALL eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type="RI_AUX", para_env=para_env)
+         CALL cp_eri_mme_set_params(eri_param, cell, qs_kind_set, basis_type_1="ORB", basis_type_2="RI_AUX", para_env=para_env)
       ENDIF
 
       CALL calculate_Lmin1(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
@@ -980,7 +980,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: eri_method
-      TYPE(eri_mme_param), POINTER                       :: eri_param
+      TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, para_env_L
       REAL(KIND=dp)                                      :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
@@ -1267,7 +1267,7 @@ CONTAINS
                                          external_matrix_struc, fm_matrix_L_extern, ri_metric)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: eri_method
-      TYPE(eri_mme_param), POINTER                       :: eri_param
+      TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, para_env_L
       REAL(KIND=dp)                                      :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
@@ -2130,9 +2130,9 @@ CONTAINS
          L_local_col = 0.0_dp
 
          IF (eri_method .EQ. do_eri_mme .AND. my_ri_metric .EQ. ri_coulomb) THEN
-            CALL eri_mme_2c_integrate(eri_param, para_env_sub, qs_env, &
-                                      basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
-                                      hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end)
+            CALL cp_eri_mme_2c_integrate(eri_param, para_env_sub, qs_env, &
+                                         basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
+                                         hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end)
 
          ELSEIF (eri_method .EQ. do_eri_gpw .OR. my_ri_metric .NE. ri_coulomb) THEN
 

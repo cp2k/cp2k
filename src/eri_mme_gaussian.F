@@ -4,8 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Low-level routines for Minimax-Ewald (MME) method for electron repulsion
-!>        integrals.
+!> \brief Methods related to properties of Hermite and Cartesian Gaussian functions.
 !> \par History
 !>       2015 09 created
 !> \author Patrick Seewald
@@ -13,8 +12,7 @@
 
 MODULE eri_mme_gaussian
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: gamma1,&
-                                              maxfac
+   USE mathconstants,                   ONLY: gamma1
    USE minimax,                         ONLY: get_minimax_coeff
 #include "./base/base_uses.f90"
 
@@ -26,7 +24,9 @@ MODULE eri_mme_gaussian
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_gaussian'
 
-   PUBLIC :: create_hermite_to_cartesian, hermite_gauss_norm, get_minimax_coeff_v_gspace
+   PUBLIC :: create_hermite_to_cartesian, &
+             hermite_gauss_norm, &
+             get_minimax_coeff_v_gspace
 
 CONTAINS
 
@@ -40,44 +40,25 @@ CONTAINS
 !>        in both directions.
 ! **************************************************************************************************
    PURE SUBROUTINE create_hermite_to_cartesian(zet, l_max, h_to_c)
-      REAL(KIND=dp), INTENT(IN)                :: zet
-      INTEGER, INTENT(IN)                      :: l_max
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, &
-         INTENT(OUT)                          :: h_to_c
+      REAL(KIND=dp), INTENT(IN)                          :: zet
+      INTEGER, INTENT(IN)                                :: l_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: h_to_c
 
-      INTEGER                                  :: k, l
+      INTEGER                                            :: k, l
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp
 
-      ALLOCATE (h_to_c(0:l_max, 0:l_max))
-      h_to_c(:, :) = 0.0_dp
-      h_to_c(0, 0) = 1.0_dp
+      ALLOCATE (tmp(-1:l_max+1, 0:l_max))
+      tmp(:, :) = 0.0_dp
+      tmp(0, 0) = 1.0_dp
       DO l = 0, l_max-1
          DO k = 0, l+1
-            h_to_c(l+1, k) = -(k+1)*get(h_to_c, l, k+1)+2.0_dp*zet*get(h_to_c, l, k-1)
+            tmp(k, l+1) = -(k+1)*tmp(k+1, l)+2.0_dp*zet*tmp(k-1, l)
          ENDDO
       ENDDO
 
-   CONTAINS
-! **************************************************************************************************
-!> \brief ...
-!> \param arr ...
-!> \param i1 ...
-!> \param i2 ...
-!> \retval el ...
-! **************************************************************************************************
-      PURE FUNCTION get(arr, i1, i2) RESULT(el)
-      REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(IN)       :: arr
-      INTEGER, INTENT(IN)                                :: i1, i2
-      REAL(KIND=dp)                                      :: el
-
-      INTEGER, DIMENSION(2)                              :: u
-
-         u = UBOUND(arr)
-         IF (MIN(i1, i2) .GE. 0 .AND. i1 .LE. u(1) .AND. i2 .LE. i1) THEN
-            el = arr(i1, i2)
-         ELSE
-            el = 0.0_dp
-         ENDIF
-      END FUNCTION
+      ALLOCATE (h_to_c(0:l_max, 0:l_max))
+      h_to_c(:, :) = tmp(0:l_max, 0:l_max)
 
    END SUBROUTINE create_hermite_to_cartesian
 
@@ -87,12 +68,11 @@ CONTAINS
 !> \param l ...
 !> \retval norm ...
 ! **************************************************************************************************
-   FUNCTION hermite_gauss_norm(zet, l) RESULT(norm)
+   PURE FUNCTION hermite_gauss_norm(zet, l) RESULT(norm)
       REAL(KIND=dp), INTENT(IN)                          :: zet
       INTEGER, DIMENSION(3), INTENT(IN)                  :: l
       REAL(KIND=dp)                                      :: norm
 
-      CPASSERT(MAXVAL(l) .LE. maxfac)
       norm = 1.0_dp/SQRT((2.0_dp*zet)**(SUM(l)-1.5_dp)*(gamma1(l(1))*gamma1(l(2))*gamma1(l(3))))
 
    END FUNCTION hermite_gauss_norm

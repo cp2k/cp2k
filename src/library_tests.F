@@ -25,6 +25,7 @@ MODULE library_tests
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_interface,              ONLY: dbcsr_run_tests
+   USE cp_eri_mme_interface,            ONLY: cp_eri_mme_perf_acc_test
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -47,7 +48,6 @@ MODULE library_tests
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_init,          ONLY: init_input_type
-   USE eri_mme_test,                    ONLY: eri_mme_perf_acc_test
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FWFFT,&
@@ -205,7 +205,7 @@ CONTAINS
       eri_mme_test_section => section_vals_get_subs_vals(root_section, "TEST%ERI_MME_TEST")
       CALL section_vals_get(eri_mme_test_section, explicit=explicit)
       IF (explicit) THEN
-         CALL eri_mme_perf_acc_test(para_env, iw, eri_mme_test_section)
+         CALL cp_eri_mme_perf_acc_test(para_env, iw, eri_mme_test_section)
       ENDIF
 
       shg_integrals_test_section => section_vals_get_subs_vals(root_section, "TEST%SHG_INTEGRALS_TEST")

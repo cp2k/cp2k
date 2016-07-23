@@ -18,6 +18,7 @@ MODULE input_cp2k_qmmm
                                               Laino2005,&
                                               Laino2006
    USE cell_types,                      ONLY: use_perd_none
+   USE cp_eri_mme_types,                ONLY: create_eri_mme_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -26,7 +27,6 @@ MODULE input_cp2k_qmmm
                                               medium_print_level,&
                                               silent_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE eri_mme_types,                   ONLY: create_eri_mme_section
    USE input_constants,                 ONLY: &
         alpha_imomm_default, charge_scale_factor, do_eri_gpw, do_eri_mme, &
         do_fm_mom_conserv_buffer, do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &

@@ -4,7 +4,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Low-level routines for Minimax-Ewald (MME) method for electron repulsion
+!> \brief Methods aiming for error estimate and automatic cutoff calibration.
 !>        integrals.
 !> \par History
 !>       2015 09 created
@@ -13,18 +13,10 @@
 
 MODULE eri_mme_error_control
    USE ao_util,                         ONLY: exp_radius
-   USE cell_types,                      ONLY: cell_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE eri_mme_gaussian,                ONLY: get_minimax_coeff_v_gspace,&
                                               hermite_gauss_norm
-   USE eri_mme_lattice_summation,       ONLY: G_abs_min,&
-                                              R_abs_min,&
-                                              pgf_sum_gspace_1d_deltal
-   USE eri_mme_types,                   ONLY: eri_mme_param
+   USE eri_mme_lattice_summation,       ONLY: pgf_sum_2c_gspace_1d_deltal
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
@@ -39,127 +31,12 @@ MODULE eri_mme_error_control
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eri_mme_error_control'
 
-   PUBLIC :: eri_mme_set_params_custom
-
+   PUBLIC :: calibrate_cutoff, cutoff_minimax_error
 CONTAINS
-! **************************************************************************************************
-!> \brief Set parameters for MME method with manual specification of basis parameters.
-!>        Takes care of cutoff calibration if requested.
-!> \param param ...
-!> \param cell ...
-!> \param zet_err_minimax Exponent used to estimate error of minimax approximation.
-!> \param zet_err_cutoff  Exponents used to estimate error of finite cutoff.
-!> \param l_err_cutoff    Total ang. mom. quantum numbers l to be combined with exponents in
-!>                        zet_err_cutoff.
-!> \param l_max            Maximum total angular momentum quantum number
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE eri_mme_set_params_custom(param, cell, zet_err_minimax, zet_err_cutoff, l_err_cutoff, l_max, para_env)
-      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
-      TYPE(cell_type), INTENT(IN)                        :: cell
-      REAL(KIND=dp), INTENT(IN)                          :: zet_err_minimax
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zet_err_cutoff
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: l_err_cutoff
-      INTEGER, INTENT(IN)                                :: l_max
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'eri_mme_set_params_custom', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, l_mm, unit_nr
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: l_c
-      LOGICAL                                            :: s_only
-      REAL(KIND=dp)                                      :: C_mm, cutoff, E_mm, err_c, err_mm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zet_c
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      unit_nr = cp_print_key_unit_nr(logger, param%mme_section, "ERI_MME_INFO", &
-                                     extension=".eri_mme")
-
-      s_only = l_max .EQ. 0
-      param%l_max = l_max
-
-      CPASSERT(ASSOCIATED(param%mme_section))
-      CPASSERT(PRESENT(l_err_cutoff) .OR. s_only)
-
-      IF (PRESENT(l_err_cutoff)) THEN
-         CPASSERT(SIZE(zet_err_cutoff) .EQ. SIZE(l_err_cutoff))
-      ENDIF
-
-      ! l values for minimax error estimate (l_mm) and for cutoff error estimate (l_c)
-      l_mm = MERGE(0, 1, s_only)
-      ALLOCATE (l_c(SIZE(zet_err_cutoff)), zet_c(SIZE(zet_err_cutoff)))
-      IF (s_only) THEN
-         l_c(:) = 0
-      ELSE
-         l_c(:) = l_err_cutoff(:)
-      ENDIF
-
-      ! cell info
-      param%hmat = cell%hmat
-      param%h_inv = cell%h_inv
-      param%vol = cell%deth
-      param%is_ortho = cell%orthorhombic
-
-      ! Minimum lattice vectors
-      param%G_min = G_abs_min(param%h_inv)
-      param%R_min = R_abs_min(param%hmat)
-
-      ! cutoff calibration not yet implemented for general cell
-      IF (.NOT. param%is_ortho) THEN
-         param%do_calib_cutoff = .FALSE.
-      ENDIF
-
-      ! Cutoff calibration and error estimate for orthorhombic cell
-      IF (param%do_calib_cutoff) THEN
-         CALL calibrate_cutoff(param, param%hmat, param%h_inv, param%G_min, param%vol, &
-                               zet_err_minimax, l_mm, zet_err_cutoff, l_c, param%n_minimax, &
-                               param%cutoff_min, param%cutoff_max, param%cutoff_eps, &
-                               param%cutoff_delta, cutoff, err_mm, err_c, &
-                               C_mm, para_env)
-
-         param%cutoff = cutoff
-         param%error_tot = err_mm+err_c
-      ELSE IF (param%is_ortho) THEN
-         CALL cutoff_minimax_error(param%cutoff, param%hmat, param%h_inv, param%vol, param%G_min, &
-                                   zet_err_minimax, l_mm, zet_err_cutoff, l_c, param%n_minimax, &
-                                   param%minimax_aw, err_mm, err_c, C_mm, para_env)
-         param%error_tot = err_mm+err_c
-      ENDIF
-
-      CALL get_minimax_coeff_v_gspace(param%n_minimax, param%cutoff, param%G_min, param%minimax_aw, &
-                                      E_mm)
-
-      IF (unit_nr > 0) WRITE (unit_nr, '(/T2, A, T71, F10.1)') "ERI_MME| Cutoff for ERIs [a.u.]:", param%cutoff
-      IF (param%is_ortho) THEN
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2, A)') "ERI_MME| Estimated absolute error for normalized Hermite-Gaussian basis"
-            WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Minimax error:", err_mm
-            WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Cutoff error:", err_c
-            WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME|   Total error (minimax + cutoff):", err_mm+err_c
-            IF (param%print_calib) &
-               WRITE (unit_nr, '(T2, A, T68, F13.10)') "ERI_MME|   Minimax scaling constant in AM-GM estimate:", C_mm
-         ENDIF
-      ENDIF
-
-      IF (unit_nr > 0) WRITE (unit_nr, *)
-
-      param%G_count = 0
-      param%R_count = 0
-
-      param%is_valid = .TRUE.
-
-      CALL cp_print_key_finished_output(unit_nr, logger, param%mme_section, "ERI_MME_INFO")
-      CALL timestop(handle)
-   END SUBROUTINE eri_mme_set_params_custom
 
 ! **************************************************************************************************
 !> \brief Find optimal cutoff minimizing errors due to minimax approximation and
 !>        due to finite cutoff using bisection on the difference of the errors
-!> \param param ...
 !> \param hmat ...
 !> \param h_inv ...
 !> \param G_min ...
@@ -179,11 +56,12 @@ CONTAINS
 !> \param C_mm      Scaling constant to generalize AM-GM upper bound estimate to
 !>                  minimax approx.
 !> \param para_env ...
+!> \param print_calib ...
+!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE calibrate_cutoff(param, hmat, h_inv, G_min, vol, zet_mm, l_mm, zet_c, l_c, &
+   SUBROUTINE calibrate_cutoff(hmat, h_inv, G_min, vol, zet_mm, l_mm, zet_c, l_c, &
                                n_minimax, cutoff_l, cutoff_r, tol, delta, &
-                               cutoff, err_mm, err_c, C_mm, para_env)
-      TYPE(eri_mme_param), INTENT(INOUT)                 :: param
+                               cutoff, err_mm, err_c, C_mm, para_env, print_calib, unit_nr)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat, h_inv
       REAL(KIND=dp), INTENT(IN)                          :: G_min
       REAL(KIND=dp)                                      :: vol
@@ -195,31 +73,28 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_l, cutoff_r, tol, delta
       REAL(KIND=dp), INTENT(OUT)                         :: cutoff, err_mm, err_c, C_mm
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      LOGICAL, INTENT(IN)                                :: print_calib
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calibrate_cutoff', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iter1, iter2, max_iter, unit_nr
+      INTEGER                                            :: i, iter1, iter2, max_iter
       LOGICAL                                            :: do_print, valid_initial
       REAL(KIND=dp)                                      :: cutoff_mid, delta_c_mid, delta_mm_mid
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: minimax_aw
       REAL(KIND=dp), DIMENSION(2)                        :: cutoff_lr, delta_c, delta_mm
-      TYPE(cp_logger_type), POINTER                      :: logger
 
-      logger => cp_get_default_logger()
-      unit_nr = cp_print_key_unit_nr(logger, param%mme_section, "ERI_MME_INFO", &
-                                     extension=".eri_mme")
       CPASSERT(SIZE(l_c) .EQ. SIZE(zet_c))
 
-      IF (param%print_calib) THEN
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(/T2, A)') "ERI_MME| Basis set parameters for estimating minimax error"
-            WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_mm, l_mm
-            WRITE (unit_nr, '(T2, A)') "ERI_MME| Basis set parameters for estimating cutoff error"
-            DO i = 1, SIZE(zet_c)
-               WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_c(i), l_c(i)
-            ENDDO
-         ENDIF
+      do_print = unit_nr > 0 .AND. print_calib
+      IF (do_print) THEN
+         WRITE (unit_nr, '(/T2, A)') "ERI_MME| Basis set parameters for estimating minimax error"
+         WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_mm, l_mm
+         WRITE (unit_nr, '(T2, A)') "ERI_MME| Basis set parameters for estimating cutoff error"
+         DO i = 1, SIZE(zet_c)
+            WRITE (unit_nr, '(T2, A, T67, ES12.2, 1X, I1)') "ERI_MME|   exp, l:", zet_c(i), l_c(i)
+         ENDDO
       ENDIF
 
       max_iter = 100
@@ -229,14 +104,14 @@ CONTAINS
                        "(MAX - MIN) must be greater than cutoff precision.")
 
       IF ((delta .GE. 1.0_dp) .OR. (delta .LE. 0.0_dp)) &
-         CPABORT("relative delta to modify initial cutoff interval (DELTA) must be in (0, 1)")
+         CALL cp_abort(__LOCATION__, &
+                       "relative delta to modify initial cutoff interval (DELTA) must be in (0, 1)")
 
       cutoff_lr(1) = cutoff_l
       cutoff_lr(2) = cutoff_r
 
       ALLOCATE (minimax_aw(2*n_minimax))
 
-      do_print = (unit_nr > 0) .AND. (param%print_calib)
       IF (do_print) THEN
          WRITE (unit_nr, '(/T2, A)') "ERI_MME| Calibrating cutoff by bisecting error(minimax) - error(cutoff)"
          WRITE (unit_nr, '(T2, A, T72, ES9.2)') "ERI_MME| Rel. cutoff precision", tol
@@ -308,8 +183,6 @@ CONTAINS
          WRITE (unit_nr, '(T2, A, T79, I2/)') "ERI_MME|   Bisection iteration steps", iter2-1
       ENDIF
 
-      CALL cp_print_key_finished_output(unit_nr, logger, param%mme_section, "ERI_MME_INFO")
-
    END SUBROUTINE calibrate_cutoff
 
 ! **************************************************************************************************
@@ -371,6 +244,8 @@ CONTAINS
       G_c = SQRT(2.0*cutoff)
 
       ! 1) Minimax error, simple analytical formula
+      ! Note minimax error may blow up for small exponents. This is also observed numerically,
+      ! but in this case, error estimate is no upper bound.
       prod_mm_k = 1.0_dp
       DO i_xyz = 1, 3
          prod_mm_k = prod_mm_k*(ABS(hmat(i_xyz, i_xyz))/twopi+ &
@@ -515,10 +390,10 @@ CONTAINS
 
          ! Serial code:
          ! !Sum |G| <= G_c
-         ! CALL pgf_sum_gspace_1d_deltal(S_G_l(:, i_xyz), alpha_G, inv_lgth, -G_l, G_l, &
+         ! CALL pgf_sum_2c_gspace_1d_deltal(S_G_l(:, i_xyz), alpha_G, inv_lgth, -G_l, G_l, &
          !                               2.0_dp/3.0_dp, prefactor)
          ! !Sum |G| > G_c
-         ! CALL pgf_sum_gspace_1d_deltal(S_G_u(:, i_xyz), alpha_G, inv_lgth, G_l + 1, G_u, &
+         ! CALL pgf_sum_2c_gspace_1d_deltal(S_G_u(:, i_xyz), alpha_G, inv_lgth, G_l + 1, G_u, &
          !                               2.0_dp/3.0_dp, prefactor)
 
          ! Parallel code:
@@ -546,12 +421,12 @@ CONTAINS
          ENDIF
 
          ! Sum |G| <= G_c
-         CALL pgf_sum_gspace_1d_deltal(S_G_l(:, i_xyz), alpha_G, inv_lgth, Gl_first, Gl_last, &
-                                       2.0_dp/3.0_dp, prefactor)
+         CALL pgf_sum_2c_gspace_1d_deltal(S_G_l(:, i_xyz), alpha_G, inv_lgth, Gl_first, Gl_last, &
+                                          2.0_dp/3.0_dp, prefactor)
 
          ! Sum |G| > G_c
-         CALL pgf_sum_gspace_1d_deltal(S_G_u(:, i_xyz), alpha_G, inv_lgth, Gu_first, Gu_last, &
-                                       2.0_dp/3.0_dp, prefactor)
+         CALL pgf_sum_2c_gspace_1d_deltal(S_G_u(:, i_xyz), alpha_G, inv_lgth, Gu_first, Gu_last, &
+                                          2.0_dp/3.0_dp, prefactor)
       ENDDO
 
       CALL mp_sum(S_G_l, para_env%group)

@@ -12,9 +12,9 @@
 MODULE mp2_types
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                               cp_dbcsr_type
+   USE cp_eri_mme_types,                ONLY: cp_eri_mme_finalize,&
+                                              cp_eri_mme_param
    USE cp_fm_types,                     ONLY: cp_fm_type
-   USE eri_mme_types,                   ONLY: eri_mme_param,&
-                                              eri_mme_release
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type,&
                                               pair_list_element_type
@@ -222,7 +222,7 @@ MODULE mp2_types
       LOGICAL  :: p_screen
       LOGICAL  :: not_last_hfx
       INTEGER  :: eri_method
-      TYPE(eri_mme_param), POINTER  :: eri_mme_param
+      TYPE(cp_eri_mme_param), POINTER  :: eri_mme_param
    END TYPE
 
    TYPE integ_mat_buffer_type
@@ -287,7 +287,7 @@ CONTAINS
          CALL hfx_release(mp2_env%ri_rpa%x_data)
       END IF
 
-      IF (mp2_env%eri_method .EQ. do_eri_mme) CALL eri_mme_release(mp2_env%eri_mme_param)
+      IF (mp2_env%eri_method .EQ. do_eri_mme) CALL cp_eri_mme_finalize(mp2_env%eri_mme_param)
       IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)
 
       DEALLOCATE (mp2_env)
