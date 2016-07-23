@@ -761,11 +761,11 @@ CONTAINS
                warning = .FALSE.
             ENDIF
             IF (do_layers_3D) THEN
-               side3D = NINT(SQRT(REAL(numnodes/my_num_layers_3D, KIND=real_8)))
                IF (has_clusters) THEN
                   CPWARN('Cannot make 3D layers with clusters distribution!')
                ELSE
                   my_num_layers_3D = num_layers_3D
+                  side3D = NINT(SQRT(REAL(numnodes/my_num_layers_3D, KIND=real_8)))
                ENDIF
             ENDIF
          ELSE
