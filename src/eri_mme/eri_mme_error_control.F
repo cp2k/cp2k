@@ -21,7 +21,7 @@ MODULE eri_mme_error_control
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_sum
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

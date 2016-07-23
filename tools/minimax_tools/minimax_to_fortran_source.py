@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
-# tested only with python 2.7.6
-
 import re
 import sys
 import os.path
 
 if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    sys.exit(0) #TODO implement selftest
+    sys.exit(0)
 
 # 1) parse data #
 #################
@@ -134,7 +132,7 @@ k_p.append(len(k) + 1)
 # 3) generate fortran file #
 ############################
 
-out = open('../../src/minimax_k53.F', 'w')
+out = open('../../src/minimax/minimax_k53.F', 'w')
 out.write('!--------------------------------------------------------------------------------------------------!\n\
 !   CP2K: A general program to perform molecular dynamics simulations                              !\n\
 !   Copyright (C) 2000 - 2016  CP2K developers group                                               !\n\

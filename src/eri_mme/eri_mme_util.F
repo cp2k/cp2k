@@ -14,7 +14,7 @@ MODULE eri_mme_util
 
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

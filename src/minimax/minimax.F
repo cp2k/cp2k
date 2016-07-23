@@ -38,7 +38,7 @@ MODULE minimax
                                               k_mm,&
                                               k_p,&
                                               n_approx
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

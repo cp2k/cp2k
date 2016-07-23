@@ -17,7 +17,7 @@ MODULE eri_mme_lattice_summation
    USE mathconstants,                   ONLY: gaussi,&
                                               pi,&
                                               twopi
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

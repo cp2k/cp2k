@@ -10,4 +10,4 @@ first execute
 ./wget_minimax.sh
 to download the data and then execute
 ./minimax_to_fortran_source.py
-to create (overwrite) the cp2k/src/minimax_k53.F file (python 2.7 required)
+to create (overwrite) the cp2k/src/minimax/minimax_k53.F file

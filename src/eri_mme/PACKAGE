@@ -1,0 +1,5 @@
+{
+"description": "MiniMax-Ewald (MME) method for periodic ERIs",
+"requires": ["../minimax","../aobasis", "../common", "../base","../mpiwrap"],
+"public": ["eri_mme_integrate.F", "eri_mme_types.F", "eri_mme_test.F"]
+}

@@ -18,7 +18,7 @@ MODULE eri_mme_test
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

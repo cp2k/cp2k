@@ -16,7 +16,7 @@
 ! **************************************************************************************************
 MODULE minimax_k15
    USE kinds,                           ONLY: dp
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

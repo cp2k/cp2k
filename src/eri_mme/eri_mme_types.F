@@ -23,7 +23,7 @@ MODULE eri_mme_types
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
    USE orbital_pointers,                ONLY: init_orbital_pointers
-#include "./base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

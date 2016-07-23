@@ -1,0 +1,5 @@
+{
+"description": "parameters for minimax approximations of 1/r in terms of exponential functions",
+"requires": ["../base","../common"],
+"public": ["minimax.F"]
+}
