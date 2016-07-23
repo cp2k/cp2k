@@ -26,7 +26,8 @@ MODULE eri_mme_gaussian
 
    PUBLIC :: create_hermite_to_cartesian, &
              hermite_gauss_norm, &
-             get_minimax_coeff_v_gspace
+             get_minimax_coeff_v_gspace, &
+             create_gaussian_overlap_dist_to_hermite
 
 CONTAINS
 
@@ -117,5 +118,79 @@ CONTAINS
       IF (PRESENT(err_minimax)) err_minimax = err_minimax/G_min**2
 
    END SUBROUTINE get_minimax_coeff_v_gspace
+
+! **************************************************************************************************
+!> \brief Expand 1d product of cartesian (or hermite) gaussians into single hermite gaussians:
+!>        Find E_t^{lm} s.t.
+!>        F(l, a, r-R1) * F(m, b, r-R2) = sum_{t=0}^{l+m} E_t^{lm} H(t, p, r-R_P)
+!>        with p = a + b, R_P = (a*R1 + b*R2)/p. The function F can be either Cartesian
+!>        Gaussian or Hermite Gaussian.
+!> \param l ...
+!> \param m ...
+!> \param a ...
+!> \param b ...
+!> \param R1 ...
+!> \param R2 ...
+!> \param H_or_C_product 1: cartesian product, 2: hermite product
+!> \param E ...
+! **************************************************************************************************
+   PURE SUBROUTINE create_gaussian_overlap_dist_to_hermite(l, m, a, b, R1, R2, H_or_C_product, E)
+      INTEGER, INTENT(IN)                                :: l, m
+      REAL(KIND=dp), INTENT(IN)                          :: a, b, R1, R2
+      INTEGER, INTENT(IN)                                :: H_or_C_product
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: E
+
+      INTEGER                                            :: ll, mm, t
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: tmp
+
+      ALLOCATE (tmp(-1:l+m+1, -1:l, -1:m))
+      tmp(:, :, :) = 0.0_dp
+      tmp(0, 0, 0) = EXP(-a*b/(a+b)*(R1-R2)**2)
+
+      IF (H_or_C_product .EQ. 1) THEN ! Cartesian overlap dist
+         DO mm = 0, m
+            DO ll = 0, l
+               DO t = 0, ll+mm+1
+                  IF (ll .LT. l) THEN
+                     tmp(t, ll+1, mm) = 0.5_dp/(a+b)*tmp(t-1, ll, mm)+ &
+                                        (b/(a+b))*(R2-R1)*tmp(t, ll, mm)+ &
+                                        (t+1)*tmp(t+1, ll, mm)
+                  ENDIF
+                  IF (mm .LT. m) THEN
+                     tmp(t, ll, mm+1) = 0.5_dp/(a+b)*tmp(t-1, ll, mm)+ &
+                                        (a/(a+b))*(R1-R2)*tmp(t, ll, mm)+ &
+                                        (t+1)*tmp(t+1, ll, mm)
+                  ENDIF
+               ENDDO
+            ENDDO
+         ENDDO
+      ELSE ! Hermite overlap dist
+         DO mm = 0, m
+            DO ll = 0, l
+               DO t = 0, ll+mm+1
+                  IF (ll .LT. l) THEN
+                     tmp(t, ll+1, mm) = a*(1.0_dp/(a+b)*tmp(t-1, ll, mm)+ &
+                                           2.0_dp*b/(a+b)*(R2-R1)*tmp(t, ll, mm)+ &
+                                           2.0_dp*(t+1)*tmp(t+1, ll, mm)- &
+                                           2.0_dp*ll*tmp(t, ll-1, mm))
+                  ENDIF
+                  IF (mm .LT. m) THEN
+                     tmp(t, ll, mm+1) = b*(1.0_dp/(a+b)*tmp(t-1, ll, mm)+ &
+                                           2.0_dp*a/(a+b)*(R1-R2)*tmp(t, ll, mm)+ &
+                                           2.0_dp*(t+1)*tmp(t+1, ll, mm)- &
+                                           2.0_dp*mm*tmp(t, ll, mm-1))
+
+                  ENDIF
+               ENDDO
+            ENDDO
+         ENDDO
+
+      ENDIF
+
+      ALLOCATE (E(0:l+m, 0:l, 0:m))
+      E(:, :, :) = tmp(0:l+m, 0:l, 0:m)
+
+   END SUBROUTINE create_gaussian_overlap_dist_to_hermite
 
 END MODULE eri_mme_gaussian
