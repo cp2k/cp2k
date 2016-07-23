@@ -636,7 +636,6 @@ CONTAINS
       END SELECT
 
       IF (debug) THEN
-         WRITE (*, *) "nsum", n_sum_count, n_sum_predicted, sum_method
          CPASSERT(n_sum_count .LE. n_sum_predicted)
       ENDIF
       IF (PRESENT(method_out)) method_out = sum_method
