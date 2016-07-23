@@ -553,8 +553,8 @@ CONTAINS
                   IF (do_alpha_beta) THEN
                      CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), matrix_in_jnu_beta, matrix_in_jm_beta, &
                                                fm_BIb_gw_beta, BIb_c_gw_beta(LLL, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                              mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, sub_proc_map, &
-                                               local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
+                                               mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
+                                               sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
                   ENDIF
                ENDIF
             ENDDO
@@ -593,7 +593,8 @@ CONTAINS
                ! and finally (K|mu nu)
                CALL timeset(routineN//"_int", handle3)
                CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
-         CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
+               CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
+                                       calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                        pw_env_external=pw_env_sub, task_list_external=task_list_sub)
                CALL timestop(handle3)
 
@@ -619,8 +620,8 @@ CONTAINS
                   IF (do_alpha_beta) THEN
                      CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu_beta, matrix_in_jm_beta, &
                                                fm_BIb_gw_beta, BIb_c_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                              mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, sub_proc_map, &
-                                               local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
+                                               mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
+                                               sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
                   ENDIF
                ENDIF
 
@@ -635,8 +636,8 @@ CONTAINS
                   IF (do_alpha_beta) THEN
                      CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, matrix_in_jnu_beta, matrix_in_jm_beta, &
                                                fm_BIb_gw_beta, BIb_C_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
-                                              mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, sub_proc_map, &
-                                               local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
+                                               mo_coeff_gw_beta, mo_coeff_all_beta, eps_filter, max_row_col_local_gw, &
+                                               sub_proc_map, local_col_row_info_gw, my_B_all_end, my_B_all_start, "gw_beta")
 
                   END IF
                END IF
