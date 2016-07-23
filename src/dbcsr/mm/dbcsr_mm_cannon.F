@@ -751,7 +751,7 @@ CONTAINS
                               num_layers_3D .LE. MIN(nprows, npcols)
             ELSE
                ! Square topology, scale both coordinates
-               do_layers_3D = ((nprows/INT(SQRT(REAL(MAX(1, num_layers_3D)))))**2)* &
+               do_layers_3D = ((nprows/NINT(SQRT(REAL(MAX(1, num_layers_3D), KIND=real_8))))**2)* &
                               num_layers_3D .EQ. (nprows*npcols)
             ENDIF
             IF (.NOT. do_layers_3D .AND. warning) THEN
@@ -761,7 +761,7 @@ CONTAINS
                warning = .FALSE.
             ENDIF
             IF (do_layers_3D) THEN
-               side3D = INT(SQRT(REAL(numnodes/my_num_layers_3D)))
+               side3D = NINT(SQRT(REAL(numnodes/my_num_layers_3D, KIND=real_8)))
                IF (has_clusters) THEN
                   CPWARN('Cannot make 3D layers with clusters distribution!')
                ELSE
