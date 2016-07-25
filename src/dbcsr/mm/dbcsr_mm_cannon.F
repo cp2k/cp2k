@@ -204,7 +204,8 @@ MODULE dbcsr_mm_cannon
       TYPE(dbcsr_data_obj)               :: DATA, data_diag, local_data
       INTEGER                            :: vprow, vpcol
       INTEGER                            :: grp = mp_comm_null, &
-                                            grp3D = mp_comm_null
+                                            grp3D = mp_comm_null, &
+                                            subgrp = mp_comm_null
       INTEGER                            :: data_win, meta_win
       INTEGER, DIMENSION(:), POINTER     :: meta => Null(), &
                                             meta_diag => Null(), &
@@ -2137,7 +2138,7 @@ CONTAINS
       ! Allocate data and meta buffers
       do_win_create(:) = .TRUE.
       IF (buffer%has_rma_win) THEN
-         IF (buffer%grp .EQ. mygrp .AND. dbcsr_data_get_type(buffer%data) .EQ. data_type) THEN
+         IF (buffer%subgrp .EQ. mygrp .AND. dbcsr_data_get_type(buffer%data) .EQ. data_type) THEN
             do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (displ3D(idata, my_num_layers_3D)+10)
             do_win_create(2) = SIZE(buffer%meta) .LT. displ3D(imeta, my_num_layers_3D)
          ENDIF
@@ -2153,7 +2154,7 @@ CONTAINS
                        data_memory_type=memtype_mpi_buffer)
       IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data, mygrp, buffer%data_win)
       IF (do_win_create(2)) CALL mp_win_create(buffer%meta, mygrp, buffer%meta_win)
-      buffer%grp = mygrp
+      buffer%subgrp = mygrp
       !
       IF (is_diagonal .AND. do_bcast) THEN
          CALL resize_buffer_diag(buffer, size_diag(idata), size_diag(imeta), &
@@ -2801,6 +2802,7 @@ CONTAINS
       !
       CALL mp_comm_split_direct(mygrp, buffer%grp3D, color, key)
       buffer%num_layers_3D = my_num_layers_3D
+      buffer%grp = mygrp
    END SUBROUTINE make_layers_3D
 
 ! **************************************************************************************************
@@ -8270,6 +8272,7 @@ CONTAINS
          CALL mp_win_free(buffers_orig%right%meta_win)
          buffers%right%has_rma_win = .FALSE.
          buffers%right%grp = mp_comm_null
+         buffers%right%subgrp = mp_comm_null
          IF (buffers%right%grp3D .NE. mp_comm_null) CALL mp_comm_free(buffers%right%grp3D)
          buffers%right%grp3D = mp_comm_null
          buffers%right%num_layers_3D = 1
@@ -8279,6 +8282,7 @@ CONTAINS
          CALL mp_win_free(buffers_orig%left%meta_win)
          buffers%left%has_rma_win = .FALSE.
          buffers%left%grp = mp_comm_null
+         buffers%left%subgrp = mp_comm_null
          IF (buffers%left%grp3D .NE. mp_comm_null) CALL mp_comm_free(buffers%left%grp3D)
          buffers%left%grp3D = mp_comm_null
          buffers%left%num_layers_3D = 1
