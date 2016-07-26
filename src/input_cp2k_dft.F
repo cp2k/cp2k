@@ -1683,12 +1683,25 @@ CONTAINS
                                        "Hartree-Fock NYI, values will be wrong. "// &
                                        "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian.", &
                                        print_level=high_print_level, common_iter_levels=3, &
-                                       each_iter_names=s2a("MD"), each_iter_values=(/1/), &
+                                       each_iter_names=s2a("MD"), each_iter_values=(/100/), &
                                        add_last=add_last_numeric, filename="energy-windows")
       CALL keyword_create(keyword, name="N_WINDOWS", &
                           description="The number of energy windows.", &
                           usage="N_WINDOWS 200", &
                           default_i_val=100)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="RESTRICT_RANGE", &
+                          description="Restricts the energy windows to states close to the fermi level", &
+                          usage="RESTRICT_RANGE .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="RANGE", &
+                          description="If the RESTRICT_RANGE keyword is set, then all energy widnows will"// &
+                          " be placed in an interval from from the fermi level minus to the fermi level plus this keyword", &
+                          usage="RANGE 1", &
+                          default_r_val=1.0_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="PRINT_CUBES", &

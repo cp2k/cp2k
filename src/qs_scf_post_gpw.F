@@ -3196,9 +3196,9 @@ CONTAINS
                                                             nelectron_total, newton_schulz_order, &
                                                             next, nwindows, print_unit, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
-      LOGICAL                                            :: print_cube
-      REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, fermi_level, filter_eps, &
-         frob_norm, lanzcos_threshold, total_rho
+      LOGICAL                                            :: print_cube, restrict_range
+      REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, energy_range, fermi_level, &
+         filter_eps, frob_norm, lanzcos_threshold, lower_bound, total_rho, upper_bound
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
@@ -3234,6 +3234,8 @@ CONTAINS
       ls_scf_section => section_vals_get_subs_vals(input, "DFT%LS_SCF")
       CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%N_WINDOWS", i_val=nwindows)
       CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%PRINT_CUBES", l_val=print_cube)
+      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%RESTRICT_RANGE", l_val=restrict_range)
+      CALL section_vals_val_get(dft_section, "PRINT%ENERGY_WINDOWS%RANGE", r_val=energy_range)
       NULLIFY (stride)
       ALLOCATE (stride(3))
       stride = section_get_ivals(dft_section, "PRINT%ENERGY_WINDOWS%STRIDE")
@@ -3280,7 +3282,17 @@ CONTAINS
       !diagonalize the full ks matrix
       CALL choose_eigv_solver(matrix_ks_fm, eigenvectors, eigenvalues)
       fermi_level = eigenvalues((nelectron_total+MOD(nelectron_total, 2))/2)
-      IF (unit_nr > 0) WRITE (unit_nr, *) " Creating energy windows. Fermi level: ", fermi_level
+      IF (restrict_range) THEN
+         lower_bound = MAX(fermi_level-energy_range, eigenvalues(1))
+         upper_bound = MIN(fermi_level+energy_range, eigenvalues(SIZE(eigenvalues)))
+      ELSE
+         lower_bound = eigenvalues(1)
+         upper_bound = eigenvalues(SIZE(eigenvalues))
+      END IF
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *) " Creating energy windows. Fermi level: ", fermi_level
+         WRITE (unit_nr, *) " Printing Energy Levels from ", lower_bound, " to ", upper_bound
+      END IF
       !Rotate the eigenvectors back out of the orthonormal basis
       CALL copy_dbcsr_to_fm(S_minus_half, S_minus_half_fm)
       CALL cp_gemm("N", "N", nao, nao, nao, one, S_minus_half_fm, eigenvectors, zero, eigenvectors_nonorth) !calculate the density caused by the mos in the energy window
@@ -3314,18 +3326,23 @@ CONTAINS
       END IF
 
       !create energy windows
-      bin_width = (eigenvalues(SIZE(eigenvalues))-eigenvalues(1))/(nwindows+1)
-      next = 1
+      bin_width = (upper_bound-lower_bound)/nwindows
+      next = 0
       DO i = 1, nwindows
-         last = next
-         DO WHILE (eigenvalues(next) < eigenvalues(1)+i*bin_width)
+         DO WHILE (eigenvalues(next+1) < lower_bound)
             next = next+1
+            WRITE (*, *) "skipping"
+         END DO
+         last = next
+         DO WHILE (eigenvalues(next+1) < lower_bound+i*bin_width)
+            next = next+1
+            IF (next == SIZE(eigenvalues)) EXIT
          END DO
          IF (print_cube) THEN
             !print the energy window to a cube file
             CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next-last) !not sure how bad this is now load balanced due to using the same blacs_env
             CALL cp_fm_create(window_fm, window_fm_struct)
-            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next-last, last, 1) !copy the mos in the energy window into a separate matrix
+            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next-last, last+1, 1) !copy the mos in the energy window into a separate matrix
             CALL cp_gemm("N", "T", nao, nao, next-last, 2*one, window_fm, window_fm, zero, P_window_fm) !calculate the density caused by the mos in the energy window
             CALL copy_fm_to_dbcsr(P_window_fm, tmp)
             !ensure the correct sparsity
@@ -3347,10 +3364,12 @@ CONTAINS
             CALL cp_fm_release(window_fm)
             CALL cp_fm_struct_release(window_fm_struct)
             density_ewindow_total = pw_integrate_function(rho_r%pw)
-            IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", eigenvalues(1)+i*bin_width, " Number of states: ", next-last, &
-               " Grid Density ", density_ewindow_total
+            IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", &
+               next-last, " Grid Density ", density_ewindow_total
          ELSE
-            IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", eigenvalues(1)+i*bin_width, " Number of states: ", next-last
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, *) " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", next-last
+            END IF
          END IF
       END DO
 

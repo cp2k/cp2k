@@ -55,6 +55,17 @@
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
+    &PRINT 
+       &ENERGY_WINDOWS
+         &EACH
+           MD 2
+         &END EACH
+         RESTRICT_RANGE
+         RANGE 0.5
+         N_WINDOWS 5
+         PRINT_CUBES
+       &END
+    &END
   &END DFT
   &SUBSYS
     &CELL
