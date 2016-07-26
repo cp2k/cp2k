@@ -3331,7 +3331,6 @@ CONTAINS
       DO i = 1, nwindows
          DO WHILE (eigenvalues(next+1) < lower_bound)
             next = next+1
-            WRITE (*, *) "skipping"
          END DO
          last = next
          DO WHILE (eigenvalues(next+1) < lower_bound+i*bin_width)
