@@ -418,16 +418,10 @@ CONTAINS
                   IF (ndod(i) == 1 .AND. trans) f = -1.0_dp
                   CALL contraction(oint(:, :, i), owork, ca=scon_a(:, sgfa:), na=n1, ma=nsgfa(iset), &
                                    cb=scon_b(:, sgfb:), nb=n2, mb=nsgfb(jset), fscale=f, trans=trans)
-                  IF (dokp) THEN
-                     ! no barrier needed
-                     CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(i)%block, &
-                                    sgfa, sgfb, trans=trans)
-                  ELSE
 !$OMP CRITICAL(blockadd)
-                     CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(i)%block, &
-                                    sgfa, sgfb, trans=trans)
+                  CALL block_add("IN", owork, nsgfa(iset), nsgfb(jset), sint(i)%block, &
+                                 sgfa, sgfb, trans=trans)
 !$OMP END CRITICAL(blockadd)
-                  END IF
                END DO
 
             END DO

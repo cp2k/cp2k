@@ -345,14 +345,9 @@ CONTAINS
                CALL contraction(kab, qab, ca=scon_a(:, sgfa:), na=ncoa, ma=nsgfa(iset), &
                                 cb=scon_b(:, sgfb:), nb=ncob, mb=nsgfb(jset), &
                                 trans=trans)
-               IF (dokp) THEN
-                  ! no barrier needed
-                  CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block, sgfa, sgfb, trans=trans)
-               ELSE
 !$OMP CRITICAL(blockadd)
-                  CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block, sgfa, sgfb, trans=trans)
+               CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block, sgfa, sgfb, trans=trans)
 !$OMP END CRITICAL(blockadd)
-               END IF
 
             END DO
          END DO
