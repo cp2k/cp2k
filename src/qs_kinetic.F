@@ -26,8 +26,7 @@ MODULE qs_kinetic
                                               cp_dbcsr_finalize,&
                                               cp_dbcsr_get_block_p,&
                                               cp_dbcsr_p_type,&
-                                              cp_dbcsr_type,&
-                                              dbcsr_distribution_obj
+                                              cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -127,7 +126,6 @@ CONTAINS
                                                             scon_b, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -158,8 +156,7 @@ CONTAINS
                       dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, &
                       natom=natom, &
-                      qs_kind_set=qs_kind_set, &
-                      dbcsr_dist=dbcsr_dist)
+                      qs_kind_set=qs_kind_set)
 
       nimg = dft_control%nimages
       nkind = SIZE(atomic_kind_set)
@@ -348,9 +345,14 @@ CONTAINS
                CALL contraction(kab, qab, ca=scon_a(:, sgfa:), na=ncoa, ma=nsgfa(iset), &
                                 cb=scon_b(:, sgfb:), nb=ncob, mb=nsgfb(jset), &
                                 trans=trans)
+               IF (dokp) THEN
+                  ! no barrier needed
+                  CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block, sgfa, sgfb, trans=trans)
+               ELSE
 !$OMP CRITICAL(blockadd)
-               CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block, sgfa, sgfb, trans=trans)
+                  CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), k_block, sgfa, sgfb, trans=trans)
 !$OMP END CRITICAL(blockadd)
+               END IF
 
             END DO
          END DO

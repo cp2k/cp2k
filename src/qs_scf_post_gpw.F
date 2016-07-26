@@ -25,8 +25,9 @@ MODULE qs_scf_post_gpw
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-        cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_info, cp_dbcsr_init, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type
+        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, &
+        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
+        cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -135,6 +136,7 @@ MODULE qs_scf_post_gpw
    USE qs_active_space_methods,         ONLY: active_space_main
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction
+   USE qs_commutators,                  ONLY: build_com_hr_matrix
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_electric_field_gradient,      ONLY: qs_efg_calc
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -2182,6 +2184,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_hr
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_rmpv, matrix_vxc, rho_ao
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2738,6 +2741,24 @@ CONTAINS
          END DO
          CALL cp_print_key_finished_output(iw, logger, input, &
                                            "DFT%PRINT%AO_MATRICES/MATRIX_VXC")
+      END IF
+
+      ! Write the [H,r] commutator matrices
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%PRINT%AO_MATRICES/COMMUTATOR_HR"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, input, "DFT%PRINT%AO_MATRICES/COMMUTATOR_HR", &
+                                   extension=".Log")
+         CALL section_vals_val_get(input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
+         NULLIFY (matrix_hr)
+         CALL build_com_hr_matrix(qs_env, matrix_hr)
+         after = MIN(MAX(after, 1), 16)
+         DO img = 1, 3
+            CALL cp_dbcsr_write_sparse_matrix(matrix_hr(img)%matrix, 4, after, qs_env, &
+                                              para_env, output_unit=iw, omit_headers=omit_headers)
+         END DO
+         CALL cp_dbcsr_deallocate_matrix_set(matrix_hr)
+         CALL cp_print_key_finished_output(iw, logger, input, &
+                                           "DFT%PRINT%AO_MATRICES/COMMUTATOR_HR")
       END IF
 
       ! Compute the Mulliken charges

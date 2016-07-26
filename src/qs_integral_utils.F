@@ -150,7 +150,7 @@ CONTAINS
 ! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief RSet up an easy accessible list of the basis sets for all kinds
+!> \brief Set up an easy accessible list of the basis sets for all kinds
 !> \param basis_set_list    The basis set list
 !> \param basis_type ...
 !> \param qs_kind_set   Kind information, the basis is used
@@ -168,8 +168,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
-! set up basis sets
-
+      ! set up basis sets
       DO ikind = 1, SIZE(qs_kind_set)
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, &
