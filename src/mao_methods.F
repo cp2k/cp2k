@@ -110,21 +110,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_analysis', routineP = moduleN//':'//routineN
 
       CHARACTER(len=2)                                   :: element_symbol, esa, esb, esc
-      INTEGER :: fall, handle, ia, iab, iabc, iatom, ib, ic, icol, ikind, im, irow, iset, ishell, &
-         ispin, iter, jatom, l, lmax, lshell, m, ma, mao_basis, max_iter, me, na, nab, nabc, &
-         natom, nb, nbas, nc, nimages, nkind, nocc, norb, nspin, ssize
+      INTEGER :: fall, handle, ia, iab, iabc, iatom, ib, ic, icol, ikind, im, irow, ispin, iter, &
+         jatom, mao_basis, max_iter, me, na, nab, nabc, natom, nb, nc, nimages, nocc, norb, nspin, &
+         ssize
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_blk, mao_blk_sizes, &
                                                             orb_blk, row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: analyze_ua, explicit, fo, for, fos, &
                                                             found, neglect_abc, print_basis
       REAL(KIND=dp) :: a1, a2, alpha, an, beta, deltaq, electra(2), elex, eps_ab, eps_abc, &
-         eps_filter, eps_fun, eps_grad, eps_pgf_orb, fa1, fa2, fnnew, fnold, fval, grad_norm, &
-         senabc, senmax, threshold, total_charge, total_spin, ua_charge(2), xkp(3), zeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cmask, vec1, vec2
+         eps_filter, eps_fun, eps_grad, fa1, fa2, fnnew, fnold, fval, grad_norm, senabc, senmax, &
+         threshold, total_charge, total_spin, ua_charge(2), xkp(3), zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: occnumA, occnumABC, qab, qmatab, qmatac, &
                                                             qmatbc, raq, sab, selnABC, sinv, &
-                                                            smatab, smatac, smatbc, uaq, weight
+                                                            smatab, smatac, smatbc, uaq
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: occnumAB, selnAB
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block, cmao, diag, qblka, qblkb, qblkc, &
                                                             rblkl, rblku, sblk, sblka, sblkb, sblkc
@@ -142,7 +141,6 @@ CONTAINS
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list, orb_basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set, pbasis
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -150,7 +148,6 @@ CONTAINS
          POINTER                                         :: sab_all, sab_orb, smm_list, smo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -193,73 +190,9 @@ CONTAINS
       END IF
 
       ! Reference basis set
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
-      nkind = SIZE(qs_kind_set)
-      ALLOCATE (mao_basis_set_list(nkind), orb_basis_set_list(nkind))
-      DO ikind = 1, nkind
-         NULLIFY (mao_basis_set_list(ikind)%gto_basis_set)
-         NULLIFY (orb_basis_set_list(ikind)%gto_basis_set)
-      END DO
-      !
-      DO ikind = 1, nkind
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
-         IF (ASSOCIATED(basis_set)) orb_basis_set_list(ikind)%gto_basis_set => basis_set
-      END DO
-      !
-      SELECT CASE (mao_basis)
-      CASE (mao_basis_orb)
-         DO ikind = 1, nkind
-            qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
-            IF (ASSOCIATED(basis_set)) mao_basis_set_list(ikind)%gto_basis_set => basis_set
-         END DO
-      CASE (mao_basis_prim)
-         DO ikind = 1, nkind
-            qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
-            NULLIFY (pbasis)
-            IF (ASSOCIATED(basis_set)) THEN
-               CALL create_primitive_basis_set(basis_set, pbasis)
-               CALL get_qs_env(qs_env, dft_control=dft_control)
-               eps_pgf_orb = dft_control%qs_control%eps_pgf_orb
-               CALL init_interaction_radii_orb_basis(pbasis, eps_pgf_orb)
-               pbasis%kind_radius = basis_set%kind_radius
-               mao_basis_set_list(ikind)%gto_basis_set => pbasis
-               CALL add_basis_set_to_container(qs_kind%basis_sets, pbasis, "MAO")
-            END IF
-         END DO
-      CASE (mao_basis_ext)
-         DO ikind = 1, nkind
-            qs_kind => qs_kind_set(ikind)
-            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="MAO")
-            IF (ASSOCIATED(basis_set)) THEN
-               basis_set%kind_radius = orb_basis_set_list(ikind)%gto_basis_set%kind_radius
-               mao_basis_set_list(ikind)%gto_basis_set => basis_set
-            END IF
-         END DO
-      CASE DEFAULT
-         CPABORT("Unknown option for MAO basis")
-      END SELECT
-      IF (unit_nr > 0) THEN
-         DO ikind = 1, nkind
-            IF (.NOT. ASSOCIATED(mao_basis_set_list(ikind)%gto_basis_set)) THEN
-               WRITE (UNIT=unit_nr, FMT="(T2,A,I4)") &
-                  "WARNING: No MAO basis set associated with Kind ", ikind
-            ELSE
-               nbas = mao_basis_set_list(ikind)%gto_basis_set%nsgf
-               WRITE (UNIT=unit_nr, FMT="(T2,A,I4,T56,A,I10)") &
-                  "MAO basis set Kind ", ikind, " Number of BSF:", nbas
-            END IF
-         END DO
-      END IF
-
-      IF (print_basis) THEN
-         DO ikind = 1, nkind
-            basis_set => mao_basis_set_list(ikind)%gto_basis_set
-            CALL write_gto_basis_set(basis_set, unit_nr, "MAO REFERENCE BASIS")
-         END DO
-      END IF
+      NULLIFY (mao_basis_set_list, orb_basis_set_list)
+      CALL mao_reference_basis(qs_env, mao_basis, mao_basis_set_list, orb_basis_set_list, &
+                               unit_nr, print_basis)
 
       ! neighbor lists
       NULLIFY (smm_list, smo_list)
@@ -373,7 +306,7 @@ CONTAINS
       END IF
 
       ! MAO matrices
-      CALL get_qs_env(qs_env, natom=natom)
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, natom=natom)
       CALL get_ks_env(ks_env=ks_env, particle_set=particle_set, dbcsr_dist=dbcsr_dist)
       NULLIFY (mao_coef, mao_grad)
       CALL cp_dbcsr_allocate_matrix_set(mao_coef, nspin)
@@ -411,123 +344,90 @@ CONTAINS
                                  matrix_q(ispin)%matrix, matrix_smm(1)%matrix)
       END DO
 
-      ! optimize MAOs
-      alpha = 0.25_dp
-      beta = 0.0_dp
-      CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-      CALL cp_dbcsr_init(tmat)
-      CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
-      CALL cp_dbcsr_init(cgmat)
-      CALL cp_dbcsr_create(cgmat, template=mao_grad(1)%matrix)
-      CALL cp_dbcsr_init(amat)
-      CALL cp_dbcsr_create(amat, template=mao_coef(1)%matrix)
-      DO ispin = 1, nspin
-         CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
-                                    matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .FALSE.)
-         CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
-         CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
-         CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnold)
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(/,T2,A,T73,A,I2)") "MAO OPTIMIZATION", "Spin =", ispin
-            WRITE (UNIT=unit_nr, FMT="(T2,A,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
-               "Initialization", "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
-         END IF
-         DO iter = 1, max_iter
-            IF (grad_norm < eps_grad) EXIT
-            IF ((1.0_dp-fval/electra(ispin)) < eps_fun) EXIT
-            CALL cp_dbcsr_add(mao_coef(ispin)%matrix, cgmat, 1.0_dp, alpha)
-            CALL mao_orthogonalization(mao_coef(ispin)%matrix, matrix_smm(1)%matrix)
-            CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
-                                       matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
-            CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
-            CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnnew)
+      IF (max_iter < 1) THEN
+         ! projection only
+         CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+         CALL cp_dbcsr_init(tmat)
+         CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+         IF (unit_nr > 0) WRITE (unit_nr, *)
+         DO ispin = 1, nspin
+            CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
+                              matrix_smm(1)%matrix, tmat, .FALSE.)
             IF (unit_nr > 0) THEN
-               WRITE (UNIT=unit_nr, FMT="(T2,A,i8,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
-                  "iter=", iter, "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
-            END IF
-            beta = fnnew/fnold
-            CALL cp_dbcsr_add(cgmat, mao_grad(ispin)%matrix, beta, 1.0_dp)
-            fnold = fnnew
-            ! line search, update alpha
-            CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
-            CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, 0.5_dp*alpha)
-            CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
-            CALL mao_function(amat, fa1, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
-            CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
-            CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, alpha)
-            CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
-            CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
-            a2 = (4._dp*fa1-fa2-3._dp*fval)/alpha
-            a1 = (fa2-fval-a2*alpha)/(alpha*alpha)
-            an = -a2/(2._dp*a1)
-            an = MIN(an, 2.0_dp*alpha)
-            IF (an < 0.05_dp .OR. a1 > 0.0_dp) THEN
-               CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
-               alpha = 0.25_dp
-            ELSE
-               alpha = an
+               WRITE (UNIT=unit_nr, FMT="(T2,A,T20,A,I2,T56,A,F12.8)") &
+                  "MAO Projection", "Spin =", ispin, "Completness =", fval/electra(ispin)
             END IF
          END DO
-      END DO
-      CALL cp_dbcsr_release(tmat)
-      CALL cp_dbcsr_release(cgmat)
-      CALL cp_dbcsr_release(amat)
+         CALL cp_dbcsr_release(tmat)
+      ELSE
+         ! optimize MAOs
+         alpha = 0.25_dp
+         beta = 0.0_dp
+         CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+         CALL cp_dbcsr_init(tmat)
+         CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+         CALL cp_dbcsr_init(cgmat)
+         CALL cp_dbcsr_create(cgmat, template=mao_grad(1)%matrix)
+         CALL cp_dbcsr_init(amat)
+         CALL cp_dbcsr_create(amat, template=mao_coef(1)%matrix)
+         DO ispin = 1, nspin
+            CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
+                                       matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .FALSE.)
+            CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
+            CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
+            CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnold)
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="(/,T2,A,T73,A,I2)") "MAO OPTIMIZATION", "Spin =", ispin
+               WRITE (UNIT=unit_nr, FMT="(T2,A,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
+                  "Initialization", "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
+            END IF
+            DO iter = 1, max_iter
+               IF (grad_norm < eps_grad) EXIT
+               IF ((1.0_dp-fval/electra(ispin)) < eps_fun) EXIT
+               CALL cp_dbcsr_add(mao_coef(ispin)%matrix, cgmat, 1.0_dp, alpha)
+               CALL mao_orthogonalization(mao_coef(ispin)%matrix, matrix_smm(1)%matrix)
+               CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
+                                          matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
+               CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnnew)
+               IF (unit_nr > 0) THEN
+                  WRITE (UNIT=unit_nr, FMT="(T2,A,i8,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
+                     "iter=", iter, "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
+               END IF
+               beta = fnnew/fnold
+               CALL cp_dbcsr_add(cgmat, mao_grad(ispin)%matrix, beta, 1.0_dp)
+               fnold = fnnew
+               ! line search, update alpha
+               CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
+               CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, 0.5_dp*alpha)
+               CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
+               CALL mao_function(amat, fa1, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
+               CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, alpha)
+               CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
+               CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               a2 = (4._dp*fa1-fa2-3._dp*fval)/alpha
+               a1 = (fa2-fval-a2*alpha)/(alpha*alpha)
+               an = -a2/(2._dp*a1)
+               an = MIN(an, 2.0_dp*alpha)
+               IF (an < 0.05_dp .OR. a1 > 0.0_dp) THEN
+                  CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
+                  alpha = 0.25_dp
+               ELSE
+                  alpha = an
+               END IF
+            END DO
+         END DO
+         CALL cp_dbcsr_release(tmat)
+         CALL cp_dbcsr_release(cgmat)
+         CALL cp_dbcsr_release(amat)
+      END IF
 
       ! Analyze the MAO basis
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, "(/,A)") " Analyze angular momentum character of MAOs "
-         WRITE (unit_nr, "(T7,A,T15,A,T20,A,T40,A,T50,A,T60,A,T70,A,T80,A)") &
-            "ATOM", "Spin", "MAO", "S", "P", "D", "F", "G"
-      END IF
-      lmax = 4 ! analyze up to g-functions
-      DO iatom = 1, natom
-         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
-                              element_symbol=element_symbol, kind_number=ikind)
-         basis_set => mao_basis_set_list(ikind)%gto_basis_set
-         CALL get_qs_kind(qs_kind_set(ikind), mao=na)
-         CALL get_gto_basis_set(basis_set, nsgf=ma)
-         ALLOCATE (cmask(ma), vec1(ma), vec2(ma), weight(0:lmax, na))
-         weight = 0.0_dp
-         CALL cp_dbcsr_get_block_p(matrix=matrix_smm(1)%matrix, row=iatom, col=iatom, &
-                                   block=block, found=found)
-         DO ispin = 1, nspin
-            CALL cp_dbcsr_get_block_p(matrix=mao_coef(ispin)%matrix, row=iatom, col=iatom, &
-                                      block=cmao, found=found)
-            IF (found) THEN
-               DO l = 0, lmax
-                  cmask = 0.0_dp
-                  iab = 0
-                  DO iset = 1, basis_set%nset
-                     DO ishell = 1, basis_set%nshell(iset)
-                        lshell = basis_set%l(ishell, iset)
-                        DO m = -lshell, lshell
-                           iab = iab+1
-                           IF (l == lshell) cmask(iab) = 1.0_dp
-                        END DO
-                     END DO
-                  END DO
-                  DO ia = 1, na
-                     vec1(1:ma) = cmask*cmao(1:ma, ia)
-                     vec2(1:ma) = MATMUL(block, vec1)
-                     weight(l, ia) = SUM(vec1(1:ma)*vec2(1:ma))
-                  END DO
-               END DO
-            END IF
-            CALL mp_sum(weight, para_env%group)
-            IF (unit_nr > 0) THEN
-               DO ia = 1, na
-                  IF (ispin == 1 .AND. ia == 1) THEN
-                     WRITE (unit_nr, "(i6,T9,A2,T17,i2,T20,i3,T31,5F10.4)") &
-                        iatom, element_symbol, ispin, ia, weight(0:lmax, ia)
-                  ELSE
-                     WRITE (unit_nr, "(T17,i2,T20,i3,T31,5F10.4)") ispin, ia, weight(0:lmax, ia)
-                  END IF
-               END DO
-            END IF
-         END DO
-         DEALLOCATE (cmask, weight, vec1, vec2)
-      END DO
+      CALL mao_basis_analysis(mao_coef, matrix_smm, mao_basis_set_list, particle_set, &
+                              qs_kind_set, unit_nr, para_env)
 
       ! Calculate the overlap and density matrix in the new MAO basis
       NULLIFY (mao_dmat, mao_smat, mao_qmat)
@@ -1482,5 +1382,211 @@ CONTAINS
       CALL cp_fm_struct_release(matrix_struct)
 
    END SUBROUTINE calculate_p_gamma
+
+! **************************************************************************************************
+!> \brief Define the MAO reference basis set
+!> \param qs_env ...
+!> \param mao_basis ...
+!> \param mao_basis_set_list ...
+!> \param orb_basis_set_list ...
+!> \param iunit ...
+!> \param print_basis ...
+!> \par History
+!>      07.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE mao_reference_basis(qs_env, mao_basis, mao_basis_set_list, orb_basis_set_list, &
+                                  iunit, print_basis)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: mao_basis
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list, orb_basis_set_list
+      INTEGER, INTENT(IN), OPTIONAL                      :: iunit
+      LOGICAL, INTENT(IN), OPTIONAL                      :: print_basis
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_reference_basis', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ikind, nbas, nkind, unit_nr
+      REAL(KIND=dp)                                      :: eps_pgf_orb
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set, pbasis
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+
+      ! Reference basis set
+      CPASSERT(.NOT. ASSOCIATED(mao_basis_set_list))
+      CPASSERT(.NOT. ASSOCIATED(orb_basis_set_list))
+
+      ! options
+      IF (PRESENT(iunit)) THEN
+         unit_nr = iunit
+      ELSE
+         unit_nr = -1
+      END IF
+
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+      nkind = SIZE(qs_kind_set)
+      ALLOCATE (mao_basis_set_list(nkind), orb_basis_set_list(nkind))
+      DO ikind = 1, nkind
+         NULLIFY (mao_basis_set_list(ikind)%gto_basis_set)
+         NULLIFY (orb_basis_set_list(ikind)%gto_basis_set)
+      END DO
+      !
+      DO ikind = 1, nkind
+         qs_kind => qs_kind_set(ikind)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
+         IF (ASSOCIATED(basis_set)) orb_basis_set_list(ikind)%gto_basis_set => basis_set
+      END DO
+      !
+      SELECT CASE (mao_basis)
+      CASE (mao_basis_orb)
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
+            IF (ASSOCIATED(basis_set)) mao_basis_set_list(ikind)%gto_basis_set => basis_set
+         END DO
+      CASE (mao_basis_prim)
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
+            NULLIFY (pbasis)
+            IF (ASSOCIATED(basis_set)) THEN
+               CALL create_primitive_basis_set(basis_set, pbasis)
+               CALL get_qs_env(qs_env, dft_control=dft_control)
+               eps_pgf_orb = dft_control%qs_control%eps_pgf_orb
+               CALL init_interaction_radii_orb_basis(pbasis, eps_pgf_orb)
+               pbasis%kind_radius = basis_set%kind_radius
+               mao_basis_set_list(ikind)%gto_basis_set => pbasis
+               CALL add_basis_set_to_container(qs_kind%basis_sets, pbasis, "MAO")
+            END IF
+         END DO
+      CASE (mao_basis_ext)
+         DO ikind = 1, nkind
+            qs_kind => qs_kind_set(ikind)
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="MAO")
+            IF (ASSOCIATED(basis_set)) THEN
+               basis_set%kind_radius = orb_basis_set_list(ikind)%gto_basis_set%kind_radius
+               mao_basis_set_list(ikind)%gto_basis_set => basis_set
+            END IF
+         END DO
+      CASE DEFAULT
+         CPABORT("Unknown option for MAO basis")
+      END SELECT
+      IF (unit_nr > 0) THEN
+         DO ikind = 1, nkind
+            IF (.NOT. ASSOCIATED(mao_basis_set_list(ikind)%gto_basis_set)) THEN
+               WRITE (UNIT=unit_nr, FMT="(T2,A,I4)") &
+                  "WARNING: No MAO basis set associated with Kind ", ikind
+            ELSE
+               nbas = mao_basis_set_list(ikind)%gto_basis_set%nsgf
+               WRITE (UNIT=unit_nr, FMT="(T2,A,I4,T56,A,I10)") &
+                  "MAO basis set Kind ", ikind, " Number of BSF:", nbas
+            END IF
+         END DO
+      END IF
+
+      IF (PRESENT(print_basis)) THEN
+         IF (print_basis) THEN
+            DO ikind = 1, nkind
+               basis_set => mao_basis_set_list(ikind)%gto_basis_set
+               CALL write_gto_basis_set(basis_set, unit_nr, "MAO REFERENCE BASIS")
+            END DO
+         END IF
+      END IF
+
+   END SUBROUTINE mao_reference_basis
+
+! **************************************************************************************************
+!> \brief Analyze the MAO basis, projection on angular functions
+!> \param mao_coef ...
+!> \param matrix_smm ...
+!> \param mao_basis_set_list ...
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param unit_nr ...
+!> \param para_env ...
+!> \par History
+!>      07.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE mao_basis_analysis(mao_coef, matrix_smm, mao_basis_set_list, particle_set, &
+                                 qs_kind_set, unit_nr, para_env)
+
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef, matrix_smm
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_basis_analysis', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=2)                                   :: element_symbol
+      INTEGER                                            :: ia, iab, iatom, ikind, iset, ishell, &
+                                                            ispin, l, lmax, lshell, m, ma, na, &
+                                                            natom, nspin
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cmask, vec1, vec2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weight
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block, cmao
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+
+      ! Analyze the MAO basis
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, "(/,A)") " Analyze angular momentum character of MAOs "
+         WRITE (unit_nr, "(T7,A,T15,A,T20,A,T40,A,T50,A,T60,A,T70,A,T80,A)") &
+            "ATOM", "Spin", "MAO", "S", "P", "D", "F", "G"
+      END IF
+      lmax = 4 ! analyze up to g-functions
+      natom = SIZE(particle_set)
+      nspin = SIZE(mao_coef)
+      DO iatom = 1, natom
+         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                              element_symbol=element_symbol, kind_number=ikind)
+         basis_set => mao_basis_set_list(ikind)%gto_basis_set
+         CALL get_qs_kind(qs_kind_set(ikind), mao=na)
+         CALL get_gto_basis_set(basis_set, nsgf=ma)
+         ALLOCATE (cmask(ma), vec1(ma), vec2(ma), weight(0:lmax, na))
+         weight = 0.0_dp
+         CALL cp_dbcsr_get_block_p(matrix=matrix_smm(1)%matrix, row=iatom, col=iatom, &
+                                   block=block, found=found)
+         DO ispin = 1, nspin
+            CALL cp_dbcsr_get_block_p(matrix=mao_coef(ispin)%matrix, row=iatom, col=iatom, &
+                                      block=cmao, found=found)
+            IF (found) THEN
+               DO l = 0, lmax
+                  cmask = 0.0_dp
+                  iab = 0
+                  DO iset = 1, basis_set%nset
+                     DO ishell = 1, basis_set%nshell(iset)
+                        lshell = basis_set%l(ishell, iset)
+                        DO m = -lshell, lshell
+                           iab = iab+1
+                           IF (l == lshell) cmask(iab) = 1.0_dp
+                        END DO
+                     END DO
+                  END DO
+                  DO ia = 1, na
+                     vec1(1:ma) = cmask*cmao(1:ma, ia)
+                     vec2(1:ma) = MATMUL(block, vec1)
+                     weight(l, ia) = SUM(vec1(1:ma)*vec2(1:ma))
+                  END DO
+               END DO
+            END IF
+            CALL mp_sum(weight, para_env%group)
+            IF (unit_nr > 0) THEN
+               DO ia = 1, na
+                  IF (ispin == 1 .AND. ia == 1) THEN
+                     WRITE (unit_nr, "(i6,T9,A2,T17,i2,T20,i3,T31,5F10.4)") &
+                        iatom, element_symbol, ispin, ia, weight(0:lmax, ia)
+                  ELSE
+                     WRITE (unit_nr, "(T17,i2,T20,i3,T31,5F10.4)") ispin, ia, weight(0:lmax, ia)
+                  END IF
+               END DO
+            END IF
+         END DO
+         DEALLOCATE (cmask, weight, vec1, vec2)
+      END DO
+   END SUBROUTINE mao_basis_analysis
 
 END MODULE mao_methods
