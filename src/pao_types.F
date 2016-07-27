@@ -9,7 +9,9 @@
 ! **************************************************************************************************
 MODULE pao_types
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
-                                              cp_dbcsr_type
+                                              cp_dbcsr_type,&
+                                              dbcsr_distribution_obj,&
+                                              dbcsr_distribution_release
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -28,6 +30,15 @@ MODULE pao_types
       CHARACTER(LEN=default_path_length) :: fn
    END TYPE filename_type
 
+! **************************************************************************************************
+!> \brief PAO machine learning data for one atomic kind
+!> \var kindname                  name of atomic kind
+!> \var inputs                    training points
+!> \var outputs                   training points
+!> \var prior                     constant prior which is added to prediction
+!> \var NN                        trained neural network
+!> \var GP                        trained gaussian process
+! **************************************************************************************************
    TYPE training_matrix_type
       CHARACTER(LEN=default_string_length)      :: kindname = ""
       REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: inputs
@@ -37,6 +48,74 @@ MODULE pao_types
       REAL(dp), DIMENSION(:, :), ALLOCATABLE    :: GP ! Gaussian Process
    END TYPE training_matrix_type
 
+! **************************************************************************************************
+!> \brief The PAO environment type
+!> \var eps_pao                   parsed input parameter
+!> \var cg_reset_limit            parsed input parameter
+!> \var mixing                    parsed input parameter
+!> \var regularization            parsed input parameter
+!> \var penalty_dist              parsed input parameter
+!> \var penalty_strength          parsed input parameter
+!> \var check_unitary_tol         parsed input parameter
+!> \var check_grad_tol            parsed input parameter
+!> \var num_grad_eps              parsed input parameter
+!> \var eps_pgf                   parsed input parameter
+!> \var linpot_precon_delta       parsed input parameter
+!> \var linpot_init_delta         parsed input parameter
+!> \var linpot_regu_delta         parsed input parameter
+!> \var linpot_regu_strength      parsed input parameter
+!> \var num_grad_order            parsed input parameter
+!> \var max_pao                   parsed input parameter
+!> \var max_cycles                parsed input parameter
+!> \var write_cycles              parsed input parameter
+!> \var parameterization          parsed input parameter
+!> \var optimizer                 parsed input parameter
+!> \var cg_init_steps             parsed input parameter
+!> \var preopt_dm_file            parsed input parameter
+!> \var restart_file              parsed input parameter
+!> \var ml_training_set           parsed input parameter
+!> \var ml_method                 parsed input parameter
+!> \var ml_prior                  parsed input parameter
+!> \var ml_descriptor             parsed input parameter
+!> \var ml_tolerance              parsed input parameter
+!> \var gp_noise_var              parsed input parameter
+!> \var gp_scale                  parsed input parameter
+!> \var iw                        output unit for pao in general
+!> \var iw_opt                    output unit for pao optimizer
+!> \var istep                     counts pao iterations, ie. number of pao energy evaluations
+!> \var energy_prev               energy of previous pao step
+!> \var step_start_time           timestamp of when current pao step started
+!> \var norm_G                    frobenius-norm of matrix_G or matrix_G_preconed
+!> \var linesearch                holds linesearch state
+!> \var matrix_X_ready            set when matrix_X is initialized
+!> \var matrix_P_ready            set when density matrix is initialized
+!> \var constants_ready           set when stuff, which does not depend of atomic positions is ready
+!> \var need_initial_scf          set when the initial density matrix is not self-consistend
+!> \var precondition              set when parametrization provides a preconditioner
+!> \var matrix_X                  parameters of pao basis, which eventually determine matrix_U. Uses diag_distribution.
+!> \var matrix_U                  roation matrix derived from matrix_X. Uses diag_distribution.
+!> \var matrix_U0                 constant pre-rotation which serves as initial guess for exp-parametrization. Uses diag_distribution.
+!> \var matrix_H0                 Diagonal blocks of core hamiltonian, uses diag_distribution
+!> \var matrix_Y                  selector matrix which translates between primary and pao basis.
+!>                                basically a block diagonal "rectangular identity matrix". Uses s_matrix-distribution.
+!> \var matrix_N                  diagonal matrix filled with 1/sqrt(S) from primary overlap matrix. Uses s_matrix-distribution.
+!> \var matrix_N_inv              diagonal matrix filled with sqrt(S) from primary overlap matrix. Uses s_matrix-distribution.
+!> \var matrix_N_diag             copy of matrix_N using diag_distribution
+!> \var matrix_X_orig             copy made of matrix_X at beginning of optimization cylce, used for mixing. Uses diag_distribution.
+!> \var matrix_G                  derivative of pao-energy wrt to matrix_X, ie. the pao-gradient. Uses diag_distribution.
+!> \var matrix_G_prev             copy of gradient from previous step, used for conjugate gradient method. Uses diag_distribution.
+!> \var matrix_D                  Current line-search direction,  used for conjugate gradient method. Uses diag_distribution.
+!> \var matrix_D_preconed         Current line-search direction with preconditioner applied.
+!>                                This copy is keept, because application of inverse preconditioner
+!>                                introduces too much numeric noise. Uses diag_distribution.
+!> \var matrix_V_terms            Potential terms, used by linpot and gth parametrization, Uses diag_distribution.
+!> \var matrix_BFGS               Approximate inverse hessian, used by BFGS optimizer, Uses diag_distribution.
+!> \var matrix_precon             preconditioner, uses diag_distribution.
+!> \var matrix_precon_inv         inverse of matrix_precon, uses diag_distribution.
+!> \var matrix_R                  Rgularization, uses diag_distribution
+!> \var ml_training_matrices      holds training data and trained machine learning model
+!> \var diag_distribution         DBCSR distribution to spreads diagonal blocks evenly across ranks
+! **************************************************************************************************
    TYPE pao_env_type
       ! input values
       REAL(KIND=dp)                    :: eps_pao = 0.0_dp
@@ -83,7 +162,7 @@ MODULE pao_types
       TYPE(linesearch_type)            :: linesearch
       LOGICAL                          :: matrix_X_ready = .FALSE.
       LOGICAL                          :: matrix_P_ready = .FALSE.
-      LOGICAL                          :: matrices_YNH0_ready = .FALSE.
+      LOGICAL                          :: constants_ready = .FALSE.
       LOGICAL                          :: need_initial_scf = .FALSE.
       LOGICAL                          :: precondition = .FALSE.
 
@@ -95,6 +174,7 @@ MODULE pao_types
       TYPE(cp_dbcsr_type)              :: matrix_Y
       TYPE(cp_dbcsr_type)              :: matrix_N
       TYPE(cp_dbcsr_type)              :: matrix_N_inv
+      TYPE(cp_dbcsr_type)              :: matrix_N_diag
       TYPE(cp_dbcsr_type)              :: matrix_X_orig
       TYPE(cp_dbcsr_type)              :: matrix_G
       TYPE(cp_dbcsr_type)              :: matrix_G_prev
@@ -109,6 +189,7 @@ MODULE pao_types
       TYPE(training_matrix_type), ALLOCATABLE, &
          DIMENSION(:)                  :: ml_training_matrices
 
+      TYPE(dbcsr_distribution_obj)     :: diag_distribution
    END TYPE
 
 CONTAINS
@@ -126,11 +207,14 @@ CONTAINS
       CALL cp_dbcsr_release(pao%matrix_Y)
       CALL cp_dbcsr_release(pao%matrix_N)
       CALL cp_dbcsr_release(pao%matrix_N_inv)
+      CALL cp_dbcsr_release(pao%matrix_N_diag)
       CALL cp_dbcsr_release(pao%matrix_H0)
 
       DEALLOCATE (pao%ml_training_set)
       IF (ALLOCATED(pao%ml_training_matrices)) &
          DEALLOCATE (pao%ml_training_matrices)
+
+      CALL dbcsr_distribution_release(pao%diag_distribution)
 
       !TODO: should finish printkey
 

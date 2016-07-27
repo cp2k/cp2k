@@ -14,8 +14,8 @@ MODULE pao_param_linpot
         cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
         cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
         cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, &
-        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+        dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
@@ -63,7 +63,6 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_V_terms
       REAL(dp), DIMENSION(:, :, :), POINTER              :: V_blocks
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -72,7 +71,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
-                      matrix_s=matrix_s, &
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       natom=natoms)
@@ -88,11 +86,12 @@ CONTAINS
       ENDDO
 
       ! allocate matrix_V_terms
-      blk_sizes_pri => cp_dbcsr_col_block_sizes(matrix_s(1)%matrix)
+      blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
       row_blk_size = blk_sizes_pri**2
       CALL cp_dbcsr_init(pao%matrix_V_terms)
       CALL cp_dbcsr_create(pao%matrix_V_terms, &
-                           template=matrix_s(1)%matrix, &
+                           name="PAO matrix_V_terms", &
+                           dist=pao%diag_distribution, &
                            matrix_type="N", &
                            row_blk_size=row_blk_size, &
                            col_blk_size=col_blk_size)

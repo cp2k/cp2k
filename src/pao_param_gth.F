@@ -83,7 +83,8 @@ CONTAINS
       row_blk_size = blk_sizes_pri**2
       CALL cp_dbcsr_init(pao%matrix_V_terms)
       CALL cp_dbcsr_create(pao%matrix_V_terms, &
-                           template=matrix_s(1)%matrix, &
+                           name="PAO matrix_V_terms", &
+                           dist=pao%diag_distribution, &
                            matrix_type="N", &
                            row_blk_size=row_blk_size, &
                            col_blk_size=col_blk_size)

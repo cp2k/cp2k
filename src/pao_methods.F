@@ -16,12 +16,14 @@ MODULE pao_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
-        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-        cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+        cp_dbcsr_complete_redistribute, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
+        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_distribution_new, &
+        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_iterator, &
         cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
         cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
         cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
-        cp_dbcsr_trace, cp_dbcsr_type
+        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_init, dbcsr_distribution_mp, &
+        dbcsr_distribution_obj, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -71,6 +73,7 @@ MODULE pao_methods
 
    PUBLIC :: pao_print_atom_info, pao_init_gaussian_radii
    PUBLIC :: pao_build_orthogonalizer, pao_build_selector
+   PUBLIC :: pao_build_diag_distribution
    PUBLIC :: pao_build_matrix_X, pao_build_core_hamiltonian
    PUBLIC :: pao_test_convergence
    PUBLIC :: pao_calc_energy, pao_check_trace_ps
@@ -218,6 +221,15 @@ CONTAINS
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
 
+      ! store a copy that is distributed according to pao%diag_distribution
+      CALL cp_dbcsr_init(pao%matrix_N_diag)
+      CALL cp_dbcsr_create(pao%matrix_N_diag, &
+                           name="PAO matrix_N_diag", &
+                           dist=pao%diag_distribution, &
+                           template=matrix_s(1)%matrix)
+      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_N_diag)
+      CALL cp_dbcsr_complete_redistribute(pao%matrix_N, pao%matrix_N_diag)
+
       CALL timestop(handle)
    END SUBROUTINE pao_build_orthogonalizer
 
@@ -291,6 +303,56 @@ CONTAINS
    END SUBROUTINE pao_build_selector
 
 ! **************************************************************************************************
+!> \brief Creates new DBCSR distribution which spreads diagonal blocks evenly across ranks
+!> \param pao ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE pao_build_diag_distribution(pao, qs_env)
+      TYPE(pao_env_type), POINTER                        :: pao
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_diag_distribution'
+
+      INTEGER                                            :: handle, iatom, natoms, pgrid_cols, &
+                                                            pgrid_rows
+      INTEGER, DIMENSION(:), POINTER                     :: diag_col_dist, diag_row_dist, no_clusters
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_distribution_obj)                       :: main_dist
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, natom=natoms, matrix_s=matrix_s)
+
+      ! get processor grid from matrix_s
+      CALL cp_dbcsr_get_info(matrix=matrix_s(1)%matrix, distribution=main_dist)
+      mp_env = dbcsr_distribution_mp(main_dist)
+      pgrid_rows = dbcsr_mp_nprows(mp_env)
+      pgrid_cols = dbcsr_mp_npcols(mp_env)
+
+      ! create new mapping of matrix-grid to processor-grid
+      ALLOCATE (diag_row_dist(natoms), diag_col_dist(natoms))
+      DO iatom = 1, natoms
+         diag_row_dist(iatom) = MOD(iatom-1, pgrid_rows)
+         diag_col_dist(iatom) = MOD((iatom-1)/pgrid_rows, pgrid_cols)
+      ENDDO
+      NULLIFY (no_clusters)
+
+      ! instanciate distribution object
+      CALL dbcsr_distribution_init(pao%diag_distribution)
+      CALL cp_dbcsr_distribution_new(pao%diag_distribution, &
+                                     mp_env=mp_env, &
+                                     row_dist_block=diag_row_dist, &
+                                     col_dist_block=diag_col_dist, &
+                                     row_dist_cluster=no_clusters, &
+                                     col_dist_cluster=no_clusters)
+
+      DEALLOCATE (diag_row_dist, diag_col_dist)
+
+      CALL timestop(handle)
+   END SUBROUTINE pao_build_diag_distribution
+
+! **************************************************************************************************
 !> \brief Creates the matrix_X
 !> \param pao ...
 !> \param qs_env ...
@@ -299,19 +361,19 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_matrix_X', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_matrix_X'
 
-      INTEGER                                            :: iatom, ikind, natoms
+      INTEGER                                            :: handle, iatom, ikind, natoms
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+
+      CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
                       natom=natoms, &
-                      matrix_s=matrix_s, &
                       particle_set=particle_set)
 
+      ! determine block-sizes of matrix_X
       ALLOCATE (row_blk_size(natoms), col_blk_size(natoms))
       col_blk_size = 1
       DO iatom = 1, natoms
@@ -319,29 +381,30 @@ CONTAINS
          CALL pao_param_count(pao, qs_env, ikind, nparams=row_blk_size(iatom))
       ENDDO
 
+      ! build actual matrix_X
       CALL cp_dbcsr_init(pao%matrix_X)
       CALL cp_dbcsr_create(pao%matrix_X, &
-                           template=matrix_s(1)%matrix, &
+                           name="PAO matrix_X", &
+                           dist=pao%diag_distribution, &
                            matrix_type="N", &
                            row_blk_size=row_blk_size, &
                            col_blk_size=col_blk_size)
+      DEALLOCATE (row_blk_size, col_blk_size)
+
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
       CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
 
-      DEALLOCATE (row_blk_size, col_blk_size)
-
+      CALL timestop(handle)
    END SUBROUTINE pao_build_matrix_X
 
 ! **************************************************************************************************
 !> \brief Creates the matrix_H0 which contains the core hamiltonian
+!> \param pao ...
 !> \param qs_env ...
-!> \param matrix_H0 ...
-!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE pao_build_core_hamiltonian(qs_env, matrix_H0, iw)
+   SUBROUTINE pao_build_core_hamiltonian(pao, qs_env)
+      TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_type)                                :: matrix_H0
-      INTEGER, INTENT(IN)                                :: iw
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
@@ -355,18 +418,21 @@ CONTAINS
                       qs_kind_set=qs_kind_set)
 
       ! allocate matrix_H0
-      CALL cp_dbcsr_init(matrix_H0)
-      CALL cp_dbcsr_create(matrix_H0, template=matrix_s(1)%matrix)
-      CALL cp_dbcsr_reserve_diag_blocks(matrix_H0)
+      CALL cp_dbcsr_init(pao%matrix_H0)
+      CALL cp_dbcsr_create(pao%matrix_H0, &
+                           name="PAO matrix_H0", &
+                           dist=pao%diag_distribution, &
+                           template=matrix_s(1)%matrix)
+      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_H0)
 
       ! calculate inital atomic fock matrix H0
       ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), because it's not rotationally invariant.
       ! getting H0 directly from the atomic code
-      CALL calculate_atomic_fock_matrix(matrix_H0, &
+      CALL calculate_atomic_fock_matrix(pao%matrix_H0, &
                                         particle_set, &
                                         atomic_kind_set, &
                                         qs_kind_set, &
-                                        output_unit=iw)
+                                        output_unit=pao%iw)
 
    END SUBROUTINE pao_build_core_hamiltonian
 
@@ -619,12 +685,12 @@ CONTAINS
 !> \brief Helper routine, calculates partial derivative dE/dU
 !> \param qs_env ...
 !> \param ls_scf_env ...
-!> \param matrix_M ...
+!> \param matrix_M_diag the derivate, matrix uses pao%diag_distribution
 ! **************************************************************************************************
-   SUBROUTINE pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
+   SUBROUTINE pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M_diag)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
-      TYPE(cp_dbcsr_type)                                :: matrix_M
+      TYPE(cp_dbcsr_type)                                :: matrix_M_diag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_outer_grad_lnv', &
          routineP = moduleN//':'//routineN
@@ -632,9 +698,9 @@ CONTAINS
       INTEGER                                            :: handle, nspin
       REAL(KIND=dp)                                      :: filter_eps
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
-      TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M1, matrix_M2, matrix_M3, matrix_NHB, &
-         matrix_NHBM2, matrix_NPA, matrix_NPAM1, matrix_NSB, matrix_NSBM3, matrix_PA, matrix_PH, &
-         matrix_PHP, matrix_PSP, matrix_SB, matrix_SP
+      TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M, matrix_M1, matrix_M2, matrix_M3, &
+         matrix_NHB, matrix_NHBM2, matrix_NPA, matrix_NPAM1, matrix_NSB, matrix_NSBM3, matrix_PA, &
+         matrix_PH, matrix_PHP, matrix_PSP, matrix_SB, matrix_SP
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -659,8 +725,10 @@ CONTAINS
 
       ! notation according to pao_math_lnv.pdf
 
+      ! calculation uses distribution of matrix_s, after we redistribute using pao%diag_distribution
       CALL cp_dbcsr_init(matrix_M)
       CALL cp_dbcsr_create(matrix_M, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL cp_dbcsr_reserve_diag_blocks(matrix_M)
 
       !---------------------------------------------------------------------------
       ! calculate need products in pao basis
@@ -799,12 +867,24 @@ CONTAINS
       IF (SIZE(ls_scf_env%matrix_p) == 1) CALL cp_dbcsr_scale(matrix_M, 2.0_dp)
 
       !---------------------------------------------------------------------------
+      ! redistribute using pao%diag_distribution
+      CALL cp_dbcsr_init(matrix_M_diag)
+      CALL cp_dbcsr_create(matrix_M_diag, &
+                           name="PAO matrix_M", &
+                           matrix_type="N", &
+                           dist=pao%diag_distribution, &
+                           template=matrix_s(1)%matrix)
+      CALL cp_dbcsr_reserve_diag_blocks(matrix_M_diag)
+      CALL cp_dbcsr_complete_redistribute(matrix_M, matrix_M_diag)
+
+      !---------------------------------------------------------------------------
       ! cleanup: TODO release matrices as early as possible
       CALL cp_dbcsr_release(matrix_PH)
       CALL cp_dbcsr_release(matrix_PHP)
       CALL cp_dbcsr_release(matrix_SP)
       CALL cp_dbcsr_release(matrix_HPS)
       CALL cp_dbcsr_release(matrix_PSP)
+      CALL cp_dbcsr_release(matrix_M)
       CALL cp_dbcsr_release(matrix_M1)
       CALL cp_dbcsr_release(matrix_M2)
       CALL cp_dbcsr_release(matrix_M3)

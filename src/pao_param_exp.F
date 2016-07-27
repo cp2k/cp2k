@@ -10,10 +10,10 @@
 MODULE pao_param_exp
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, &
-        cp_dbcsr_set, cp_dbcsr_type
+        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
+        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_potentials,                  ONLY: pao_guess_initial_potential
@@ -61,7 +61,11 @@ CONTAINS
 
       ! allocate matrix_U0
       CALL cp_dbcsr_init(pao%matrix_U0)
-      CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL cp_dbcsr_create(pao%matrix_U0, &
+                           name="PAO matrix_U0", &
+                           matrix_type="N", &
+                           dist=pao%diag_distribution, &
+                           template=matrix_s(1)%matrix)
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
 
       ! diagonalize each block of H0 and store eigenvectors in U0
@@ -70,7 +74,7 @@ CONTAINS
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
          iatom = arow; CPASSERT(arow == acol)
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
          CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_N))
          N = SIZE(block_U0, 1)
 
@@ -173,10 +177,11 @@ CONTAINS
       COMPLEX(dp), DIMENSION(:, :), POINTER              :: block_D, evecs
       INTEGER                                            :: acol, arow, handle, i, iatom, j, k, M, &
                                                             N, nparams
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pao, blk_sizes_pri
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_G_full, block_M, &
                                                             block_tmp, block_U, block_U0, block_X, &
-                                                            block_X_full, block_Y
+                                                            block_X_full
       TYPE(cp_dbcsr_iterator)                            :: iter
 
       CALL timeset(routineN, handle)
@@ -184,16 +189,18 @@ CONTAINS
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
-         iatom = arow; CPASSERT(arow == acol); 
+         iatom = arow; CPASSERT(arow == acol)
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
          CPASSERT(ASSOCIATED(block_U))
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
          CPASSERT(ASSOCIATED(block_U0))
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=block_Y, found=found)
-         CPASSERT(ASSOCIATED(block_Y))
 
-         N = SIZE(block_Y, 1)
-         M = SIZE(block_Y, 2)
+         ! figure out basis sizes
+         blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
+         blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+         N = blk_sizes_pri(iatom) ! size of primary basis
+         M = blk_sizes_pao(iatom) ! size of pao basis
+
          nparams = SIZE(block_X, 1)
 
          ! block_X stores only rotations between occupied and virtuals

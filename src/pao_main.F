@@ -26,10 +26,10 @@ MODULE pao_main
    USE pao_io,                          ONLY: pao_read_restart,&
                                               pao_write_restart
    USE pao_methods,                     ONLY: &
-        pao_add_forces, pao_build_core_hamiltonian, pao_build_matrix_X, pao_build_orthogonalizer, &
-        pao_build_selector, pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, &
-        pao_check_trace_ps, pao_guess_initial_P, pao_init_gaussian_radii, pao_print_atom_info, &
-        pao_store_P, pao_test_convergence
+        pao_add_forces, pao_build_core_hamiltonian, pao_build_diag_distribution, &
+        pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, pao_calc_energy, &
+        pao_calc_outer_grad_lnv, pao_check_grad, pao_check_trace_ps, pao_guess_initial_P, &
+        pao_init_gaussian_radii, pao_print_atom_info, pao_store_P, pao_test_convergence
    USE pao_ml,                          ONLY: pao_ml_init,&
                                               pao_ml_predict
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
@@ -120,12 +120,13 @@ CONTAINS
       pao%istep = 0
       pao%matrix_P_ready = .FALSE.
 
-      ! ready utility matrices
-      IF (.NOT. pao%matrices_YNH0_ready) THEN
+      ! ready stuff that does not depend on atom positions
+      IF (.NOT. pao%constants_ready) THEN
+         CALL pao_build_diag_distribution(pao, qs_env)
          CALL pao_build_orthogonalizer(pao, qs_env)
          CALL pao_build_selector(qs_env, pao%matrix_Y)
-         CALL pao_build_core_hamiltonian(qs_env, pao%matrix_H0, pao%iw)
-         pao%matrices_YNH0_ready = .TRUE.
+         CALL pao_build_core_hamiltonian(pao, qs_env)
+         pao%constants_ready = .TRUE.
       ENDIF
 
       CALL pao_param_init(pao, qs_env)
@@ -157,9 +158,15 @@ CONTAINS
       CALL cp_dbcsr_init(pao%matrix_G)
       CALL cp_dbcsr_copy(pao%matrix_G, pao%matrix_X)
       CALL cp_dbcsr_set(pao%matrix_G, 0.0_dp)
+
       CALL cp_dbcsr_init(pao%matrix_U)
-      CALL cp_dbcsr_create(pao%matrix_U, template=matrix_s(1)%matrix, matrix_type="N", name="PAO matrix_U")
+      CALL cp_dbcsr_create(pao%matrix_U, &
+                           name="PAO matrix_U", &
+                           matrix_type="N", &
+                           dist=pao%diag_distribution, &
+                           template=matrix_s(1)%matrix)
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U)
+
       CALL cp_dbcsr_init(ls_mstruct%matrix_A)
       CALL cp_dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
       CALL cp_dbcsr_init(ls_mstruct%matrix_B)

@@ -8,7 +8,9 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_fock
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
+                                              cp_dbcsr_get_block_p,&
+                                              cp_dbcsr_row_block_sizes
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_types,                       ONLY: pao_env_type
@@ -47,24 +49,26 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, j, m, n
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pao, blk_sizes_pri
       LOGICAL                                            :: found
       REAL(dp)                                           :: alpha, beta, denom, diff, gap
       REAL(dp), DIMENSION(:), POINTER                    :: H_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_N, D1, D2, H, H0, H_evecs, M2, M3, &
-                                                            M4, M5, Y
+                                                            M4, M5
 
       CALL timeset(routineN, handle)
 
       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=H0, found=found)
       CPASSERT(ASSOCIATED(H0))
-      CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
+      CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
       CPASSERT(ASSOCIATED(block_N))
-      CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=Y, found=found)
-      CPASSERT(ASSOCIATED(Y))
-
       IF (MAXVAL(ABS(V-TRANSPOSE(V))) > 1e-14_dp) CPABORT("Expect symmetric matrix")
-      n = SIZE(Y, 1) ! size of primary basis
-      m = SIZE(Y, 2) ! size of pao basis
+
+      ! figure out basis sizes
+      blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
+      blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+      n = blk_sizes_pri(iatom) ! size of primary basis
+      m = blk_sizes_pao(iatom) ! size of pao basis
 
       ! calculate H in the orthonormal basis
       ALLOCATE (H(n, n))
