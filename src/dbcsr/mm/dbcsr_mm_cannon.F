@@ -8476,7 +8476,7 @@ CONTAINS
       ! Workaround for OpenMPI RMA bug
       IF (meta_buffer(offset_images(imeta, ioffset_first(uf)+1)+dbcsr_slot_size) .EQ. -999) THEN
          CALL cp_warn(__LOCATION__, "MPI_rget operation didn't complete! "// &
-                      "Probably you are using a buggy OpenMPI (version<2.0.1). "// &
+                      "Probably you are using a buggy OpenMPI (version<1.10.4 or 2.0.1). "// &
                       "Try to enforce communication with window flush.")
          IF (do_merge_rows) THEN
             CALL mp_win_flush_all(buffers_orig%left%data_win)
