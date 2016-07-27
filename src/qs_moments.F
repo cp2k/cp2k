@@ -1136,8 +1136,8 @@ CONTAINS
                      dd = SUM(kvec(:)*ria(:))
                      zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)**charge
                      zij(i, j) = zij(i, j)*zdeta
+                     zij(j, i) = zij(i, j)
                   END DO
-                  zij(j, i) = zij(i, j)
                END DO
             END DO
             DO i = 1, 3
