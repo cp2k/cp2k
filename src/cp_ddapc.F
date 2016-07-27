@@ -415,14 +415,14 @@ CONTAINS
                            density_type=my_id, &
                            qout1=charges, &
                            out_radii=radii, &
-                           dq_out=dq)
+                           dq_out=dq, iwc=iw)
          ELSE
             CALL get_ddapc(qs_env, &
                            need_f, &
                            density_fit_section, &
                            density_type=my_id, &
                            qout1=charges, &
-                           out_radii=radii)
+                           out_radii=radii, iwc=iw)
          END IF
 
          ! Modify the Hartree potential due to the restrain or the v_spin_ddapc_rest_g
