@@ -2457,7 +2457,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: scount
+    INTEGER                                  :: scount, rsize
 #endif
 
     ierr = 0
@@ -2465,9 +2465,10 @@
 
 #if defined(__parallel)
     scount = SIZE ( msgout )
+    rsize = SIZE ( rcount )
 #if __MPI_VERSION > 2
-    CALL MPI_IALLGATHERV(msgout, scount, MPI_DOUBLE_PRECISION, msgin, rcount, &
-                        rdispl, MPI_DOUBLE_PRECISION, gid, request, ierr )
+    CALL mp_iallgatherv_dv_internal(msgout, scount, msgin, rsize, rcount, &
+                        rdispl, gid, request, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgatherv @ "//routineN )
 #else
     MARK_USED(rcount)
@@ -2486,6 +2487,29 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_iallgatherv_dv
+
+! **************************************************************************************************
+!> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1
+!>        the issue is with the rank of rcount and rdispl
+!> \param count ...
+!> \param array_of_requests ...
+!> \param array_of_statuses ...
+!> \param ierr ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+#if defined(__parallel) && (__MPI_VERSION > 2)
+  SUBROUTINE mp_iallgatherv_dv_internal(msgout,scount,msgin,rsize,rcount,rdispl,gid,request,ierr)
+    REAL(kind=real_8), INTENT(IN)                      :: msgout( : )
+    REAL(kind=real_8), INTENT(OUT)                     :: msgin( : )
+    INTEGER, INTENT(IN)                      :: rsize
+    INTEGER, INTENT(IN)                      :: rcount(rsize), rdispl(rsize), gid, scount
+    INTEGER, INTENT(INOUT)                   :: request, ierr
+
+    CALL MPI_IALLGATHERV(msgout, scount, MPI_DOUBLE_PRECISION, msgin, rcount, &
+                         rdispl, MPI_DOUBLE_PRECISION, gid, request, ierr )
+
+  END SUBROUTINE mp_iallgatherv_dv_internal
+#endif
 
 ! *****************************************************************************
 !> \brief Sums a vector and partitions the result among processes
