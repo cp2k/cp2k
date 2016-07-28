@@ -1030,41 +1030,36 @@ CONTAINS
       TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
-      NULLIFY (rho_core, rho0_s_gs, dft_control)
       my_skip = .FALSE.
       IF (PRESENT(skip_nuclear_density)) my_skip = skip_nuclear_density
-      CALL get_qs_env(qs_env=qs_env, &
-                      rho_core=rho_core, &
-                      rho0_s_gs=rho0_s_gs, &
-                      qs_charges=qs_charges, &
-                      dft_control=dft_control)
 
       CALL qs_rho_get(rho, rho_g=rho_g)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
       IF (.NOT. my_skip) THEN
+         NULLIFY (rho_core)
+         CALL get_qs_env(qs_env=qs_env, rho_core=rho_core)
          IF (dft_control%qs_control%gapw) THEN
+            NULLIFY (rho0_s_gs)
+            CALL get_qs_env(qs_env=qs_env, rho0_s_gs=rho0_s_gs)
+            CPASSERT(ASSOCIATED(rho0_s_gs))
+            CALL pw_copy(rho0_s_gs%pw, rho_tot_gspace%pw)
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-               CPASSERT(ASSOCIATED(rho0_s_gs))
-               CALL pw_copy(rho0_s_gs%pw, rho_tot_gspace%pw)
                CALL pw_axpy(rho_core%pw, rho_tot_gspace%pw)
-               CALL pw_axpy(rho_g(1)%pw, rho_tot_gspace%pw)
-            ELSE
-               CPASSERT(ASSOCIATED(rho0_s_gs))
-               CALL pw_copy(rho0_s_gs%pw, rho_tot_gspace%pw)
-               CALL pw_axpy(rho_g(1)%pw, rho_tot_gspace%pw)
             END IF
          ELSE
             CALL pw_copy(rho_core%pw, rho_tot_gspace%pw)
-            CALL pw_axpy(rho_g(1)%pw, rho_tot_gspace%pw)
          END IF
-      ELSE
-         CALL pw_axpy(rho_g(1)%pw, rho_tot_gspace%pw)
-      END IF
-      DO ispin = 2, dft_control%nspins
-         CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw)
-      END DO
-      IF (.NOT. my_skip) &
+         DO ispin = 1, dft_control%nspins
+            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw)
+         END DO
+         CALL get_qs_env(qs_env=qs_env, qs_charges=qs_charges)
          qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw, isign=-1)
+      ELSE
+         DO ispin = 1, dft_control%nspins
+            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw)
+         END DO
+      END IF
 
    END SUBROUTINE calc_rho_tot_gspace
 
