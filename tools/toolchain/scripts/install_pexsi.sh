@@ -56,7 +56,7 @@ case "$with_pexsi" in
                     -e "s|\(BLAS_LIB *=\).*|\1|g" \
                     -e "s|\(\bMETIS_LIB *=\).*|\1 ${METIS_LDFLAGS} ${METIS_LIBS}|g" \
                     -e "s|\(PARMETIS_LIB *=\).*|\1 ${PARMETIS_LDFLAGS} ${PARMETIS_LIBS}|g" \
-                    -e "s|\(DSUPERLU_LIB *=\).*|\1 ${SUPERLU_LDFLAGS} ${SUPERLU_LIBS}|g" \
+                    -e "s|\(DSUPERLU_LIB *=\).*|\1 ${SUPERLU_LDFLAGS} -lsuperlu_dist|g" \
                     -e "s|\(SCOTCH_LIB *=\).*|\1 ${SCOTCH_LDFLAGS} -lscotchmetis -lscotch -lscotcherr|g" \
                     -e "s|\(PTSCOTCH_LIB *=\).*|\1 ${SCOTCH_LDFLAGS} -lptscotchparmetis -lptscotch -lptscotcherr -lscotch|g" \
                     -e "s|#FLOADOPTS *=.*|FLOADOPTS    = \${LIBS} \${CPP_LIB}|g" \
