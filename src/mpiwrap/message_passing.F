@@ -359,9 +359,15 @@ MODULE message_passing
          mp_iallgather_i, mp_iallgather_l, &
          mp_iallgather_r, mp_iallgather_d, &
          mp_iallgather_c, mp_iallgather_z, &
+         mp_iallgather_i12, mp_iallgather_l12, &
+         mp_iallgather_r12, mp_iallgather_d12, &
+         mp_iallgather_c12, mp_iallgather_z12, &
          mp_iallgather_i22, mp_iallgather_l22, &
          mp_iallgather_r22, mp_iallgather_d22, &
          mp_iallgather_c22, mp_iallgather_z22, &
+         mp_iallgather_i23, mp_iallgather_l23, &
+         mp_iallgather_r23, mp_iallgather_d23, &
+         mp_iallgather_c23, mp_iallgather_z23, &
          mp_iallgather_i33, mp_iallgather_l33, &
          mp_iallgather_r33, mp_iallgather_d33, &
          mp_iallgather_c33, mp_iallgather_z33, &

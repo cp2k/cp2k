@@ -2187,6 +2187,57 @@
 !> \param request ...
 !> \note see mp_allgather_c12
 ! *****************************************************************************
+  SUBROUTINE mp_iallgather_c12(msgout, msgin, gid, request)
+    COMPLEX(kind=real_4), INTENT(IN)                      :: msgout
+    COMPLEX(kind=real_4), INTENT(OUT)                     :: msgin(:, :)
+    INTEGER, INTENT(IN)                      :: gid
+    INTEGER, INTENT(OUT)                     :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_c12', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: rcount, scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    scount = 1
+    rcount = 1
+    CALL MPI_IALLGATHER(msgout, scount, MPI_COMPLEX, &
+                       msgin , rcount, MPI_COMPLEX, &
+                       gid, request, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
+#else
+    MARK_USED(msgout)
+    MARK_USED(msgin)
+    MARK_USED(rcount)
+    MARK_USED(scount)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_iallgather requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(gid)
+    msgin(1,1) = msgout
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iallgather_c12
+
+! *****************************************************************************
+!> \brief Gathers rank-2 data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-2 data to send
+!> \param msgin ...
+!> \param gid ...
+!> \param request ...
+!> \note see mp_allgather_c12
+! *****************************************************************************
   SUBROUTINE mp_iallgather_c22(msgout, msgin, gid, request)
     COMPLEX(kind=real_4), INTENT(IN)                      :: msgout(:, :)
     COMPLEX(kind=real_4), INTENT(OUT)                     :: msgin(:, :)
@@ -2228,6 +2279,57 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_iallgather_c22
+
+! *****************************************************************************
+!> \brief Gathers rank-2 data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-2 data to send
+!> \param msgin ...
+!> \param gid ...
+!> \param request ...
+!> \note see mp_allgather_c12
+! *****************************************************************************
+  SUBROUTINE mp_iallgather_c23(msgout, msgin, gid, request)
+    COMPLEX(kind=real_4), INTENT(IN)                      :: msgout(:, :)
+    COMPLEX(kind=real_4), INTENT(OUT)                     :: msgin(:, :, :)
+    INTEGER, INTENT(IN)                      :: gid
+    INTEGER, INTENT(OUT)                     :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_c23', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: rcount, scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    scount = SIZE (msgout(:,:))
+    rcount = scount
+    CALL MPI_IALLGATHER(msgout, scount, MPI_COMPLEX, &
+                       msgin , rcount, MPI_COMPLEX, &
+                       gid, request, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
+#else
+    MARK_USED(msgout)
+    MARK_USED(msgin)
+    MARK_USED(rcount)
+    MARK_USED(scount)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_iallgather requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(gid)
+    msgin(1,:,:) = msgout(:,:)
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iallgather_c23
 
 ! *****************************************************************************
 !> \brief Gathers rank-3 data from all processes and all processes receive the
@@ -2347,7 +2449,7 @@
   SUBROUTINE mp_iallgatherv_cv(msgout,msgin,rcount,rdispl,gid,request)
     COMPLEX(kind=real_4), INTENT(IN)                      :: msgout( : )
     COMPLEX(kind=real_4), INTENT(OUT)                     :: msgin( : )
-    INTEGER, INTENT(IN)                      :: rcount( : ), rdispl( : ), gid
+    INTEGER, INTENT(IN)                      :: rcount(:, :), rdispl(:, :), gid
     INTEGER, INTENT(INOUT)                   :: request
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgatherv_cv', &
