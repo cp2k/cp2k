@@ -5,6 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
 H2O-ls-emd.inp                                         1      1e-11                 -17.0890686606
+H2O-ls-emd-ewindow.inp           67     5e-13             0.10587613313842528
 H2O-ls-emd-ngs.inp                1     2e-14             -17.02550719708634
 H2O-ls-rtp-bch.inp                1     2e-14             -17.08907730649009
 H2O-ls-rtp.inp                    1     6e-14             -17.08907732640686

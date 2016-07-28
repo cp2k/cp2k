@@ -32,6 +32,7 @@ MODULE qs_scf_post_gpw
                                               copy_fm_to_dbcsr
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_ddapc_util,                   ONLY: get_ddapc
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -3198,17 +3199,18 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
       LOGICAL                                            :: print_cube, restrict_range
       REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, energy_range, fermi_level, &
-         filter_eps, frob_norm, lanzcos_threshold, lower_bound, total_rho, upper_bound
+         filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, total_rho, upper_bound
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
       TYPE(cp_dbcsr_type)                                :: matrix_ks_nosym, S_half, S_minus_half, &
                                                             tmp
-      TYPE(cp_dbcsr_type), POINTER                       :: window
+      TYPE(cp_dbcsr_type), POINTER                       :: rho_ao_ortho, window
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, window_fm_struct
       TYPE(cp_fm_type), POINTER                          :: eigenvectors, eigenvectors_nonorth, &
                                                             matrix_ks_fm, P_window_fm, &
-                                                            S_minus_half_fm, window_fm
+                                                            rho_ao_ortho_fm, S_minus_half_fm, &
+                                                            window_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -3227,6 +3229,8 @@ CONTAINS
                       input=input, nelectron_total=nelectron_total, subsys=subsys, ks_env=ks_env, matrix_s=matrix_s)
       CALL qs_subsys_get(subsys, particles=particles)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
+      IF (SIZE(rho_ao) > 1) CALL cp_warn(__LOCATION__, &
+                                         "The printing of energy windows is currently only implemented for clsoe shell systems")
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       !reading the input
@@ -3245,10 +3249,7 @@ CONTAINS
       CALL section_vals_val_get(ls_scf_section, "SIGN_SQRT_ORDER", i_val=newton_schulz_order)
 
       !Initialize data
-      ALLOCATE (window)
-      NULLIFY (rho_r, rho_g)
-      ALLOCATE (rho_r, rho_g)
-      NULLIFY (rho_r%pw, rho_g%pw)
+      ALLOCATE (window, rho_ao_ortho)
       CALL cp_dbcsr_get_info(matrix=matrix_ks(1)%matrix, nfullrows_total=nao)
       ALLOCATE (eigenvalues(nao))
       CALL cp_dbcsr_init(matrix_ks_nosym)
@@ -3260,14 +3261,20 @@ CONTAINS
       CALL cp_dbcsr_create(S_half, template=matrix_s(1)%matrix, matrix_type="N")
       CALL cp_dbcsr_init(window)
       CALL cp_dbcsr_create(window, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL cp_dbcsr_init(rho_ao_ortho)
+      CALL cp_dbcsr_create(rho_ao_ortho, template=matrix_s(1)%matrix, matrix_type="N")
       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, context=blacs_env, nrow_global=nao, ncol_global=nao)
       CALL cp_fm_create(P_window_fm, ao_ao_fmstruct)
       CALL cp_fm_create(matrix_ks_fm, ao_ao_fmstruct)
+      CALL cp_fm_create(rho_ao_ortho_fm, ao_ao_fmstruct)
       CALL cp_fm_create(S_minus_half_fm, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
       CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
+      NULLIFY (rho_r, rho_g)
+      ALLOCATE (rho_r, rho_g)
+      NULLIFY (rho_r%pw, rho_g%pw)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       !calculate S_minus_half
       CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, filter_eps, &
@@ -3275,9 +3282,14 @@ CONTAINS
 
       !get the full ks matrix
       CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix, matrix_ks_nosym)
-      CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, matrix_ks_nosym, zero, tmp, filter_eps=filter_eps) !switching to orthonormal basis
+
+      !switching to orthonormal basis
+      CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, matrix_ks_nosym, zero, tmp, filter_eps=filter_eps)
       CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, matrix_ks_nosym, filter_eps=filter_eps)
       CALL copy_dbcsr_to_fm(matrix_ks_nosym, matrix_ks_fm)
+      CALL cp_dbcsr_multiply("N", "N", one, S_half, rho_ao(1)%matrix, zero, tmp, filter_eps=filter_eps)
+      CALL cp_dbcsr_multiply("N", "N", one, tmp, S_half, zero, rho_ao_ortho, filter_eps=filter_eps)
+      CALL copy_dbcsr_to_fm(rho_ao_ortho, rho_ao_ortho_fm)
 
       !diagonalize the full ks matrix
       CALL choose_eigv_solver(matrix_ks_fm, eigenvectors, eigenvalues)
@@ -3297,7 +3309,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(S_minus_half, S_minus_half_fm)
       CALL cp_gemm("N", "N", nao, nao, nao, one, S_minus_half_fm, eigenvectors, zero, eigenvectors_nonorth) !calculate the density caused by the mos in the energy window
 
-      IF (debug) THEN !Currently only debug, since it is only implemented for even spins
+      IF (debug) THEN
          !check difference to actual density
          CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=nelectron_total/2)
          CALL cp_fm_create(window_fm, window_fm_struct)
@@ -3328,6 +3340,7 @@ CONTAINS
       !create energy windows
       bin_width = (upper_bound-lower_bound)/nwindows
       next = 0
+
       DO i = 1, nwindows
          DO WHILE (eigenvalues(next+1) < lower_bound)
             next = next+1
@@ -3337,11 +3350,17 @@ CONTAINS
             next = next+1
             IF (next == SIZE(eigenvalues)) EXIT
          END DO
+         !calculate the occupation
+         CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next-last) !not sure how bad this is now load balanced due to using the same blacs_env
+         CALL cp_fm_create(window_fm, window_fm_struct)
+         CALL cp_fm_to_fm(eigenvectors, window_fm, next-last, last+1, 1) !copy the mos in the energy window into a separate matrix
+         CALL cp_gemm("N", "T", nao, nao, next-last, 2*one, window_fm, window_fm, zero, P_window_fm)
+         CALL cp_fm_trace(rho_ao_ortho_fm, rho_ao_ortho_fm, occupation)
+         CALL cp_fm_trace(P_window_fm, P_window_fm, occupation)
+         CALL cp_fm_trace(P_window_fm, rho_ao_ortho_fm, occupation)
          IF (print_cube) THEN
+            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next-last, last+1, 1)
             !print the energy window to a cube file
-            CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next-last) !not sure how bad this is now load balanced due to using the same blacs_env
-            CALL cp_fm_create(window_fm, window_fm_struct)
-            CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next-last, last+1, 1) !copy the mos in the energy window into a separate matrix
             CALL cp_gemm("N", "T", nao, nao, next-last, 2*one, window_fm, window_fm, zero, P_window_fm) !calculate the density caused by the mos in the energy window
             CALL copy_fm_to_dbcsr(P_window_fm, tmp)
             !ensure the correct sparsity
@@ -3360,16 +3379,17 @@ CONTAINS
             CALL cp_pw_to_cube(rho_r%pw, print_unit, title, particles=particles, stride=stride)
             CALL cp_print_key_finished_output(print_unit, logger, dft_section, &
                                               "PRINT%ENERGY_WINDOWS")
-            CALL cp_fm_release(window_fm)
-            CALL cp_fm_struct_release(window_fm_struct)
             density_ewindow_total = pw_integrate_function(rho_r%pw)
             IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", &
-               next-last, " Grid Density ", density_ewindow_total
+               next-last, " occupation ", occupation, " Grid Density ", density_ewindow_total
          ELSE
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", next-last
+               WRITE (unit_nr, *) " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", &
+                  next-last, " occupation ", Occupation
             END IF
          END IF
+         CALL cp_fm_release(window_fm)
+         CALL cp_fm_struct_release(window_fm_struct)
       END DO
 
       !clean up
@@ -3378,9 +3398,11 @@ CONTAINS
       CALL cp_dbcsr_release(window)
       CALL cp_dbcsr_release(S_minus_half)
       CALL cp_dbcsr_release(S_half)
-      DEALLOCATE (window)
+      CALL cp_dbcsr_release(rho_ao_ortho)
+      DEALLOCATE (window, rho_ao_ortho)
       CALL cp_fm_struct_release(ao_ao_fmstruct)
       CALL cp_fm_release(matrix_ks_fm)
+      CALL cp_fm_release(rho_ao_ortho_fm)
       CALL cp_fm_release(eigenvectors)
       CALL cp_fm_release(P_window_fm)
       CALL cp_fm_release(eigenvectors_nonorth)
