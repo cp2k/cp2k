@@ -3371,7 +3371,7 @@ CONTAINS
                                     rho_gspace=rho_g, &
                                     total_rho=total_rho, &
                                     ks_env=ks_env)
-            WRITE (ext, "(A14,I5.5,A5)") "-ENERGY-WINDOW", i, ".cube"
+            WRITE (ext, "(A14,I5.5,A)") "-ENERGY-WINDOW", i, TRIM(cp_iter_string(logger%iter_info))//".cube"
             print_unit = cp_print_key_unit_nr(logger, dft_section, "PRINT%ENERGY_WINDOWS", &
                                               extension=ext, file_status="REPLACE", file_action="WRITE", &
                                               log_filename=.FALSE.)
