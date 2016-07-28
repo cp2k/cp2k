@@ -171,9 +171,9 @@ and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
     subdirectory) is required.
 
 In the arch file of CP2K:
-  * Add ''-lpexsi_${SUFFIX} -lsuperlu_dist_3.3 -lparmetis -lmetis'', and their paths
-    (with -L$(LIB_DIR)) to LIBS. It is important that these libraries are placed
-    before LAPACK and BLAS.
+  * Add ''-lpexsi_${SUFFIX} -llapack -lblas -lsuperlu_dist_3.3 -lparmetis -lmetis'', and their paths
+    (with -L$(LIB_DIR)) to LIBS. It is important that a copy of LAPACK and BLAS is placed before and
+    after these libraries  (replace -llapack and -lblas with the optimized versions as needed).
   * in order to link in PT-Scotch instead of ParMETIS replace ''-lparmetis -lmetis'' with:
       -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr
   * Add ''-I$(PEXSI_DIR)/fortran/'' (for f_ppexsi_interface.mod) to FCFLAGS.
