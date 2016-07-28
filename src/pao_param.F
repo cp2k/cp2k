@@ -303,14 +303,15 @@ CONTAINS
       CALL timeset(routineN, handle)
       delta_max = 0.0_dp
 
+      blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
+      blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,blk_sizes_pri,blk_sizes_pao,delta_max) &
+!$OMP PRIVATE(iter,arow,acol,iatom,N,M,block_test,tmp1,tmp2)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_U)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_test)
          iatom = arow; CPASSERT(arow == acol)
-
-         ! figure out basis sizes
-         blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
-         blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
          N = blk_sizes_pri(iatom) ! size of primary basis
          M = blk_sizes_pao(iatom) ! size of pao basis
 
@@ -322,10 +323,13 @@ CONTAINS
             tmp2(i, i) = tmp2(i, i)-1.0_dp
          ENDDO
 
+!$OMP ATOMIC
          delta_max = MAX(delta_max, MAXVAL(ABS(tmp2)))
+
          DEALLOCATE (tmp1, tmp2)
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
       CALL mp_max(delta_max, group)

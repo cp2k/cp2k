@@ -29,6 +29,9 @@ MODULE orbital_transformation_matrices
    USE orbital_symbols,                 ONLY: cgf_symbol,&
                                               sgf_symbol
    USE termination,                     ONLY: stop_memory
+
+!$ USE OMP_LIB,                         ONLY: omp_get_level
+
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -80,6 +83,9 @@ CONTAINS
                                                             l, lx, lx1, lx2, ly, ly1, ly2, lz, &
                                                             lz1, lz2, m, ma, nc, ns
       REAL(KIND=dp)                                      :: s, s1, s2
+
+!$    IF (omp_get_level() > 0) &
+!$       CPABORT("create_spherical_harmonics is not thread save")
 
       IF (current_maxl > -1) THEN
          CALL cp_abort(__LOCATION__, &
@@ -283,6 +289,9 @@ CONTAINS
 
       INTEGER                                            :: l
 
+!$    IF (omp_get_level() > 0) &
+!$       CPABORT("deallocate_spherical_harmonics is not thread save")
+
       IF (current_maxl > -1) THEN
 
          DO l = 0, SIZE(orbtramat, 1)-1
@@ -325,6 +334,9 @@ CONTAINS
 
       CHARACTER(LEN=78)                                  :: headline
       INTEGER                                            :: l, nc, ns
+
+!$    IF (omp_get_level() > 0) &
+!$       CPABORT("init_spherical_harmonics is not thread save")
 
       IF (maxl < 0) THEN
          CALL cp_abort(__LOCATION__, &

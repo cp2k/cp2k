@@ -124,7 +124,7 @@ CONTAINS
       IF (.NOT. pao%constants_ready) THEN
          CALL pao_build_diag_distribution(pao, qs_env)
          CALL pao_build_orthogonalizer(pao, qs_env)
-         CALL pao_build_selector(qs_env, pao%matrix_Y)
+         CALL pao_build_selector(pao, qs_env)
          CALL pao_build_core_hamiltonian(pao, qs_env)
          pao%constants_ready = .TRUE.
       ENDIF

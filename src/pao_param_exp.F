@@ -69,6 +69,8 @@ CONTAINS
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
 
       ! diagonalize each block of H0 and store eigenvectors in U0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env) &
+!$OMP PRIVATE(iter,arow,acol,iatom,N,found,block_H0,block_V0,block_N,block_H,block_U0,H_evecs,H_evals)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
@@ -96,6 +98,7 @@ CONTAINS
          DEALLOCATE (block_H, H_evecs, H_evals, block_V0)
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (pao%precondition) &
          CPABORT("PAO preconditioning not supported for selected parametrization.")
@@ -186,6 +189,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
+      blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_M,matrix_G,blk_sizes_pri,blk_sizes_pao) &
+!$OMP PRIVATE(iter,arow,acol,iatom,N,M,nparams,i,j,k,found) &
+!$OMP PRIVATE(block_X,block_U,block_U0,block_X_full,evals,evecs) &
+!$OMP PRIVATE(block_M,block_G,block_D,block_tmp,block_G_full,denom)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
@@ -195,12 +205,8 @@ CONTAINS
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
          CPASSERT(ASSOCIATED(block_U0))
 
-         ! figure out basis sizes
-         blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
-         blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
          N = blk_sizes_pri(iatom) ! size of primary basis
          M = blk_sizes_pao(iatom) ! size of pao basis
-
          nparams = SIZE(block_X, 1)
 
          ! block_X stores only rotations between occupied and virtuals
@@ -270,6 +276,7 @@ CONTAINS
 
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE pao_calc_U_exp

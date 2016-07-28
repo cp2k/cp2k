@@ -99,6 +99,8 @@ CONTAINS
       DEALLOCATE (row_blk_size, col_blk_size)
 
       ! calculate, normalize, and store potential terms as rows of block_V_terms
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env,blk_sizes_pri) &
+!$OMP PRIVATE(iter,arow,acol,iatom,N,nterms,block_V_terms,V_blocks)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_terms)
@@ -112,6 +114,7 @@ CONTAINS
          DEALLOCATE (V_blocks)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL pao_param_linpot_regularizer(pao)
 
@@ -159,6 +162,8 @@ CONTAINS
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_R)
 
       ! fill matrix_R
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao) &
+!$OMP PRIVATE(iter,arow,acol,iatom,block_R,V_terms,found,nterms,S,S_evecs,S_evals,k,i,j,v,w)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_R)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_R)
@@ -191,6 +196,7 @@ CONTAINS
          DEALLOCATE (S, S_evals, S_evecs)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_linpot_regularizer
@@ -234,6 +240,8 @@ CONTAINS
       CALL cp_dbcsr_create(pao%matrix_precon_inv, template=pao%matrix_precon, name="PAO matrix_precon_inv")
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_precon_inv)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao) &
+!$OMP PRIVATE(iter,arow,acol,iatom,block_V_terms,block_precon,block_precon_inv,found,nterms,S,S_evals,S_evecs,i,j,k,eval_capped)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_terms)
@@ -269,6 +277,7 @@ CONTAINS
          DEALLOCATE (S, S_evecs, S_evals)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_linpot_preconditioner
@@ -512,6 +521,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       pri_basis_size => cp_dbcsr_row_block_sizes(pao%matrix_Y)
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env,pri_basis_size) &
+!$OMP PRIVATE(iter,arow,acol,iatom,block_X,N,nterms,V_terms,found,V_guess,V_guess_vec,S,S_evecs,S_evals,S_inv,k,i,j,w)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
@@ -555,6 +567,7 @@ CONTAINS
          DEALLOCATE (V_guess_vec, S, S_evecs, S_evals, S_inv)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE pao_param_initguess_linpot

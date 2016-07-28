@@ -58,11 +58,12 @@ MODULE pao_methods
                                               pao_potential_type,&
                                               qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
-                                              qs_ks_env_type
+   USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+
+!$ USE OMP_LIB, ONLY: omp_get_level
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -160,11 +161,9 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_orthogonalizer', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_orthogonalizer'
 
-      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, N, &
-                                                            natoms
+      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, N
       LOGICAL                                            :: found
       REAL(dp)                                           :: v, w
       REAL(dp), DIMENSION(:), POINTER                    :: evals
@@ -174,9 +173,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, &
-                      matrix_s=matrix_s, &
-                      natom=natoms)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s)
 
       CALL cp_dbcsr_init(pao%matrix_N)
       CALL cp_dbcsr_create(pao%matrix_N, template=matrix_s(1)%matrix, name="PAO matrix_N")
@@ -186,25 +183,27 @@ CONTAINS
       CALL cp_dbcsr_create(pao%matrix_N_inv, template=matrix_s(1)%matrix, name="PAO matrix_N_inv")
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_N_inv)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_s) &
+!$OMP PRIVATE(iter,arow,acol,iatom,block_N,block_N_inv,block_S,found,N,A,evals,k,i,j,w,v)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_N)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_N)
-         IF (arow /= acol) CPABORT("got non-diagonal block")
-         iatom = arow
+         iatom = arow; CPASSERT(arow == acol)
 
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_inv, row=arow, col=acol, block=block_N_inv, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_inv, row=iatom, col=iatom, block=block_N_inv, found=found)
          CPASSERT(ASSOCIATED(block_N_inv))
 
-         CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix, row=arow, col=acol, block=block_S, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix, row=iatom, col=iatom, block=block_S, found=found)
          CPASSERT(ASSOCIATED(block_S))
 
-         IF (SIZE(block_S, 1) /= SIZE(block_S, 2)) CPABORT("Expected symmetric block")
-         N = SIZE(block_S, 1)
+         N = SIZE(block_S, 1); CPASSERT(SIZE(block_S, 1) == SIZE(block_S, 2)) ! primary basis size
          ALLOCATE (A(N, N), evals(N))
 
          ! take square root of atomic overlap matrix
-         A(:, :) = block_S(:, :)
+         A = block_S
          CALL diamat_all(A, evals) !afterwards A contains the eigenvectors
+         block_N = 0.0_dp
+         block_N_inv = 0.0_dp
          DO k = 1, N
             ! NOTE: To maintain a consistent notation with the Berghold paper,
             ! the "_inv" is swapped: N^{-1}=sqrt(S); N=sqrt(S)^{-1}
@@ -220,6 +219,7 @@ CONTAINS
          DEALLOCATE (A, evals)
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       ! store a copy that is distributed according to pao%diag_distribution
       CALL cp_dbcsr_init(pao%matrix_N_diag)
@@ -235,49 +235,45 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Build rectangular matrix to converert between primary and PAO basis.
+!> \param pao ...
 !> \param qs_env ...
-!> \param matrix_Y ...
 ! **************************************************************************************************
-   SUBROUTINE pao_build_selector(qs_env, matrix_Y)
+   SUBROUTINE pao_build_selector(pao, qs_env)
+      TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_type)                                :: matrix_Y
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_selector', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_selector'
 
-      INTEGER                                            :: acol, arow, handle, i, ikind, nblocks, &
-                                                            pao_basis_size
+      INTEGER                                            :: acol, arow, handle, i, iatom, ikind, M, &
+                                                            natoms
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_aux, blk_sizes_pri
-      REAL(dp), DIMENSION(:, :), POINTER                 :: block
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_Y
       TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      NULLIFY (ks_env, matrix_s)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
-                      ks_env=ks_env, &
+                      natom=natoms, &
                       matrix_s=matrix_s, &
-                      particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set)
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set)
 
       blk_sizes_pri => cp_dbcsr_col_block_sizes(matrix_s(1)%matrix)
-      nblocks = SIZE(blk_sizes_pri)
-      IF (nblocks /= SIZE(particle_set, 1)) CPABORT("nblocks wrong")
-
-      ALLOCATE (blk_sizes_aux(nblocks))
-      DO i = 1, nblocks
-         CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=ikind)
-         CALL get_qs_kind(qs_kind_set(ikind), pao_basis_size=pao_basis_size)
-         IF (pao_basis_size < 1) CPABORT("PAO_BASIS_SIZE too small.")
-         blk_sizes_aux(i) = pao_basis_size
+      ALLOCATE (blk_sizes_aux(natoms))
+      DO iatom = 1, natoms
+         CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), pao_basis_size=M)
+         IF (M < 1) CPABORT("PAO_BASIS_SIZE too small.")
+         IF (blk_sizes_pri(iatom) < M) &
+            CPABORT("PAO basis size exceeds primary basis size.")
+         blk_sizes_aux(iatom) = M
       ENDDO
 
-      CALL cp_dbcsr_init(matrix_Y)
-      CALL cp_dbcsr_create(matrix_Y, &
+      CALL cp_dbcsr_init(pao%matrix_Y)
+      CALL cp_dbcsr_create(pao%matrix_Y, &
                            template=matrix_s(1)%matrix, &
                            matrix_type="N", &
                            row_blk_size=blk_sizes_pri, &
@@ -285,19 +281,21 @@ CONTAINS
                            name="PAO matrix_Y")
       DEALLOCATE (blk_sizes_aux)
 
-      CALL cp_dbcsr_reserve_diag_blocks(matrix_Y)
+      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_Y)
 
-      CALL cp_dbcsr_iterator_start(iter, matrix_Y)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao) &
+!$OMP PRIVATE(iter,arow,acol,block_Y,i,M)
+      CALL cp_dbcsr_iterator_start(iter, pao%matrix_Y)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block)
-         IF (SIZE(block, 2) > SIZE(block, 1)) &
-            CPABORT("PAO basis size exceeds primary basis size.")
-         block = 0.0_dp
-         DO i = 1, SIZE(block, 2)
-            block(i, i) = 1.0_dp
+         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_Y)
+         M = SIZE(block_Y, 2) ! size of pao basis
+         block_Y = 0.0_dp
+         DO i = 1, M
+            block_Y(i, i) = 1.0_dp
          ENDDO
       END DO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE pao_build_selector

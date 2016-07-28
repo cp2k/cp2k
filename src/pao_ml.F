@@ -474,7 +474,9 @@ CONTAINS
 
       ! fill matrix_X
       ALLOCATE (variances(natoms))
-      variances = 0.0_dp
+      variances(:) = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env,particle_set,qs_kind_set,cell,variances) &
+!$OMP PRIVATE(iter,arow,acol,iatom,ikind,descriptor,block_X)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
@@ -501,6 +503,7 @@ CONTAINS
          block_X(:, 1) = block_X(:, 1)+pao%ml_training_matrices(ikind)%prior
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       ! print variances
       CALL mp_sum(variances, para_env%group)
@@ -584,6 +587,9 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_G,particle_set,qs_kind_set,cell) &
+!$OMP REDUCTION(+:forces) &
+!$OMP PRIVATE(iter,arow,acol,iatom,ikind,block_G,descriptor,descr_grad)
       CALL cp_dbcsr_iterator_start(iter, matrix_G)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_G)
@@ -616,6 +622,7 @@ CONTAINS
          DEALLOCATE (descriptor, descr_grad)
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 

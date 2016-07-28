@@ -80,6 +80,7 @@ MODULE pao_types
 !> \var ml_tolerance              parsed input parameter
 !> \var gp_noise_var              parsed input parameter
 !> \var gp_scale                  parsed input parameter
+!> \var precondition              parsed input parameter
 !> \var iw                        output unit for pao in general
 !> \var iw_opt                    output unit for pao optimizer
 !> \var istep                     counts pao iterations, ie. number of pao energy evaluations
@@ -91,7 +92,6 @@ MODULE pao_types
 !> \var matrix_P_ready            set when density matrix is initialized
 !> \var constants_ready           set when stuff, which does not depend of atomic positions is ready
 !> \var need_initial_scf          set when the initial density matrix is not self-consistend
-!> \var precondition              set when parametrization provides a preconditioner
 !> \var matrix_X                  parameters of pao basis, which eventually determine matrix_U. Uses diag_distribution.
 !> \var matrix_U                  roation matrix derived from matrix_X. Uses diag_distribution.
 !> \var matrix_U0                 constant pre-rotation which serves as initial guess for exp-parametrization. Uses diag_distribution.
@@ -139,6 +139,7 @@ MODULE pao_types
       INTEGER                          :: parameterization = -1
       INTEGER                          :: optimizer = -1
       INTEGER                          :: cg_init_steps = -1
+      LOGICAL                          :: precondition = .FALSE.
       CHARACTER(LEN=default_path_length) :: preopt_dm_file = ""
       CHARACTER(LEN=default_path_length) :: restart_file = ""
       TYPE(filename_type), DIMENSION(:), ALLOCATABLE :: ml_training_set
@@ -164,7 +165,6 @@ MODULE pao_types
       LOGICAL                          :: matrix_P_ready = .FALSE.
       LOGICAL                          :: constants_ready = .FALSE.
       LOGICAL                          :: need_initial_scf = .FALSE.
-      LOGICAL                          :: precondition = .FALSE.
 
       ! matrices
       TYPE(cp_dbcsr_type)              :: matrix_X

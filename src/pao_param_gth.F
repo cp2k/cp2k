@@ -24,6 +24,7 @@ MODULE pao_param_gth
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
+   USE orbital_pointers,                ONLY: init_orbital_pointers
    USE pao_param_fock,                  ONLY: pao_calc_U_block_fock
    USE pao_potentials,                  ONLY: pao_calc_gaussian
    USE pao_types,                       ONLY: pao_env_type
@@ -56,26 +57,34 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_gth'
 
       INTEGER                                            :: acol, arow, handle, iatom, idx, ikind, &
-                                                            iterm, jatom, n, natoms
+                                                            iterm, jatom, maxl, n, natoms
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pri, col_blk_size, nterms, &
                                                             row_blk_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_V_term, vec_V_terms
       TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
+                      natom=natoms, &
                       matrix_s=matrix_s, &
-                      particle_set=particle_set, &
-                      natom=natoms)
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set)
 
+      maxl = 0
       ALLOCATE (row_blk_size(natoms), col_blk_size(natoms), nterms(natoms))
       DO iatom = 1, natoms
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL pao_param_count_gth(qs_env, ikind, nterms(iatom))
+         CALL get_qs_kind(qs_kind_set(ikind), pao_potentials=pao_potentials)
+         CPASSERT(SIZE(pao_potentials) == 1)
+         maxl = MAX(maxl, pao_potentials(1)%maxl)
       ENDDO
+      CALL init_orbital_pointers(maxl) ! needs to be called before gth_calc_term()
 
       ! allocate matrix_V_terms
       blk_sizes_pri => cp_dbcsr_row_block_sizes(matrix_s(1)%matrix)
@@ -92,6 +101,8 @@ CONTAINS
       CALL cp_dbcsr_set(pao%matrix_V_terms, 0.0_dp)
 
       ! calculate and store poential terms
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env,blk_sizes_pri,natoms,nterms) &
+!$OMP PRIVATE(iter,arow,acol,iatom,jatom,N,idx,vec_V_terms,block_V_term)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, vec_V_terms)
@@ -107,6 +118,7 @@ CONTAINS
          ENDDO
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (pao%precondition) &
          CALL pao_param_gth_preconditioner(pao, qs_env, nterms)
@@ -178,6 +190,7 @@ CONTAINS
          ALLOCATE (block(n, m))
          block = 0.0_dp
 
+         ! can't use OpenMP here block is a pointer and hence REDUCTION(+:block) does work
          CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
          DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
             CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_term)
@@ -404,9 +417,7 @@ CONTAINS
       ! get GTH-settings from remote atom
       CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=jkind)
       CALL get_qs_kind(qs_kind_set(jkind), pao_potentials=pao_potentials)
-      IF (SIZE(pao_potentials) /= 1) &
-         CPABORT("GTH parametrization requires exactly one PAO_POTENTIAL section per KIND")
-
+      CPASSERT(SIZE(pao_potentials) == 1)
       pot_max_projector = pao_potentials(1)%max_projector
       pot_maxl = pao_potentials(1)%maxl
       pot_beta = pao_potentials(1)%beta
@@ -446,6 +457,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_X
       TYPE(cp_dbcsr_iterator)                            :: iter
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao) &
+!$OMP PRIVATE(iter,arow,acol,block_X)
       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
@@ -457,6 +470,7 @@ CONTAINS
          block_X(1, 1) = 0.01_dp
       ENDDO
       CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
    END SUBROUTINE pao_param_initguess_gth
 

@@ -18,8 +18,8 @@ MODULE pao_potentials
    USE mathconstants,                   ONLY: gamma1
    USE mathlib,                         ONLY: multinomial
    USE orbital_pointers,                ONLY: indco,&
-                                              init_orbital_pointers,&
-                                              ncoset
+                                              ncoset,&
+                                              orbital_pointers_maxl=>current_maxl
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -83,6 +83,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Calculates potential term of the form r**lpot * Exp(-beta*r**2)
+!>        One needs to call init_orbital_pointers(lpot) before calling pao_calc_gaussian().
 !> \param basis_set ...
 !> \param block_V potential term that is returned
 !> \param block_D derivative of potential term wrt to Rab
@@ -123,7 +124,7 @@ CONTAINS
       CPASSERT(PRESENT(min_l) .EQV. PRESENT(max_l))
 
       CPASSERT(MOD(lpot, 2) == 0) ! otherwise it's not rotationally invariant
-      CALL init_orbital_pointers(lpot)
+      CPASSERT(orbital_pointers_maxl >= lpot) ! can't call init_orbital_pointers here, it's not thread-save
 
       N = basis_set%nsgf ! primary basis-size
 

@@ -25,6 +25,9 @@ MODULE orbital_pointers
 
    USE kinds,                           ONLY: int_size
    USE termination,                     ONLY: stop_memory
+
+!$ USE OMP_LIB,                         ONLY: omp_get_level
+
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -89,6 +92,9 @@ CONTAINS
                        "A negative maximum angular momentum quantum "// &
                        "number is invalid")
       END IF
+
+!$    IF (omp_get_level() > 0) &
+!$       CPABORT("create_orbital_pointers is not thread save")
 
 !   *** Number of Cartesian orbitals for each l ***
 
@@ -250,6 +256,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_orbital_pointers', &
          routineP = moduleN//':'//routineN
 
+!$    IF (omp_get_level() > 0) &
+!$       CPABORT("deallocate_orbital_pointers is not thread save")
+
       IF (current_maxl > -1) THEN
 
          DEALLOCATE (co)
@@ -292,6 +301,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_orbital_pointers', &
          routineP = moduleN//':'//routineN
+
+!$    IF (omp_get_level() > 0) &
+!$       CPABORT("init_orbital_pointers is not thread save")
 
       IF (maxl < 0) THEN
          CALL cp_abort(__LOCATION__, &
