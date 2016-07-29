@@ -3380,12 +3380,13 @@ CONTAINS
             CALL cp_print_key_finished_output(print_unit, logger, dft_section, &
                                               "PRINT%ENERGY_WINDOWS")
             density_ewindow_total = pw_integrate_function(rho_r%pw)
-            IF (unit_nr > 0) WRITE (unit_nr, *) " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", &
-               next-last, " occupation ", occupation, " Grid Density ", density_ewindow_total
+            IF (unit_nr > 0) WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14,A,F20.14)") " Energy Level: ", &
+               lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", next-last, " Occupation: ", &
+               occupation, " Grid Density ", density_ewindow_total
          ELSE
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, " Number of states: ", &
-                  next-last, " occupation ", Occupation
+               WRITE (unit_nr, "(A,F16.10,A,I5,A,F20.14)") " Energy Level: ", lower_bound+(i-0.5_dp)*bin_width, &
+                  " Number of states: ", next-last, " Occupation: ", occupation
             END IF
          END IF
          CALL cp_fm_release(window_fm)
