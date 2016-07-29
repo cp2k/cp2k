@@ -4636,7 +4636,7 @@ CONTAINS
                product_matrix_epss_displ(ilayer_row) = size_guess
                size_guess = size_guess+product_matrix_epss_size(ilayer_row)
             ENDDO
-            ALLOCATE (product_matrix_epss(size_guess))
+            ALLOCATE (product_matrix_epss(0:size_guess))
             CALL mp_iallgather(row_max_epss, &
                                product_matrix_epss, product_matrix_epss_size, product_matrix_epss_displ, &
                                layers_3D_C_reduction%rowgrp3D, request_epss)
@@ -4717,7 +4717,7 @@ CONTAINS
 !$OMP          PRIVATE (size_guess, ithread, ilayer_row, ilayer_col) &
 !$OMP          SHARED (product_matrix3D, multrec, &
 !$OMP                  keep_sparsity, filter_eps, &
-!$OMP                  row_max_epss, max_nblocks, product_matrix_epss, &
+!$OMP                  max_nblocks, product_matrix_epss, &
 !$OMP                  matrix_right, nthreads, nrows3D, ncols3D, &
 !$OMP                  myrow3D, mycol3D, keep_product_data, &
 !$OMP                  product_matrix_epss_displ, product_matrix_epss_size, &
@@ -4807,7 +4807,7 @@ CONTAINS
 !$OMP         otf_filtering,use_mpi_filtering,right_nprows,left_npcols,&
 !$OMP         right_myfirstvrow,right_myfirstvcol,right_max_norms,&
 !$OMP         left_row_nimages,imgdist_left,left_myfirstvrow,left_myfirstvcol,&
-!$OMP         left_max_norms,row_max_epss,right_row_nimages,&
+!$OMP         left_max_norms,right_row_nimages,product_matrix_epss,&
 !$OMP         right_refs_meta_size_layers3D,left_col_total_nimages,right_row_total_nimages,&
 !$OMP         left_refs_meta_size_layers3D,right_refs_data_size,left_refs_data_size,&
 !$OMP         right_max_data_size,left_max_data_size,left_col_nimages,&
@@ -4895,7 +4895,7 @@ CONTAINS
                IF (otf_filtering .AND. use_mpi_filtering) THEN
                   IF (left_max_norms(left_displ_vunmerged(recv_vcol)+1)* &
                       right_max_norms(right_displ_vunmerged(recv_vrow)+1) .LT. &
-                      row_max_epss(product_matrix_epss_displ(myrow3D))) CYCLE
+                      product_matrix_epss(product_matrix_epss_displ(myrow3D))) CYCLE
                ENDIF
                nofiltered(v_ki, metronome) = .TRUE.
                !
