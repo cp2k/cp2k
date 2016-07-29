@@ -107,6 +107,8 @@ MODULE dbcsr_types
              dbcsr_func_truncate, &
              dbcsr_func_cos
 
+   PUBLIC :: dbcsr_1d_array_obj, dbcsr_2d_array_obj
+
    PUBLIC :: dbcsr_mpi_statistics_type
 
 ! **************************************************************************************************
@@ -558,21 +560,17 @@ MODULE dbcsr_types
 ! **************************************************************************************************
 !> \brief A 1-D array of DBCSR matrices
 !> \var s           the array of matrices
-!> \var refcount    reference counter
 ! **************************************************************************************************
    TYPE dbcsr_1d_array_obj
-      TYPE(dbcsr_obj), DIMENSION(:), POINTER :: s => Null()
-      INTEGER, POINTER                       :: refcount => Null()
+      TYPE(dbcsr_obj_type_p), DIMENSION(:), POINTER :: mats => Null()
    END TYPE dbcsr_1d_array_obj
 
 ! **************************************************************************************************
 !> \brief A 2-D array of DBCSR matrices
 !> \var s           the array of matrices
-!> \var refcount    reference counter
 ! **************************************************************************************************
    TYPE dbcsr_2d_array_obj
-      TYPE(dbcsr_obj), DIMENSION(:, :), POINTER :: s => Null()
-      INTEGER, POINTER                         :: refcount => Null()
+      TYPE(dbcsr_obj_type_p), DIMENSION(:, :), POINTER :: mats => Null()
    END TYPE dbcsr_2d_array_obj
 
 ! **************************************************************************************************

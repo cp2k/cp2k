@@ -1982,6 +1982,47 @@
 !> \par MPI mapping
 !>      mpi_allgather
 ! *****************************************************************************
+  SUBROUTINE mp_allgather_r2(msgout,msgin,gid)
+    REAL(kind=real_4), INTENT(IN)                      :: msgout
+    REAL(kind=real_4), INTENT(OUT)                     :: msgin( : , :)
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgather_r2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: rcount, scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    scount = 1
+    rcount = 1
+    CALL MPI_ALLGATHER(msgout, scount, MPI_REAL, &
+                       msgin , rcount, MPI_REAL, &
+                       gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ "//routineN )
+#else
+    MARK_USED(gid)
+    msgin = msgout
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_allgather_r2
+
+! *****************************************************************************
+!> \brief Gathers a datum from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Datum to send
+!> \param[out] msgin          Received data
+!> \param[in] gid             Message passing environment identifier
+!> \par Data size
+!>      All processes send equal-sized data
+!> \par MPI mapping
+!>      mpi_allgather
+! *****************************************************************************
   SUBROUTINE mp_iallgather_r(msgout,msgin,gid,request)
     REAL(kind=real_4), INTENT(IN)                      :: msgout
     REAL(kind=real_4), INTENT(OUT)                     :: msgin( : )
@@ -2449,7 +2490,7 @@
   SUBROUTINE mp_iallgatherv_rv(msgout,msgin,rcount,rdispl,gid,request)
     REAL(kind=real_4), INTENT(IN)                      :: msgout( : )
     REAL(kind=real_4), INTENT(OUT)                     :: msgin( : )
-    INTEGER, INTENT(IN)                      :: rcount(:, :), rdispl(:, :), gid
+    INTEGER, INTENT(IN)                      :: rcount(:), rdispl(:), gid
     INTEGER, INTENT(INOUT)                   :: request
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgatherv_rv', &
@@ -2487,6 +2528,65 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_iallgatherv_rv
+
+! *****************************************************************************
+!> \brief Gathers vector data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-1 data to send
+!> \param[out] msgin          Received data
+!> \param[in] rcount          Size of sent data for every process
+!> \param[in] rdispl          Offset of sent data for every process
+!> \param[in] gid             Message passing environment identifier
+!> \par Data size
+!>      Processes can send different-sized data
+!> \par Ranks
+!>      The last rank counts the processes
+!> \par Offsets
+!>      Offsets are from 0
+!> \par MPI mapping
+!>      mpi_allgather
+! *****************************************************************************
+  SUBROUTINE mp_iallgatherv_rv2(msgout,msgin,rcount,rdispl,gid,request)
+    REAL(kind=real_4), INTENT(IN)                      :: msgout( : )
+    REAL(kind=real_4), INTENT(OUT)                     :: msgin( : )
+    INTEGER, INTENT(IN)                      :: rcount(:, :), rdispl(:, :), gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgatherv_rv2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: scount, rsize
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    scount = SIZE ( msgout )
+    rsize = SIZE ( rcount )
+#if __MPI_VERSION > 2
+    CALL mp_iallgatherv_rv_internal(msgout, scount, msgin, rsize, rcount, &
+                        rdispl, gid, request, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgatherv @ "//routineN )
+#else
+    MARK_USED(rcount)
+    MARK_USED(rdispl)
+    MARK_USED(gid)
+    MARK_USED(msgin)
+    request = mp_request_null
+    CPABORT("mp_iallgatherv requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(rcount)
+    MARK_USED(rdispl)
+    MARK_USED(gid)
+    msgin = msgout
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iallgatherv_rv2
 
 ! **************************************************************************************************
 !> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1

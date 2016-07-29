@@ -328,22 +328,22 @@ MODULE message_passing
 !> todo: move allgatherv to a separate declaration
    INTERFACE mp_allgather
       MODULE PROCEDURE &
-         mp_allgather_i, &
+         mp_allgather_i, mp_allgather_i2, &
          mp_allgather_i12, mp_allgather_i23, mp_allgather_i34, &
          mp_allgather_i22, &
-         mp_allgather_l, &
+         mp_allgather_l, mp_allgather_l2, &
          mp_allgather_l12, mp_allgather_l23, mp_allgather_l34, &
          mp_allgather_l22, &
-         mp_allgather_r, &
+         mp_allgather_r, mp_allgather_r2, &
          mp_allgather_r12, mp_allgather_r23, mp_allgather_r34, &
          mp_allgather_r22, &
-         mp_allgather_d, &
+         mp_allgather_d, mp_allgather_d2, &
          mp_allgather_d12, mp_allgather_d23, mp_allgather_d34, &
          mp_allgather_d22, &
-         mp_allgather_c, &
+         mp_allgather_c, mp_allgather_c2, &
          mp_allgather_c12, mp_allgather_c23, mp_allgather_c34, &
          mp_allgather_c22, &
-         mp_allgather_z, &
+         mp_allgather_z, mp_allgather_z2, &
          mp_allgather_z12, mp_allgather_z23, mp_allgather_z34, &
          mp_allgather_z22, &
          mp_allgatherv_iv, &
@@ -371,12 +371,12 @@ MODULE message_passing
          mp_iallgather_i33, mp_iallgather_l33, &
          mp_iallgather_r33, mp_iallgather_d33, &
          mp_iallgather_c33, mp_iallgather_z33, &
-         mp_iallgatherv_iv, &
-         mp_iallgatherv_lv, &
-         mp_iallgatherv_rv, &
-         mp_iallgatherv_dv, &
-         mp_iallgatherv_cv, &
-         mp_iallgatherv_zv
+         mp_iallgatherv_iv, mp_iallgatherv_iv2, &
+         mp_iallgatherv_lv, mp_iallgatherv_lv2, &
+         mp_iallgatherv_rv, mp_iallgatherv_rv2, &
+         mp_iallgatherv_dv, mp_iallgatherv_dv2, &
+         mp_iallgatherv_cv, mp_iallgatherv_cv2, &
+         mp_iallgatherv_zv, mp_iallgatherv_zv2
    END INTERFACE
 
    INTERFACE mp_scatter
