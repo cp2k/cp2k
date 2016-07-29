@@ -10,6 +10,7 @@
 MODULE pao_ml
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_create,&
                                               cell_type
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_iterator,&
@@ -47,7 +48,8 @@ MODULE pao_ml
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -109,6 +111,9 @@ CONTAINS
       DO i = 1, SIZE(pao%ml_training_set)
          CALL add_to_training_list(pao, qs_env, training_lists, filename=pao%ml_training_set(i)%fn)
       ENDDO
+
+      ! ensure there there are training points for all kinds that use pao
+      CALL sanity_check(qs_env, training_lists)
 
       ! turns linked lists into matrices and syncs them across ranks
       CALL training_list2matrix(training_lists, pao%ml_training_matrices, para_env)
@@ -274,6 +279,32 @@ CONTAINS
    END SUBROUTINE match_kinds
 
 ! **************************************************************************************************
+!> \brief Checks that there is at least one training point per pao-enabled kind
+!> \param qs_env ...
+!> \param training_lists ...
+! **************************************************************************************************
+   SUBROUTINE sanity_check(qs_env, training_lists)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(training_list_type), DIMENSION(:), TARGET     :: training_lists
+
+      INTEGER                                            :: ikind, pao_basis_size
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(training_list_type), POINTER                  :: training_list
+
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+
+      DO ikind = 1, SIZE(training_lists)
+         training_list => training_lists(ikind)
+         IF (training_list%npoints > 0) CYCLE ! it's ok
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set, pao_basis_size=pao_basis_size)
+         IF (pao_basis_size /= basis_set%nsgf) & ! if this kind has pao enabled...
+            CPABORT("Found no training-points for kind: "//TRIM(training_list%kindname))
+      END DO
+
+   END SUBROUTINE sanity_check
+
+! **************************************************************************************************
 !> \brief Turns the linked lists of training points into matrices
 !> \param training_lists ...
 !> \param training_matrices ...
@@ -301,7 +332,11 @@ CONTAINS
          training_matrix => training_matrices(ikind)
          training_matrix%kindname = training_list%kindname ! copy kindname
          npoints = training_list%npoints ! number of points
-         CPASSERT(npoints > 0)
+         IF (npoints == 0) THEN
+            ALLOCATE (training_matrix%inputs(0, 0))
+            ALLOCATE (training_matrix%outputs(0, 0))
+            CYCLE
+         ENDIF
 
          ! figure out size of input and output
          inp_size = 0; out_size = 0
@@ -366,6 +401,7 @@ CONTAINS
          training_matrix => training_matrices(ikind)
          out_size = SIZE(training_matrix%outputs, 1)
          npoints = SIZE(training_matrix%outputs, 2)
+         IF (npoints == 0) CYCLE
          ALLOCATE (training_matrix%prior(out_size))
 
          ! calculate prior
@@ -403,6 +439,7 @@ CONTAINS
       DO ikind = 1, SIZE(training_matrices)
          training_matrix => training_matrices(ikind)
          N = SIZE(training_matrix%inputs)
+         IF (N == 0) CYCLE
          WRITE (iw, "(A,I3,A,E10.1,1X,E10.1,1X,E10.1)") " PAO|ML| Descriptor for kind: "// &
             TRIM(training_matrix%kindname)//" size: ", &
             SIZE(training_matrix%inputs, 1), " min/mean/max: ", &
@@ -482,6 +519,7 @@ CONTAINS
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         IF (SIZE(block_X) == 0) CYCLE ! pao disabled for iatom
 
          ! calculate decriptor
          CALL pao_ml_calc_descriptor(pao, &
@@ -533,11 +571,6 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: descriptor
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: output
       REAL(dp), INTENT(OUT)                              :: variance
-
-      INTEGER                                            :: npoints
-
-      npoints = SIZE(pao%ml_training_matrices(ikind)%outputs, 2)
-      CPASSERT(npoints > 0)
 
       SELECT CASE (pao%ml_method)
       CASE (pao_ml_gp)
@@ -595,6 +628,7 @@ CONTAINS
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_G)
          iatom = arow; CPASSERT(arow == acol)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+         IF (SIZE(block_G) == 0) CYCLE ! pao disabled for iatom
 
          ! calculate decriptor
          CALL pao_ml_calc_descriptor(pao, &

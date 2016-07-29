@@ -11,6 +11,7 @@ MODULE pao_methods
    USE ao_util,                         ONLY: exp_radius
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
+   USE basis_set_types,                 ONLY: gto_basis_set_type
    USE bibliography,                    ONLY: Kolafa2004,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
@@ -57,7 +58,8 @@ MODULE pao_methods
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               pao_descriptor_type,&
                                               pao_potential_type,&
-                                              qs_kind_type
+                                              qs_kind_type,&
+                                              set_qs_kind
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -73,7 +75,7 @@ MODULE pao_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_methods'
 
-   PUBLIC :: pao_print_atom_info, pao_init_gaussian_radii
+   PUBLIC :: pao_print_atom_info, pao_init_kinds
    PUBLIC :: pao_build_orthogonalizer, pao_build_selector
    PUBLIC :: pao_build_diag_distribution
    PUBLIC :: pao_build_matrix_X, pao_build_core_hamiltonian
@@ -87,17 +89,18 @@ MODULE pao_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Initialize radii of Gaussians to speedup screeing later on
+!> \brief Initialize qs kinds
 !> \param pao ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE pao_init_gaussian_radii(pao, qs_env)
+   SUBROUTINE pao_init_kinds(pao, qs_env)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_init_gaussian_radii'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_init_kinds'
 
-      INTEGER                                            :: handle, i, ikind
+      INTEGER                                            :: handle, i, ikind, pao_basis_size
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(pao_descriptor_type), DIMENSION(:), POINTER   :: pao_descriptors
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -107,8 +110,17 @@ CONTAINS
 
       DO ikind = 1, SIZE(qs_kind_set)
          CALL get_qs_kind(qs_kind_set(ikind), &
+                          basis_set=basis_set, &
+                          pao_basis_size=pao_basis_size, &
                           pao_potentials=pao_potentials, &
                           pao_descriptors=pao_descriptors)
+
+         IF (pao_basis_size < 1) THEN
+            ! pao disabled for ikind, set pao_basis_size to size of primary basis
+            CALL set_qs_kind(qs_kind_set(ikind), pao_basis_size=basis_set%nsgf)
+         ENDIF
+
+         ! initialize radii of Gaussians to speedup screeing later on
          DO i = 1, SIZE(pao_potentials)
             pao_potentials(i)%beta_radius = exp_radius(0, pao_potentials(i)%beta, pao%eps_pgf, 1.0_dp)
          ENDDO
@@ -118,7 +130,7 @@ CONTAINS
          ENDDO
       ENDDO
       CALL timestop(handle)
-   END SUBROUTINE pao_init_gaussian_radii
+   END SUBROUTINE pao_init_kinds
 
 ! **************************************************************************************************
 !> \brief Prints a one line summary for each atom.
@@ -267,7 +279,7 @@ CONTAINS
       DO iatom = 1, natoms
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          CALL get_qs_kind(qs_kind_set(ikind), pao_basis_size=M)
-         IF (M < 1) CPABORT("PAO_BASIS_SIZE too small.")
+         CPASSERT(M > 0)
          IF (blk_sizes_pri(iatom) < M) &
             CPABORT("PAO basis size exceeds primary basis size.")
          blk_sizes_aux(iatom) = M

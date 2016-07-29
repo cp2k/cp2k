@@ -1255,8 +1255,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="PAO_BASIS_SIZE", &
-                          description="The block size used for the polarized atomic orbital basis.", &
-                          default_i_val=-1)
+                          description="The block size used for the polarized atomic orbital basis. "// &
+                          "Setting PAO_BASIS_SIZE to the size of the primary basis or to a value "// &
+                          "below one will disables the PAO method for the given atomic kind. "// &
+                          "By default PAO is disbabled.", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -39,7 +39,7 @@ CONTAINS
          training_matrix => pao%ml_training_matrices(ikind)
          npoints = SIZE(training_matrix%inputs, 2) ! number of points
          CPASSERT(SIZE(training_matrix%outputs, 2) == npoints)
-         CPASSERT(npoints > 0)
+         IF (npoints == 0) CYCLE ! have no training data
 
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| Building covariance matrix for kind: ", &
             TRIM(training_matrix%kindname), " from ", npoints, "training points."

@@ -14,4 +14,8 @@ H2_pao_gth_checkgrad.inp          0
 #
 H2_pao_fock_checkforces.inp       0
 H2_pao_rotinv_checkforces.inp     0
+#
+# using single frame of H2 for predicting H2O with pao disabled on Oxygen
+# ...obviously the resulting energy is way off.
+H2O_hybrid_ML.inp                11     1e-10             -17.187378917410030
 #EOF

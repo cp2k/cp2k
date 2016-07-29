@@ -1997,12 +1997,13 @@ CONTAINS
 !> \param dftb_parameter ...
 !> \param scptb_parameter ...
 !> \param elec_conf ...
+!> \param pao_basis_size ...
 ! **************************************************************************************************
    SUBROUTINE set_qs_kind(qs_kind, paw_atom, ghost, floating, hard_radius, hard0_radius, &
                           soft_basis_set, hard_basis_set, lmax_rho0, zeff, &
                           no_optimize, dispersion, u_minus_j, reltmat, &
                           dftb_parameter, scptb_parameter, &
-                          elec_conf)
+                          elec_conf, pao_basis_size)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
       LOGICAL, INTENT(IN), OPTIONAL                      :: paw_atom, ghost, floating
@@ -2017,6 +2018,7 @@ CONTAINS
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(scptb_parameter_type), OPTIONAL, POINTER      :: scptb_parameter
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: elec_conf
+      INTEGER, INTENT(IN), OPTIONAL                      :: pao_basis_size
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_kind', routineP = moduleN//':'//routineN
 
@@ -2057,6 +2059,8 @@ CONTAINS
       END IF
 
       IF (PRESENT(reltmat)) qs_kind%reltmat => reltmat
+
+      IF (PRESENT(pao_basis_size)) qs_kind%pao_basis_size = pao_basis_size
 
    END SUBROUTINE set_qs_kind
 

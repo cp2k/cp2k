@@ -9,6 +9,7 @@
 ! **************************************************************************************************
 MODULE pao_param_linpot
    USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
@@ -35,6 +36,8 @@ MODULE pao_param_linpot
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -105,9 +108,10 @@ CONTAINS
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_terms)
          iatom = arow; CPASSERT(arow == acol)
+         nterms = SIZE(block_V_terms, 2)
+         IF (nterms == 0) CYCLE ! protect against corner-case of zero pao parameters
          N = blk_sizes_pri(iatom)
          CPASSERT(N*N == SIZE(block_V_terms, 1))
-         nterms = SIZE(block_V_terms, 2)
          ALLOCATE (V_blocks(N, N, nterms))
          CALL linpot_calc_terms(pao, qs_env, iatom, V_blocks)
          block_V_terms = RESHAPE(V_blocks, (/N*N, nterms/)) ! convert matrices into vectors
@@ -171,6 +175,7 @@ CONTAINS
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=V_terms, found=found)
          CPASSERT(ASSOCIATED(V_terms))
          nterms = SIZE(V_terms, 2)
+         IF (nterms == 0) CYCLE ! protect against corner-case of zero pao parameters
 
          ! build overlap matrix
          ALLOCATE (S(nterms, nterms))
@@ -246,13 +251,14 @@ CONTAINS
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_terms)
          iatom = arow; CPASSERT(arow == acol)
+         nterms = SIZE(block_V_terms, 2)
+         IF (nterms == 0) CYCLE ! protect against corner-case of zero pao parameters
 
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_precon, row=iatom, col=iatom, block=block_precon, found=found)
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_precon_inv, row=iatom, col=iatom, block=block_precon_inv, found=found)
          CPASSERT(ASSOCIATED(block_precon))
          CPASSERT(ASSOCIATED(block_precon_inv))
 
-         nterms = SIZE(block_V_terms, 2)
          ALLOCATE (S(nterms, nterms))
          S(:, :) = MATMUL(TRANSPOSE(block_V_terms), block_V_terms)
 
@@ -312,14 +318,29 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ikind
       INTEGER, INTENT(OUT)                               :: nparams
 
-      SELECT CASE (pao%parameterization)
-      CASE (pao_fock_param)
-         CALL linpot_full_count_terms(qs_env, ikind, nterms=nparams)
-      CASE (pao_rotinv_param)
-         CALL linpot_rotinv_count_terms(qs_env, ikind, nterms=nparams)
-      CASE DEFAULT
-         CPABORT("unkown parameterization")
-      END SELECT
+      INTEGER                                            :: pao_basis_size
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+
+      CALL get_qs_kind(qs_kind_set(ikind), &
+                       basis_set=basis_set, &
+                       pao_basis_size=pao_basis_size)
+
+      IF (pao_basis_size == basis_set%nsgf) THEN
+         nparams = 0 ! pao disabled for iatom
+
+      ELSE
+         SELECT CASE (pao%parameterization)
+         CASE (pao_fock_param)
+            CALL linpot_full_count_terms(qs_env, ikind, nterms=nparams)
+         CASE (pao_rotinv_param)
+            CALL linpot_rotinv_count_terms(qs_env, ikind, nterms=nparams)
+         CASE DEFAULT
+            CPABORT("unkown parameterization")
+         END SELECT
+      ENDIF
 
    END SUBROUTINE pao_param_count_linpot
 

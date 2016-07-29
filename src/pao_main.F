@@ -29,7 +29,7 @@ MODULE pao_main
         pao_add_forces, pao_build_core_hamiltonian, pao_build_diag_distribution, &
         pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, pao_calc_energy, &
         pao_calc_outer_grad_lnv, pao_check_grad, pao_check_trace_ps, pao_guess_initial_P, &
-        pao_init_gaussian_radii, pao_print_atom_info, pao_store_P, pao_test_convergence
+        pao_init_kinds, pao_print_atom_info, pao_store_P, pao_test_convergence
    USE pao_ml,                          ONLY: pao_ml_init,&
                                               pao_ml_predict
    USE pao_optimizer,                   ONLY: pao_opt_finalize,&
@@ -80,7 +80,7 @@ CONTAINS
       ! parse input
       CALL parse_pao_section(pao, input)
 
-      CALL pao_init_gaussian_radii(pao, qs_env)
+      CALL pao_init_kinds(pao, qs_env)
 
       ! train machine learning
       CALL pao_ml_init(pao, qs_env)

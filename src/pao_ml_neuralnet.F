@@ -137,7 +137,7 @@ CONTAINS
 
          npoints = SIZE(training_matrix%inputs, 2) ! number of points
          CPASSERT(SIZE(training_matrix%outputs, 2) == npoints)
-         CPASSERT(npoints > 0)
+         IF (npoints == 0) CYCLE
 
          !TODO proper output
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO|ML| Training neural network for kind: ", &
