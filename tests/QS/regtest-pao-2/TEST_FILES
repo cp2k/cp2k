@@ -6,6 +6,12 @@ H2O_pao_rotinv.inp                11     1e-06    -17.202700812326320
 H2O_pao_eq_prim.inp               11     3e-09    -17.202700812326320
 H2O_pao_gth.inp                   11     9e-05    -17.202700812326320
 #
+# molecular blocking and single precision
+# 
+H2O_pao_exp_cluster.inp           11     1e-08    -17.202700812326320
+H2O_pao_exp_cluster_sp.inp        11     1e-07    -17.202700812326320
+H2O_pao_exp_sp.inp                11     1e-07    -17.202700812326320
+#
 # rotated system, energy changes slightly due to grid and cell
 #
 H2O_ref2.inp                      11     9e-14    -17.202822380853704
@@ -15,5 +21,5 @@ H2O_pao_rotinv_restart.inp        11     1e-06    -17.202822380853704
 #
 H2O_pao_check_grad.inp             0
 H2O_pao_mixing.inp                11     1e-07    -17.204698253588596
-#EOF
 H2O_pao_minimal.inp               11     1e-07    -17.140031230468164
+#EOF

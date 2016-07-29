@@ -19,12 +19,12 @@ MODULE dm_ls_scf_qs
         cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
         cp_dbcsr_distribution, cp_dbcsr_distribution_new, cp_dbcsr_finalize, cp_dbcsr_init, &
         cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-        dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
-        dbcsr_distribution_init, dbcsr_distribution_mp, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
+        cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_col_clusters, &
+        dbcsr_distribution_col_dist, dbcsr_distribution_has_col_clusters, &
+        dbcsr_distribution_has_row_clusters, dbcsr_distribution_hold, dbcsr_distribution_init, &
+        dbcsr_distribution_mp, dbcsr_distribution_obj, dbcsr_distribution_release, &
+        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, dbcsr_mp_obj, &
+        dbcsr_type_real_4, dbcsr_type_real_8
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -35,8 +35,7 @@ MODULE dm_ls_scf_qs
                                               ls_mstruct_type,&
                                               ls_scf_env_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
-                                              ls_cluster_molecular,&
-                                              ls_cluster_pao
+                                              ls_cluster_molecular
    USE kinds,                           ONLY: dp
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -84,7 +83,8 @@ MODULE dm_ls_scf_qs
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_qs'
 
    PUBLIC :: matrix_ls_create, matrix_qs_to_ls, matrix_ls_to_qs, ls_scf_init_qs, &
-             ls_scf_dm_to_ks, ls_scf_qs_atomic_guess, write_matrix_to_cube, rho_mixing_ls_init
+             ls_scf_dm_to_ks, ls_scf_qs_atomic_guess, write_matrix_to_cube, rho_mixing_ls_init, &
+             matrix_decluster
 
 CONTAINS
 
@@ -95,6 +95,7 @@ CONTAINS
 !> \param ls_mstruct ...
 !> \par History
 !>       2011.03 created [Joost VandeVondele]
+!>       2015.09 add support for PAO [Ole Schuett]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE matrix_ls_create(matrix_ls, matrix_qs, ls_mstruct)
@@ -104,30 +105,33 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_create', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: data_type, handle, iatom, imol, jatom, &
-                                                            natom, nmol
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_to_cluster, atom_to_cluster_primus, &
-                                                            primus_of_mol
-      INTEGER, DIMENSION(:), POINTER :: blk_dist, blk_sizes, blk_sizes_aux, clustered_blk_sizes, &
-         clustered_col_clusters, clustered_col_dist, clustered_row_clusters, clustered_row_dist
-      TYPE(dbcsr_distribution_obj)                       :: block_distribution, &
-                                                            clustered_distribution
+      INTEGER                                            :: handle, iatom, imol, jatom, &
+                                                            ls_data_type, natom, nmol
+      INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
+                                                            clustered_blk_sizes, primus_of_mol
+      INTEGER, DIMENSION(:), POINTER :: blk_dist, clustered_col_clusters, clustered_col_dist, &
+         clustered_row_clusters, clustered_row_dist, ls_blk_sizes
+      TYPE(dbcsr_distribution_obj)                       :: ls_dist
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
 
       CALL timeset(routineN, handle)
 
-      IF (ls_mstruct%single_precision) THEN
-         data_type = dbcsr_type_real_4
-      ELSE
-         data_type = dbcsr_type_real_8
+      ! Defaults -----------------------------------------------------------------------------------
+      ls_blk_sizes => cp_dbcsr_col_block_sizes(matrix_qs)
+      ls_dist = cp_dbcsr_distribution(matrix_qs)
+      CALL dbcsr_distribution_hold(ls_dist)
+      ls_data_type = dbcsr_type_real_8
+      IF (ls_mstruct%single_precision) ls_data_type = dbcsr_type_real_4
+
+      ! PAO ----------------------------------------------------------------------------------------
+      IF (ls_mstruct%do_pao) THEN
+         ls_blk_sizes => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
       ENDIF
 
-      ! here we allocate our basic matrices, right now, use QS S as a template
-      ! later, we might want to use our own format (e.g. clustered)
+      ! Clustering ---------------------------------------------------------------------------------
       SELECT CASE (ls_mstruct%cluster_type)
       CASE (ls_cluster_atomic)
-         CALL cp_dbcsr_init(matrix_ls)
-         CALL cp_dbcsr_create(matrix_ls, template=matrix_qs, &
-                              data_type=data_type)
+         ! do nothing
       CASE (ls_cluster_molecular)
          ! create format of the clustered matrix
          natom = cp_dbcsr_nblkrows_total(matrix_qs)
@@ -150,18 +154,16 @@ CONTAINS
             primus_of_mol(atom_to_cluster(iatom)) = atom_to_cluster_primus(iatom)
          ENDDO
 
-         block_distribution = cp_dbcsr_distribution(matrix_qs)
-         CALL dbcsr_distribution_init(clustered_distribution)
          ! row
          ALLOCATE (clustered_row_dist(nmol))
-         blk_dist => dbcsr_distribution_row_dist(block_distribution)
+         blk_dist => dbcsr_distribution_row_dist(ls_dist)
          DO imol = 1, nmol
             clustered_row_dist(imol) = blk_dist(primus_of_mol(imol))
          ENDDO
          NULLIFY (clustered_row_clusters)
-         IF (dbcsr_distribution_has_row_clusters(block_distribution)) THEN
+         IF (dbcsr_distribution_has_row_clusters(ls_dist)) THEN
             ALLOCATE (clustered_row_clusters(nmol))
-            blk_dist => dbcsr_distribution_row_clusters(block_distribution)
+            blk_dist => dbcsr_distribution_row_clusters(ls_dist)
             DO imol = 1, nmol
                clustered_row_clusters(imol) = blk_dist(primus_of_mol(imol))
             ENDDO
@@ -169,55 +171,53 @@ CONTAINS
 
          ! col
          ALLOCATE (clustered_col_dist(nmol))
-         blk_dist => dbcsr_distribution_col_dist(block_distribution)
+         blk_dist => dbcsr_distribution_col_dist(ls_dist)
          DO imol = 1, nmol
             clustered_col_dist(imol) = blk_dist(primus_of_mol(imol))
          ENDDO
          NULLIFY (clustered_col_clusters)
-         IF (dbcsr_distribution_has_col_clusters(block_distribution)) THEN
+         IF (dbcsr_distribution_has_col_clusters(ls_dist)) THEN
             ALLOCATE (clustered_col_clusters(nmol))
-            blk_dist => dbcsr_distribution_col_clusters(block_distribution)
+            blk_dist => dbcsr_distribution_col_clusters(ls_dist)
             DO imol = 1, nmol
                clustered_col_clusters(imol) = blk_dist(primus_of_mol(imol))
             ENDDO
          ENDIF
 
-         blk_sizes => cp_dbcsr_row_block_sizes(matrix_qs)
          ALLOCATE (clustered_blk_sizes(nmol))
          clustered_blk_sizes = 0
          DO iatom = 1, natom
             clustered_blk_sizes(atom_to_cluster(iatom)) = clustered_blk_sizes(atom_to_cluster(iatom))+ &
-                                                          blk_sizes(iatom)
+                                                          ls_blk_sizes(iatom)
          ENDDO
+         ls_blk_sizes => clustered_blk_sizes ! redirect pointer
 
-         ! the parallel distribution
-         CALL cp_dbcsr_distribution_new(clustered_distribution, &
-                                        dbcsr_distribution_mp(block_distribution), &
-                                        clustered_row_dist, clustered_col_dist, &
-                                        clustered_row_clusters, clustered_col_clusters, &
+         ! create new distribution
+         mp_env = dbcsr_distribution_mp(ls_dist)
+         CALL dbcsr_distribution_release(ls_dist)
+         CALL dbcsr_distribution_init(ls_dist)
+         CALL cp_dbcsr_distribution_new(ls_dist, &
+                                        mp_env=mp_env, &
+                                        row_dist_block=clustered_row_dist, &
+                                        col_dist_block=clustered_col_dist, &
+                                        row_dist_cluster=clustered_row_clusters, &
+                                        col_dist_cluster=clustered_col_clusters, &
                                         reuse_arrays=.TRUE.)
-
-         ! the matrix
-         CALL cp_dbcsr_init(matrix_ls)
-         CALL cp_dbcsr_create(matrix_ls, cp_dbcsr_name(matrix_qs), &
-                              clustered_distribution, &
-                              dbcsr_type_symmetric, &
-                              clustered_blk_sizes, clustered_blk_sizes, &
-                              data_type=data_type)
-         DEALLOCATE (clustered_blk_sizes)
-         CALL dbcsr_distribution_release(clustered_distribution)
-         CALL cp_dbcsr_finalize(matrix_ls)
-      CASE (ls_cluster_pao)
-         blk_sizes_aux => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
-         CALL cp_dbcsr_init(matrix_ls)
-         CALL cp_dbcsr_create(matrix_ls, &
-                              template=matrix_qs, &
-                              data_type=data_type, &
-                              row_blk_size=blk_sizes_aux, &
-                              col_blk_size=blk_sizes_aux)
       CASE DEFAULT
-         CPABORT(" BUG cluster option")
+         CPABORT("Unkown LS cluster type")
       END SELECT
+
+      ! Create actual matrix -----------------------------------------------------------------------
+      CALL cp_dbcsr_init(matrix_ls)
+      CALL cp_dbcsr_create(matrix_ls, &
+                           name=cp_dbcsr_name(matrix_qs), &
+                           dist=ls_dist, &
+                           matrix_type="S", &
+                           data_type=ls_data_type, &
+                           row_blk_size=ls_blk_sizes, &
+                           col_blk_size=ls_blk_sizes)
+      CALL dbcsr_distribution_release(ls_dist)
+      CALL cp_dbcsr_finalize(matrix_ls)
 
       CALL timestop(handle)
 
@@ -233,67 +233,102 @@ CONTAINS
 !> \param covariant ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
+!>       2015.09 add support for PAO [Ole Schuett]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE matrix_qs_to_ls(matrix_ls, matrix_qs, ls_mstruct, covariant)
       TYPE(cp_dbcsr_type)                                :: matrix_ls, matrix_qs
       TYPE(ls_mstruct_type), INTENT(IN), TARGET          :: ls_mstruct
-      LOGICAL                                            :: covariant
+      LOGICAL, INTENT(IN)                                :: covariant
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_qs_to_ls', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_qs_to_ls'
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_type)                                :: matrix_qs_nosym, matrix_tmp
+      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      TYPE(cp_dbcsr_type)                                :: matrix_pao, matrix_tmp
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_trafo
+
+      CALL timeset(routineN, handle)
+
+      IF (.NOT. ls_mstruct%do_pao) THEN
+         CALL matrix_cluster(matrix_ls, matrix_qs, ls_mstruct)
+
+      ELSE ! using pao
+         CALL cp_dbcsr_init(matrix_pao)
+         pao_blk_sizes => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
+         CALL cp_dbcsr_create(matrix_pao, &
+                              matrix_type="N", &
+                              template=matrix_qs, &
+                              row_blk_size=pao_blk_sizes, &
+                              col_blk_size=pao_blk_sizes)
+
+         matrix_trafo => ls_mstruct%matrix_A ! contra-variant
+         IF (covariant) matrix_trafo => ls_mstruct%matrix_B ! co-variant
+         CALL cp_dbcsr_init(matrix_tmp)
+         CALL cp_dbcsr_create(matrix_tmp, template=matrix_trafo)
+
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_qs, matrix_trafo, 0.0_dp, matrix_tmp)
+         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_trafo, matrix_tmp, 0.0_dp, matrix_pao)
+         CALL cp_dbcsr_release(matrix_tmp)
+
+         CALL matrix_cluster(matrix_ls, matrix_pao, ls_mstruct)
+         CALL cp_dbcsr_release(matrix_pao)
+      ENDIF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE matrix_qs_to_ls
+
+! **************************************************************************************************
+!> \brief Performs molecular blocking and reduction to single precision if enabled
+!> \param matrix_out ...
+!> \param matrix_in ...
+!> \param ls_mstruct ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE matrix_cluster(matrix_out, matrix_in, ls_mstruct)
+      TYPE(cp_dbcsr_type)                                :: matrix_out, matrix_in
+      TYPE(ls_mstruct_type), INTENT(IN)                  :: ls_mstruct
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_cluster'
+
+      INTEGER                                            :: handle
+      TYPE(cp_dbcsr_type)                                :: matrix_in_nosym, matrix_tmp
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (ls_mstruct%cluster_type)
       CASE (ls_cluster_atomic)
-         ! takes care of an eventual data_type conversion
-         CALL cp_dbcsr_copy(matrix_ls, matrix_qs)
+         CALL cp_dbcsr_copy(matrix_out, matrix_in) ! takes care of an eventual data_type conversion
+
       CASE (ls_cluster_molecular)
          ! desymmetrize the qs matrix
-         CALL cp_dbcsr_init(matrix_qs_nosym)
-         CALL cp_dbcsr_create(matrix_qs_nosym, template=matrix_qs, &
-                              matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_desymmetrize(matrix_qs, matrix_qs_nosym)
+         CALL cp_dbcsr_init(matrix_in_nosym)
+         CALL cp_dbcsr_create(matrix_in_nosym, template=matrix_in, matrix_type="N")
+         CALL cp_dbcsr_desymmetrize(matrix_in, matrix_in_nosym)
 
-         ! complete_redistribute does not zero blocks that might be present in the
-         ! target but not in the source
-         CALL cp_dbcsr_set(matrix_ls, 0.0_dp)
+         ! complete_redistribute does not zero blocks that might be present in the target but not in the source
+         CALL cp_dbcsr_set(matrix_out, 0.0_dp)
 
          ! perform the magic complete redistribute copy
          IF (ls_mstruct%single_precision) THEN
             CALL cp_dbcsr_init(matrix_tmp)
-            CALL cp_dbcsr_create(matrix_tmp, template=matrix_qs_nosym, &
-                                 data_type=dbcsr_type_real_4)
-            CALL cp_dbcsr_copy(matrix_tmp, matrix_qs_nosym)
-            CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_ls); 
+            CALL cp_dbcsr_create(matrix_tmp, template=matrix_in_nosym, data_type=dbcsr_type_real_4)
+            CALL cp_dbcsr_copy(matrix_tmp, matrix_in_nosym)
+            CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_out); 
             CALL cp_dbcsr_release(matrix_tmp)
          ELSE
-            CALL cp_dbcsr_complete_redistribute(matrix_qs_nosym, matrix_ls); 
+            CALL cp_dbcsr_complete_redistribute(matrix_in_nosym, matrix_out); 
          ENDIF
-         CALL cp_dbcsr_release(matrix_qs_nosym)
+         CALL cp_dbcsr_release(matrix_in_nosym)
 
-      CASE (ls_cluster_pao)
-         matrix_trafo => ls_mstruct%matrix_A !contra-variant
-         IF (covariant) matrix_trafo => ls_mstruct%matrix_B !    co-variant
-         CALL cp_dbcsr_init(matrix_tmp)
-         CALL cp_dbcsr_create(matrix_tmp, template=matrix_trafo)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_qs, matrix_trafo, &
-                                0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_trafo, matrix_tmp, &
-                                0.0_dp, matrix_ls)
-         CALL cp_dbcsr_release(matrix_tmp)
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Unkown LS cluster type")
       END SELECT
 
       CALL timestop(handle)
 
-   END SUBROUTINE matrix_qs_to_ls
+   END SUBROUTINE matrix_cluster
 
 ! **************************************************************************************************
 !> \brief second link to QS, copy a LS matrix to QS matrix
@@ -305,6 +340,7 @@ CONTAINS
 !> \param covariant ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
+!>       2015.09 add support for PAO [Ole Schuett]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE matrix_ls_to_qs(matrix_qs, matrix_ls, ls_mstruct, covariant)
@@ -312,62 +348,95 @@ CONTAINS
       TYPE(ls_mstruct_type), INTENT(IN), TARGET          :: ls_mstruct
       LOGICAL                                            :: covariant
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_to_qs', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_ls_to_qs'
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp, matrix_tmp1, matrix_tmp2
+      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      TYPE(cp_dbcsr_type)                                :: matrix_declustered, matrix_tmp1, &
+                                                            matrix_tmp2
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_trafo
 
       CALL timeset(routineN, handle)
 
-      IF (ls_mstruct%single_precision) THEN
-         CALL cp_dbcsr_init(matrix_tmp)
-         CALL cp_dbcsr_create(matrix_tmp, template=matrix_ls, &
-                              data_type=dbcsr_type_real_8)
-         CALL cp_dbcsr_copy(matrix_tmp, matrix_ls)
-      ENDIF
+      IF (.NOT. ls_mstruct%do_pao) THEN
+         CALL cp_dbcsr_init(matrix_declustered)
+         CALL cp_dbcsr_create(matrix_declustered, template=matrix_qs)
+         CALL matrix_decluster(matrix_declustered, matrix_ls, ls_mstruct)
+         CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_declustered) ! preserve sparsity of matrix_qs
+         CALL cp_dbcsr_release(matrix_declustered)
 
-      SELECT CASE (ls_mstruct%cluster_type)
-      CASE (ls_cluster_atomic)
-         IF (ls_mstruct%single_precision) THEN
-            CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_tmp)
-         ELSE
-            CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_ls)
-         ENDIF
-      CASE (ls_cluster_molecular)
-         CALL cp_dbcsr_set(matrix_qs, 0.0_dp)
-         IF (ls_mstruct%single_precision) THEN
-            CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_qs, keep_sparsity=.TRUE.)
-         ELSE
-            CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE.)
-         ENDIF
-      CASE (ls_cluster_pao)
-         matrix_trafo => ls_mstruct%matrix_B !contra-variant
-         IF (covariant) matrix_trafo => ls_mstruct%matrix_A !    co-variant
+      ELSE ! using pao
+         CALL cp_dbcsr_init(matrix_declustered)
+         pao_blk_sizes => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
+         CALL cp_dbcsr_create(matrix_declustered, &
+                              template=matrix_qs, &
+                              row_blk_size=pao_blk_sizes, &
+                              col_blk_size=pao_blk_sizes)
+
+         CALL matrix_decluster(matrix_declustered, matrix_ls, ls_mstruct)
+
+         matrix_trafo => ls_mstruct%matrix_B ! contra-variant
+         IF (covariant) matrix_trafo => ls_mstruct%matrix_A ! co-variant
          CALL cp_dbcsr_init(matrix_tmp1)
          CALL cp_dbcsr_create(matrix_tmp1, template=matrix_trafo)
          CALL cp_dbcsr_init(matrix_tmp2)
          CALL cp_dbcsr_create(matrix_tmp2, template=matrix_qs)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_trafo, matrix_ls, &
-                                0.0_dp, matrix_tmp1)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp1, matrix_trafo, &
-                                0.0_dp, matrix_tmp2)
-         !use copy_into_existing to retain sparsity-pattern of S for sure
-         CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_tmp2)
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_trafo, matrix_declustered, 0.0_dp, matrix_tmp1)
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp1, matrix_trafo, 0.0_dp, matrix_tmp2)
+         CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_tmp2) ! preserve sparsity of matrix_qs
+         CALL cp_dbcsr_release(matrix_declustered)
          CALL cp_dbcsr_release(matrix_tmp1)
          CALL cp_dbcsr_release(matrix_tmp2)
-      CASE DEFAULT
-         CPABORT("BUG")
-      END SELECT
-
-      IF (ls_mstruct%single_precision) THEN
-         CALL cp_dbcsr_release(matrix_tmp)
       ENDIF
 
       CALL timestop(handle)
 
    END SUBROUTINE matrix_ls_to_qs
+
+! **************************************************************************************************
+!> \brief Reverses molecular blocking and reduction to single precision if enabled
+!> \param matrix_out ...
+!> \param matrix_in ...
+!> \param ls_mstruct ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE matrix_decluster(matrix_out, matrix_in, ls_mstruct)
+      TYPE(cp_dbcsr_type)                                :: matrix_out, matrix_in
+      TYPE(ls_mstruct_type), INTENT(IN)                  :: ls_mstruct
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_decluster'
+
+      INTEGER                                            :: handle
+      TYPE(cp_dbcsr_type)                                :: matrix_tmp
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (ls_mstruct%cluster_type)
+      CASE (ls_cluster_atomic)
+         CALL cp_dbcsr_copy(matrix_out, matrix_in) ! takes care of an eventual data_type conversion
+
+      CASE (ls_cluster_molecular)
+         ! complete_redistribute does not zero blocks that might be present in the target but not in the source
+         CALL cp_dbcsr_set(matrix_out, 0.0_dp)
+
+         ! perform the magic complete redistribute copy
+         IF (ls_mstruct%single_precision) THEN
+            CALL cp_dbcsr_init(matrix_tmp)
+            CALL cp_dbcsr_create(matrix_tmp, template=matrix_in, data_type=dbcsr_type_real_8)
+            CALL cp_dbcsr_copy(matrix_tmp, matrix_in)
+            CALL cp_dbcsr_complete_redistribute(matrix_tmp, matrix_out)
+            CALL cp_dbcsr_release(matrix_tmp)
+         ELSE
+            CALL cp_dbcsr_complete_redistribute(matrix_in, matrix_out)
+         ENDIF
+
+      CASE DEFAULT
+         CPABORT("Unkown LS cluster type")
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE matrix_decluster
 
 ! **************************************************************************************************
 !> \brief further required initialization of QS.

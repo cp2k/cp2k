@@ -420,7 +420,7 @@ MODULE dbcsr_types
 ! **************************************************************************************************
    TYPE dbcsr_type
       INTEGER                            :: serial_number
-      LOGICAL                            :: valid
+      LOGICAL                            :: valid = .FALSE.
       LOGICAL                            :: initialized = .FALSE.
       CHARACTER(LEN=default_string_length) :: name
       TYPE(dbcsr_data_obj)               :: data_area

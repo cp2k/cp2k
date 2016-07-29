@@ -77,7 +77,7 @@ MODULE dbcsr_methods
              dbcsr_mutable_release, &
              dbcsr_mutable_instantiated
 
-   PUBLIC :: dbcsr_distribution_release, dbcsr_distribution_init
+   PUBLIC :: dbcsr_distribution_hold, dbcsr_distribution_release, dbcsr_distribution_init
    PUBLIC :: dbcsr_mp_release, dbcsr_mp_grid_remove
 
    INTERFACE dbcsr_init
@@ -307,6 +307,16 @@ CONTAINS
          ENDIF
       ENDIF
    END SUBROUTINE dbcsr_distribution_release
+
+! **************************************************************************************************
+!> \brief Retains a reference to a distribution
+!> \param dist ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_distribution_hold(dist)
+      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dist
+
+      dist%d%refcount = dist%d%refcount+1
+   END SUBROUTINE dbcsr_distribution_hold
 
 ! **************************************************************************************************
 !> \brief ...

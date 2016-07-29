@@ -49,10 +49,10 @@ MODULE dm_ls_scf
                                               rho_mixing_ls_init
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_constants,                 ONLY: &
-        ls_cluster_atomic, ls_cluster_molecular, ls_cluster_pao, ls_s_inversion_hotelling, &
-        ls_s_inversion_none, ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
-        ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, &
-        ls_scf_tc2, ls_scf_trs4, transport_transmission
+        ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, ls_s_inversion_none, &
+        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
+        ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4, &
+        transport_transmission
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
    USE input_keyword_types,             ONLY: keyword_get,&
@@ -699,9 +699,7 @@ CONTAINS
 
       pao_section => section_vals_get_subs_vals(input, "DFT%LS_SCF%PAO")
       CALL section_vals_get(pao_section, explicit=ls_scf_env%do_pao)
-      IF (ls_scf_env%do_pao) THEN
-         ls_scf_env%ls_mstruct%cluster_type = ls_cluster_pao
-      ENDIF
+      ls_scf_env%ls_mstruct%do_pao = ls_scf_env%do_pao
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '()')
@@ -747,6 +745,8 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,T38,A20)') "S preconditioner type ", "MOLECULAR"
          END SELECT
 
+         WRITE (unit_nr, '(T2,A,T38,L20)') "Polarized Atomic Orbitals (PAO) ", ls_scf_env%do_pao
+
          IF (ls_scf_env%curvy_steps) THEN
             WRITE (unit_nr, '(T2,A,T38,A30)') "Using curvy steps to optimize the density matrix"
             CALL cite_reference(Shao2003)
@@ -774,8 +774,6 @@ CONTAINS
             WRITE (unit_nr, '(T2,A,T38,A20)') "Cluster type", "ATOMIC"
          CASE (ls_cluster_molecular)
             WRITE (unit_nr, '(T2,A,T38,A20)') "Cluster type", "MOLECULAR"
-         CASE (ls_cluster_pao)
-            WRITE (unit_nr, '(T2,A,T38,A20)') "Cluster type", "PAO"
          CASE DEFAULT
             CPABORT("Unkown cluster type")
          END SELECT

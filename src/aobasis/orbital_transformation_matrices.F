@@ -85,7 +85,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: s, s1, s2
 
 !$    IF (omp_get_level() > 0) &
-!$       CPABORT("create_spherical_harmonics is not thread save")
+!$       CPABORT("create_spherical_harmonics is not thread-safe")
 
       IF (current_maxl > -1) THEN
          CALL cp_abort(__LOCATION__, &
@@ -290,7 +290,7 @@ CONTAINS
       INTEGER                                            :: l
 
 !$    IF (omp_get_level() > 0) &
-!$       CPABORT("deallocate_spherical_harmonics is not thread save")
+!$       CPABORT("deallocate_spherical_harmonics is not thread-safe")
 
       IF (current_maxl > -1) THEN
 
@@ -336,7 +336,7 @@ CONTAINS
       INTEGER                                            :: l, nc, ns
 
 !$    IF (omp_get_level() > 0) &
-!$       CPABORT("init_spherical_harmonics is not thread save")
+!$       CPABORT("init_spherical_harmonics is not thread-safe")
 
       IF (maxl < 0) THEN
          CALL cp_abort(__LOCATION__, &

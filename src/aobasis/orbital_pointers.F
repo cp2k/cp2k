@@ -94,7 +94,7 @@ CONTAINS
       END IF
 
 !$    IF (omp_get_level() > 0) &
-!$       CPABORT("create_orbital_pointers is not thread save")
+!$       CPABORT("create_orbital_pointers is not thread-safe")
 
 !   *** Number of Cartesian orbitals for each l ***
 
@@ -257,7 +257,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
 !$    IF (omp_get_level() > 0) &
-!$       CPABORT("deallocate_orbital_pointers is not thread save")
+!$       CPABORT("deallocate_orbital_pointers is not thread-safe")
 
       IF (current_maxl > -1) THEN
 
@@ -303,7 +303,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
 !$    IF (omp_get_level() > 0) &
-!$       CPABORT("init_orbital_pointers is not thread save")
+!$       CPABORT("init_orbital_pointers is not thread-safe")
 
       IF (maxl < 0) THEN
          CALL cp_abort(__LOCATION__, &

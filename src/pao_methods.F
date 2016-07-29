@@ -32,6 +32,7 @@ MODULE pao_methods
                                               ls_scf_init_matrix_S
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                               ls_scf_qs_atomic_guess,&
+                                              matrix_decluster,&
                                               matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
@@ -694,11 +695,13 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, nspin
+      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
       REAL(KIND=dp)                                      :: filter_eps
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
-      TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M, matrix_M1, matrix_M2, matrix_M3, &
-         matrix_NHB, matrix_NHBM2, matrix_NPA, matrix_NPAM1, matrix_NSB, matrix_NSBM3, matrix_PA, &
-         matrix_PH, matrix_PHP, matrix_PSP, matrix_SB, matrix_SP
+      TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M, matrix_M1, matrix_M1_dc, matrix_M2, &
+         matrix_M2_dc, matrix_M3, matrix_M3_dc, matrix_NHB, matrix_NHBM2, matrix_NPA, &
+         matrix_NPAM1, matrix_NSB, matrix_NSBM3, matrix_PA, matrix_PH, matrix_PHP, matrix_PSP, &
+         matrix_SB, matrix_SP
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -717,6 +720,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       nspin = dft_control%nspins
       filter_eps = ls_scf_env%eps_filter
+      pao_blk_sizes => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
 
       IF (nspin /= 1) CPABORT("open shell not yet implemented")
       !TODO: handle openshell case properly
@@ -777,6 +781,14 @@ CONTAINS
       CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_SP, matrix_HPS, &
                              1.0_dp, matrix_M1, filter_eps=filter_eps)
 
+      ! reverse possible molecular clustering
+      CALL cp_dbcsr_init(matrix_M1_dc)
+      CALL cp_dbcsr_create(matrix_M1_dc, &
+                           template=matrix_s(1)%matrix, &
+                           row_blk_size=pao_blk_sizes, &
+                           col_blk_size=pao_blk_sizes)
+      CALL matrix_decluster(matrix_M1_dc, matrix_M1, ls_mstruct)
+
       !---------------------------------------------------------------------------
       ! M2 = dE_lnv / dH
       CALL cp_dbcsr_init(matrix_M2)
@@ -786,6 +798,14 @@ CONTAINS
 
       CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PSP, matrix_SP, &
                              1.0_dp, matrix_M2, filter_eps=filter_eps)
+
+      ! reverse possible molecular clustering
+      CALL cp_dbcsr_init(matrix_M2_dc)
+      CALL cp_dbcsr_create(matrix_M2_dc, &
+                           template=matrix_s(1)%matrix, &
+                           row_blk_size=pao_blk_sizes, &
+                           col_blk_size=pao_blk_sizes)
+      CALL matrix_decluster(matrix_M2_dc, matrix_M2, ls_mstruct)
 
       !---------------------------------------------------------------------------
       ! M3 = dE_lnv / dS
@@ -799,6 +819,14 @@ CONTAINS
 
       CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_PSP, matrix_PH, &
                              1.0_dp, matrix_M3, filter_eps=filter_eps)
+
+      ! reverse possible molecular clustering
+      CALL cp_dbcsr_init(matrix_M3_dc)
+      CALL cp_dbcsr_create(matrix_M3_dc, &
+                           template=matrix_s(1)%matrix, &
+                           row_blk_size=pao_blk_sizes, &
+                           col_blk_size=pao_blk_sizes)
+      CALL matrix_decluster(matrix_M3_dc, matrix_M3, ls_mstruct)
 
       !---------------------------------------------------------------------------
       ! combine M1 with matrices from primary basis
@@ -814,7 +842,7 @@ CONTAINS
 
       CALL cp_dbcsr_init(matrix_NPAM1)
       CALL cp_dbcsr_create(matrix_NPAM1, template=ls_mstruct%matrix_A, matrix_type="N")
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NPA, matrix_M1, &
+      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NPA, matrix_M1_dc, &
                              0.0_dp, matrix_NPAM1, filter_eps=filter_eps)
 
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NPAM1, pao%matrix_Y, &
@@ -834,7 +862,7 @@ CONTAINS
 
       CALL cp_dbcsr_init(matrix_NHBM2)
       CALL cp_dbcsr_create(matrix_NHBM2, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NHB, matrix_M2, &
+      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NHB, matrix_M2_dc, &
                              0.0_dp, matrix_NHBM2, filter_eps=filter_eps)
 
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NHBM2, pao%matrix_Y, &
@@ -856,7 +884,7 @@ CONTAINS
 
       CALL cp_dbcsr_init(matrix_NSBM3)
       CALL cp_dbcsr_create(matrix_NSBM3, template=ls_mstruct%matrix_B, matrix_type="N")
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NSB, matrix_M3, &
+      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NSB, matrix_M3_dc, &
                              0.0_dp, matrix_NSBM3, filter_eps=filter_eps)
 
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NSBM3, pao%matrix_Y, &
@@ -886,6 +914,9 @@ CONTAINS
       CALL cp_dbcsr_release(matrix_M1)
       CALL cp_dbcsr_release(matrix_M2)
       CALL cp_dbcsr_release(matrix_M3)
+      CALL cp_dbcsr_release(matrix_M1_dc)
+      CALL cp_dbcsr_release(matrix_M2_dc)
+      CALL cp_dbcsr_release(matrix_M3_dc)
       CALL cp_dbcsr_release(matrix_PA)
       CALL cp_dbcsr_release(matrix_NPA)
       CALL cp_dbcsr_release(matrix_NPAM1)
@@ -1040,8 +1071,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_store_P'
 
       INTEGER                                            :: handle, ispin, istore
+      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp
+      TYPE(cp_dbcsr_type)                                :: matrix_p_dc, matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -1064,19 +1096,32 @@ CONTAINS
          ENDDO
       ENDIF
 
+      CALL cp_dbcsr_init(matrix_p_dc)
+      pao_blk_sizes => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
+      CALL cp_dbcsr_create(matrix_p_dc, &
+                           template=matrix_s(1)%matrix, &
+                           row_blk_size=pao_blk_sizes, &
+                           col_blk_size=pao_blk_sizes)
+
       CALL cp_dbcsr_init(matrix_tmp)
       CALL cp_dbcsr_create(matrix_tmp, template=ls_mstruct%matrix_B)
 
       ! We are storing the density matrix in the non-orthonormal primary basis.
       ! While the orthonormal basis would yield better extrapolations,
       ! we simply can not affort to calculat S_sqrt in the primary basis.
+      ! We can't call matrix_ls_to_qs because it uses cp_dbcsr_copy_into_existing()
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_mstruct%matrix_B, ls_scf_env%matrix_p(ispin), &
+         ! reverse possible molecular clustering
+         CALL matrix_decluster(matrix_p_dc, ls_scf_env%matrix_p(ispin), ls_mstruct)
+
+         ! transform into primary basis
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_mstruct%matrix_B, matrix_p_dc, &
                                 0.0_dp, matrix_tmp)
          CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp, ls_mstruct%matrix_B, &
                                 0.0_dp, ls_scf_env%scf_history%matrix(ispin, istore))
       ENDDO
       CALL cp_dbcsr_release(matrix_tmp)
+      CALL cp_dbcsr_release(matrix_p_dc)
 
       CALL timestop(handle)
    END SUBROUTINE pao_store_P

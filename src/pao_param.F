@@ -10,10 +10,10 @@
 MODULE pao_param
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_col_block_sizes, cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_distribution, cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+        cp_dbcsr_distribution, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
         dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
@@ -69,9 +69,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_update_AB'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: acol, arow, handle, iatom
+      LOGICAL                                            :: found
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_A, block_B, block_N, block_N_inv, &
+                                                            block_U, block_Y
+      TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp, matrix_U
+      TYPE(cp_dbcsr_type)                                :: matrix_U
 
       CALL timeset(routineN, handle)
 
@@ -84,21 +88,32 @@ CONTAINS
       CALL cp_dbcsr_reserve_diag_blocks(matrix_U)
       CALL cp_dbcsr_complete_redistribute(pao%matrix_U, matrix_U)
 
-      !update matrix_A
-      CALL cp_dbcsr_init(matrix_tmp)
-      CALL cp_dbcsr_create(matrix_tmp, template=matrix_U)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N_inv, matrix_U, 0.0_dp, &
-                             matrix_tmp)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, pao%matrix_Y, &
-                             0.0_dp, ls_mstruct%matrix_A)
+      ! Multiplying diagonal matrices is a local operation.
+      ! To take advantage of this we're using an iterator instead of calling dbcsr_multiply().
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pao,ls_mstruct,matrix_U) &
+!$OMP PRIVATE(iter,arow,acol,iatom,block_U,block_Y,block_A,block_B,block_N,block_N_inv,found)
+      CALL cp_dbcsr_iterator_start(iter, matrix_U)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U)
+         iatom = arow; CPASSERT(arow == acol)
 
-      ! update matrix_B
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, matrix_U, 0.0_dp, &
-                             matrix_tmp)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, pao%matrix_Y, &
-                             0.0_dp, ls_mstruct%matrix_B)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=block_Y, found=found)
+         CPASSERT(ASSOCIATED(block_Y))
 
-      CALL cp_dbcsr_release(matrix_tmp)
+         CALL cp_dbcsr_get_block_p(matrix=ls_mstruct%matrix_A, row=iatom, col=iatom, block=block_A, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_inv, row=iatom, col=iatom, block=block_N_inv, found=found)
+         CPASSERT(ASSOCIATED(block_A) .AND. ASSOCIATED(block_N_inv))
+
+         CALL cp_dbcsr_get_block_p(matrix=ls_mstruct%matrix_B, row=iatom, col=iatom, block=block_B, found=found)
+         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
+         CPASSERT(ASSOCIATED(block_B) .AND. ASSOCIATED(block_N))
+
+         block_A = MATMUL(MATMUL(block_N_inv, block_U), block_Y)
+         block_B = MATMUL(MATMUL(block_N, block_U), block_Y)
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
+
       CALL cp_dbcsr_release(matrix_U)
 
       CALL timestop(handle)

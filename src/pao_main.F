@@ -169,8 +169,10 @@ CONTAINS
 
       CALL cp_dbcsr_init(ls_mstruct%matrix_A)
       CALL cp_dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
+      CALL cp_dbcsr_reserve_diag_blocks(ls_mstruct%matrix_A)
       CALL cp_dbcsr_init(ls_mstruct%matrix_B)
       CALL cp_dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
+      CALL cp_dbcsr_reserve_diag_blocks(ls_mstruct%matrix_B)
 
       ! fill PAO transformation matrices
       CALL pao_update_AB(pao, qs_env, ls_mstruct)

@@ -124,7 +124,7 @@ CONTAINS
       CPASSERT(PRESENT(min_l) .EQV. PRESENT(max_l))
 
       CPASSERT(MOD(lpot, 2) == 0) ! otherwise it's not rotationally invariant
-      CPASSERT(orbital_pointers_maxl >= lpot) ! can't call init_orbital_pointers here, it's not thread-save
+      CPASSERT(orbital_pointers_maxl >= lpot) ! can't call init_orbital_pointers here, it's not thread-safe
 
       N = basis_set%nsgf ! primary basis-size
 

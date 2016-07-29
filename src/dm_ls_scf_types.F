@@ -40,6 +40,7 @@ MODULE dm_ls_scf_types
    TYPE ls_mstruct_type
       INTEGER :: cluster_type
       LOGICAL :: single_precision
+      LOGICAL :: do_pao
       INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
       TYPE(cp_dbcsr_type)                :: matrix_A
       TYPE(cp_dbcsr_type)                :: matrix_B

@@ -33,12 +33,12 @@ MODULE cp_dbcsr_interface
         dbcsr_data_release, dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
-        dbcsr_distribution_has_threads, dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-        dbcsr_distribution_local_rows, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-        dbcsr_distribution_nrows, dbcsr_distribution_obj, dbcsr_distribution_release, &
-        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_func_artanh, &
+        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_init, &
+        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+        dbcsr_distribution_ncols, dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_obj, &
+        dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
+        dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_func_artanh, &
         dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
         dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
         dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
@@ -119,7 +119,7 @@ MODULE cp_dbcsr_interface
    PUBLIC :: dbcsr_mp_obj, dbcsr_norm_frobenius
    PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_norm_maxabsnorm, &
              dbcsr_norm_column, dbcsr_distribution_has_threads, dbcsr_test_binary_io
-   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release
+   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_hold, dbcsr_distribution_release
    PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
    PUBLIC :: dbcsr_distribution_mp
    PUBLIC :: convert_sizes_to_offsets
