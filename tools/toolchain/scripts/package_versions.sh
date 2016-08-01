@@ -19,5 +19,5 @@ scalapack_ver=${scalapack_ver:-2.0.2}
 scotch_ver=${scotch_ver:-6.0.0}
 superlu_ver=${superlu_ver:-3.3}
 valgrind_ver=${valgrind_ver:-3.11.0}
-libxsmm_ver=${libxsmm_ver:-1.4.3}
+libxsmm_ver=${libxsmm_ver:-1.4.4}
 make_ver=${make_ver:-4.1}
