@@ -85,13 +85,13 @@ MODULE qs_rho_types
       INTEGER                                        :: ref_count = -1, &
                                                         id_nr = -1, &
                                                         rebuild_each = -1
-      REAL(KIND=dp), DIMENSION(:), POINTER ::         tot_rho_r => Null(), &
-                                              tot_rho_g => Null()
+      REAL(KIND=dp), DIMENSION(:), POINTER           :: tot_rho_r => Null(), &
+                                                        tot_rho_g => Null()
    END TYPE qs_rho_type
 
 ! **************************************************************************************************
    TYPE qs_rho_p_type
-      TYPE(qs_rho_type), POINTER         :: rho
+      TYPE(qs_rho_type), POINTER                     :: rho
    END TYPE qs_rho_p_type
 
    INTEGER, PRIVATE, SAVE :: last_rho_id_nr = 0

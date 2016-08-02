@@ -77,10 +77,11 @@ CONTAINS
 !> \param eps_ppnl ...
 !> \param nimages ...
 !> \param cell_to_index ...
+!> \param basis_type ...
 ! **************************************************************************************************
    SUBROUTINE build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                              nimages, cell_to_index)
+                              nimages, cell_to_index, basis_type)
 
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -96,6 +97,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
       INTEGER, INTENT(IN)                                :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppnl', &
          routineP = moduleN//':'//routineN
@@ -166,7 +168,8 @@ CONTAINS
                               maxlgto=maxlgto, &
                               maxsgf=maxsgf, &
                               maxlppnl=maxlppnl, &
-                              maxppnl=maxppnl)
+                              maxppnl=maxppnl, &
+                              basis_type=basis_type)
 
          maxl = MAX(maxlgto, maxlppnl)
          CALL init_orbital_pointers(maxl+nder+1)
@@ -184,7 +187,7 @@ CONTAINS
          !set up direct access to basis and potential
          ALLOCATE (basis_set(nkind), potential(nkind))
          DO ikind = 1, nkind
-            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=basis_type)
             IF (ASSOCIATED(orb_basis_set)) THEN
                basis_set(ikind)%gto_basis_set => orb_basis_set
             ELSE
@@ -223,7 +226,8 @@ CONTAINS
 
          DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
             CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=kkind, iatom=iatom, &
-                                   jatom=katom, nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, cell=cell_c, r=rac)
+                                   jatom=katom, nlist=nlist, ilist=ilist, nnode=nneighbor, &
+                                   inode=jneighbor, cell=cell_c, r=rac)
             iac = ikind+nkind*(kkind-1)
             IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
             IF (.NOT. ASSOCIATED(potential(kkind)%gth_potential)) CYCLE

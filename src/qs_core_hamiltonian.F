@@ -415,7 +415,8 @@ CONTAINS
       IF (ppl_present) THEN
          IF (dft_control%qs_control%do_ppl_method == do_ppl_analytic) THEN
             CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                                qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, nimages, cell_to_index)
+                                qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
+                                nimages, cell_to_index, "ORB")
          END IF
       END IF
 
@@ -428,7 +429,8 @@ CONTAINS
       ! *** compute the ppnl contribution to the core hamiltonian ***
       eps_ppnl = dft_control%qs_control%eps_ppnl
       CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                           qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, nimages, cell_to_index)
+                           qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
+                           nimages, cell_to_index, "ORB")
 
       ! *** GAPW one-center-expansion (oce) matrices
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN

@@ -12,9 +12,14 @@
 MODULE kg_environment
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+   USE basis_set_container_types,       ONLY: add_basis_set_to_container,&
+                                              remove_basis_from_container
+   USE basis_set_types,                 ONLY: copy_gto_basis_set,&
+                                              create_primitive_basis_set,&
+                                              get_gto_basis_set,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -49,6 +54,7 @@ MODULE kg_environment
    USE qs_dispersion_utils,             ONLY: qs_dispersion_env_set
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -64,6 +70,7 @@ MODULE kg_environment
                                               local_atoms_type,&
                                               pair_radius_setup,&
                                               write_neighbor_lists
+   USE string_utilities,                ONLY: uppercase
    USE task_list_types,                 ONLY: deallocate_task_list
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -118,11 +125,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kg_env', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ke_sections
+      INTEGER                                            :: handle, ikind, ke_sections, nkind
       LOGICAL                                            :: is_set
+      REAL(KIND=dp)                                      :: eps_pgf_orb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set, harris_basis
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(section_vals_type), POINTER                   :: kef_section, nl_section, pp_section, &
                                                             xc_fun_section, xc_fun_section_kg, &
                                                             xc_section, xc_section_kg
@@ -135,7 +146,7 @@ CONTAINS
       NULLIFY (kg_env%subset_of_mol)
       NULLIFY (kg_env%subset)
       NULLIFY (kg_env%tnadd_mat)
-      NULLIFY (kg_env%ec_env%sab_orb)
+      NULLIFY (kg_env%ec_env%sab_orb, kg_env%ec_env%sac_ppl, kg_env%ec_env%sap_ppnl)
       NULLIFY (kg_env%ec_env%matrix_ks, kg_env%ec_env%matrix_h, kg_env%ec_env%matrix_s)
       NULLIFY (kg_env%ec_env%matrix_t, kg_env%ec_env%matrix_p)
       NULLIFY (kg_env%ec_env%task_list)
@@ -158,6 +169,59 @@ CONTAINS
                                    i_val=kg_env%ec_env%factorization)
          CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%EPS_DEFAULT", &
                                    r_val=kg_env%ec_env%eps_default)
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%HARRIS_BASIS", &
+                                   c_val=kg_env%ec_env%basis)
+
+         ! set basis
+         nkind = SIZE(qs_kind_set)
+         CALL uppercase(kg_env%ec_env%basis)
+         SELECT CASE (kg_env%ec_env%basis)
+         CASE ("ORBITAL")
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
+               IF (ASSOCIATED(basis_set)) THEN
+                  NULLIFY (harris_basis)
+                  CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
+                  IF (ASSOCIATED(harris_basis)) THEN
+                     CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="HARRIS")
+                  END IF
+                  NULLIFY (harris_basis)
+                  CALL copy_gto_basis_set(basis_set, harris_basis)
+                  CALL add_basis_set_to_container(qs_kind%basis_sets, harris_basis, "HARRIS")
+               END IF
+            END DO
+         CASE ("PRIMITIVE")
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
+               IF (ASSOCIATED(basis_set)) THEN
+                  NULLIFY (harris_basis)
+                  CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
+                  IF (ASSOCIATED(harris_basis)) THEN
+                     CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="HARRIS")
+                  END IF
+                  NULLIFY (harris_basis)
+                  CALL create_primitive_basis_set(basis_set, harris_basis)
+                  CALL get_qs_env(qs_env, dft_control=dft_control)
+                  eps_pgf_orb = dft_control%qs_control%eps_pgf_orb
+                  CALL init_interaction_radii_orb_basis(harris_basis, eps_pgf_orb)
+                  harris_basis%kind_radius = basis_set%kind_radius
+                  CALL add_basis_set_to_container(qs_kind%basis_sets, harris_basis, "HARRIS")
+               END IF
+            END DO
+         CASE ("HARRIS")
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               NULLIFY (harris_basis)
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
+               IF (.NOT. ASSOCIATED(harris_basis)) THEN
+                  CPWARN("Harris Basis not defined for all types of atoms.")
+               END IF
+            END DO
+         CASE DEFAULT
+            CPABORT("Unknown KG energy correction basis")
+         END SELECT
          ! set functional
          SELECT CASE (kg_env%ec_env%energy_functional)
          CASE (kg_ec_functional_harris)
@@ -165,7 +229,6 @@ CONTAINS
          CASE DEFAULT
             CPABORT("unknown kg energy correction")
          END SELECT
-
          ! select the XC section
          NULLIFY (xc_section, xc_section_kg)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")

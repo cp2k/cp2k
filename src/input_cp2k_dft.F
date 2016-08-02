@@ -4762,6 +4762,16 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="HARRIS_BASIS", &
+                          description="Specifies the type of basis to be used for the KG energy correction."// &
+                          "Options are: (1) the default orbital basis (ORBITAL);"// &
+                          "(2) the primitive functions of the default orbital basis (PRIMITIVE);"// &
+                          "(3) the basis set labeled in Kind section (HARRIS)", &
+                          usage="HARRIS_BASIS ORBITAL", &
+                          type_of_var=char_t, default_c_val="ORBITAL", n_var=-1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="ALGORITHM", &
                           description="Algorithm used to solve KS equation", &
                           usage="ALGORITHM DIAGONALIZATION", &

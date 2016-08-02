@@ -75,9 +75,11 @@ CONTAINS
 !> \param sac_ppl ...
 !> \param nimages ...
 !> \param cell_to_index ...
+!> \param basis_type ...
 ! **************************************************************************************************
    SUBROUTINE build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, nimages, cell_to_index)
+                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
+                             nimages, cell_to_index, basis_type)
 
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -92,6 +94,7 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ppl
       INTEGER, INTENT(IN)                                :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl', routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: nexp_max = 10
@@ -152,7 +155,8 @@ CONTAINS
       maxder = ncoset(nder)
 
       CALL get_qs_kind_set(qs_kind_set, maxco=maxco, maxlgto=maxlgto, &
-                           maxsgf=maxsgf, maxnset=maxnset, maxlppl=maxlppl)
+                           maxsgf=maxsgf, maxnset=maxnset, maxlppl=maxlppl, &
+                           basis_type=basis_type)
 
       maxl = MAX(maxlgto, maxlppl)
       CALL init_orbital_pointers(2*maxl+2*nder+1)
@@ -162,7 +166,7 @@ CONTAINS
 
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set_a)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
