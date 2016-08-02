@@ -66,7 +66,6 @@ MODULE mp2_ri_gpw
                                               m_walltime
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_alltoall,&
                                               mp_comm_split_direct,&
                                               mp_max,&
                                               mp_min,&
@@ -76,8 +75,7 @@ MODULE mp2_ri_gpw
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types_new,              ONLY: molecule_type
    USE mp2_ri_grad_util,                ONLY: complete_gamma
-   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
-                                              mp2_type,&
+   USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_int_array
    USE orbital_pointers,                ONLY: ncoset
    USE particle_methods,                ONLY: get_particle_set
@@ -116,7 +114,6 @@ MODULE mp2_ri_gpw
                                               realspace_grid_p_type,&
                                               rs_grid_release,&
                                               rs_grid_retain
-   USE rpa_im_time,                     ONLY: communicate_buffer
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
@@ -156,6 +153,7 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param mo_coeff ...
+!> \param fm_matrix_L_RI_metric ...
 !> \param nmo ...
 !> \param homo ...
 !> \param rho_r ...
@@ -188,7 +186,6 @@ CONTAINS
 !> \param mat_3c_overl_int ...
 !> \param ri_metric ...
 !> \param ri_metric_gw ...
-!> \param my_Lrows ...
 !> \param BIb_C_beta ...
 !> \param BIb_C_gw_beta ...
 !> \param ends_B_virtual_beta ...
@@ -204,13 +201,14 @@ CONTAINS
    SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, ends_array, ends_B_virtual, &
                                     sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
                                     dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, &
-                                    cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, &
+                                    cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, &
+                                    fm_matrix_L_RI_metric, nmo, homo, &
                                     rho_r, rho_g, pot_g, mat_munu, sab_orb_sub, sab_orb_all, pw_env_sub, &
                                     poisson_env, auxbas_pw_pool, task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                     mo_coeff_gw, eps_filter, unit_nr, &
                                     mp2_memory, calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
                                     starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                    do_im_time, mat_3c_overl_int, ri_metric, ri_metric_gw, my_Lrows, &
+                                    do_im_time, mat_3c_overl_int, ri_metric, ri_metric_gw, &
                                     BIb_C_beta, BIb_C_gw_beta, ends_B_virtual_beta, sizes_B_virtual_beta, &
                                     starts_B_virtual_beta, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, &
                                     mo_coeff_all_beta, mo_coeff_gw_beta)
@@ -228,7 +226,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, fm_matrix_L_RI_metric
       INTEGER                                            :: nmo, homo
       TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
       TYPE(cp_dbcsr_p_type)                              :: mat_munu
@@ -251,7 +249,6 @@ CONTAINS
       LOGICAL                                            :: do_im_time
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
       INTEGER                                            :: ri_metric, ri_metric_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          OPTIONAL                                        :: BIb_C_beta, BIb_C_gw_beta
       INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: ends_B_virtual_beta, &
@@ -281,13 +278,13 @@ CONTAINS
                                                             memory_info
       REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, pair_energy, &
                                                             wfn_size
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_munu_local_L
       TYPE(cp_dbcsr_type) :: matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, &
          matrix_in_jm, matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_gw, fm_BIb_gw_beta, fm_BIb_jb, &
-                                                            fm_BIb_jb_beta, fm_matrix_L, &
-                                                            fm_matrix_L_RI_metric
+                                                            fm_BIb_jb_beta, fm_matrix_L
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(pw_p_type)                                    :: psi_L
 
@@ -741,10 +738,6 @@ CONTAINS
                                          my_group_L_ends_im_time, my_group_L_sizes_im_time, &
                                          nmo, dimen_RI, cut_RI, sab_orb_sub, sab_orb_all)
 
-         ! transfer entries of fm_matrix_L_RI_metric to RPA
-         CALL grep_Lcols_nonblocking(para_env_L, dimen_RI, fm_matrix_L_RI_metric, &
-                                     my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
-         CALL cp_fm_release(fm_matrix_L_RI_metric)
          CALL cp_para_env_release(para_env_L)
 
       ELSE
@@ -1070,9 +1063,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
       LOGICAL                                            :: do_inversion
       REAL(KIND=dp)                                      :: eps_pgf_orb_old
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_S_inv_work
+
+      CALL timeset(routineN, handle)
 
       ! we have to invert the Coulomb matrix V_PQ only when doing RI with the Coulomb metric
 
@@ -1153,7 +1149,8 @@ CONTAINS
 
       END IF
 
-      ! CALL set_identity(fm_matrix_L) ! debug 3c ERIs
+      CALL timestop(handle)
+
    END SUBROUTINE calculate_Lmin1
 
 ! **************************************************************************************************
@@ -2695,181 +2692,6 @@ CONTAINS
       DEALLOCATE (local_col_row_info)
       DEALLOCATE (rec_col_row_info)
       DEALLOCATE (proc_map)
-      DEALLOCATE (local_L)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env_L ...
-!> \param dimen_RI ...
-!> \param fm_matrix_L ...
-!> \param my_group_L_start ...
-!> \param my_group_L_end ...
-!> \param my_group_L_size ...
-!> \param my_Lrows ...
-!> \author Jan Wilhelm, replace old grep_Lcols by a new one with nonblocking MPI
-! **************************************************************************************************
-   SUBROUTINE grep_Lcols_nonblocking(para_env_L, dimen_RI, fm_matrix_L, &
-                                     my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
-      TYPE(cp_para_env_type), POINTER                    :: para_env_L
-      INTEGER                                            :: dimen_RI
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
-      INTEGER                                            :: my_group_L_start, my_group_L_end, &
-                                                            my_group_L_size
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_Lcols_nonblocking', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: end_idx, handle, i_element, i_global, &
-                                                            iiB, imepos_L, j_global, jjB, L_end, &
-                                                            L_start, ncol_local, nrow_local, &
-                                                            start_idx
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: offset_buffer_send, sizes_rec, sizes_send
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: L_start_end
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      INTEGER, DIMENSION(:, :), POINTER                  :: req_array
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L, local_L_internal
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_rec, buffer_send
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (my_Lrows(dimen_RI, my_group_L_size))
-      my_Lrows = 0.0_dp
-
-      ALLOCATE (L_start_end(0:para_env_L%num_pe-1, 2))
-      L_start_end = 0
-
-      L_start_end(para_env_L%mepos, 1) = my_group_L_start
-      L_start_end(para_env_L%mepos, 2) = my_group_L_end
-
-      ! get the L ranges from the other members of the para_env_L
-      CALL mp_sum(L_start_end, para_env_L%group)
-
-      CALL cp_fm_get_info(matrix=fm_matrix_L, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          local_data=local_L_internal)
-
-      ALLOCATE (local_L(nrow_local, ncol_local))
-      local_L = local_L_internal(1:nrow_local, 1:ncol_local)
-
-      ! since fm_matrix_L is fully replicated in every para_env_L, we only communicate inside para_env_L
-      ALLOCATE (sizes_rec(0:para_env_L%num_pe-1))
-      ALLOCATE (sizes_send(0:para_env_L%num_pe-1))
-      sizes_rec = 0
-      sizes_send = 0
-
-      ! write info how many elements a process receives
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO imepos_L = 0, para_env_L%num_pe-1
-            L_start = L_start_end(imepos_L, 1)
-            L_end = L_start_end(imepos_L, 2)
-            IF (j_global >= L_start .AND. j_global <= L_end) THEN
-               sizes_send(imepos_L) = sizes_send(imepos_L)+nrow_local
-            END IF
-         END DO
-      END DO
-
-      IF (para_env_L%num_pe > 1) THEN
-         CALL mp_alltoall(sizes_send, sizes_rec, 1, para_env_L%group)
-      ELSE
-         sizes_rec(0) = sizes_send(0)
-      END IF
-
-      ALLOCATE (buffer_rec(0:para_env_L%num_pe-1))
-      ALLOCATE (buffer_send(0:para_env_L%num_pe-1))
-
-      ! allocate data message and corresponding indices
-      DO imepos_L = 0, para_env_L%num_pe-1
-
-         ALLOCATE (buffer_rec(imepos_L)%msg(sizes_rec(imepos_L)))
-         buffer_rec(imepos_L)%msg = 0.0_dp
-
-         ALLOCATE (buffer_send(imepos_L)%msg(sizes_send(imepos_L)))
-         buffer_send(imepos_L)%msg = 0.0_dp
-
-         ALLOCATE (buffer_rec(imepos_L)%indx(sizes_rec(imepos_L), 2))
-         buffer_rec(imepos_L)%indx = 0
-
-         ALLOCATE (buffer_send(imepos_L)%indx(sizes_send(imepos_L), 2))
-         buffer_send(imepos_L)%indx = 0
-
-      END DO
-
-      ALLOCATE (offset_buffer_send(0:para_env_L%num_pe-1))
-      offset_buffer_send = 0
-
-      ! write matrix elements and info
-      DO jjB = 1, ncol_local
-
-         j_global = col_indices(jjB)
-
-         DO imepos_L = 0, para_env_L%num_pe-1
-
-            L_start = L_start_end(imepos_L, 1)
-            L_end = L_start_end(imepos_L, 2)
-
-            IF (j_global >= L_start .AND. j_global <= L_end) THEN
-
-               start_idx = offset_buffer_send(imepos_L)+1
-               end_idx = offset_buffer_send(imepos_L)+nrow_local
-
-               DO iiB = 1, nrow_local
-
-                  i_global = row_indices(iiB)
-
-                  buffer_send(imepos_L)%indx(start_idx+iiB-1, 1) = i_global
-                  buffer_send(imepos_L)%indx(start_idx+iiB-1, 2) = j_global
-
-               END DO
-
-               buffer_send(imepos_L)%msg(start_idx:end_idx) = local_L(1:nrow_local, jjB)
-
-               offset_buffer_send(imepos_L) = offset_buffer_send(imepos_L)+nrow_local
-
-            END IF
-
-         END DO
-
-      END DO
-
-      ALLOCATE (req_array(1:para_env_L%num_pe, 4))
-
-      CALL communicate_buffer(para_env_L, sizes_rec, sizes_send, buffer_rec, buffer_send, req_array)
-
-      ! accumulate data on L
-      DO imepos_L = 0, para_env_L%num_pe-1
-         DO i_element = 1, sizes_rec(imepos_L)
-            i_global = buffer_rec(imepos_L)%indx(i_element, 1)
-            j_global = buffer_rec(imepos_L)%indx(i_element, 2)
-
-            my_Lrows(i_global, j_global-my_group_L_start+1) = buffer_rec(imepos_L)%msg(i_element)
-         END DO
-      END DO
-
-      DEALLOCATE (offset_buffer_send, req_array)
-
-      DO imepos_L = 0, para_env_L%num_pe-1
-         DEALLOCATE (buffer_send(imepos_L)%msg)
-         DEALLOCATE (buffer_send(imepos_L)%indx)
-      END DO
-
-      DO imepos_L = 0, para_env_L%num_pe-1
-         DEALLOCATE (buffer_rec(imepos_L)%msg)
-         DEALLOCATE (buffer_rec(imepos_L)%indx)
-      END DO
-
-      DEALLOCATE (buffer_rec, buffer_send)
-
-      DEALLOCATE (sizes_rec, sizes_send)
       DEALLOCATE (local_L)
 
       CALL timestop(handle)

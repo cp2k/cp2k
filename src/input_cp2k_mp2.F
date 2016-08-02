@@ -889,6 +889,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="ONE_TIME_POINT", &
+                          description="Decide whether to do only one time point, only for testing.", &
+                          usage="ONE_TIME_POINT", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword=keyword, name="GROUP_SIZE_3c", &
                           description="Group size used for cutting the RI index P in (alpha beta P) and for "// &
                           "the multiplication M^occ/virt(it)=(alpha beta P)*D^occ/virt. Has to be increased "// &
@@ -929,9 +937,9 @@ CONTAINS
       CALL keyword_create( &
          keyword, name="EPS_FILTER_IM_TIME", &
          description="Determines threshold for DBCSR based multiply P(it)=(Mocc(it))^T*Mvirt(it). Threshold "// &
-         "for Mocc/virt(it)=(abP)*D_ad^occ/virt(it) is determined by EPS_FILTER in WFC_GPW.", &
-         usage="EPS_FILTER_IM_TIME 1.0E-05 ", type_of_var=real_t, &
-         default_r_val=1.0E-06_dp)
+         "for Mocc/virt(it)=(abP)*D_ad^occ/virt(it) is determined by EPS_FILTER in WFC_GPW. Default should be kept.", &
+         usage="EPS_FILTER_IM_TIME 1.0E-10 ", type_of_var=real_t, &
+         default_r_val=1.0E-08_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -963,7 +971,8 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, name="EPS_FILTER", &
-         description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID).", &
+         description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID)."// &
+         "Normally, this EPS_FILTER determines accuracy and timing of cubic-scaling RPA calculation.", &
          usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-9_dp)
       CALL section_add_keyword(section, keyword)

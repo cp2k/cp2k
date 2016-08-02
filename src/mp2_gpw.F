@@ -182,7 +182,6 @@ CONTAINS
          Emp2_EX_BB, eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old, progression_factor, &
          relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, Eigenval, Eigenval_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_beta, BIb_C_gw, &
                                                             BIb_C_gw_beta
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_eigenvalues_beta
@@ -195,7 +194,8 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int, matrix_s
       TYPE(cp_dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, mo_coeff_gw, &
          mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_beta
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_RI_metric, mo_coeff, &
+                                                            mo_coeff_beta
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_sub_im_time_3c, &
                                                             para_env_sub_im_time_P, &
@@ -443,13 +443,13 @@ CONTAINS
                BIb_C, BIb_C_gw, ends_array, ends_B_virtual, sizes_array, &
                sizes_B_virtual, starts_array, starts_B_virtual, &
                dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, rho_r, rho_g, pot_g, &
+               atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, nmo, homo, rho_r, rho_g, pot_g, &
                mat_munu, sab_orb_sub, sab_orb_all, pw_env_sub, poisson_env, auxbas_pw_pool, &
                task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
                mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
                starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
-               do_im_time, mat_3c_overl_int, ri_metric, ri_metric_gw, my_Lrows, &
+               do_im_time, mat_3c_overl_int, ri_metric, ri_metric_gw, &
                BIb_C_beta, BIb_C_gw_beta, ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
                homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, mo_coeff_all_beta, mo_coeff_gw_beta)
          ELSE
@@ -457,13 +457,14 @@ CONTAINS
             CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, ends_array, ends_B_virtual, sizes_array, &
                                        sizes_B_virtual, starts_array, starts_B_virtual, &
                                        dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-                                       atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, rho_r, rho_g, pot_g, &
+                                       atomic_kind_set, qs_kind_set, mo_coeff, fm_matrix_L_RI_metric, &
+                                       nmo, homo, rho_r, rho_g, pot_g, &
                                        mat_munu, sab_orb_sub, sab_orb_all, pw_env_sub, poisson_env, auxbas_pw_pool, &
                                        task_list_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
                                        mp2_env%mp2_gpw%eps_filter, unit_nr, &
                                        mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
                                        starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                       do_im_time, mat_3c_overl_int, ri_metric, ri_metric_gw, my_Lrows)
+                                       do_im_time, mat_3c_overl_int, ri_metric, ri_metric_gw)
 
          END IF
       ELSE
@@ -610,25 +611,25 @@ CONTAINS
          IF (nspins == 2) THEN
             CALL rpa_ri_compute_en(Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
-                                   starts_array, starts_B_virtual, starts_B_all, mo_coeff, &
+                                   starts_array, starts_B_virtual, starts_B_all, mo_coeff, fm_matrix_L_RI_metric, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, matrix_s, &
-                                   mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
+                                   mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, &
                                    mp2_env%mp2_gpw%eps_filter, BIb_C_beta, homo_beta, Eigenval_beta, &
                                    ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
                                    mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
          ELSE
             CALL rpa_ri_compute_en(Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
-                                   starts_array, starts_B_virtual, starts_B_all, mo_coeff, &
+                                   starts_array, starts_B_virtual, starts_B_all, mo_coeff, fm_matrix_L_RI_metric, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
                                    unit_nr, my_do_ri_sos_laplace_mp2, my_do_gw, do_im_time, matrix_s, &
-                                   mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, my_Lrows, &
+                                   mat_munu, mat_P_local, mat_P_global, mat_M, mat_3c_overl_int, &
                                    mp2_env%mp2_gpw%eps_filter)
          END IF
 
          IF (do_im_time) THEN
-            CALL clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
+            CALL clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, fm_matrix_L_RI_metric, &
                                   para_env_sub_im_time_3c, para_env_sub_im_time_P, mp2_env)
          END IF
 
@@ -2852,16 +2853,18 @@ CONTAINS
 !> \param mat_P_local ...
 !> \param mat_P_global ...
 !> \param mat_M ...
+!> \param fm_matrix_L_RI_metric ...
 !> \param para_env_sub_im_time_3c ...
 !> \param para_env_sub_im_time_P ...
 !> \param mp2_env ...
 !> \author Jan Wilhelm
 ! **************************************************************************************************
-   SUBROUTINE clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
+   SUBROUTINE clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, fm_matrix_L_RI_metric, &
                                para_env_sub_im_time_3c, para_env_sub_im_time_P, mp2_env)
 
       TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
                                                             mat_M
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_RI_metric
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_im_time_3c, &
                                                             para_env_sub_im_time_P
       TYPE(mp2_type)                                     :: mp2_env
@@ -2884,6 +2887,8 @@ CONTAINS
 
       CALL cp_dbcsr_release(mat_M%matrix)
       DEALLOCATE (mat_M%matrix)
+
+      CALL cp_fm_release(fm_matrix_L_RI_metric)
 
       CALL cp_para_env_release(para_env_sub_im_time_P)
 
