@@ -36,7 +36,7 @@ MODULE dbcsr_mp_operations
                                               real_8
    USE message_passing,                 ONLY: &
         mp_allgather, mp_alltoall, mp_gatherv, mp_ibcast, mp_irecv, mp_iscatter, mp_isend, &
-        mp_rget, mp_sendrecv, mp_type_descriptor_type, mp_type_indexed_make_c, &
+        mp_isendrecv, mp_rget, mp_sendrecv, mp_type_descriptor_type, mp_type_indexed_make_c, &
         mp_type_indexed_make_d, mp_type_indexed_make_r, mp_type_indexed_make_z, mp_type_make, &
         mp_waitall, mp_win_create
 #include "../../base/base_uses.f90"
@@ -56,6 +56,7 @@ MODULE dbcsr_mp_operations
    PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
    PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any, dbcsr_ibcast_any
    PUBLIC :: dbcsr_iscatterv_any, dbcsr_gatherv_any
+   PUBLIC :: dbcsr_isendrecv_any
    ! Type helpers
    PUBLIC :: dbcsr_mp_type_from_anytype
 
@@ -654,6 +655,51 @@ CONTAINS
          CPABORT("Incorrect data type")
       END SELECT
    END SUBROUTINE dbcsr_gatherv_any
+
+! **************************************************************************************************
+!> \brief Send/Recv function of encapsulated data.
+!> \param msgin ...
+!> \param dest ...
+!> \param msgout ...
+!> \param source ...
+!> \param grp ...
+!> \param send_request ...
+!> \param recv_request ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_isendrecv_any(msgin, dest, msgout, source, grp, send_request, recv_request)
+      TYPE(dbcsr_data_obj), INTENT(IN)                   :: msgin
+      INTEGER, INTENT(IN)                                :: dest
+      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: msgout
+      INTEGER, INTENT(IN)                                :: source, grp
+      INTEGER, INTENT(OUT)                               :: send_request, recv_request
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_isendrecv_any', &
+         routineP = moduleN//':'//routineN
+
+      IF (dbcsr_data_get_type(msgin) .NE. dbcsr_data_get_type(msgout)) &
+         CPABORT("Different data type for msgin and msgout")
+
+      SELECT CASE (dbcsr_data_get_type (msgin))
+      CASE (dbcsr_type_real_4)
+         CALL mp_isendrecv(msgin%d%r_sp, dest, &
+                           msgout%d%r_sp, source, &
+                           grp, send_request, recv_request)
+      CASE (dbcsr_type_real_8)
+         CALL mp_isendrecv(msgin%d%r_dp, dest, &
+                           msgout%d%r_dp, source, &
+                           grp, send_request, recv_request)
+      CASE (dbcsr_type_complex_4)
+         CALL mp_isendrecv(msgin%d%c_sp, dest, &
+                           msgout%d%c_sp, source, &
+                           grp, send_request, recv_request)
+      CASE (dbcsr_type_complex_8)
+         CALL mp_isendrecv(msgin%d%c_dp, dest, &
+                           msgout%d%c_dp, source, &
+                           grp, send_request, recv_request)
+      CASE default
+         CPABORT("Incorrect data type")
+      END SELECT
+   END SUBROUTINE dbcsr_isendrecv_any
 
 ! **************************************************************************************************
 !> \brief ...
