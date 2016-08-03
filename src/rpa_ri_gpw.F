@@ -5714,6 +5714,8 @@ CONTAINS
       ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total_max, 0:(para_env_sub%num_pe-1)))
       non_zero_blocks_3c_tmp = 0
 
+      maxlength = 0
+
       ! first, determine maxlength
       DO i_mem = 1, cut_memory
 
@@ -5764,6 +5766,7 @@ CONTAINS
 
       ! save memory with a smaller non_zero_blocks_3c_cut
       ALLOCATE (non_zero_blocks_3c_cut(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1), 1:cut_memory))
+      non_zero_blocks_3c_cut = 0
 
       ! now, fill non_zero_blocks_3c_cut
       DO i_mem = 1, cut_memory
