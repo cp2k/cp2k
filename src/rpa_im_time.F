@@ -270,7 +270,7 @@ CONTAINS
 
                CALL timeset(routineN//"_fill_M_tot", handle5)
 
-               CALL fill_mat_M_P_munu_from_M_munu_P(mat_M_P_munu_occ, mat_M_mu_Pnu_occ, para_env, my_group_L_starts_im_time, &
+               CALL fill_mat_M_P_munu_from_M_mu_Pnu(mat_M_P_munu_occ, mat_M_mu_Pnu_occ, para_env, my_group_L_starts_im_time, &
                                                     my_group_L_sizes_im_time, mepos_P_from_RI_row, &
                                                     n_group_col, cut_RI, eps_comm, row_from_LLL, &
                                                     starts_array_prim_row, ends_array_prim_row, &
@@ -281,7 +281,7 @@ CONTAINS
                                                     i_mem, j_mem, buffer_mat_M, eps_filter_im_time, &
                                                     do_occ=.TRUE., do_virt=.FALSE.)
 
-               CALL fill_mat_M_P_munu_from_M_munu_P(mat_M_P_munu_virt, mat_M_mu_Pnu_virt, para_env, my_group_L_starts_im_time, &
+               CALL fill_mat_M_P_munu_from_M_mu_Pnu(mat_M_P_munu_virt, mat_M_mu_Pnu_virt, para_env, my_group_L_starts_im_time, &
                                                     my_group_L_sizes_im_time, mepos_P_from_RI_row, &
                                                     n_group_col, cut_RI, eps_comm, row_from_LLL, &
                                                     starts_array_prim_row, ends_array_prim_row, &
@@ -1686,7 +1686,7 @@ CONTAINS
 !> \param do_occ ...
 !> \param do_virt ...
 ! **************************************************************************************************
-   SUBROUTINE fill_mat_M_P_munu_from_M_munu_P(mat_M_P_munu, mat_M_mu_Pnu, para_env, my_group_L_starts_im_time, &
+   SUBROUTINE fill_mat_M_P_munu_from_M_mu_Pnu(mat_M_P_munu, mat_M_mu_Pnu, para_env, my_group_L_starts_im_time, &
                                               my_group_L_sizes_im_time, mepos_P_from_RI_row, &
                                               n_group_col, cut_RI, eps_comm, row_from_LLL, &
                                               starts_array_prim_row, ends_array_prim_row, &
@@ -1715,7 +1715,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter_im_time
       LOGICAL                                            :: do_occ, do_virt
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_mat_M_P_munu_from_M_munu_P', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_mat_M_P_munu_from_M_mu_Pnu', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: block, block_counter_int, block_size, col, col_end_in_data_block, col_offset, &

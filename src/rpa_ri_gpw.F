@@ -5601,52 +5601,26 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: blk, block_counter, col, handle, &
-                                                            i_cut_RI, iblk, imepos, &
-                                                            maxblkrows_local, maxlength, &
-                                                            nblkrows_local, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblkrows_local_from_other_proc
+                                                            i_cut_RI, iblk, imepos, maxlength, &
+                                                            maxlength_tmp, nblkrows_total, row
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c_tmp
-      LOGICAL                                            :: new_row
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_dbcsr_iterator)                            :: iter
 
       CALL timeset(routineN, handle)
 
-      CALL cp_dbcsr_get_info(mat_3c_overl_int(1)%matrix, nblkrows_local)
+      CALL cp_dbcsr_get_info(mat_3c_overl_int(1)%matrix, nblkrows_total=nblkrows_total)
 
-      ALLOCATE (nblkrows_local_from_other_proc(0:para_env_sub%num_pe-1))
-      nblkrows_local_from_other_proc = 0
-
-      nblkrows_local_from_other_proc(para_env_sub%mepos) = nblkrows_local
-
-      CALL mp_sum(nblkrows_local_from_other_proc, para_env_sub%group)
-
-      maxblkrows_local = MAXVAL(nblkrows_local_from_other_proc)
-
-      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:maxblkrows_local, 0:(para_env_sub%num_pe-1)))
+      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total, 0:(para_env_sub%num_pe-1)))
       non_zero_blocks_3c_tmp = 0
 
       DO i_cut_RI = 1, cut_RI
-
-         block_counter = 0
 
          CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int(i_cut_RI)%matrix)
          DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
             CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
 
-            new_row = .TRUE.
-
-            DO iblk = 1, block_counter
-               IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, para_env_sub%mepos) == row) THEN
-                  new_row = .FALSE.
-                  EXIT
-               END IF
-            END DO
-
-            IF (new_row) THEN
-               block_counter = block_counter+1
-               non_zero_blocks_3c_tmp(i_cut_RI, block_counter, para_env_sub%mepos) = row
-            END IF
+            non_zero_blocks_3c_tmp(i_cut_RI, row, para_env_sub%mepos) = 1
 
          ENDDO
 
@@ -5660,23 +5634,35 @@ CONTAINS
 
       DO imepos = 0, para_env_sub%num_pe-1
          DO i_cut_RI = 1, cut_RI
-            DO iblk = 1, maxblkrows_local
+            maxlength_tmp = 0
+            DO iblk = 1, nblkrows_total
                IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
-                  IF (maxlength < iblk) THEN
-                     maxlength = iblk
-                  END IF
+                  maxlength_tmp = maxlength_tmp+1
+               END IF
+            END DO
+            IF (maxlength_tmp > maxlength) THEN
+               maxlength = maxlength_tmp
+            END IF
+         END DO
+      END DO
+
+      ! save memory with smaller non_zero_blocks_3c
+      ALLOCATE (non_zero_blocks_3c(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1)))
+      non_zero_blocks_3c = 0
+
+      DO imepos = 0, para_env_sub%num_pe-1
+         DO i_cut_RI = 1, cut_RI
+            block_counter = 0
+            DO iblk = 1, nblkrows_total
+               IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
+                  block_counter = block_counter+1
+                  non_zero_blocks_3c(i_cut_RI, block_counter, imepos) = iblk
                END IF
             END DO
          END DO
       END DO
 
-      ! save memory with a smaller non_zero_blocks_3c
-      ALLOCATE (non_zero_blocks_3c(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1)))
-
-      non_zero_blocks_3c(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1)) = &
-         non_zero_blocks_3c_tmp(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1))
-
-      DEALLOCATE (non_zero_blocks_3c_tmp, nblkrows_local_from_other_proc)
+      DEALLOCATE (non_zero_blocks_3c_tmp)
 
       CALL timestop(handle)
 
@@ -5704,11 +5690,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_3c_cut_row_col', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: blk, block_counter, col, handle, i_cut_RI, i_mem, iblk, imepos, maxblkrows_local, &
-         maxlength, nblkrows_local, nblkrows_local_max, row
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblkrows_local_from_other_proc
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_tmp
-      LOGICAL                                            :: new_col, new_row
+      INTEGER :: blk, block_counter, col, handle, i_cut_RI, i_mem, iblk, imepos, maxlength, &
+         maxlength_tmp, nblkrows_total, nblkrows_total_max, row
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c_tmp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_dbcsr_iterator)                            :: iter
 
@@ -5716,34 +5700,24 @@ CONTAINS
 
       CPASSERT(do_row .NEQV. do_col)
 
-      nblkrows_local_max = 0
+      nblkrows_total_max = 0
 
       DO i_cut_RI = 1, cut_RI
          DO i_mem = 1, cut_memory
-            CALL cp_dbcsr_get_info(mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix, nblkrows_local=nblkrows_local)
-            IF (nblkrows_local > nblkrows_local_max) THEN
-               nblkrows_local_max = nblkrows_local
+            CALL cp_dbcsr_get_info(mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix, nblkrows_total=nblkrows_total)
+            IF (nblkrows_total > nblkrows_total_max) THEN
+               nblkrows_total_max = nblkrows_total
             END IF
          END DO
       END DO
 
-      ALLOCATE (nblkrows_local_from_other_proc(0:para_env_sub%num_pe-1))
-      nblkrows_local_from_other_proc = 0
-
-      nblkrows_local_from_other_proc(para_env_sub%mepos) = nblkrows_local_max
-
-      CALL mp_sum(nblkrows_local_from_other_proc, para_env_sub%group)
-
-      maxblkrows_local = MAXVAL(nblkrows_local_from_other_proc)
-
-      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:maxblkrows_local, 0:(para_env_sub%num_pe-1), 1:cut_memory))
+      ALLOCATE (non_zero_blocks_3c_tmp(1:cut_RI, 1:nblkrows_total_max, 0:(para_env_sub%num_pe-1)))
       non_zero_blocks_3c_tmp = 0
 
+      ! first, determine maxlength
       DO i_mem = 1, cut_memory
 
          DO i_cut_RI = 1, cut_RI
-
-            block_counter = 0
 
             CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix)
             DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
@@ -5751,35 +5725,11 @@ CONTAINS
 
                IF (do_row) THEN
 
-                  new_row = .TRUE.
-
-                  DO iblk = 1, block_counter
-                     IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, para_env_sub%mepos, i_mem) == row) THEN
-                        new_row = .FALSE.
-                        EXIT
-                     END IF
-                  END DO
-
-                  IF (new_row) THEN
-                     block_counter = block_counter+1
-                     non_zero_blocks_3c_tmp(i_cut_RI, block_counter, para_env_sub%mepos, i_mem) = row
-                  END IF
+                  non_zero_blocks_3c_tmp(i_cut_RI, row, para_env_sub%mepos) = 1
 
                ELSE IF (do_col) THEN
 
-                  new_col = .TRUE.
-
-                  DO iblk = 1, block_counter
-                     IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, para_env_sub%mepos, i_mem) == col) THEN
-                        new_col = .FALSE.
-                        EXIT
-                     END IF
-                  END DO
-
-                  IF (new_col) THEN
-                     block_counter = block_counter+1
-                     non_zero_blocks_3c_tmp(i_cut_RI, block_counter, para_env_sub%mepos, i_mem) = col
-                  END IF
+                  non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
 
                END IF
 
@@ -5789,33 +5739,77 @@ CONTAINS
 
          END DO ! cut_RI
 
-      END DO ! i_mem
+         CALL mp_sum(non_zero_blocks_3c_tmp, para_env_sub%group)
 
-      CALL mp_sum(non_zero_blocks_3c_tmp, para_env_sub%group)
+         maxlength_tmp = 0
 
-      maxlength = 0
-
-      DO imepos = 0, para_env_sub%num_pe-1
-         DO i_cut_RI = 1, cut_RI
-            DO iblk = 1, maxblkrows_local
-               DO i_mem = 1, cut_memory
-                  IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos, i_mem) .NE. 0) THEN
-                     IF (maxlength < iblk) THEN
-                        maxlength = iblk
-                     END IF
+         DO imepos = 0, para_env_sub%num_pe-1
+            DO i_cut_RI = 1, cut_RI
+               maxlength_tmp = 0
+               DO iblk = 1, nblkrows_total
+                  IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
+                     maxlength_tmp = maxlength_tmp+1
                   END IF
                END DO
+               IF (maxlength_tmp > maxlength) THEN
+                  maxlength = maxlength_tmp
+               END IF
             END DO
          END DO
-      END DO
+
+         non_zero_blocks_3c_tmp = 0
+
+      END DO ! i_mem
+      ! end determine maxlength
 
       ! save memory with a smaller non_zero_blocks_3c_cut
       ALLOCATE (non_zero_blocks_3c_cut(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1), 1:cut_memory))
 
-      non_zero_blocks_3c_cut(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1), 1:cut_memory) = &
-         non_zero_blocks_3c_tmp(1:cut_RI, 1:maxlength, 0:(para_env_sub%num_pe-1), 1:cut_memory)
+      ! now, fill non_zero_blocks_3c_cut
+      DO i_mem = 1, cut_memory
 
-      DEALLOCATE (non_zero_blocks_3c_tmp, nblkrows_local_from_other_proc)
+         DO i_cut_RI = 1, cut_RI
+
+            CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix)
+            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+               CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
+
+               IF (do_row) THEN
+
+                  non_zero_blocks_3c_tmp(i_cut_RI, row, para_env_sub%mepos) = 1
+
+               ELSE IF (do_col) THEN
+
+                  non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
+
+               END IF
+
+            ENDDO
+
+            CALL cp_dbcsr_iterator_stop(iter)
+
+         END DO ! cut_RI
+
+         CALL mp_sum(non_zero_blocks_3c_tmp, para_env_sub%group)
+
+         DO imepos = 0, para_env_sub%num_pe-1
+            DO i_cut_RI = 1, cut_RI
+               block_counter = 0
+               DO iblk = 1, nblkrows_total
+                  IF (non_zero_blocks_3c_tmp(i_cut_RI, iblk, imepos) .NE. 0) THEN
+                     block_counter = block_counter+1
+                     non_zero_blocks_3c_cut(i_cut_RI, block_counter, imepos, i_mem) = iblk
+                  END IF
+               END DO
+            END DO
+         END DO
+
+         non_zero_blocks_3c_tmp = 0
+
+      END DO ! i_mem
+      ! end fill non_zero_blocks_3c_cut
+
+      DEALLOCATE (non_zero_blocks_3c_tmp)
 
       CALL timestop(handle)
 
