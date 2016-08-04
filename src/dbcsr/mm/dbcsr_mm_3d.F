@@ -63,9 +63,10 @@ MODULE dbcsr_mm_3d
         dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, dbcsr_release_locals, &
         dbcsr_row_block_offsets, dbcsr_row_block_sizes, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
-        count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, max_memory, &
-        max_nblocks, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_product_wm, &
-        memtype_trsbuffer_1, memtype_trsbuffer_2, rec_sort_index, setup_buffer_matrix
+        count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, enumerate_blk_sizes, &
+        max_memory, max_nblocks, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, &
+        memtype_product_wm, memtype_trsbuffer_1, memtype_trsbuffer_2, rec_sort_index, &
+        setup_buffer_matrix
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                               dbcsr_mm_multrec_init,&
                                               dbcsr_mm_multrec_multiply,&
@@ -191,7 +192,6 @@ MODULE dbcsr_mm_3d
    INTEGER, DIMENSION(4), PRIVATE  :: requests_diag
    INTEGER, DIMENSION(2), PRIVATE  :: requests_scatter
 
-   PUBLIC :: layers_3D_C_reduction
    PUBLIC :: buffers_orig, buffers_1, buffers_2
    PUBLIC :: multiply_3D, multiply_clusters
    PUBLIC :: release_layers_3d_C_reduction, buffers_release
@@ -1639,14 +1639,12 @@ CONTAINS
 !> \param my_num_layers_3D ...
 !> \param mp_obj ...
 !> \param has_clusters ...
-!> \param layers_3D ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE make_layers_3D_C_reduction(my_num_layers_3D, mp_obj, has_clusters, layers_3D)
+   SUBROUTINE make_layers_3D_C_reduction(my_num_layers_3D, mp_obj, has_clusters)
       INTEGER, INTENT(IN)                                :: my_num_layers_3D
       TYPE(dbcsr_mp_obj), INTENT(INOUT)                  :: mp_obj
       LOGICAL                                            :: has_clusters
-      TYPE(dbcsr_layers_3D_C_reduction), INTENT(INOUT)   :: layers_3D
 
       CHARACTER(len=100)                                 :: msg
       INTEGER                                            :: color, key, mygrp, mypcol, myprow, &
@@ -1657,16 +1655,17 @@ CONTAINS
       CALL dbcsr_mp_grid_setup(mp_obj)
       IF (my_num_layers_3D .LE. 1) THEN
          ! Reset 3D communicator if it was previously declared
-         IF (layers_3D%num_layers_3D .GT. 1) CALL release_layers_3D_C_reduction(layers_3D)
+         IF (layers_3D_C_reduction%num_layers_3D .GT. 1) CALL release_layers_3D_C_reduction()
          RETURN
       ENDIF
       !
       ! Check if any existing 3D communicator can be reused
       mygrp = dbcsr_mp_group(mp_obj)
-      IF (layers_3D%grp .EQ. mygrp .AND. layers_3D%num_layers_3D .EQ. my_num_layers_3D) RETURN
+      IF (layers_3D_C_reduction%grp .EQ. mygrp .AND. &
+          layers_3D_C_reduction%num_layers_3D .EQ. my_num_layers_3D) RETURN
       !
       ! Reset 3D communicator
-      CALL release_layers_3D_C_reduction(layers_3D)
+      CALL release_layers_3D_C_reduction()
       !
       ! Checks for 3D algorithm
       numnodes = dbcsr_mp_numnodes(mp_obj)
@@ -1692,22 +1691,24 @@ CONTAINS
             IF (has_clusters) THEN
                CPWARN('Cannot make 3D layers with clusters distribution!')
             ELSE
-               layers_3D%grp = mygrp
-               layers_3D%num_layers_3D = my_num_layers_3D
-               layers_3D%side3D = NINT(SQRT(REAL(numnodes/my_num_layers_3D, KIND=real_8)))
+               layers_3D_C_reduction%grp = mygrp
+               layers_3D_C_reduction%num_layers_3D = my_num_layers_3D
+               layers_3D_C_reduction%side3D = NINT(SQRT(REAL(numnodes/my_num_layers_3D, KIND=real_8)))
                !
                ! Create a new 3D communicator
                myprow = dbcsr_mp_myprow(mp_obj)
                mypcol = dbcsr_mp_mypcol(mp_obj)
                ! Row-wise order for color
-               color = MOD(myprow, layers_3D%side3D)*layers_3D%side3D+MOD(mypcol, layers_3D%side3D)
+               color = MOD(myprow, layers_3D_C_reduction%side3D)* &
+                       layers_3D_C_reduction%side3D+MOD(mypcol, layers_3D_C_reduction%side3D)
                ! Column-major order
-               key = get_rank3D(myprow, mypcol, nprows, layers_3D%side3D)
-               CALL mp_comm_split_direct(mygrp, layers_3D%grp3D, color, key)
+               key = get_rank3D(myprow, mypcol, nprows, layers_3D_C_reduction%side3D)
+               CALL mp_comm_split_direct(mygrp, layers_3D_C_reduction%grp3D, color, key)
                !
                ! Create a 3D-row communicator based on the 3D communicator
-               color = key/(nprows/layers_3D%side3D)
-               CALL mp_comm_split_direct(layers_3D%grp3D, layers_3D%rowgrp3D, color, key)
+               color = key/(nprows/layers_3D_C_reduction%side3D)
+               CALL mp_comm_split_direct(layers_3D_C_reduction%grp3D, &
+                                         layers_3D_C_reduction%rowgrp3D, color, key)
             ENDIF
          ENDIF
       ELSE
@@ -1717,19 +1718,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Release communicators for 3D layers for C-reduction
-!> \param layers_3D ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE release_layers_3D_C_reduction(layers_3D)
-      TYPE(dbcsr_layers_3D_C_reduction), INTENT(INOUT)   :: layers_3D
-
-      layers_3D%grp = mp_comm_null
-      IF (layers_3D%rowgrp3D .NE. mp_comm_null) CALL mp_comm_free(layers_3D%rowgrp3D)
-      IF (layers_3D%grp3D .NE. mp_comm_null) CALL mp_comm_free(layers_3D%grp3D)
-      layers_3D%rowgrp3D = mp_comm_null
-      layers_3D%grp3D = mp_comm_null
-      layers_3D%num_layers_3D = 1
-      layers_3D%side3D = HUGE(1)
+   SUBROUTINE release_layers_3D_C_reduction()
+      layers_3D_C_reduction%grp = mp_comm_null
+      IF (layers_3D_C_reduction%rowgrp3D .NE. mp_comm_null) CALL mp_comm_free(layers_3D_C_reduction%rowgrp3D)
+      IF (layers_3D_C_reduction%grp3D .NE. mp_comm_null) CALL mp_comm_free(layers_3D_C_reduction%grp3D)
+      layers_3D_C_reduction%rowgrp3D = mp_comm_null
+      layers_3D_C_reduction%grp3D = mp_comm_null
+      layers_3D_C_reduction%num_layers_3D = 1
+      layers_3D_C_reduction%side3D = HUGE(1)
    END SUBROUTINE release_layers_3D_C_reduction
 
 ! **************************************************************************************************

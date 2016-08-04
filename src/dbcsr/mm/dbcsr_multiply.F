@@ -57,8 +57,7 @@ MODULE dbcsr_multiply
         dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets
    USE dbcsr_mm_3D,                     ONLY: &
         buffers_1, buffers_2, buffers_orig, buffers_release, dbcsr_make_buffers, &
-        layers_3D_C_reduction, make_layers_3D_C_reduction, multiply_3D, multiply_clusters, &
-        release_layers_3d_C_reduction
+        make_layers_3D_C_reduction, multiply_3D, multiply_clusters, release_layers_3D_C_reduction
    USE dbcsr_mm_cannon,                 ONLY: make_m2s,&
                                               multiply_cannon
    USE dbcsr_mm_common,                 ONLY: &
@@ -192,7 +191,7 @@ CONTAINS
       CALL buffers_release(buffers_2)
 
       ! Release 3D communicators
-      CALL release_layers_3D_C_reduction(layers_3D_C_reduction)
+      CALL release_layers_3D_C_reduction()
 
       total_max_memory = max_memory
       CALL mp_max(total_max_memory, group)
@@ -563,7 +562,7 @@ CONTAINS
                      dbcsr_distribution_has_col_clusters(matrix_right%m%dist)
       !
       ! 3D layers
-      CALL make_layers_3D_C_reduction(num_layers_3D, mp_obj, has_clusters, layers_3D_C_reduction)
+      CALL make_layers_3D_C_reduction(num_layers_3D, mp_obj, has_clusters)
       !
       ! No dense multiplication and local indexing when 2D clustering is used.
       IF (use_mpi_exp) THEN

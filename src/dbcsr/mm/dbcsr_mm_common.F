@@ -80,7 +80,7 @@ MODULE dbcsr_mm_common
    PUBLIC :: count_mpi_statistics
    PUBLIC :: setup_buffer_matrix
    PUBLIC :: rec_sort_index
-   PUBLIC :: acc_transpose_blocks
+   PUBLIC :: acc_transpose_blocks, enumerate_blk_sizes
 
 CONTAINS
 
