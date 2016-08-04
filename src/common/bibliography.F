@@ -78,7 +78,7 @@ MODULE bibliography
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
-                            Bates2013
+                            Bates2013, Andermatt2016
 
 CONTAINS
 
@@ -3460,6 +3460,34 @@ CONTAINS
                          "PM 24206280", &
                          "ER"), &
                          DOI="10.1063/1.4827254")
+
+      CALL add_reference(key=Andermatt2016, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Andermatt, S", &
+                         "   Cha, J", &
+                         "   Schiffmann, F", &
+                         "   VandeVondele, J", &
+                         "AF Andermatt, Samuel", &
+                         "   Cha, Jinwoong", &
+                         "   Schiffmann, Florian", &
+                         "   VandeVondele, Joost", &
+                         "TI Combining Linear-Scaling DFT with Subsystem DFT in Born Oppenheimer and", &
+                         "   Ehrenfest Molecular Dynamics Simulations: From Molecules to a Virus in", &
+                         "   Solution", &
+                         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION", &
+                         "SN 1549-9618", &
+                         "EI 1549-9626", &
+                         "PD JUL", &
+                         "PY 2016", &
+                         "VL 12", &
+                         "IS 7", &
+                         "BP 3214", &
+                         "EP 3227", &
+                         "DI 10.1021/acs.jctc.6b00398", &
+                         "UT WOS:000379703800020", &
+                         "PM 27244103", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.6b00398")
 
    END SUBROUTINE add_all_references
 

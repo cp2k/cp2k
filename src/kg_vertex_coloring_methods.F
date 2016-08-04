@@ -15,7 +15,8 @@
 !> \author Martin Haeufel
 ! **************************************************************************************************
 MODULE kg_vertex_coloring_methods
-   USE bibliography,                    ONLY: Brelaz1979,&
+   USE bibliography,                    ONLY: Andermatt2016,&
+                                              Brelaz1979,&
                                               cite_reference
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -76,6 +77,8 @@ CONTAINS
                                                             maxdegree, nneighbors, nnodes
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Andermatt2016)
 
 ! The array pairs contains all interacting (overlapping) pairs of molecules.
 ! It is assumed to be ordered in the following way:

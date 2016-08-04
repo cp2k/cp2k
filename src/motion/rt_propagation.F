@@ -9,6 +9,8 @@
 ! **************************************************************************************************
 
 MODULE rt_propagation
+   USE bibliography,                    ONLY: Andermatt2016,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
@@ -107,6 +109,8 @@ CONTAINS
 
       NULLIFY (qs_env, rtp_control, dft_control)
 
+      CALL cite_reference(Andermatt2016)
+
       CALL force_env_get(force_env=force_env, qs_env=qs_env, globenv=globenv)
       CALL get_qs_env(qs_env, dft_control=dft_control, energy=energy)
       rtp_control => dft_control%rtp_control
@@ -183,6 +187,8 @@ CONTAINS
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       NULLIFY (matrix_s, dft_control)
+
+      CALL cite_reference(Andermatt2016)
 
       CALL get_qs_env(qs_env, &
                       rtp=rtp, &
@@ -266,6 +272,9 @@ CONTAINS
 
       should_stop = .FALSE.
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Andermatt2016)
+
       NULLIFY (logger, dft_control, energy, rtp, rtp_control)
       logger => cp_get_default_logger()
 

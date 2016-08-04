@@ -11,14 +11,14 @@
 ! **************************************************************************************************
 MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
-        Andreussi2012, Avezac2005, BaniHashemian2016, Bengtsson1999, Blochl1995, Brelaz1979, &
-        Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, Elstner1998, Fattebert2002, &
-        Guidon2010, Heinzmann1976, Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
-        Kolafa2004, Krack2000, Krack2002, Kunert2003, Lippert1997, Lippert1999, Perdew1981, &
-        Porezag1995, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Seifert1996, Souza2002, &
-        Stengel2009, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Tozer1996, Umari2002, &
-        VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-        Zhao1994, Zhechkov2005
+        Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Bengtsson1999, Blochl1995, &
+        Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, Elstner1998, &
+        Fattebert2002, Guidon2010, Heinzmann1976, Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
+        Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kunert2003, Lippert1997, Lippert1999, &
+        Perdew1981, Porezag1995, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
+        Seifert1996, Souza2002, Stengel2009, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
+        Tozer1996, Umari2002, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+        VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -2636,7 +2636,7 @@ CONTAINS
       CALL keyword_create(keyword, name="KG_METHOD", &
                           description="Use a Kim-Gordon-like scheme.", &
                           usage="KG_METHOD", lone_keyword_l_val=.TRUE., &
-                          default_l_val=.FALSE., citations=(/Iannuzzi2006, Brelaz1979/))
+                          default_l_val=.FALSE., citations=(/Iannuzzi2006, Brelaz1979, Andermatt2016/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4665,7 +4665,7 @@ CONTAINS
                           description="Specifies the parameters for a Kim-Gordon-like partitioning"// &
                           " into molecular subunits", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Iannuzzi2006, Brelaz1979/))
+                          citations=(/Iannuzzi2006, Brelaz1979, Andermatt2016/))
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -7055,7 +7055,7 @@ CONTAINS
                           description="Parameters needed to set up the real time propagation"// &
                           " for the electron dynamics", &
                           n_keywords=4, n_subsections=4, repeats=.FALSE., &
-                          citations=(/Kunert2003/))
+                          citations=(/Kunert2003, Andermatt2016/))
 
       CALL keyword_create(keyword, name="MAX_ITER", &
                           description="Maximal number of iterations for the self consistent propagator loop.", &

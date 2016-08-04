@@ -18,6 +18,8 @@ MODULE kg_environment
                                               create_primitive_basis_set,&
                                               get_gto_basis_set,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Andermatt2016,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
@@ -139,6 +141,8 @@ CONTAINS
                                                             xc_section, xc_section_kg
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Andermatt2016)
 
       NULLIFY (atomic_kind_set, dispersion_env, para_env)
       NULLIFY (kg_env%sab_orb_full)
