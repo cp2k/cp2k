@@ -600,7 +600,7 @@ MODULE dbcsr_types
 !> \var ...
 ! **************************************************************************************************
    TYPE dbcsr_mpi_statistics_type
-      INTEGER                               :: nimages
+      INTEGER                               :: last_mpi_ranks_used, nimages
       INTEGER                               :: nexchanged
       INTEGER                               :: nfiltered
       ! rank 1: 1=right, 2=left
