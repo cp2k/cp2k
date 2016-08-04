@@ -11,7 +11,7 @@
 !> <b>Modification history:</b>
 !>  - 2016-08    Code organization (Alfio Lazzaro).
 ! **************************************************************************************************
-MODULE dbcsr_multiply
+MODULE dbcsr_mm
    USE acc_stream,                      ONLY: acc_stream_associated,&
                                               acc_stream_create,&
                                               acc_stream_destroy
@@ -107,7 +107,7 @@ MODULE dbcsr_multiply
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_multiply'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm'
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
@@ -993,4 +993,4 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE dbcsr_multiply_internal
 
-END MODULE dbcsr_multiply
+END MODULE dbcsr_mm

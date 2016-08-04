@@ -11,7 +11,7 @@
 MODULE dbcsr_multiply_api
    USE dbcsr_data_methods,              ONLY: dbcsr_scalar
    USE dbcsr_methods,                   ONLY: dbcsr_get_data_type
-   USE dbcsr_multiply,                  ONLY: dbcsr_multiply_clear_mempools,&
+   USE dbcsr_mm,                        ONLY: dbcsr_multiply_clear_mempools,&
                                               dbcsr_multiply_internal,&
                                               dbcsr_multiply_lib_finalize,&
                                               dbcsr_multiply_lib_init
