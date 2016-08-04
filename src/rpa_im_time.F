@@ -17,8 +17,7 @@ MODULE rpa_im_time
         cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
         cp_dbcsr_reserve_blocks, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, &
         dbcsr_type_no_symmetry
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_type
@@ -42,7 +41,7 @@ MODULE rpa_im_time
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_im_time'
 
-   PUBLIC :: compute_fm_mat_P_omega, &
+   PUBLIC :: compute_mat_P_omega, &
              print_occupation_2c, &
              print_occupation_3c, &
              setup_mat_for_mem_cut_3c, &
@@ -52,16 +51,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief compute the matrix Q(it) (intermediate) and Fourier transform it
 !>        directly to fm_mat_P_omega(iw) (output)
-!> \param fm_mat_P_omega ...
+!> \param mat_P_omega ...
 !> \param fm_scaled_dm_occ_tau ...
 !> \param fm_scaled_dm_virt_tau ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
 !> \param mat_P_local ...
 !> \param mat_P_global ...
+!> \param mat_P_global_copy ...
 !> \param mat_M_mu_Pnu_occ ...
 !> \param mat_M_mu_Pnu_virt ...
-!> \param mat_P_global_omega ...
 !> \param matrix_s ...
 !> \param mat_M_P_munu_occ ...
 !> \param mat_M_P_munu_virt ...
@@ -107,37 +106,37 @@ CONTAINS
 !> \param multiply_needed_occ ...
 !> \param multiply_needed_virt ...
 !> \param non_zero_blocks_3c ...
-!> \param non_zero_blocks_3c_cut_row ...
 !> \param non_zero_blocks_3c_cut_col ...
 !> \param buffer_mat_M ...
 ! **************************************************************************************************
-   SUBROUTINE compute_fm_mat_P_omega(fm_mat_P_omega, fm_scaled_dm_occ_tau, &
-                                     fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                     mat_P_local, mat_P_global, mat_M_mu_Pnu_occ, &
-                                     mat_M_mu_Pnu_virt, mat_P_global_omega, matrix_s, mat_M_P_munu_occ, &
-                                     mat_M_P_munu_virt, mat_3c_overl_int_cut, mat_dm_loc_occ_cut, &
-                                     mat_dm_loc_virt_cut, tau_wj_2d, tj, tau_tj, &
-                                     e_fermi, eps_filter, eps_comm, alpha, &
-                                     eps_filter_im_time, Eigenval, nmo, n_group_col, &
-                                     group_size_P, num_integ_points, jquad, cut_memory, cut_RI, unit_nr, &
-                                     mp2_env, para_env, para_env_sub, &
-                                     starts_array_prim_col, ends_array_prim_col, &
-                                     starts_array_prim_row, ends_array_prim_row, &
-                                     starts_array_prim_fullcol, ends_array_prim_fullcol, &
-                                     starts_array_prim_fullrow, ends_array_prim_fullrow, &
-                                     my_group_L_starts_im_time, my_group_L_sizes_im_time, &
-                                     offset_combi_block, starts_array_cm, &
-                                     ends_array_cm, mepos_P_from_RI_row, row_from_LLL, &
-                                     cycle_due_to_sparse_dm, multiply_needed_occ, multiply_needed_virt, &
-                                     non_zero_blocks_3c, non_zero_blocks_3c_cut_row, &
-                                     non_zero_blocks_3c_cut_col, buffer_mat_M)
+   SUBROUTINE compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
+                                  fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                  mat_P_local, mat_P_global, mat_P_global_copy, mat_M_mu_Pnu_occ, &
+                                  mat_M_mu_Pnu_virt, matrix_s, mat_M_P_munu_occ, &
+                                  mat_M_P_munu_virt, mat_3c_overl_int_cut, mat_dm_loc_occ_cut, &
+                                  mat_dm_loc_virt_cut, tau_wj_2d, tj, tau_tj, &
+                                  e_fermi, eps_filter, eps_comm, alpha, &
+                                  eps_filter_im_time, Eigenval, nmo, n_group_col, &
+                                  group_size_P, num_integ_points, jquad, cut_memory, cut_RI, unit_nr, &
+                                  mp2_env, para_env, para_env_sub, &
+                                  starts_array_prim_col, ends_array_prim_col, &
+                                  starts_array_prim_row, ends_array_prim_row, &
+                                  starts_array_prim_fullcol, ends_array_prim_fullcol, &
+                                  starts_array_prim_fullrow, ends_array_prim_fullrow, &
+                                  my_group_L_starts_im_time, my_group_L_sizes_im_time, &
+                                  offset_combi_block, starts_array_cm, &
+                                  ends_array_cm, mepos_P_from_RI_row, row_from_LLL, &
+                                  cycle_due_to_sparse_dm, multiply_needed_occ, multiply_needed_virt, &
+                                  non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M)
 
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mat_P_omega, fm_scaled_dm_occ_tau, &
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_P_omega
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_dbcsr_p_type)                              :: mat_P_local, mat_P_global
+      TYPE(cp_dbcsr_p_type)                              :: mat_P_local, mat_P_global, &
+                                                            mat_P_global_copy
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-                                                            mat_P_global_omega, matrix_s
+                                                            matrix_s
       TYPE(cp_dbcsr_p_type)                              :: mat_M_P_munu_occ, mat_M_P_munu_virt
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut, &
                                                             mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
@@ -163,11 +162,10 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: multiply_needed_occ, multiply_needed_virt
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_row, &
-                                                            non_zero_blocks_3c_cut_col
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_col
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_mat_M
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_mat_P_omega', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, handle4, handle5, i_cut_RI, &
@@ -204,7 +202,8 @@ CONTAINS
             CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_virt_global(jquad)%matrix, nmo, &
                                           mat_dm_loc_virt_cut, starts_array_cm, ends_array_cm, &
                                           j_mem, cut_memory, cut_RI, non_zero_blocks_3c, &
-                                          non_zero_blocks_3c_cut_row, multiply_needed_virt)
+                                          !                                          non_zero_blocks_3c_cut_row, multiply_needed_virt)
+                                          non_zero_blocks_3c_cut_col, multiply_needed_virt)
 
             DO i_mem = 1, cut_memory
 
@@ -326,7 +325,7 @@ CONTAINS
 
                CALL timestop(handle5)
 
-               CALL fill_mat_P_global_from_mat_P_local(mat_P_global, mat_P_local, para_env)
+               CALL fill_mat_P_global_from_mat_P_local(mat_P_global, mat_P_global_copy, mat_P_local, para_env)
 
                CALL timeset(routineN//"_Fourier_transform", handle5)
 
@@ -348,7 +347,7 @@ CONTAINS
                      CALL cp_dbcsr_scale(mat_P_global%matrix, COS(omega*tau)/COS(omega_old*tau)*weight/weight_old)
                   END IF
 
-                  CALL cp_dbcsr_add(mat_P_global_omega(iquad)%matrix, mat_P_global%matrix, 1.0_dp, 1.0_dp)
+                  CALL cp_dbcsr_add(mat_P_omega(iquad)%matrix, mat_P_global%matrix, 1.0_dp, 1.0_dp)
 
                   first_cycle_omega_loop = .FALSE.
 
@@ -373,11 +372,11 @@ CONTAINS
 
       END DO ! time points
 
-      DO iquad = 1, num_integ_points
-
-         CALL copy_dbcsr_to_fm(mat_P_global_omega(iquad)%matrix, fm_mat_P_omega(iquad)%matrix)
-
-      END DO
+!      DO iquad = 1, num_integ_points
+!
+!         CALL copy_dbcsr_to_fm(mat_P_omega(iquad)%matrix, fm_mat_P_omega(iquad)%matrix)
+!
+!      END DO
 
       CALL clean_up(mat_dm_occ_global, mat_dm_virt_global)
 
@@ -778,12 +777,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mat_P_global ...
+!> \param mat_P_global_copy ...
 !> \param mat_P_local ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE fill_mat_P_global_from_mat_P_local(mat_P_global, mat_P_local, para_env)
+   SUBROUTINE fill_mat_P_global_from_mat_P_local(mat_P_global, mat_P_global_copy, mat_P_local, para_env)
 
-      TYPE(cp_dbcsr_p_type)                              :: mat_P_global, mat_P_local
+      TYPE(cp_dbcsr_p_type)                              :: mat_P_global, mat_P_global_copy, &
+                                                            mat_P_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_mat_P_global_from_mat_P_local', &
@@ -806,6 +807,7 @@ CONTAINS
       CALL timeset("fill_Q_2_get_coord", handle1)
 
       CALL cp_dbcsr_set(mat_P_global%matrix, 0.0_dp)
+      CALL cp_dbcsr_set(mat_P_global_copy%matrix, 0.0_dp)
 
       ALLOCATE (buffer_rec(0:para_env%num_pe-1))
       ALLOCATE (buffer_send(0:para_env%num_pe-1))
@@ -968,8 +970,8 @@ CONTAINS
 
       CALL timeset("fill_Q_2_set_blocks", handle1)
 
-      ! fill mat_P_global
-      CALL cp_dbcsr_iterator_start(iter, mat_P_global%matrix)
+      ! fill mat_P_global_copy
+      CALL cp_dbcsr_iterator_start(iter, mat_P_global_copy%matrix)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, &
@@ -1002,6 +1004,11 @@ CONTAINS
       END DO
 
       CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL cp_dbcsr_copy(mat_P_global%matrix, mat_P_global_copy%matrix)
+
+      ! just remove the blocks which are exactly zero from mat_P_global
+      CALL cp_dbcsr_filter(mat_P_global%matrix, 1.0E-30_dp)
 
       DO imepos = 0, para_env%num_pe-1
          DEALLOCATE (buffer_rec(imepos)%msg)

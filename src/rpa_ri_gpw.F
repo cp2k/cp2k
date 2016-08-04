@@ -19,11 +19,13 @@ MODULE rpa_ri_gpw
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
-        cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_get_info, &
+        cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, &
+        cp_dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_invert,&
                                               cp_fm_scale_and_add,&
@@ -69,7 +71,7 @@ MODULE rpa_ri_gpw
                                               gamma_fm_to_dbcsr,&
                                               initialize_buffer,&
                                               release_buffer
-   USE rpa_im_time,                     ONLY: compute_fm_mat_P_omega,&
+   USE rpa_im_time,                     ONLY: compute_mat_P_omega,&
                                               setup_mat_for_mem_cut_3c
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
@@ -1785,8 +1787,7 @@ CONTAINS
          starts_array_prim_col, starts_array_prim_fullcol, starts_array_prim_fullrow, &
          starts_array_prim_row
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_col, &
-                                                            non_zero_blocks_3c_cut_row
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_col
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_indices, &
                                                             row_blk_offset, row_blk_size, &
                                                             row_indices
@@ -1807,9 +1808,10 @@ CONTAINS
          vec_Sigma_x_gw_beta, vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_mat_M, tau_wj_2d
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type)                              :: mat_M_P_munu_occ, mat_M_P_munu_virt
+      TYPE(cp_dbcsr_p_type)                              :: mat_M_P_munu_occ, mat_M_P_munu_virt, &
+                                                            mat_P_global_copy
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-                                                            mat_P_global_omega
+                                                            mat_P_omega
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut, &
                                                             mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
       TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_loc
@@ -1944,15 +1946,21 @@ CONTAINS
                                  template=mat_3c_overl_int(i_cut_RI)%matrix)
          END DO
 
-         NULLIFY (mat_P_global_omega)
-         CALL cp_dbcsr_allocate_matrix_set(mat_P_global_omega, num_integ_points)
+         NULLIFY (mat_P_omega)
+         CALL cp_dbcsr_allocate_matrix_set(mat_P_omega, num_integ_points)
          DO jquad = 1, num_integ_points
-            ALLOCATE (mat_P_global_omega(jquad)%matrix)
-            CALL cp_dbcsr_init(mat_P_global_omega(jquad)%matrix)
-            CALL cp_dbcsr_create(matrix=mat_P_global_omega(jquad)%matrix, &
+            ALLOCATE (mat_P_omega(jquad)%matrix)
+            CALL cp_dbcsr_init(mat_P_omega(jquad)%matrix)
+            CALL cp_dbcsr_create(matrix=mat_P_omega(jquad)%matrix, &
                                  template=mat_P_global%matrix)
-            CALL cp_dbcsr_set(mat_P_global_omega(jquad)%matrix, 0.0_dp)
+            CALL cp_dbcsr_set(mat_P_omega(jquad)%matrix, 0.0_dp)
          END DO
+
+         NULLIFY (mat_P_global_copy%matrix)
+         ALLOCATE (mat_P_global_copy%matrix)
+         CALL cp_dbcsr_init(mat_P_global_copy%matrix)
+         CALL cp_dbcsr_create(mat_P_global_copy%matrix, template=mat_P_global%matrix)
+         CALL cp_dbcsr_copy(mat_P_global_copy%matrix, mat_P_global%matrix)
 
          n_group_row = mp2_env%ri_rpa_im_time_util(1)%n_group_row
          ALLOCATE (sizes_array_prim_row(0:n_group_row-1, cut_memory))
@@ -2051,11 +2059,8 @@ CONTAINS
          CALL setup_mat_for_mem_cut_3c(mat_3c_overl_int_cut, mat_3c_overl_int, cut_memory, cut_RI, &
                                        starts_array_cm, ends_array_cm, my_group_L_sizes_im_time, eps_filter)
 
-         CALL get_non_zero_blocks_3c_cut_row_col(mat_3c_overl_int_cut, para_env_sub, cut_RI, &
-                                                 cut_memory, non_zero_blocks_3c_cut_row, do_row=.TRUE., do_col=.FALSE.)
-
-         CALL get_non_zero_blocks_3c_cut_row_col(mat_3c_overl_int_cut, para_env_sub, cut_RI, &
-                                                 cut_memory, non_zero_blocks_3c_cut_col, do_row=.FALSE., do_col=.TRUE.)
+         CALL get_non_zero_blocks_3c_cut_col(mat_3c_overl_int_cut, para_env_sub, cut_RI, &
+                                             cut_memory, non_zero_blocks_3c_cut_col)
 
          ALLOCATE (cycle_due_to_sparse_dm(cut_memory, cut_memory, num_integ_points))
          cycle_due_to_sparse_dm = .FALSE.
@@ -2603,10 +2608,33 @@ CONTAINS
             CPASSERT(do_minimax_quad)
 
             ! compute the matrix Q(it) and Fourier transform it directly to fm_mat_P_omega(iw)
-            CALL compute_fm_mat_P_omega(fm_mat_P_omega, fm_scaled_dm_occ_tau, &
-                                        fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                        mat_P_local, mat_P_global, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-                                        mat_P_global_omega, matrix_s, &
+            CALL compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
+                                     fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                     mat_P_local, mat_P_global, mat_P_global_copy, &
+                                     mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
+                                     mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
+                                     mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
+                                     tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, eps_comm, alpha, &
+                                     eps_filter_im_time, Eigenval, nmo, n_group_col, &
+                                     group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
+                                     unit_nr, mp2_env, para_env, para_env_sub, &
+                                     starts_array_prim_col, ends_array_prim_col, &
+                                     starts_array_prim_row, ends_array_prim_row, &
+                                     starts_array_prim_fullcol, ends_array_prim_fullcol, &
+                                     starts_array_prim_fullrow, ends_array_prim_fullrow, &
+                                     my_group_L_starts_im_time, my_group_L_sizes_im_time, &
+                                     offset_combi_block, starts_array_cm, ends_array_cm, &
+                                     mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
+                                     multiply_needed_occ, multiply_needed_virt, &
+                                     non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M)
+
+            ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
+            IF (my_open_shell) THEN
+
+               CALL compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
+                                        fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
+                                        mat_P_local, mat_P_global, mat_P_global_copy, &
+                                        mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
                                         mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                         mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
                                         tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, eps_comm, alpha, &
@@ -2621,32 +2649,7 @@ CONTAINS
                                         offset_combi_block, starts_array_cm, ends_array_cm, &
                                         mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
                                         multiply_needed_occ, multiply_needed_virt, &
-                                        non_zero_blocks_3c, non_zero_blocks_3c_cut_row, &
-                                        non_zero_blocks_3c_cut_col, buffer_mat_M)
-
-            ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
-            IF (my_open_shell) THEN
-
-               CALL compute_fm_mat_P_omega(fm_mat_P_omega, fm_scaled_dm_occ_tau, &
-                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, &
-                                           mat_P_local, mat_P_global, mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-                                           mat_P_global_omega, matrix_s, &
-                                           mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
-                                           mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
-                                           tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, eps_comm, alpha, &
-                                           eps_filter_im_time, Eigenval, nmo, n_group_col, &
-                                           group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
-                                           unit_nr, mp2_env, para_env, para_env_sub, &
-                                           starts_array_prim_col, ends_array_prim_col, &
-                                           starts_array_prim_row, ends_array_prim_row, &
-                                           starts_array_prim_fullcol, ends_array_prim_fullcol, &
-                                           starts_array_prim_fullrow, ends_array_prim_fullrow, &
-                                           my_group_L_starts_im_time, my_group_L_sizes_im_time, &
-                                           offset_combi_block, starts_array_cm, ends_array_cm, &
-                                           mepos_P_from_RI_row, row_from_LLL, cycle_due_to_sparse_dm, &
-                                           multiply_needed_occ, multiply_needed_virt, &
-                                           non_zero_blocks_3c, non_zero_blocks_3c_cut_row, &
-                                           non_zero_blocks_3c_cut_col, buffer_mat_M)
+                                        non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M)
 
             END IF
 
@@ -2792,7 +2795,8 @@ CONTAINS
                IF (.NOT. mp2_env%ri_rpa_im_time%do_one_im_time_point) THEN
 
                   ! in case we do imag time, we already calculated fm_mat_Q by a Fourier transform from im. time
-                  CALL cp_fm_to_fm(fm_mat_P_omega(jquad)%matrix, fm_mat_Q)
+!                  CALL cp_fm_to_fm(fm_mat_P_omega(jquad)%matrix, fm_mat_Q)
+                  CALL copy_dbcsr_to_fm(mat_P_omega(jquad)%matrix, fm_mat_Q)
 
                   ! multiplication with RI metric/Coulomb operator
                   CALL cp_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_Q, fm_mat_L, &
@@ -3627,6 +3631,8 @@ CONTAINS
          DEALLOCATE (mat_M_P_munu_occ%matrix)
          CALL cp_dbcsr_release(mat_M_P_munu_virt%matrix)
          DEALLOCATE (mat_M_P_munu_virt%matrix)
+         CALL cp_dbcsr_release(mat_P_global_copy%matrix)
+         DEALLOCATE (mat_P_global_copy%matrix)
 
 !         CALL cp_dbcsr_release(mat_M_mu_Pnu_occ%matrix)
 !         DEALLOCATE(mat_M_mu_Pnu_occ%matrix)
@@ -3636,13 +3642,13 @@ CONTAINS
          CALL cp_dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_occ)
          CALL cp_dbcsr_deallocate_matrix_set(mat_M_mu_Pnu_virt)
 
-         CALL cp_dbcsr_deallocate_matrix_set(mat_P_global_omega)
+         CALL cp_dbcsr_deallocate_matrix_set(mat_P_omega)
 
          CALL cp_dbcsr_deallocate_matrix_set(mat_3c_overl_int_cut)
 
          DEALLOCATE (buffer_mat_M)
          DEALLOCATE (non_zero_blocks_3c)
-         DEALLOCATE (non_zero_blocks_3c_cut_row, non_zero_blocks_3c_cut_col)
+         DEALLOCATE (non_zero_blocks_3c_cut_col)
          DEALLOCATE (cycle_due_to_sparse_dm, multiply_needed_occ, multiply_needed_virt)
          DEALLOCATE (row_from_LLL)
 
@@ -5670,24 +5676,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_3c_overl_int_cut ...
+!> \param mat_3c_overl_int_cut_col ...
 !> \param para_env_sub ...
 !> \param cut_RI ...
 !> \param cut_memory ...
 !> \param non_zero_blocks_3c_cut ...
-!> \param do_row ...
-!> \param do_col ...
 ! **************************************************************************************************
-   SUBROUTINE get_non_zero_blocks_3c_cut_row_col(mat_3c_overl_int_cut, para_env_sub, cut_RI, cut_memory, &
-                                                 non_zero_blocks_3c_cut, do_row, do_col)
+   SUBROUTINE get_non_zero_blocks_3c_cut_col(mat_3c_overl_int_cut_col, para_env_sub, cut_RI, cut_memory, &
+                                             non_zero_blocks_3c_cut)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut_col
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER                                            :: cut_RI, cut_memory
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut
-      LOGICAL                                            :: do_row, do_col
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_3c_cut_row_col', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_3c_cut_col', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: blk, block_counter, col, handle, i_cut_RI, i_mem, iblk, imepos, maxlength, &
@@ -5698,13 +5701,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(do_row .NEQV. do_col)
-
       nblkrows_total_max = 0
 
       DO i_cut_RI = 1, cut_RI
          DO i_mem = 1, cut_memory
-            CALL cp_dbcsr_get_info(mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix, nblkrows_total=nblkrows_total)
+            CALL cp_dbcsr_get_info(mat_3c_overl_int_cut_col(i_cut_RI, i_mem)%matrix, nblkrows_total=nblkrows_total)
             IF (nblkrows_total > nblkrows_total_max) THEN
                nblkrows_total_max = nblkrows_total
             END IF
@@ -5721,19 +5722,11 @@ CONTAINS
 
          DO i_cut_RI = 1, cut_RI
 
-            CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix)
+            CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int_cut_col(i_cut_RI, i_mem)%matrix)
             DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
                CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
 
-               IF (do_row) THEN
-
-                  non_zero_blocks_3c_tmp(i_cut_RI, row, para_env_sub%mepos) = 1
-
-               ELSE IF (do_col) THEN
-
-                  non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
-
-               END IF
+               non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
 
             ENDDO
 
@@ -5773,19 +5766,11 @@ CONTAINS
 
          DO i_cut_RI = 1, cut_RI
 
-            CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix)
+            CALL cp_dbcsr_iterator_start(iter, mat_3c_overl_int_cut_col(i_cut_RI, i_mem)%matrix)
             DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
                CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk)
 
-               IF (do_row) THEN
-
-                  non_zero_blocks_3c_tmp(i_cut_RI, row, para_env_sub%mepos) = 1
-
-               ELSE IF (do_col) THEN
-
-                  non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
-
-               END IF
+               non_zero_blocks_3c_tmp(i_cut_RI, col, para_env_sub%mepos) = 1
 
             ENDDO
 
