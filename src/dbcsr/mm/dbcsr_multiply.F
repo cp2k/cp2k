@@ -55,9 +55,12 @@ MODULE dbcsr_multiply
         dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_image_dist_release, &
         dbcsr_init, dbcsr_nblkcols_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
         dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets
-   USE dbcsr_mm_3D,                     ONLY: &
-        buffers_1, buffers_2, buffers_orig, buffers_release, dbcsr_make_buffers, &
-        make_layers_3D_C_reduction, multiply_3D, multiply_clusters, release_layers_3D_C_reduction
+   USE dbcsr_mm_3D,                     ONLY: buffers_release,&
+                                              dbcsr_make_buffers,&
+                                              make_layers_3D_C_reduction,&
+                                              multiply_3D,&
+                                              multiply_clusters,&
+                                              release_layers_3D_C_reduction
    USE dbcsr_mm_cannon,                 ONLY: make_m2s,&
                                               multiply_cannon
    USE dbcsr_mm_common,                 ONLY: &
@@ -186,9 +189,7 @@ CONTAINS
       DEALLOCATE (memtype_product_wm)
 
       ! Deallocate buffers
-      CALL buffers_release(buffers_orig)
-      CALL buffers_release(buffers_1)
-      CALL buffers_release(buffers_2)
+      CALL buffers_release()
 
       ! Release 3D communicators
       CALL release_layers_3D_C_reduction()

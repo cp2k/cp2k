@@ -192,7 +192,6 @@ MODULE dbcsr_mm_3d
    INTEGER, DIMENSION(4), PRIVATE  :: requests_diag
    INTEGER, DIMENSION(2), PRIVATE  :: requests_scatter
 
-   PUBLIC :: buffers_orig, buffers_1, buffers_2
    PUBLIC :: multiply_3D, multiply_clusters
    PUBLIC :: release_layers_3d_C_reduction, buffers_release
    PUBLIC :: dbcsr_make_buffers, make_layers_3d_C_reduction
@@ -1763,20 +1762,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'multiply_3D', routineP = moduleN//':'//routineN
 
       INTEGER :: blk, data_type, data_type_byte, grp_left, grp_right, handle, handle2, handle3, &
-         icol3D, iget, ilayer_col, ilayer_row, index_row_max_epss, iproc, irecv3D, irow3D, &
-         isend3D, ithread, left_col_mult, left_col_nimages, left_col_total_nimages, &
-         left_data_offset, left_data_size, left_layer3D, left_max_data_size, left_max_meta_size, &
-         left_meta_offset, left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
-         left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, &
-         left_v_i, left_vcol, left_vrow, meta_size_image, metronome, min_nimages, mycol3D, mynode
-      INTEGER :: mypcol, myprow, myrank3D, myrow3D, nblkrows_local, ncols3D, nranks3D, nrows3D, &
-         nsteps_k, nthreads, numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, &
-         request_keep_sparsity, right_col_mult, right_col_nimages, right_data_offset, &
-         right_data_size, right_layer3D, right_max_data_size, right_max_meta_size, &
-         right_meta_offset, right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, &
-         right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
-         right_row_nimages, right_row_total_nimages, right_v_i, right_vcol, right_vrow, row, &
-         size_guess, size_index_merged
+         icol3D, ilayer_col, ilayer_row, index_row_max_epss, iproc, irecv3D, irow3D, isend3D, &
+         ithread, left_col_mult, left_col_nimages, left_col_total_nimages, left_data_offset, &
+         left_data_size, left_layer3D, left_max_data_size, left_max_meta_size, left_meta_offset, &
+         left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, &
+         left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, left_v_i, &
+         left_vcol, left_vrow, meta_size_image, metronome, min_nimages, mycol3D, mynode, mypcol
+      INTEGER :: myprow, myrank3D, myrow3D, nblkrows_local, ncols3D, nranks3D, nrows3D, nsteps_k, &
+         nthreads, numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
+         right_col_mult, right_col_nimages, right_data_offset, right_data_size, right_layer3D, &
+         right_max_data_size, right_max_meta_size, right_meta_offset, right_meta_size, &
+         right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
+         right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
+         right_row_total_nimages, right_v_i, right_vcol, right_vrow, row, size_guess, &
+         size_index_merged
       INTEGER :: size_index_unmerged, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:) :: indices_common_unmerged, left_displ_vunmerged, &
@@ -2067,8 +2066,8 @@ CONTAINS
                IF (keep_sparsity) THEN
                   CALL setup_buffer_matrix(product_matrix3D%mats(ilayer_row, ilayer_col)%matrix, &
                                            product_matrix, product_matrix_meta_size(ilayer_row, ilayer_col))
-                  product_matrix3D%mats(ilayer_row, ilayer_col)%matrix%m%index(1: &
-                                                                               product_matrix_meta_size(ilayer_row, ilayer_col)) = &
+                  product_matrix3D%mats(ilayer_row, ilayer_col)% &
+                     matrix%m%index(1:product_matrix_meta_size(ilayer_row, ilayer_col)) = &
                      product_matrix_meta(product_matrix_meta_displ(ilayer_row, ilayer_col)+1: &
                                          product_matrix_meta_displ(ilayer_row, ilayer_col)+ &
                                          product_matrix_meta_size(ilayer_row, ilayer_col))
@@ -2165,8 +2164,8 @@ CONTAINS
                                             capacity=left_col_nimages+right_row_nimages)
       ENDIF
       !
-      ! Pre-CANNON execution: filtering and resize buffers for communications
-      CALL timeset(routineN//"_precannon", handle2)
+      ! Pre-execution: filtering and resize buffers for communications
+      CALL timeset(routineN//"_pre", handle2)
       !
       ALLOCATE (right_vunmerged(0:min_nimages-1, 0:nsteps_k-1))
       ALLOCATE (left_vunmerged(0:min_nimages-1, 0:nsteps_k-1))
@@ -2485,31 +2484,31 @@ CONTAINS
             !
             DO v_ki = 0, min_nimages-1
                ! Right
-               CALL cannon_transfer(v_ki, buffers_comm%right%vprow, &
-                                    right_row_nimages, right_row_total_nimages, &
-                                    right_vunmerged(v_ki, metronome), &
-                                    right_displ_vunmerged, &
-                                    right_v_i, nofiltered(v_ki, metronome), &
-                                    right_refs_displ_unmerged_layers3D, &
-                                    buffers_comm%right, right_refs_meta_size_layers3D, right_refs_data_size, &
-                                    right_meta_size, right_data_size, &
-                                    right_meta_offset, right_data_offset, &
-                                    buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, &
-                                    metronome .GT. 0, &
-                                    data_get, data_type_byte, buffers_orig%right, right_layer3D)
+               CALL rma_transfer(v_ki, buffers_comm%right%vprow, &
+                                 right_row_nimages, right_row_total_nimages, &
+                                 right_vunmerged(v_ki, metronome), &
+                                 right_displ_vunmerged, &
+                                 right_v_i, nofiltered(v_ki, metronome), &
+                                 right_refs_displ_unmerged_layers3D, &
+                                 buffers_comm%right, right_refs_meta_size_layers3D, right_refs_data_size, &
+                                 right_meta_size, right_data_size, &
+                                 right_meta_offset, right_data_offset, &
+                                 buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, &
+                                 metronome .GT. 0, &
+                                 data_get, data_type_byte, buffers_orig%right, right_layer3D)
                ! Left
-               CALL cannon_transfer(v_ki, buffers_comm%left%vpcol, &
-                                    left_col_nimages, left_col_total_nimages, &
-                                    left_vunmerged(v_ki, metronome), &
-                                    left_displ_vunmerged, &
-                                    left_v_i, nofiltered(v_ki, metronome), &
-                                    left_refs_displ_unmerged_layers3D, &
-                                    buffers_comm%left, left_refs_meta_size_layers3D, left_refs_data_size, &
-                                    left_meta_size, left_data_size, &
-                                    left_meta_offset, left_data_offset, &
-                                    buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, &
-                                    metronome .GT. 0, &
-                                    data_get, data_type_byte, buffers_orig%left, left_layer3D)
+               CALL rma_transfer(v_ki, buffers_comm%left%vpcol, &
+                                 left_col_nimages, left_col_total_nimages, &
+                                 left_vunmerged(v_ki, metronome), &
+                                 left_displ_vunmerged, &
+                                 left_v_i, nofiltered(v_ki, metronome), &
+                                 left_refs_displ_unmerged_layers3D, &
+                                 buffers_comm%left, left_refs_meta_size_layers3D, left_refs_data_size, &
+                                 left_meta_size, left_data_size, &
+                                 left_meta_offset, left_data_offset, &
+                                 buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, &
+                                 metronome .GT. 0, &
+                                 data_get, data_type_byte, buffers_orig%left, left_layer3D)
             ENDDO
             ! Set the referenced sizes to the actual data moved via MPI
             CALL dbcsr_data_set_size_referenced(buffers_comm%right%data, &
@@ -2548,82 +2547,33 @@ CONTAINS
                !
                common_unmerged(:) = .FALSE.
                !
-               IF (min_nimages .EQ. 1 .OR. has_acc) THEN
-                  CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
-                  IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data)
-                  CALL merge_calc(buffers_calc%right, &
-                                  buffers_calc%left, &
-                                  multrec(:, myrow3D, mycol3D), .TRUE., flop, &
-                                  imgdist_right, .FALSE., &
-                                  1, min_nimages, &
-                                  min_nimages, right_col_nimages, &
-                                  right_row_total_nimages, &
-                                  right_global_indices, right_vunmerged(:, metronome-1), &
-                                  right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                                  right_norms, left_norms, &
-                                  common_unmerged, indices_common_unmerged, has_acc)
-                  CALL mp_waitall(buffers_calc%left%get_requests(:, 1:left_nrequests))
-                  IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%left%data)
-                  CALL merge_calc(buffers_calc%right, &
-                                  buffers_calc%left, &
-                                  multrec(:, myrow3D, mycol3D), .TRUE., flop, &
-                                  imgdist_left, .TRUE., &
-                                  1, min_nimages, &
-                                  left_row_nimages, min_nimages, &
-                                  left_col_total_nimages, &
-                                  left_global_indices, left_vunmerged(:, metronome-1), &
-                                  left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                                  right_norms, left_norms, &
-                                  common_unmerged, indices_common_unmerged, &
-                                  has_acc, nthreads, buffers_calc%trs_stackbuf)
-               ELSE
-                  !
-                  ! Use async communication-computation over images
-                  CALL timeset("mp_waitall_2", handle3)
-                  !
-                  ! Counting the requests per each unmerged image
-                  right_get_requests_images(:) = 0
-                  DO iget = 1, right_nrequests
-                     right_get_requests_images(buffers_calc%right%get_requests_map(1, iget)) = 1
-                  ENDDO
-                  left_get_requests_images(:) = 0
-                  DO iget = 1, left_nrequests
-                     left_get_requests_images(buffers_calc%left%get_requests_map(1, iget)) = 1
-                  ENDDO
-                  !
-                  DO WHILE (right_nrequests .GT. 0 .OR. &
-                            left_nrequests .GT. 0)
-                     IF (right_nrequests .GT. 0) THEN
-                        CALL wait_merge_calc_low(buffers_calc%right, &
-                                                 buffers_calc%left, &
-                                                 right_nrequests, &
-                                                 multrec(:, myrow3D, mycol3D), .TRUE., flop, &
-                                                 right_get_requests_images, &
-                                                 imgdist_right, .FALSE., min_nimages, right_col_nimages, &
-                                                 right_row_total_nimages, &
-                                                 right_global_indices, right_vunmerged(:, metronome-1), &
-                                                 right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                                                 right_norms, left_norms, &
-                                                 common_unmerged, indices_common_unmerged)
-                     ENDIF
-                     IF (left_nrequests .GT. 0) THEN
-                        CALL wait_merge_calc_low(buffers_calc%right, &
-                                                 buffers_calc%left, &
-                                                 left_nrequests, &
-                                                 multrec(:, myrow3D, mycol3D), .TRUE., flop, &
-                                                 left_get_requests_images, &
-                                                 imgdist_left, .TRUE., left_row_nimages, min_nimages, &
-                                                 left_col_total_nimages, &
-                                                 left_global_indices, left_vunmerged(:, metronome-1), &
-                                                 left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                                                 right_norms, left_norms, &
-                                                 common_unmerged, indices_common_unmerged, &
-                                                 nthreads)
-                     ENDIF
-                  ENDDO
-                  !
-                  CALL timestop(handle3)
-               ENDIF
+               CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
+               IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data)
+               CALL merge_calc(buffers_calc%right, &
+                               buffers_calc%left, &
+                               multrec(:, myrow3D, mycol3D), .TRUE., flop, &
+                               imgdist_right, .FALSE., &
+                               1, min_nimages, &
+                               min_nimages, right_col_nimages, &
+                               right_row_total_nimages, &
+                               right_global_indices, right_vunmerged(:, metronome-1), &
+                               right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
+                               right_norms, left_norms, &
+                               common_unmerged, indices_common_unmerged, has_acc)
+               CALL mp_waitall(buffers_calc%left%get_requests(:, 1:left_nrequests))
+               IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%left%data)
+               CALL merge_calc(buffers_calc%right, &
+                               buffers_calc%left, &
+                               multrec(:, myrow3D, mycol3D), .TRUE., flop, &
+                               imgdist_left, .TRUE., &
+                               1, min_nimages, &
+                               left_row_nimages, min_nimages, &
+                               left_col_total_nimages, &
+                               left_global_indices, left_vunmerged(:, metronome-1), &
+                               left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
+                               right_norms, left_norms, &
+                               common_unmerged, indices_common_unmerged, &
+                               has_acc, nthreads, buffers_calc%trs_stackbuf)
             ENDIF
             !
             IF (debug_mod) THEN
@@ -2858,19 +2808,19 @@ CONTAINS
 !> \param layer3D ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE cannon_transfer(v_ki, vpunmerged, &
-                              unmerged_nimages, &
-                              unmerged_total_nimages, &
-                              vunmerged, &
-                              displ_vunmerged, &
-                              v_i, nofiltered, &
-                              refs_displ_unmerged, &
-                              buffer, refs_meta_size, refs_data_size, &
-                              meta_size, data_size, &
-                              meta_offset, data_offset, &
-                              meta_win, data_win, mypunmerged, save_statistics, &
-                              data_get, data_type_byte, &
-                              buffer_orig, layer3D)
+   SUBROUTINE rma_transfer(v_ki, vpunmerged, &
+                           unmerged_nimages, &
+                           unmerged_total_nimages, &
+                           vunmerged, &
+                           displ_vunmerged, &
+                           v_i, nofiltered, &
+                           refs_displ_unmerged, &
+                           buffer, refs_meta_size, refs_data_size, &
+                           meta_size, data_size, &
+                           meta_offset, data_offset, &
+                           meta_win, data_win, mypunmerged, save_statistics, &
+                           data_get, data_type_byte, &
+                           buffer_orig, layer3D)
       INTEGER, INTENT(IN)                                :: v_ki, vpunmerged, unmerged_nimages, &
                                                             unmerged_total_nimages, vunmerged
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: displ_vunmerged
@@ -2948,7 +2898,7 @@ CONTAINS
             dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
          ENDIF
       ENDIF
-   END SUBROUTINE cannon_transfer
+   END SUBROUTINE rma_transfer
 
 ! **************************************************************************************************
 !> \brief Multiplies two DBCSR matrices by means of RMA MPI operations.
@@ -3401,8 +3351,8 @@ CONTAINS
       DEALLOCATE (right_local_refs_data_size, left_local_refs_data_size)
       DEALLOCATE (right_no_empty_images, left_no_empty_images)
       !
-      ! Pre-CANNON execution: filtering and resize buffers for communications
-      CALL timeset(routineN//"_precannon", handle2)
+      ! Pre-execution: filtering and resize buffers for communications
+      CALL timeset(routineN//"_pre", handle2)
       !
       ALLOCATE (right_vunmerged(0:min_nimages-1, 0:nsteps_k-1))
       ALLOCATE (left_vunmerged(0:min_nimages-1, 0:nsteps_k-1))
@@ -3780,35 +3730,35 @@ CONTAINS
             !
             DO v_ki = 0, min_nimages-1
                ! Right
-               CALL cannon_transfer_clusters(v_ki, buffers_comm%right%vprow, &
-                                             right_row_nimages, right_row_total_nimages, &
-                                             do_bcast, &
-                                             right_vunmerged(:, metronome), right_vmerged(:, :, metronome), &
-                                             right_displ_vunmerged, &
-                                             right_v_i, right_nofiltered(:, :, metronome), right_set_displ, &
-                                             recv_vrow_displ, right_refs_displ_unmerged, &
-                                             buffers_comm%right, right_refs_meta_size, right_refs_data_size, &
-                                             right_meta_size, right_data_size, &
-                                             min_nimages, right_meta_offset, right_data_offset, &
-                                             buffers_orig%right%meta_win, buffers_orig%right%data_win, &
-                                             right_myprow, metronome .GT. 0, &
-                                             data_get, data_type_byte, buffers_orig%right, &
-                                             right_meta_offset_diag, right_data_offset_diag)
+               CALL rma_transfer_clusters(v_ki, buffers_comm%right%vprow, &
+                                          right_row_nimages, right_row_total_nimages, &
+                                          do_bcast, &
+                                          right_vunmerged(:, metronome), right_vmerged(:, :, metronome), &
+                                          right_displ_vunmerged, &
+                                          right_v_i, right_nofiltered(:, :, metronome), right_set_displ, &
+                                          recv_vrow_displ, right_refs_displ_unmerged, &
+                                          buffers_comm%right, right_refs_meta_size, right_refs_data_size, &
+                                          right_meta_size, right_data_size, &
+                                          min_nimages, right_meta_offset, right_data_offset, &
+                                          buffers_orig%right%meta_win, buffers_orig%right%data_win, &
+                                          right_myprow, metronome .GT. 0, &
+                                          data_get, data_type_byte, buffers_orig%right, &
+                                          right_meta_offset_diag, right_data_offset_diag)
                ! Left
-               CALL cannon_transfer_clusters(v_ki, buffers_comm%left%vpcol, &
-                                             left_col_nimages, left_col_total_nimages, &
-                                             do_bcast, &
-                                             left_vunmerged(:, metronome), left_vmerged(:, :, metronome), &
-                                             left_displ_vunmerged, &
-                                             left_v_i, left_nofiltered(:, :, metronome), left_set_displ, &
-                                             recv_vcol_displ, left_refs_displ_unmerged, &
-                                             buffers_comm%left, left_refs_meta_size, left_refs_data_size, &
-                                             left_meta_size, left_data_size, &
-                                             min_nimages, left_meta_offset, left_data_offset, &
-                                             buffers_orig%left%meta_win, buffers_orig%left%data_win, &
-                                             left_mypcol, metronome .GT. 0, &
-                                             data_get, data_type_byte, buffers_orig%left, &
-                                             left_meta_offset_diag, left_data_offset_diag)
+               CALL rma_transfer_clusters(v_ki, buffers_comm%left%vpcol, &
+                                          left_col_nimages, left_col_total_nimages, &
+                                          do_bcast, &
+                                          left_vunmerged(:, metronome), left_vmerged(:, :, metronome), &
+                                          left_displ_vunmerged, &
+                                          left_v_i, left_nofiltered(:, :, metronome), left_set_displ, &
+                                          recv_vcol_displ, left_refs_displ_unmerged, &
+                                          buffers_comm%left, left_refs_meta_size, left_refs_data_size, &
+                                          left_meta_size, left_data_size, &
+                                          min_nimages, left_meta_offset, left_data_offset, &
+                                          buffers_orig%left%meta_win, buffers_orig%left%data_win, &
+                                          left_mypcol, metronome .GT. 0, &
+                                          data_get, data_type_byte, buffers_orig%left, &
+                                          left_meta_offset_diag, left_data_offset_diag)
             ENDDO
             ! Set the referenced sizes to the actual data moved via MPI
             CALL dbcsr_data_set_size_referenced(buffers_comm%right%data, &
@@ -4253,19 +4203,19 @@ CONTAINS
 !> \param data_offset_diag ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE cannon_transfer_clusters(v_ki, vpunmerged, &
-                                       unmerged_nimages, unmerged_total_nimages, &
-                                       do_bcast, &
-                                       vunmerged, vmerged, &
-                                       displ_vunmerged, &
-                                       v_i, nofiltered, set_displ, &
-                                       recv_vunmerged_displ, refs_displ_unmerged, &
-                                       buffer, refs_meta_size, refs_data_size, &
-                                       meta_size, data_size, &
-                                       min_nimages, meta_offset, data_offset, &
-                                       meta_win, data_win, mypunmerged, save_statistics, &
-                                       data_get, data_type_byte, &
-                                       buffer_orig, meta_offset_diag, data_offset_diag)
+   SUBROUTINE rma_transfer_clusters(v_ki, vpunmerged, &
+                                    unmerged_nimages, unmerged_total_nimages, &
+                                    do_bcast, &
+                                    vunmerged, vmerged, &
+                                    displ_vunmerged, &
+                                    v_i, nofiltered, set_displ, &
+                                    recv_vunmerged_displ, refs_displ_unmerged, &
+                                    buffer, refs_meta_size, refs_data_size, &
+                                    meta_size, data_size, &
+                                    min_nimages, meta_offset, data_offset, &
+                                    meta_win, data_win, mypunmerged, save_statistics, &
+                                    data_get, data_type_byte, &
+                                    buffer_orig, meta_offset_diag, data_offset_diag)
       INTEGER, INTENT(IN)                                :: v_ki, vpunmerged, unmerged_nimages, &
                                                             unmerged_total_nimages
       LOGICAL, INTENT(IN)                                :: do_bcast
@@ -4416,7 +4366,7 @@ CONTAINS
                refs_data_size(displ_vunmerged(recv_vunmerged)+ui)
          ENDIF
       ENDDO
-   END SUBROUTINE cannon_transfer_clusters
+   END SUBROUTINE rma_transfer_clusters
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5141,12 +5091,23 @@ CONTAINS
    END SUBROUTINE resize_buffer_diag
 
 ! **************************************************************************************************
+!> \brief Release all buffers
+!>
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE buffers_release()
+      CALL buffers_release_internal(buffers_1)
+      CALL buffers_release_internal(buffers_2)
+      CALL buffers_release_internal(buffers_orig)
+   END SUBROUTINE buffers_release
+
+! **************************************************************************************************
 !> \brief Release buffers
 !>
 !> \param buffers ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE buffers_release(buffers)
+   SUBROUTINE buffers_release_internal(buffers)
       TYPE(dbcsr_buffers), INTENT(INOUT)                 :: buffers
 
       IF (buffers%right%has_rma_win) THEN
@@ -5221,7 +5182,7 @@ CONTAINS
       IF (dbcsr_data_valid(local_data_product_scatter)) THEN
          CALL dbcsr_data_release(local_data_product_scatter)
       ENDIF
-   END SUBROUTINE buffers_release
+   END SUBROUTINE buffers_release_internal
 
 ! **************************************************************************************************
 !> \brief ...
@@ -5334,9 +5295,9 @@ CONTAINS
          my_nthreads = nthreads
       ENDIF
       !
-      ALLOCATE (ioffset_first(nimages_unmerged))
+      ALLOCATE (ioffset_first(ul))
       ioffset_first(1) = 0
-      DO ui = 1, nimages_unmerged-1
+      DO ui = 1, ul-1
          ioffset_first(ui+1) = ioffset_first(ui)+vunmerged(ui)
       ENDDO
       ! Workaround for OpenMPI RMA bug
