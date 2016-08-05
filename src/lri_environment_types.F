@@ -139,6 +139,8 @@ MODULE lri_environment_types
 ! **************************************************************************************************
 
    TYPE lri_bas_type
+      INTEGER, DIMENSION(:, :, :), POINTER                    :: orb_index
+      INTEGER, DIMENSION(:, :, :), POINTER                    :: ri_index
       ! integral of ri basis fbas
       REAL(KIND=dp), DIMENSION(:), POINTER                    :: int_fbas
       ! self overlap ri basis
@@ -149,6 +151,8 @@ MODULE lri_environment_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_ri
       ! contraction matrix for SHG integrals orb basis
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_orb
+      ! contraction matrix for SHG integrals aba/abb
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER           :: scon_mix
    END TYPE lri_bas_type
 
 ! **************************************************************************************************
@@ -837,6 +841,9 @@ CONTAINS
             DEALLOCATE (lri_env%bas_prop(i)%orb_ovlp)
             DEALLOCATE (lri_env%bas_prop(i)%scon_ri)
             DEALLOCATE (lri_env%bas_prop(i)%scon_orb)
+            DEALLOCATE (lri_env%bas_prop(i)%orb_index)
+            DEALLOCATE (lri_env%bas_prop(i)%ri_index)
+            DEALLOCATE (lri_env%bas_prop(i)%scon_mix)
          END DO
          DEALLOCATE (lri_env%bas_prop)
       END IF

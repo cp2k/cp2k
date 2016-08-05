@@ -730,13 +730,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, nba, nbb, nfa, nfb
+      INTEGER, DIMENSION(:, :, :), POINTER               :: fba_index, fbb_index, oba_index, &
+                                                            obb_index
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scon_orba, scon_orbb, scon_ria, scon_rib
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scon_fba, scon_fbb, scon_oba, scon_obb
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: scona_mix, sconb_mix
 
       CALL timeset(routineN, handle)
-      NULLIFY (scon_orba, scon_orbb, scon_ria, scon_rib)
+      NULLIFY (scon_oba, scon_obb, scon_fba, scon_fbb, scona_mix, sconb_mix, &
+               oba_index, obb_index, fba_index, fbb_index)
       dab = SQRT(SUM(rab*rab))
       nba = obasa%nsgf
       nbb = obasb%nsgf
@@ -758,27 +762,35 @@ CONTAINS
          lrii%dabdaint = 0.0_dp
          lrii%dabbint = 0.0_dp
       ELSE
-         scon_orba => lri_env%bas_prop(ikind)%scon_orb
-         scon_orbb => lri_env%bas_prop(jkind)%scon_orb
-         scon_ria => lri_env%bas_prop(ikind)%scon_ri
-         scon_rib => lri_env%bas_prop(jkind)%scon_ri
+         scon_oba => lri_env%bas_prop(ikind)%scon_orb
+         scon_obb => lri_env%bas_prop(jkind)%scon_orb
+         scon_fba => lri_env%bas_prop(ikind)%scon_ri
+         scon_fbb => lri_env%bas_prop(jkind)%scon_ri
+         scona_mix => lri_env%bas_prop(ikind)%scon_mix
+         sconb_mix => lri_env%bas_prop(jkind)%scon_mix
+         oba_index => lri_env%bas_prop(ikind)%orb_index
+         fba_index => lri_env%bas_prop(ikind)%ri_index
+         obb_index => lri_env%bas_prop(jkind)%orb_index
+         fbb_index => lri_env%bas_prop(jkind)%ri_index
          CALL lri_precalc_angular_shg_part(obasa, obasb, fbasa, fbasb, rab, Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (fa,fb)
-         CALL int_overlap_ab_shg(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_ria, scon_rib, &
-                                 Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         CALL int_overlap_ab_shg(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_fba, scon_fbb, &
+                                 Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.FALSE.)
          !*** (a,b)
-         CALL int_overlap_ab_shg(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_orba, scon_orbb, &
-                                 Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         CALL int_overlap_ab_shg(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_oba, scon_obb, &
+                                 Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.TRUE.)
          !*** (a,b,fa)
          CALL int_overlap_aba_shg(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
-                                  scon_orba, scon_orbb, scon_ria, &
+                                  scon_obb, scona_mix, oba_index, fba_index, &
                                   lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
-                                  lri_env%cg_shg%ncg_none0, Waux_mat, dWaux_mat, lrii%calc_force_pair)
+                                  lri_env%cg_shg%ncg_none0, &
+                                  Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (a,b,fb)
          CALL int_overlap_abb_shg(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
-                                  scon_orba, scon_orbb, scon_rib, &
+                                  scon_oba, sconb_mix, obb_index, fbb_index, &
                                   lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
-                                  lri_env%cg_shg%ncg_none0, Waux_mat, dWaux_mat, lrii%calc_force_pair)
+                                  lri_env%cg_shg%ncg_none0, &
+                                  Waux_mat, dWaux_mat, lrii%calc_force_pair)
          DEALLOCATE (Waux_mat, dWaux_mat)
       ENDIF
 

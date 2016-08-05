@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT test_shg_integrals
+  PROJECT test_shg_integrals_ab
   PRINT_LEVEL MEDIUM
   PROGRAM_NAME TEST
   RUN_TYPE NONE
@@ -9,7 +9,14 @@
     ABC 10.0 10.0 10.0
     NAB_MIN 8
     NREP 2
-    CHECK_ACCURACY 
+    CHECK_ACCURACY
+    CALCULATE_DERIVATIVES 
+    TEST_OVERLAP 
+    TEST_COULOMB
+    TEST_VERF
+    TEST_VERFC
+    TEST_VGAUSS
+    TEST_GAUSS
     &BASIS 
     10
     2   0   0   1  1 
