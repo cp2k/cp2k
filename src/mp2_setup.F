@@ -167,8 +167,6 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa_im_time%cut_memory)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MEMORY_INFO", &
                                 l_val=mp2_env%ri_rpa_im_time%memory_info)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%ONE_TIME_POINT", &
-                                l_val=mp2_env%ri_rpa_im_time%do_one_im_time_point)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%EPS_COMM", &
                                 r_val=mp2_env%ri_rpa_im_time%eps_comm)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%GROUP_SIZE_3c", &

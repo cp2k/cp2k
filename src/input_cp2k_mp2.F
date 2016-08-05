@@ -889,14 +889,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ONE_TIME_POINT", &
-                          description="Decide whether to do only one time point, only for testing.", &
-                          usage="ONE_TIME_POINT", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword=keyword, name="GROUP_SIZE_3c", &
                           description="Group size used for cutting the RI index P in (alpha beta P) and for "// &
                           "the multiplication M^occ/virt(it)=(alpha beta P)*D^occ/virt. Has to be increased "// &

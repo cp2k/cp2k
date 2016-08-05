@@ -25,7 +25,8 @@ MODULE rpa_ri_gpw
         cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
         cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, &
         cp_dbcsr_type, dbcsr_type_no_symmetry
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_invert,&
                                               cp_fm_scale_and_add,&
@@ -1808,8 +1809,8 @@ CONTAINS
          vec_Sigma_x_gw_beta, vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_mat_M, tau_wj_2d
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type)                              :: mat_M_P_munu_occ, mat_M_P_munu_virt, &
-                                                            mat_P_global_copy
+      TYPE(cp_dbcsr_p_type)                              :: mat_L, mat_M_P_munu_occ, &
+                                                            mat_M_P_munu_virt, mat_P_global_copy
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
                                                             mat_P_omega
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut, &
@@ -2099,6 +2100,13 @@ CONTAINS
 
          CALL cp_fm_release(fm_mat_L_transposed)
 
+         NULLIFY (mat_L%matrix)
+         ALLOCATE (mat_L%matrix)
+         CALL cp_dbcsr_init(mat_L%matrix)
+         CALL cp_dbcsr_create(mat_L%matrix, template=mat_P_global%matrix)
+
+         CALL copy_fm_to_dbcsr(fm_mat_L, mat_L%matrix)
+
          CALL timestop(handle4)
 
       END IF
@@ -2262,11 +2270,6 @@ CONTAINS
       END IF
 
       nmo = homo+virtual
-
-      ! JW temporary hack
-      IF (mp2_env%ri_rpa_im_time%do_one_im_time_point) THEN
-         num_integ_points = 1
-      END IF
 
       IF (my_do_gw) THEN
          gw_corr_lev_tot = gw_corr_lev_occ+gw_corr_lev_virt
@@ -2791,21 +2794,21 @@ CONTAINS
 
             IF (do_im_time) THEN
 
-               ! JW temporary hack
-               IF (.NOT. mp2_env%ri_rpa_im_time%do_one_im_time_point) THEN
-
-                  ! in case we do imag time, we already calculated fm_mat_Q by a Fourier transform from im. time
+               ! in case we do imag time, we already calculated fm_mat_Q by a Fourier transform from im. time
 !                  CALL cp_fm_to_fm(fm_mat_P_omega(jquad)%matrix, fm_mat_Q)
-                  CALL copy_dbcsr_to_fm(mat_P_omega(jquad)%matrix, fm_mat_Q)
+!               CALL copy_dbcsr_to_fm(mat_P_omega(jquad)%matrix, fm_mat_Q)
 
-                  ! multiplication with RI metric/Coulomb operator
-                  CALL cp_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_Q, fm_mat_L, &
-                               0.0_dp, fm_mat_work)
+               ! multiplication with RI metric/Coulomb operator
+!               CALL cp_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_Q, fm_mat_L, &
+!                            0.0_dp, fm_mat_work)
 
-                  CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_work, &
-                               0.0_dp, fm_mat_Q)
+               CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mat_P_omega(jquad)%matrix, mat_L%matrix, &
+                                      0.0_dp, mat_P_global%matrix, filter_eps=eps_filter_im_time)
 
-               END IF
+               CALL copy_dbcsr_to_fm(mat_P_global%matrix, fm_mat_work)
+
+               CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_work, &
+                            0.0_dp, fm_mat_Q)
 
             ELSE
 
@@ -3084,67 +3087,57 @@ CONTAINS
                                 row_indices=row_indices, &
                                 col_indices=col_indices)
 
-            ! JW temporary hack
-            IF (.NOT. mp2_env%ri_rpa_im_time%do_one_im_time_point) THEN
-
-               ! calcualte the trace of Q and add 1 on the diagonal
-               trace_Qomega = 0.0_dp
+            ! calcualte the trace of Q and add 1 on the diagonal
+            trace_Qomega = 0.0_dp
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
 !$OMP                       SHARED(ncol_local,nrow_local,col_indices,row_indices,trace_Qomega,fm_mat_Q,dimen_RI)
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               DO iiB = 1, nrow_local
+                  i_global = row_indices(iiB)
+                  IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
+                     trace_Qomega(i_global) = fm_mat_Q%local_data(iiB, jjB)
+                     fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB)+1.0_dp
+                  END IF
+               END DO
+            END DO
+            CALL mp_sum(trace_Qomega, para_env_RPA%group)
+
+            IF (jquad <= num_integ_points) THEN
+
+               ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
+               CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
+               CPASSERT(info_chol == 0)
+
+               ! get info of cholesky_decomposed(fm_mat_Q)
+               CALL cp_fm_get_info(matrix=fm_mat_Q, &
+                                   nrow_local=nrow_local, &
+                                   ncol_local=ncol_local, &
+                                   row_indices=row_indices, &
+                                   col_indices=col_indices)
+
+               Q_log = 0.0_dp
+!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
                DO jjB = 1, ncol_local
                   j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
                      IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-                        trace_Qomega(i_global) = fm_mat_Q%local_data(iiB, jjB)
-                        fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB)+1.0_dp
+                        Q_log(i_global) = 2.0_dp*LOG(fm_mat_Q%local_data(iiB, jjB))
                      END IF
                   END DO
                END DO
-               CALL mp_sum(trace_Qomega, para_env_RPA%group)
+               CALL mp_sum(Q_log, para_env_RPA%group)
 
-            END IF
+               FComega = 0.0_dp
+               DO iiB = 1, dimen_RI
+                  IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
+                  ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
+                  FComega = FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
+               END DO
 
-            IF (jquad <= num_integ_points) THEN
-
-               ! JW temporary hack
-               IF (.NOT. mp2_env%ri_rpa_im_time%do_one_im_time_point) THEN
-
-                  ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
-                  CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
-                  CPASSERT(info_chol == 0)
-
-                  ! get info of cholesky_decomposed(fm_mat_Q)
-                  CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                                      nrow_local=nrow_local, &
-                                      ncol_local=ncol_local, &
-                                      row_indices=row_indices, &
-                                      col_indices=col_indices)
-
-                  Q_log = 0.0_dp
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
-                  DO jjB = 1, ncol_local
-                     j_global = col_indices(jjB)
-                     DO iiB = 1, nrow_local
-                        i_global = row_indices(iiB)
-                        IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-                           Q_log(i_global) = 2.0_dp*LOG(fm_mat_Q%local_data(iiB, jjB))
-                        END IF
-                     END DO
-                  END DO
-                  CALL mp_sum(Q_log, para_env_RPA%group)
-
-                  FComega = 0.0_dp
-                  DO iiB = 1, dimen_RI
-                     IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
-                     ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
-                     FComega = FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
-                  END DO
-
-                  Erpa = Erpa+FComega*wj(jquad)
-
-               END IF
+               Erpa = Erpa+FComega*wj(jquad)
 
             END IF
 
@@ -3633,6 +3626,8 @@ CONTAINS
          DEALLOCATE (mat_M_P_munu_virt%matrix)
          CALL cp_dbcsr_release(mat_P_global_copy%matrix)
          DEALLOCATE (mat_P_global_copy%matrix)
+         CALL cp_dbcsr_release(mat_L%matrix)
+         DEALLOCATE (mat_L%matrix)
 
 !         CALL cp_dbcsr_release(mat_M_mu_Pnu_occ%matrix)
 !         DEALLOCATE(mat_M_mu_Pnu_occ%matrix)
