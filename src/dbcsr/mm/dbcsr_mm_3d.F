@@ -1764,29 +1764,25 @@ CONTAINS
       INTEGER :: blk, data_type, data_type_byte, grp_left, grp_right, handle, handle2, handle3, &
          icol3D, ilayer_col, ilayer_row, index_row_max_epss, iproc, irecv3D, irow3D, isend3D, &
          ithread, left_col_mult, left_col_nimages, left_col_total_nimages, left_data_offset, &
-         left_data_size, left_layer3D, left_max_data_size, left_max_meta_size, left_meta_offset, &
-         left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, &
-         left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, left_v_i, &
-         left_vcol, left_vrow, meta_size_image, metronome, min_nimages, mycol3D, mynode, mypcol
-      INTEGER :: myprow, myrank3D, myrow3D, nblkrows_local, ncols3D, nranks3D, nrows3D, nsteps_k, &
-         nthreads, numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
-         right_col_mult, right_col_nimages, right_data_offset, right_data_size, right_layer3D, &
-         right_max_data_size, right_max_meta_size, right_meta_offset, right_meta_size, &
+         left_data_size, left_layer3D, left_meta_offset, left_meta_size, left_myfirstvcol, &
+         left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
+         left_row_mult, left_row_nimages, left_v_i, left_vcol, left_vrow, metronome, min_nimages, &
+         mycol3D, mynode, mypcol, myprow, myrank3D, myrow3D, nblkrows_local, ncols3D
+      INTEGER :: nranks3D, nrows3D, nsteps_k, nthreads, numnodes, nvirt_k, recv_vcol, recv_vrow, &
+         request_epss, request_keep_sparsity, right_col_mult, right_col_nimages, &
+         right_data_offset, right_data_size, right_layer3D, right_meta_offset, right_meta_size, &
          right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
          right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
          right_row_total_nimages, right_v_i, right_vcol, right_vrow, row, size_guess, &
-         size_index_merged
-      INTEGER :: size_index_unmerged, v_ki
+         size_index_merged, size_index_unmerged, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:) :: indices_common_unmerged, left_displ_vunmerged, &
-         left_get_requests_images, left_max_meta_size_merged, product_matrix_epss_displ, &
-         product_matrix_epss_size, product_matrix_meta, right_displ_vunmerged, &
-         right_get_requests_images, right_max_meta_size_merged
+         left_get_requests_images, product_matrix_epss_displ, product_matrix_epss_size, &
+         product_matrix_meta, right_displ_vunmerged, right_get_requests_images
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: left_vunmerged, &
                                                             product_matrix_meta_displ, &
                                                             product_matrix_meta_size, &
                                                             right_vunmerged
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: left_vmerged, right_vmerged
       INTEGER, DIMENSION(2)                              :: requests_reduction_size
       INTEGER, DIMENSION(4)                              :: requests_reduction
       INTEGER, DIMENSION(:), POINTER                     :: product_matrix_recv_p, &
@@ -2177,16 +2173,9 @@ CONTAINS
       !
       ALLOCATE (nofiltered(0:min_nimages-1, 0:nsteps_k-1))
       nofiltered(:, :) = .FALSE.
-      ALLOCATE (right_vmerged(right_col_nimages, 0:min_nimages-1, 0:nsteps_k-1))
-      ALLOCATE (left_vmerged(left_row_nimages, 0:min_nimages-1, 0:nsteps_k-1))
       !
-      right_max_data_size = 0; right_max_meta_size = 0
-      left_max_data_size = 0; left_max_meta_size = 0
-      !
-      ALLOCATE (left_max_meta_size_merged(0:min_nimages-1))
-      left_max_meta_size_merged(:) = 0
-      ALLOCATE (right_max_meta_size_merged(0:min_nimages-1))
-      right_max_meta_size_merged(:) = 0
+      right_data_size = 0; right_meta_size = 0
+      left_data_size = 0; left_meta_size = 0
       !
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
@@ -2197,16 +2186,14 @@ CONTAINS
 !$OMP         left_max_norms,right_row_nimages,product_matrix_epss,&
 !$OMP         right_refs_meta_size_layers3D,left_col_total_nimages,right_row_total_nimages,&
 !$OMP         left_refs_meta_size_layers3D,right_refs_data_size,left_refs_data_size,&
-!$OMP         right_max_data_size,left_max_data_size,left_col_nimages,&
-!$OMP         right_max_meta_size,left_max_meta_size,&
-!$OMP         right_data_size,left_data_size,right_meta_size,left_meta_size,&
-!$OMP         size_index_unmerged,left_max_meta_size_merged,right_max_meta_size_merged,&
+!$OMP         right_data_size,left_data_size,left_col_nimages,&
+!$OMP         right_meta_size,left_meta_size,size_index_unmerged,&
 !$OMP         right_vunmerged,left_vunmerged,nofiltered,&
-!$OMP         right_vmerged,left_vmerged,left_displ_vunmerged,right_displ_vunmerged,&
+!$OMP         left_displ_vunmerged,right_displ_vunmerged,&
 !$OMP         right_no_empty_images_displ,left_no_empty_images_displ,&
 !$OMP         left_layer3D,right_layer3D,myrow3D,product_matrix_epss_displ) &
 !$OMP PRIVATE (metronome,v_ki,recv_vrow,recv_vcol,right_vrow,&
-!$OMP          right_vcol,left_vrow,left_vcol,meta_size_image,iproc)
+!$OMP          right_vcol,left_vrow,left_vcol,iproc)
       !
 !$OMP DO
       DO iproc = 0, right_nprows-1
@@ -2235,6 +2222,8 @@ CONTAINS
       ENDDO
 !$OMP END DO
       !
+!$OMP DO REDUCTION(MAX:right_data_size,left_data_size,right_meta_size,left_meta_size) &
+!$OMP    SCHEDULE(guided)
       DO metronome = 0, nsteps_k-1
          !
          ! Take first cluster global virtual coordinates
@@ -2251,18 +2240,6 @@ CONTAINS
                                vpcol_shift=metronome*min_nimages, &
                                shifting='L')
          !
-!$OMP MASTER
-         right_data_size = 0
-         left_data_size = 0
-         right_meta_size = 0
-         left_meta_size = 0
-         right_vmerged(:, :, metronome) = right_vcol
-         left_vmerged(:, :, metronome) = left_vrow
-!$OMP END MASTER
-!$OMP BARRIER
-         !
-!$OMP DO REDUCTION(+:right_data_size,left_data_size,right_meta_size,left_meta_size) &
-!$OMP    SCHEDULE(guided)
          DO v_ki = 0, min_nimages-1
             !
             recv_vrow = MOD(v_ki+right_vrow, right_row_total_nimages)
@@ -2287,32 +2264,14 @@ CONTAINS
                nofiltered(v_ki, metronome) = .TRUE.
                !
                ! resize buffers taking in account filtering
-               right_data_size = right_data_size+ &
-                                 right_refs_data_size(right_displ_vunmerged(recv_vrow)+1)
-               right_meta_size = right_meta_size+ &
-                                 right_refs_meta_size_layers3D(right_layer3D, recv_vrow)
-               meta_size_image = right_refs_meta_size_layers3D(right_layer3D, recv_vrow)- &
-                                 dbcsr_slot_nblks
-               right_max_meta_size_merged(v_ki) = MAX(right_max_meta_size_merged(v_ki), meta_size_image)
-               !
-               left_data_size = left_data_size+ &
-                                left_refs_data_size(left_displ_vunmerged(recv_vcol)+1)
-               left_meta_size = left_meta_size+ &
-                                left_refs_meta_size_layers3D(left_layer3D, recv_vcol)
-               meta_size_image = left_refs_meta_size_layers3D(left_layer3D, recv_vcol)- &
-                                 size_index_unmerged
-               left_max_meta_size_merged(v_ki) = MAX(left_max_meta_size_merged(v_ki), meta_size_image)
+               right_data_size = MAX(right_data_size, right_refs_data_size(right_displ_vunmerged(recv_vrow)+1))
+               right_meta_size = MAX(right_meta_size, right_refs_meta_size_layers3D(right_layer3D, recv_vrow))
+               left_data_size = MAX(left_data_size, left_refs_data_size(left_displ_vunmerged(recv_vcol)+1))
+               left_meta_size = MAX(left_meta_size, left_refs_meta_size_layers3D(left_layer3D, recv_vcol))
             ENDIF
          ENDDO
-!$OMP END DO
-!$OMP MASTER
-         right_max_data_size = MAX(right_max_data_size, right_data_size)
-         left_max_data_size = MAX(left_max_data_size, left_data_size)
-         right_max_meta_size = MAX(right_max_meta_size, right_meta_size)
-         left_max_meta_size = MAX(left_max_meta_size, left_meta_size)
-!$OMP END MASTER
-!$OMP BARRIER
       ENDDO
+!$OMP END DO
 !$OMP END PARALLEL
       IF (otf_filtering .AND. use_mpi_filtering) THEN
          DEALLOCATE (right_max_norms, left_max_norms)
@@ -2324,34 +2283,34 @@ CONTAINS
       !
       ! Preallocate norms arrays
       IF (otf_filtering) THEN
-         ALLOCATE (left_norms(MAXVAL(left_max_meta_size_merged)/3, min_nimages))
-         ALLOCATE (right_norms(MAXVAL(right_max_meta_size_merged)/3, min_nimages))
+         ALLOCATE (left_norms(left_meta_size/3, min_nimages))
+         ALLOCATE (right_norms(right_meta_size/3, min_nimages))
       ENDIF
-      left_max_meta_size_merged = left_max_meta_size_merged+size_index_merged
-      right_max_meta_size_merged = right_max_meta_size_merged+dbcsr_num_slots
+      left_meta_size = left_meta_size+size_index_merged
+      right_meta_size = right_meta_size+dbcsr_num_slots
       !
       ! Prepare buffers for computation
       IF (nsteps_k .GT. 1) THEN
          ! Right
          CALL buffer_init(buffers_1%right, data_type, &
-                          right_max_data_size, &
-                          right_max_meta_size, &
+                          right_data_size*min_nimages, &
+                          right_meta_size*min_nimages, &
                           requests_size=min_nimages, &
                           data_memory_type=memtype_abpanel_1)
          CALL setup_buffer_matrices_images(buffers_1%right%buffer, min_nimages, &
                                            imgdist_right, matrix_right, &
-                                           right_max_meta_size_merged, &
-                                           buffers_1%right%data)
+                                           buffers_1%right%data, &
+                                           index_size=right_meta_size)
          ! Left
          CALL buffer_init(buffers_1%left, data_type, &
-                          left_max_data_size, &
-                          left_max_meta_size, &
+                          left_data_size*min_nimages, &
+                          left_meta_size*min_nimages, &
                           requests_size=min_nimages, &
                           data_memory_type=memtype_abpanel_1)
          CALL setup_buffer_matrices_images(buffers_1%left%buffer, min_nimages, &
                                            imgdist_left, matrix_left, &
-                                           left_max_meta_size_merged, &
-                                           buffers_1%left%data)
+                                           buffers_1%left%data, &
+                                           index_size=left_meta_size)
          !
          IF (has_acc) THEN
             CALL dbcsr_data_init(buffers_1%trs_stackbuf)
@@ -2366,24 +2325,24 @@ CONTAINS
       ! Prepare buffers for communication
       ! Right
       CALL buffer_init(buffers_2%right, data_type, &
-                       right_max_data_size, &
-                       right_max_meta_size, &
+                       right_data_size*min_nimages, &
+                       right_meta_size*min_nimages, &
                        requests_size=min_nimages, &
                        data_memory_type=memtype_abpanel_2)
       CALL setup_buffer_matrices_images(buffers_2%right%buffer, min_nimages, &
                                         imgdist_right, matrix_right, &
-                                        right_max_meta_size_merged, &
-                                        buffers_2%right%data)
+                                        buffers_2%right%data, &
+                                        index_size=right_meta_size)
       ! Left
       CALL buffer_init(buffers_2%left, data_type, &
-                       left_max_data_size, &
-                       left_max_meta_size, &
+                       left_data_size*min_nimages, &
+                       left_meta_size*min_nimages, &
                        requests_size=min_nimages, &
                        data_memory_type=memtype_abpanel_2)
       CALL setup_buffer_matrices_images(buffers_2%left%buffer, min_nimages, &
                                         imgdist_left, matrix_left, &
-                                        left_max_meta_size_merged, &
-                                        buffers_2%left%data)
+                                        buffers_2%left%data, &
+                                        index_size=left_meta_size)
       !
       IF (has_acc) THEN
          CALL dbcsr_data_init(buffers_2%trs_stackbuf)
@@ -2393,8 +2352,6 @@ CONTAINS
       ENDIF
       !
       buffers_comm => buffers_2
-      !
-      DEALLOCATE (right_max_meta_size_merged, left_max_meta_size_merged)
       !
       ! Setup the receive data pointers
       CALL dbcsr_data_init(data_get)
@@ -2557,9 +2514,11 @@ CONTAINS
                                min_nimages, right_col_nimages, &
                                right_row_total_nimages, &
                                right_global_indices, right_vunmerged(:, metronome-1), &
-                               right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                               right_norms, left_norms, &
-                               common_unmerged, indices_common_unmerged, has_acc)
+                               otf_filtering=otf_filtering, data_type=data_type, &
+                               right_norms=right_norms, left_norms=left_norms, &
+                               common_unmerged=common_unmerged, &
+                               indices_common_unmerged=indices_common_unmerged, &
+                               has_acc=has_acc)
                CALL mp_waitall(buffers_calc%left%get_requests(:, 1:left_nrequests))
                IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%left%data)
                CALL merge_calc(buffers_calc%right, &
@@ -2570,10 +2529,12 @@ CONTAINS
                                left_row_nimages, min_nimages, &
                                left_col_total_nimages, &
                                left_global_indices, left_vunmerged(:, metronome-1), &
-                               left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
-                               right_norms, left_norms, &
-                               common_unmerged, indices_common_unmerged, &
-                               has_acc, nthreads, buffers_calc%trs_stackbuf)
+                               otf_filtering=otf_filtering, data_type=data_type, &
+                               right_norms=right_norms, left_norms=left_norms, &
+                               common_unmerged=common_unmerged, &
+                               indices_common_unmerged=indices_common_unmerged, &
+                               has_acc=has_acc, nthreads=nthreads, &
+                               trs_stackbuf=buffers_calc%trs_stackbuf)
             ENDIF
             !
             IF (debug_mod) THEN
@@ -2638,7 +2599,6 @@ CONTAINS
       DEALLOCATE (multrec)
       DEALLOCATE (right_vunmerged, left_vunmerged)
       DEALLOCATE (nofiltered)
-      DEALLOCATE (right_vmerged, left_vmerged)
       DEALLOCATE (right_displ_vunmerged, left_displ_vunmerged)
       DEALLOCATE (right_no_empty_images_displ, left_no_empty_images_displ)
       !
@@ -2954,8 +2914,8 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:) :: data_displ_gather, data_size_gather, &
          indices_common_unmerged, left_displ_vunmerged, left_get_requests_images, &
-         left_max_meta_size_merged, meta_displ_gather, meta_size_gather, right_displ_vunmerged, &
-         right_get_requests_images, right_max_meta_size_merged, v_k_scatter
+         left_max_meta_size_images, meta_displ_gather, meta_size_gather, right_displ_vunmerged, &
+         right_get_requests_images, right_max_meta_size_images, v_k_scatter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: left_recv_filtered, left_vunmerged, &
                                                             right_recv_filtered, right_vunmerged
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: left_vmerged, right_vmerged
@@ -3262,7 +3222,7 @@ CONTAINS
             ! Set images with scatter data
             CALL setup_buffer_matrices_images(buffer_scatter, nimages_scatter, &
                                               imgdist_right, matrix_right, &
-                                              data_buffer=local_data_scatter)
+                                              local_data_scatter)
             meta_size_scatter = 0
             right_data_size = 0
             DO v_ki = 1, nimages_scatter
@@ -3373,10 +3333,10 @@ CONTAINS
       right_max_data_size = 0; right_max_meta_size = 0
       left_max_data_size = 0; left_max_meta_size = 0
       !
-      ALLOCATE (left_max_meta_size_merged(0:min_nimages-1))
-      left_max_meta_size_merged = 0
-      ALLOCATE (right_max_meta_size_merged(0:min_nimages-1))
-      right_max_meta_size_merged = 0
+      ALLOCATE (left_max_meta_size_images(0:min_nimages-1))
+      left_max_meta_size_images = 0
+      ALLOCATE (right_max_meta_size_images(0:min_nimages-1))
+      right_max_meta_size_images = 0
       !
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
@@ -3390,7 +3350,7 @@ CONTAINS
 !$OMP         right_max_data_size,left_max_data_size,left_col_nimages,&
 !$OMP         right_max_meta_size,left_max_meta_size,do_diagonal,&
 !$OMP         right_data_size,left_data_size,right_meta_size,left_meta_size,&
-!$OMP         size_index_unmerged,left_max_meta_size_merged,right_max_meta_size_merged,&
+!$OMP         size_index_unmerged,left_max_meta_size_images,right_max_meta_size_images,&
 !$OMP         right_vunmerged,left_vunmerged,right_nofiltered,left_nofiltered,myprow,&
 !$OMP         right_vmerged,left_vmerged,left_displ_vunmerged,right_displ_vunmerged,&
 !$OMP         right_no_empty_images_displ,left_no_empty_images_displ,do_scatter,&
@@ -3517,7 +3477,7 @@ CONTAINS
                                     dbcsr_slot_nblks
                ENDIF
             ENDDO
-            right_max_meta_size_merged(v_ki) = MAX(right_max_meta_size_merged(v_ki), meta_size_image)
+            right_max_meta_size_images(v_ki) = MAX(right_max_meta_size_images(v_ki), meta_size_image)
             !
             meta_size_image = 0
             DO v_ri = 1, left_vunmerged(v_ki, metronome)
@@ -3532,7 +3492,7 @@ CONTAINS
                                     size_index_unmerged
                ENDIF
             ENDDO
-            left_max_meta_size_merged(v_ki) = MAX(left_max_meta_size_merged(v_ki), meta_size_image)
+            left_max_meta_size_images(v_ki) = MAX(left_max_meta_size_images(v_ki), meta_size_image)
          ENDDO
 !$OMP END DO
 !$OMP MASTER
@@ -3553,12 +3513,12 @@ CONTAINS
       !
       ! Preallocate norms arrays
       IF (otf_filtering) THEN
-         ALLOCATE (left_norms(MAXVAL(left_max_meta_size_merged)/3, min_nimages))
-         ALLOCATE (right_norms(MAX(MAXVAL(right_max_meta_size_merged), &
+         ALLOCATE (left_norms(MAXVAL(left_max_meta_size_images)/3, min_nimages))
+         ALLOCATE (right_norms(MAX(MAXVAL(right_max_meta_size_images), &
                                    local_size_scatter(imeta))/3, min_nimages))
       ENDIF
-      left_max_meta_size_merged = left_max_meta_size_merged+size_index_merged
-      right_max_meta_size_merged = right_max_meta_size_merged+dbcsr_num_slots
+      left_max_meta_size_images = left_max_meta_size_images+size_index_merged
+      right_max_meta_size_images = right_max_meta_size_images+dbcsr_num_slots
       !
       ! Prepare buffers for computation
       IF (nsteps_k .GT. 1) THEN
@@ -3570,8 +3530,8 @@ CONTAINS
                           data_memory_type=memtype_abpanel_1)
          CALL setup_buffer_matrices_images(buffers_1%right%buffer, min_nimages, &
                                            imgdist_right, matrix_right, &
-                                           right_max_meta_size_merged, &
-                                           buffers_1%right%data)
+                                           buffers_1%right%data, &
+                                           right_max_meta_size_images)
          ! Left:
          CALL buffer_init(buffers_1%left, data_type, &
                           left_max_data_size, &
@@ -3580,8 +3540,8 @@ CONTAINS
                           data_memory_type=memtype_abpanel_1)
          CALL setup_buffer_matrices_images(buffers_1%left%buffer, min_nimages, &
                                            imgdist_left, matrix_left, &
-                                           left_max_meta_size_merged, &
-                                           buffers_1%left%data)
+                                           buffers_1%left%data, &
+                                           left_max_meta_size_images)
          !
          IF (has_acc) THEN
             CALL dbcsr_data_init(buffers_1%trs_stackbuf)
@@ -3602,8 +3562,8 @@ CONTAINS
                        data_memory_type=memtype_abpanel_2)
       CALL setup_buffer_matrices_images(buffers_2%right%buffer, min_nimages, &
                                         imgdist_right, matrix_right, &
-                                        right_max_meta_size_merged, &
-                                        buffers_2%right%data)
+                                        buffers_2%right%data, &
+                                        right_max_meta_size_images)
       ! Left:
       CALL buffer_init(buffers_2%left, data_type, &
                        left_max_data_size, &
@@ -3612,8 +3572,8 @@ CONTAINS
                        data_memory_type=memtype_abpanel_2)
       CALL setup_buffer_matrices_images(buffers_2%left%buffer, min_nimages, &
                                         imgdist_left, matrix_left, &
-                                        left_max_meta_size_merged, &
-                                        buffers_2%left%data)
+                                        buffers_2%left%data, &
+                                        left_max_meta_size_images)
       !
       IF (has_acc) THEN
          CALL dbcsr_data_init(buffers_2%trs_stackbuf)
@@ -3624,7 +3584,7 @@ CONTAINS
       !
       buffers_comm => buffers_2
       !
-      DEALLOCATE (right_max_meta_size_merged, left_max_meta_size_merged)
+      DEALLOCATE (right_max_meta_size_images, left_max_meta_size_images)
       !
       ! Setup the receive data pointers
       CALL dbcsr_data_init(data_get)
@@ -4518,7 +4478,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: uf, ul, nrows_images, ncols_images, &
                                                             ntotal_images
       INTEGER, DIMENSION(:), INTENT(IN)                  :: global_indices, vunmerged
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: vmerged
+      INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: vmerged
       LOGICAL, INTENT(IN)                                :: otf_filtering
       INTEGER, INTENT(IN)                                :: data_type
       REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT), &
@@ -4603,18 +4563,21 @@ CONTAINS
 !> \param nimages ...
 !> \param imgdist ...
 !> \param template_matrix ...
-!> \param index_size_merged ...
 !> \param data_buffer ...
+!> \param index_size_images ...
+!> \param index_size ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE setup_buffer_matrices_images(buffer_set, nimages, imgdist, &
-                                           template_matrix, index_size_merged, data_buffer)
+                                           template_matrix, data_buffer, &
+                                           index_size_images, index_size)
       TYPE(dbcsr_1d_array_type), INTENT(INOUT)           :: buffer_set
       INTEGER, INTENT(IN)                                :: nimages
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
       TYPE(dbcsr_obj), INTENT(IN)                        :: template_matrix
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: index_size_merged
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: data_buffer
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: index_size_images
+      INTEGER, INTENT(IN), OPTIONAL                      :: index_size
 
       INTEGER                                            :: v_ki
 
@@ -4627,7 +4590,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP SHARED(nimages,buffer_set,template_matrix,&
 !$OMP        imgdist,data_buffer,memtype_mpi_buffer,&
-!$OMP        index_size_merged)
+!$OMP        index_size_images,index_size)
       DO v_ki = 1, nimages
          CALL dbcsr_init(buffer_set%mats(v_ki))
          CALL dbcsr_create(buffer_set%mats(v_ki), &
@@ -4642,9 +4605,13 @@ CONTAINS
                            row_blk_offset=template_matrix%m%row_blk_offset, col_blk_offset=template_matrix%m%col_blk_offset, &
                            index_memory_type=memtype_mpi_buffer, &
                            make_index=.FALSE.)
-         IF (PRESENT(index_size_merged)) THEN
+         IF (PRESENT(index_size_images)) THEN
             CALL ensure_array_size(buffer_set%mats(v_ki)%m%index, &
-                                   ub=index_size_merged(v_ki), nocopy=.TRUE., &
+                                   ub=index_size_images(v_ki), nocopy=.TRUE., &
+                                   memory_type=dbcsr_get_index_memory_type(buffer_set%mats(v_ki)))
+         ELSEIF (PRESENT(index_size)) THEN
+            CALL ensure_array_size(buffer_set%mats(v_ki)%m%index, &
+                                   ub=index_size, nocopy=.TRUE., &
                                    memory_type=dbcsr_get_index_memory_type(buffer_set%mats(v_ki)))
          ENDIF
          buffer_set%mats(v_ki)%m%negate_real = template_matrix%m%negate_real
@@ -5254,7 +5221,7 @@ CONTAINS
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
       LOGICAL, INTENT(IN)                                :: do_merge_rows
       INTEGER, DIMENSION(:), INTENT(IN)                  :: global_indices, vunmerged
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: vmerged
+      INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: vmerged
       LOGICAL, DIMENSION(:), INTENT(INOUT)               :: common_unmerged
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: indices_common_unmerged
       INTEGER, INTENT(INOUT)                             :: ncommons_unmerged
