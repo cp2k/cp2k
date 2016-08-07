@@ -520,10 +520,10 @@ CONTAINS
                                 l_val=test_overlap)
       IF (test_overlap) THEN
          !effectively switch off screening; makes no sense for the tests
-         oba%set_radius(:) = HUGE(0.0_dp)
-         obb%set_radius(:) = HUGE(0.0_dp)
-         oba%pgf_radius(:, :) = HUGE(0.0_dp)
-         obb%pgf_radius(:, :) = HUGE(0.0_dp)
+         oba%set_radius(:) = 1.0E+09_dp
+         obb%set_radius(:) = 1.0E+09_dp
+         oba%pgf_radius(:, :) = 1.0E+09_dp
+         obb%pgf_radius(:, :) = 1.0E+09_dp
          nfa = oba%nsgf
          nfb = obb%nsgf
          la_max = MAXVAL(oba%lmax)
@@ -624,18 +624,18 @@ CONTAINS
                                 l_val=test_overlap_abb)
       IF (test_overlap_aba .OR. test_overlap_abb) THEN
          !effectively switch off screening; makes no sense for the tests
-         oba%set_radius(:) = HUGE(0.0_dp)
-         obb%set_radius(:) = HUGE(0.0_dp)
-         oba%pgf_radius(:, :) = HUGE(0.0_dp)
-         obb%pgf_radius(:, :) = HUGE(0.0_dp)
+         oba%set_radius(:) = 1.0E+09_dp
+         obb%set_radius(:) = 1.0E+09_dp
+         oba%pgf_radius(:, :) = 1.0E+09_dp
+         obb%pgf_radius(:, :) = 1.0E+09_dp
          nba = oba%nsgf
          nbb = obb%nsgf
          maxl_orb = MAX(MAXVAL(oba%lmax), MAXVAL(obb%lmax))
          la_max = MAXVAL(oba%lmax)
          lb_max = MAXVAL(obb%lmax)
          IF (test_overlap_aba) THEN
-            fba%set_radius(:) = HUGE(0.0_dp)
-            fba%pgf_radius(:, :) = HUGE(0.0_dp)
+            fba%set_radius(:) = 1.0E+09_dp
+            fba%pgf_radius(:, :) = 1.0E+09_dp
             nfa = fba%nsgf
             maxl_ri = MAXVAL(fba%lmax)
             laa_max = MAXVAL(oba%lmax)+MAXVAL(fba%lmax)
@@ -644,8 +644,8 @@ CONTAINS
             CALL contraction_matrix_shg_mix(oba, fba, oba_index, fba_index, scona_mix)
          ENDIF
          IF (test_overlap_abb) THEN
-            fbb%set_radius(:) = HUGE(0.0_dp)
-            fbb%pgf_radius(:, :) = HUGE(0.0_dp)
+            fbb%set_radius(:) = 1.0E+09_dp
+            fbb%pgf_radius(:, :) = 1.0E+09_dp
             nfb = fbb%nsgf
             maxl_ri = MAXVAL(fbb%lmax)
             lbb_max = MAXVAL(obb%lmax)+MAXVAL(fbb%lmax)
