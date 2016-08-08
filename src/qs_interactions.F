@@ -95,15 +95,14 @@ CONTAINS
                                                             zet
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(gto_basis_set_type), POINTER                  :: aux_basis_set, aux_fit_basis_set, &
-                                                            lri_basis, mao_basis, orb_basis_set, &
-                                                            ri_aux_basis_set, soft_basis
+      TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, harris_basis, &
+         lri_basis, mao_basis, orb_basis_set, ri_aux_basis_set, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
 
       CALL timeset(routineN, handle)
 
       NULLIFY (all_potential, gth_potential, orb_basis_set, aux_basis_set, soft_basis, &
-               lri_basis, mao_basis, paw_proj_set)
+               lri_basis, mao_basis, paw_proj_set, harris_basis)
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
 
@@ -120,6 +119,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis, basis_type="LRI")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_aux_basis_set, basis_type="RI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=mao_basis, basis_type="MAO")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=harris_basis, basis_type="HARRIS")
          CALL get_qs_kind(qs_kind_set(ikind), soft_basis_set=soft_basis)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
@@ -132,10 +132,8 @@ CONTAINS
          ! radii used to calculate the 3c lists.
          ! Indeed, there the radii of the GTO primitives are needed
          IF (ASSOCIATED(orb_basis_set)) THEN
-
             CALL init_interaction_radii_orb_basis(orb_basis_set, qs_control%eps_pgf_orb, &
                                                   qs_control%eps_kg_orb)
-
          END IF
 
          IF (ASSOCIATED(all_potential)) THEN
@@ -218,9 +216,7 @@ CONTAINS
 
             ! Calculate the radii of the non-local part
             ! of the Goedecker pseudopotential (GTH)
-
             ppnl_radius = 0.0_dp
-
             DO l = 0, lppnl
                DO iprj_ppnl = 1, nprj_ppnl(l)
                   lprj_ppnl = l+2*(iprj_ppnl-1)
@@ -230,54 +226,42 @@ CONTAINS
                                                cprj_ppnl(iprj_ppnl, l)))
                END DO
             END DO
-
             CALL set_potential(potential=gth_potential, &
                                core_charge_radius=core_charge_radius, &
                                ppl_radius=ppl_radius, &
                                ppnl_radius=ppnl_radius)
-
          END IF
 
          ! Calculate the aux fit orbital basis function radii
-
          IF (ASSOCIATED(aux_fit_basis_set)) THEN
-
             CALL init_interaction_radii_orb_basis(aux_fit_basis_set, qs_control%eps_pgf_orb, &
                                                   qs_control%eps_kg_orb)
-
          END IF
 
          ! Calculate the aux orbital basis function radii
-
          IF (ASSOCIATED(aux_basis_set)) THEN
-
             CALL init_interaction_radii_orb_basis(aux_basis_set, qs_control%eps_pgf_orb)
-
          END IF
 
          ! Calculate the RI aux orbital basis function radii
-
          IF (ASSOCIATED(RI_aux_basis_set)) THEN
-
             CALL init_interaction_radii_orb_basis(RI_aux_basis_set, qs_control%eps_pgf_orb)
-
          END IF
 
          ! Calculate the MAO orbital basis function radii
-
          IF (ASSOCIATED(mao_basis)) THEN
-
             CALL init_interaction_radii_orb_basis(mao_basis, qs_control%eps_pgf_orb)
+         END IF
 
+         ! Calculate the HARRIS orbital basis function radii
+         IF (ASSOCIATED(harris_basis)) THEN
+            CALL init_interaction_radii_orb_basis(harris_basis, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the soft orbital basis function radii
-
          IF (ASSOCIATED(soft_basis)) THEN
-
             IF (paw_atom) THEN
                CALL init_interaction_radii_orb_basis(soft_basis, qs_control%eps_pgf_orb)
-
             END IF
          END IF
 
@@ -287,9 +271,7 @@ CONTAINS
          END IF
 
          ! Calculate the paw projector basis function radii
-
          IF (ASSOCIATED(paw_proj_set)) THEN
-
             CALL get_paw_proj_set(paw_proj_set=paw_proj_set, &
                                   nprj=nprj, &
                                   maxl=maxl, &

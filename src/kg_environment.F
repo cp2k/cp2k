@@ -239,6 +239,11 @@ CONTAINS
          xc_section_kg => section_vals_get_subs_vals(input, "DFT%KG_METHOD%ENERGY_CORRECTION%XC")
          IF (ASSOCIATED(xc_section_kg)) THEN
             kg_env%ec_env%xc_section => xc_section_kg
+
+!        section1 => section_vals_get_subs_vals(section, "XC")
+!        section2 => section_vals_get_subs_vals(section, "XC%XC_FUNCTIONAL")
+!        CALL xc_functionals_expand(section2, section1)
+
          ELSE
             kg_env%ec_env%xc_section => xc_section
             CPABORT("KG energy correction with full embedding requires a special XC section")
@@ -787,25 +792,15 @@ CONTAINS
 
          ! deallocate stuff if necessary
          IF (ASSOCIATED(kg_env%subset)) THEN
-
             DO isub = 1, kg_env%nsubsets
-
                DO iab = 1, SIZE(kg_env%subset(isub)%sab_orb)
-
                   CALL deallocate_neighbor_list_set(kg_env%subset(isub)%sab_orb(iab)%neighbor_list_set)
-
                END DO
-
                DEALLOCATE (kg_env%subset(isub)%sab_orb)
-
                CALL deallocate_task_list(kg_env%subset(isub)%task_list)
-
             END DO
-
             DEALLOCATE (kg_env%subset)
-
             NULLIFY (kg_env%subset)
-
          END IF
 
       END IF

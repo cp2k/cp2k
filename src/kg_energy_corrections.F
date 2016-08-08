@@ -805,7 +805,7 @@ CONTAINS
       CALL generate_qs_task_list(ks_env, ec_env%task_list, &
                                  reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., &
                                  skip_load_balance_distributed=skip_load_balance_distributed, &
-                                 sab_orb_external=ec_env%sab_orb)
+                                 basis_type="HARRIS", sab_orb_external=ec_env%sab_orb)
 
       CALL timestop(handle)
 

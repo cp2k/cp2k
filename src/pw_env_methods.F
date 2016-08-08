@@ -819,7 +819,7 @@ CONTAINS
          ! Seemingly others (e.g. gapw soft basis set) are not needed?
          ! This is really ugly code and prone to fail at some point
          ! Urgent rethinking and refactoring needed (24.07.2015)
-         DO ibasis_set_type = 1, 5
+         DO ibasis_set_type = 1, 7
             basis_type = translate_basis_type(ibasis_set_type)
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)
