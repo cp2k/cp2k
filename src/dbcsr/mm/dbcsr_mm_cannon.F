@@ -46,7 +46,6 @@ MODULE dbcsr_mm_cannon
                                               image_calculator
    USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
                                               dbcsr_has_local_row_index,&
-                                              dbcsr_index_compact,&
                                               dbcsr_index_prune_deleted,&
                                               dbcsr_make_index_list,&
                                               dbcsr_make_index_local_row,&
@@ -60,8 +59,8 @@ MODULE dbcsr_mm_cannon
    USE dbcsr_methods,                   ONLY: &
         dbcsr_destroy_array, dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_index_memory_type, &
         dbcsr_has_symmetry, dbcsr_image_dist_hold, dbcsr_image_dist_init, &
-        dbcsr_image_dist_release, dbcsr_init, dbcsr_nblkcols_local, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_release, dbcsr_valid_index
+        dbcsr_image_dist_release, dbcsr_init, dbcsr_nblkcols_local, dbcsr_nblkrows_local, &
+        dbcsr_nblkrows_total, dbcsr_release, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
         acc_transpose_blocks, count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, &
         max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_trsbuffer_1, &
@@ -139,8 +138,6 @@ CONTAINS
 !> \param[in,out] dense_rdist ...
 !> \param[in] use_dense_mult ...
 !> \param[in] ab_dense ...
-!> \param[in] use_local_indexing ...
-!> \param[in] use_list_indexing ...
 !> \param[in] predistribute ...
 !> \param[in] f_k ...
 !> \param[in] l_k ...
@@ -156,17 +153,15 @@ CONTAINS
 !> \param[in] alpha ...
 ! **************************************************************************************************
    SUBROUTINE make_m2s(matrix, m2s, rdist, dense_rdist, &
-                       use_dense_mult, ab_dense, &
-                       use_local_indexing, use_list_indexing, &
-                       predistribute, f_k, l_k, f_row, l_row, f_col, l_col, &
+                       use_dense_mult, ab_dense, predistribute, &
+                       f_k, l_k, f_row, l_row, f_col, l_col, &
                        row_blk_size, col_blk_size, &
                        k_vmap, m_map, n_map, &
                        alpha)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_2d_array_type), INTENT(OUT), POINTER    :: m2s
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: rdist, dense_rdist
-      LOGICAL, INTENT(IN)                                :: use_dense_mult, ab_dense, &
-                                                            use_local_indexing, use_list_indexing
+      LOGICAL, INTENT(IN)                                :: use_dense_mult, ab_dense
       CHARACTER, INTENT(IN)                              :: predistribute
       INTEGER, INTENT(IN)                                :: f_k, l_k, f_row, l_row, f_col, l_col
       TYPE(array_i1d_obj), INTENT(INOUT)                 :: row_blk_size, col_blk_size
@@ -254,16 +249,9 @@ CONTAINS
       DO i = 1, im
          DO j = 1, jm
             ! Convert to local-row index
-            IF (use_local_indexing) THEN
-               CALL dbcsr_make_index_local_row(m2s%mats(i, j))
-            ENDIF
+            CALL dbcsr_make_index_local_row(m2s%mats(i, j))
             ! Convert to list index
-            IF (use_list_indexing) THEN
-               CALL dbcsr_make_index_list(m2s%mats(i, j), thread_redist=thread_redist)
-            ENDIF
-            IF (use_local_indexing .AND. .NOT. use_list_indexing) THEN
-               CALL dbcsr_index_compact(m2s%mats(i, j))
-            ENDIF
+            CALL dbcsr_make_index_list(m2s%mats(i, j), thread_redist=thread_redist)
          ENDDO
       ENDDO
 
@@ -1635,22 +1623,14 @@ CONTAINS
             ! form here the code for dbcsr_mm_driver_inner_init was taken
             !
             IF (.FALSE.) WRITE (*, *) routineN//" TICK", v_ki
-            IF (.TRUE. .OR. right_buffer_calc%mats(v_ki+1, 1)%m%local_indexing) THEN
-               ! Since the right matrix is shifted vertically, the
-               ! received data always has different notions of "local
-               ! rows".  Thus the local_rows and global_rows must be
-               ! recalculated.
-               CALL dbcsr_reset_vlocals(right_buffer_calc%mats(v_ki+1, 1), &
-                                        right_set%image_dist)
-            ENDIF
-            IF (.TRUE. .OR. left_buffer_calc%mats(1, v_ki+1)%m%local_indexing) THEN
-               ! Since the right matrix is shifted vertically, the
-               ! received data always has different notions of "local
-               ! rows".  Thus the local_rows and global_rows must be
-               ! recalculated.
-               CALL dbcsr_reset_vlocals(left_buffer_calc%mats(1, v_ki+1), &
-                                        left_set%image_dist)
-            ENDIF
+            ! Since the right matrix is shifted vertically, the
+            ! received data always has different notions of "local
+            ! rows".  Thus the local_rows and global_rows must be
+            ! recalculated.
+            CALL dbcsr_reset_vlocals(right_buffer_calc%mats(v_ki+1, 1), &
+                                     right_set%image_dist)
+            CALL dbcsr_reset_vlocals(left_buffer_calc%mats(1, v_ki+1), &
+                                     left_set%image_dist)
 
             IF (has_acc) THEN
                CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area)
@@ -1913,33 +1893,25 @@ CONTAINS
             t_size = SIZE(matrix_set%mats(i_row, i_col)%m%coo_l)/3
             t_f = 1
             t_l = t_size
-!$OMP           PARALLEL IF (thread_redist) DEFAULT (NONE) &
-!$OMP           PRIVATE (ithread) &
-!$OMP           FIRSTPRIVATE (t_f, t_l, t_size) &
-!$OMP           SHARED (matrix_set, i_row, i_col, thread_redist)
+!$OMP       PARALLEL IF (thread_redist) DEFAULT (NONE) &
+!$OMP       PRIVATE (ithread) &
+!$OMP       FIRSTPRIVATE (t_f, t_l, t_size) &
+!$OMP       SHARED (matrix_set, i_row, i_col, thread_redist)
 !$          ithread = OMP_GET_THREAD_NUM()
 !$          IF (thread_redist) THEN
 !$             t_f = matrix_set%mats(i_row, i_col)%m%thr_c(ithread+1)+1
 !$             t_l = matrix_set%mats(i_row, i_col)%m%thr_c(ithread+2)
 !$          ENDIF
             t_size = t_l-t_f+1
-!$OMP           BARRIER
+!$OMP       BARRIER
             IF (t_size .GT. 0) THEN
-               IF (matrix_set%mats(i_row, i_col)%m%local_indexing) THEN
-                  CALL call_rec_sort_index( &
-                     dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)), &
-                     dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col)), &
-                     t_size, &
-                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)))
-               ELSE
-                  CALL call_rec_sort_index( &
-                     dbcsr_nblkrows_total(matrix_set%mats(i_row, i_col)), &
-                     dbcsr_nblkcols_total(matrix_set%mats(i_row, i_col)), &
-                     t_size, &
-                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)))
-               ENDIF
+               CALL call_rec_sort_index( &
+                  dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)), &
+                  dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col)), &
+                  t_size, &
+                  matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)))
             ENDIF
-!$OMP           END PARALLEL
+!$OMP       END PARALLEL
          ENDDO
       ENDDO
       CALL timestop(handle)
@@ -2017,7 +1989,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: data_type, handle, nblks, nrows
-      INTEGER, DIMENSION(1), TARGET                      :: tmp
       INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
 
 !   ---------------------------------------------------------------------------
@@ -2027,97 +1998,48 @@ CONTAINS
       IF (.NOT. dbcsr_valid_index(matrix)) &
          CPABORT("The matrix must be valid.")
       data_type = dbcsr_get_data_type(matrix)
-      IF (matrix%m%local_indexing) THEN
-         IF (careful_mod .AND. .NOT. array_exists(matrix%m%local_rows)) &
-            CPABORT("Global row mapping should exist")
-         local_rows => array_data(matrix%m%local_rows)
-         nrows = SIZE(local_rows)
-         local_cols => array_data(matrix%m%local_cols)
-      ELSE
-         local_rows => tmp ! Have something valid to point to
-         local_cols => tmp
-         nrows = matrix%m%nblkrows_total
-      ENDIF
-      IF (matrix%m%list_indexing) THEN
-         nblks = matrix%m%nblks
-         SELECT CASE (data_type)
-         CASE (dbcsr_type_real_4)
-            CALL calc_norms_list_s(norms, nblks, &
-                                   matrix%m%coo_l, &
-                                   array_data(matrix%m%row_blk_size), &
-                                   array_data(matrix%m%col_blk_size), &
-                                   dbcsr_get_data_p_s(matrix%m%data_area), &
-                                   local=matrix%m%local_indexing, &
-                                   local2global_rows=local_rows, &
-                                   local2global_cols=local_cols)
-         CASE (dbcsr_type_real_8)
-            CALL calc_norms_list_d(norms, nblks, &
-                                   matrix%m%coo_l, &
-                                   array_data(matrix%m%row_blk_size), &
-                                   array_data(matrix%m%col_blk_size), &
-                                   dbcsr_get_data_p_d(matrix%m%data_area), &
-                                   local=matrix%m%local_indexing, &
-                                   local2global_rows=local_rows, &
-                                   local2global_cols=local_cols)
-         CASE (dbcsr_type_complex_4)
-            CALL calc_norms_list_c(norms, nblks, &
-                                   matrix%m%coo_l, &
-                                   array_data(matrix%m%row_blk_size), &
-                                   array_data(matrix%m%col_blk_size), &
-                                   dbcsr_get_data_p_c(matrix%m%data_area), &
-                                   local=matrix%m%local_indexing, &
-                                   local2global_rows=local_rows, &
-                                   local2global_cols=local_cols)
-         CASE (dbcsr_type_complex_8)
-            CALL calc_norms_list_z(norms, nblks, &
-                                   matrix%m%coo_l, &
-                                   array_data(matrix%m%row_blk_size), &
-                                   array_data(matrix%m%col_blk_size), &
-                                   dbcsr_get_data_p_z(matrix%m%data_area), &
-                                   local=matrix%m%local_indexing, &
-                                   local2global_rows=local_rows, &
-                                   local2global_cols=local_cols)
-         CASE DEFAULT
-            CPABORT("Invalid data type.")
-         END SELECT
-      ELSE
-         SELECT CASE (data_type)
-         CASE (dbcsr_type_real_4)
-            CALL calc_norms_s(norms, nrows, &
-                              matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, &
-                              array_data(matrix%m%row_blk_size), &
-                              array_data(matrix%m%col_blk_size), &
-                              dbcsr_get_data_p_s(matrix%m%data_area), &
-                              local=matrix%m%local_indexing, &
-                              local2global=local_rows)
-         CASE (dbcsr_type_real_8)
-            CALL calc_norms_d(norms, nrows, &
-                              matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, &
-                              array_data(matrix%m%row_blk_size), &
-                              array_data(matrix%m%col_blk_size), &
-                              dbcsr_get_data_p_d(matrix%m%data_area), &
-                              local=matrix%m%local_indexing, &
-                              local2global=local_rows)
-         CASE (dbcsr_type_complex_4)
-            CALL calc_norms_c(norms, nrows, &
-                              matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, &
-                              array_data(matrix%m%row_blk_size), &
-                              array_data(matrix%m%col_blk_size), &
-                              dbcsr_get_data_p_c(matrix%m%data_area), &
-                              local=matrix%m%local_indexing, &
-                              local2global=local_rows)
-         CASE (dbcsr_type_complex_8)
-            CALL calc_norms_z(norms, nrows, &
-                              matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, &
-                              array_data(matrix%m%row_blk_size), &
-                              array_data(matrix%m%col_blk_size), &
-                              dbcsr_get_data_p_z(matrix%m%data_area), &
-                              local=matrix%m%local_indexing, &
-                              local2global=local_rows)
-         CASE DEFAULT
-            CPABORT("Invalid data type.")
-         END SELECT
-      ENDIF
+      IF (careful_mod .AND. .NOT. array_exists(matrix%m%local_rows)) &
+         CPABORT("Global row mapping should exist")
+      local_rows => array_data(matrix%m%local_rows)
+      nrows = SIZE(local_rows)
+      local_cols => array_data(matrix%m%local_cols)
+      nblks = matrix%m%nblks
+      SELECT CASE (data_type)
+      CASE (dbcsr_type_real_4)
+         CALL calc_norms_list_s(norms, nblks, &
+                                matrix%m%coo_l, &
+                                array_data(matrix%m%row_blk_size), &
+                                array_data(matrix%m%col_blk_size), &
+                                dbcsr_get_data_p_s(matrix%m%data_area), &
+                                local2global_rows=local_rows, &
+                                local2global_cols=local_cols)
+      CASE (dbcsr_type_real_8)
+         CALL calc_norms_list_d(norms, nblks, &
+                                matrix%m%coo_l, &
+                                array_data(matrix%m%row_blk_size), &
+                                array_data(matrix%m%col_blk_size), &
+                                dbcsr_get_data_p_d(matrix%m%data_area), &
+                                local2global_rows=local_rows, &
+                                local2global_cols=local_cols)
+      CASE (dbcsr_type_complex_4)
+         CALL calc_norms_list_c(norms, nblks, &
+                                matrix%m%coo_l, &
+                                array_data(matrix%m%row_blk_size), &
+                                array_data(matrix%m%col_blk_size), &
+                                dbcsr_get_data_p_c(matrix%m%data_area), &
+                                local2global_rows=local_rows, &
+                                local2global_cols=local_cols)
+      CASE (dbcsr_type_complex_8)
+         CALL calc_norms_list_z(norms, nblks, &
+                                matrix%m%coo_l, &
+                                array_data(matrix%m%row_blk_size), &
+                                array_data(matrix%m%col_blk_size), &
+                                dbcsr_get_data_p_z(matrix%m%data_area), &
+                                local2global_rows=local_rows, &
+                                local2global_cols=local_cols)
+      CASE DEFAULT
+         CPABORT("Invalid data type.")
+      END SELECT
       !
       CALL timestop(handle)
    END SUBROUTINE calculate_norms

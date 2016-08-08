@@ -383,9 +383,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_internal', &
          routineP = moduleN//':'//routineN
-      LOGICAL, PARAMETER                                 :: dbg = .FALSE., &
-                                                            use_list_indexing = .TRUE., &
-                                                            use_local_indexing = .TRUE.
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
       REAL(real_8), PARAMETER                            :: make_dense_occ_thresh = 1.0_dp
 
       CHARACTER                                          :: transa_l, transb_l
@@ -845,16 +843,16 @@ CONTAINS
          !
          ! Right images
          CALL make_m2s(matrix_right, m2s_right, rdist_right, dense_rdist_right, &
-                       use_dense_mult, ab_dense, use_local_indexing, use_list_indexing, &
-                       "R", f_k, l_k, f_row, l_row, f_col, l_col, &
+                       use_dense_mult, ab_dense, "R", &
+                       f_k, l_k, f_row, l_row, f_col, l_col, &
                        dense_k_sizes, dense_col_sizes, &
                        k_vmap, m_map, n_map, &
                        alpha)
          !
          ! Left images
          CALL make_m2s(matrix_left, m2s_left, rdist_left, dense_rdist_left, &
-                       use_dense_mult, ab_dense, use_local_indexing, use_list_indexing, &
-                       "L", f_k, l_k, f_row, l_row, f_col, l_col, &
+                       use_dense_mult, ab_dense, "L", &
+                       f_k, l_k, f_row, l_row, f_col, l_col, &
                        dense_row_sizes, dense_k_sizes, &
                        k_vmap, m_map, n_map)
       ENDIF

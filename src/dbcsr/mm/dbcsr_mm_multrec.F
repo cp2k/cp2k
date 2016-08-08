@@ -64,8 +64,6 @@ MODULE dbcsr_mm_multrec
 !> \var c_has_symmetry    The product matrix has symmetry
 !> \var keep_sparsity     Sparsity of C matrix should be kept
 !> \var use_eps           Use on-the-fly filtering
-!> \var local_indexing    The A and B matrix indices and C matrix work indices
-!>                        are not global but local to process rows and columns
 !> \var m_sizes           Block sizes of A and C matrix rows, indexed locally
 !> \var n_sizes           Block sizes of B and C matrix columns, indexed locally
 !> \var k_sizes           Block sizes of A matrix columns and B matrix rows,
@@ -117,7 +115,6 @@ MODULE dbcsr_mm_multrec
    TYPE dbcsr_mm_multrec_type
       PRIVATE
       LOGICAL :: c_has_symmetry, keep_sparsity, use_eps
-      LOGICAL :: local_indexing
       INTEGER, DIMENSION(:), POINTER :: m_sizes, n_sizes, k_sizes
       INTEGER, DIMENSION(:), POINTER :: c_local_rows, c_local_cols, k_locals, &
                                         c_global_rows, c_global_cols
@@ -193,7 +190,7 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
       INTEGER                                            :: c_nblkcols_local, c_nblkrows_local, &
-                                                            handle, i, ithread
+                                                            handle, ithread
       INTEGER, DIMENSION(:), POINTER                     :: c_local_cols, c_local_rows
 
 !$    INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
@@ -220,25 +217,12 @@ CONTAINS
 
          IF (right%bcsc) &
             CPABORT("Wrong routine for BCSC matrices.")
-         CALL dbcsr_assert(right%local_indexing, "EQV", left%local_indexing, &
+         CALL dbcsr_assert(right%local_indexing, "EQV", .TRUE., &
                            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Local index useage must be consistent.", __LINE__)
-
-         IF (right%local_indexing) THEN
-            IF (.NOT. left%local_indexing) &
-               CPABORT("Wrong left format for local_cols.")
-            IF (.NOT. right%local_indexing) &
-               CPABORT("Wrong right format for local_cols.")
-         ELSE
-            IF (left%local_indexing) &
-               CPABORT("Wrong left format for not local_cols.")
-            IF (right%local_indexing) &
-               CPABORT("Wrong right format for not local_cols.")
-         ENDIF
-
-         this%local_indexing = left%local_indexing
-      ELSE
-         this%local_indexing = .TRUE.
+                           "Matrices must have local indexing.", __LINE__)
+         CALL dbcsr_assert(left%local_indexing, "EQV", .TRUE., &
+                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+                           "Matrices must have local indexing.", __LINE__)
       ENDIF
       !
       ! Fill result data structure.
@@ -267,19 +251,8 @@ CONTAINS
       c_local_rows => array_data(product%local_rows)
       c_nblkcols_local = product%nblkcols_local
       c_local_cols => array_data(product%local_cols)
-      IF (this%local_indexing) THEN
-         this%c_local_rows => c_local_rows
-         this%c_local_cols => c_local_cols
-      ELSE
-         ALLOCATE (this%c_local_rows(product%nblkrows_total))
-         ALLOCATE (this%c_local_cols(product%nblkcols_total))
-         DO i = 1, product%nblkrows_total
-            this%c_local_rows(i) = i
-         END DO
-         DO i = 1, product%nblkcols_total
-            this%c_local_cols(i) = i
-         END DO
-      ENDIF
+      this%c_local_rows => c_local_rows
+      this%c_local_cols => c_local_cols
       IF (dbg) WRITE (*, *) "setting up for product", product%name
       IF (careful_mod) THEN
          IF (.NOT. array_equality(dbcsr_distribution_local_rows_obj(product%dist), &
@@ -305,55 +278,30 @@ CONTAINS
       ENDIF
       !
       ! And the k epsilons
-      IF (this%local_indexing) THEN
-         IF ((PRESENT(left) .AND. PRESENT(right)) .OR. .NOT. this%use_eps) THEN
-            ALLOCATE (this%row_max_epss(c_nblkrows_local))
-            this%new_row_max_epss = .TRUE.
-         ENDIF
-      ELSE
-         ALLOCATE (this%row_max_epss(product%nblkrows_total))
+      IF ((PRESENT(left) .AND. PRESENT(right)) .OR. .NOT. this%use_eps) THEN
+         ALLOCATE (this%row_max_epss(c_nblkrows_local))
          this%new_row_max_epss = .TRUE.
       ENDIF
       IF (this%use_eps) THEN
-         IF (this%local_indexing) THEN
-            IF (PRESENT(left) .AND. PRESENT(right)) THEN
-               CALL local_filter_sp(row_max_epss, c_nblkrows_local, c_local_rows, &
-                                    this%row_max_epss)
-            ELSE
-               this%row_max_epss => row_max_epss
-            ENDIF
+         IF (PRESENT(left) .AND. PRESENT(right)) THEN
+            CALL local_filter_sp(row_max_epss, c_nblkrows_local, c_local_rows, &
+                                 this%row_max_epss)
          ELSE
-            IF (careful_mod .AND. SIZE(row_max_epss) .NE. SIZE(this%row_max_epss)) &
-               CPABORT("max epss local/global mismatch.")
-            this%row_max_epss(:) = row_max_epss(:)
+            this%row_max_epss => row_max_epss
          ENDIF
       ELSE
          this%row_max_epss(:) = -HUGE(0.0_sp)
       ENDIF
       !
-      IF (this%local_indexing) THEN
-         ALLOCATE (this%m_sizes(c_nblkrows_local))
-         CALL local_filter(array_data(product%row_blk_size), SIZE(c_local_rows), &
-                           c_local_rows, this%m_sizes)
-         ALLOCATE (this%n_sizes(c_nblkcols_local))
-         CALL local_filter(array_data(product%col_blk_size), SIZE(c_local_cols), &
-                           c_local_cols, this%n_sizes)
-      ELSE
-         ALLOCATE (this%m_sizes(product%nblkrows_total))
-         this%m_sizes(:) = array_data(product%row_blk_size)
-         ALLOCATE (this%n_sizes(product%nblkcols_total))
-         this%n_sizes(:) = array_data(product%col_blk_size)
-      ENDIF
+      ALLOCATE (this%m_sizes(c_nblkrows_local))
+      CALL local_filter(array_data(product%row_blk_size), SIZE(c_local_rows), &
+                        c_local_rows, this%m_sizes)
+      ALLOCATE (this%n_sizes(c_nblkcols_local))
+      CALL local_filter(array_data(product%col_blk_size), SIZE(c_local_cols), &
+                        c_local_cols, this%n_sizes)
       !
       NULLIFY (this%k_locals)
       NULLIFY (this%k_sizes)
-      IF (.NOT. this%local_indexing) THEN
-         ALLOCATE (this%k_locals(right%nblkrows_total))
-         DO i = 1, right%nblkrows_total
-            this%k_locals(i) = i
-         END DO
-         this%k_sizes => array_data(right%row_blk_size)
-      ENDIF
 
       !TODO: should we move this up?
       CALL dbcsr_mm_csr_init(this%csr, &
@@ -413,15 +361,11 @@ CONTAINS
 
       ! Find out the local A columns / B rows and sizes
       ! The right%local_rows is setup by the communication engine.
-      IF (this%local_indexing) THEN
-         k_locals => array_data(right%local_rows)
-         this%k_locals => k_locals
-         CALL ensure_array_size(this%k_sizes, ub=SIZE(k_locals))
-         CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals), &
-                           k_locals, this%k_sizes)
-      ELSE
-         k_locals => this%k_locals
-      ENDIF
+      k_locals => array_data(right%local_rows)
+      this%k_locals => k_locals
+      CALL ensure_array_size(this%k_sizes, ub=SIZE(k_locals))
+      CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals), &
+                        k_locals, this%k_sizes)
       ! Setup the block norms
       this%a_norms => a_norms
       this%b_norms => b_norms
@@ -436,30 +380,19 @@ CONTAINS
 !$       t_a_f = left%thr_c(ithread+1)+1
 !$       t_a_l = left%thr_c(ithread+2)
 !$    ENDIF
-      IF (this%local_indexing) THEN
-         CALL sparse_multrec(this, left, right, &
-                             1, left%nblkrows_local, &
-                             1, right%nblkcols_local, &
-                             1, SIZE(k_locals), &
-                             t_a_f, t_a_l, left%coo_l, &
-                             t_b_f, t_b_l, right%coo_l, &
-                             0, my_do_rec)
-      ELSE
-         CALL sparse_multrec(this, left, right, &
-                             1, left%nblkrows_total, &
-                             1, right%nblkcols_total, &
-                             1, SIZE(k_locals), &
-                             t_a_f, t_a_l, left%coo_l, &
-                             t_b_f, t_b_l, right%coo_l, &
-                             0, my_do_rec)
-      ENDIF
+      CALL sparse_multrec(this, left, right, &
+                          1, left%nblkrows_local, &
+                          1, right%nblkcols_local, &
+                          1, SIZE(k_locals), &
+                          t_a_f, t_a_l, left%coo_l, &
+                          t_b_f, t_b_l, right%coo_l, &
+                          0, my_do_rec)
 
       CALL dbcsr_mm_csr_purge_stacks(this%csr, left, right)
 
       flop = flop+this%flop
       !
-      IF (ASSOCIATED(this%k_sizes) .AND. this%local_indexing) &
-         DEALLOCATE (this%k_sizes)
+      IF (ASSOCIATED(this%k_sizes)) DEALLOCATE (this%k_sizes)
 
    END SUBROUTINE dbcsr_mm_multrec_multiply
 
@@ -504,20 +437,10 @@ CONTAINS
       DEALLOCATE (this%n_sizes)
       IF (this%new_row_max_epss) DEALLOCATE (this%row_max_epss)
 
-      IF (this%local_indexing) THEN
-         CALL remap_local2global(this%product_wm%row_i, &
-                                 this%product_wm%col_i, &
-                                 this%c_local_rows, this%c_local_cols, &
-                                 this%original_lastblk+1, this%product_wm%lastblk)
-      ENDIF
-      !
-
-      IF (.NOT. this%local_indexing) THEN
-         NULLIFY (this%k_sizes)
-         DEALLOCATE (this%c_local_rows)
-         DEALLOCATE (this%c_local_cols)
-         DEALLOCATE (this%k_locals)
-      ENDIF
+      CALL remap_local2global(this%product_wm%row_i, &
+                              this%product_wm%col_i, &
+                              this%c_local_rows, this%c_local_cols, &
+                              this%original_lastblk+1, this%product_wm%lastblk)
 
       this%initialized = .FALSE.
       CALL timestop(handle)

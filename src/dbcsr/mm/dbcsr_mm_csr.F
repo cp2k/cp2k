@@ -477,7 +477,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: flop_index, flop_list, most_common_k, &
                                                             most_common_m, most_common_n
       INTEGER, DIMENSION(3)                              :: nxstacks
-      LOGICAL                                            :: local_indexing
       TYPE(stack_descriptor_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: tmp_descr
 
@@ -490,24 +489,19 @@ CONTAINS
          CPABORT("Must both left and right provided or not.")
 
       IF (PRESENT(left) .AND. PRESENT(right)) THEN
-         ! find out if we have local_indexing
-         CALL dbcsr_assert(right%local_indexing, "EQV", left%local_indexing, &
+         ! find out if we have local_indexin
+         CALL dbcsr_assert(right%local_indexing, "EQV", .TRUE., &
                            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Local index useage must be consistent.", __LINE__)
-         local_indexing = left%local_indexing
-      ELSE
-         local_indexing = .TRUE.
+                           "Matrices must have local indexing.", __LINE__)
+         CALL dbcsr_assert(left%local_indexing, "EQV", .TRUE., &
+                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+                           "Matrices must have local indexing.", __LINE__)
       ENDIF
       ! Setup the hash tables if needed
-      IF (local_indexing) THEN
-         ALLOCATE (this%c_hashes(product%nblkrows_local))
-         CALL fill_hash_tables(this%c_hashes, product, block_estimate, &
-                               row_map=array_data(product%global_rows), &
-                               col_map=array_data(product%global_cols))
-      ELSE
-         ALLOCATE (this%c_hashes(product%nblkrows_total))
-         CALL fill_hash_tables(this%c_hashes, product, block_estimate)
-      ENDIF
+      ALLOCATE (this%c_hashes(product%nblkrows_local))
+      CALL fill_hash_tables(this%c_hashes, product, block_estimate, &
+                            row_map=array_data(product%global_rows), &
+                            col_map=array_data(product%global_cols))
 
       ! Setup the MM stack
       CALL dbcsr_get_conf_nstacks(nxstacks)
