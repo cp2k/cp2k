@@ -1764,15 +1764,15 @@ CONTAINS
       INTEGER :: blk, data_type, data_type_byte, grp_left, grp_right, handle, handle2, handle3, &
          icol3D, ilayer_col, ilayer_row, index_row_max_epss, iproc, irecv3D, irow3D, isend3D, &
          ithread, ivirt_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
-         left_data_offset, left_data_size, left_layer3D, left_meta_offset, left_meta_size, &
-         left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
-         left_nrequests, left_row_mult, left_row_nimages, left_v_i, min_nimages, mycol3D, mynode, &
-         mypcol, myprow, myrank3D, myrow3D, nblkrows_local, ncols3D, nranks3D, nrows3D, nthreads
-      INTEGER :: numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
-         right_col_mult, right_col_nimages, right_data_offset, right_data_size, right_layer3D, &
-         right_meta_offset, right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, &
-         right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
-         right_row_nimages, right_row_total_nimages, right_v_i, row, size_guess, v_ki
+         left_data_offset, left_data_size, left_layer3D, left_meta_size, left_myfirstvcol, &
+         left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
+         left_row_mult, left_row_nimages, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, &
+         myrow3D, nblkrows_local, ncols3D, nranks3D, nrows3D, nthreads, numnodes, nvirt_k
+      INTEGER :: recv_vcol, recv_vrow, request_epss, request_keep_sparsity, right_col_mult, &
+         right_col_nimages, right_data_offset, right_data_size, right_layer3D, right_meta_size, &
+         right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
+         right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
+         right_row_total_nimages, row, size_guess, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:) :: indices_common_unmerged, left_displ_vunmerged, &
          product_matrix_epss_displ, product_matrix_epss_size, product_matrix_meta, &
@@ -2341,11 +2341,6 @@ CONTAINS
                                      shifting='L')
             ENDIF
             !
-            buffers_comm%right%nrequests = 0
-            buffers_comm%right%offset(:, :) = 0
-            buffers_comm%left%nrequests = 0
-            buffers_comm%left%offset(:, :) = 0
-            !
             IF (has_acc) THEN
                CALL timeset(routineN//"_acc_sync", handle3)
                CALL acc_event_synchronize(buffers_comm%right%data%d%acc_ready)
@@ -2355,6 +2350,9 @@ CONTAINS
             !
             buffers_comm%right%vprow = MOD(recv_vrow+v_ki, right_row_total_nimages)
             buffers_comm%left%vpcol = MOD(recv_vcol+v_ki, left_col_total_nimages)
+            !
+            buffers_comm%right%nrequests = 0
+            buffers_comm%left%nrequests = 0
             !
             IF (right_refs_meta_size_layers3D(right_layer3D, buffers_comm%right%vprow) .NE. 0 .AND. &
                 left_refs_meta_size_layers3D(left_layer3D, buffers_comm%left%vpcol) .NE. 0) THEN
@@ -2369,48 +2367,38 @@ CONTAINS
                ENDIF
                !
                IF (do_comm) THEN
-                  right_meta_offset = 0
-                  right_meta_size = 0
+                  ! Right
+                  buffers_comm%right%offset(:, :) = 0
+                  buffers_comm%right%get_requests(:, :) = mp_request_null
                   right_data_offset = 0
                   right_data_size = 0
-                  !
-                  left_meta_offset = 0
-                  left_meta_size = 0
-                  left_data_offset = 0
-                  left_data_size = 0
-                  !
-                  right_v_i = 0
-                  left_v_i = 0
-                  buffers_comm%right%get_requests(:, :) = mp_request_null
-                  buffers_comm%left%get_requests(:, :) = mp_request_null
-                  !
-                  ! Right
-                  CALL rma_transfer(v_ki, buffers_comm%right%vprow, &
-                                    right_row_nimages, right_row_total_nimages, &
+                  CALL rma_transfer(buffers_comm%right%vprow, &
+                                    right_row_nimages, &
                                     right_displ_vunmerged, &
-                                    right_v_i, &
                                     right_refs_displ_unmerged_layers3D, &
                                     buffers_comm%right, right_refs_meta_size_layers3D, right_refs_data_size, &
-                                    right_meta_size, right_data_size, &
-                                    right_meta_offset, right_data_offset, &
+                                    right_data_size, right_data_offset, &
                                     buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, &
                                     data_get, data_type_byte, buffers_orig%right, right_layer3D)
+                  ! Set the referenced sizes to the actual data moved via MPI
+                  CALL dbcsr_data_set_size_referenced(buffers_comm%right%data, &
+                                                      buffers_comm%right%offset(idata, 2))
                   ! Left
-                  CALL rma_transfer(v_ki, buffers_comm%left%vpcol, &
-                                    left_col_nimages, left_col_total_nimages, &
+                  buffers_comm%left%offset(:, :) = 0
+                  buffers_comm%left%get_requests(:, :) = mp_request_null
+                  left_data_offset = 0
+                  left_data_size = 0
+                  CALL rma_transfer(buffers_comm%left%vpcol, &
+                                    left_col_nimages, &
                                     left_displ_vunmerged, &
-                                    left_v_i, &
                                     left_refs_displ_unmerged_layers3D, &
                                     buffers_comm%left, left_refs_meta_size_layers3D, left_refs_data_size, &
-                                    left_meta_size, left_data_size, &
-                                    left_meta_offset, left_data_offset, &
+                                    left_data_size, left_data_offset, &
                                     buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, &
                                     data_get, data_type_byte, buffers_orig%left, left_layer3D)
                   ! Set the referenced sizes to the actual data moved via MPI
-                  CALL dbcsr_data_set_size_referenced(buffers_comm%right%data, &
-                                                      buffers_comm%right%offset(idata, right_v_i+1))
                   CALL dbcsr_data_set_size_referenced(buffers_comm%left%data, &
-                                                      buffers_comm%left%offset(idata, left_v_i+1))
+                                                      buffers_comm%left%offset(idata, 2))
                ENDIF
             ENDIF
          ENDIF xfer
@@ -2420,8 +2408,8 @@ CONTAINS
          wait_merge_calc: IF (ivirt_k .GT. 0) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
-            buffers_calc%right%buffer%mats(:)%m%nblks = 0
-            buffers_calc%left%buffer%mats(:)%m%nblks = 0
+            buffers_calc%right%buffer%mats(1)%m%nblks = 0
+            buffers_calc%left%buffer%mats(1)%m%nblks = 0
             !
             IF (ivirt_k == nvirt_k) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
@@ -2674,19 +2662,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param v_ki ...
-!> \param vpunmerged ...
+!> \param recv_vunmerged ...
 !> \param unmerged_nimages ...
-!> \param unmerged_total_nimages ...
 !> \param displ_vunmerged ...
-!> \param v_i ...
 !> \param refs_displ_unmerged ...
 !> \param buffer ...
 !> \param refs_meta_size ...
 !> \param refs_data_size ...
-!> \param meta_size ...
 !> \param data_size ...
-!> \param meta_offset ...
 !> \param data_offset ...
 !> \param meta_win ...
 !> \param data_win ...
@@ -2697,67 +2680,55 @@ CONTAINS
 !> \param layer3D ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE rma_transfer(v_ki, vpunmerged, &
+   SUBROUTINE rma_transfer(recv_vunmerged, &
                            unmerged_nimages, &
-                           unmerged_total_nimages, &
                            displ_vunmerged, &
-                           v_i, &
                            refs_displ_unmerged, &
                            buffer, refs_meta_size, refs_data_size, &
-                           meta_size, data_size, &
-                           meta_offset, data_offset, &
+                           data_size, &
+                           data_offset, &
                            meta_win, data_win, mypunmerged, &
                            data_get, data_type_byte, &
                            buffer_orig, layer3D)
-      INTEGER, INTENT(IN)                                :: v_ki, vpunmerged, unmerged_nimages, &
-                                                            unmerged_total_nimages
+      INTEGER, INTENT(IN)                                :: recv_vunmerged, unmerged_nimages
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: displ_vunmerged
-      INTEGER, INTENT(INOUT)                             :: v_i
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: refs_displ_unmerged
       TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
       INTEGER, DIMENSION(:, :), INTENT(IN), POINTER      :: refs_meta_size
       INTEGER, DIMENSION(:), INTENT(IN)                  :: refs_data_size
-      INTEGER, INTENT(INOUT)                             :: meta_size, data_size, meta_offset, &
-                                                            data_offset
+      INTEGER, INTENT(INOUT)                             :: data_size, data_offset
       INTEGER, INTENT(IN)                                :: meta_win, data_win, mypunmerged
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: data_get
       INTEGER, INTENT(IN)                                :: data_type_byte
       TYPE(dbcsr_buffer), INTENT(IN)                     :: buffer_orig
       INTEGER, INTENT(IN)                                :: layer3D
 
-      INTEGER                                            :: recv_punmerged, recv_vunmerged
+      INTEGER                                            :: recv_punmerged
       INTEGER, DIMENSION(:), POINTER                     :: meta_get
 
 ! Left  : merged => row, unmerged => col
 ! Right : merged => col, unmerged => row
 
-      v_i = v_i+1
-      recv_vunmerged = MOD(vpunmerged, unmerged_total_nimages)
+      buffer%nrequests = 1
+      !
       recv_punmerged = recv_vunmerged/unmerged_nimages
-      buffer%offset(idata, v_i+1) = &
-         buffer%offset(idata, v_i)+ &
+      buffer%offset(idata, 2) = &
+         buffer%offset(idata, 1)+ &
          refs_data_size(displ_vunmerged(recv_vunmerged)+1)
-      buffer%offset(imeta, v_i+1) = &
-         buffer%offset(imeta, v_i)+ &
+      buffer%offset(imeta, 2) = &
+         buffer%offset(imeta, 1)+ &
          refs_meta_size(layer3D, recv_vunmerged)
-      meta_size = meta_size+refs_meta_size(layer3D, recv_vunmerged)
       data_size = data_size+refs_data_size(displ_vunmerged(recv_vunmerged)+1)
       !
-      buffer%nrequests = buffer%nrequests+1
-      buffer%get_requests_map(1, buffer%nrequests) = v_ki+1
-      buffer%get_requests_map(2, buffer%nrequests) = v_ki+1
-      !
-      meta_get => buffer%meta(meta_offset+1:meta_size)
+      meta_get => buffer%meta(1:refs_meta_size(layer3D, recv_vunmerged))
       ! Workaround for OpenMPI RMA bug
       meta_get(dbcsr_slot_size) = -999
-      buffer%get_requests(:, buffer%nrequests) = mp_request_null
       CALL mp_rget(meta_get, recv_punmerged*SIZE(refs_meta_size, 1)+layer3D, &
                    meta_win, &
                    buffer_orig%meta, &
                    mypunmerged*SIZE(refs_meta_size, 1)+layer3D, &
                    refs_displ_unmerged(imeta, layer3D, recv_vunmerged), &
                    buffer%get_requests(1, buffer%nrequests))
-      meta_offset = meta_size
       CALL dbcsr_data_set_pointer( &
          area=data_get, &
          rsize=data_size-data_offset, &
