@@ -66,6 +66,7 @@ MODULE helium_types
 
    !> derived data types
    PUBLIC :: helium_solvent_type
+   PUBLIC :: helium_solvent_p_type
    PUBLIC :: int_arr_ptr
 
    !> functions
@@ -104,7 +105,6 @@ MODULE helium_types
       TYPE(cp_logger_type), POINTER     :: logger
 
       INTEGER       :: num_env !< number of He environments in runtime
-      INTEGER       :: num_env_restart !< number of He environments in restart file
 
       INTEGER :: atoms !< number of atoms
       INTEGER :: beads !< number of beads per atom (needs to be an integer multiple of the solute's number of beads)
@@ -231,8 +231,8 @@ MODULE helium_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: plength_inst !< instantaneous permutation length probability DIM(atoms)
       INTEGER, DIMENSION(:), POINTER :: atom_plength !< length of the permutation cycle the atom belongs to DIM(atoms)
 
-      TYPE(rng_stream_type), POINTER :: rng_stream_uniform !< random number stream with uniform distribution
-      TYPE(rng_stream_type), POINTER :: rng_stream_gaussian !< random number stream with gaussian distribution
+      TYPE(rng_stream_type), POINTER  :: rng_stream_uniform !< random number stream with uniform distribution
+      TYPE(rng_stream_type), POINTER  :: rng_stream_gaussian !< random number stream with gaussian distribution
 
       ! variables related to solvated molecular system
       !
@@ -266,6 +266,16 @@ MODULE helium_types
       LOGICAL, DIMENSION(:), POINTER         :: ltmp_atoms_1d !< DIM(atoms) - for unpacking the permutation
 
    END TYPE helium_solvent_type
+
+! ***************************************************************************
+!> \brief data structure for array of solvent helium environments
+!> \author cschran
+! ***************************************************************************
+   TYPE helium_solvent_p_type
+      TYPE(helium_solvent_type), POINTER   :: helium
+      INTEGER                              :: comm
+      INTEGER, DIMENSION(:), POINTER       :: env_all
+   END TYPE helium_solvent_p_type
 
 ! ***************************************************************************
 !> \brief  Container type for properties of a helium density function

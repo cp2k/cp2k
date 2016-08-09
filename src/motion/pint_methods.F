@@ -52,7 +52,7 @@ MODULE pint_methods
                                               helium_release
    USE helium_sampling,                 ONLY: helium_do_run,&
                                               helium_step
-   USE helium_types,                    ONLY: helium_solvent_type
+   USE helium_types,                    ONLY: helium_solvent_p_type
    USE input_constants,                 ONLY: integrate_exact,&
                                               integrate_numeric,&
                                               propagator_rpmd,&
@@ -70,6 +70,7 @@ MODULE pint_methods
                                               m_walltime
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: gcd
+   USE message_passing,                 ONLY: mp_bcast
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               create_rng_stream,&
                                               delete_rng_stream,&
@@ -101,8 +102,7 @@ MODULE pint_methods
                                               pint_pile_init,&
                                               pint_pile_release,&
                                               pint_pile_step
-   USE pint_public,                     ONLY: pint_com_pos,&
-                                              pint_levy_walk
+   USE pint_public,                     ONLY: pint_levy_walk
    USE pint_staging,                    ONLY: staging_calc_uf_h,&
                                               staging_env_create,&
                                               staging_init_masses,&
@@ -718,6 +718,7 @@ CONTAINS
 !>         2003-11 created [fawzi]
 !>         2009-12-14 globenv parameter added to handle soft exit
 !>           requests [lwalewski]
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE do_pint_run(para_env, input, input_declaration, globenv)
@@ -736,7 +737,7 @@ CONTAINS
       INTEGER                                            :: handle, mode
       LOGICAL                                            :: explicit, helium_only, int_pot_scan, &
                                                             solvent_present
-      TYPE(helium_solvent_type), POINTER                 :: helium
+      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(section_vals_type), POINTER                   :: helium_section
 
@@ -797,16 +798,16 @@ CONTAINS
          mode = solute_only_mid
       END IF
 
-      NULLIFY (pint_env, helium)
+      NULLIFY (pint_env)
 
       ! perform the simulation according to the chosen mode
       SELECT CASE (mode)
 
       CASE (helium_only_mid)
-         CALL helium_create(helium, input)
-         CALL helium_init(helium, pint_env)
-         CALL helium_do_run(helium, globenv)
-         CALL helium_release(helium)
+         CALL helium_create(helium_env, input)
+         CALL helium_init(helium_env, pint_env)
+         CALL helium_do_run(helium_env, globenv)
+         CALL helium_release(helium_env)
 
       CASE (solute_only_mid)
          CALL pint_create(pint_env, input, input_declaration, para_env)
@@ -820,9 +821,9 @@ CONTAINS
 ! from within pint_init_f does something to the replica environments which can not be
 ! avoided (has something to do with f_env_add_defaults) so leaving for now..
          CALL pint_init(pint_env)
-         CALL helium_create(helium, input, solute=pint_env)
-         CALL pint_run_scan(pint_env, helium)
-         CALL helium_release(helium)
+         CALL helium_create(helium_env, input, solute=pint_env)
+         CALL pint_run_scan(pint_env, helium_env)
+         CALL helium_release(helium_env)
          CALL pint_release(pint_env)
 
       CASE (solute_with_helium_mid)
@@ -830,13 +831,13 @@ CONTAINS
          ! init pint wihtout helium forces (they are not yet initialized)
          CALL pint_init(pint_env)
          ! init helium with solute's positions (they are already initialized)
-         CALL helium_create(helium, input, solute=pint_env)
-         CALL helium_init(helium, pint_env)
+         CALL helium_create(helium_env, input, solute=pint_env)
+         CALL helium_init(helium_env, pint_env)
          ! reinit pint forces with helium forces (they are now initialized)
-         CALL pint_init_f(pint_env, helium_solvent=helium)
+         CALL pint_init_f(pint_env, helium_env=helium_env)
 
-         CALL pint_do_run(pint_env, globenv, helium=helium)
-         CALL helium_release(helium)
+         CALL pint_do_run(pint_env, globenv, helium_env=helium_env)
+         CALL helium_release(helium_env)
          CALL pint_release(pint_env)
 
       CASE DEFAULT
@@ -1394,34 +1395,44 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  Prepares the forces, etc. to perform an MD step
 !> \param pint_env ...
-!> \param helium_solvent ...
+!> \param helium_env ...
 !> \par    History
 !>           Added nh_energy calculation [hforbert]
 !>           Bug fixes for no thermostats [hforbert]
+!>           2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pint_init_f(pint_env, helium_solvent)
+   SUBROUTINE pint_init_f(pint_env, helium_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-      TYPE(helium_solvent_type), OPTIONAL, POINTER       :: helium_solvent
+      TYPE(helium_solvent_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: helium_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_init_f', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ib, idim, inos
       REAL(kind=dp)                                      :: e_h
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CPASSERT(ASSOCIATED(pint_env))
       CPASSERT(pint_env%ref_count > 0)
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+
       CALL pint_x2u(pint_env)
       CALL pint_calc_uf_h(pint_env=pint_env, e_h=e_h)
       CALL pint_calc_f(pint_env)
 
       ! add helium forces to the solute's internal ones
-      ! Assume that helium has been already initialized and helium_solvent
-      ! contains proper forces in force_avrg array.
-      IF (PRESENT(helium_solvent)) THEN
-         IF (ASSOCIATED(helium_solvent)) THEN
-            pint_env%f(:, :) = pint_env%f(:, :)+helium_solvent%force_avrg(:, :)
+      ! Assume that helium has been already initialized and helium_env(1)
+      ! contains proper forces in force_avrg array at ionode
+      IF (PRESENT(helium_env)) THEN
+         IF (logger%para_env%ionode) THEN
+            pint_env%f(:, :) = pint_env%f(:, :)+helium_env(1)%helium%force_avrg(:, :)
          END IF
+         CALL mp_bcast(pint_env%f, &
+                       logger%para_env%source, &
+                       logger%para_env%group)
       END IF
       CALL pint_f2uf(pint_env)
 
@@ -1467,24 +1478,26 @@ CONTAINS
 !> \brief  Perform the PIMD simulation (main MD loop)
 !> \param pint_env ...
 !> \param globenv ...
-!> \param helium ...
+!> \param helium_env ...
 !> \par    History
 !>         2003-11 created [fawzi]
 !>         renamed from pint_run to pint_do_run because of conflicting name
 !>           of pint_run in input_constants [hforbert]
 !>         2009-12-14 globenv parameter added to handle soft exit
 !>           requests [lwalewski]
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Fawzi Mohamed
 !> \note   Everything should be read for an md step.
 ! **************************************************************************************************
-   SUBROUTINE pint_do_run(pint_env, globenv, helium)
+   SUBROUTINE pint_do_run(pint_env, globenv, helium_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
       TYPE(global_environment_type), POINTER             :: globenv
-      TYPE(helium_solvent_type), OPTIONAL, POINTER       :: helium
+      TYPE(helium_solvent_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: helium_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_do_run', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: step
+      INTEGER                                            :: k, step
       LOGICAL                                            :: should_stop
       REAL(kind=dp)                                      :: scal
 
@@ -1498,19 +1511,21 @@ CONTAINS
       CALL cp_iterate(pint_env%logger%iter_info, iter_nr=pint_env%first_step)
       pint_env%iter = pint_env%first_step
 
-      IF (PRESENT(helium)) THEN
-         IF (ASSOCIATED(helium)) THEN
+      IF (PRESENT(helium_env)) THEN
+         IF (ASSOCIATED(helium_env)) THEN
             ! set the properties accumulated over the whole MC process to 0
-            helium%proarea%accu(:) = 0.0_dp
-            helium%prarea2%accu(:) = 0.0_dp
-            helium%wnmber2%accu(:) = 0.0_dp
-            helium%mominer%accu(:) = 0.0_dp
-            IF (helium%rho_present) THEN
-               helium%rho_accu(:, :, :, :) = 0.0_dp
-            END IF
-            IF (helium%rdf_present) THEN
-               helium%rdf_accu(:, :, :) = 0.0_dp
-            END IF
+            DO k = 1, SIZE(helium_env)
+               helium_env(k)%helium%proarea%accu(:) = 0.0_dp
+               helium_env(k)%helium%prarea2%accu(:) = 0.0_dp
+               helium_env(k)%helium%wnmber2%accu(:) = 0.0_dp
+               helium_env(k)%helium%mominer%accu(:) = 0.0_dp
+               IF (helium_env(k)%helium%rho_present) THEN
+                  helium_env(k)%helium%rho_accu(:, :, :, :) = 0.0_dp
+               END IF
+               IF (helium_env(k)%helium%rdf_present) THEN
+                  helium_env(k)%helium%rdf_accu(:, :, :) = 0.0_dp
+               END IF
+            END DO
          END IF
       END IF
 
@@ -1538,10 +1553,10 @@ CONTAINS
                     -pint_env%kT) > pint_env%t_tol) THEN
                scal = SQRT(pint_env%kT*(pint_env%p*pint_env%ndim)/(2.0_dp*pint_env%e_kin_beads))
                pint_env%uv = scal*pint_env%uv
-               CALL pint_init_f(pint_env, helium_solvent=helium)
+               CALL pint_init_f(pint_env, helium_env=helium_env)
             END IF
          END IF
-         CALL pint_step(pint_env, helium_solvent=helium)
+         CALL pint_step(pint_env, helium_env=helium_env)
 
          CALL pint_write_ener(pint_env)
          CALL pint_write_action(pint_env)
@@ -1551,7 +1566,7 @@ CONTAINS
          CALL pint_write_rgyr(pint_env)
 
          CALL write_restart(root_section=pint_env%input, &
-                            pint_env=pint_env, helium_env=helium)
+                            pint_env=pint_env, helium_env=helium_env)
 
          ! exit from the main loop if soft exit has been requested
          CALL external_control(should_stop, "MD", globenv=globenv)
@@ -1568,13 +1583,15 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  Performs a scan of the helium-solute interaction energy
 !> \param pint_env ...
-!> \param helium ...
+!> \param helium_env ...
 !> \date   2013-11-26
+!> \parm   History
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
-   SUBROUTINE pint_run_scan(pint_env, helium)
+   SUBROUTINE pint_run_scan(pint_env, helium_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-      TYPE(helium_solvent_type), POINTER                 :: helium
+      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_run_scan', routineP = moduleN//':'//routineN
 
@@ -1585,14 +1602,18 @@ CONTAINS
 
       NULLIFY (pint_env%logger, print_key)
       pint_env%logger => cp_get_default_logger()
-      print_key => section_vals_get_subs_vals(helium%input, &
-                                              "MOTION%PINT%HELIUM%PRINT%RHO")
+
+      ! assume that ionode always has at least one helium_env
+      IF (pint_env%logger%para_env%ionode) THEN
+         print_key => section_vals_get_subs_vals(helium_env(1)%helium%input, &
+                                                 "MOTION%PINT%HELIUM%PRINT%RHO")
+      END IF
 
       ! perform the actual scan wrt the COM of the solute
-      helium%rho_inst(1, :, :, :) = 0.0_dp
-      CALL helium_intpot_scan(pint_env, helium)
+      CALL helium_intpot_scan(pint_env, helium_env)
 
       ! output the interaction potential into a cubefile
+      ! assume that ionode always has at least one helium_env
       IF (pint_env%logger%para_env%ionode) THEN
 
          unit_nr = cp_print_key_unit_nr( &
@@ -1605,13 +1626,14 @@ CONTAINS
 
          comment = "Solute - helium interaction potential"
          NULLIFY (DATA)
-         DATA => helium%rho_inst(1, :, :, :)
+         DATA => helium_env(1)%helium%rho_inst(1, :, :, :)
          CALL helium_write_cubefile( &
             unit_nr, &
             comment, &
-            helium%center-0.5_dp*(helium%rho_maxr-helium%rho_delr), &
-            helium%rho_delr, &
-            helium%rho_nbin, &
+            helium_env(1)%helium%center-0.5_dp* &
+            (helium_env(1)%helium%rho_maxr-helium_env(1)%helium%rho_delr), &
+            helium_env(1)%helium%rho_delr, &
+            helium_env(1)%helium%rho_nbin, &
             DATA)
 
          CALL m_flush(unit_nr)
@@ -1629,15 +1651,17 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  Does an MD step (and nrespa harmonic evaluations)
 !> \param pint_env ...
-!> \param helium_solvent ...
+!> \param helium_env ...
 !> \par    History
 !>           various bug fixes [hforbert]
 !>           10.2015 Added RPMD propagator and harmonic integrator [Felix Uhl]
+!>           04.2016 Changed to work with helium_env [cschran]
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE pint_step(pint_env, helium_solvent)
+   SUBROUTINE pint_step(pint_env, helium_env)
       TYPE(pint_env_type), POINTER                       :: pint_env
-      TYPE(helium_solvent_type), OPTIONAL, POINTER       :: helium_solvent
+      TYPE(helium_solvent_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: helium_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_step', routineP = moduleN//':'//routineN
 
@@ -1708,13 +1732,15 @@ CONTAINS
                CALL pint_u2x(pint_env)
                CALL pint_calc_f(pint_env)
                ! perform helium step and add helium forces
-               IF (PRESENT(helium_solvent)) THEN
-                  IF (ASSOCIATED(helium_solvent)) THEN
-                     helium_solvent%current_step = pint_env%iter
-                     helium_solvent%origin = pint_com_pos(pint_env)
-                     CALL helium_step(helium_solvent, pint_env)
-                     pint_env%f(:, :) = pint_env%f(:, :)+helium_solvent%force_avrg(:, :)
+               IF (PRESENT(helium_env)) THEN
+                  CALL helium_step(helium_env, pint_env)
+                  !Update force of solute in pint_env
+                  IF (pint_env%logger%para_env%ionode) THEN
+                     pint_env%f(:, :) = pint_env%f(:, :)+helium_env(1)%helium%force_avrg(:, :)
                   END IF
+                  CALL mp_bcast(pint_env%f, &
+                                pint_env%logger%para_env%source, &
+                                pint_env%logger%para_env%group)
                END IF
 
                CALL pint_f2uf(pint_env)
@@ -1838,13 +1864,15 @@ CONTAINS
          CALL pint_u2x(pint_env)
          CALL pint_calc_f(pint_env)
          ! perform helium step and add helium forces
-         IF (PRESENT(helium_solvent)) THEN
-            IF (ASSOCIATED(helium_solvent)) THEN
-               helium_solvent%current_step = pint_env%iter
-               helium_solvent%origin = pint_com_pos(pint_env)
-               CALL helium_step(helium_solvent, pint_env)
-               pint_env%f(:, :) = pint_env%f(:, :)+helium_solvent%force_avrg(:, :)
+         IF (PRESENT(helium_env)) THEN
+            CALL helium_step(helium_env, pint_env)
+            !Update force of solute in pint_env
+            IF (pint_env%logger%para_env%ionode) THEN
+               pint_env%f(:, :) = pint_env%f(:, :)+helium_env(1)%helium%force_avrg(:, :)
             END IF
+            CALL mp_bcast(pint_env%f, &
+                          pint_env%logger%para_env%source, &
+                          pint_env%logger%para_env%group)
          END IF
          CALL pint_f2uf(pint_env)
          ! set the centroid forces to 0 if FIX_CENTROID_POS

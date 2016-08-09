@@ -67,3 +67,11 @@ w512_pint_gle.inp
 # Numerics: OpenMP parallelisation of Fist nonbonded interactions 
 w512_pint_nose.inp
 w512_pint_gle.inp
+#
+# Independant number of helium environments from number of processors
+he32_density.inp
+he32_only.inp
+he32_only_restart.inp
+water-in-helium.inp_
+water-in-helium-lastforce.inp
+water-in-helium-restart.inp

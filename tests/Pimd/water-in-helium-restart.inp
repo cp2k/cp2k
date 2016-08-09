@@ -24,6 +24,7 @@
       POTENTIAL_FILE_NAME    lj-test-pot.dat
       NATOMS                32
       NBEADS                16
+      NUM_ENV                2
       INOROT               200
       IROT                 100
       BISECTION              8

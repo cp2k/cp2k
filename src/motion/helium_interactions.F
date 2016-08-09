@@ -14,7 +14,8 @@ MODULE helium_interactions
                                               helium_pbc
    USE helium_types,                    ONLY: &
         e_id_interact, e_id_kinetic, e_id_potential, e_id_thermo, e_id_total, e_id_virial, &
-        helium_solvent_type, hid_chlorine, hid_hydrogen, hid_oxygen, int_arr_ptr
+        helium_solvent_p_type, helium_solvent_type, hid_chlorine, hid_hydrogen, hid_oxygen, &
+        int_arr_ptr
    USE input_constants,                 ONLY: helium_solute_intpot_mwater,&
                                               helium_solute_intpot_none
    USE kinds,                           ONLY: dp
@@ -467,63 +468,71 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  Scan the helium-solute interaction energy within the periodic cell
 !> \param pint_env ...
-!> \param helium ...
+!> \param helium_env ...
 !> \date   2014-01-22
+!> \par    History
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
-   SUBROUTINE helium_intpot_scan(pint_env, helium)
+   SUBROUTINE helium_intpot_scan(pint_env, helium_env)
 
       TYPE(pint_env_type), POINTER                       :: pint_env
-      TYPE(helium_solvent_type), POINTER                 :: helium
+      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_intpot_scan', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ic, ix, iy, iz, nbin
+      INTEGER                                            :: handle, ic, ix, iy, iz, k, nbin
       LOGICAL                                            :: wrapped
       REAL(KIND=dp)                                      :: delr, my_en, ox, oy, oz
       REAL(kind=dp), DIMENSION(3)                        :: pbc1, pbc2, pos
 
       CALL timeset(routineN, handle)
 
-      nbin = helium%rho_nbin
-      delr = helium%rho_delr
-      ox = helium%center(1)-helium%rho_maxr/2.0_dp
-      oy = helium%center(2)-helium%rho_maxr/2.0_dp
-      oz = helium%center(3)-helium%rho_maxr/2.0_dp
+      ! Perform scan only on ionode, since this is only used to output the intpot
+      IF (pint_env%logger%para_env%ionode) THEN
+         ! Assume ionode always to have at least one helium_env
+         k = 1
+         helium_env(k)%helium%rho_inst(1, :, :, :) = 0.0_dp
+         nbin = helium_env(k)%helium%rho_nbin
+         delr = helium_env(k)%helium%rho_delr
+         ox = helium_env(k)%helium%center(1)-helium_env(k)%helium%rho_maxr/2.0_dp
+         oy = helium_env(k)%helium%center(2)-helium_env(k)%helium%rho_maxr/2.0_dp
+         oz = helium_env(k)%helium%center(3)-helium_env(k)%helium%rho_maxr/2.0_dp
 
-      DO ix = 1, nbin
-         DO iy = 1, nbin
-            DO iz = 1, nbin
+         DO ix = 1, nbin
+            DO iy = 1, nbin
+               DO iz = 1, nbin
 
-               ! put the probe in the center of the current voxel
-               pos(:) = (/ox+(ix-0.5_dp)*delr, oy+(iy-0.5_dp)*delr, oz+(iz-0.5_dp)*delr/)
+                  ! put the probe in the center of the current voxel
+                  pos(:) = (/ox+(ix-0.5_dp)*delr, oy+(iy-0.5_dp)*delr, oz+(iz-0.5_dp)*delr/)
 
-               ! calc interaction energy for the current probe position
-               helium%pos(:, 1, 1) = pos(:)
-               CALL helium_bead_solute_e_f(pint_env, helium, 1, 1, energy=my_en)
+                  ! calc interaction energy for the current probe position
+                  helium_env(k)%helium%pos(:, 1, 1) = pos(:)
+                  CALL helium_bead_solute_e_f(pint_env, helium_env(k)%helium, 1, 1, energy=my_en)
 
-               ! check if the probe fits within the unit cell
-               pbc1(:) = pos(:)-helium%center
-               pbc2(:) = pbc1(:)
-               CALL helium_pbc(helium, pbc2)
-               wrapped = .FALSE.
-               DO ic = 1, 3
-                  IF (ABS(pbc1(ic)-pbc2(ic)) .GT. 10.0_dp*EPSILON(0.0_dp)) THEN
+                  ! check if the probe fits within the unit cell
+                  pbc1(:) = pos(:)-helium_env(k)%helium%center
+                  pbc2(:) = pbc1(:)
+                  CALL helium_pbc(helium_env(k)%helium, pbc2)
+                  wrapped = .FALSE.
+                  DO ic = 1, 3
+                     IF (ABS(pbc1(ic)-pbc2(ic)) .GT. 10.0_dp*EPSILON(0.0_dp)) THEN
+                     END IF
                      wrapped = .TRUE.
+                  END DO
+
+                  ! set the interaction energy value
+                  IF (wrapped) THEN
+                     helium_env(k)%helium%rho_inst(1, ix, iy, iz) = 0.0_dp
+                  ELSE
+                     helium_env(k)%helium%rho_inst(1, ix, iy, iz) = my_en
                   END IF
+
                END DO
-
-               ! set the interaction energy value
-               IF (wrapped) THEN
-                  helium%rho_inst(1, ix, iy, iz) = 0.0_dp
-               ELSE
-                  helium%rho_inst(1, ix, iy, iz) = my_en
-               END IF
-
             END DO
          END DO
-      END DO
+      END IF
 
       CALL timestop(handle)
 

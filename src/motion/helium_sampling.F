@@ -30,6 +30,7 @@ MODULE helium_sampling
         helium_print_force, helium_print_perm, helium_print_plength, helium_print_rdf, &
         helium_print_rho, helium_print_vector, helium_write_line
    USE helium_types,                    ONLY: e_id_total,&
+                                              helium_solvent_p_type,&
                                               helium_solvent_type
    USE input_constants,                 ONLY: &
         helium_forces_average, helium_forces_last, helium_mdist_exponential, &
@@ -43,6 +44,7 @@ MODULE helium_sampling
                                               mp_sum
    USE parallel_rng_types,              ONLY: next_random_number
    USE physcon,                         ONLY: angstrom
+   USE pint_public,                     ONLY: pint_com_pos
    USE pint_types,                      ONLY: pint_env_type
    USE splines_types,                   ONLY: spline_data_p_type
 #include "../base/base_uses.f90"
@@ -62,61 +64,89 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Performs MC simulation for helium (only)
-!> \param helium ...
+!> \param helium_env ...
 !> \param globenv ...
 !> \date   2009-07-14
+!> \par    History
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski
 !> \note   This routine gets called only when HELIUM_ONLY is set to .TRUE.,
 !>         so do not put any property calculations here!
 ! **************************************************************************************************
-   SUBROUTINE helium_do_run(helium, globenv)
-      TYPE(helium_solvent_type), POINTER                 :: helium
+   SUBROUTINE helium_do_run(helium_env, globenv)
+      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_do_run', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: step, tot_steps
+      INTEGER                                            :: k, num_steps, step, tot_steps
       LOGICAL                                            :: should_stop
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pint_env_type), POINTER                       :: pint_env
 
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+
       NULLIFY (pint_env)
+      num_steps = 0
 
-      NULLIFY (helium%logger)
-      helium%logger => cp_get_default_logger()
+      IF (ASSOCIATED(helium_env)) THEN
+         DO k = 1, SIZE(helium_env)
 
-      ! create iteration level
-      ! The iteration level 'MD' can be misleading since this is a pure MC
-      ! simulation, however the helium code is meant to be run mainly from PINT.
-      ! We keep it like that for compatibility with PINT+HELIUM simulations.
-      CALL cp_add_iter_level(helium%logger%iter_info, "MD")
-      CALL cp_iterate(helium%logger%iter_info, iter_nr=helium%first_step)
-      tot_steps = helium%first_step
+            NULLIFY (helium_env(k)%helium%logger)
+            helium_env(k)%helium%logger => cp_get_default_logger()
 
-      ! set the properties accumulated over the whole MC process to 0
-      helium%proarea%accu(:) = 0.0_dp
-      helium%prarea2%accu(:) = 0.0_dp
-      helium%wnmber2%accu(:) = 0.0_dp
-      helium%mominer%accu(:) = 0.0_dp
-      IF (helium%rho_present) THEN
-         helium%rho_accu(:, :, :, :) = 0.0_dp
+            ! create iteration level
+            ! The iteration level 'MD' can be misleading since this is a pure MC
+            ! simulation, however the helium code is meant to be run mainly from PINT.
+            ! We keep it like that for compatibility with PINT+HELIUM simulations.
+            IF (k .EQ. 1) THEN
+               CALL cp_add_iter_level(helium_env(k)%helium%logger%iter_info, "MD")
+               CALL cp_iterate(helium_env(k)%helium%logger%iter_info, &
+                               iter_nr=helium_env(k)%helium%first_step)
+            END IF
+            tot_steps = helium_env(k)%helium%first_step
+            num_steps = helium_env(k)%helium%num_steps
+
+            ! set the properties accumulated over the whole MC process to 0
+            helium_env(k)%helium%proarea%accu(:) = 0.0_dp
+            helium_env(k)%helium%prarea2%accu(:) = 0.0_dp
+            helium_env(k)%helium%wnmber2%accu(:) = 0.0_dp
+            helium_env(k)%helium%mominer%accu(:) = 0.0_dp
+            IF (helium_env(k)%helium%rho_present) THEN
+               helium_env(k)%helium%rho_accu(:, :, :, :) = 0.0_dp
+            END IF
+            IF (helium_env(k)%helium%rdf_present) THEN
+               helium_env(k)%helium%rdf_accu(:, :, :) = 0.0_dp
+            END IF
+         END DO
       END IF
-      IF (helium%rdf_present) THEN
-         helium%rdf_accu(:, :, :) = 0.0_dp
-      END IF
 
-      DO step = 1, helium%num_steps
+      ! Distribute steps for processors without helium_env
+      CALL mp_bcast(num_steps, logger%para_env%source, logger%para_env%group)
+      CALL mp_bcast(tot_steps, logger%para_env%source, logger%para_env%group)
+
+      DO step = 1, num_steps
 
          tot_steps = tot_steps+1
-         CALL cp_iterate(helium%logger%iter_info, &
-                         last=(step == helium%num_steps), &
-                         iter_nr=tot_steps)
-         !level_name="MD")
-         helium%current_step = tot_steps
 
-         CALL helium_step(helium, pint_env)
+         IF (ASSOCIATED(helium_env)) THEN
+            DO k = 1, SIZE(helium_env)
+               IF (k .EQ. 1) THEN
+                  CALL cp_iterate(helium_env(k)%helium%logger%iter_info, &
+                                  last=(step == helium_env(k)%helium%num_steps), &
+                                  iter_nr=tot_steps)
+               END IF
+               helium_env(k)%helium%current_step = tot_steps
+            END DO
+         END IF
+
+         CALL helium_step(helium_env, pint_env)
 
          ! call write_restart here to avoid interference with PINT write_restart
-         CALL write_restart(root_section=helium%input, helium_env=helium)
+         IF (ASSOCIATED(helium_env)) THEN
+            CALL write_restart(root_section=helium_env(1)%helium%input, helium_env=helium_env)
+         END IF
 
          ! exit from the main loop if soft exit has been requested
          CALL external_control(should_stop, "MD", globenv=globenv)
@@ -125,16 +155,20 @@ CONTAINS
       END DO
 
       ! remove iteration level
-      CALL cp_rm_iter_level(helium%logger%iter_info, "MD")
+      IF (ASSOCIATED(helium_env)) THEN
+         CALL cp_rm_iter_level(helium_env(1)%helium%logger%iter_info, "MD")
+      END IF
 
       RETURN
    END SUBROUTINE helium_do_run
 
 ! ***************************************************************************
 !> \brief  Sample the helium phase space
-!> \param helium ...
+!> \param helium_env ...
 !> \param pint_env ...
 !> \date   2009-10-27
+!> \par    History
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski
 !> \note   Samples helium variable space according to multilevel Metropolis
 !>         MC scheme, calculates the forces exerted by helium solvent on the
@@ -145,270 +179,373 @@ CONTAINS
 !>         everywhere I should. This leads to some redundancy in the case of
 !>         helium-only calculations.
 ! **************************************************************************************************
-   SUBROUTINE helium_sample(helium, pint_env)
+   SUBROUTINE helium_sample(helium_env, pint_env)
 
-      TYPE(helium_solvent_type), POINTER                 :: helium
+      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(pint_env_type), POINTER                       :: pint_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample', routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: msg_str
-      INTEGER                                            :: irot, iweight, nslices, nsteps, &
-                                                            sel_mp_source
-      REAL(KIND=dp)                                      :: inv_num_pe, inv_xn, rnd, rtmp, rweight
+      INTEGER                                            :: i, irot, iweight, k, nslices, nsteps, &
+                                                            num_env, offset, sel_mp_source
+      REAL(KIND=dp)                                      :: inv_num_env, inv_xn, rnd, rtmp, rweight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work_2d
       TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      IF (helium%solute_present) helium%force_avrg(:, :) = 0.0_dp
-      helium%energy_avrg(:) = 0.0_dp
-      helium%plength_avrg(:) = 0.0_dp
-      helium%num_accepted(:, :) = 0.0_dp
+      DO k = 1, SIZE(helium_env)
 
-      ! helium parallelization: each processor gets different RN stream and
-      ! runs independent helium simulation, the properties and forces are
-      ! averaged over parallel helium environments once per step.
-
-      inv_xn = 0.0_dp
-      SELECT CASE (helium%sampling_method)
-      CASE (helium_sampling_ceperley)
-         ! helium sampling (outer MC loop)
-         DO irot = 1, helium%iter_rot
-
-            ! rotate helium beads in imaginary time at random, store current
-            ! 'rotation state' in helium%relrot wich is within (0, helium%beads-1)
-            ! (this is needed to sample different fragments of the permutation
-            ! paths in try_permutations)
-            rnd = next_random_number(helium%rng_stream_uniform)
-            nslices = INT(rnd*helium%beads)
-            CALL helium_rotate(helium, nslices)
-
-            CALL helium_try_permutations(helium, pint_env)
-
-            ! calculate & accumulate instantaneous properties for averaging
-            IF (helium%solute_present) THEN
-               IF (helium%get_helium_forces == helium_forces_average) THEN
-                  CALL helium_solute_e_f(pint_env, helium, rtmp)
-                  helium%force_avrg(:, :) = helium%force_avrg(:, :)+helium%force_inst(:, :)
-               END IF
-            END IF
-            CALL helium_calc_energy(helium, pint_env)
-            helium%energy_avrg(:) = helium%energy_avrg(:)+helium%energy_inst(:)
-            CALL helium_calc_plength(helium)
-            helium%plength_avrg(:) = helium%plength_avrg(:)+helium%plength_inst(:)
-
-            ! instantaneous force output according to HELIUM%PRINT%FORCES_INST
-            ! Warning: file I/O here may cost A LOT of cpu time!
-            ! switched off here to save cpu
-            !CALL helium_print_force_inst( helium, error )
-
-         END DO ! outer MC loop
-
-         ! If only the last forces are taken, calculate them for the last outer MC loop configuration
-         IF ((helium%solute_present) .AND. (helium%get_helium_forces == helium_forces_last)) THEN
-            CALL helium_solute_e_f(pint_env, helium, rtmp)
-            helium%force_avrg(:, :) = helium%force_inst(:, :)
+         IF (helium_env(k)%helium%solute_present) THEN
+            helium_env(k)%helium%force_avrg(:, :) = 0.0_dp
+            helium_env(k)%helium%current_step = pint_env%iter
+            helium_env(k)%helium%origin = pint_com_pos(pint_env)
          END IF
 
-         ! restore the original alignment of beads in imaginary time
-         ! (this is useful to make a single bead's position easy to follow
-         ! in the trajectory, otherwise it's index would change every step)
-         CALL helium_rotate(helium, -helium%relrot)
+         helium_env(k)%helium%energy_avrg(:) = 0.0_dp
+         helium_env(k)%helium%plength_avrg(:) = 0.0_dp
+         helium_env(k)%helium%num_accepted(:, :) = 0.0_dp
 
-         inv_xn = 1.0_dp/REAL(helium%iter_rot, dp)
+         ! helium parallelization: each processor gets different RN stream and
+         ! runs independent helium simulation, the properties and forces are
+         ! averaged over parallel helium environments once per step.
+         inv_xn = 0.0_dp
+         SELECT CASE (helium_env (k)%helium%sampling_method)
+         CASE (helium_sampling_ceperley)
+            ! helium sampling (outer MC loop)
+            DO irot = 1, helium_env(k)%helium%iter_rot
 
-      CASE DEFAULT
-         WRITE (msg_str, *) helium%sampling_method
-         msg_str = "Sampling method ("//TRIM(ADJUSTL(msg_str))//") not supported."
-         CPABORT(msg_str)
+               ! rotate helium beads in imaginary time at random, store current
+               ! 'rotation state' in helium%relrot wich is within (0, helium%beads-1)
+               ! (this is needed to sample different fragments of the permutation
+               ! paths in try_permutations)
+               rnd = next_random_number(helium_env(k)%helium%rng_stream_uniform)
+               nslices = INT(rnd*helium_env(k)%helium%beads)
+               CALL helium_rotate(helium_env(k)%helium, nslices)
 
-      END SELECT
+               CALL helium_try_permutations(helium_env(k)%helium, pint_env)
 
-      ! actually average the properties over the outer MC loop
-      IF ((helium%solute_present) .AND. (helium%get_helium_forces == helium_forces_average)) THEN
-         helium%force_avrg(:, :) = helium%force_avrg(:, :)*inv_xn
-      END IF
-      helium%energy_avrg(:) = helium%energy_avrg(:)*inv_xn
-      helium%plength_avrg(:) = helium%plength_avrg(:)*inv_xn
+               ! calculate & accumulate instantaneous properties for averaging
+               IF (helium_env(k)%helium%solute_present) THEN
+                  IF (helium_env(k)%helium%get_helium_forces == helium_forces_average) THEN
+                     CALL helium_solute_e_f(pint_env, helium_env(k)%helium, rtmp)
+                     helium_env(k)%helium%force_avrg(:, :) = helium_env(k)%helium%force_avrg(:, :)+ &
+                                                             helium_env(k)%helium%force_inst(:, :)
+                  END IF
+               END IF
+               CALL helium_calc_energy(helium_env(k)%helium, pint_env)
 
-      ! instantaneous properties
-      helium%proarea%inst(:) = helium_total_projected_area(helium)
-      helium%prarea2%inst(:) = helium%proarea%inst(:)*helium%proarea%inst(:)
-      helium%wnumber%inst(:) = helium_total_winding_number(helium)
-      helium%wnmber2%inst(:) = helium%wnumber%inst(:)*helium%wnumber%inst(:)
-      helium%mominer%inst(:) = helium_total_moment_of_inertia(helium)
+               helium_env(k)%helium%energy_avrg(:) = helium_env(k)%helium%energy_avrg(:)+helium_env(k)%helium%energy_inst(:)
+               CALL helium_calc_plength(helium_env(k)%helium)
+               helium_env(k)%helium%plength_avrg(:) = helium_env(k)%helium%plength_avrg(:)+helium_env(k)%helium%plength_inst(:)
 
-      ! properties accumulated over the whole MC process
-      helium%proarea%accu(:) = helium%proarea%accu(:)+helium%proarea%inst(:)
-      helium%prarea2%accu(:) = helium%prarea2%accu(:)+helium%prarea2%inst(:)
-      helium%wnmber2%accu(:) = helium%wnmber2%accu(:)+helium%wnmber2%inst(:)
-      helium%mominer%accu(:) = helium%mominer%accu(:)+helium%mominer%inst(:)
-      IF (helium%rho_present) THEN
-         CALL helium_calc_rho(helium)
-         helium%rho_accu(:, :, :, :) = helium%rho_accu(:, :, :, :)+helium%rho_inst(:, :, :, :)
-      END IF
-      IF (helium%rdf_present) THEN
-         CALL helium_set_rdf_coord_system(helium, pint_env)
-         CALL helium_calc_rdf(helium, helium%rdf_centers)
-         helium%rdf_accu(:, :, :) = helium%rdf_accu(:, :, :)+helium%rdf_inst(:, :, :)
-      END IF
+               ! instantaneous force output according to HELIUM%PRINT%FORCES_INST
+               ! Warning: file I/O here may cost A LOT of cpu time!
+               ! switched off here to save cpu
+               !CALL helium_print_force_inst( helium_env(k)%helium, error )
 
-      ! running averages (restart-aware)
-      nsteps = helium%current_step-helium%first_step
-      iweight = helium%averages_iweight
-      rweight = REAL(iweight, dp)
-      rtmp = 1.0_dp/(REAL(MAX(1, nsteps+iweight), dp))
-      helium%proarea%ravr(:) = (helium%proarea%accu(:)+rweight*helium%proarea%rstr(:))*rtmp
-      helium%prarea2%ravr(:) = (helium%prarea2%accu(:)+rweight*helium%prarea2%rstr(:))*rtmp
-      helium%wnmber2%ravr(:) = (helium%wnmber2%accu(:)+rweight*helium%wnmber2%rstr(:))*rtmp
-      helium%mominer%ravr(:) = (helium%mominer%accu(:)+rweight*helium%mominer%rstr(:))*rtmp
+            END DO ! outer MC loop
+
+            ! If only the last forces are taken, calculate them for the last outer MC loop configuration
+            IF ((helium_env(k)%helium%solute_present) .AND. (helium_env(k)%helium%get_helium_forces == helium_forces_last)) THEN
+               CALL helium_solute_e_f(pint_env, helium_env(k)%helium, rtmp)
+               helium_env(k)%helium%force_avrg(:, :) = helium_env(k)%helium%force_inst(:, :)
+            END IF
+
+            ! restore the original alignment of beads in imaginary time
+            ! (this is useful to make a single bead's position easy to follow
+            ! in the trajectory, otherwise it's index would change every step)
+            CALL helium_rotate(helium_env(k)%helium, -helium_env(k)%helium%relrot)
+
+            inv_xn = 1.0_dp/REAL(helium_env(k)%helium%iter_rot, dp)
+
+         CASE DEFAULT
+            WRITE (msg_str, *) helium_env(k)%helium%sampling_method
+            msg_str = "Sampling method ("//TRIM(ADJUSTL(msg_str))//") not supported."
+            CPABORT(msg_str)
+
+         END SELECT
+
+         ! actually average the properties over the outer MC loop
+         IF ((helium_env(k)%helium%solute_present) .AND. (helium_env(k)%helium%get_helium_forces == helium_forces_average)) THEN
+            helium_env(k)%helium%force_avrg(:, :) = helium_env(k)%helium%force_avrg(:, :)*inv_xn
+         END IF
+         helium_env(k)%helium%energy_avrg(:) = helium_env(k)%helium%energy_avrg(:)*inv_xn
+         helium_env(k)%helium%plength_avrg(:) = helium_env(k)%helium%plength_avrg(:)*inv_xn
+
+         ! instantaneous properties
+         helium_env(k)%helium%proarea%inst(:) = helium_total_projected_area(helium_env(k)%helium)
+         helium_env(k)%helium%prarea2%inst(:) = helium_env(k)%helium%proarea%inst(:)*helium_env(k)%helium%proarea%inst(:)
+         helium_env(k)%helium%wnumber%inst(:) = helium_total_winding_number(helium_env(k)%helium)
+         helium_env(k)%helium%wnmber2%inst(:) = helium_env(k)%helium%wnumber%inst(:)*helium_env(k)%helium%wnumber%inst(:)
+         helium_env(k)%helium%mominer%inst(:) = helium_total_moment_of_inertia(helium_env(k)%helium)
+
+         ! properties accumulated over the whole MC process
+         helium_env(k)%helium%proarea%accu(:) = helium_env(k)%helium%proarea%accu(:)+helium_env(k)%helium%proarea%inst(:)
+         helium_env(k)%helium%prarea2%accu(:) = helium_env(k)%helium%prarea2%accu(:)+helium_env(k)%helium%prarea2%inst(:)
+         helium_env(k)%helium%wnmber2%accu(:) = helium_env(k)%helium%wnmber2%accu(:)+helium_env(k)%helium%wnmber2%inst(:)
+         helium_env(k)%helium%mominer%accu(:) = helium_env(k)%helium%mominer%accu(:)+helium_env(k)%helium%mominer%inst(:)
+         IF (helium_env(k)%helium%rho_present) THEN
+            CALL helium_calc_rho(helium_env(k)%helium)
+            helium_env(k)%helium%rho_accu(:, :, :, :) = helium_env(k)%helium%rho_accu(:, :, :, :)+ &
+                                                        helium_env(k)%helium%rho_inst(:, :, :, :)
+         END IF
+         IF (helium_env(k)%helium%rdf_present) THEN
+            CALL helium_set_rdf_coord_system(helium_env(k)%helium, pint_env)
+            CALL helium_calc_rdf(helium_env(k)%helium, helium_env(k)%helium%rdf_centers)
+            helium_env(k)%helium%rdf_accu(:, :, :) = helium_env(k)%helium%rdf_accu(:, :, :)+helium_env(k)%helium%rdf_inst(:, :, :)
+         END IF
+
+         ! running averages (restart-aware)
+         nsteps = helium_env(k)%helium%current_step-helium_env(k)%helium%first_step
+         iweight = helium_env(k)%helium%averages_iweight
+         rweight = REAL(iweight, dp)
+         rtmp = 1.0_dp/(REAL(MAX(1, nsteps+iweight), dp))
+         helium_env(k)%helium%proarea%ravr(:) = (helium_env(k)%helium%proarea%accu(:)+ &
+                                                 rweight*helium_env(k)%helium%proarea%rstr(:))*rtmp
+         helium_env(k)%helium%prarea2%ravr(:) = (helium_env(k)%helium%prarea2%accu(:)+ &
+                                                 rweight*helium_env(k)%helium%prarea2%rstr(:))*rtmp
+         helium_env(k)%helium%wnmber2%ravr(:) = (helium_env(k)%helium%wnmber2%accu(:)+ &
+                                                 rweight*helium_env(k)%helium%wnmber2%rstr(:))*rtmp
+         helium_env(k)%helium%mominer%ravr(:) = (helium_env(k)%helium%mominer%accu(:)+ &
+                                                 rweight*helium_env(k)%helium%mominer%rstr(:))*rtmp
+
+      END DO
 
       ! average over helium environments sitting at different processors
 !TODO the following involves message passing, maybe move it to i/o routines?
-      inv_num_pe = 1.0_dp/REAL(logger%para_env%num_pe, dp)
-      IF (helium%solute_present) THEN
-         IF (helium%get_helium_forces == helium_forces_average) THEN
-            CALL mp_sum(helium%force_avrg, logger%para_env%group)
-            helium%force_avrg(:, :) = helium%force_avrg(:, :)*inv_num_pe
-         ELSE IF (helium%get_helium_forces == helium_forces_last) THEN
-            ! create random number from 0 to num pe on IO node
+      num_env = helium_env(1)%helium%num_env
+      inv_num_env = 1.0_dp/REAL(num_env, dp)
+
+      !energy_avrg:
+      DO k = 2, SIZE(helium_env)
+         helium_env(1)%helium%energy_avrg(:) = helium_env(1)%helium%energy_avrg(:)+ &
+                                               helium_env(k)%helium%energy_avrg(:)
+      END DO
+      CALL mp_sum(helium_env(1)%helium%energy_avrg(:), helium_env(1)%comm)
+      helium_env(1)%helium%energy_avrg(:) = helium_env(1)%helium%energy_avrg(:)*inv_num_env
+      DO k = 2, SIZE(helium_env)
+         helium_env(k)%helium%energy_avrg(:) = helium_env(1)%helium%energy_avrg(:)
+      END DO
+
+      !plength_avrg:
+      DO k = 2, SIZE(helium_env)
+         helium_env(1)%helium%plength_avrg(:) = helium_env(1)%helium%plength_avrg(:)+ &
+                                                helium_env(k)%helium%plength_avrg(:)
+      END DO
+      CALL mp_sum(helium_env(1)%helium%plength_avrg(:), helium_env(1)%comm)
+      helium_env(1)%helium%plength_avrg(:) = helium_env(1)%helium%plength_avrg(:)*inv_num_env
+      DO k = 2, SIZE(helium_env)
+         helium_env(k)%helium%plength_avrg(:) = helium_env(1)%helium%plength_avrg(:)
+      END DO
+
+      !num_accepted:
+      DO k = 2, SIZE(helium_env)
+         helium_env(1)%helium%num_accepted(:, :) = helium_env(1)%helium%num_accepted(:, :)+ &
+                                                   helium_env(k)%helium%num_accepted(:, :)
+      END DO
+      CALL mp_sum(helium_env(1)%helium%num_accepted(:, :), helium_env(1)%comm)
+      helium_env(1)%helium%num_accepted(:, :) = helium_env(1)%helium%num_accepted(:, :)*inv_num_env
+      DO k = 2, SIZE(helium_env)
+         helium_env(k)%helium%num_accepted(:, :) = helium_env(1)%helium%num_accepted(:, :)
+      END DO
+
+      !force_avrg:
+      IF (helium_env(1)%helium%solute_present) THEN
+         IF (helium_env(1)%helium%get_helium_forces == helium_forces_average) THEN
+            DO k = 2, SIZE(helium_env)
+               helium_env(1)%helium%force_avrg(:, :) = helium_env(1)%helium%force_avrg(:, :)+ &
+                                                       helium_env(k)%helium%force_avrg(:, :)
+            END DO
+            CALL mp_sum(helium_env(1)%helium%force_avrg(:, :), helium_env(1)%comm)
+            helium_env(1)%helium%force_avrg(:, :) = helium_env(1)%helium%force_avrg(:, :)*inv_num_env
+            DO k = 2, SIZE(helium_env)
+               helium_env(k)%helium%force_avrg(:, :) = helium_env(1)%helium%force_avrg(:, :)
+            END DO
+         ELSE IF (helium_env(1)%helium%get_helium_forces == helium_forces_last) THEN
             IF (logger%para_env%ionode) THEN
-               sel_mp_source = INT(next_random_number(helium%rng_stream_uniform) &
-                                   *REAL(logger%para_env%num_pe, dp))
+               sel_mp_source = INT(next_random_number(helium_env(1)%helium%rng_stream_uniform) &
+                                   *REAL(helium_env(1)%helium%num_env, dp))
             END IF
-            ! broadcast this number
-            CALL mp_bcast(sel_mp_source, logger%para_env%source, &
-                          logger%para_env%group)
-            ! broadcast forces from this environment to all others
-            CALL mp_bcast(helium%force_avrg, sel_mp_source, logger%para_env%group)
+            CALL mp_bcast(sel_mp_source, logger%para_env%source, helium_env(1)%comm)
+
+            offset = 0
+            DO i = 1, logger%para_env%mepos
+               offset = offset+helium_env(1)%env_all(i)
+            END DO
+            ALLOCATE (work_2d(SIZE(helium_env(1)%helium%force_avrg, 1), &
+                              SIZE(helium_env(1)%helium%force_avrg, 2)))
+            work_2d(:, :) = 0.0_dp
+            IF (sel_mp_source .GE. offset .AND. sel_mp_source .LT. offset+SIZE(helium_env)) THEN
+               work_2d(:, :) = helium_env(sel_mp_source-offset+1)%helium%force_avrg(:, :)
+            END IF
+            CALL mp_sum(work_2d(:, :), helium_env(1)%comm)
+            DO k = 1, SIZE(helium_env)
+               helium_env(k)%helium%force_avrg(:, :) = work_2d(:, :)
+            END DO
+            DEALLOCATE (work_2d)
          END IF
       END IF
-
-      CALL mp_sum(helium%energy_avrg, logger%para_env%group)
-      CALL mp_sum(helium%plength_avrg, logger%para_env%group)
-      CALL mp_sum(helium%num_accepted, logger%para_env%group)
-      helium%energy_avrg(:) = helium%energy_avrg(:)*inv_num_pe
-      helium%plength_avrg(:) = helium%plength_avrg(:)*inv_num_pe
-      helium%num_accepted(:, :) = helium%num_accepted(:, :)*inv_num_pe
 
       RETURN
    END SUBROUTINE helium_sample
 
 ! ***************************************************************************
 !> \brief  Perform MC step for helium
-!> \param helium ...
+!> \param helium_env ...
 !> \param pint_env ...
 !> \date   2009-06-12
+!> \par    History
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski
 ! **************************************************************************************************
-   SUBROUTINE helium_step(helium, pint_env)
+   SUBROUTINE helium_step(helium_env, pint_env)
 
-      TYPE(helium_solvent_type), POINTER                 :: helium
+      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
       TYPE(pint_env_type), POINTER                       :: pint_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'helium_step', routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: msgstr, stmp, time_unit
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, k
       REAL(KIND=dp)                                      :: time_start, time_stop, time_used
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: DATA
 
       CALL timeset(routineN, handle)
       time_start = m_walltime()
 
-      ! perform the actual phase space sampling
-      CALL helium_sample(helium, pint_env)
+      IF (ASSOCIATED(helium_env)) THEN
+         ! perform the actual phase space sampling
+         CALL helium_sample(helium_env, pint_env)
 
-      ! print properties
-      CALL helium_print_energy(helium)
-      WRITE (stmp, *) helium%apref
-      CALL helium_print_vector(helium, &
-                               "MOTION%PINT%HELIUM%PRINT%PROJECTED_AREA", &
-                               helium%proarea%inst, &
-                               angstrom*angstrom, &
-                               (/"A_x", "A_y", "A_z"/), &
-                               "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
-                               "helium-pa")
-      CALL helium_print_vector(helium, &
-                               "MOTION%PINT%HELIUM%PRINT%PROJECTED_AREA_2_AVG", &
-                               helium%prarea2%ravr, &
-                               angstrom*angstrom*angstrom*angstrom, &
-                               (/"<A_x^2>", "<A_y^2>", "<A_z^2>"/), &
-                               "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
-                               "helium-pa-avg", &
-                               "REWIND", &
-                               .TRUE.)
-      CALL helium_print_vector(helium, &
-                               "MOTION%PINT%HELIUM%PRINT%MOMENT_OF_INERTIA", &
-                               helium%mominer%inst, &
-                               angstrom*angstrom, &
-                               (/"I_x/m", "I_y/m", "I_z/m"/), &
-                               "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
-                               "helium-mi")
-      CALL helium_print_vector(helium, &
-                               "MOTION%PINT%HELIUM%PRINT%MOMENT_OF_INERTIA_AVG", &
-                               helium%mominer%ravr, &
-                               angstrom*angstrom, &
-                               (/"<I_x/m>", "<I_y/m>", "<I_z/m>"/), &
-                               "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
-                               "helium-mi-avg", &
-                               "REWIND", &
-                               .TRUE.)
-      WRITE (stmp, *) helium%wpref
-      CALL helium_print_vector(helium, &
-                               "MOTION%PINT%HELIUM%PRINT%WINDING_NUMBER", &
-                               helium%wnumber%inst, &
-                               angstrom, &
-                               (/"W_x", "W_y", "W_z"/), &
-                               "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
-                               "helium-wn")
-      CALL helium_print_vector(helium, &
-                               "MOTION%PINT%HELIUM%PRINT%WINDING_NUMBER_2_AVG", &
-                               helium%wnmber2%ravr, &
-                               angstrom*angstrom, &
-                               (/"<W_x^2>", "<W_y^2>", "<W_z^2>"/), &
-                               "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
-                               "helium-wn-avg", &
-                               "REWIND", &
-                               .TRUE.)
-      CALL helium_print_plength(helium)
-      IF (helium%rdf_present) CALL helium_print_rdf(helium)
-      IF (helium%rho_present) CALL helium_print_rho(helium)
-      CALL helium_print_perm(helium)
-      CALL helium_print_accepts(helium)
-      CALL helium_print_coordinates(helium)
-      CALL helium_print_force(helium)
-      CALL helium_print_action(pint_env, helium)
+         ! print properties
+         CALL helium_print_energy(helium_env)
+         CALL helium_print_plength(helium_env)
+         CALL helium_print_accepts(helium_env)
+         CALL helium_print_force(helium_env)
+         CALL helium_print_perm(helium_env)
+         CALL helium_print_coordinates(helium_env)
+         CALL helium_print_action(pint_env, helium_env)
 
-      time_stop = m_walltime()
-      time_used = time_stop-time_start
-      time_unit = "sec"
-      IF (time_used .GE. 60.0_dp) THEN
-         time_used = time_used/60.0_dp
-         time_unit = "min"
+         IF (helium_env(1)%helium%rdf_present) CALL helium_print_rdf(helium_env)
+         IF (helium_env(1)%helium%rho_present) CALL helium_print_rho(helium_env)
+
+         NULLIFY (DATA)
+         ALLOCATE (DATA(3*SIZE(helium_env)))
+
+         WRITE (stmp, *) helium_env(1)%helium%apref
+         DATA(:) = 0.0_dp
+         DO k = 1, SIZE(helium_env)
+            DATA((k-1)*3+1:k*3) = helium_env(k)%helium%proarea%inst(:)
+         END DO
+         CALL helium_print_vector(helium_env, &
+                                  "MOTION%PINT%HELIUM%PRINT%PROJECTED_AREA", &
+                                  DATA, &
+                                  angstrom*angstrom, &
+                                  (/"A_x", "A_y", "A_z"/), &
+                                  "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
+                                  "helium-pa")
+
+         DATA(:) = 0.0_dp
+         DO k = 1, SIZE(helium_env)
+            DATA((k-1)*3+1:k*3) = helium_env(k)%helium%prarea2%ravr(:)
+         END DO
+         CALL helium_print_vector(helium_env, &
+                                  "MOTION%PINT%HELIUM%PRINT%PROJECTED_AREA_2_AVG", &
+                                  DATA, &
+                                  angstrom*angstrom*angstrom*angstrom, &
+                                  (/"<A_x^2>", "<A_y^2>", "<A_z^2>"/), &
+                                  "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
+                                  "helium-pa-avg", &
+                                  "REWIND", &
+                                  .TRUE.)
+
+         DATA(:) = 0.0_dp
+         DO k = 1, SIZE(helium_env)
+            DATA((k-1)*3+1:k*3) = helium_env(k)%helium%mominer%inst(:)
+         END DO
+         CALL helium_print_vector(helium_env, &
+                                  "MOTION%PINT%HELIUM%PRINT%MOMENT_OF_INERTIA", &
+                                  DATA, &
+                                  angstrom*angstrom, &
+                                  (/"I_x/m", "I_y/m", "I_z/m"/), &
+                                  "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
+                                  "helium-mi")
+
+         DATA(:) = 0.0_dp
+         DO k = 1, SIZE(helium_env)
+            DATA((k-1)*3+1:k*3) = helium_env(k)%helium%mominer%ravr
+         END DO
+         CALL helium_print_vector(helium_env, &
+                                  "MOTION%PINT%HELIUM%PRINT%MOMENT_OF_INERTIA_AVG", &
+                                  DATA, &
+                                  angstrom*angstrom, &
+                                  (/"<I_x/m>", "<I_y/m>", "<I_z/m>"/), &
+                                  "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
+                                  "helium-mi-avg", &
+                                  "REWIND", &
+                                  .TRUE.)
+
+         DATA(:) = 0.0_dp
+         DO k = 1, SIZE(helium_env)
+            DATA((k-1)*3+1:k*3) = helium_env(k)%helium%wnumber%inst
+         END DO
+         WRITE (stmp, *) helium_env(1)%helium%wpref
+         CALL helium_print_vector(helium_env, &
+                                  "MOTION%PINT%HELIUM%PRINT%WINDING_NUMBER", &
+                                  DATA, &
+                                  angstrom, &
+                                  (/"W_x", "W_y", "W_z"/), &
+                                  "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
+                                  "helium-wn")
+
+         DATA(:) = 0.0_dp
+         DO k = 1, SIZE(helium_env)
+            DATA((k-1)*3+1:k*3) = helium_env(k)%helium%wnmber2%ravr
+         END DO
+         CALL helium_print_vector(helium_env, &
+                                  "MOTION%PINT%HELIUM%PRINT%WINDING_NUMBER_2_AVG", &
+                                  DATA, &
+                                  angstrom*angstrom, &
+                                  (/"<W_x^2>", "<W_y^2>", "<W_z^2>"/), &
+                                  "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
+                                  "helium-wn-avg", &
+                                  "REWIND", &
+                                  .TRUE.)
+         DEALLOCATE (DATA)
+
+         time_stop = m_walltime()
+         time_used = time_stop-time_start
+         time_unit = "sec"
          IF (time_used .GE. 60.0_dp) THEN
             time_used = time_used/60.0_dp
-            time_unit = "hours"
+            time_unit = "min"
+            IF (time_used .GE. 60.0_dp) THEN
+               time_used = time_used/60.0_dp
+               time_unit = "hours"
+            END IF
          END IF
-      END IF
-      msgstr = "MC step"
-      stmp = ""
-      WRITE (stmp, *) helium%current_step
-      msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))//" of"
-      stmp = ""
-      WRITE (stmp, *) helium%last_step
-      msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))//" in"
-      stmp = ""
-      WRITE (stmp, '(F20.1)') time_used
-      msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))
-      msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(time_unit))//"."
-      CALL helium_write_line(TRIM(msgstr))
+         msgstr = "MC step"
+         stmp = ""
+         WRITE (stmp, *) helium_env(1)%helium%current_step
+         msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))//" of"
+         stmp = ""
+         WRITE (stmp, *) helium_env(1)%helium%last_step
+         msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))//" in"
+         stmp = ""
+         WRITE (stmp, '(F20.1)') time_used
+         msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(stmp))
+         msgstr = TRIM(ADJUSTL(msgstr))//" "//TRIM(ADJUSTL(time_unit))//"."
+         CALL helium_write_line(TRIM(msgstr))
 
-      ! print out the total energy - for regtest evaluation
-      stmp = ""
-      WRITE (stmp, *) helium%energy_avrg(e_id_total)
-      msgstr = "Total energy = "//TRIM(ADJUSTL(stmp))
-      CALL helium_write_line(TRIM(msgstr))
+         ! print out the total energy - for regtest evaluation
+         stmp = ""
+         WRITE (stmp, *) helium_env(1)%helium%energy_avrg(e_id_total)
+         msgstr = "Total energy = "//TRIM(ADJUSTL(stmp))
+         CALL helium_write_line(TRIM(msgstr))
+      END IF
 
       CALL timestop(handle)
 

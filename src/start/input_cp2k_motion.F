@@ -1948,7 +1948,7 @@ CONTAINS
       CALL section_create(section, name="HELIUM", &
                           description="The section that controls optional helium solvent"// &
                           " environment (highly experimental, not for general use yet)", &
-                          n_keywords=28, n_subsections=9, repeats=.FALSE.)
+                          n_keywords=29, n_subsections=9, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
@@ -1974,8 +1974,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="NUM_ENV", &
-                          description="Number of independent helium environments"// &
-                          " (only for restarts, do not set explicitly)", &
+                          description="Number of independent helium environments", &
                           repeats=.FALSE., default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2018,6 +2017,14 @@ CONTAINS
       CALL keyword_create(keyword, name="NBEADS", &
                           description="Number of helium path integral beads", &
                           repeats=.FALSE., default_i_val=25)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="RNG_SEED", &
+                          description="Initial seed for the (pseudo)random number "// &
+                          "generator that controls helium coordinate generation and propagation.", &
+                          usage="RNG_SEED <INTEGER>", default_i_val=12345, &
+                          repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2141,13 +2148,6 @@ CONTAINS
 
       CALL keyword_create(keyword, name="PRESAMPLE", &
                           description="Presample He coordinates before first PIMD step", &
-                          repeats=.FALSE., default_l_val=.FALSE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="DROP_UNUSED_ENVS", &
-                          description="Drop He environments if N_restart > N_runtime "// &
-                          "(Warning: this will cause data loss in the restart file!)", &
                           repeats=.FALSE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

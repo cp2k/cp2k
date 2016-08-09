@@ -35,7 +35,7 @@ MODULE input_cp2k_restarts
                                               force_env_type,&
                                               multiple_fe_list
    USE gle_system_types,                ONLY: gle_type
-   USE helium_types,                    ONLY: helium_solvent_type
+   USE helium_types,                    ONLY: helium_solvent_p_type
    USE input_constants,                 ONLY: &
         do_band_collective, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
         do_thermo_no_communication, do_thermo_nose, mol_dyn_run, mon_car_run, pint_run
@@ -59,7 +59,6 @@ MODULE input_cp2k_restarts
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_bcast,&
-                                              mp_gather,&
                                               mp_sum
    USE metadynamics_types,              ONLY: meta_env_type
    USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -117,7 +116,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(neb_var_type), OPTIONAL, POINTER              :: coords, vels
       TYPE(pint_env_type), OPTIONAL, POINTER             :: pint_env
-      TYPE(helium_solvent_type), OPTIONAL, POINTER       :: helium_env
+      TYPE(helium_solvent_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: helium_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', routineP = moduleN//':'//routineN
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
@@ -396,6 +396,7 @@ CONTAINS
 !> \param write_binary_restart_file ...
 !> \par History
 !>      01.2006 created [teo]
+!>      2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE update_input(md_env, force_env, root_section, coords, vels, pint_env, &
@@ -406,7 +407,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(neb_var_type), OPTIONAL, POINTER              :: coords, vels
       TYPE(pint_env_type), OPTIONAL, POINTER             :: pint_env
-      TYPE(helium_solvent_type), OPTIONAL, POINTER       :: helium_env
+      TYPE(helium_solvent_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: helium_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem, write_binary_restart_file
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', routineP = moduleN//':'//routineN
@@ -494,6 +496,7 @@ CONTAINS
 !> \param write_binary_restart_file ...
 !> \par History
 !>      01.2006 created [teo]
+!>      2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE update_motion(motion_section, md_env, force_env, logger, &
@@ -505,7 +508,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(neb_var_type), OPTIONAL, POINTER              :: coords, vels
       TYPE(pint_env_type), OPTIONAL, POINTER             :: pint_env
-      TYPE(helium_solvent_type), OPTIONAL, POINTER       :: helium_env
+      TYPE(helium_solvent_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: helium_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: save_mem, write_binary_restart_file
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', routineP = moduleN//':'//routineN
@@ -551,9 +555,12 @@ CONTAINS
          ELSEIF (PRESENT(pint_env)) THEN
             para_env => pint_env%logger%para_env
          ELSEIF (PRESENT(helium_env)) THEN
-            para_env => helium_env%logger%para_env
+            ! Only needed in case that pure helium is simulated
+            ! In this case write_restart is called only by processors
+            ! with associated helium_env
+            para_env => helium_env(1)%helium%logger%para_env
          ELSE
-            CPABORT("")
+            CPABORT("No valid para_env present")
          END IF
       END IF
 
@@ -1025,23 +1032,25 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Update HELIUM section in the input structure.
-!> \param helium ...
+!> \param helium_env ...
 !> \date   2009-11-12
+!> \parm   History
+!>         2016-07-14 Modified to work with independent helium_env [cschran]
 !> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
 !> \note Transfer the current helium state from the runtime environment
 !>         to the input structure, so that it can be used for I/O, etc.
 !> \note   Moved from the helium_io module directly, might be done better way
 ! **************************************************************************************************
-   SUBROUTINE update_motion_helium(helium)
+   SUBROUTINE update_motion_helium(helium_env)
 
-      TYPE(helium_solvent_type), POINTER                 :: helium
+      TYPE(helium_solvent_p_type), DIMENSION(:), POINTER :: helium_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_helium', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: err_str, stmp
-      INTEGER                                            :: handle, itmp, iweight, msglen, nsteps, &
-                                                            offset, reqlen
+      INTEGER                                            :: handle, i, itmp, iweight, msglen, &
+                                                            nsteps, off, offset, reqlen
       INTEGER, DIMENSION(:), POINTER                     :: int_msg_gather
       LOGICAL                                            :: lbf
       REAL(kind=dp)                                      :: bf, bu, invproc
@@ -1051,319 +1060,350 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(helium))
+      !CPASSERT(ASSOCIATED(helium_env))
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
 
-      IF (.NOT. helium%solute_present) THEN
-         ! update iteration number
-         itmp = logger%iter_info%iteration(2)
-         CALL section_vals_val_set( &
-            helium%input, &
-            "MOTION%PINT%ITERATION", &
-            i_val=itmp)
-         ! else - PINT will do that
-      END IF
+      IF (ASSOCIATED(helium_env)) THEN
+         ! determine offset for arrays
+         offset = 0
+         DO i = 1, logger%para_env%mepos
+            offset = offset+helium_env(1)%env_all(i)
+         END DO
 
-      !
-      ! save coordinates
-      !
-      ! allocate the buffer to be passed and fill it with local coords at each
-      ! proc
-      NULLIFY (real_msg)
-      msglen = SIZE(helium%pos(:, :, 1:helium%beads))
-      ALLOCATE (real_msg(msglen))
-      real_msg(:) = PACK(helium%pos(:, :, 1:helium%beads), .TRUE.)
+         IF (.NOT. helium_env(1)%helium%solute_present) THEN
+            ! update iteration number
+            itmp = logger%iter_info%iteration(2)
+            CALL section_vals_val_set( &
+               helium_env(1)%helium%input, &
+               "MOTION%PINT%ITERATION", &
+               i_val=itmp)
+            ! else - PINT will do that
+         END IF
 
-      ! allocate the buffer for message passing
-      NULLIFY (real_msg_gather)
-      msglen = SIZE(helium%pos(:, :, 1:helium%beads))*logger%para_env%num_pe
-      ALLOCATE (real_msg_gather(msglen))
-
-      ! pass the message from all processors to logger%para_env%source
-      real_msg_gather(:) = 0.0_dp
-      CALL mp_gather(real_msg, real_msg_gather, &
-                     logger%para_env%source, logger%para_env%group)
-
-      ! update coordinates in the global input structure
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%COORD%_DEFAULT_KEYWORD_", &
-                                r_vals_ptr=real_msg_gather)
-
-      ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
-      ! assigned in section_vals_val_set - this memory will be used later on!
-      ! "The val becomes the owner of the array" - from section_vals_val_set docu
-      NULLIFY (real_msg_gather)
-
-      ! DEALLOCATE since this array is only used locally
-      DEALLOCATE (real_msg)
-
-      !
-      ! save permutation state
-      !
-      ! allocate the buffer for message passing
-      NULLIFY (int_msg_gather)
-      msglen = SIZE(helium%permutation)*logger%para_env%num_pe
-      ALLOCATE (int_msg_gather(msglen))
-
-      ! pass the message from all processors to logger%para_env%source
-      int_msg_gather(:) = 0
-      CALL mp_gather(helium%permutation, int_msg_gather, &
-                     logger%para_env%source, logger%para_env%group)
-
-      ! update permutation state in the global input structure
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%PERM%_DEFAULT_KEYWORD_", &
-                                i_vals_ptr=int_msg_gather)
-
-      ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
-      ! assigned in section_vals_val_set - this memory will be used later on!
-      ! "The val becomes the owner of the array" - from section_vals_val_set docu
-      NULLIFY (int_msg_gather)
-
-      !
-      ! save averages
-      !
-      ! update the weighting factor
-      itmp = helium%averages_iweight
-      IF (itmp .LT. 0) THEN
-         itmp = helium%current_step-helium%first_step
-      ELSE
-         itmp = itmp+helium%current_step-helium%first_step
-      END IF
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%AVERAGES%IWEIGHT", &
-                                i_val=itmp)
-
-      ! allocate the buffer for message passing
-      NULLIFY (real_msg_gather)
-      msglen = 3*logger%para_env%num_pe
-      ALLOCATE (real_msg_gather(msglen))
-
-      ! gather projected area from all processors
-      CALL mp_gather(helium%proarea%ravr, &
-                     real_msg_gather, &
-                     logger%para_env%source, &
-                     logger%para_env%group)
-
-      ! update it in the global input structure
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%AVERAGES%PROJECTED_AREA", &
-                                r_vals_ptr=real_msg_gather)
-
-      ! allocate the buffer for message passing
-      NULLIFY (real_msg_gather)
-      msglen = 3*logger%para_env%num_pe
-      ALLOCATE (real_msg_gather(msglen))
-
-      ! gather projected area squared from all processors
-      CALL mp_gather(helium%prarea2%ravr, &
-                     real_msg_gather, &
-                     logger%para_env%source, &
-                     logger%para_env%group)
-
-      ! update it in the global input structure
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%AVERAGES%PROJECTED_AREA_2", &
-                                r_vals_ptr=real_msg_gather)
-
-      ! allocate the buffer for message passing
-      NULLIFY (real_msg_gather)
-      msglen = 3*logger%para_env%num_pe
-      ALLOCATE (real_msg_gather(msglen))
-
-      ! gather winding number squared from all processors
-      CALL mp_gather(helium%wnmber2%ravr, &
-                     real_msg_gather, &
-                     logger%para_env%source, &
-                     logger%para_env%group)
-
-      ! update it in the global input structure
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%AVERAGES%WINDING_NUMBER_2", &
-                                r_vals_ptr=real_msg_gather)
-
-      ! allocate the buffer for message passing
-      NULLIFY (real_msg_gather)
-      msglen = 3*logger%para_env%num_pe
-      ALLOCATE (real_msg_gather(msglen))
-
-      ! gather moment of inertia from all processors
-      CALL mp_gather(helium%mominer%ravr, &
-                     real_msg_gather, &
-                     logger%para_env%source, &
-                     logger%para_env%group)
-
-      ! update it in the global input structure
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%AVERAGES%MOMENT_OF_INERTIA", &
-                                r_vals_ptr=real_msg_gather)
-
-      ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
-      ! assigned in section_vals_val_set - this memory will be used later on!
-      ! "The val becomes the owner of the array" - from section_vals_val_set docu
-      NULLIFY (real_msg_gather)
-
-      !
-      ! save RNG state
-      !
-      ! pack RNG state on each processor to the local array
-      NULLIFY (real_msg)
-      msglen = 40
-      ALLOCATE (real_msg(msglen))
-      CALL get_rng_stream(helium%rng_stream_uniform, bg=bg, cg=cg, ig=ig, &
-                          buffer=bu, buffer_filled=lbf)
-      offset = 0
-      real_msg(offset+1:offset+6) = PACK(bg, .TRUE.)
-      real_msg(offset+7:offset+12) = PACK(cg, .TRUE.)
-      real_msg(offset+13:offset+18) = PACK(ig, .TRUE.)
-      IF (lbf) THEN
-         bf = 1.0_dp
-      ELSE
-         bf = -1.0_dp
-      END IF
-      real_msg(offset+19) = bf
-      real_msg(offset+20) = bu
-      CALL get_rng_stream(helium%rng_stream_gaussian, bg=bg, cg=cg, ig=ig, &
-                          buffer=bu, buffer_filled=lbf)
-      offset = 20
-      real_msg(offset+1:offset+6) = PACK(bg, .TRUE.)
-      real_msg(offset+7:offset+12) = PACK(cg, .TRUE.)
-      real_msg(offset+13:offset+18) = PACK(ig, .TRUE.)
-      IF (lbf) THEN
-         bf = 1.0_dp
-      ELSE
-         bf = -1.0_dp
-      END IF
-      real_msg(offset+19) = bf
-      real_msg(offset+20) = bu
-
-      ! Gather RNG state (in real_msg_gather vector) from all processors at
-      ! logger%para_env%source
-      NULLIFY (real_msg_gather)
-      msglen = SIZE(real_msg)*logger%para_env%num_pe
-      ALLOCATE (real_msg_gather(msglen))
-      real_msg_gather(:) = 0.0_dp
-      CALL mp_gather(real_msg, real_msg_gather, logger%para_env%source, logger%para_env%group)
-
-      ! update the RNG state in the global input structure
-      CALL section_vals_val_set(helium%input, &
-                                "MOTION%PINT%HELIUM%RNG_STATE%_DEFAULT_KEYWORD_", &
-                                r_vals_ptr=real_msg_gather)
-
-      ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
-      ! assigned in section_vals_val_set - this memeory will be used later on!
-      ! "The val becomes the owner of the array" - from section_vals_val_set docu
-      NULLIFY (real_msg_gather)
-
-      ! DEALLOCATE since this array is only used locally
-      DEALLOCATE (real_msg)
-
-      IF (helium%solute_present) THEN
          !
-         ! save forces on the solute
+         ! save coordinates
          !
-         ! check that the number of values match the current runtime
-         reqlen = helium%solute_atoms*helium%solute_beads*3
-         msglen = SIZE(helium%force_avrg)
-         err_str = "Invalid size of HELIUM%FORCE: received '"
-         stmp = ""
-         WRITE (stmp, *) msglen
-         err_str = TRIM(ADJUSTL(err_str))// &
-                   TRIM(ADJUSTL(stmp))//"' but expected '"
-         stmp = ""
-         WRITE (stmp, *) reqlen
-         err_str = TRIM(ADJUSTL(err_str))// &
-                   TRIM(ADJUSTL(stmp))//"'."
-         IF (msgLEN /= reqlen) &
-            CPABORT(err_str)
-
-         ! allocate the buffer to be saved and fill it with forces
-         ! forces should be the same on all processors, but we don't check that here
+         ! allocate the buffer to be passed and fill it with local coords at each
+         ! proc
+         NULLIFY (real_msg)
          NULLIFY (real_msg_gather)
-         ALLOCATE (real_msg_gather(msglen))
-         real_msg_gather(:) = PACK(helium%force_avrg, .TRUE.)
+         msglen = SIZE(helium_env(1)%helium%pos(:, :, 1:helium_env(1)%helium%beads))
+         ALLOCATE (real_msg(msglen*helium_env(1)%helium%num_env))
+         ALLOCATE (real_msg_gather(msglen*helium_env(1)%helium%num_env))
+         real_msg(:) = 0.0_dp
+         DO i = 1, SIZE(helium_env)
+      real_msg((offset+i-1)*msglen+1:(offset+i)*msglen) = PACK(helium_env(i)%helium%pos(:, :, 1:helium_env(i)%helium%beads), .TRUE.)
+         END DO
 
-         ! update forces in the global input structure
-         CALL section_vals_val_set(helium%input, &
-                                   "MOTION%PINT%HELIUM%FORCE%_DEFAULT_KEYWORD_", &
+         ! pass the message from all processors to logger%para_env%source
+         CALL mp_sum(real_msg, helium_env(1)%comm)
+         real_msg_gather(:) = real_msg(:)
+
+         ! update coordinates in the global input structure, only in
+         ! helium_env(1)
+         CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                   "MOTION%PINT%HELIUM%COORD%_DEFAULT_KEYWORD_", &
+                                   r_vals_ptr=real_msg_gather)
+
+         ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+         ! assigned in section_vals_val_set - this memory will be used later on!
+         ! "The val becomes the owner of the array" - from section_vals_val_set docu
+         NULLIFY (real_msg_gather)
+
+         ! DEALLOCATE since this array is only used locally
+         DEALLOCATE (real_msg)
+
+         !
+         ! save permutation state
+         !
+         ! allocate the buffer for message passing
+         NULLIFY (int_msg_gather)
+         msglen = SIZE(helium_env(1)%helium%permutation)
+         ALLOCATE (int_msg_gather(msglen*helium_env(1)%helium%num_env))
+
+         ! pass the message from all processors to logger%para_env%source
+         int_msg_gather(:) = 0
+         DO i = 1, SIZE(helium_env)
+            int_msg_gather((offset+i-1)*msglen+1:(offset+i)*msglen) = helium_env(i)%helium%permutation
+         END DO
+
+         CALL mp_sum(int_msg_gather, helium_env(1)%comm)
+
+         ! update permutation state in the global input structure
+         CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                   "MOTION%PINT%HELIUM%PERM%_DEFAULT_KEYWORD_", &
+                                   i_vals_ptr=int_msg_gather)
+
+         ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+         ! assigned in section_vals_val_set - this memory will be used later on!
+         ! "The val becomes the owner of the array" - from section_vals_val_set docu
+         NULLIFY (int_msg_gather)
+
+         !
+         ! save averages
+         !
+         ! update the weighting factor
+         itmp = helium_env(1)%helium%averages_iweight
+         IF (itmp .LT. 0) THEN
+            itmp = helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
+         ELSE
+            itmp = itmp+helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
+         END IF
+         DO i = 1, SIZE(helium_env)
+            CALL section_vals_val_set(helium_env(i)%helium%input, &
+                                      "MOTION%PINT%HELIUM%AVERAGES%IWEIGHT", &
+                                      i_val=itmp)
+         END DO
+
+         ! allocate the buffer for message passing
+         NULLIFY (real_msg_gather)
+         msglen = 3
+         ALLOCATE (real_msg_gather(msglen*helium_env(1)%helium%num_env))
+
+         real_msg_gather(:) = 0.0_dp
+         ! gather projected area from all processors
+         DO i = 1, SIZE(helium_env)
+            real_msg_gather((i-1+offset)*msglen+1:(i+offset)*msglen) = helium_env(i)%helium%proarea%ravr(:)
+         END DO
+         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+
+         ! update it in the global input structure
+         CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                   "MOTION%PINT%HELIUM%AVERAGES%PROJECTED_AREA", &
+                                   r_vals_ptr=real_msg_gather)
+
+         ! allocate the buffer for message passing
+         NULLIFY (real_msg_gather)
+         msglen = 3
+         ALLOCATE (real_msg_gather(msglen*helium_env(1)%helium%num_env))
+
+         real_msg_gather(:) = 0.0_dp
+         ! gather projected area squared from all processors
+         DO i = 1, SIZE(helium_env)
+            real_msg_gather((i-1+offset)*msglen+1:(i+offset)*msglen) = helium_env(i)%helium%prarea2%ravr(:)
+         END DO
+         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+
+         ! update it in the global input structure
+         CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                   "MOTION%PINT%HELIUM%AVERAGES%PROJECTED_AREA_2", &
+                                   r_vals_ptr=real_msg_gather)
+
+         ! allocate the buffer for message passing
+         NULLIFY (real_msg_gather)
+         msglen = 3
+         ALLOCATE (real_msg_gather(msglen*helium_env(1)%helium%num_env))
+
+         real_msg_gather(:) = 0.0_dp
+         ! gather winding number squared from all processors
+         DO i = 1, SIZE(helium_env)
+            real_msg_gather((i-1+offset)*msglen+1:(i+offset)*msglen) = helium_env(i)%helium%wnmber2%ravr(:)
+         END DO
+         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+
+         ! update it in the global input structure
+         CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                   "MOTION%PINT%HELIUM%AVERAGES%WINDING_NUMBER_2", &
+                                   r_vals_ptr=real_msg_gather)
+
+         ! allocate the buffer for message passing
+         NULLIFY (real_msg_gather)
+         msglen = 3
+         ALLOCATE (real_msg_gather(msglen*helium_env(1)%helium%num_env))
+
+         real_msg_gather(:) = 0.0_dp
+         ! gather moment of inertia from all processors
+         DO i = 1, SIZE(helium_env)
+            real_msg_gather((i-1+offset)*msglen+1:(i+offset)*msglen) = helium_env(i)%helium%mominer%ravr(:)
+         END DO
+         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+
+         ! update it in the global input structure
+         CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                   "MOTION%PINT%HELIUM%AVERAGES%MOMENT_OF_INERTIA", &
+                                   r_vals_ptr=real_msg_gather)
+
+         ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+         ! assigned in section_vals_val_set - this memory will be used later on!
+         ! "The val becomes the owner of the array" - from section_vals_val_set docu
+         NULLIFY (real_msg_gather)
+
+         !
+         ! save RNG state
+         !
+         ! pack RNG state on each processor to the local array and save in
+         ! gather with offset determined earlier
+         NULLIFY (real_msg)
+         msglen = 40
+         ALLOCATE (real_msg(msglen))
+         NULLIFY (real_msg_gather)
+         ALLOCATE (real_msg_gather(msglen*helium_env(1)%helium%num_env))
+         real_msg_gather(:) = 0.0_dp
+
+         DO i = 1, SIZE(helium_env)
+            CALL get_rng_stream(helium_env(i)%helium%rng_stream_uniform, bg=bg, cg=cg, ig=ig, &
+                                buffer=bu, buffer_filled=lbf)
+            off = 0
+            real_msg(off+1:off+6) = PACK(bg, .TRUE.)
+            real_msg(off+7:off+12) = PACK(cg, .TRUE.)
+            real_msg(off+13:off+18) = PACK(ig, .TRUE.)
+            IF (lbf) THEN
+               bf = 1.0_dp
+            ELSE
+               bf = -1.0_dp
+            END IF
+            real_msg(off+19) = bf
+            real_msg(off+20) = bu
+            CALL get_rng_stream(helium_env(i)%helium%rng_stream_gaussian, bg=bg, cg=cg, ig=ig, &
+                                buffer=bu, buffer_filled=lbf)
+            off = 20
+            real_msg(off+1:off+6) = PACK(bg, .TRUE.)
+            real_msg(off+7:off+12) = PACK(cg, .TRUE.)
+            real_msg(off+13:off+18) = PACK(ig, .TRUE.)
+            IF (lbf) THEN
+               bf = 1.0_dp
+            ELSE
+               bf = -1.0_dp
+            END IF
+            real_msg(off+19) = bf
+            real_msg(off+20) = bu
+
+            real_msg_gather((offset+i-1)*msglen+1:(offset+i)*msglen) = real_msg(:)
+         END DO
+
+         ! Gather RNG state (in real_msg_gather vector) from all processors at
+         ! logger%para_env%source
+         CALL mp_sum(real_msg_gather, helium_env(1)%comm)
+
+         ! update the RNG state in the global input structure
+         CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                   "MOTION%PINT%HELIUM%RNG_STATE%_DEFAULT_KEYWORD_", &
                                    r_vals_ptr=real_msg_gather)
 
          ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
          ! assigned in section_vals_val_set - this memeory will be used later on!
          ! "The val becomes the owner of the array" - from section_vals_val_set docu
          NULLIFY (real_msg_gather)
-      END IF
 
-      !
-      ! save the RDFs
-      !
-      IF (helium%rdf_present) THEN
+         ! DEALLOCATE since this array is only used locally
+         DEALLOCATE (real_msg)
 
-         ! work on the temporary array so that accumulated data remains intact
-         helium%rdf_inst(:, :, :) = helium%rdf_accu(:, :, :)
+         IF (helium_env(1)%helium%solute_present) THEN
+            !
+            ! save forces on the solute
+            !
+            ! check that the number of values match the current runtime
+            reqlen = helium_env(1)%helium%solute_atoms*helium_env(1)%helium%solute_beads*3
+            msglen = SIZE(helium_env(1)%helium%force_avrg)
+            err_str = "Invalid size of HELIUM%FORCE: received '"
+            stmp = ""
+            WRITE (stmp, *) msglen
+            err_str = TRIM(ADJUSTL(err_str))// &
+                      TRIM(ADJUSTL(stmp))//"' but expected '"
+            stmp = ""
+            WRITE (stmp, *) reqlen
+            err_str = TRIM(ADJUSTL(err_str))// &
+                      TRIM(ADJUSTL(stmp))//"'."
+            IF (msgLEN /= reqlen) &
+               CPABORT(err_str)
 
-         ! average over processors / helium environments
-         CALL mp_sum(helium%rdf_inst, logger%para_env%group)
-         itmp = logger%para_env%num_pe
-         invproc = 1.0_dp/REAL(itmp, dp)
-         helium%rdf_inst(:, :, :) = helium%rdf_inst(:, :, :)*invproc
+            ! allocate the buffer to be saved and fill it with forces
+            ! forces should be the same on all processors, but we don't check that here
+            NULLIFY (real_msg_gather)
+            ALLOCATE (real_msg_gather(msglen))
+            real_msg_gather(:) = PACK(helium_env(1)%helium%force_avrg, .TRUE.)
 
-         nsteps = helium%current_step-helium%first_step
-         helium%rdf_inst(:, :, :) = helium%rdf_inst(:, :, :)/REAL(nsteps, dp)
-         iweight = helium%rdf_iweight
-         ! average over the old and the current density (observe the weights!)
-         helium%rdf_inst(:, :, :) = nsteps*helium%rdf_inst(:, :, :)+ &
-                                    iweight*helium%rdf_rstr(:, :, :)
-         helium%rdf_inst(:, :, :) = helium%rdf_inst(:, :, :)/REAL(nsteps+iweight, dp)
-         ! update in the global input structure
-         NULLIFY (real_msg)
-         msglen = SIZE(helium%rdf_inst)
-         ALLOCATE (real_msg(msglen))
-         real_msg(:) = PACK(helium%rdf_inst, .TRUE.)
-         CALL section_vals_val_set( &
-            helium%input, &
-            "MOTION%PINT%HELIUM%AVERAGES%RDF", &
-            r_vals_ptr=real_msg)
-         NULLIFY (real_msg)
+            ! update forces in the global input structure
+            CALL section_vals_val_set(helium_env(1)%helium%input, &
+                                      "MOTION%PINT%HELIUM%FORCE%_DEFAULT_KEYWORD_", &
+                                      r_vals_ptr=real_msg_gather)
 
-      END IF
+            ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+            ! assigned in section_vals_val_set - this memeory will be used later on!
+            ! "The val becomes the owner of the array" - from section_vals_val_set docu
+            NULLIFY (real_msg_gather)
+         END IF
 
-      !
-      ! save the densities
-      !
-      IF (helium%rho_present) THEN
+         !
+         ! save the RDFs
+         !
+         IF (helium_env(1)%helium%rdf_present) THEN
 
-         ! work on the temporary array so that accumulated data remains intact
-         helium%rho_inst(:, :, :, :) = helium%rho_accu(:, :, :, :)
+            ! work on the temporary array so that accumulated data remains intact
+            helium_env(1)%helium%rdf_inst(:, :, :) = 0.0_dp
+            DO i = 1, SIZE(helium_env)
+               helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)+ &
+                                                        helium_env(i)%helium%rdf_accu(:, :, :)
+            END DO
 
-         ! average over processors / helium environments
-         CALL mp_sum(helium%rho_inst, logger%para_env%group)
-         itmp = logger%para_env%num_pe
-         invproc = 1.0_dp/REAL(itmp, dp)
-         helium%rho_inst(:, :, :, :) = helium%rho_inst(:, :, :, :)*invproc
+            ! average over processors / helium environments
+            CALL mp_sum(helium_env(1)%helium%rdf_inst, helium_env(1)%comm)
+            itmp = helium_env(1)%helium%num_env
+            invproc = 1.0_dp/REAL(itmp, dp)
+            helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)*invproc
 
-         nsteps = helium%current_step-helium%first_step
-         helium%rho_inst(:, :, :, :) = helium%rho_inst(:, :, :, :)/REAL(nsteps, dp)
-         iweight = helium%averages_iweight
-         ! average over the old and the current density (observe the weights!)
-         helium%rho_inst(:, :, :, :) = nsteps*helium%rho_inst(:, :, :, :)+ &
-                                       iweight*helium%rho_rstr(:, :, :, :)
-         helium%rho_inst(:, :, :, :) = helium%rho_inst(:, :, :, :)/REAL(nsteps+iweight, dp)
+            nsteps = helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
+            helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)/REAL(nsteps, dp)
+            iweight = helium_env(1)%helium%rdf_iweight
+            ! average over the old and the current density (observe the weights!)
+            helium_env(1)%helium%rdf_inst(:, :, :) = nsteps*helium_env(1)%helium%rdf_inst(:, :, :)+ &
+                                                     iweight*helium_env(1)%helium%rdf_rstr(:, :, :)
+            helium_env(1)%helium%rdf_inst(:, :, :) = helium_env(1)%helium%rdf_inst(:, :, :)/REAL(nsteps+iweight, dp)
+            ! update in the global input structure
+            NULLIFY (real_msg)
+            msglen = SIZE(helium_env(1)%helium%rdf_inst)
+            ALLOCATE (real_msg(msglen))
+            real_msg(:) = PACK(helium_env(1)%helium%rdf_inst, .TRUE.)
+            CALL section_vals_val_set( &
+               helium_env(1)%helium%input, &
+               "MOTION%PINT%HELIUM%AVERAGES%RDF", &
+               r_vals_ptr=real_msg)
+            NULLIFY (real_msg)
 
-         ! update the densities in the global input structure
-         NULLIFY (real_msg)
-         msglen = SIZE(helium%rho_inst)
-         ALLOCATE (real_msg(msglen))
-         real_msg(:) = PACK(helium%rho_inst, .TRUE.)
-         CALL section_vals_val_set( &
-            helium%input, &
-            "MOTION%PINT%HELIUM%AVERAGES%RHO", &
-            r_vals_ptr=real_msg)
-         NULLIFY (real_msg)
+         END IF
 
-      END IF
+         !
+         ! save the densities
+         !
+         IF (helium_env(1)%helium%rho_present) THEN
+
+            ! work on the temporary array so that accumulated data remains intact
+            helium_env(1)%helium%rho_inst(:, :, :, :) = 0.0_dp
+            DO i = 1, SIZE(helium_env)
+               helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)+ &
+                                                           helium_env(i)%helium%rho_accu(:, :, :, :)
+            END DO
+
+            ! average over processors / helium environments
+            CALL mp_sum(helium_env(1)%helium%rho_inst, helium_env(1)%comm)
+            itmp = helium_env(1)%helium%num_env
+            invproc = 1.0_dp/REAL(itmp, dp)
+            helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)*invproc
+
+            nsteps = helium_env(1)%helium%current_step-helium_env(1)%helium%first_step
+            helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)/REAL(nsteps, dp)
+            iweight = helium_env(1)%helium%averages_iweight
+            ! average over the old and the current density (observe the weights!)
+            helium_env(1)%helium%rho_inst(:, :, :, :) = nsteps*helium_env(1)%helium%rho_inst(:, :, :, :)+ &
+                                                        iweight*helium_env(1)%helium%rho_rstr(:, :, :, :)
+            helium_env(1)%helium%rho_inst(:, :, :, :) = helium_env(1)%helium%rho_inst(:, :, :, :)/REAL(nsteps+iweight, dp)
+
+            ! update the densities in the global input structure
+            NULLIFY (real_msg)
+            msglen = SIZE(helium_env(1)%helium%rho_inst)
+            ALLOCATE (real_msg(msglen))
+            real_msg(:) = PACK(helium_env(1)%helium%rho_inst, .TRUE.)
+            CALL section_vals_val_set( &
+               helium_env(1)%helium%input, &
+               "MOTION%PINT%HELIUM%AVERAGES%RHO", &
+               r_vals_ptr=real_msg)
+            NULLIFY (real_msg)
+
+         END IF
+
+      END IF ! ASSOCIATED(helium_env)
 
       CALL timestop(handle)
 
