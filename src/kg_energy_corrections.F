@@ -170,8 +170,8 @@ CONTAINS
          ! build neighbor and task lists
          CALL ec_build_neighborlist(qs_env, ec_env)
          CALL ec_build_core_hamiltonian(qs_env, ec_env, my_calc_forces)
-         CALL ec_build_ks_matrix(qs_env, ec_env, unit_nr)
-         CALL ks_solver(qs_env, kg_env, unit_nr)
+         CALL ec_build_ks_matrix(qs_env, ec_env)
+         CALL ec_ks_solver(qs_env, ec_env)
          CALL ec_energy(qs_env, ec_env, unit_nr)
 !          CALL kg_response_solver(qs_env,kg_env,calculate_forces,error)
          IF (unit_nr > 0) THEN
@@ -294,15 +294,13 @@ CONTAINS
 !> \brief calculate the complete KS matrix
 !> \param qs_env ...
 !> \param ec_env ...
-!> \param unit_nr ...
 !> \par History
 !>      03.2014 adapted from qs_ks_build_kohn_sham_matrix [JGH]
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE ec_build_ks_matrix(qs_env, ec_env, unit_nr)
+   SUBROUTINE ec_build_ks_matrix(qs_env, ec_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(energy_correction_type), POINTER              :: ec_env
-      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_build_ks_matrix', &
          routineP = moduleN//':'//routineN
@@ -447,15 +445,6 @@ CONTAINS
       ec_env%exc = eexc
       ec_env%ehartree = ehartree+eovrl+eself
       ec_env%vhxc = evhxc
-!dbg
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A,T16,F16.10)') 'eexc ', eexc
-         WRITE (unit_nr, '(T2,A,T16,F16.10)') 'evhxc ', evhxc
-         WRITE (unit_nr, '(T2,A,T16,F16.10)') 'eovrl ', eovrl
-         WRITE (unit_nr, '(T2,A,T16,F16.10)') 'eself ', eself
-         WRITE (unit_nr, '(T2,A,T16,F16.10)') 'ehartree ', ehartree
-      END IF
-!dbg
 
       ! add the core matrix
       DO ispin = 1, nspins
@@ -478,20 +467,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Solve KS equation for a given matrix
 !> \param qs_env ...
-!> \param kg_env ...
-!> \param unit_nr ...
+!> \param ec_env ...
 !> \par History
 !>      03.2014 adapted from qs_ks_build_kohn_sham_matrix [JGH]
 !> \author JGH
 ! **************************************************************************************************
 
-   SUBROUTINE ks_solver(qs_env, kg_env, unit_nr)
+   SUBROUTINE ec_ks_solver(qs_env, ec_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kg_environment_type), POINTER                 :: kg_env
-      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(energy_correction_type), POINTER              :: ec_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ks_solver', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_ks_solver', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, info, ispin, nmo(2), nsize, &
@@ -505,16 +492,11 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_ks, fm_mo, fm_ortho
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(energy_correction_type), POINTER              :: ec_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (blacs_env, dft_control, ec_env, para_env)
-      CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, dft_control=dft_control, &
-                      para_env=para_env)
-
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
-      ec_env => kg_env%ec_env
 
       nmo = 0
       CALL get_qs_env(qs_env=qs_env, nelectron_spin=nmo)
@@ -538,13 +520,17 @@ CONTAINS
                headline = "DENSITY MATRIX"
             END IF
             CALL cp_dbcsr_init(ec_env%matrix_p(ispin, 1)%matrix)
-            CALL cp_dbcsr_create(ec_env%matrix_p(ispin, 1)%matrix, name=TRIM(headline), template=ec_env%matrix_s(1, 1)%matrix)
-            CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_p(ispin, 1)%matrix, kg_env%sab_orb_full)
+            CALL cp_dbcsr_create(ec_env%matrix_p(ispin, 1)%matrix, name=TRIM(headline), &
+                                 template=ec_env%matrix_s(1, 1)%matrix)
+            CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_p(ispin, 1)%matrix, ec_env%sab_orb)
          END DO
       END IF
 
       SELECT CASE (ec_env%ks_solver)
       CASE (kg_ec_diagonalization)
+         NULLIFY (blacs_env, para_env)
+         CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, para_env=para_env)
+
          eps_filter = dft_control%qs_control%eps_filter_matrix
 
          CALL cp_dbcsr_get_info(ec_env%matrix_ks(1, 1)%matrix, nfullrows_total=nsize)
@@ -610,18 +596,12 @@ CONTAINS
          DEALLOCATE (ortho_dbcsr, buf1_dbcsr, buf2_dbcsr)
          DEALLOCATE (eigenvalues)
 
-!dbg
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A)') ' Corrected-KG density matrix done'
-         END IF
-!dbg
-
       CASE DEFAULT
          CPASSERT(.FALSE.)
       END SELECT
       CALL timestop(handle)
 
-   END SUBROUTINE ks_solver
+   END SUBROUTINE ec_ks_solver
 
 ! *****************************************************************************
 !> \brief Calculate the energy correction
