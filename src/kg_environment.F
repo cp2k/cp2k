@@ -154,7 +154,10 @@ CONTAINS
       NULLIFY (kg_env%ec_env%matrix_ks, kg_env%ec_env%matrix_h, kg_env%ec_env%matrix_s)
       NULLIFY (kg_env%ec_env%matrix_t, kg_env%ec_env%matrix_p)
       NULLIFY (kg_env%ec_env%task_list)
+      NULLIFY (kg_env%ec_env%mao_coef)
       NULLIFY (kg_env%ec_env%dispersion_env)
+
+      kg_env%ec_env%mao = .FALSE.
 
       kg_env%nsubsets = 0
 
@@ -175,6 +178,8 @@ CONTAINS
                                    r_val=kg_env%ec_env%eps_default)
          CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%HARRIS_BASIS", &
                                    c_val=kg_env%ec_env%basis)
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%MAO", &
+                                   l_val=kg_env%ec_env%mao)
 
          ! set basis
          nkind = SIZE(qs_kind_set)

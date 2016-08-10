@@ -52,6 +52,7 @@ MODULE kg_environment_types
       REAL(KIND=dp)                                    :: eps_default
       ! basis set
       CHARACTER(len=20)                                :: basis
+      LOGICAL                                          :: mao
       ! energy components
       REAL(KIND=dp)                                    :: etotal
       REAL(KIND=dp)                                    :: eband, exc, ehartree, vhxc
@@ -70,6 +71,8 @@ MODULE kg_environment_types
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_s
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_t
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_p
+      ! reduce basis
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER     :: mao_coef
    END TYPE energy_correction_type
 
 ! **************************************************************************************************
@@ -184,6 +187,8 @@ CONTAINS
          IF (ASSOCIATED(kg_env%ec_env%task_list)) THEN
             CALL deallocate_task_list(kg_env%ec_env%task_list)
          END IF
+         ! reduced basis
+         IF (ASSOCIATED(kg_env%ec_env%mao_coef)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%mao_coef)
          ! dispersion environment
          IF (ASSOCIATED(kg_env%ec_env%dispersion_env)) THEN
             CALL qs_dispersion_release(kg_env%ec_env%dispersion_env)

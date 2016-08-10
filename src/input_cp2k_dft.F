@@ -4772,6 +4772,12 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="MAO", &
+                          description="Use modified atomic orbitals (MAO) to solve Harris equation", &
+                          usage="MAO T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="ALGORITHM", &
                           description="Algorithm used to solve KS equation", &
                           usage="ALGORITHM DIAGONALIZATION", &
