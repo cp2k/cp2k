@@ -284,7 +284,7 @@ CONTAINS
 
       MARK_USED(lib)
       MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
 
    END SUBROUTINE initialize_libint
 
@@ -302,7 +302,7 @@ CONTAINS
 
       MARK_USED(deriv)
       MARK_USED(max_am)
-      CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
 
    END SUBROUTINE initialize_libderiv
 
@@ -314,7 +314,7 @@ CONTAINS
       TYPE(lib_int)                                      :: lib
 
       MARK_USED(lib)
-      CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
 
    END SUBROUTINE terminate_libint
 
@@ -326,7 +326,7 @@ CONTAINS
       TYPE(lib_deriv)                                    :: deriv
 
       MARK_USED(deriv)
-      CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
 
    END SUBROUTINE terminate_libderiv
 
@@ -356,7 +356,7 @@ CONTAINS
       MARK_USED(prim)
       MARK_USED(p_work)
       MARK_USED(a_mysize)
-      CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
 
    END SUBROUTINE get_eris
 
@@ -387,7 +387,7 @@ CONTAINS
       MARK_USED(prim)
       MARK_USED(work_forces)
       MARK_USED(a_mysize)
-      CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+      CPABORT("This CP2K executable has not been linked against the required library libint (HFX).")
 
    END SUBROUTINE get_derivs
 #endif
