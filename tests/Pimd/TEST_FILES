@@ -11,7 +11,7 @@ h2o_pint_rpmd.inp                 9     2e-14        1.1503487725277912E-002
 he32_only.inp                                         40      2e-14       -6.8167031351590079E-005
 he32_only_restart.inp                                 40      2e-14       -7.0396186371849751E-005
 water-in-helium.inp                                    9      7e-14        1.0713913726284391E-003
-water-in-helium-restart.inp                            9      8e-14        1.0717908679185048E-003
+water-in-helium-restart.inp                            9      1e-13        1.0717908679185048E-003
 water-in-helium-lastforce.inp                          9      7e-14        1.0714865845104339E-003
 w512_pint_nose.inp                                     9      8e-14             9.5780711530210407
 w512_pint_gle.inp                                      9      3e-13            -3.5646497002020765
