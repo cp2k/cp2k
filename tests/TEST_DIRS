@@ -159,8 +159,8 @@ QS/regtest-all-electron
 QMMM/SE/regtest_2
 Fist/regtest-1-1
 Fist/regtest-14
-QS/regtest-rma                                              mpi3 
-QS/regtest-rma-3D                                           mpi3 mpiranks==8 
+QS/regtest-rma                                              libint mpi3 
+QS/regtest-rma-3D                                           libint mpi3 mpiranks==8 
 QMMM/DFTB/regtest
 QS/regtest-ot-refine-2
 QS/regtest-hybrid-1                                         libint 
