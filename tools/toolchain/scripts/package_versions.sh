@@ -1,7 +1,7 @@
 # default package versions
 binutils_ver=${binutils_ver:-2.25}
 cmake_ver=${cmake_ver:-3.1.1}
-elpa_ver=${elpa_ver:-2015.11.001}
+elpa_ver=${elpa_ver:-2016.05.003}
 fftw_ver=${fftw_ver:-3.3.4}
 gcc_ver=${gcc_ver:-5.4.0}
 lcov_ver=${lcov_ver:-1.11}

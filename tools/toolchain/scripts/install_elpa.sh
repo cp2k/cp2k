@@ -47,6 +47,10 @@ case "$with_elpa" in
             echo "Installing from scratch into ${pkg_install_dir}"
             tar -xzf elpa-${elpa_ver}.tar.gz
 
+            # fix wrong dependency order (at least in elpa 2016.05.003)
+            sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.in
+            sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.am
+
             # need both flavors ?
 
             # elpa expect FC to be an mpi fortran compiler that is happy
