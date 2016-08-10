@@ -169,28 +169,6 @@ CONTAINS
          CALL mp_comm_free(new_comm)
       END IF
 
-      !num = logger%para_env%num_pe-num_env
-      !IF (num .GT. 0) THEN
-      !   ALLOCATE (ranks(num))
-      !   j = 1
-      !   DO i = 1, SIZE(env_all)
-      !      IF (env_all(i) .EQ. 0) THEN
-      !         ranks(j) = i-1
-      !         j = j+1
-      !      END IF
-      !   END DO
-      !ELSE
-      !   num = 0
-      !   ALLOCATE (ranks(num))
-      !END IF
-
-      !CALL MPI_COMM_GROUP(logger%para_env%group, old_group, ierr)
-      !CALL MPI_GROUP_EXCL(old_group, num, ranks, new_group, ierr)
-      !CALL MPI_COMM_CREATE(logger%para_env%group, new_group, new_comm, ierr)
-
-      !CALL MPI_GROUP_FREE(old_group, ierr)
-      !CALL MPI_GROUP_FREE(new_group, ierr)
-
       NULLIFY (helium_env)
       IF (mepos .GT. 0) THEN
          ALLOCATE (helium_env(mepos))
@@ -200,7 +178,6 @@ CONTAINS
             helium_env(k)%comm = new_comm
             NULLIFY (helium_env(k)%env_all)
             helium_env(k)%env_all => env_all
-            NULLIFY (env_all)
             ALLOCATE (helium_env(k)%helium)
             NULLIFY (helium_env(k)%helium%input)
             helium_env(k)%helium%input => input
@@ -657,8 +634,12 @@ CONTAINS
             END IF
          END DO
          DEALLOCATE (pot_transfer)
+      ELSE
+         ! Deallocate env_all on processors without helium_env
+         DEALLOCATE (env_all)
       END IF ! mepos .GT. 0
 
+      NULLIFY (env_all)
       CALL timestop(handle)
 
       RETURN
