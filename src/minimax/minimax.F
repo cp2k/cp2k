@@ -244,11 +244,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_R, iw
 
       INTEGER                                            :: i_mm, i_R, ierr, k, which_coeffs
-      LOGICAL                                            :: do_exit, verbose
+      LOGICAL                                            :: do_exit
       REAL(KIND=dp)                                      :: dR, mm_error, R, ref_error
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
-
-      verbose = .FALSE.
 
       IF (iw > 0) THEN
          WRITE (iw, '(//T2,A)') &
@@ -298,11 +296,9 @@ CONTAINS
          WRITE (iw, '(/T2,A)') "Test 1 OK"
          WRITE (iw, '(/T2,A)') &
             "2) checking numerical error against tabulated error at arbitrary values Rc"
-         IF (verbose) THEN
-            WRITE (iw, '(/T2,A)') &
-               "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
-            WRITE (iw, '(T2,54("-"))')
-         ENDIF
+         WRITE (iw, '(/T2,A)') &
+            "which coeffs, K, Rc, num. error, ref. error, rel. diff (num. error - ref. error)/(ref. error)"
+         WRITE (iw, '(T2,54("-"))')
       ENDIF
       dR = R_max**(1.0_dp/n_R)
 
@@ -318,7 +314,7 @@ CONTAINS
                do_exit = .TRUE.
             ENDIF
             ref_error = err_mm(i_mm)
-            IF (verbose .AND. iw > 0) WRITE (iw, '(T2, A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
+            IF (iw > 0) WRITE (iw, '(T2, A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
                MERGE("k15", "k53", which_coeffs .EQ. mm_k15), k, R, &
                mm_error, ref_error, (mm_error-ref_error)/ref_error
             IF (mm_error .GT. ref_error*1.05_dp+1.0E-15_dp) THEN
@@ -329,7 +325,7 @@ CONTAINS
          DEALLOCATE (aw)
       ENDDO
       IF (iw > 0) THEN
-         IF (verbose) WRITE (iw, '(T2,54("-"))')
+         WRITE (iw, '(T2,54("-"))')
          WRITE (iw, '(/T2,A)') "Test 2 OK"
       ENDIF
    END SUBROUTINE minimax_validate
