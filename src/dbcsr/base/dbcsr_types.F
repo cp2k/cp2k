@@ -107,7 +107,7 @@ MODULE dbcsr_types
              dbcsr_func_truncate, &
              dbcsr_func_cos
 
-   PUBLIC :: dbcsr_1d_array_obj, dbcsr_2d_array_obj
+   PUBLIC :: dbcsr_2d_array_obj
 
    PUBLIC :: dbcsr_mpi_statistics_type
 

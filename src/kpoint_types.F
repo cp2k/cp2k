@@ -50,7 +50,7 @@ MODULE kpoint_types
    PUBLIC :: read_kpoint_section, write_kpoint_info
    PUBLIC :: kpoint_env_type, kpoint_env_p_type
    PUBLIC :: kpoint_env_create
-   PUBLIC :: kpoint_sym_type, kpoint_sym_p_type
+   PUBLIC :: kpoint_sym_type
    PUBLIC :: kpoint_sym_create
 
 ! **************************************************************************************************

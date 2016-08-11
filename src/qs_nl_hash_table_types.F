@@ -39,10 +39,7 @@ MODULE qs_nl_hash_table_types
 ! public methods
    PUBLIC :: nl_hash_table_create, & !create new table
              nl_hash_table_release, & !destroy existing table
-             nl_hash_table_has_data, & !check whether table has any data associated with it
-             nl_hash_table_nullify, &
              nl_hash_table_add, & !add a new entry to the table
-             nl_hash_table_get, & !given a key, return the value from table
              nl_hash_table_get_from_index, & !return the value from the specified index of the table
              nl_hash_table_is_null, &
              nl_hash_table_status

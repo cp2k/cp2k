@@ -82,7 +82,6 @@ MODULE pao_methods
    PUBLIC :: pao_test_convergence
    PUBLIC :: pao_calc_energy, pao_check_trace_ps
    PUBLIC :: pao_store_P, pao_add_forces, pao_guess_initial_P
-   PUBLIC :: pao_read_preopt_dm
    PUBLIC :: pao_calc_outer_grad_lnv
    PUBLIC :: pao_check_grad
 

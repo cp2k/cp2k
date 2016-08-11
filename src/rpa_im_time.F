@@ -42,10 +42,7 @@ MODULE rpa_im_time
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_im_time'
 
    PUBLIC :: compute_mat_P_omega, &
-             print_occupation_2c, &
-             print_occupation_3c, &
-             setup_mat_for_mem_cut_3c, &
-             communicate_buffer
+             setup_mat_for_mem_cut_3c
 CONTAINS
 
 ! **************************************************************************************************

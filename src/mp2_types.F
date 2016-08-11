@@ -45,8 +45,8 @@ MODULE mp2_types
              init_TShPSC_lmax
 
    PUBLIC :: mp2_env_create, mp2_env_release, mp2_biel_type, &
-             pair_list_type_mp2, offset_type, &
-             offset_row_col_from_LLL, one_dim_int_array, &
+             pair_list_type_mp2, &
+             one_dim_int_array, &
              two_dim_int_array
 
    INTEGER, SAVE                                         :: init_TShPSC_lmax = -1

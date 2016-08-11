@@ -76,7 +76,7 @@ MODULE dbcsr_methods
              dbcsr_mutable_release, &
              dbcsr_mutable_instantiated
 
-   PUBLIC :: dbcsr_distribution_hold, dbcsr_distribution_release, dbcsr_distribution_init
+   PUBLIC :: dbcsr_distribution_release, dbcsr_distribution_init
    PUBLIC :: dbcsr_mp_release, dbcsr_mp_grid_remove
 
    INTERFACE dbcsr_init

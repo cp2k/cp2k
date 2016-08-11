@@ -162,7 +162,7 @@ MODULE f77_interface
              calc_energy, calc_force, check_input, get_natom, get_nparticle, &
              f_env_add_defaults, f_env_rm_defaults, f_env_type, &
              f_env_get_from_id, &
-             set_vel, do_shake, set_cell, get_cell, get_result_r1
+             set_vel, set_cell, get_cell, get_result_r1
 CONTAINS
 
 ! **************************************************************************************************
