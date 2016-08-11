@@ -58,7 +58,6 @@ MODULE f77_interface
         force_env_get, force_env_get_frc, force_env_get_natom, force_env_get_nparticle, &
         force_env_get_pos, force_env_get_vel, force_env_release, force_env_retain, force_env_set, &
         force_env_type, multiple_fe_list
-   USE force_env_utils,                 ONLY: force_env_shake
    USE fp_types,                        ONLY: fp_env_create,&
                                               fp_env_read,&
                                               fp_env_release,&
@@ -1427,29 +1426,5 @@ CONTAINS
       ierr = 0
       CALL cp_rm_default_logger()
    END SUBROUTINE check_input
-
-! **************************************************************************************************
-!> \brief perform the shake procedure (enforce constraints)
-!> \param f_env_id the force env on which to apply the shake
-!> \param dt timestep
-!> \param shake_tol tolerance for shake
-!> \param ierr ...
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE do_shake(f_env_id, dt, shake_tol, ierr)
-      INTEGER, INTENT(in)                                :: f_env_id
-      REAL(kind=dp), INTENT(in)                          :: dt, shake_tol
-      INTEGER, INTENT(out)                               :: ierr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'do_shake', routineP = moduleN//':'//routineN
-
-      TYPE(f_env_type), POINTER                          :: f_env
-
-      NULLIFY (f_env)
-      CALL f_env_add_defaults(f_env_id, f_env)
-      CALL force_env_shake(f_env%force_env, &
-                           dt=dt, shake_tol=shake_tol)
-      CALL f_env_rm_defaults(f_env, ierr)
-   END SUBROUTINE do_shake
 
 END MODULE f77_interface
