@@ -15,7 +15,7 @@
 !>        This file was created using the scripts in cp2k/tools/minimax_tools.
 ! **************************************************************************************************
 
-MODULE minimax_k53
+MODULE minimax_exp_k53
    USE kinds,                           ONLY: dp
 
    IMPLICIT NONE
@@ -17616,4 +17616,4 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE get_minimax_coeff_low
-END MODULE minimax_k53
+END MODULE minimax_exp_k53

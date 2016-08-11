@@ -132,7 +132,7 @@ k_p.append(len(k) + 1)
 # 3) generate fortran file #
 ############################
 
-out = open('../../src/minimax/minimax_k53.F', 'w')
+out = open('../../src/minimax/minimax_exp_k53.F', 'w')
 out.write('!--------------------------------------------------------------------------------------------------!\n\
 !   CP2K: A general program to perform molecular dynamics simulations                              !\n\
 !   Copyright (C) 2000 - 2016  CP2K developers group                                               !\n\
@@ -150,7 +150,7 @@ out.write('! *******************************************************************
 !>        This file was created using the scripts in cp2k/tools/minimax_tools.\n\
 ! **************************************************************************************************\n\n')
 
-out.write('MODULE minimax_k53\n')
+out.write('MODULE minimax_exp_k53\n')
 out.write('USE kinds, ONLY: dp\n')
 
 out.write('IMPLICIT NONE\n')
@@ -232,5 +232,5 @@ for i, (kk, RR, EE, CC) in enumerate(zip(k, Rc, err, coeff_file)):
 
 out.write('END SELECT\n\n')
 out.write('END SUBROUTINE get_minimax_coeff_low\n')
-out.write('END MODULE minimax_k53\n')
+out.write('END MODULE minimax_exp_k53\n')
 out.close()

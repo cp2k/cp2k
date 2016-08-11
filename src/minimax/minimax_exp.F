@@ -8,7 +8,7 @@
 !>        approximate 1/x as a sum over exponential functions
 !>        1/x ~ SUM_{i}^{K} w_i EXP(-a_i * x) for x belonging to [1:Rc].
 !>
-!>        This module is an extension of original minimax module minimax_k15
+!>        This module is an extension of original minimax module minimax_exp_k15
 !>        (up to K = 15) to provide minimax approximations for larger
 !>        ranges Rc (up to K = 53).
 !>
@@ -18,19 +18,19 @@
 !>
 !>        Note: Due to discrete Rc values, the k53 implementation does not yield
 !>        optimal approximations for arbitrary Rc. If optimal minimax coefficients
-!>        are needed, the minimax_k15 module should be extended by interpolating
+!>        are needed, the minimax_exp_k15 module should be extended by interpolating
 !>        k53 coefficients.
 !> \par History
 !>      02.2016 created [Patrick Seewald]
 ! **************************************************************************************************
 
-MODULE minimax
+MODULE minimax_exp
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp
-   USE minimax_k15,                     ONLY: check_range_k15,&
+   USE minimax_exp_k15,                 ONLY: check_range_k15,&
                                               get_minimax_coeff_k15,&
                                               get_minimax_numerical_error
-   USE minimax_k53,                     ONLY: R_max,&
+   USE minimax_exp_k53,                 ONLY: R_max,&
                                               R_mm,&
                                               err_mm,&
                                               get_minimax_coeff_low,&
@@ -44,11 +44,11 @@ MODULE minimax
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_exp'
 
    INTEGER, PARAMETER :: mm_k15 = 0, mm_k53 = 1
 
-   PUBLIC :: get_minimax_coeff, minimax_validate, check_range
+   PUBLIC :: get_exp_minimax_coeff, validate_exp_minimax, check_exp_minimax_range
 
    ! Imported from minimax_k53:
 
@@ -92,10 +92,10 @@ CONTAINS
 !> \param k ...
 !> \param Rc ...
 !> \param ierr ...
-!> \note: ierr ==  1 is not a fatal error since get_minimax_coeff will return
+!> \note: ierr ==  1 is not a fatal error since get_exp_minimax_coeff will return
 !>        k53 minimax coefficients with smallest possible range.
 ! **************************************************************************************************
-   SUBROUTINE check_range(k, Rc, ierr)
+   SUBROUTINE check_exp_minimax_range(k, Rc, ierr)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
       INTEGER, INTENT(OUT)                               :: ierr
@@ -107,7 +107,7 @@ CONTAINS
          IF (k .GT. k_max) ierr = -1
       ENDIF
 
-   END SUBROUTINE check_range
+   END SUBROUTINE check_exp_minimax_range
 
 ! **************************************************************************************************
 !> \brief Get best minimax approximation for given input parameters. Automatically
@@ -121,7 +121,7 @@ CONTAINS
 !> \param which_coeffs Whether the coefficients returned have been generated from
 !>        k15 or k53 coefficients (mm_k15 or mm_k53).
 ! **************************************************************************************************
-   SUBROUTINE get_minimax_coeff(k, Rc, aw, mm_error, which_coeffs)
+   SUBROUTINE get_exp_minimax_coeff(k, Rc, aw, mm_error, which_coeffs)
       INTEGER, INTENT(IN)                                :: k
       REAL(KIND=dp), INTENT(IN)                          :: Rc
       REAL(KIND=dp), DIMENSION(2*k), INTENT(INOUT)       :: aw
@@ -146,7 +146,7 @@ CONTAINS
       ELSE
          CPABORT("No minimax approximations available for k = "//cp_to_string(k))
       ENDIF
-   END SUBROUTINE get_minimax_coeff
+   END SUBROUTINE get_exp_minimax_coeff
 
 ! **************************************************************************************************
 !> \brief Get minimax coefficients: k53 implementation (coefficients up to k=53 terms).
@@ -240,7 +240,7 @@ CONTAINS
 !> \param n_R Number of Rc values to be tested.
 !> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE minimax_validate(n_R, iw)
+   SUBROUTINE validate_exp_minimax(n_R, iw)
       INTEGER, INTENT(IN)                                :: n_R, iw
 
       INTEGER                                            :: i_mm, i_R, ierr, k, which_coeffs
@@ -264,10 +264,10 @@ CONTAINS
       DO i_mm = 1, n_approx
          R = R_mm(i_mm)
          k = k_mm(i_mm)
-         CALL check_range(k, R, ierr)
+         CALL check_exp_minimax_range(k, R, ierr)
          IF (ierr .EQ. 0) THEN
             ALLOCATE (aw(2*k))
-            CALL get_minimax_coeff(k, R, aw, mm_error, which_coeffs)
+            CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
             ref_error = err_mm(i_mm)
             DEALLOCATE (aw)
             IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
@@ -307,7 +307,7 @@ CONTAINS
          do_exit = .FALSE.
          DO i_R = 1, n_R
             R = dR**i_R
-            CALL get_minimax_coeff(k, R, aw, mm_error, which_coeffs)
+            CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
             CALL get_best_minimax_approx_k53(k, R, i_mm, ge_Rc=.TRUE.)
             IF (R .GT. R_mm(i_mm)) THEN
                R = R_max
@@ -328,6 +328,6 @@ CONTAINS
          WRITE (iw, '(T2,54("-"))')
          WRITE (iw, '(/T2,A)') "Test 2 OK"
       ENDIF
-   END SUBROUTINE minimax_validate
+   END SUBROUTINE validate_exp_minimax
 
-END MODULE minimax
+END MODULE minimax_exp

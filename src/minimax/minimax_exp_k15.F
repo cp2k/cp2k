@@ -14,7 +14,7 @@
 !>              with new minimax module, added function to get minimax error
 !>              [Patrick Seewald]
 ! **************************************************************************************************
-MODULE minimax_k15
+MODULE minimax_exp_k15
    USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
@@ -22,7 +22,7 @@ MODULE minimax_k15
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_k15'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'minimax_exp_k15'
 
    PUBLIC :: get_minimax_coeff_k15, check_range_k15, get_minimax_numerical_error
 
@@ -8798,4 +8798,4 @@ CONTAINS
 
    END SUBROUTINE get_fit_coef_k15_lo
 
-END MODULE minimax_k15
+END MODULE minimax_exp_k15

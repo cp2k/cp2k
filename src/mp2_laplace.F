@@ -19,7 +19,7 @@ MODULE mp2_laplace
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_sum
-   USE minimax,                         ONLY: get_minimax_coeff
+   USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE rpa_communication,               ONLY: fm_redistribute,&
                                               initialize_buffer,&
@@ -126,7 +126,7 @@ CONTAINS
       E_Range = Emax/Emin
       IF (E_Range < 2.0_dp) E_Range = 2.0_dp
 
-      CALL get_minimax_coeff(num_integ_points, E_Range, awj)
+      CALL get_exp_minimax_coeff(num_integ_points, E_Range, awj)
 
       ALLOCATE (aj(num_integ_points))
       aj = 0.0_dp

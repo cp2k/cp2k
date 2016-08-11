@@ -61,8 +61,8 @@ MODULE rpa_ri_gpw
    USE message_passing,                 ONLY: &
         mp_bcast, mp_comm_split_direct, mp_irecv, mp_isend, mp_min, mp_sendrecv, mp_sum, mp_sync, &
         mp_wait, mp_waitall
-   USE minimax,                         ONLY: check_range,&
-                                              get_minimax_coeff
+   USE minimax_exp,                     ONLY: check_exp_minimax_range,&
+                                              get_exp_minimax_coeff
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff
    USE mp2_laplace,                     ONLY: laplace_minimax_approx
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
@@ -243,13 +243,13 @@ CONTAINS
          E_Range = Emax/Emin
          IF (E_Range < 2.0_dp) E_Range = 2.0_dp
          ierr = 0
-         CALL check_range(num_integ_points, E_Range, ierr)
+         CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
          IF (ierr /= 0) THEN
             jjB = num_integ_points-1
             DO iiB = 1, jjB
                num_integ_points = num_integ_points-1
                ierr = 0
-               CALL check_range(num_integ_points, E_Range, ierr)
+               CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
                IF (ierr == 0) EXIT
             END DO
          END IF
@@ -2158,7 +2158,7 @@ CONTAINS
             ALLOCATE (x_tw(2*num_integ_points))
             x_tw = 0.0_dp
 
-            CALL get_minimax_coeff(num_integ_points, E_Range, x_tw)
+            CALL get_exp_minimax_coeff(num_integ_points, E_Range, x_tw)
 
             DO jquad = 1, num_integ_points
                tau_tj(jquad) = x_tw(jquad)/2.0_dp

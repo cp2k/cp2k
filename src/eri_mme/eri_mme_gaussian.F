@@ -13,7 +13,7 @@
 MODULE eri_mme_gaussian
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gamma1
-   USE minimax,                         ONLY: get_minimax_coeff
+   USE minimax_exp,                     ONLY: get_exp_minimax_coeff
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -112,7 +112,7 @@ CONTAINS
       G_max = SQRT(3.0_dp*2.0_dp*cutoff)
       CPASSERT(G_max .GT. G_min)
 
-      CALL get_minimax_coeff(n_minimax, minimax_Rc, minimax_aw, err_minimax)
+      CALL get_exp_minimax_coeff(n_minimax, minimax_Rc, minimax_aw, err_minimax)
 
       minimax_aw = minimax_aw/G_min**2
       IF (PRESENT(err_minimax)) err_minimax = err_minimax/G_min**2

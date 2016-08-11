@@ -76,7 +76,7 @@ MODULE library_tests
                                               mp_sum,&
                                               mp_sync,&
                                               mpi_perf_test
-   USE minimax,                         ONLY: minimax_validate
+   USE minimax_exp,                     ONLY: validate_exp_minimax
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               UNIFORM,&
                                               check_rng,&
@@ -176,7 +176,7 @@ CONTAINS
       !
       IF (runtest(9) /= 0) CALL rng_test(para_env, iw)
       !
-      IF (runtest(10) /= 0) CALL minimax_validate(runtest(10), iw)
+      IF (runtest(10) /= 0) CALL validate_exp_minimax(runtest(10), iw)
       !
       rs_pw_transfer_section => section_vals_get_subs_vals(root_section, "TEST%RS_PW_TRANSFER")
       CALL section_vals_get(rs_pw_transfer_section, explicit=explicit)
