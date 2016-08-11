@@ -69,23 +69,6 @@ CONTAINS
    END SUBROUTINE lgrid_create
 
 ! **************************************************************************************************
-!> \brief retains the lgrid (see doc/ReferenceCounting.html)
-!> \param lgrid the lgrid_type to retain
-!> \par History
-!>      10.2011 created [IAB]
-!> \author Iain Bethune
-! **************************************************************************************************
-   SUBROUTINE lgrid_retain(lgrid)
-      TYPE(lgrid_type), POINTER                          :: lgrid
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_retain', routineP = moduleN//':'//routineN
-
-      CPASSERT(ASSOCIATED(lgrid))
-      CPASSERT(lgrid%ref_count > 0)
-      lgrid%ref_count = lgrid%ref_count+1
-   END SUBROUTINE lgrid_retain
-
-! **************************************************************************************************
 !> \brief releases the given lgrid (see doc/ReferenceCounting.html)
 !> \param lgrid the lgrid_type to release
 !> \par History
