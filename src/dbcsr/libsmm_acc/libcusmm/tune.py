@@ -139,16 +139,19 @@ def gen_jobfile(outdir, m, n, k):
     output += "module unload PrgEnv-cray\n"
     output += "module load cudatoolkit PrgEnv-gnu\n"
     output += "module list\n"
+    output += "export CRAY_CUDA_MPS=1\n"
     output += "cd $SLURM_SUBMIT_DIR \n"
     output += "\n"
     output += "date\n"
     for exe in all_exe:
-        output += "aprun -b -n 1 -N 1 -d 8 make -j 16 %s &\n"%exe
+        # output += "aprun -b -n 1 -N 1 -d 8 make -j 16 %s &\n"%exe
+        output += "srun --bcast=/tmp/${USER} --ntasks 1 --ntasks-per-node 1 --cpus-per-task 8 make -j 16 %s &\n"%exe
     output += "wait\n"
     output += "date\n"
     output += "\n"
     for exe in all_exe:
-        output += "aprun -b -n 1 -N 1 -d 1 ./"+exe+" >"+exe+".log 2>&1 & \n"
+        # output += "aprun -b -n 1 -N 1 -d 1 ./"+exe+" >"+exe+".log 2>&1 & \n"
+        output += "srun --bcast=/tmp/${USER} --ntasks 1 --ntasks-per-node 1 --cpus-per-task 1 ./"+exe+" >"+exe+".log 2>&1 & \n"
     output += "wait\n"
     output += "date\n"
     output += "\n"
