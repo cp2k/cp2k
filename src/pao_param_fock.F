@@ -30,19 +30,21 @@ CONTAINS
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
 !> \param iatom ...
-!> \param penalty ...
-!> \param min_gap ...
 !> \param V ...
 !> \param U ...
+!> \param penalty ...
+!> \param gap ...
+!> \param evals ...
 !> \param M1 ...
 !> \param G ...
 ! **************************************************************************************************
-   SUBROUTINE pao_calc_U_block_fock(pao, iatom, penalty, min_gap, V, U, M1, G)
+   SUBROUTINE pao_calc_U_block_fock(pao, iatom, V, U, penalty, gap, evals, M1, G)
       TYPE(pao_env_type), POINTER                        :: pao
       INTEGER, INTENT(IN)                                :: iatom
-      REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
-      REAL(dp), INTENT(INOUT)                            :: min_gap
       REAL(dp), DIMENSION(:, :), POINTER                 :: V, U
+      REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
+      REAL(dp), INTENT(OUT)                              :: gap
+      REAL(dp), DIMENSION(:), INTENT(OUT), OPTIONAL      :: evals
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: M1, G
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_block_fock', &
@@ -51,7 +53,7 @@ CONTAINS
       INTEGER                                            :: handle, i, j, m, n
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pao, blk_sizes_pri
       LOGICAL                                            :: found
-      REAL(dp)                                           :: alpha, beta, denom, diff, gap
+      REAL(dp)                                           :: alpha, beta, denom, diff
       REAL(dp), DIMENSION(:), POINTER                    :: H_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_N, D1, D2, H, H0, H_evecs, M2, M3, &
                                                             M4, M5
@@ -82,11 +84,20 @@ CONTAINS
       ! the eigenvectors of H become the rotation matrix U
       U = H_evecs
 
-      ! calculate homo-lumo gap (it's useful for detecting numerical issues)
-      IF (m < n) THEN ! catch special case n==m
-         gap = H_evals(m+1)-H_evals(m)
-         min_gap = MIN(min_gap, gap)
+      ! copy eigenvectors around the gap from H_evals into evals array
+      IF (PRESENT(evals)) THEN
+         CPASSERT(MOD(SIZE(evals), 2) == 0) ! gap will be exactely in the middle
+         i = SIZE(evals)/2
+         j = MIN(m, i)
+         evals(1+i-j:i) = H_evals(1+m-j:m) ! eigenvalues below gap
+         j = MIN(n-m, i)
+         evals(i:i+j) = H_evals(m:m+j) ! eigenvalues above gap
       ENDIF
+
+      ! calculate homo-lumo gap (it's useful for detecting numerical issues)
+      gap = HUGE(dp)
+      IF (m < n) & ! catch special case n==m
+         gap = H_evals(m+1)-H_evals(m)
 
       IF (PRESENT(penalty)) THEN
          ! penalty terms: occupied and virtual eigenvalues repel each other

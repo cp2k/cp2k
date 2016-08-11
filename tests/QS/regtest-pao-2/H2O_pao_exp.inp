@@ -29,6 +29,8 @@
         &PRINT
           &RESTART ON
           &END RESTART
+          &ATOM_INFO ON
+          &END ATOM_INFO
         &END PRINT
       &END PAO
     &END

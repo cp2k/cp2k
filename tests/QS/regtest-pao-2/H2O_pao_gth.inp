@@ -27,6 +27,10 @@
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH
+        &PRINT
+          &FOCK_GAP ON
+          &END FOCK_GAP
+        &END PRINT
       &END PAO
     &END
     &XC

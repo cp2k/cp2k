@@ -31,6 +31,12 @@
           GP_NOISE_VAR 0.1
           TOLERANCE 0.01
         &END MACHINE_LEARNING
+        &PRINT
+          &ML_TRAINING_DATA
+          &END ML_TRAINING_DATA
+          &ML_VARIANCE
+          &END ML_VARIANCE
+        &END PRINT
       &END PAO
     &END
     &XC

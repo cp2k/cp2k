@@ -256,18 +256,19 @@ CONTAINS
                                                             iterm, n, natoms
       INTEGER, DIMENSION(:), POINTER                     :: nterms
       LOGICAL                                            :: found
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gaps
       REAL(dp), DIMENSION(:), POINTER                    :: world_G, world_X
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_M1, block_M2, block_U, &
                                                             block_V, block_V_term, block_X, &
                                                             vec_V_terms
-      REAL(KIND=dp)                                      :: min_gap
       TYPE(cp_dbcsr_iterator)                            :: iter
 
       CALL timeset(routineN, handle)
 
-      min_gap = HUGE(dp)
       nterms => cp_dbcsr_row_block_sizes(pao%matrix_X)
       natoms = SIZE(nterms)
+      ALLOCATE (gaps(natoms))
+      gaps(:) = HUGE(dp)
       group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_X)))
 
       ! allocate arrays for world-view
@@ -304,13 +305,14 @@ CONTAINS
 
          ! calculate gradient block of i'th atom
          IF (.NOT. PRESENT(matrix_G)) THEN
-            CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U)
+            CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, V=block_V, U=block_U, gap=gaps(iatom))
 
          ELSE ! TURNING POINT (if calc grad) ------------------------------------
             CPASSERT(PRESENT(matrix_M1))
             CALL cp_dbcsr_get_block_p(matrix=matrix_M1, row=iatom, col=iatom, block=block_M1, found=found)
             ALLOCATE (block_M2(n, n))
-            CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U, block_M1, block_M2)
+            CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, V=block_V, U=block_U, &
+                                       M1=block_M1, G=block_M2, gap=gaps(iatom))
             DO iterm = 1, SIZE(world_G)
                block_V_term(1:n, 1:n) => vec_V_terms(:, iterm) ! map column into matrix
                world_G(iterm) = world_G(iterm)+SUM(block_V_term*block_M2)
@@ -340,10 +342,16 @@ CONTAINS
       IF (PRESENT(penalty)) &
          CALL mp_sum(penalty, group)
 
-      ! print smallest homo-lumo gap encountered by fock-layer
-      CALL mp_min(min_gap, group)
-      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| min_gap:", min_gap
+      ! print homo-lumo gap encountered by fock-layer
+      CALL mp_min(gaps, group)
+      DO iatom = 1, natoms
+         IF (pao%iw_gap > 0) WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)
+      ENDDO
 
+      ! one-line summary
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO| min_gap:", MINVAL(gaps), " for atom:", MINLOC(gaps)
+
+      DEALLOCATE (gaps)
       CALL timestop(handle)
 
    END SUBROUTINE pao_calc_U_gth

@@ -363,21 +363,26 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_linpot'
 
       INTEGER                                            :: acol, arow, group, handle, iatom, kterm, &
-                                                            n, nterms
+                                                            n, natoms, nterms
       LOGICAL                                            :: found
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gaps
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: evals
       REAL(dp), DIMENSION(:), POINTER                    :: vec_M2, vec_V
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_M1, block_M2, block_R, &
                                                             block_U, block_V, block_V_terms, &
                                                             block_X
       REAL(dp), DIMENSION(:, :, :), POINTER              :: M_blocks
-      REAL(KIND=dp)                                      :: min_gap, regu_energy
+      REAL(KIND=dp)                                      :: regu_energy
       TYPE(cp_dbcsr_iterator)                            :: iter
 
       CALL timeset(routineN, handle)
 
       CPASSERT(PRESENT(matrix_G) .EQV. PRESENT(matrix_M))
 
-      min_gap = HUGE(dp)
+      CALL get_qs_env(qs_env, natom=natoms)
+      ALLOCATE (gaps(natoms), evals(10, natoms)) ! printing 10 eigenvalues seems reasonable
+      evals(:, :) = 0.0_dp
+      gaps(:) = HUGE(1.0_dp)
       regu_energy = 0.0_dp
       group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
 
@@ -409,7 +414,8 @@ CONTAINS
             regu_energy = regu_energy+DOT_PRODUCT(block_X(:, 1), MATMUL(block_R, block_X(:, 1)))
 
          IF (.NOT. PRESENT(matrix_G) .AND. .NOT. PRESENT(matrix_G)) THEN
-            CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, min_gap=min_gap, V=block_V, U=block_U)
+            CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, V=block_V, U=block_U, &
+                                       gap=gaps(iatom), evals=evals(:, iatom))
 
          ELSE ! TURNING POINT (if calc grad) -------------------------------------------------------
             CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M1, found=found)
@@ -418,8 +424,8 @@ CONTAINS
             IF (ASSOCIATED(block_M1) .AND. SIZE(block_V_terms) > 0) THEN
                ALLOCATE (vec_M2(n*n))
                block_M2(1:n, 1:n) => vec_M2(:) ! map vector into matrix
-               CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, min_gap=min_gap, &
-                                          V=block_V, U=block_U, M1=block_M1, G=block_M2)
+               CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, V=block_V, U=block_U, &
+                                          M1=block_M1, G=block_M2, gap=gaps(iatom), evals=evals(:, iatom))
                IF (MAXVAL(ABS(block_M2-TRANSPOSE(block_M2))) > 1e-14_dp) CPABORT("matrix not symmetric")
 
                ! gradient dE/dX
@@ -455,14 +461,24 @@ CONTAINS
          penalty = penalty+regu_energy
       ENDIF
 
-      ! determine smallest homo-lumo gap encountered by fock-layer
-      CALL mp_min(min_gap, group)
-
-      IF (pao%iw > 0 .AND. .NOT. PRESENT(forces)) THEN
-         WRITE (pao%iw, *) "PAO| linpot regularization energy:", regu_energy
-         WRITE (pao%iw, *) "PAO| min_gap:", min_gap
+      ! print stuff, but not during second invocation for forces
+      IF (.NOT. PRESENT(forces)) THEN
+         ! print eigenvalues from fock-layer
+         CALL mp_sum(evals, group)
+         DO iatom = 1, natoms
+            IF (pao%iw_fockev > 0) WRITE (pao%iw_fockev, *) "PAO| atom:", iatom, " fock evals around gap:", evals(:, iatom)
+         ENDDO
+         ! print homo-lumo gap encountered by fock-layer
+         CALL mp_min(gaps, group)
+         DO iatom = 1, natoms
+            IF (pao%iw_gap > 0) WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)
+         ENDDO
+         ! one-line summaries
+         IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| linpot regularization energy:", regu_energy
+         IF (pao%iw > 0) WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO| min_gap:", MINVAL(gaps), " for atom:", MINLOC(gaps)
       ENDIF
 
+      DEALLOCATE (gaps, evals)
       CALL timestop(handle)
 
    END SUBROUTINE pao_calc_U_linpot

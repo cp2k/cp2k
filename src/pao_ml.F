@@ -121,8 +121,8 @@ CONTAINS
       ! calculate and substract prior
       CALL pao_ml_substract_prior(pao%ml_prior, pao%ml_training_matrices)
 
-      ! print some statistics about the training set
-      CALL pao_ml_print_stats(pao%iw, pao%ml_training_matrices)
+      ! print some statistics about the training set and dump it upon request
+      CALL pao_ml_print(pao, pao%ml_training_matrices)
 
       ! use training-set to train model
       CALL pao_ml_train(pao)
@@ -423,32 +423,46 @@ CONTAINS
    END SUBROUTINE pao_ml_substract_prior
 
 ! **************************************************************************************************
-!> \brief Print some statistics about the training set
-!> \param iw ...
+!> \brief Print some statistics about the training set and dump it upon request
+!> \param pao ...
 !> \param training_matrices ...
 ! **************************************************************************************************
-   SUBROUTINE pao_ml_print_stats(iw, training_matrices)
-      INTEGER, INTENT(IN)                                :: iw
+   SUBROUTINE pao_ml_print(pao, training_matrices)
+      TYPE(pao_env_type), POINTER                        :: pao
       TYPE(training_matrix_type), DIMENSION(:), TARGET   :: training_matrices
 
-      INTEGER                                            :: ikind, N
+      INTEGER                                            :: i, ikind, N, npoints
       TYPE(training_matrix_type), POINTER                :: training_matrix
 
-      IF (iw <= 0) RETURN
+      ! dump training data
+      IF (pao%iw_mldata > 0) THEN
+         DO ikind = 1, SIZE(training_matrices)
+            training_matrix => training_matrices(ikind)
+            npoints = SIZE(training_matrix%outputs, 2)
+            DO i = 1, npoints
+               WRITE (pao%iw_mldata, *) "PAO|ML| training-point kind: ", TRIM(training_matrix%kindname), &
+                  " point:", i, " in:", training_matrix%inputs(:, i), &
+                  " out:", training_matrix%outputs(:, i)
+            ENDDO
+         ENDDO
+      ENDIF
 
-      DO ikind = 1, SIZE(training_matrices)
-         training_matrix => training_matrices(ikind)
-         N = SIZE(training_matrix%inputs)
-         IF (N == 0) CYCLE
-         WRITE (iw, "(A,I3,A,E10.1,1X,E10.1,1X,E10.1)") " PAO|ML| Descriptor for kind: "// &
-            TRIM(training_matrix%kindname)//" size: ", &
-            SIZE(training_matrix%inputs, 1), " min/mean/max: ", &
-            MINVAL(training_matrix%inputs), &
-            SUM(training_matrix%inputs)/REAL(N, dp), &
-            MAXVAL(training_matrix%inputs)
-      ENDDO
+      ! print stats
+      IF (pao%iw > 0) THEN
+         DO ikind = 1, SIZE(training_matrices)
+            training_matrix => training_matrices(ikind)
+            N = SIZE(training_matrix%inputs)
+            IF (N == 0) CYCLE
+            WRITE (pao%iw, "(A,I3,A,E10.1,1X,E10.1,1X,E10.1)") " PAO|ML| Descriptor for kind: "// &
+               TRIM(training_matrix%kindname)//" size: ", &
+               SIZE(training_matrix%inputs, 1), " min/mean/max: ", &
+               MINVAL(training_matrix%inputs), &
+               SUM(training_matrix%inputs)/REAL(N, dp), &
+               MAXVAL(training_matrix%inputs)
+         ENDDO
+      ENDIF
 
-   END SUBROUTINE pao_ml_print_stats
+   END SUBROUTINE pao_ml_print
 
 ! **************************************************************************************************
 !> \brief Calls the actuall learning algorthim to traing on the given matrices
@@ -545,6 +559,13 @@ CONTAINS
 
       ! print variances
       CALL mp_sum(variances, para_env%group)
+      IF (pao%iw_mlvar > 0) THEN
+         DO iatom = 1, natoms
+            WRITE (pao%iw_mlvar, *) "PAO|ML| atom:", iatom, " prediction variance:", variances(iatom)
+         ENDDO
+      ENDIF
+
+      ! one-line summary
       IF (pao%iw > 0) WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO|ML| max prediction variance:", &
          MAXVAL(variances), " for atom:", MAXLOC(variances)
 

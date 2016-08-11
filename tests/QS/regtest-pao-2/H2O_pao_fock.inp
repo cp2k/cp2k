@@ -28,6 +28,12 @@
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH
+        &PRINT
+          &FOCK_GAP ON
+          &END FOCK_GAP
+          &FOCK_EIGENVALUES ON
+          &END FOCK_EIGENVALUES
+        &END PRINT
       &END PAO
     &END
     &XC

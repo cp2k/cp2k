@@ -82,7 +82,12 @@ MODULE pao_types
 !> \var gp_scale                  parsed input parameter
 !> \var precondition              parsed input parameter
 !> \var iw                        output unit for pao in general
+!> \var iw_atoms                  output unit for one line summary for each atom
+!> \var iw_gap                    output unit for gap of the fock matrix
+!> \var iw_fockev                 output unit for eigenvalues of the fock matrix
 !> \var iw_opt                    output unit for pao optimizer
+!> \var iw_mlvar                  output unit for variances of machine learning predictions
+!> \var iw_mldata                 output unit for dumping training data used for machine learning
 !> \var istep                     counts pao iterations, ie. number of pao energy evaluations
 !> \var energy_prev               energy of previous pao step
 !> \var step_start_time           timestamp of when current pao step started
@@ -153,7 +158,12 @@ MODULE pao_types
 
       ! output units
       INTEGER                          :: iw = -1
+      INTEGER                          :: iw_atoms = -1
+      INTEGER                          :: iw_gap = -1
+      INTEGER                          :: iw_fockev = -1
       INTEGER                          :: iw_opt = -1
+      INTEGER                          :: iw_mlvar = -1
+      INTEGER                          :: iw_mldata = -1
 
       ! state variable
       INTEGER                          :: istep = -1

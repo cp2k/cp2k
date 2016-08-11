@@ -73,7 +73,12 @@ CONTAINS
       ! open main logger
       logger => cp_get_default_logger()
       pao%iw = cp_print_key_unit_nr(logger, pao_section, "PRINT%RUN_INFO", extension=".paolog")
-      pao%iw_opt = cp_print_key_unit_nr(logger, pao_section, "PRINT%OPT_INFO", extension=".paooptlog")
+      pao%iw_atoms = cp_print_key_unit_nr(logger, pao_section, "PRINT%ATOM_INFO", extension=".paolog")
+      pao%iw_gap = cp_print_key_unit_nr(logger, pao_section, "PRINT%FOCK_GAP", extension=".paolog")
+      pao%iw_fockev = cp_print_key_unit_nr(logger, pao_section, "PRINT%FOCK_EIGENVALUES", extension=".paolog")
+      pao%iw_opt = cp_print_key_unit_nr(logger, pao_section, "PRINT%OPT_INFO", extension=".paolog")
+      pao%iw_mlvar = cp_print_key_unit_nr(logger, pao_section, "PRINT%ML_VARIANCE", extension=".paolog")
+      pao%iw_mldata = cp_print_key_unit_nr(logger, pao_section, "PRINT%ML_TRAINING_DATA", extension=".paolog")
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "" ! an empty separator line
 
@@ -470,6 +475,36 @@ CONTAINS
       CALL cp_print_key_section_create(printkey, "RUN_INFO", &
                                        description="Normal output by PAO", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, printkey)
+      CALL section_release(printkey)
+
+      CALL cp_print_key_section_create(printkey, "ATOM_INFO", &
+                                       description="One line summary for each atom", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, printkey)
+      CALL section_release(printkey)
+
+      CALL cp_print_key_section_create(printkey, "FOCK_GAP", &
+                                       description="Gap of the fock matrix for each atom", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, printkey)
+      CALL section_release(printkey)
+
+      CALL cp_print_key_section_create(printkey, "FOCK_EIGENVALUES", &
+                                       description="Eigenvalues of the fock matrix for each atom", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, printkey)
+      CALL section_release(printkey)
+
+      CALL cp_print_key_section_create(printkey, "ML_VARIANCE", &
+                                       description="Variances of machine learning predictions for each atom", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, printkey)
+      CALL section_release(printkey)
+
+      CALL cp_print_key_section_create(printkey, "ML_TRAINING_DATA", &
+                                       description="Dumps training data used for machine learning", &
+                                       print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
