@@ -33,8 +33,8 @@
     &END COORD
     # test that in a minimal basis we still get the proper trace 
     &KIND C
-      BASIS_SET SZV-MOLOPT-GTH
-      POTENTIAL GTH-PBE
+      BASIS_SET SZV-MOLOPT-GTH-q4
+      POTENTIAL GTH-PBE-q4
     &END KIND
     &TOPOLOGY
        &CENTER_COORDINATES
