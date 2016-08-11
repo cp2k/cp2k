@@ -697,6 +697,10 @@ CONTAINS
          myrhob = MAX(rhob(ip), 0.0_dp)
          myrho = myrhoa+myrhob
          IF (myrho > eps_rho) THEN
+            myrhoa = MAX(EPSILON(0.0_dp)*1.e4_dp, myrhoa)
+            myrhob = MAX(EPSILON(0.0_dp)*1.e4_dp, myrhob)
+            myrho = myrhoa+myrhob
+
             IF (order >= 0) THEN
                t1 = 0.1e1_dp/0.3141592654e1_dp
                t2 = myrho
@@ -1283,6 +1287,10 @@ CONTAINS
          myrhob = MAX(rhob(ip), 0.0_dp)
          myrho = myrhoa+myrhob
          IF (myrho > eps_rho) THEN
+            myrhoa = MAX(EPSILON(0.0_dp)*1.e4_dp, myrhoa)
+            myrhob = MAX(EPSILON(0.0_dp)*1.e4_dp, myrhob)
+            myrho = myrhoa+myrhob
+
             IF (order >= 0) THEN
                t1 = myrhoa-myrhob
                t2 = myrho
