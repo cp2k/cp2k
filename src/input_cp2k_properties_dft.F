@@ -11,7 +11,8 @@
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
 
-   USE bibliography,                    ONLY: Luber2014,&
+   USE bibliography,                    ONLY: Iannuzzi2005,&
+                                              Luber2014,&
                                               Putrino2000,&
                                               Putrino2002,&
                                               Sebastiani2001,&
@@ -19,7 +20,8 @@ MODULE input_cp2k_properties_dft
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
-                                              low_print_level
+                                              low_print_level,&
+                                              medium_print_level
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
@@ -43,6 +45,7 @@ MODULE input_cp2k_properties_dft
                                               section_type
    USE input_val_types,                 ONLY: integer_t,&
                                               lchar_t,&
+                                              logical_t,&
                                               real_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
@@ -75,7 +78,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="PROPERTIES", &
                           description="This section is used to set up the PROPERTIES calculation.", &
-                          n_keywords=4, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=0, n_subsections=6, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
@@ -108,6 +111,10 @@ CONTAINS
                           default_i_val=do_full_density)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_tddfpt2_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1035,5 +1042,152 @@ CONTAINS
       CALL section_release(print_key)
 
    END SUBROUTINE create_restraint_A
+
+! **************************************************************************************************
+!> \brief creates an input section for tddfpt calculation
+!> \param section section to create
+!> \par History
+!>    * 05.2016 forked from create_tddfpt_section [Sergey Chulkov]
+!>    * 08.2016 moved from module input_cp2k_dft [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE create_tddfpt2_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_tddfpt2_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key, subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "TDDFPT", &
+                          description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
+                          "Current implementation works for hybrid functionals. "// &
+                          "Can be used with Gaussian and Plane Waves (GPW) method only.", &
+                          n_keywords=12, n_subsections=1, repeats=.FALSE., &
+                          citations=(/Iannuzzi2005/))
+
+      NULLIFY (keyword, print_key, subsection)
+
+      CALL keyword_create(keyword, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of the TDDFPT procedure", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Integer
+      CALL keyword_create(keyword, name="NSTATES", &
+                          description="Number of excited states to converge.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ADDED_STATES", &
+                          description="Number of additional excited states in the active space "// &
+                          "(-1 means all virtual orbitals).", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_ITER", &
+                          description="Maximal number of iterations to be performed.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_KV", &
+                          description="Maximal number of Krylov space vectors. "// &
+                          "Davidson iterations will be restarted upon reaching this limit.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=5000)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAX_REORTHO", &
+                          description="Maximal number of orthogonalisation iterations. "// &
+                          "Davidson iterations will be restarted if orthogonality is not reached.", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Real
+      CALL keyword_create(keyword, name="CONVERGENCE", &
+                          description="Target accuracy for excited state energies.", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree", &
+                          default_r_val=1.0e-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="DEGENERATE_EPS", &
+                          description="Energy threshold which controls when excited states are considered to be degenerate.", &
+                          n_var=1, type_of_var=real_t, unit_str="hartree", &
+                          default_r_val=1.0e-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIN_AMPLITUDE", &
+                          description="The smallest excitation amplitude to print.", &
+                          n_var=1, type_of_var=real_t, &
+                          default_r_val=5.0e-2_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ORTHOGONAL_EPS", &
+                          description="The largest possible overlap between the ground state and "// &
+                          "orthogonalised excited state wave-functions. Davidson iterations will be restarted "// &
+                          "when the overlap goes beyond this threshold in order to prevent numerical instability.", &
+                          n_var=1, type_of_var=real_t, &
+                          default_r_val=1.0e-4_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Logical
+      CALL keyword_create(keyword, name="ADD_DEGENERATE_STATES", &
+                          description="Automatically include degenerate excited states into the active space.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="RKS_TRIPLETS", &
+                          description="Compute triplet excited states using spin-unpolarised molecular orbitals.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! PRINT subsection
+      CALL section_create(subsection, "PRINT", "Printing of information during the TDDFT run.", &
+                          repeats=.FALSE.)
+
+      CALL cp_print_key_section_create(print_key, "GUESS_VECTORS", &
+                                       description="Controls the printing of initial guess vectors.", &
+                                       print_level=low_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "ITERATION_INFO", &
+                                       description="Controls the printing of basic iteration information "// &
+                                       "during the TDDFT run.", &
+                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, "DETAILED_ENERGY", &
+                                       description="Controls the printing of detailed energy information "// &
+                                       "during the TDDFT run.", &
+                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+   END SUBROUTINE create_tddfpt2_section
 
 END MODULE input_cp2k_properties_dft

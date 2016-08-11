@@ -1,0 +1,78 @@
+&GLOBAL
+  PROJECT no_pbe_uks_d_tddfpt
+  RUN_TYPE energy
+  PRINT_LEVEL low
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+
+  &PROPERTIES
+    &TDDFPT
+       NSTATES      3
+       MAX_ITER    10
+       CONVERGENCE [eV] 1.0e-3
+    &END TDDFPT
+  &END PROPERTIES
+
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS .true.
+    MULTIPLICITY 2
+
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+
+    &QS
+      METHOD gpw
+    &END QS
+
+    &SCF
+      MAX_SCF   30
+      EPS_SCF   1e-7
+      SCF_GUESS atomic
+    &END SCF
+
+    &POISSON
+       PERIODIC none
+       POISSON_SOLVER wavelet
+    &END POISSON
+
+    &XC
+      &XC_FUNCTIONAL pbe
+      &END XC_FUNCTIONAL
+
+      &XC_GRID
+        XC_DERIV SPLINE2_SMOOTH
+      &END XC_GRID
+    &END XC
+  &END DFT
+
+  &SUBSYS
+    &TOPOLOGY
+       &CENTER_COORDINATES
+       &END CENTER_COORDINATES
+    &END TOPOLOGY
+
+    &CELL
+      ABC 7.0 7.0 7.0
+      PERIODIC NONE
+    &END CELL
+
+    &COORD
+  N   0.000000    0.300000   -0.619815
+  O   0.100000    0.000000    0.542338
+    &END COORD
+
+    &KIND O
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &KIND N
+      BASIS_SET aug-TZV2P-GTH
+      POTENTIAL GTH-PBE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

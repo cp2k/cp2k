@@ -374,6 +374,8 @@ MODULE cp_control_types
 ! \brief Control parameters for a Time-Dependent DFT calculation
 ! **************************************************************************************************
    TYPE tddfpt2_control_type
+      !> compute TDDFPT excitation energies and oscillator strengths
+      LOGICAL                                   :: enabled
       !> number of excited states to converge
       INTEGER                                   :: nstates
       !> number of additional excited states in the active space
@@ -395,12 +397,8 @@ MODULE cp_control_types
       REAL(kind=dp)                             :: orthogonal_eps
       !> should all degenerate excited states be automatically added to the active space
       LOGICAL                                   :: add_degenerate
-      !> take into account exact exchange contributions while expanding Krylov space
-      LOGICAL                                   :: hfx_residual
       !> compute triplet excited states using spin-unpolarised molecular orbitals
       LOGICAL                                   :: rks_triplets
-      !> compute transition dipole moments and oscillator strengths
-      LOGICAL                                   :: trans_dipole
    END TYPE tddfpt2_control_type
 
 ! **************************************************************************************************

@@ -4,7 +4,16 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-# Compute the lowest 3 singlet excited states of a formaldehyde molecule at PBE0 / aug-TZV2P-GTH level of theory.
-# As the output format will likely be changed in the near future, at the given stage simply ensure that the task is running
-# Reference TDDFT excitation energies (in eV): 4.07, 6.72, 7.52
-ch2o_pbe0_tddfpt.inp                                   0    1.0E-04             0.0000
+# Compute the lowest 3 singlet and triplet excited states of a formaldehyde molecule at PBE / aug-TZV2P-GTH level of theory.
+# Reference TDDFT singlet excitation energies (in eV): 3.84, 5.84, 6.59
+# Reference TDDFT triplet excitation energies (in eV): 3.16, 5.69, 6.98
+ch2o_pbe_rks_s_tddfpt.inp                             68    1.0E-04             3.83726
+ch2o_pbe_rks_t_tddfpt.inp                             68    1.0E-04             3.16431
+# Compute the lowest 3 singlet and triplet excited states of a formaldehyde molecule at PBE0 / aug-TZV2P-GTH level of theory.
+# Reference TDDFT singlet excitation energies (in eV): 3.91, 6.70, 7.51
+# Reference TDDFT triplet excitation energies (in eV): 3.16, 4.79, 6.48
+ch2o_pbe0_rks_s_tddfpt.inp                            68    1.0E-04             3.90624
+ch2o_pbe0_rks_t_tddfpt.inp                            68    1.0E-04             3.15772
+# Compute the lowest 3 doublet excited states of a nitrogen monooxyde molecule at PBE / aug-TZV2P-GTH level of theory.
+# Reference excitation energies (in eV): 0.13, 5.44, 6.14
+no_pbe_uks_d_tddfpt.inp                               68    1.0E-02             0.12284

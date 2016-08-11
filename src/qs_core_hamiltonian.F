@@ -279,7 +279,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF (dft_control%tddfpt2_control%trans_dipole) &
+      IF (dft_control%tddfpt2_control%enabled) &
          nders = 1
 
       ! filter for new matrices

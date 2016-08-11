@@ -67,6 +67,7 @@ MODULE cp_control_utils
              read_mgrid_section, &
              read_qs_section, &
              read_tddfpt_control, &
+             read_tddfpt2_control, &
              write_dft_control, &
              write_qs_control, &
              read_ddapc_section, &
@@ -422,7 +423,7 @@ CONTAINS
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_external_vxc)
 
       ! reimplemented TDDFPT
-      CALL read_tddfpt2_control(dft_control%tddfpt2_control, dft_section)
+!      CALL read_tddfpt2_control(dft_control%tddfpt2_control, dft_section)
 
    END SUBROUTINE read_dft_control
 
@@ -1057,21 +1058,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param t_control ...
-!> \param dft_section ...
+!> \param t_section ...
 ! **************************************************************************************************
-   SUBROUTINE read_tddfpt2_control(t_control, dft_section)
+   SUBROUTINE read_tddfpt2_control(t_control, t_section)
       TYPE(tddfpt2_control_type), POINTER                :: t_control
-      TYPE(section_vals_type), POINTER                   :: dft_section
+      TYPE(section_vals_type), POINTER                   :: t_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt2_control', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      TYPE(section_vals_type), POINTER                   :: t_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (t_section)
-      t_section => section_vals_get_subs_vals(dft_section, "TDDFPT2")
+
+      CALL section_vals_val_get(t_section, "_SECTION_PARAMETERS_", l_val=t_control%enabled)
 
       CALL section_vals_val_get(t_section, "NSTATES", i_val=t_control%nstates)
       CALL section_vals_val_get(t_section, "ADDED_STATES", i_val=t_control%added_states)
@@ -1085,7 +1085,6 @@ CONTAINS
       CALL section_vals_val_get(t_section, "ORTHOGONAL_EPS", r_val=t_control%orthogonal_eps)
 
       CALL section_vals_val_get(t_section, "ADD_DEGENERATE_STATES", l_val=t_control%add_degenerate)
-      CALL section_vals_val_get(t_section, "HFX_RESIDUAL", l_val=t_control%hfx_residual)
       CALL section_vals_val_get(t_section, "RKS_TRIPLETS", l_val=t_control%rks_triplets)
 
       IF (t_control%conv < 0) &
@@ -1093,10 +1092,6 @@ CONTAINS
 
       IF (t_control%degenerate_eps < 0) &
          t_control%degenerate_eps = ABS(t_control%degenerate_eps)
-
-      ! activated in the subroutine cp2k_run() if the TDDFPT run is actually requested;
-      ! this is to ensure we compute derivatives of the overlap matrix only when they are needed
-      t_control%trans_dipole = .FALSE.
 
       CALL timestop(handle)
    END SUBROUTINE read_tddfpt2_control

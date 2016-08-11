@@ -1,24 +1,27 @@
 &GLOBAL
-  PROJECT ch2o_pbe0_tddfpt
-  RUN_TYPE tddfpt2
+  PROJECT ch2o_pbe0_rks_t_tddfpt
+  RUN_TYPE energy
   PRINT_LEVEL low
 &END GLOBAL
 
 &FORCE_EVAL
   METHOD Quickstep
+
+  &PROPERTIES
+    &TDDFPT
+       RKS_TRIPLETS .true.
+       NSTATES      3
+       MAX_ITER    10
+       CONVERGENCE [eV] 1.0e-3
+    &END TDDFPT
+  &END PROPERTIES
+
   &DFT
-    &TDDFPT2
-       NSTATES        3
-       MAX_ITER 10
-
-       CONVERGENCE    [eV] 1.0e-3
-    &END TDDFPT2
-
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME POTENTIAL
 
     &MGRID
-      CUTOFF 400
+      CUTOFF 200
     &END MGRID
 
     &QS
@@ -26,7 +29,7 @@
     &END QS
 
     &SCF
-      MAX_SCF   100
+      MAX_SCF   30
       EPS_SCF   1e-7
       SCF_GUESS atomic
     &END SCF

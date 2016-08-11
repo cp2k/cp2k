@@ -32,14 +32,10 @@ MODULE qs_environment
                                               qs_control_type,&
                                               scptb_control_type,&
                                               semi_empirical_control_type
-   USE cp_control_utils,                ONLY: read_becke_section,&
-                                              read_ddapc_section,&
-                                              read_dft_control,&
-                                              read_mgrid_section,&
-                                              read_qs_section,&
-                                              read_tddfpt_control,&
-                                              write_dft_control,&
-                                              write_qs_control
+   USE cp_control_utils,                ONLY: &
+        read_becke_section, read_ddapc_section, read_dft_control, read_mgrid_section, &
+        read_qs_section, read_tddfpt2_control, read_tddfpt_control, write_dft_control, &
+        write_qs_control
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -469,7 +465,7 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_becke_section, et_coupling_section, &
          et_ddapc_section, ewald_section, nl_section, poisson_section, pp_section, print_section, &
-         qs_section, se_section, xc_section
+         qs_section, se_section, tddfpt_section, xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
 
@@ -493,6 +489,8 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       qs_section => section_vals_get_subs_vals(dft_section, "QS")
       et_coupling_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%ET_COUPLING")
+      ! reimplemented TDDFPT
+      tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
 
       CALL qs_subsys_get(subsys, particle_set=particle_set, &
                          qs_kind_set=qs_kind_set, &
@@ -503,6 +501,10 @@ CONTAINS
       !   *** Read the input section with the DFT control parameters ***
       CALL read_dft_control(dft_control, dft_section)
 
+      ! reimplemented TDDFPT
+      CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section)
+
+      ! original implementation of TDDFPT
       IF (dft_control%do_tddfpt_calculation) THEN
          CALL read_tddfpt_control(dft_control%tddfpt_control, &
                                   dft_section)

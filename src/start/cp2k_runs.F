@@ -80,7 +80,7 @@ MODULE cp2k_runs
         do_mixed, do_opt_basis, do_optimize_input, do_qmmm, do_qs, do_swarm, do_tamc, do_test, &
         do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
         energy_force_run, energy_run, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
-        none_run, pint_run, real_time_propagation, tddfpt2_run, tree_mc_run, vib_anal
+        none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_global,               ONLY: create_global_section
@@ -121,7 +121,6 @@ MODULE cp2k_runs
                                               pw_cuda_init
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_linres_module,                ONLY: linres_calculation
-   USE qs_tddfpt2_methods,              ONLY: tddfpt
    USE qs_tddfpt_module,                ONLY: tddfpt_calculation
    USE reference_manager,               ONLY: print_all_references,&
                                               print_format_html
@@ -341,13 +340,6 @@ CONTAINS
             CPABORT("Electron spectra available only with Quickstep. ")
          CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
          CALL tddfpt_calculation(force_env%qs_env)
-      CASE (tddfpt2_run)
-         IF (method_name_id /= do_qs) &
-            CPABORT("TDDFPT2 is available only with Quickstep.")
-         CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
-         dft_control%tddfpt2_control%trans_dipole = .TRUE.
-         CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
-         CALL tddfpt(force_env%qs_env)
       CASE (real_time_propagation)
          IF (method_name_id /= do_qs) &
             CPABORT("Real time propagation needs METHOD QS. ")

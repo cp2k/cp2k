@@ -79,6 +79,7 @@ MODULE qs_energy_utils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf,                          ONLY: scf
+   USE qs_tddfpt2_methods,              ONLY: tddfpt
    USE qs_update_s_mstruct,             ONLY: qs_env_update_s_mstruct
    USE scf_control_types,               ONLY: scf_control_type
    USE scptb_core_interactions,         ONLY: scptb_core_interaction
@@ -559,6 +560,10 @@ CONTAINS
       ! Compute Linear Response properties as post-scf
       IF (.NOT. qs_env%linres_run) THEN
          CALL linres_calculation_low(qs_env)
+      END IF
+
+      IF (dft_control%tddfpt2_control%enabled) THEN
+         CALL tddfpt(qs_env)
       END IF
 
       CALL timestop(handle)
