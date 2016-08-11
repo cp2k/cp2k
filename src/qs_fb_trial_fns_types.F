@@ -14,6 +14,7 @@ MODULE qs_fb_trial_fns_types
    PUBLIC :: fb_trial_fns_obj
 
 ! public methods
+!API
    PUBLIC :: fb_trial_fns_retain, &
              fb_trial_fns_release, &
              fb_trial_fns_nullify, &

@@ -16,6 +16,7 @@ MODULE qs_fb_buffer_types
    PUBLIC :: fb_buffer_d_obj
 
 ! public methods
+!API
    PUBLIC :: fb_buffer_add, &
              fb_buffer_create, &
              fb_buffer_get, &

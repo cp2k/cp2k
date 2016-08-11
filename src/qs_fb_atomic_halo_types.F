@@ -40,6 +40,7 @@ MODULE qs_fb_atomic_halo_types
              fb_atomic_halo_list_obj
 
 ! public methods
+!API
    PUBLIC :: fb_atomic_halo_release, &
              fb_atomic_halo_nullify, &
              fb_atomic_halo_has_data, &

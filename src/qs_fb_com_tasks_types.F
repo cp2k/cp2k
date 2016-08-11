@@ -39,6 +39,7 @@ MODULE qs_fb_com_tasks_types
              fb_com_atom_pairs_obj
 
 ! public methods
+!API
    PUBLIC :: fb_com_tasks_release, &
              fb_com_tasks_nullify, &
              fb_com_tasks_create, &

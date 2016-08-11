@@ -34,6 +34,7 @@ MODULE qs_fb_hash_table_types
    PUBLIC :: fb_hash_table_obj
 
 ! public methods
+!API
    PUBLIC :: fb_hash_table_add, &
              fb_hash_table_create, &
              fb_hash_table_get, &

@@ -32,6 +32,7 @@ MODULE qs_fb_matrix_data_types
    PUBLIC :: fb_matrix_data_obj
 
    ! public methods
+   !API
    PUBLIC :: fb_matrix_data_add, &
              fb_matrix_data_create, &
              fb_matrix_data_get, &
