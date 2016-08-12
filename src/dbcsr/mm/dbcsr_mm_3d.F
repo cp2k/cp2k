@@ -122,16 +122,17 @@ MODULE dbcsr_mm_3d
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
    TYPE dbcsr_buffer
-      TYPE(dbcsr_data_obj)               :: DATA, data_diag
-      INTEGER                            :: vprow, vpcol
-      INTEGER                            :: grp = mp_comm_null, & ! Global communicator
-                                            subgrp = mp_comm_null ! Communicator for A and B
-      INTEGER                            :: data_win, meta_win
-      INTEGER, DIMENSION(:), POINTER     :: meta => Null(), &
-                                            meta_diag => Null()
-      INTEGER, DIMENSION(:, :), ALLOCATABLE :: get_requests, &
-                                               get_requests_map, &
-                                               offset
+      TYPE(dbcsr_data_obj), DIMENSION(:), ALLOCATABLE :: DATA
+      TYPE(dbcsr_data_obj)                            :: data_diag
+      INTEGER                                         :: vprow, vpcol
+      INTEGER                                         :: grp = mp_comm_null, & ! Global communicator
+                                                         subgrp = mp_comm_null ! Communicator for A and B
+      INTEGER                                         :: data_win, meta_win
+      INTEGER, DIMENSION(:), POINTER                  :: meta => Null(), &
+                                                         meta_diag => Null()
+      INTEGER, DIMENSION(:, :), ALLOCATABLE           :: get_requests, &
+                                                         get_requests_map, &
+                                                         offset
       INTEGER                            :: nrequests = 0
       INTEGER                            :: num_layers_3D = 1
       TYPE(dbcsr_1d_array_type)          :: buffer
@@ -955,8 +956,8 @@ CONTAINS
       ! Allocate data and meta buffers
       do_win_create(:) = .TRUE.
       IF (buffer%has_rma_win) THEN
-         IF (buffer%grp .EQ. grp .AND. dbcsr_data_get_type(buffer%data) .EQ. data_type) THEN
-            do_win_create(1) = dbcsr_data_get_size(buffer%data) .LT. (local_size(idata)+10)
+         IF (buffer%grp .EQ. grp .AND. dbcsr_data_get_type(buffer%data(1)) .EQ. data_type) THEN
+            do_win_create(1) = dbcsr_data_get_size(buffer%data(1)) .LT. (local_size(idata)+10)
             do_win_create(2) = SIZE(buffer%meta) .LT. local_size(imeta)
          ENDIF
          CALL mp_sum(do_win_create, buffer%subgrp)
@@ -968,7 +969,7 @@ CONTAINS
       CALL buffer_init(buffer, data_type, &
                        local_size(idata), local_size(imeta), &
                        data_memory_type=memtype_mpi_buffer)
-      IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data, buffer%subgrp, buffer%data_win)
+      IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data(1), buffer%subgrp, buffer%data_win)
       IF (do_win_create(2)) CALL mp_win_create(buffer%meta, buffer%subgrp, buffer%meta_win)
       buffer%grp = grp
       !
@@ -1087,7 +1088,7 @@ CONTAINS
          data_buffer_p => data_send
          meta_buffer_p => meta_send
       ELSE
-         data_buffer_p => buffer%data
+         data_buffer_p => buffer%data(1)
          meta_buffer_p => buffer%meta
       ENDIF
       !
@@ -1131,12 +1132,12 @@ CONTAINS
                      data_buffer_p => buffer%data_diag
                      meta_buffer_p => buffer%meta_diag
                   ELSE
-                     data_buffer_p => buffer%data
+                     data_buffer_p => buffer%data(1)
                      meta_buffer_p => buffer%meta
                   ENDIF
                ELSEIF (blacs2mpi(prow, pcol) .EQ. mynode) THEN
                   dst_proc = ilocal_proc
-                  data_buffer_p => buffer%data
+                  data_buffer_p => buffer%data(1)
                   meta_buffer_p => buffer%meta
                ELSE
                   ! Move data to remove symmetric proc
@@ -1315,7 +1316,7 @@ CONTAINS
                                  refs_size(imeta, it, mi, ui, ilocal_proc)+3
                            ENDDO
                            ! Copy data
-                           CALL dbcsr_data_set(buffer%data, refs_size(idata, it, mi, ui, ilocal_proc), &
+                           CALL dbcsr_data_set(buffer%data(1), refs_size(idata, it, mi, ui, ilocal_proc), &
                                                recv_refs(idata, it+1, mi, ui, dst_proc)- &
                                                recv_refs(idata, it, mi, ui, dst_proc), &
                                                data_recv, recv_refs(idata, it, mi, ui, dst_proc))
@@ -2224,12 +2225,13 @@ CONTAINS
                           data_memory_type=memtype_abpanel_2)
          CALL setup_buffer_matrices_images(buffers_2%right%buffer, 1, &
                                            imgdist_right, matrix_right, &
-                                           buffers_2%right%data, &
+                                           buffers_2%right%data(1), &
                                            index_size=right_meta_size)
          ! Left
          CALL buffer_init(buffers_2%left, data_type, &
-                          left_data_size*(nleft_buffers/2), &
+                          left_data_size, &
                           left_meta_size*(nleft_buffers/2), &
+                          num_data=(nleft_buffers/2), &
                           data_memory_type=memtype_abpanel_2)
          !
          IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_2%trs_stackbuf)) THEN
@@ -2249,12 +2251,13 @@ CONTAINS
                        data_memory_type=memtype_abpanel_1)
       CALL setup_buffer_matrices_images(buffers_1%right%buffer, 1, &
                                         imgdist_right, matrix_right, &
-                                        buffers_1%right%data, &
+                                        buffers_1%right%data(1), &
                                         index_size=right_meta_size)
       ! Left
       CALL buffer_init(buffers_1%left, data_type, &
-                       left_data_size*(nleft_buffers-nleft_buffers/2), &
+                       left_data_size, &
                        left_meta_size*(nleft_buffers-nleft_buffers/2), &
+                       num_data=(nleft_buffers-nleft_buffers/2), &
                        data_memory_type=memtype_abpanel_1)
       !
       IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_1%trs_stackbuf)) THEN
@@ -2268,14 +2271,8 @@ CONTAINS
       buffers_calc => buffers_2
       ALLOCATE (left_buffer(nleft_buffers))
       DO ileft_buffer_comm = 1, nleft_buffers
-         CALL dbcsr_data_init(left_buffer(ileft_buffer_comm)%data)
-         CALL dbcsr_data_new(left_buffer(ileft_buffer_comm)%data, data_type)
-         CALL dbcsr_data_set_pointer( &
-            area=left_buffer(ileft_buffer_comm)%data, &
-            rsize=left_data_size, &
-            csize=1, &
-            pointee=buffers_comm%left%data, &
-            source_lb=left_data_size*((ileft_buffer_comm-1)/2)+1)
+         ALLOCATE (left_buffer(ileft_buffer_comm)%data(1))
+         left_buffer(ileft_buffer_comm)%data(1) = buffers_comm%left%data((ileft_buffer_comm-1)/2+1)
          left_buffer(ileft_buffer_comm)%meta => &
             buffers_comm%left%meta(left_meta_size*((ileft_buffer_comm-1)/2)+1: &
                                    left_meta_size*((ileft_buffer_comm-1)/2+1))
@@ -2283,7 +2280,7 @@ CONTAINS
          ALLOCATE (left_buffer(ileft_buffer_comm)%get_requests(2, 1))
          CALL setup_buffer_matrices_images(left_buffer(ileft_buffer_comm)%buffer, 1, &
                                            imgdist_left, matrix_left, &
-                                           left_buffer(ileft_buffer_comm)%data, &
+                                           left_buffer(ileft_buffer_comm)%data(1), &
                                            index_size=left_meta_size)
          buffers => buffers_comm
          buffers_comm => buffers_calc
@@ -2360,8 +2357,8 @@ CONTAINS
             !
             IF (has_acc) THEN
                CALL timeset(routineN//"_acc_sync", handle3)
-               CALL acc_event_synchronize(buffers_comm%right%data%d%acc_ready)
-               CALL acc_event_synchronize(left_buffer(ileft_buffer_comm)%data%d%acc_ready)
+               CALL acc_event_synchronize(buffers_comm%right%data(1)%d%acc_ready)
+               CALL acc_event_synchronize(left_buffer(ileft_buffer_comm)%data(1)%d%acc_ready)
                CALL timestop(handle3)
             ENDIF
             !
@@ -2398,7 +2395,7 @@ CONTAINS
                                     buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, &
                                     data_get, data_type_byte, buffers_orig%right, mycol3D)
                   ! Set the referenced sizes to the actual data moved via MPI
-                  CALL dbcsr_data_set_size_referenced(buffers_comm%right%data, &
+                  CALL dbcsr_data_set_size_referenced(buffers_comm%right%data(1), &
                                                       buffers_comm%right%offset(idata, 2))
                   ! Left
                   left_buffer(ileft_buffer_comm)%offset(:, :) = 0
@@ -2414,7 +2411,7 @@ CONTAINS
                                     buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, &
                                     data_get, data_type_byte, buffers_orig%left, myrow3D)
                   ! Set the referenced sizes to the actual data moved via MPI
-                  CALL dbcsr_data_set_size_referenced(left_buffer(ileft_buffer_comm)%data, &
+                  CALL dbcsr_data_set_size_referenced(left_buffer(ileft_buffer_comm)%data(1), &
                                                       left_buffer(ileft_buffer_comm)%offset(idata, 2))
                ENDIF
             ENDIF
@@ -2450,7 +2447,7 @@ CONTAINS
                common_unmerged(:) = .FALSE.
                !
                CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
-               IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data)
+               IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data(1))
                CALL merge_calc(buffers_calc%right, &
                                left_buffer(ileft_buffer_calc), &
                                multrec(:, myrow3D, mycol3D), .TRUE., flop, &
@@ -2465,7 +2462,7 @@ CONTAINS
                                indices_common_unmerged=indices_common_unmerged, &
                                has_acc=has_acc)
                CALL mp_waitall(left_buffer(ileft_buffer_calc)%get_requests(:, 1:left_nrequests))
-               IF (has_acc) CALL dbcsr_data_host2dev(left_buffer(ileft_buffer_calc)%data)
+               IF (has_acc) CALL dbcsr_data_host2dev(left_buffer(ileft_buffer_calc)%data(1))
                CALL merge_calc(buffers_calc%right, &
                                left_buffer(ileft_buffer_calc), &
                                multrec(:, myrow3D, mycol3D), .TRUE., flop, &
@@ -2650,8 +2647,7 @@ CONTAINS
       !
       CALL dbcsr_destroy_array(buffers_1%right%buffer)
       DO ileft_buffer_comm = 1, nleft_buffers
-         CALL dbcsr_data_clear_pointer(left_buffer(ileft_buffer_comm)%data)
-         CALL dbcsr_data_release(left_buffer(ileft_buffer_comm)%data)
+         DEALLOCATE (left_buffer(ileft_buffer_comm)%data)
          CALL dbcsr_destroy_array(left_buffer(ileft_buffer_comm)%buffer)
          DEALLOCATE (left_buffer(ileft_buffer_comm)%offset)
          DEALLOCATE (left_buffer(ileft_buffer_comm)%get_requests)
@@ -2751,11 +2747,11 @@ CONTAINS
          area=data_get, &
          rsize=data_size-data_offset, &
          csize=1, &
-         pointee=buffer%data, &
+         pointee=buffer%data(1), &
          source_lb=data_offset+1)
       CALL dbcsr_rget_any(data_get, recv_punmerged*SIZE(refs_meta_size, 1)+layer3D-1, &
                           data_win, &
-                          buffer_orig%data, &
+                          buffer_orig%data(1), &
                           mypunmerged*SIZE(refs_meta_size, 1)+layer3D-1, &
                           refs_displ_unmerged(idata, layer3D, recv_vunmerged), &
                           buffer%get_requests(2, buffer%nrequests))
@@ -3436,7 +3432,7 @@ CONTAINS
                           data_memory_type=memtype_abpanel_1)
          CALL setup_buffer_matrices_images(buffers_1%right%buffer, min_nimages, &
                                            imgdist_right, matrix_right, &
-                                           buffers_1%right%data, &
+                                           buffers_1%right%data(1), &
                                            right_max_meta_size_images)
          ! Left:
          CALL buffer_init(buffers_1%left, data_type, &
@@ -3446,7 +3442,7 @@ CONTAINS
                           data_memory_type=memtype_abpanel_1)
          CALL setup_buffer_matrices_images(buffers_1%left%buffer, min_nimages, &
                                            imgdist_left, matrix_left, &
-                                           buffers_1%left%data, &
+                                           buffers_1%left%data(1), &
                                            left_max_meta_size_images)
          !
          IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_1%trs_stackbuf)) THEN
@@ -3468,7 +3464,7 @@ CONTAINS
                        data_memory_type=memtype_abpanel_2)
       CALL setup_buffer_matrices_images(buffers_2%right%buffer, min_nimages, &
                                         imgdist_right, matrix_right, &
-                                        buffers_2%right%data, &
+                                        buffers_2%right%data(1), &
                                         right_max_meta_size_images)
       ! Left:
       CALL buffer_init(buffers_2%left, data_type, &
@@ -3478,7 +3474,7 @@ CONTAINS
                        data_memory_type=memtype_abpanel_2)
       CALL setup_buffer_matrices_images(buffers_2%left%buffer, min_nimages, &
                                         imgdist_left, matrix_left, &
-                                        buffers_2%left%data, &
+                                        buffers_2%left%data(1), &
                                         left_max_meta_size_images)
       !
       IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_2%trs_stackbuf)) THEN
@@ -3550,8 +3546,8 @@ CONTAINS
             !
             IF (has_acc) THEN
                CALL timeset(routineN//"_acc_sync", handle3)
-               CALL acc_event_synchronize(buffers_comm%right%data%d%acc_ready)
-               CALL acc_event_synchronize(buffers_comm%left%data%d%acc_ready)
+               CALL acc_event_synchronize(buffers_comm%right%data(1)%d%acc_ready)
+               CALL acc_event_synchronize(buffers_comm%left%data(1)%d%acc_ready)
                CALL timestop(handle3)
             ENDIF
             !
@@ -3627,9 +3623,9 @@ CONTAINS
                                           left_meta_offset_diag, left_data_offset_diag)
             ENDDO
             ! Set the referenced sizes to the actual data moved via MPI
-            CALL dbcsr_data_set_size_referenced(buffers_comm%right%data, &
+            CALL dbcsr_data_set_size_referenced(buffers_comm%right%data(1), &
                                                 buffers_comm%right%offset(idata, right_v_i+1))
-            CALL dbcsr_data_set_size_referenced(buffers_comm%left%data, &
+            CALL dbcsr_data_set_size_referenced(buffers_comm%left%data(1), &
                                                 buffers_comm%left%offset(idata, left_v_i+1))
          ENDIF xfer
          !
@@ -3659,7 +3655,7 @@ CONTAINS
             IF (min_nimages .EQ. 1 .OR. has_acc) THEN
                IF (right_nrequests .GT. 0) THEN
                   CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
-                  IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data)
+                  IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data(1))
                   CALL merge_calc(buffers_calc%right, &
                                   buffers_calc%left, &
                                   multrec, do_rec, flop, &
@@ -3674,7 +3670,7 @@ CONTAINS
                ENDIF
                IF (left_nrequests .GT. 0) THEN
                   CALL mp_waitall(buffers_calc%left%get_requests(:, 1:left_nrequests))
-                  IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%left%data)
+                  IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%left%data(1))
                   CALL merge_calc(buffers_calc%right, &
                                   buffers_calc%left, &
                                   multrec, do_rec, flop, &
@@ -4138,7 +4134,7 @@ CONTAINS
                                                                                       1, recv_vunmerged)), &
                                 refs_meta_size(vmerged(ui, v_ki), 1, recv_vunmerged))
                meta_offset = meta_size
-               CALL dbcsr_data_set(buffer%data, data_offset+1, &
+               CALL dbcsr_data_set(buffer%data(1), data_offset+1, &
                                    refs_data_size(displ_vunmerged(recv_vunmerged)+ui), &
                                    buffer_orig%data_diag, data_offset_diag+1)
                data_offset = data_size
@@ -4191,11 +4187,11 @@ CONTAINS
                      area=data_get, &
                      rsize=data_size-data_offset, &
                      csize=1, &
-                     pointee=buffer%data, &
+                     pointee=buffer%data(1), &
                      source_lb=data_offset+1)
                   CALL dbcsr_rget_any(data_get, recv_punmerged, &
                                       data_win, &
-                                      buffer_orig%data, &
+                                      buffer_orig%data(1), &
                                       mypunmerged, &
                                       refs_displ_unmerged(idata, 1, recv_vunmerged_displ), &
                                       buffer%get_requests(2, buffer%nrequests))
@@ -4426,7 +4422,7 @@ CONTAINS
          !
          IF (has_acc .AND. PRESENT(trs_stackbuf)) THEN
             CALL acc_transpose_blocks_images(right_buffer%buffer, &
-                                             right_buffer%data, &
+                                             right_buffer%data(1), &
                                              trs_stackbuf, &
                                              indices_common_unmerged(1:ncommons_unmerged))
          ENDIF
@@ -4637,9 +4633,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       !
-      SELECT CASE (buffer%data%d%data_type)
+      SELECT CASE (buffer%data(1)%d%data_type)
       CASE (dbcsr_type_real_4)
-         CALL calc_max_image_norms_s(buffer%meta, dbcsr_get_data_p_s(buffer%data), &
+         CALL calc_max_image_norms_s(buffer%meta, dbcsr_get_data_p_s(buffer%data(1)), &
                                      buffer%meta_diag, dbcsr_get_data_p_s(buffer%data_diag), &
                                      refs_size, refs_displ, &
                                      img_map, &
@@ -4649,7 +4645,7 @@ CONTAINS
                                      slot_coo_l, &
                                      max_norms, is_left, off_diagonal)
       CASE (dbcsr_type_real_8)
-         CALL calc_max_image_norms_d(buffer%meta, dbcsr_get_data_p_d(buffer%data), &
+         CALL calc_max_image_norms_d(buffer%meta, dbcsr_get_data_p_d(buffer%data(1)), &
                                      buffer%meta_diag, dbcsr_get_data_p_d(buffer%data_diag), &
                                      refs_size, refs_displ, &
                                      img_map, &
@@ -4659,7 +4655,7 @@ CONTAINS
                                      slot_coo_l, &
                                      max_norms, is_left, off_diagonal)
       CASE (dbcsr_type_complex_4)
-         CALL calc_max_image_norms_c(buffer%meta, dbcsr_get_data_p_c(buffer%data), &
+         CALL calc_max_image_norms_c(buffer%meta, dbcsr_get_data_p_c(buffer%data(1)), &
                                      buffer%meta_diag, dbcsr_get_data_p_c(buffer%data_diag), &
                                      refs_size, refs_displ, &
                                      img_map, &
@@ -4669,7 +4665,7 @@ CONTAINS
                                      slot_coo_l, &
                                      max_norms, is_left, off_diagonal)
       CASE (dbcsr_type_complex_8)
-         CALL calc_max_image_norms_z(buffer%meta, dbcsr_get_data_p_z(buffer%data), &
+         CALL calc_max_image_norms_z(buffer%meta, dbcsr_get_data_p_z(buffer%data(1)), &
                                      buffer%meta_diag, dbcsr_get_data_p_z(buffer%data_diag), &
                                      refs_size, refs_displ, &
                                      img_map, &
@@ -4880,23 +4876,35 @@ CONTAINS
 !> \param data_type ...
 !> \param data_size ...
 !> \param meta_size ...
+!> \param num_data ...
 !> \param requests_size ...
 !> \param data_memory_type ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE buffer_init(buffer, data_type, &
                           data_size, meta_size, &
-                          requests_size, &
+                          num_data, requests_size, &
                           data_memory_type)
       TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
       INTEGER, INTENT(IN)                                :: data_type, data_size, meta_size
-      INTEGER, INTENT(IN), OPTIONAL                      :: requests_size
+      INTEGER, INTENT(IN), OPTIONAL                      :: num_data, requests_size
       TYPE(dbcsr_memtype_type), INTENT(IN)               :: data_memory_type
+
+      INTEGER                                            :: idata, my_num_data
+
+      my_num_data = 1
+      IF (PRESENT(num_data)) THEN
+         my_num_data = num_data
+      ENDIF
 
       IF (buffer%is_valid) THEN
          ! Invalid buffers if data_type is different
-         IF (dbcsr_data_get_type(buffer%data) .NE. data_type) THEN
-            CALL dbcsr_data_release(buffer%data)
+         IF (dbcsr_data_get_type(buffer%data(1)) .NE. data_type .OR. &
+             SIZE(buffer%data) .LT. my_num_data) THEN
+            DO idata = 1, SIZE(buffer%data)
+               CALL dbcsr_data_release(buffer%data(idata))
+            ENDDO
+            DEALLOCATE (buffer%data)
             CALL dbcsr_data_release(buffer%data_diag)
             buffer%is_valid = .FALSE.
          ENDIF
@@ -4904,16 +4912,21 @@ CONTAINS
       !
       IF (.NOT. buffer%is_valid) THEN
          ! First initialization
-         CALL dbcsr_data_init(buffer%data)
-         CALL dbcsr_data_new(buffer%data, data_type=data_type, &
-                             data_size=data_size, memory_type=data_memory_type)
-         CALL dbcsr_data_set_size_referenced(buffer%data, data_size)
+         ALLOCATE (buffer%data(my_num_data))
+         DO idata = 1, my_num_data
+            CALL dbcsr_data_init(buffer%data(idata))
+            CALL dbcsr_data_new(buffer%data(idata), data_type=data_type, &
+                                data_size=data_size, memory_type=data_memory_type)
+            CALL dbcsr_data_set_size_referenced(buffer%data(idata), data_size)
+         ENDDO
          CALL dbcsr_data_init(buffer%data_diag)
          CALL dbcsr_data_new(buffer%data_diag, data_type=data_type, &
                              data_size=1, memory_type=data_memory_type)
          buffer%is_valid = .TRUE.
       ELSE
-         CALL dbcsr_data_ensure_size(buffer%data, data_size, nocopy=.TRUE.)
+         DO idata = 1, my_num_data
+            CALL dbcsr_data_ensure_size(buffer%data(idata), data_size, nocopy=.TRUE.)
+         ENDDO
       ENDIF
       !
       CALL ensure_array_size(buffer%meta, ub=meta_size, nocopy=.TRUE., &
@@ -4979,6 +4992,8 @@ CONTAINS
    SUBROUTINE buffers_release_internal(buffers)
       TYPE(dbcsr_buffers), INTENT(INOUT)                 :: buffers
 
+      INTEGER                                            :: idata
+
       IF (buffers%right%has_rma_win) THEN
          CALL mp_win_free(buffers_orig%right%data_win)
          CALL mp_win_free(buffers_orig%right%meta_win)
@@ -5001,7 +5016,10 @@ CONTAINS
       ENDIF
       !
       IF (buffers%left%is_valid) THEN
-         CALL dbcsr_data_release(buffers%left%data)
+         DO idata = 1, SIZE(buffers%left%data)
+            CALL dbcsr_data_release(buffers%left%data(idata))
+         ENDDO
+         DEALLOCATE(buffers%left%data)
          IF (dbcsr_data_valid(buffers%left%data_diag)) &
             CALL dbcsr_data_release(buffers%left%data_diag)
          buffers%left%is_valid = .FALSE.
@@ -5015,7 +5033,10 @@ CONTAINS
          NULLIFY (buffers%left%meta_diag)
       ENDIF
       IF (buffers%right%is_valid) THEN
-         CALL dbcsr_data_release(buffers%right%data)
+         DO idata = 1, SIZE(buffers%right%data)
+            CALL dbcsr_data_release(buffers%right%data(idata))
+         ENDDO
+         DEALLOCATE(buffers%right%data)
          IF (dbcsr_data_valid(buffers%right%data_diag)) &
             CALL dbcsr_data_release(buffers%right%data_diag)
          buffers%right%is_valid = .FALSE.
