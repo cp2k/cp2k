@@ -53,6 +53,8 @@ MODULE kg_environment_types
       ! basis set
       CHARACTER(len=20)                                :: basis
       LOGICAL                                          :: mao
+      INTEGER                                          :: mao_max_iter
+      REAL(KIND=dp)                                    :: mao_eps_grad
       ! energy components
       REAL(KIND=dp)                                    :: etotal
       REAL(KIND=dp)                                    :: eband, exc, ehartree, vhxc

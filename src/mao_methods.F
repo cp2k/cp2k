@@ -1016,27 +1016,39 @@ CONTAINS
 !> \param ref_basis_set ...
 !> \param pmat_external ...
 !> \param smat_external ...
+!> \param molecular ...
+!> \param max_iter ...
+!> \param eps_grad ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE mao_basis_simple(qs_env, mao_coef, ref_basis_set, pmat_external, smat_external, unit_nr)
+   SUBROUTINE mao_basis_simple(qs_env, mao_coef, ref_basis_set, pmat_external, smat_external, &
+                               molecular, max_iter, eps_grad, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef
       CHARACTER(len=*), OPTIONAL                         :: ref_basis_set
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: pmat_external, smat_external
-      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
+      INTEGER, INTENT(IN), OPTIONAL                      :: max_iter
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_grad
+      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_basis_simple', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=10)                                  :: mao_basis_set
-      INTEGER                                            :: handle, iab, ikind, ispin, natom, nbas, &
-                                                            nimages, nkind, nmao, nspin
+      INTEGER                                            :: handle, iab, ikind, ispin, iter, iw, &
+                                                            mao_max_iter, natom, nbas, nimages, &
+                                                            nkind, nmao, nspin
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      REAL(KIND=dp)                                      :: electra(2), eps_filter, fval
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_q, matrix_smm, matrix_smo
+      LOGICAL                                            :: molecule
+      REAL(KIND=dp)                                      :: a1, a2, alpha, an, beta, electra(2), &
+                                                            eps_filter, eps_fun, fa1, fa2, fnnew, &
+                                                            fnold, fval, grad_norm, mao_eps_grad
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_grad, matrix_q, matrix_smm, &
+                                                            matrix_smo
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p, matrix_s
-      TYPE(cp_dbcsr_type)                                :: tmat
+      TYPE(cp_dbcsr_type)                                :: amat, cgmat, tmat
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list, orb_basis_set_list
@@ -1062,6 +1074,35 @@ CONTAINS
       nimages = dft_control%nimages
       CPASSERT(nimages == 1)
 
+      ! output
+      IF (PRESENT(unit_nr)) THEN
+         iw = unit_nr
+      ELSE
+         iw = -1
+      END IF
+
+      ! molecules
+      IF (PRESENT(molecular)) THEN
+         molecule = molecular
+      ELSE
+         molecule = .FALSE.
+      END IF
+
+      ! iterations
+      IF (PRESENT(max_iter)) THEN
+         mao_max_iter = max_iter
+      ELSE
+         mao_max_iter = 0
+      END IF
+
+      ! threshold
+      IF (PRESENT(eps_grad)) THEN
+         mao_eps_grad = eps_grad
+      ELSE
+         mao_eps_grad = 0.00001_dp
+      END IF
+      eps_fun = 10._dp*mao_eps_grad
+
       ! Reference basis set
       IF (PRESENT(ref_basis_set)) THEN
          mao_basis_set = ref_basis_set
@@ -1081,15 +1122,15 @@ CONTAINS
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_b, basis_type=mao_basis_set)
          IF (ASSOCIATED(basis_set_b)) mao_basis_set_list(ikind)%gto_basis_set => basis_set_b
       END DO
-      IF (unit_nr > 0) THEN
+      IF (iw > 0) THEN
          DO ikind = 1, nkind
             IF (.NOT. ASSOCIATED(mao_basis_set_list(ikind)%gto_basis_set)) THEN
-               WRITE (UNIT=unit_nr, FMT="(T2,A,I4)") &
+               WRITE (UNIT=iw, FMT="(T2,A,I4)") &
                   "WARNING: No MAO basis set associated with Kind ", ikind
             ELSE
                CALL get_qs_kind(qs_kind_set(ikind), mao=nmao)
                nbas = mao_basis_set_list(ikind)%gto_basis_set%nsgf
-               WRITE (UNIT=unit_nr, FMT="(T2,A,I4,T30,A,I2,T56,A,I10)") &
+               WRITE (UNIT=iw, FMT="(T2,A,I4,T30,A,I2,T56,A,I10)") &
                   "MAO basis set Kind ", ikind, " Number of MAO:", nmao, " Number of BSF:", nbas
             END IF
          END DO
@@ -1097,8 +1138,9 @@ CONTAINS
 
       ! neighbor lists
       NULLIFY (smm_list, smo_list)
-      CALL setup_neighbor_list(smm_list, mao_basis_set_list, qs_env=qs_env)
-      CALL setup_neighbor_list(smo_list, mao_basis_set_list, orb_basis_set_list, qs_env=qs_env)
+      CALL setup_neighbor_list(smm_list, mao_basis_set_list, molecular=molecule, qs_env=qs_env)
+      CALL setup_neighbor_list(smo_list, mao_basis_set_list, orb_basis_set_list, &
+                               molecular=molecule, qs_env=qs_env)
 
       ! overlap matrices
       NULLIFY (matrix_smm, matrix_smo)
@@ -1157,19 +1199,94 @@ CONTAINS
                                  matrix_q(ispin)%matrix, matrix_smm(1)%matrix)
       END DO
 
-      CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-      CALL cp_dbcsr_init(tmat)
-      CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
-      DO ispin = 1, nspin
-         CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
-                           matrix_smm(1)%matrix, tmat, .FALSE.)
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T2,A,T31,A,I2,T57,A,F12.8)") &
-               "MAO Projection", "Spin:", ispin, "Completness:", fval/electra(ispin)
-         END IF
-      END DO
-      CALL cp_dbcsr_release(tmat)
+      IF (mao_max_iter < 1) THEN
+         ! projection only
+         CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+         CALL cp_dbcsr_init(tmat)
+         CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+         DO ispin = 1, nspin
+            CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
+                              matrix_smm(1)%matrix, tmat, .FALSE.)
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(T2,A,T31,A,I2,T57,A,F12.8)") &
+                  "MAO Projection", "Spin:", ispin, "Completness:", fval/electra(ispin)
+            END IF
+         END DO
+         CALL cp_dbcsr_release(tmat)
+      ELSE
+         ! optimize MAOs
+         NULLIFY (mao_grad)
+         CALL cp_dbcsr_allocate_matrix_set(mao_grad, nspin)
+         DO ispin = 1, nspin
+            ALLOCATE (mao_grad(ispin)%matrix)
+            CALL cp_dbcsr_init(mao_grad(ispin)%matrix)
+            CALL cp_dbcsr_create(matrix=mao_grad(ispin)%matrix, name="MAO_GRAD", template=mao_coef(1)%matrix)
+            CALL cp_dbcsr_reserve_diag_blocks(matrix=mao_grad(ispin)%matrix)
+         END DO
+         alpha = 0.25_dp
+         beta = 0.0_dp
+         CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+         CALL cp_dbcsr_init(tmat)
+         CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+         CALL cp_dbcsr_init(cgmat)
+         CALL cp_dbcsr_create(cgmat, template=mao_grad(1)%matrix)
+         CALL cp_dbcsr_init(amat)
+         CALL cp_dbcsr_create(amat, template=mao_coef(1)%matrix)
+         DO ispin = 1, nspin
+            CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
+                                       matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .FALSE.)
+            CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
+            CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
+            CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnold)
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(/,T2,A,T73,A,I2)") "MAO OPTIMIZATION", "Spin =", ispin
+               WRITE (UNIT=iw, FMT="(T2,A,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
+                  "Initialization", "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
+            END IF
+            DO iter = 1, mao_max_iter
+               IF (grad_norm < mao_eps_grad) EXIT
+               IF ((1.0_dp-fval/electra(ispin)) < eps_fun) EXIT
+               CALL cp_dbcsr_add(mao_coef(ispin)%matrix, cgmat, 1.0_dp, alpha)
+               CALL mao_orthogonalization(mao_coef(ispin)%matrix, matrix_smm(1)%matrix)
+               CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
+                                          matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
+               CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnnew)
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="(T2,A,i8,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
+                     "iter=", iter, "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
+               END IF
+               beta = fnnew/fnold
+               CALL cp_dbcsr_add(cgmat, mao_grad(ispin)%matrix, beta, 1.0_dp)
+               fnold = fnnew
+               ! line search, update alpha
+               CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
+               CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, 0.5_dp*alpha)
+               CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
+               CALL mao_function(amat, fa1, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
+               CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, alpha)
+               CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
+               CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               a2 = (4._dp*fa1-fa2-3._dp*fval)/alpha
+               a1 = (fa2-fval-a2*alpha)/(alpha*alpha)
+               an = -a2/(2._dp*a1)
+               an = MIN(an, 2.0_dp*alpha)
+               IF (an < 0.05_dp .OR. a1 > 0.0_dp) THEN
+                  CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
+                  alpha = 0.25_dp
+               ELSE
+                  alpha = an
+               END IF
+            END DO
+         END DO
+         CALL cp_dbcsr_release(tmat)
+         CALL cp_dbcsr_release(cgmat)
+         CALL cp_dbcsr_release(amat)
+         IF (ASSOCIATED(mao_grad)) CALL cp_dbcsr_deallocate_matrix_set(mao_grad)
+      END IF
 
       ! Deallocate the neighbor list structure
       IF (ASSOCIATED(smm_list)) THEN
@@ -1325,19 +1442,18 @@ CONTAINS
       ! calculate inverse of B
       CALL invert_Hotelling(binv, bmat, threshold, use_inv_as_guess=reuse, &
                             norm_convergence=convergence, silent=.TRUE.)
-      ! calculate Binv*C and T=C(T)*Binv*C
+      ! calculate R=C*Binv and T=C*Binv*C(T)=R*C(T)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mao_coef, binv, 0.0_dp, scmat)
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, scmat, mao_coef, 0.0_dp, tmat)
       ! function = Tr(Q*T)
       CALL cp_dbcsr_trace(qmat, tmat, fval)
-      ! Gradient part 1: g = 2*C*Q
+      ! Gradient part 1: g = 2*Q*C*Binv = 2*Q*R
       CALL cp_dbcsr_multiply("N", "N", 2.0_dp, qmat, scmat, 0.0_dp, mao_grad, &
                              retain_sparsity=.TRUE.)
-      ! Gradient part 2: g = -R*Q*R*S*C; R=Binv*C
+!     ! Gradient part 2: g = -2*S*T*X; X = Q*R
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, qmat, scmat, 0.0_dp, t2mat)
-      CALL cp_dbcsr_multiply("T", "N", 1.0_dp, scmat, t2mat, 0.0_dp, bmat)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
-      CALL cp_dbcsr_multiply("N", "N", -2.0_dp, scmat, bmat, 1.0_dp, mao_grad, &
+      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmat, t2mat, 0.0_dp, scmat)
+      CALL cp_dbcsr_multiply("N", "N", -2.0_dp, smat, scmat, 1.0_dp, mao_grad, &
                              retain_sparsity=.TRUE.)
       ! free temp matrices
       CALL cp_dbcsr_release(scmat)

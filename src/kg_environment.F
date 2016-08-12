@@ -180,6 +180,10 @@ CONTAINS
                                    c_val=kg_env%ec_env%basis)
          CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%MAO", &
                                    l_val=kg_env%ec_env%mao)
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%MAO_MAX_ITER", &
+                                   i_val=kg_env%ec_env%mao_max_iter)
+         CALL section_vals_val_get(input, "DFT%KG_METHOD%ENERGY_CORRECTION%MAO_EPS_GRAD", &
+                                   r_val=kg_env%ec_env%mao_eps_grad)
 
          ! set basis
          nkind = SIZE(qs_kind_set)

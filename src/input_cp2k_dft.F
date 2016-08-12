@@ -4626,6 +4626,18 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="MAO_MAX_ITER", &
+                          description="Maximum iterations in MAO optimization. ", &
+                          usage="MAO_MAX_ITER 100 ", default_i_val=0)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAO_EPS_GRAD", &
+                          description="Threshold used for MAO iterations. ", &
+                          usage="MAO_EPS_GRAD 1.0E-4 ", default_r_val=1.0E-5_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="ALGORITHM", &
                           description="Algorithm used to solve KS equation", &
                           usage="ALGORITHM DIAGONALIZATION", &
