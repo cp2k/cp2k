@@ -4633,7 +4633,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       !
-      SELECT CASE (buffer%data(1)%d%data_type)
+      SELECT CASE (buffer%data (1)%d%data_type)
       CASE (dbcsr_type_real_4)
          CALL calc_max_image_norms_s(buffer%meta, dbcsr_get_data_p_s(buffer%data(1)), &
                                      buffer%meta_diag, dbcsr_get_data_p_s(buffer%data_diag), &
@@ -5019,7 +5019,7 @@ CONTAINS
          DO idata = 1, SIZE(buffers%left%data)
             CALL dbcsr_data_release(buffers%left%data(idata))
          ENDDO
-         DEALLOCATE(buffers%left%data)
+         DEALLOCATE (buffers%left%data)
          IF (dbcsr_data_valid(buffers%left%data_diag)) &
             CALL dbcsr_data_release(buffers%left%data_diag)
          buffers%left%is_valid = .FALSE.
@@ -5036,7 +5036,7 @@ CONTAINS
          DO idata = 1, SIZE(buffers%right%data)
             CALL dbcsr_data_release(buffers%right%data(idata))
          ENDDO
-         DEALLOCATE(buffers%right%data)
+         DEALLOCATE (buffers%right%data)
          IF (dbcsr_data_valid(buffers%right%data_diag)) &
             CALL dbcsr_data_release(buffers%right%data_diag)
          buffers%right%is_valid = .FALSE.
