@@ -33,11 +33,11 @@ MODULE dbcsr_mm_3d
                                               use_mpi_filtering
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
-        dbcsr_data_get_type, dbcsr_data_host2dev, dbcsr_data_init, dbcsr_data_new, &
-        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
-        dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
-        dbcsr_get_data_p_z, dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
-        dbcsr_type_1d_to_2d
+        dbcsr_data_get_type, dbcsr_data_hold, dbcsr_data_host2dev, dbcsr_data_init, &
+        dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
+        dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
+        dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
+        dbcsr_scalar_one, dbcsr_type_1d_to_2d
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                               dbcsr_distribution_has_threads,&
@@ -2540,8 +2540,15 @@ CONTAINS
          product_matrix_size_comm => product_matrix_size_1
          product_matrix_size_calc => product_matrix_size_2
          ! Reuse right buffers for the recv product matrices
+         ! Use original data
          product_matrix_recv_comm%matrix => buffers_comm%right%buffer%mats(1)
+         CALL dbcsr_data_release(product_matrix_recv_comm%matrix%m%data_area)
+         product_matrix_recv_comm%matrix%m%data_area = buffers_orig%right%data(1)
+         CALL dbcsr_data_hold(product_matrix_recv_comm%matrix%m%data_area)
          product_matrix_recv_calc%matrix => buffers_calc%right%buffer%mats(1)
+         CALL dbcsr_data_release(product_matrix_recv_calc%matrix%m%data_area)
+         product_matrix_recv_calc%matrix%m%data_area = buffers_orig%left%data(1)
+         CALL dbcsr_data_hold(product_matrix_recv_calc%matrix%m%data_area)
          CALL dbcsr_data_init(data_send)
          CALL dbcsr_data_new(data_send, data_type)
          DO iproc = 1, nranks3D+1
