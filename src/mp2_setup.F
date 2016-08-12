@@ -175,6 +175,8 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa_im_time%group_size_P)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%ADD_CUT_RI", &
                                 i_val=mp2_env%ri_rpa_im_time%add_cut_RI)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%POINTS_PER_MAGNITUDE", &
+                                i_val=mp2_env%ri_rpa_im_time%num_points_per_magnitude)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%EPS_FILTER_IM_TIME", &
                                 r_val=mp2_env%ri_rpa_im_time%eps_filter_im_time)
 

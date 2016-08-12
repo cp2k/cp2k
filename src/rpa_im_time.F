@@ -43,6 +43,7 @@ MODULE rpa_im_time
 
    PUBLIC :: compute_mat_P_omega, &
              setup_mat_for_mem_cut_3c
+
 CONTAINS
 
 ! **************************************************************************************************

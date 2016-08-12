@@ -32,13 +32,15 @@ CONTAINS
 !> \param E_range ...
 !> \param aw ...
 !> \param ierr ...
+!> \param print_warning ...
 !> \author Mauro Del Ben
 ! **************************************************************************************************
-   SUBROUTINE get_rpa_minimax_coeff(k, E_range, aw, ierr)
+   SUBROUTINE get_rpa_minimax_coeff(k, E_range, aw, ierr, print_warning)
       INTEGER                                            :: k
       REAL(KIND=dp)                                      :: E_range
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
       INTEGER                                            :: ierr
+      LOGICAL, OPTIONAL                                  :: print_warning
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_minimax_coeff', &
          routineP = moduleN//':'//routineN
@@ -46,6 +48,7 @@ CONTAINS
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=64)                                  :: Rc_cha
       INTEGER                                            :: handle, icoef, kkk
+      LOGICAL                                            :: my_print_warning
       REAL(KIND=dp)                                      :: L_b, R_transf, Rc, U_b
       REAL(KIND=dp), DIMENSION(13, 2*k)                  :: fit_coef
 
@@ -53,6 +56,9 @@ CONTAINS
       Rc = E_range
       fit_coef = 0.0_dp
       ierr = 0
+
+      my_print_warning = .TRUE.
+      IF (PRESENT(print_warning)) my_print_warning = print_warning
 
       SELECT CASE (k)
       CASE (1)
@@ -103,22 +109,25 @@ CONTAINS
 
       WRITE (Rc_cha, '(F16.2)') Rc
       Rc_cha = ADJUSTL(Rc_cha)
-      IF (E_range < Rc) THEN
-         WRITE (error_msg, '(A,A)') " The range for the Minimax approximation is smaller than the lower bound "// &
-            "for the required number of quadrature points. The Minimax parameters "// &
-            "have been optimized for the lower bound of: ", TRIM(Rc_cha)
-         CPWARN(error_msg)
-      END IF
-      IF (E_range > Rc) THEN
-         WRITE (error_msg, '(A,A)') " The range for the Minimax approximation exceeds the upper bound "// &
-            "for the required number of quadrature points. The Minimax parameters "// &
-            "have been optimized for the upper bound of: ", TRIM(Rc_cha)
-         CPWARN(error_msg)
-      END IF
-      IF (ierr < 0) THEN
-         error_msg = "The required number of quadrature point exceeds the maximum available. "// &
-                     "The number of quadrature point has been reset to 20."
-         CPWARN(error_msg)
+
+      IF (my_print_warning) THEN
+         IF (E_range < Rc) THEN
+            WRITE (error_msg, '(A,A)') " The range for the Minimax approximation is smaller than the lower bound "// &
+               "for the required number of quadrature points. The Minimax parameters "// &
+               "have been optimized for the lower bound of: ", TRIM(Rc_cha)
+            CPWARN(error_msg)
+         END IF
+         IF (E_range > Rc) THEN
+            WRITE (error_msg, '(A,A)') " The range for the Minimax approximation exceeds the upper bound "// &
+               "for the required number of quadrature points. The Minimax parameters "// &
+               "have been optimized for the upper bound of: ", TRIM(Rc_cha)
+            CPWARN(error_msg)
+         END IF
+         IF (ierr < 0) THEN
+            error_msg = "The required number of quadrature point exceeds the maximum available. "// &
+                        "The number of quadrature point has been reset to 20."
+            CPWARN(error_msg)
+         END IF
       END IF
 
       R_transf = SQRT(L_b/Rc)

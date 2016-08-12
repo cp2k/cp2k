@@ -105,6 +105,7 @@ MODULE library_tests
         pw2rs, realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs2pw, &
         rs_grid_create, rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
         rs_grid_release_descriptor, rs_grid_zero, rs_pw_transfer
+   USE rpa_ri_gpw,                      ONLY: test_least_square_ft
    USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
    USE termination,                     ONLY: stop_memory
 #include "./base/base_uses.f90"
@@ -178,6 +179,9 @@ CONTAINS
       !
       IF (runtest(10) /= 0) CALL validate_exp_minimax(runtest(10), iw)
       !
+      IF (runtest(11) /= 0) CALL test_least_square_ft(runtest(11), iw)
+      !
+
       rs_pw_transfer_section => section_vals_get_subs_vals(root_section, "TEST%RS_PW_TRANSFER")
       CALL section_vals_get(rs_pw_transfer_section, explicit=explicit)
       IF (explicit) THEN
@@ -274,6 +278,7 @@ CONTAINS
       CALL section_vals_val_get(test_section, 'MPI', i_val=runtest(8))
       CALL section_vals_val_get(test_section, 'RNG', i_val=runtest(9))
       CALL section_vals_val_get(test_section, 'MINIMAX', i_val=runtest(10))
+      CALL section_vals_val_get(test_section, 'LEAST_SQ_FT', i_val=runtest(11))
 
       CALL mp_sync(para_env%group)
    END SUBROUTINE test_input

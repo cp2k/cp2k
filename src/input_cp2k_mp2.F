@@ -917,6 +917,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword=keyword, name="POINTS_PER_MAGNITUDE", &
+                          variants=(/"PPM"/), &
+                          description="Number of evaluation points (x) of the function 2x/(x^2+omega^2) per order of  "// &
+                          "magnitude of the range Rc. Normally, this parameter needs not to be touched.", &
+                          usage="PPM 1000", &
+                          default_i_val=200)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create( &
          keyword, name="EPS_COMM", &
          description="Screening for the communication of data. If numbers are smaller than EPS_COMM,  "// &

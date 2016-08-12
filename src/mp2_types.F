@@ -135,7 +135,7 @@ MODULE mp2_types
       INTEGER                  :: cut_memory
       LOGICAL                  :: memory_info
       REAL(KIND=dp)            :: eps_comm, eps_filter_im_time
-      INTEGER                  :: group_size_P, group_size_3c, add_cut_RI
+      INTEGER                  :: group_size_P, group_size_3c, add_cut_RI, num_points_per_magnitude
       INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_cm, starts_array_cm, &
                                             ends_array_cm
    END TYPE

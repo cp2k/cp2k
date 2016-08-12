@@ -238,6 +238,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="LEAST_SQ_FT", &
+                          description="Tests accuracy of the integration weights gamma_ik from Kaltak, "// &
+                          "Klimes, Kresse, JCTC 10, 2498 (2014), Eq. 30. Printed is the L1-error (=minimax "// &
+                          "error for a given range and a given number of grid points. The input parameter is "// &
+                          "the given number of different Rc values.", &
+                          usage="MINIMAX 1000", default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL cp_print_key_section_create( &
          print_key, "GRID_INFORMATION", &
          description="Controls the printing of information regarding the PW and RS grid structures"// &
