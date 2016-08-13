@@ -65,6 +65,7 @@ MODULE basis_set_types
    TYPE gto_basis_set_type
       !MK PRIVATE
       CHARACTER(LEN=default_string_length)       :: name
+      CHARACTER(LEN=default_string_length)       :: aliases
       REAL(KIND=dp)                            :: kind_radius
       REAL(KIND=dp)                            :: short_kind_radius
       INTEGER                                    :: norm_type = -1
@@ -258,6 +259,7 @@ CONTAINS
       bout => basis_set_out
 
       bout%name = bin%name
+      bout%aliases = bin%aliases
       bout%kind_radius = bin%kind_radius
       bout%norm_type = bin%norm_type
       bout%nset = bin%nset
@@ -603,6 +605,7 @@ CONTAINS
 !> \brief ...
 !> \param gto_basis_set ...
 !> \param name ...
+!> \param aliases ...
 !> \param norm_type ...
 !> \param kind_radius ...
 !> \param ncgf ...
@@ -646,7 +649,7 @@ CONTAINS
 !> \param maxder ...
 !> \param short_kind_radius ...
 ! **************************************************************************************************
-   SUBROUTINE get_gto_basis_set(gto_basis_set, name, norm_type, kind_radius, ncgf, &
+   SUBROUTINE get_gto_basis_set(gto_basis_set, name, aliases, norm_type, kind_radius, ncgf, &
                                 nset, nsgf, cgf_symbol, sgf_symbol, norm_cgf, set_radius, lmax, lmin, lx, ly, lz, &
                                 m, ncgf_set, npgf, nsgf_set, nshell, cphi, pgf_radius, sphi, scon, zet, first_cgf, first_sgf, l, &
                                 last_cgf, last_sgf, n, gcc, maxco, maxl, maxpgf, maxsgf_set, maxshell, maxso, nco_sum, &
@@ -658,7 +661,7 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
+         INTENT(OUT), OPTIONAL                           :: name, aliases
       INTEGER, INTENT(OUT), OPTIONAL                     :: norm_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: kind_radius
       INTEGER, INTENT(OUT), OPTIONAL                     :: ncgf, nset, nsgf
@@ -687,6 +690,7 @@ CONTAINS
 
       IF (ASSOCIATED(gto_basis_set)) THEN
          IF (PRESENT(name)) name = gto_basis_set%name
+         IF (PRESENT(aliases)) aliases = gto_basis_set%aliases
          IF (PRESENT(norm_type)) norm_type = gto_basis_set%norm_type
          IF (PRESENT(kind_radius)) kind_radius = gto_basis_set%kind_radius
          IF (PRESENT(short_kind_radius)) short_kind_radius = gto_basis_set%short_kind_radius
@@ -1326,6 +1330,11 @@ CONTAINS
                   IF ((INDEX(line2, symbol2(:strlen1)) > 0) .AND. &
                       (INDEX(line2, bsname2(:strlen2)) > 0)) match = .TRUE.
                   IF (match) THEN
+                     ! copy all names into aliases field
+                     i = INDEX(line2, symbol2(:strlen1))
+                     i = i+1+INDEX(line2(i+1:), " ")
+                     gto_basis_set%aliases = line2(i:)
+
                      NULLIFY (gcc, l, lmax, lmin, n, npgf, nshell, zet)
                      ! Read the basis set information
                      CALL parser_get_object(parser, nset, newline=.TRUE.)
@@ -1569,6 +1578,7 @@ CONTAINS
       bsname2 = ""
 
       gto_basis_set%name = " "
+      gto_basis_set%aliases = " "
 
       bsname = " "
       symbol = element_symbol
@@ -1795,6 +1805,7 @@ CONTAINS
 !> \brief ...
 !> \param gto_basis_set ...
 !> \param name ...
+!> \param aliases ...
 !> \param norm_type ...
 !> \param kind_radius ...
 !> \param ncgf ...
@@ -1828,7 +1839,7 @@ CONTAINS
 !> \param gcc ...
 !> \param short_kind_radius ...
 ! **************************************************************************************************
-   SUBROUTINE set_gto_basis_set(gto_basis_set, name, norm_type, kind_radius, ncgf, &
+   SUBROUTINE set_gto_basis_set(gto_basis_set, name, aliases, norm_type, kind_radius, ncgf, &
                                 nset, nsgf, cgf_symbol, sgf_symbol, norm_cgf, set_radius, lmax, &
                                 lmin, lx, ly, lz, m, ncgf_set, npgf, nsgf_set, nshell, &
                                 cphi, pgf_radius, sphi, scon, zet, first_cgf, first_sgf, l, &
@@ -1840,7 +1851,7 @@ CONTAINS
 
       TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
       CHARACTER(LEN=default_string_length), INTENT(IN), &
-         OPTIONAL                                        :: name
+         OPTIONAL                                        :: name, aliases
       INTEGER, INTENT(IN), OPTIONAL                      :: norm_type
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kind_radius
       INTEGER, INTENT(IN), OPTIONAL                      :: ncgf, nset, nsgf
@@ -1863,6 +1874,7 @@ CONTAINS
 
       IF (ASSOCIATED(gto_basis_set)) THEN
          IF (PRESENT(name)) gto_basis_set%name = name
+         IF (PRESENT(aliases)) gto_basis_set%aliases = aliases
          IF (PRESENT(norm_type)) gto_basis_set%norm_type = norm_type
          IF (PRESENT(kind_radius)) gto_basis_set%kind_radius = kind_radius
          IF (PRESENT(short_kind_radius)) gto_basis_set%short_kind_radius = short_kind_radius

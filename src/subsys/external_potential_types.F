@@ -121,6 +121,7 @@ MODULE external_potential_types
    TYPE gth_potential_type
       !PRIVATE
       CHARACTER(LEN=default_string_length)       :: name
+      CHARACTER(LEN=default_string_length)       :: aliases
       CHARACTER(LEN=default_string_length), &
          DIMENSION(4)                          :: description
       REAL(KIND=dp)                            :: alpha_core_charge, &
@@ -633,6 +634,7 @@ CONTAINS
 !> \brief   Get attributes of a GTH potential data set.
 !> \param potential ...
 !> \param name ...
+!> \param aliases ...
 !> \param alpha_core_charge ...
 !> \param alpha_ppl ...
 !> \param ccore_charge ...
@@ -677,7 +679,7 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE get_gth_potential(potential, name, alpha_core_charge, &
+   SUBROUTINE get_gth_potential(potential, name, aliases, alpha_core_charge, &
                                 alpha_ppl, ccore_charge, cerf_ppl, &
                                 core_charge_radius, ppl_radius, ppnl_radius, &
                                 lppnl, lprj_ppnl_max, nexp_ppl, nppnl, &
@@ -691,7 +693,7 @@ CONTAINS
 
       TYPE(gth_potential_type), POINTER                  :: potential
       CHARACTER(LEN=default_string_length), &
-         INTENT(OUT), OPTIONAL                           :: name
+         INTENT(OUT), OPTIONAL                           :: name, aliases
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha_core_charge, alpha_ppl, &
                                                             ccore_charge, cerf_ppl, &
                                                             core_charge_radius, ppl_radius, &
@@ -727,6 +729,7 @@ CONTAINS
       IF (ASSOCIATED(potential)) THEN
 
          IF (PRESENT(name)) name = potential%name
+         IF (PRESENT(aliases)) aliases = potential%aliases
          IF (PRESENT(alpha_core_charge)) &
             alpha_core_charge = potential%alpha_core_charge
          IF (PRESENT(alpha_ppl)) alpha_ppl = potential%alpha_ppl
@@ -1432,6 +1435,7 @@ CONTAINS
       CALL cite_reference(Krack2005)
 
       potential%name = potential_name
+      potential%aliases = potential_name
       read_from_input = .FALSE.
       CALL section_vals_get(potential_section, explicit=read_from_input)
       IF (.NOT. read_from_input) THEN
@@ -1476,8 +1480,13 @@ CONTAINS
                strlen1 = LEN_TRIM(symbol2)+1
                strlen2 = LEN_TRIM(apname2)+1
 
-               IF ((INDEX(line2, symbol2(:strlen1)) > 0) .AND. &
-                   (INDEX(line2, apname2(:strlen2)) > 0)) match = .TRUE.
+               i = INDEX(line2, symbol2(:strlen1))
+               j = INDEX(line2, apname2(:strlen2))
+               IF (i > 0 .AND. j > 0) THEN
+                  match = .TRUE.
+                  i = i+1+INDEX(line2(i+1:), " ")
+                  potential%aliases = line2(i:) ! copy all names into aliases field
+               ENDIF
             END IF
             IF (match) THEN
                !         *** Read the electronic configuration ***

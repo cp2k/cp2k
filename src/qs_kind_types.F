@@ -1814,6 +1814,9 @@ CONTAINS
                              "No potential type was defined for the "// &
                              "atomic kind <"//TRIM(qs_kind%name)//">")
             END IF
+
+            CALL check_potential_basis_compatibility(qs_kind)
+
             ! Allocate and initialise the potential data set structure
             IF ((kgpot_name /= '') .OR. explicit_kgpot) THEN
                ipos = INDEX(kgpot_name, "-")
@@ -1846,6 +1849,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE read_qs_kind
+
+! **************************************************************************************************
+!> \brief Ensure pseudo-potential and basis set were optimized for same number of valence electrons
+!> \param qs_kind ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE check_potential_basis_compatibility(qs_kind)
+      TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
+
+      CHARACTER(LEN=default_string_length)               :: name
+      INTEGER                                            :: nbs, npp
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+
+      CALL get_qs_kind(qs_kind, name=name, gth_potential=gth_potential, basis_set=basis_set)
+
+      npp = -1; nbs = -1
+      IF (ASSOCIATED(gth_potential)) &
+         npp = parse_valence_electrons(gth_potential%aliases)
+      IF (ASSOCIATED(basis_set)) &
+         nbs = parse_valence_electrons(basis_set%aliases)
+
+      IF (npp >= 0 .AND. nbs >= 0 .AND. npp /= nbs) &
+         CALL cp_abort(__LOCATION__, "Basis-set and pseudo-potential of atomic kind '"//TRIM(name)//"'"// &
+                       " were optimized for different valence electron numbers.")
+
+   END SUBROUTINE check_potential_basis_compatibility
+
+! **************************************************************************************************
+!> \brief Tries to parse valence eletron number using "-QXXX" notation, returns -1 if not found.
+!> \param string ...
+!> \retval n ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION parse_valence_electrons(string) RESULT(n)
+      CHARACTER(*)                                       :: string
+      INTEGER                                            :: n
+
+      INTEGER                                            :: i, istat, j
+
+      DO i = 1, LEN_TRIM(string)-2
+         IF (string(i:i+1) .NE. "-Q") CYCLE
+         j = SCAN(string(i+2:), "- ")
+         READ (string(i+2:i+j), '(I3)', iostat=istat) n
+         IF (istat == 0) RETURN
+      ENDDO
+      n = -1 ! valence electron number not found
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Read an atomic kind set data set from the input file.
