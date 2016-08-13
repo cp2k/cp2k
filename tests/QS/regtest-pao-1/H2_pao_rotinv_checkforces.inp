@@ -38,7 +38,7 @@
     &END COORD
     &KIND H
       BASIS_SET TZVP-ALL-PADE ! basis containing multiple sets
-      POTENTIAL GTH-PBE-q1
+      POTENTIAL GTH-PBE
       PAO_BASIS_SIZE 1
       &PAO_POTENTIAL
         MAXL 0
