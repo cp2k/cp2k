@@ -1245,6 +1245,7 @@ CONTAINS
       nbasis = 1
 
       gto_basis_set%name = basis_set_name
+      gto_basis_set%aliases = basis_set_name
       CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", &
                                 n_rep_val=nbasis)
       ALLOCATE (cbasis(nbasis))
