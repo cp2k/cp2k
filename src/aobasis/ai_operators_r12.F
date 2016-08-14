@@ -108,7 +108,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
       REAL(KIND=dp), INTENT(IN)                          :: rac2
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vac
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)    :: v
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: v
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: vac_plus
 

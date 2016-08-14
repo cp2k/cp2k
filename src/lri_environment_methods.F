@@ -33,9 +33,9 @@ MODULE lri_environment_methods
                                               int_overlap_ab_os,&
                                               int_overlap_aba_os,&
                                               int_overlap_abb_os
-   USE generic_shg_integrals,           ONLY: int_overlap_ab_shg,&
-                                              int_overlap_aba_shg,&
-                                              int_overlap_abb_shg,&
+   USE generic_shg_integrals,           ONLY: int_overlap_ab_shg_low,&
+                                              int_overlap_aba_shg_low,&
+                                              int_overlap_abb_shg_low,&
                                               lri_precalc_angular_shg_part
    USE input_constants,                 ONLY: do_lri_inv,&
                                               do_lri_inv_auto,&
@@ -772,25 +772,26 @@ CONTAINS
          fba_index => lri_env%bas_prop(ikind)%ri_index
          obb_index => lri_env%bas_prop(jkind)%orb_index
          fbb_index => lri_env%bas_prop(jkind)%ri_index
-         CALL lri_precalc_angular_shg_part(obasa, obasb, fbasa, fbasb, rab, Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         CALL lri_precalc_angular_shg_part(obasa, obasb, fbasa, fbasb, rab, Waux_mat, dWaux_mat, &
+                                           lrii%calc_force_pair)
          !*** (fa,fb)
-         CALL int_overlap_ab_shg(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_fba, scon_fbb, &
-                                 Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.FALSE.)
+         CALL int_overlap_ab_shg_low(lrii%sab, lrii%dsab, rab, fbasa, fbasb, scon_fba, scon_fbb, &
+                                     Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.FALSE.)
          !*** (a,b)
-         CALL int_overlap_ab_shg(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_oba, scon_obb, &
-                                 Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.TRUE.)
+         CALL int_overlap_ab_shg_low(lrii%soo, lrii%dsoo, rab, obasa, obasb, scon_oba, scon_obb, &
+                                     Waux_mat, dWaux_mat, lrii%calc_force_pair, contraction_high=.TRUE.)
          !*** (a,b,fa)
-         CALL int_overlap_aba_shg(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
-                                  scon_obb, scona_mix, oba_index, fba_index, &
-                                  lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
-                                  lri_env%cg_shg%ncg_none0, &
-                                  Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         CALL int_overlap_aba_shg_low(lrii%abaint, lrii%dabdaint, rab, obasa, obasb, fbasa, &
+                                      scon_obb, scona_mix, oba_index, fba_index, &
+                                      lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
+                                      lri_env%cg_shg%ncg_none0, &
+                                      Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (a,b,fb)
-         CALL int_overlap_abb_shg(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
-                                  scon_oba, sconb_mix, obb_index, fbb_index, &
-                                  lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
-                                  lri_env%cg_shg%ncg_none0, &
-                                  Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         CALL int_overlap_abb_shg_low(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
+                                      scon_oba, sconb_mix, obb_index, fbb_index, &
+                                      lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
+                                      lri_env%cg_shg%ncg_none0, &
+                                      Waux_mat, dWaux_mat, lrii%calc_force_pair)
          DEALLOCATE (Waux_mat, dWaux_mat)
       ENDIF
 

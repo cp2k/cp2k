@@ -22,9 +22,9 @@ MODULE generic_shg_integrals
         construct_overlap_shg_abb, dev_overlap_shg_aba, dev_overlap_shg_abb, get_W_matrix, &
         get_dW_matrix, get_real_scaled_solid_harmonic
    USE ai_s_contract_shg,               ONLY: &
-        contract_s_overlap_aba, contract_s_overlap_abb, contract_sint_ab_chigh, &
-        contract_sint_ab_clow, s_coulomb_ab, s_gauss_ab, s_overlap_ab, s_overlap_abb, s_verf_ab, &
-        s_verfc_ab, s_vgauss_ab
+        contract_s_overlap_aba, contract_s_overlap_abb, contract_s_ra2m_ab, &
+        contract_sint_ab_chigh, contract_sint_ab_clow, s_coulomb_ab, s_gauss_ab, s_overlap_ab, &
+        s_overlap_abb, s_ra2m_ab, s_verf_ab, s_verfc_ab, s_vgauss_ab
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE input_constants,                 ONLY: operator_coulomb,&
                                               operator_gauss,&
@@ -41,9 +41,11 @@ MODULE generic_shg_integrals
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'generic_shg_integrals'
 
-   PUBLIC :: two_center_shg_integrals, lri_precalc_angular_shg_part, &
-             int_overlap_ab_shg, int_overlap_aba_shg, int_overlap_abb_shg, &
-             precalc_angular_shg_part
+   PUBLIC :: int_operators_r12_ab_shg, int_overlap_ab_shg, &
+             int_ra2m_ab_shg, int_overlap_aba_shg, int_overlap_abb_shg, &
+             lri_precalc_angular_shg_part, &
+             int_overlap_ab_shg_low, int_ra2m_ab_shg_low, int_overlap_aba_shg_low, &
+             int_overlap_abb_shg_low
 
    ABSTRACT INTERFACE
 ! **************************************************************************************************
@@ -91,19 +93,19 @@ CONTAINS
 !> \param omega parameter in the operator
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE two_center_shg_integrals(r12_operator, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+   SUBROUTINE int_operators_r12_ab_shg(r12_operator, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
                                        omega, calculate_forces)
 
       INTEGER, INTENT(IN)                                :: r12_operator
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vab
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dvab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scona_shg, sconb_shg
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'two_center_shg_integrals', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operators_r12_ab_shg', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, la_max, lb_max
@@ -141,14 +143,228 @@ CONTAINS
          CPABORT("Operator not available")
       END SELECT
 
-      CALL int_operator_ab_shg(s_operator_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
-                               my_omega, Waux_mat, dWaux_mat, calculate_forces)
+      CALL int_operator_ab_shg_low(s_operator_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                   my_omega, Waux_mat, dWaux_mat, calculate_forces)
 
       DEALLOCATE (Waux_mat, dWaux_mat)
 
       CALL timestop(handle)
 
-   END SUBROUTINE two_center_shg_integrals
+   END SUBROUTINE int_operators_r12_ab_shg
+
+! **************************************************************************************************
+!> \brief calculate overlap integrals (a,b)
+!> \param vab integral (a,b)
+!> \param dvab derivative of sab
+!> \param rab distance vector
+!> \param fba basis at center A
+!> \param fbb basis at center B
+!> \param scona_shg contraction matrix A
+!> \param sconb_shg contraxtion matrix B
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE int_overlap_ab_shg(vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                 calculate_forces)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_shg', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, la_max, lb_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
+
+      CALL timeset(routineN, handle)
+
+      la_max = MAXVAL(fba%lmax)
+      lb_max = MAXVAL(fbb%lmax)
+
+      CALL precalc_angular_shg_part(la_max, lb_max, rab, Waux_mat, dWaux_mat, calculate_forces)
+
+      CALL int_overlap_ab_shg_low(vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                  Waux_mat, dWaux_mat, calculate_forces, contraction_high=.TRUE.)
+
+      DEALLOCATE (Waux_mat, dWaux_mat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE int_overlap_ab_shg
+
+! **************************************************************************************************
+!> \brief Calcululates the two-center integrals of the type (a|(r-Ra)^(2m)|b) using the SHG scheme
+!> \param vab integral matrix of spherical contracted Gaussian functions
+!> \param dvab derivative of the integrals
+!> \param rab distance vector between center A and B
+!> \param fba basis at center A
+!> \param fbb basis at center B
+!> \param scon_ra2m contraction matrix for A including the combinatorial factors
+!> \param sconb_shg SHG contraction matrix for B
+!> \param m exponent in (r-Ra)^(2m) operator
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE int_ra2m_ab_shg(vab, dvab, rab, fba, fbb, scon_ra2m, sconb_shg, &
+                              m, calculate_forces)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: scon_ra2m
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: sconb_shg
+      INTEGER, INTENT(IN)                                :: m
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_shg', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, la_max, lb_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
+
+      CALL timeset(routineN, handle)
+
+      la_max = MAXVAL(fba%lmax)
+      lb_max = MAXVAL(fbb%lmax)
+
+      CALL precalc_angular_shg_part(la_max, lb_max, rab, Waux_mat, dWaux_mat, calculate_forces)
+      CALL int_ra2m_ab_shg_low(vab, dvab, rab, fba, fbb, sconb_shg, scon_ra2m, &
+                               m, Waux_mat, dWaux_mat, calculate_forces)
+
+      DEALLOCATE (Waux_mat, dWaux_mat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE int_ra2m_ab_shg
+
+! **************************************************************************************************
+!> \brief calculate integrals (a,b,fa)
+!> \param saba integral [aba]
+!> \param dsaba derivative of [aba]
+!> \param rab distance vector between A and B
+!> \param oba orbital basis at center A
+!> \param obb orbital basis at center B
+!> \param fba auxiliary basis set at center A
+!> \param scon_obb contraction matrix for orb bas on B
+!> \param scona_mix mixed contraction matrix orb + ri basis on A
+!> \param oba_index orbital basis index for scona_mix
+!> \param fba_index ri basis index for scona_mix
+!> \param cg_coeff Clebsch-Gordon coefficients
+!> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
+!> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE int_overlap_aba_shg(saba, dsaba, rab, oba, obb, fba, scon_obb, &
+                                  scona_mix, oba_index, fba_index, &
+                                  cg_coeff, cg_none0_list, ncg_none0, &
+                                  calculate_forces)
+
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: saba
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: dsaba
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_obb
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: scona_mix
+      INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: oba_index, fba_index
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: cg_coeff
+      INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: cg_none0_list
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ncg_none0
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_shg', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, laa_max, lb_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
+
+      CALL timeset(routineN, handle)
+
+      laa_max = MAXVAL(oba%lmax)+MAXVAL(fba%lmax)
+      lb_max = MAXVAL(obb%lmax)
+
+      saba = 0.0_dp
+      dsaba = 0.0_dp
+      CALL precalc_angular_shg_part(laa_max, lb_max, rab, Waux_mat, dWaux_mat, &
+                                    calculate_forces)
+      CALL int_overlap_aba_shg_low(saba, dsaba, rab, oba, obb, fba, &
+                                   scon_obb, scona_mix, oba_index, fba_index, &
+                                   cg_coeff, cg_none0_list, ncg_none0, &
+                                   Waux_mat, dWaux_mat, calculate_forces)
+
+      DEALLOCATE (Waux_mat, dWaux_mat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE int_overlap_aba_shg
+
+! **************************************************************************************************
+!> \brief calculate integrals (a,b,fb)
+!> \param sabb integral [abb]
+!> \param dsabb derivative of [abb]
+!> \param rab distance vector between A and B
+!> \param oba orbital basis at center A
+!> \param obb orbital basis at center B
+!> \param fbb auxiliary basis set at center B
+!> \param scon_oba contraction matrix for orb bas on A
+!> \param sconb_mix mixed contraction matrix orb + ri basis on B
+!> \param obb_index orbital basis index for sconb_mix
+!> \param fbb_index ri basis index for sconb_mix
+!> \param cg_coeff Clebsch-Gordon coefficients
+!> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
+!> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE int_overlap_abb_shg(sabb, dsabb, rab, oba, obb, fbb, scon_oba, &
+                                  sconb_mix, obb_index, fbb_index, &
+                                  cg_coeff, cg_none0_list, ncg_none0, &
+                                  calculate_forces)
+
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: sabb
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: dsabb
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fbb
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_oba
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: sconb_mix
+      INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: obb_index, fbb_index
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: cg_coeff
+      INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: cg_none0_list
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ncg_none0
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_shg', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, la_max, lbb_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
+
+      CALL timeset(routineN, handle)
+
+      la_max = MAXVAL(oba%lmax)
+      lbb_max = MAXVAL(obb%lmax)+MAXVAL(fbb%lmax)
+
+      sabb = 0.0_dp
+      dsabb = 0.0_dp
+      CALL precalc_angular_shg_part(lbb_max, la_max, rab, Waux_mat, dWaux_mat, &
+                                    calculate_forces)
+      CALL int_overlap_abb_shg_low(sabb, dsabb, rab, oba, obb, fbb, &
+                                   scon_oba, sconb_mix, obb_index, fbb_index, &
+                                   cg_coeff, cg_none0_list, ncg_none0, &
+                                   Waux_mat, dWaux_mat, calculate_forces)
+
+      DEALLOCATE (Waux_mat, dWaux_mat)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE int_overlap_abb_shg
 
 ! **************************************************************************************************
 !> \brief precalculates the angular part of the SHG integrals
@@ -223,21 +439,21 @@ CONTAINS
 !> \param dWaux_mat derivative of the W matrix
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE int_operator_ab_shg(s_operator_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
-                                  omega, Waux_mat, dWaux_mat, calculate_forces)
+   SUBROUTINE int_operator_ab_shg_low(s_operator_ab, vab, dvab, rab, fba, fbb, scona_shg, sconb_shg, &
+                                      omega, Waux_mat, dWaux_mat, calculate_forces)
 
       PROCEDURE(ab_sint_shg), POINTER                    :: s_operator_ab
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vab
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dvab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scona_shg, sconb_shg
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: scona_shg, sconb_shg
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_shg', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_shg_low', routineP = moduleN//':'//routineN
 
       INTEGER :: handle, iset, jset, la_max_set, lb_max_set, ndev, nds, nds_max, npgfa_set, &
                  npgfb_set, nseta, nsetb, nsgfa_set, nsgfb_set, nshella_set, nshellb_set
@@ -247,7 +463,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: swork, swork_cont
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE     :: swork, swork_cont
 
       CALL timeset(routineN, handle)
       NULLIFY (la_max, lb_max, npgfa, npgfb, first_sgfa, first_sgfb, set_radius_a, &
@@ -299,10 +515,11 @@ CONTAINS
 
          DO jset = 1, nsetb
 
+            nds = la_max(iset)+lb_max(jset)+ndev+1
+            swork(1:npgfa(iset), 1:npgfb(jset), 1:nds) = 0.0_dp
             CALL s_operator_ab(la_max(iset), npgfa(iset), zeta(:, iset), &
                                lb_max(jset), npgfb(jset), zetb(:, jset), &
                                omega, rab, swork, calculate_forces)
-            nds = la_max(iset)+lb_max(jset)+ndev+1
             CALL contract_sint_ab_chigh(npgfa(iset), nshella(iset), &
                                         scona_shg(1:npgfa(iset), 1:nshella(iset), iset), &
                                         npgfb(jset), nshellb(jset), &
@@ -324,10 +541,11 @@ CONTAINS
       DEALLOCATE (swork, swork_cont)
 
       CALL timestop(handle)
-   END SUBROUTINE int_operator_ab_shg
+
+   END SUBROUTINE int_operator_ab_shg_low
 
 ! **************************************************************************************************
-!> \brief calculate overlap integrals (a,b)
+!> \brief calculate overlap integrals (a,b); requires angular-dependent part as input
 !> \param sab integral (a,b)
 !> \param dsab derivative of sab
 !> \param rab distance vector
@@ -340,20 +558,19 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param contraction_high ...
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_ab_shg(sab, dsab, rab, fba, fbb, scona_shg, sconb_shg, Waux_mat, dWaux_mat, &
-                                 calculate_forces, contraction_high)
+   SUBROUTINE int_overlap_ab_shg_low(sab, dsab, rab, fba, fbb, scona_shg, sconb_shg, Waux_mat, dWaux_mat, &
+                                     calculate_forces, contraction_high)
 
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sab
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dsab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scona_shg, sconb_shg
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Waux_mat
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg, Waux_mat
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
       LOGICAL, INTENT(IN)                                :: calculate_forces
       LOGICAL, INTENT(IN), OPTIONAL                      :: contraction_high
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_shg', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_shg_low', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: handle, iset, jset, la_max_set, lb_max_set, ndev, nds, nds_max, npgfa_set, &
@@ -418,11 +635,12 @@ CONTAINS
 
             IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
 
+            nds = la_max(iset)+lb_max(jset)+ndev+1
+            swork(1:npgfa(iset), 1:npgfb(jset), 1:nds) = 0.0_dp
             CALL s_overlap_ab(la_max(iset), npgfa(iset), zeta(:, iset), &
                               lb_max(jset), npgfb(jset), zetb(:, jset), &
                               rab, swork, calculate_forces)
             IF (my_contraction_high) THEN
-               nds = la_max(iset)+lb_max(jset)+ndev+1
                CALL contract_sint_ab_chigh(npgfa(iset), nshella(iset), &
                                            scona_shg(1:npgfa(iset), 1:nshella(iset), iset), &
                                            npgfb(jset), nshellb(jset), &
@@ -452,10 +670,125 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE int_overlap_ab_shg
+   END SUBROUTINE int_overlap_ab_shg_low
 
 ! **************************************************************************************************
-!> \brief calculate integrals (a,b,fb)
+!> \brief calculate integrals (a|ra^2m)|b); requires angular-dependent part as input
+!> \param vab integral matrix of spherical contracted Gaussian functions
+!> \param dvab derivative of the integrals
+!> \param rab distance vector between center A and B
+!> \param fba basis at center A
+!> \param fbb basis at center B
+!> \param sconb_shg SHG contraction matrix for B
+!> \param scon_ra2m contraction matrix for A including the combinatorial factors
+!> \param m exponent in (r-Ra)^(2m) operator
+!> \param Waux_mat W matrix that contains the angular-dependent part
+!> \param dWaux_mat derivative of the W matrix
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE int_ra2m_ab_shg_low(vab, dvab, rab, fba, fbb, sconb_shg, scon_ra2m, m, Waux_mat, dWaux_mat, &
+                                  calculate_forces)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: dvab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: sconb_shg
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: scon_ra2m
+      INTEGER, INTENT(IN)                                :: m
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Waux_mat
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_shg_low', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: handle, iset, jset, la_max_set, lb_max_set, ndev, nds, nds_max, npgfa_set, &
+         npgfb_set, nseta, nsetb, nshella_set, nshellb_set
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb, nsgfa, &
+                                                            nsgfb, nshella, nshellb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, la, lb
+      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: swork_cont
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: swork
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
+
+      CALL timeset(routineN, handle)
+      NULLIFY (la_max, lb_max, npgfa, npgfb, first_sgfa, first_sgfb, zeta, zetb)
+
+      ! basis ikind
+      first_sgfa => fba%first_sgf
+      la_max => fba%lmax
+      la => fba%l
+      npgfa => fba%npgf
+      nsgfa => fba%nsgf_set
+      nseta = fba%nset
+      zeta => fba%zet
+      nshella => fba%nshell
+      ! basis jkind
+      first_sgfb => fbb%first_sgf
+      lb_max => fbb%lmax
+      lb => fbb%l
+      npgfb => fbb%npgf
+      nsgfb => fbb%nsgf_set
+      nsetb = fbb%nset
+      zetb => fbb%zet
+      nshellb => fbb%nshell
+
+      dab = SQRT(SUM(rab**2))
+
+      la_max_set = MAXVAL(la_max)
+      lb_max_set = MAXVAL(lb_max)
+
+      ! allocate some work matrices
+      npgfa_set = MAXVAL(npgfa)
+      npgfb_set = MAXVAL(npgfb)
+      nshella_set = MAXVAL(nshella)
+      nshellb_set = MAXVAL(nshellb)
+      ndev = 0
+      IF (calculate_forces) ndev = 1
+      nds_max = la_max_set+lb_max_set+ndev+1
+      ALLOCATE (swork(npgfa_set, npgfb_set, 1:m+1, nds_max))
+      ALLOCATE (swork_cont(nds_max, nshella_set, nshellb_set))
+
+      vab = 0.0_dp
+      dvab = 0.0_dp
+
+      DO iset = 1, nseta
+
+         DO jset = 1, nsetb
+
+            nds = la_max(iset)+lb_max(jset)+ndev+1
+            swork(1:npgfa(iset), 1:npgfb(jset), 1:m+1, 1:nds) = 0.0_dp
+            CALL s_ra2m_ab(la_max(iset), npgfa(iset), zeta(:, iset), &
+                           lb_max(jset), npgfb(jset), zetb(:, jset), &
+                           m, rab, swork, calculate_forces)
+            CALL contract_s_ra2m_ab(npgfa(iset), nshella(iset), &
+                                    scon_ra2m(1:npgfa(iset), 1:m+1, 1:nshella(iset), iset), &
+                                    npgfb(jset), nshellb(jset), &
+                                    sconb_shg(1:npgfb(jset), 1:nshellb(jset), jset), &
+                                    swork(1:npgfa(iset), 1:npgfb(jset), 1:m+1, 1:nds), &
+                                    swork_cont(1:nds, 1:nshella(iset), 1:nshellb(jset)), &
+                                    m, nds)
+            CALL construct_int_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
+                                      lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
+                                      swork_cont, Waux_mat, vab)
+            IF (calculate_forces) THEN
+               !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
+               CALL construct_dev_shg_ab(la(:, iset), first_sgfa(:, iset), nshella(iset), &
+                                         lb(:, jset), first_sgfb(:, jset), nshellb(jset), &
+                                         -rab, swork_cont, Waux_mat, dWaux_mat, dvab)
+            ENDIF
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (swork, swork_cont)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE int_ra2m_ab_shg_low
+! **************************************************************************************************
+!> \brief calculate integrals (a,b,fb); requires angular-dependent part as input
 !> \param abbint integral (a,b,fb)
 !> \param dabbint derivative of abbint
 !> \param rab distance vector between A and B
@@ -473,12 +806,13 @@ CONTAINS
 !> \param dWaux_mat derivative of the W matrix
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_abb_shg(abbint, dabbint, rab, oba, obb, fbb, scon_oba, sconb_mix, &
-                                  obb_index, fbb_index, cg_coeff, cg_none0_list, &
-                                  ncg_none0, Waux_mat, dWaux_mat, calculate_forces)
+   SUBROUTINE int_overlap_abb_shg_low(abbint, dabbint, rab, oba, obb, fbb, scon_oba, sconb_mix, &
+                                      obb_index, fbb_index, cg_coeff, cg_none0_list, &
+                                      ncg_none0, Waux_mat, dWaux_mat, calculate_forces)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abbint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dabbint
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abbint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: dabbint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fbb
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_oba
@@ -491,7 +825,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_shg', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_abb_shg_low', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: handle, iset, jset, kset, la_max_set, lb_max_set, lbb_max, lbb_max_set, &
@@ -575,14 +909,14 @@ CONTAINS
 
                IF (set_radius_a(iset)+set_radius_cb(kset) < dab) CYCLE
 
+               lbb_max = lb_max(jset)+lcb_max(kset)
+               nds = la_max(iset)+lbb_max+ndev+1
+               nl = INT((lbb_max)/2)+1
+               swork(1:npgfa(iset), 1:npgfb(jset), 1:npgfcb(kset), 1:nl, 1:nds) = 0.0_dp
                CALL s_overlap_abb(la_max(iset), npgfa(iset), zeta(:, iset), &
                                   lb_max(jset), npgfb(jset), zetb(:, jset), &
                                   lcb_max(kset), npgfcb(kset), zetcb(:, kset), &
                                   rab, swork, calculate_forces)
-
-               lbb_max = lb_max(jset)+lcb_max(kset)
-               nds = la_max(iset)+lbb_max+ndev+1
-               nl = INT((lbb_max)/2)+1
 
                CALL contract_s_overlap_abb(la(:, iset), npgfa(iset), nshella(iset), &
                                            scon_oba(1:npgfa(iset), 1:nshella(iset), iset), &
@@ -615,10 +949,10 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE int_overlap_abb_shg
+   END SUBROUTINE int_overlap_abb_shg_low
 
 ! **************************************************************************************************
-!> \brief calculate integrals (a,b,fa)
+!> \brief calculate integrals (a,b,fa);  requires angular-dependent part as input
 !> \param abaint integral (a,b,fa)
 !> \param dabdaint ...
 !> \param rab distance vector between A and B
@@ -636,12 +970,13 @@ CONTAINS
 !> \param dWaux_mat derivative of the W matrix
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE int_overlap_aba_shg(abaint, dabdaint, rab, oba, obb, fba, scon_obb, scona_mix, &
-                                  oba_index, fba_index, cg_coeff, cg_none0_list, &
-                                  ncg_none0, Waux_mat, dWaux_mat, calculate_forces)
+   SUBROUTINE int_overlap_aba_shg_low(abaint, dabdaint, rab, oba, obb, fba, scon_obb, scona_mix, &
+                                      oba_index, fba_index, cg_coeff, cg_none0_list, &
+                                      ncg_none0, Waux_mat, dWaux_mat, calculate_forces)
 
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: abaint
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dabdaint
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abaint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: dabdaint
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb, fba
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_obb
@@ -654,7 +989,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: dWaux_mat
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_shg', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_aba_shg_low', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: handle, iset, jset, kset, la_max_set, laa_max, laa_max_set, lb_max_set, &
@@ -739,14 +1074,14 @@ CONTAINS
                IF (set_radius_b(jset)+set_radius_ca(kset) < dab) CYCLE
 
                !*** calculate s_baa here
+               laa_max = la_max(iset)+lca_max(kset)
+               nds = laa_max+lb_max(jset)+ndev+1
+               nl = INT(laa_max/2)+1
+               swork(1:npgfb(jset), 1:npgfa(iset), 1:npgfca(kset), 1:nl, 1:nds) = 0.0_dp
                CALL s_overlap_abb(lb_max(jset), npgfb(jset), zetb(:, jset), &
                                   la_max(iset), npgfa(iset), zeta(:, iset), &
                                   lca_max(kset), npgfca(kset), zetca(:, kset), &
                                   rab, swork, calculate_forces)
-
-               laa_max = la_max(iset)+lca_max(kset)
-               nds = laa_max+lb_max(jset)+ndev+1
-               nl = INT(laa_max/2)+1
 
                CALL contract_s_overlap_aba(la(:, iset), npgfa(iset), nshella(iset), &
                                            lb(:, jset), npgfb(jset), nshellb(jset), &
@@ -778,7 +1113,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE int_overlap_aba_shg
+   END SUBROUTINE int_overlap_aba_shg_low
 
 ! **************************************************************************************************
 !> \brief precalculates the angular part of the SHG integrals for the matrices

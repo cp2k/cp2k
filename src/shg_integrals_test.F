@@ -15,17 +15,20 @@ MODULE shg_integrals_test
                                               gto_basis_set_type,&
                                               init_orb_basis_set,&
                                               read_gto_basis_set
-   USE generic_os_integrals,            ONLY: int_overlap_ab_os,&
+   USE cp_log_handling,                 ONLY: cp_to_string
+   USE generic_os_integrals,            ONLY: int_operators_r12_ab_os,&
+                                              int_overlap_ab_os,&
                                               int_overlap_aba_os,&
                                               int_overlap_abb_os,&
-                                              two_center_os_integrals
-   USE generic_shg_integrals,           ONLY: int_overlap_ab_shg,&
+                                              int_ra2m_ab_os
+   USE generic_shg_integrals,           ONLY: int_operators_r12_ab_shg,&
+                                              int_overlap_ab_shg,&
                                               int_overlap_aba_shg,&
                                               int_overlap_abb_shg,&
-                                              precalc_angular_shg_part,&
-                                              two_center_shg_integrals
+                                              int_ra2m_ab_shg
    USE generic_shg_integrals_init,      ONLY: contraction_matrix_shg,&
                                               contraction_matrix_shg_mix,&
+                                              contraction_matrix_shg_rx2m,&
                                               get_clebsch_gordon_coefficients
    USE input_constants,                 ONLY: operator_coulomb,&
                                               operator_gauss,&
@@ -168,6 +171,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="TEST_RA2M", &
+                          description="Calculates the integrals (a|(r-Ra)^(2m)|b).", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="M", &
+                          description="Exponent in integral (a|(r-Ra)^(2m)|b).", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="TEST_OVERLAP_ABA", &
                           description="Calculates the integrals (a|b|b).", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -291,6 +306,9 @@ CONTAINS
       CALL test_shg_overlap_integrals(oba, obb, rab, nrep, scona_shg, sconb_shg, &
                                       shg_integrals_test_section, acc_check, &
                                       acc_param, calc_derivatives, iw)
+      CALL test_shg_ra2m_integrals(oba, obb, rab, nrep, scona_shg, sconb_shg, &
+                                   shg_integrals_test_section, acc_check, &
+                                   acc_param, calc_derivatives, iw)
 
       CALL test_shg_overlap_aba_integrals(oba, obb, fba, fbb, rab, nrep, scona_shg, sconb_shg, &
                                           shg_integrals_test_section, acc_check, &
@@ -307,16 +325,16 @@ CONTAINS
    END SUBROUTINE shg_integrals_perf_acc_test
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param oba ...
-!> \param obb ...
-!> \param rab ...
+!> \brief tests two-center integrals of the type [a|O(r12)|b]
+!> \param oba basis set on a
+!> \param obb basis set on b
+!> \param rab distance between a and b
 !> \param nrep ...
-!> \param scona_shg ...
-!> \param sconb_shg ...
+!> \param scona_shg SHG contraction matrix for a
+!> \param sconb_shg SHG contraction matrix for b
 !> \param shg_integrals_test_section ...
-!> \param acc_check ...
-!> \param acc_param ...
+!> \param acc_check if accuracy is checked
+!> \param acc_param accuracy level, if deviation larger abort
 !> \param calc_derivatives ...
 !> \param iw ...
 ! **************************************************************************************************
@@ -341,8 +359,8 @@ CONTAINS
                                                             test_verf, test_verfc, test_vgauss
       REAL(KIND=dp) :: ddmax_coulomb, ddmax_gauss, ddmax_verf, ddmax_verfc, ddmax_vgauss, ddtemp, &
          dmax_coulomb, dmax_gauss, dmax_verf, dmax_verfc, dmax_vgauss, dtemp, omega
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vab_os, vab_shg
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dvab_os, dvab_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vab_os, vab_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dvab_os, dvab_shg
 
       CALL section_vals_val_get(shg_integrals_test_section, "TEST_COULOMB", l_val=test_coulomb)
       CALL section_vals_val_get(shg_integrals_test_section, "TEST_VERF", l_val=test_verf)
@@ -374,55 +392,55 @@ CONTAINS
             DO iab = 1, nab
                !*** Coulomb: (a|1/r12|b)
                IF (test_coulomb) THEN
-                  CALL two_center_shg_integrals(operator_coulomb, vab_shg, dvab_shg, rab(:, iab), &
+                  CALL int_operators_r12_ab_shg(operator_coulomb, vab_shg, dvab_shg, rab(:, iab), &
                                                 oba, obb, scona_shg, sconb_shg, &
                                                 calculate_forces=calc_derivatives)
-                  CALL two_center_os_integrals(operator_coulomb, vab_os, dvab_os, rab(:, iab), oba, obb, &
-                                               calculate_forces=calc_derivatives)
+                  CALL int_operators_r12_ab_os(operator_coulomb, vab_os, dvab_os, rab(:, iab), &
+                                               oba, obb, calculate_forces=calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_coulomb = MAX(dmax_coulomb, dtemp)
                   ddmax_coulomb = MAX(ddmax_coulomb, ddtemp)
                ENDIF
                !*** verf: (a|erf(omega*r12)/r12|b)
                IF (test_verf) THEN
-                  CALL two_center_shg_integrals(operator_verf, vab_shg, dvab_shg, rab(:, iab), &
+                  CALL int_operators_r12_ab_shg(operator_verf, vab_shg, dvab_shg, rab(:, iab), &
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
-                  CALL two_center_os_integrals(operator_verf, vab_os, dvab_os, rab(:, iab), oba, obb, &
-                                               omega, calc_derivatives)
+                  CALL int_operators_r12_ab_os(operator_verf, vab_os, dvab_os, rab(:, iab), &
+                                               oba, obb, omega, calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_verf = MAX(dmax_verf, dtemp)
                   ddmax_verf = MAX(ddmax_verf, ddtemp)
                ENDIF
                !*** verfc: (a|erfc(omega*r12)/r12|b)
                IF (test_verfc) THEN
-                  CALL two_center_shg_integrals(operator_verfc, vab_shg, dvab_shg, rab(:, iab), &
+                  CALL int_operators_r12_ab_shg(operator_verfc, vab_shg, dvab_shg, rab(:, iab), &
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
-                  CALL two_center_os_integrals(operator_verfc, vab_os, dvab_os, rab(:, iab), oba, obb, &
-                                               omega, calc_derivatives)
+                  CALL int_operators_r12_ab_os(operator_verfc, vab_os, dvab_os, rab(:, iab), &
+                                               oba, obb, omega, calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_verfc = MAX(dmax_verfc, dtemp)
                   ddmax_verfc = MAX(ddmax_verfc, ddtemp)
                ENDIF
                !*** vgauss: (a|exp(omega*r12^2)/r12|b)
                IF (test_vgauss) THEN
-                  CALL two_center_shg_integrals(operator_vgauss, vab_shg, dvab_shg, rab(:, iab), &
+                  CALL int_operators_r12_ab_shg(operator_vgauss, vab_shg, dvab_shg, rab(:, iab), &
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
-                  CALL two_center_os_integrals(operator_vgauss, vab_os, dvab_os, rab(:, iab), oba, obb, &
-                                               omega, calc_derivatives)
+                  CALL int_operators_r12_ab_os(operator_vgauss, vab_os, dvab_os, rab(:, iab), &
+                                               oba, obb, omega, calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_vgauss = MAX(dmax_vgauss, dtemp)
                   ddmax_vgauss = MAX(ddmax_vgauss, ddtemp)
                ENDIF
                !*** gauss: (a|exp(omega*r12^2)|b)
                IF (test_gauss) THEN
-                  CALL two_center_shg_integrals(operator_gauss, vab_shg, dvab_shg, rab(:, iab), &
+                  CALL int_operators_r12_ab_shg(operator_gauss, vab_shg, dvab_shg, rab(:, iab), &
                                                 oba, obb, scona_shg, sconb_shg, omega, &
                                                 calc_derivatives)
-                  CALL two_center_os_integrals(operator_gauss, vab_os, dvab_os, rab(:, iab), oba, obb, &
-                                               omega, calc_derivatives)
+                  CALL int_operators_r12_ab_os(operator_gauss, vab_os, dvab_os, rab(:, iab), &
+                                               oba, obb, omega, calc_derivatives)
                   CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
                   dmax_gauss = MAX(dmax_gauss, dtemp)
                   ddmax_gauss = MAX(ddmax_gauss, ddtemp)
@@ -456,19 +474,19 @@ CONTAINS
 
             IF (acc_check) THEN
                IF ((dmax_coulomb >= acc_param) .OR. (ddmax_coulomb >= acc_param)) THEN
-                  CPABORT("[a|1/r12|b]: Deviation between SHG and OS larger than 1.0E-08")
+                  CPABORT("[a|1/r12|b]: Dev. larger than"//cp_to_string(acc_param))
                ENDIF
                IF ((dmax_verf >= acc_param) .OR. (ddmax_verf >= acc_param)) THEN
-                  CPABORT("[a|erf(omega*r12)/r12|b]: Dev. between SHG and OS larger than 1.0E-08")
+                  CPABORT("[a|erf(omega*r12)/r12|b]: Dev. larger than"//cp_to_string(acc_param))
                ENDIF
                IF ((dmax_verfc >= acc_param) .OR. (ddmax_verfc >= acc_param)) THEN
-                  CPABORT("[a|erfc(omega*r12)/r12|b]: Dev. between SHG and OS larger than 1.0E-08")
+                  CPABORT("[a|erfc(omega*r12)/r12|b]: Dev. larger than"//cp_to_string(acc_param))
                ENDIF
                IF ((dmax_vgauss >= acc_param) .OR. (ddmax_vgauss >= acc_param)) THEN
-                  CPABORT("[a|exp(-omega*r12^2)/r12|b]: Dev. between SHG and OS larger than 1.0E-08")
+                  CPABORT("[a|exp(-omega*r12^2)/r12|b]: Dev. larger than"//cp_to_string(acc_param))
                ENDIF
                IF ((dmax_gauss >= acc_param) .OR. (ddmax_gauss >= acc_param)) THEN
-                  CPABORT("[a|exp(-omega*r12^2)|b]: Dev. between SHG and OS larger than 1.0E-08")
+                  CPABORT("[a|exp(-omega*r12^2)|b]: Dev. larger than"//cp_to_string(acc_param))
                ENDIF
             ENDIF
          ENDIF
@@ -478,7 +496,7 @@ CONTAINS
    END SUBROUTINE test_shg_operator12_integrals
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief tests two center overlap integrals [a|b]
 !> \param oba ...
 !> \param obb ...
 !> \param rab ...
@@ -497,7 +515,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: oba, obb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rab
       INTEGER, INTENT(IN)                                :: nrep
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scona_shg, sconb_shg
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg
       TYPE(section_vals_type), INTENT(IN), POINTER       :: shg_integrals_test_section
       LOGICAL, INTENT(IN)                                :: acc_check
       REAL(KIND=dp), INTENT(IN)                          :: acc_param
@@ -507,14 +525,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'test_shg_overlap_integrals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iab, irep, la_max, lb_max, nab, nfa, nfb
+      INTEGER                                            :: iab, irep, nab, nfa, nfb
       LOGICAL                                            :: test_overlap
       REAL(KIND=dp)                                      :: ddmax_overlap, ddtemp, dmax_overlap, &
                                                             dtemp, dummy, ra(3), rb(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sab_os, sab_shg
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dsab_os, dsab_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab_os, sab_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsab_os, dsab_shg
 
       CALL section_vals_val_get(shg_integrals_test_section, "TEST_OVERLAP", &
                                 l_val=test_overlap)
@@ -526,8 +542,6 @@ CONTAINS
          obb%pgf_radius(:, :) = 1.0E+09_dp
          nfa = oba%nsgf
          nfb = obb%nsgf
-         la_max = MAXVAL(oba%lmax)
-         lb_max = MAXVAL(obb%lmax)
          ra(:) = 0.0_dp
          rb(:) = 0.0_dp
          dummy = 0.0_dp
@@ -538,11 +552,8 @@ CONTAINS
          nab = SIZE(rab, 2)
          DO irep = 1, nrep
             DO iab = 1, nab
-               CALL precalc_angular_shg_part(la_max, lb_max, rab(:, iab), Waux_mat, dWaux_mat, &
-                                             calc_derivatives)
-               CALL int_overlap_ab_shg(sab_shg, dsab_shg, rab(:, iab), oba, obb, scona_shg, &
-                                       sconb_shg, Waux_mat, dWaux_mat, calc_derivatives, &
-                                       contraction_high=.TRUE.)
+               CALL int_overlap_ab_shg(sab_shg, dsab_shg, rab(:, iab), oba, obb, &
+                                       scona_shg, sconb_shg, calc_derivatives)
                CALL int_overlap_ab_os(sab_os, dsab_os, ra, rb, rab(:, iab), oba, obb, &
                                       calc_derivatives, debug=.FALSE., dmax=dummy)
                CALL calculate_deviation_ab(sab_shg, sab_os, dsab_shg, dsab_os, dtemp, ddtemp)
@@ -559,17 +570,92 @@ CONTAINS
          ENDIF
          IF (acc_check) THEN
             IF ((dmax_overlap >= acc_param) .OR. (ddmax_overlap >= acc_param)) THEN
-               CPABORT("[a|b]: Deviation between SHG and OS larger than 1.0E-08")
+               CPABORT("[a|b]: Deviation larger than"//cp_to_string(acc_param))
             ENDIF
          ENDIF
-         DEALLOCATE (Waux_mat, dWaux_mat)
          DEALLOCATE (sab_shg, sab_os, dsab_shg, dsab_os)
       ENDIF
 
    END SUBROUTINE test_shg_overlap_integrals
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief tests two-center integrals of the type [a|(r-Ra)^(2m)|b]
+!> \param oba ...
+!> \param obb ...
+!> \param rab ...
+!> \param nrep ...
+!> \param scona_shg ...
+!> \param sconb_shg ...
+!> \param shg_integrals_test_section ...
+!> \param acc_check ...
+!> \param acc_param ...
+!> \param calc_derivatives ...
+!> \param iw ...
+! **************************************************************************************************
+   SUBROUTINE test_shg_ra2m_integrals(oba, obb, rab, nrep, scona_shg, sconb_shg, &
+                                      shg_integrals_test_section, acc_check, &
+                                      acc_param, calc_derivatives, iw)
+      TYPE(gto_basis_set_type), POINTER                  :: oba, obb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rab
+      INTEGER, INTENT(IN)                                :: nrep
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scona_shg, sconb_shg
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: shg_integrals_test_section
+      LOGICAL, INTENT(IN)                                :: acc_check
+      REAL(KIND=dp), INTENT(IN)                          :: acc_param
+      LOGICAL, INTENT(IN)                                :: calc_derivatives
+      INTEGER, INTENT(IN)                                :: iw
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'test_shg_ra2m_integrals', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: iab, irep, m, nab, nfa, nfb
+      LOGICAL                                            :: test_ra2m
+      REAL(KIND=dp)                                      :: ddmax, ddtemp, dmax, dtemp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vab_os, vab_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dvab_os, dvab_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: scon_ra2m
+
+      CALL section_vals_val_get(shg_integrals_test_section, "TEST_RA2M", &
+                                l_val=test_ra2m)
+      IF (test_ra2m) THEN
+         CALL section_vals_val_get(shg_integrals_test_section, "M", &
+                                   i_val=m)
+         nfa = oba%nsgf
+         nfb = obb%nsgf
+         dmax = 0.0_dp
+         ddmax = 0.0_dp
+         CALL contraction_matrix_shg_rx2m(oba, m, scona_shg, scon_ra2m)
+         ALLOCATE (vab_shg(nfa, nfb), dvab_shg(nfa, nfb, 3))
+         ALLOCATE (vab_os(nfa, nfb), dvab_os(nfa, nfb, 3))
+         nab = SIZE(rab, 2)
+         DO irep = 1, nrep
+            DO iab = 1, nab
+               CALL int_ra2m_ab_shg(vab_shg, dvab_shg, rab(:, iab), oba, obb, &
+                                    scon_ra2m, sconb_shg, m, calc_derivatives)
+               CALL int_ra2m_ab_os(vab_os, dvab_os, rab(:, iab), oba, obb, m, calc_derivatives)
+               CALL calculate_deviation_ab(vab_shg, vab_os, dvab_shg, dvab_os, dtemp, ddtemp)
+               dmax = MAX(dmax, dtemp)
+               ddmax = MAX(ddmax, ddtemp)
+            ENDDO
+         ENDDO
+         IF (iw > 0) THEN
+            WRITE (iw, FMT="(/,T2,A)") "TEST INFO FOR 2-CENTER RA2m SHG and OS INTEGRALS:"
+            WRITE (iw, FMT="(T2,A)") "Maximal deviation between SHG and OS integrals and their derivatives"
+            WRITE (iw, FMT="(T2,A,T53,ES12.5,4X,ES12.5)") "SHG_INTEGRALS | [a|(r-Ra)^(2m)|b]", &
+               dmax, ddmax
+         ENDIF
+         IF (acc_check) THEN
+            IF ((dmax >= acc_param) .OR. (ddmax >= acc_param)) THEN
+               CPABORT("[a|ra^(2m)|b]: Deviation larger than"//cp_to_string(acc_param))
+            ENDIF
+         ENDIF
+         DEALLOCATE (scon_ra2m)
+         DEALLOCATE (vab_shg, vab_os, dvab_shg, dvab_os)
+      ENDIF
+   END SUBROUTINE test_shg_ra2m_integrals
+
+! **************************************************************************************************
+!> \brief test overlap integrals [a|b|a] and [a|b|b]
 !> \param oba ...
 !> \param obb ...
 !> \param fba ...
@@ -600,9 +686,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'test_shg_overlap_aba_integrals', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iab, irep, la_max, laa_max, lb_max, &
-                                                            lbb_max, maxl_orb, maxl_ri, nab, nba, &
-                                                            nbb, nfa, nfb
+      INTEGER                                            :: iab, irep, la_max, lb_max, lbb_max, &
+                                                            maxl_orb, maxl_ri, nab, nba, nbb, nfa, &
+                                                            nfb
       INTEGER, DIMENSION(:, :), POINTER                  :: ncg_none0
       INTEGER, DIMENSION(:, :, :), POINTER               :: cg_none0_list, fba_index, fbb_index, &
                                                             oba_index, obb_index
@@ -611,8 +697,6 @@ CONTAINS
                                                             ddtemp, dmax_overlap_aba, &
                                                             dmax_overlap_abb, dtemp, dummy, ra(3), &
                                                             rb(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Waux_mat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: dWaux_mat
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cg_coeff, saba_os, saba_shg, sabb_os, &
                                                             sabb_shg
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dsaba_os, dsaba_shg, dsabb_os, &
@@ -638,7 +722,6 @@ CONTAINS
             fba%pgf_radius(:, :) = 1.0E+09_dp
             nfa = fba%nsgf
             maxl_ri = MAXVAL(fba%lmax)
-            laa_max = MAXVAL(oba%lmax)+MAXVAL(fba%lmax)
             ALLOCATE (saba_shg(nba, nbb, nfa), dsaba_shg(nba, nbb, nfa, 3))
             ALLOCATE (saba_os(nba, nbb, nfa), dsaba_os(nba, nbb, nfa, 3))
             CALL contraction_matrix_shg_mix(oba, fba, oba_index, fba_index, scona_mix)
@@ -665,20 +748,15 @@ CONTAINS
          IF (test_overlap_aba) THEN
             DO irep = 1, nrep
                DO iab = 1, nab
-                  saba_shg = 0.0_dp
-                  dsaba_shg = 0.0_dp
-                  CALL precalc_angular_shg_part(laa_max, lb_max, rab(:, iab), Waux_mat, dWaux_mat, &
-                                                calc_derivatives)
                   CALL int_overlap_aba_shg(saba_shg, dsaba_shg, rab(:, iab), oba, obb, fba, &
                                            scon_obb, scona_mix, oba_index, fba_index, &
                                            cg_coeff, cg_none0_list, ncg_none0, &
-                                           Waux_mat, dWaux_mat, calc_derivatives)
+                                           calc_derivatives)
                   CALL int_overlap_aba_os(saba_os, dsaba_os, ra, rb, rab(:, iab), oba, obb, fba, &
                                           calc_derivatives, debug=.FALSE., dmax=dummy)
                   CALL calculate_deviation_abx(saba_shg, saba_os, dsaba_shg, dsaba_os, dtemp, ddtemp)
                   dmax_overlap_aba = MAX(dmax_overlap_aba, dtemp)
                   ddmax_overlap_aba = MAX(ddmax_overlap_aba, ddtemp)
-                  DEALLOCATE (Waux_mat, dWaux_mat)
                ENDDO
             ENDDO
             DEALLOCATE (oba_index, fba_index, scona_mix)
@@ -687,20 +765,15 @@ CONTAINS
          IF (test_overlap_abb) THEN
             DO irep = 1, nrep
                DO iab = 1, nab
-                  sabb_shg = 0.0_dp
-                  dsabb_shg = 0.0_dp
-                  CALL precalc_angular_shg_part(lbb_max, la_max, rab(:, iab), Waux_mat, dWaux_mat, &
-                                                calc_derivatives)
                   CALL int_overlap_abb_shg(sabb_shg, dsabb_shg, rab(:, iab), oba, obb, fbb, &
                                            scon_oba, sconb_mix, obb_index, fbb_index, &
                                            cg_coeff, cg_none0_list, ncg_none0, &
-                                           Waux_mat, dWaux_mat, calc_derivatives)
+                                           calc_derivatives)
                   CALL int_overlap_abb_os(sabb_os, dsabb_os, ra, rb, rab(:, iab), oba, obb, fbb, &
                                           calc_derivatives, debug=.FALSE., dmax=dummy)
                   CALL calculate_deviation_abx(sabb_shg, sabb_os, dsabb_shg, dsabb_os, dtemp, ddtemp)
                   dmax_overlap_abb = MAX(dmax_overlap_abb, dtemp)
                   ddmax_overlap_abb = MAX(ddmax_overlap_abb, ddtemp)
-                  DEALLOCATE (Waux_mat, dWaux_mat)
                ENDDO
             ENDDO
             DEALLOCATE (obb_index, fbb_index, sconb_mix)
@@ -720,10 +793,10 @@ CONTAINS
          ENDIF
          IF (acc_check) THEN
             IF ((dmax_overlap_aba >= acc_param) .OR. (ddmax_overlap_aba >= acc_param)) THEN
-               CPABORT("[a|b|a]: Deviation between SHG and OS larger than 1.0E-08")
+               CPABORT("[a|b|a]: Dev. larger than"//cp_to_string(acc_param))
             ENDIF
             IF ((dmax_overlap_abb >= acc_param) .OR. (ddmax_overlap_abb >= acc_param)) THEN
-               CPABORT("[a|b|b]: Deviation between SHG and OS larger than 1.0E-08")
+               CPABORT("[a|b|b]: Dev. larger than"//cp_to_string(acc_param))
             ENDIF
          ENDIF
          DEALLOCATE (cg_coeff, cg_none0_list, ncg_none0)
@@ -822,4 +895,5 @@ CONTAINS
       ENDDO
 
    END SUBROUTINE calculate_deviation_abx
+
 END MODULE shg_integrals_test

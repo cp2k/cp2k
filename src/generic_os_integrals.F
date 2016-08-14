@@ -17,6 +17,7 @@ MODULE generic_os_integrals
                                               abc_contract,&
                                               abcd_contract
    USE ai_derivatives,                  ONLY: dabdr_noscreen
+   USE ai_operator_ra2m,                ONLY: operator_ra2m
    USE ai_operators_r12,                ONLY: ab_sint_os,&
                                               cps_coulomb2,&
                                               cps_gauss2,&
@@ -49,7 +50,7 @@ MODULE generic_os_integrals
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'generic_os_integrals'
 
-   PUBLIC :: two_center_os_integrals, int_overlap_ab_os, int_overlap_aba_os, &
+   PUBLIC :: int_operators_r12_ab_os, int_overlap_ab_os, int_ra2m_ab_os, int_overlap_aba_os, &
              int_overlap_abb_os, int_overlap_aabb_os
 
 CONTAINS
@@ -65,18 +66,18 @@ CONTAINS
 !> \param omega parameter in the operator
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE two_center_os_integrals(r12_operator, vab, dvab, rab, fba, fbb, omega, calculate_forces)
+   SUBROUTINE int_operators_r12_ab_os(r12_operator, vab, dvab, rab, fba, fbb, omega, calculate_forces)
 
       INTEGER, INTENT(IN)                                :: r12_operator
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vab
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: dvab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         OPTIONAL                                        :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'two_center_os_integrals', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operators_r12_ab_os', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
@@ -108,11 +109,11 @@ CONTAINS
          CPABORT("Operator not available")
       END SELECT
 
-      CALL int_operator_ab_os(cps_operator2, vab, dvab, rab, fba, fbb, my_omega, calculate_forces)
+      CALL int_operator_ab_os_low(cps_operator2, vab, dvab, rab, fba, fbb, my_omega, calculate_forces)
 
       CALL timestop(handle)
 
-   END SUBROUTINE two_center_os_integrals
+   END SUBROUTINE int_operators_r12_ab_os
 
 ! **************************************************************************************************
 !> \brief calculate integrals (a|O(r12)|b)
@@ -125,18 +126,18 @@ CONTAINS
 !> \param omega parameter in the operator
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE int_operator_ab_os(cps_operator2, vab, dvab, rab, fba, fbb, omega, calculate_forces)
+   SUBROUTINE int_operator_ab_os_low(cps_operator2, vab, dvab, rab, fba, fbb, omega, calculate_forces)
 
       PROCEDURE(ab_sint_os), POINTER                     :: cps_operator2
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: dvab
+         INTENT(INOUT)                                   :: dvab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       REAL(KIND=dp), INTENT(IN)                          :: omega
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_os', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_operator_ab_os_low', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, iset, jset, lds, m1, m2, &
                                                             maxco, maxcoa, maxcob, maxl, maxla, &
@@ -241,7 +242,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE int_operator_ab_os
+   END SUBROUTINE int_operator_ab_os_low
 
 ! **************************************************************************************************
 !> \brief calculate overlap integrals (a,b)
@@ -259,9 +260,9 @@ CONTAINS
    SUBROUTINE int_overlap_ab_os(sab, dsab, ra, rb, rab, fba, fbb, calculate_forces, debug, &
                                 dmax)
 
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sab
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: dsab
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         OPTIONAL                                        :: dsab
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rab
       TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
       LOGICAL, INTENT(IN)                                :: calculate_forces, debug
@@ -333,6 +334,9 @@ CONTAINS
 
       dab = SQRT(SUM(rab**2))
 
+      sab = 0.0_dp
+      dsab = 0.0_dp
+
       DO iset = 1, nseta
 
          ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -388,6 +392,111 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE int_overlap_ab_os
+
+! **************************************************************************************************
+!> \brief calculate integrals (a|(r-Ra)^(2m)|b)
+!> \param sab integral (a|(r-Ra)^(2m)|b)
+!> \param dsab derivative of sab with respect to A
+!> \param rab distance vector between center A and B
+!> \param fba fba basis at center A
+!> \param fbb fbb basis at center B
+!> \param m exponent m in operator (r-Ra)^(2m)
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE int_ra2m_ab_os(sab, dsab, rab, fba, fbb, m, calculate_forces)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: sab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         OPTIONAL                                        :: dsab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: fba, fbb
+      INTEGER, INTENT(IN)                                :: m
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'int_ra2m_ab_os', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, iset, jset, m1, m2, maxco, &
+                                                            maxcoa, maxcob, maxl, maxla, maxlb, &
+                                                            ncoa, ncob, nseta, nsetb, sgfa, sgfb
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: failure
+      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sint
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsint
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scon_a, scon_b, zeta, zetb
+
+      failure = .FALSE.
+      CALL timeset(routineN, handle)
+      NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, &
+               first_sgfa, first_sgfb, scon_a, scon_b, zeta, zetb)
+
+      ! basis ikind
+      first_sgfa => fba%first_sgf
+      la_max => fba%lmax
+      la_min => fba%lmin
+      npgfa => fba%npgf
+      nseta = fba%nset
+      nsgfa => fba%nsgf_set
+      scon_a => fba%scon
+      zeta => fba%zet
+      ! basis jkind
+      first_sgfb => fbb%first_sgf
+      lb_max => fbb%lmax
+      lb_min => fbb%lmin
+      npgfb => fbb%npgf
+      nsetb = fbb%nset
+      nsgfb => fbb%nsgf_set
+      scon_b => fbb%scon
+      zetb => fbb%zet
+
+      CALL get_gto_basis_set(fba, maxco=maxcoa, maxl=maxla)
+      CALL get_gto_basis_set(fbb, maxco=maxcob, maxl=maxlb)
+      maxco = MAX(maxcoa, maxcob)
+      maxl = MAX(maxla, maxlb)
+      ALLOCATE (sint(maxco, maxco))
+      ALLOCATE (dsint(maxco, maxco, 3))
+
+      dab = SQRT(SUM(rab**2))
+
+      sab = 0.0_dp
+      dsab = 0.0_dp
+
+      DO iset = 1, nseta
+
+         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         sgfa = first_sgfa(1, iset)
+
+         DO jset = 1, nsetb
+
+            ncob = npgfb(jset)*ncoset(lb_max(jset))
+            sgfb = first_sgfb(1, jset)
+            m1 = sgfa+nsgfa(iset)-1
+            m2 = sgfb+nsgfb(jset)-1
+            sint(1:ncoa, 1:ncob) = 0._dp
+            dsint(1:ncoa, 1:ncob, :) = 0._dp
+
+            CALL operator_ra2m(la_max(iset), la_min(iset), npgfa(iset), zeta(:, iset), &
+                               lb_max(jset), lb_min(jset), npgfb(jset), zetb(:, jset), &
+                               m, rab, sint, dsint, calculate_forces)
+
+            CALL ab_contract(sab(sgfa:m1, sgfb:m2), sint, scon_a(:, sgfa:), scon_b(:, sgfb:), &
+                             ncoa, ncob, nsgfa(iset), nsgfb(jset))
+            IF (calculate_forces) THEN
+               DO i = 1, 3
+                  CALL ab_contract(dsab(sgfa:m1, sgfb:m2, i), dsint(:, :, i), scon_a(:, sgfa:), &
+                                   scon_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
+               ENDDO
+            ENDIF
+         END DO
+      END DO
+
+      DEALLOCATE (sint, dsint)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE int_ra2m_ab_os
 
 ! **************************************************************************************************
 !> \brief calculate integrals (a,b,fa)

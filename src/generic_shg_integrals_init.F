@@ -31,7 +31,7 @@ MODULE generic_shg_integrals_init
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'generic_shg_integrals_init'
 
-   PUBLIC :: contraction_matrix_shg, contraction_matrix_shg_mix, &
+   PUBLIC :: contraction_matrix_shg, contraction_matrix_shg_mix, contraction_matrix_shg_rx2m, &
              get_clebsch_gordon_coefficients
 
 ! **************************************************************************************************
@@ -55,7 +55,8 @@ CONTAINS
                                                             nset
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       REAL(KIND=dp)                                      :: aif, gcc
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: norm, zet
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: norm
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
 
       nset = basis%nset
       npgf => basis%npgf
@@ -93,7 +94,7 @@ CONTAINS
    SUBROUTINE basis_norm_shg(basis, norm)
 
       TYPE(gto_basis_set_type), POINTER                  :: basis
-      REAL(dp), DIMENSION(:, :), POINTER                 :: norm
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_shg', routineP = moduleN//':'//routineN
 
@@ -147,8 +148,8 @@ CONTAINS
          nset_orb, nset_ri
       INTEGER, DIMENSION(:), POINTER                     :: npgf_orb, npgf_ri, nshell_orb, nshell_ri
       REAL(KIND=dp)                                      :: cjf, const, const1, const2, gcc_orb, &
-                                                            gcc_ri, prefac, scon1, scon2, &
-                                                            shg_fac(0:5), zet
+                                                            gcc_ri, prefac, scon1, scon2, zet
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: shg_fac
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: norm_orb, norm_ri, zet_orb, zet_ri
 
       nset_orb = orb_basis%nset
@@ -199,7 +200,9 @@ CONTAINS
       lmax_ri = MAXVAL(ri_basis%lmax)
       nl_max = INT((lmax_orb+lmax_ri)/2)+1
       ALLOCATE (scon_mix(nl_max, nf_ri, nf_orb, nl_max))
+      scon_mix = 0.0_dp
 
+      ALLOCATE (shg_fac(0:nl_max-1))
       shg_fac(0) = 1.0_dp
 
       DO iset = 1, nset_orb
@@ -241,9 +244,64 @@ CONTAINS
          ENDDO
       ENDDO
 
-      DEALLOCATE (norm_orb, norm_ri)
+      DEALLOCATE (norm_orb, norm_ri, shg_fac)
 
    END SUBROUTINE contraction_matrix_shg_mix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param m ...
+!> \param scon_shg ...
+!> \param scon_rx2m ...
+! **************************************************************************************************
+   SUBROUTINE contraction_matrix_shg_rx2m(basis, m, scon_shg, scon_rx2m)
+
+      TYPE(gto_basis_set_type), POINTER                  :: basis
+      INTEGER, INTENT(IN)                                :: m
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_shg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: scon_rx2m
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'contraction_matrix_shg_rx2m', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ipgf, iset, ishell, j, l, maxpgf, &
+                                                            maxshell, nset
+      INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: shg_fac
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
+
+      npgf => basis%npgf
+      nshell => basis%nshell
+      zet => basis%zet
+      nset = basis%nset
+
+      maxpgf = SIZE(basis%gcc, 1)
+      maxshell = SIZE(basis%gcc, 2)
+      ALLOCATE (scon_rx2m(maxpgf, m+1, maxshell, nset))
+      scon_rx2m = 0.0_dp
+      ALLOCATE (shg_fac(0:m))
+      shg_fac(0) = 1.0_dp
+
+      DO iset = 1, nset
+         DO ishell = 1, nshell(iset)
+            l = basis%l(ishell, iset)
+            DO j = 1, m
+               shg_fac(j) = fac(l+j-1)*ifac(l)*REAL(l, dp) &
+                            *fac(m)/fac(m-j)/fac(j)
+            ENDDO
+            DO ipgf = 1, npgf(iset)
+               DO j = 0, m
+                  scon_rx2m(ipgf, j+1, ishell, iset) = scon_shg(ipgf, ishell, iset) &
+                                                       *shg_fac(j)/zet(ipgf, iset)**j
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (shg_fac)
+
+   END SUBROUTINE contraction_matrix_shg_rx2m
 
 ! **************************************************************************************************
 !> \brief calculate the Clebsch-Gordon (CG) coefficients for expansion of the

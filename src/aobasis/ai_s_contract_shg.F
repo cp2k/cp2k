@@ -33,10 +33,10 @@ MODULE ai_s_contract_shg
 
 ! *** Public subroutines ***
    PUBLIC :: s_overlap_ab, s_overlap_abb, s_coulomb_ab, s_verf_ab, s_verfc_ab, &
-             s_vgauss_ab, s_gauss_ab
+             s_vgauss_ab, s_gauss_ab, s_ra2m_ab
 
    PUBLIC :: contract_sint_ab_clow, contract_sint_ab_chigh, contract_s_overlap_aba, &
-             contract_s_overlap_abb
+             contract_s_overlap_abb, contract_s_ra2m_ab
 
 CONTAINS
 
@@ -310,7 +310,6 @@ CONTAINS
                         sr_int = sr_int+coeff_srs(i+1, 1, il+1)*(pfac)**i*rab2**i
                      ENDDO
                      s(ipgfa, jpgfb, kpgfb, il+1, 1) = prefac*sr_int
-                     nds = lmax-2*il+ndev+1
                      DO ids = 2, nds
                         n = ids-1
                         nfac = 1
@@ -340,6 +339,229 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE s_overlap_abb
+
+! **************************************************************************************************
+!> \brief calculates the uncontracted, not normalized [0a|ra^(2m)|0b] two-center integral,
+!>        where ra = r-Ra and Ra center of a
+!> \param la_max maximal l quantum number on a
+!> \param npgfa number of primitive Gaussian on a
+!> \param zeta set of exponents on a
+!> \param lb_max maximal l quantum number on b
+!> \param npgfb number of primitive Gaussian on a
+!> \param zetb set of exponents on a
+!> \param m exponent of the ra operator
+!> \param rab distance vector between a and b
+!> \param s ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE s_ra2m_ab(la_max, npgfa, zeta, lb_max, npgfb, zetb, m, rab, s, calculate_forces)
+
+      INTEGER, INTENT(IN)                                :: la_max, npgfa
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta
+      INTEGER, INTENT(IN)                                :: lb_max, npgfb
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb
+      INTEGER, INTENT(IN)                                :: m
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: s
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(len=*), PARAMETER :: routineN = 's_ra2m_ab', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, ids, il, ipgfa, j, jpgfb, n, &
+                                                            ndev, nds, nfac
+      REAL(KIND=dp)                                      :: a, b, dfsr_int, exp_rab2, k, pfac, &
+                                                            prefac, rab2, sqrt_pi3, sqrt_zet, &
+                                                            sr_int, temp, xhi, zet
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dsr_int, dtemp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: coeff_srs
+
+      CALL timeset(routineN, handle)
+
+      ! Distance of the centers a and b
+      rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+      ndev = 0
+      IF (calculate_forces) ndev = 1
+
+      ALLOCATE (dtemp(m+1), dsr_int(m+1))
+      ALLOCATE (coeff_srs(m+1, m+1, m+1))
+      CALL get_prefac_sabb(m, coeff_srs)
+      !IF(m > 5) CALL get_prefac_sabb(m, coeff_srs)
+      sqrt_pi3 = SQRT(pi**3)
+
+      ! Loops over all pairs of primitive Gaussian-type functions
+      DO ipgfa = 1, npgfa
+         DO jpgfb = 1, npgfb
+
+            ! Calculate some prefactors
+            a = zeta(ipgfa)
+            b = zetb(jpgfb)
+            zet = a+b
+            xhi = a*b/zet
+            exp_rab2 = EXP(-xhi*rab2)
+
+            sqrt_zet = SQRT(zet)
+            pfac = b**2/zet
+
+            nds = la_max+lb_max+ndev+1
+            DO il = 0, m
+               SELECT CASE (il)
+               CASE (0)
+                  ! [s|s] integral
+                  s(ipgfa, jpgfb, m-il+1, 1) = (pi/zet)**(1.5_dp)*exp_rab2
+                  DO ids = 2, nds
+                     n = ids-1
+                     s(ipgfa, jpgfb, m-il+1, ids) = (-xhi)**n*s(ipgfa, jpgfb, m-il+1, 1)
+                  ENDDO
+               CASE (1)
+                  ![s|r^2|s] integral
+                  sr_int = sqrt_pi3/sqrt_zet**5*(3.0_dp+2.0_dp*pfac*rab2)/2.0_dp
+                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  k = sqrt_pi3*b**2/sqrt_zet**7
+                  DO ids = 2, nds
+                     n = ids-1
+                     s(ipgfa, jpgfb, m-il+1, ids) = (-xhi)**n*exp_rab2*sr_int &
+                                                    +n*(-xhi)**(n-1)*k*exp_rab2
+                  ENDDO
+               CASE (2)
+                  ![s|r^4|s] integral
+                  prefac = sqrt_pi3/4.0_dp/sqrt_zet**7
+                  temp = 15.0_dp+20.0_dp*pfac*rab2+4.0_dp*(pfac*rab2)**2
+                  sr_int = prefac*temp
+                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  !** derivatives
+                  k = sqrt_pi3*b**4/sqrt_zet**11
+                  dsr_int(1) = prefac*(20.0_dp*pfac+8.0_dp*pfac**2*rab2)
+                  DO ids = 2, nds
+                     n = ids-1
+                     dtemp(1) = (-xhi)**n*exp_rab2*sr_int
+                     dtemp(2) = n*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = (n**2-n)*(-xhi)**(n-2)*k*exp_rab2
+                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3)
+                  ENDDO
+               CASE (3)
+                  ![s|r^6|s] integral
+                  prefac = sqrt_pi3/8.0_dp/sqrt_zet**9
+                  temp = 105.0_dp+210.0_dp*pfac*rab2
+                  temp = temp+84.0_dp*(pfac*rab2)**2+8.0_dp*(pfac*rab2)**3
+                  sr_int = prefac*temp
+                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  !** derivatives
+                  k = sqrt_pi3*b**6/sqrt_zet**15
+                  dsr_int(1) = prefac*(210.0_dp*pfac+168.0_dp*pfac**2*rab2 &
+                                       +24.0_dp*pfac**3*rab2**2)
+                  dsr_int(2) = prefac*(168.0_dp*pfac**2+48.0_dp*pfac**3*rab2)
+                  DO ids = 2, nds
+                     n = ids-1
+                     dtemp(1) = (-xhi)**n*exp_rab2*sr_int
+                     dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                                *exp_rab2*dsr_int(2)
+                     dtemp(4) = REAL(n*(n-1)*(n-2), dp)*(-xhi)**(n-3)*k*exp_rab2
+                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2) &
+                                                    +dtemp(3)+dtemp(4)
+                  ENDDO
+               CASE (4)
+                  ![s|r^8|s] integral
+                  prefac = sqrt_pi3/16.0_dp/sqrt_zet**11
+                  temp = 945.0_dp+2520.0_dp*pfac*rab2+1512.0_dp*(pfac*rab2)**2
+                  temp = temp+288.0_dp*(pfac*rab2)**3+16.0_dp*(pfac*rab2)**4
+                  sr_int = prefac*temp
+                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  !** derivatives
+                  k = sqrt_pi3*b**8/sqrt_zet**19
+                  dsr_int(1) = 2520.0_dp*pfac+3024.0_dp*pfac**2*rab2
+                  dsr_int(1) = dsr_int(1)+864.0_dp*pfac**3*rab2**2 &
+                               +64.0_dp*pfac**4*rab2**3
+                  dsr_int(1) = prefac*dsr_int(1)
+                  dsr_int(2) = 3024.0_dp*pfac**2+1728.0_dp*pfac**3*rab2
+                  dsr_int(2) = dsr_int(2)+192.0_dp*pfac**4*rab2**2
+                  dsr_int(2) = prefac*dsr_int(2)
+                  dsr_int(3) = 1728.0_dp*pfac**3+384.0_dp*pfac**4*rab2
+                  dsr_int(3) = prefac*dsr_int(3)
+                  DO ids = 2, nds
+                     n = ids-1
+                     dtemp(1) = (-xhi)**n*exp_rab2*sr_int
+                     dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                                *exp_rab2*dsr_int(2)
+                     dtemp(4) = REAL(n*(n-1)*(n-2), dp)/6.0_dp*(-xhi)**(n-3) &
+                                *exp_rab2*dsr_int(3)
+                     dtemp(5) = REAL(n*(n-1)*(n-2)*(n-3), dp)*(-xhi)**(n-4) &
+                                *k*exp_rab2
+                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3) &
+                                                    +dtemp(4)+dtemp(5)
+                  ENDDO
+               CASE (5)
+                  ![s|r^10|s] integral
+                  prefac = sqrt_pi3/32.0_dp/sqrt_zet**13
+                  temp = 10395.0_dp+34650.0_dp*pfac*rab2
+                  temp = temp+27720.0_dp*(pfac*rab2)**2+7920.0_dp*(pfac*rab2)**3
+                  temp = temp+880.0_dp*(pfac*rab2)**4+32.0_dp*(pfac*rab2)**5
+                  sr_int = prefac*temp
+                  s(ipgfa, jpgfb, m-il+1, 1) = exp_rab2*sr_int
+                  !** derivatives
+                  k = sqrt_pi3*b**10/sqrt_zet**23
+                  dsr_int(1) = 34650.0_dp*pfac+55440.0_dp*pfac**2*rab2
+                  dsr_int(1) = dsr_int(1)+23760.0_dp*pfac**3*rab2**2
+                  dsr_int(1) = dsr_int(1)+3520.0_dp*pfac**4*rab2**3
+                  dsr_int(1) = dsr_int(1)+160.0_dp*pfac**5*rab2**4
+                  dsr_int(1) = prefac*dsr_int(1)
+                  dsr_int(2) = 55440.0_dp*pfac**2+47520.0_dp*pfac**3*rab2
+                  dsr_int(2) = dsr_int(2)+10560.0_dp*pfac**4*rab2**2
+                  dsr_int(2) = dsr_int(2)+640.0_dp*pfac**5*rab2**3
+                  dsr_int(2) = prefac*dsr_int(2)
+                  dsr_int(3) = 47520.0_dp*pfac**3+21120.0_dp*pfac**4*rab2
+                  dsr_int(3) = dsr_int(3)+1920.0_dp*pfac**5*rab2**2
+                  dsr_int(3) = prefac*dsr_int(3)
+                  dsr_int(4) = 21120.0_dp*pfac**4+3840.0_dp*pfac**5*rab2
+                  dsr_int(4) = prefac*dsr_int(4)
+                  DO ids = 2, nds
+                     n = ids-1
+                     dtemp(1) = (-xhi)**n*exp_rab2*sr_int
+                     dtemp(2) = REAL(n, dp)*(-xhi)**(n-1)*exp_rab2*dsr_int(1)
+                     dtemp(3) = REAL(n**2-n, dp)/2.0_dp*(-xhi)**(n-2) &
+                                *exp_rab2*dsr_int(2)
+                     dtemp(4) = REAL(n*(n-1)*(n-2), dp)/6.0_dp*(-xhi)**(n-3) &
+                                *exp_rab2*dsr_int(3)
+                     dtemp(5) = REAL(n*(n-1)*(n-2)*(n-3), dp)/24.0_dp*(-xhi)**(n-4) &
+                                *exp_rab2*dsr_int(4)
+                     dtemp(6) = REAL(n*(n-1)*(n-2)*(n-3)*(n-4), dp)*(-xhi)**(n-5) &
+                                *k*exp_rab2
+                     s(ipgfa, jpgfb, m-il+1, ids) = dtemp(1)+dtemp(2)+dtemp(3) &
+                                                    +dtemp(4)+dtemp(5)+dtemp(6)
+                  ENDDO
+               CASE DEFAULT
+                  prefac = exp_rab2/sqrt_zet**(2*il+3)
+                  sr_int = 0.0_dp
+                  DO i = 0, il
+                     sr_int = sr_int+coeff_srs(i+1, 1, il+1)*(pfac)**i*rab2**i
+                  ENDDO
+                  s(ipgfa, jpgfb, m-il+1, 1) = prefac*sr_int
+                  DO ids = 2, nds
+                     n = ids-1
+                     nfac = 1
+                     dfsr_int = (-xhi)**n*sr_int
+                     DO j = 1, il
+                        temp = 0.0_dp
+                        DO i = j, il
+                           temp = temp+coeff_srs(i+1, j+1, il+1)*(pfac)**i*rab2**(i-j)
+                        ENDDO
+                        nfac = nfac*(n-j+1)
+                        dfsr_int = dfsr_int+temp*REAL(nfac, dp)/fac(j)*(-xhi)**(n-j)
+                     ENDDO
+                     s(ipgfa, jpgfb, m-il+1, ids) = prefac*dfsr_int
+                  ENDDO
+               END SELECT
+            ENDDO
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (coeff_srs)
+      DEALLOCATE (dtemp, dsr_int)
+      CALL timestop(handle)
+
+   END SUBROUTINE s_ra2m_ab
 
 ! **************************************************************************************************
 !> \brief prefactor for the general formula to calculate the (0a|0b|0b) overlap integrals
@@ -739,7 +961,8 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: lb
       INTEGER, INTENT(IN)                                :: npgfb, nshellb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sconb_shg
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork, swork_cont
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: swork
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_clow', &
@@ -799,7 +1022,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: npgfb, nshellb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sconb
       INTEGER, INTENT(IN)                                :: nds
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork, swork_cont
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: swork
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_sint_ab_chigh', &
          routineP = moduleN//':'//routineN
@@ -822,6 +1046,56 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE contract_sint_ab_chigh
+
+! **************************************************************************************************
+!> \brief Contraction, normalization and combinatiorial combination of the [0a|(r-Ra)^(2m)|0b]
+!>         integrals and their scalar derivatives
+!> \param npgfa number of primitive Gaussian on a
+!> \param nshella number of shells for a
+!> \param scon_ra2m contraction matrix on a containg the combinatorial factors
+!> \param npgfb number of primitive Gaussian on b
+!> \param nshellb number of shells for b
+!> \param sconb SHG contraction/normalization matrix for b
+!> \param swork matrix storing the uncontracted and unnormalized s-integrals and derivatives
+!> \param swork_cont matrix storing the contracted and normalized s-integrals and derivatives
+!> \param m exponent in operator (r-Ra)^(2m)
+!> \param nds_max maximal derivative with respect to rab2
+! **************************************************************************************************
+   SUBROUTINE contract_s_ra2m_ab(npgfa, nshella, scon_ra2m, npgfb, nshellb, sconb, swork, swork_cont, &
+                                 m, nds_max)
+
+      INTEGER, INTENT(IN)                                :: npgfa, nshella
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: scon_ra2m
+      INTEGER, INTENT(IN)                                :: npgfb, nshellb
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: sconb
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: swork
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: swork_cont
+      INTEGER, INTENT(IN)                                :: m, nds_max
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_s_ra2m_ab', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, my_m
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work_pc
+
+      CALL timeset(routineN, handle)
+      my_m = m+1
+      ALLOCATE (work_pc(npgfb, nds_max, nshella))
+      work_pc = 0.0_dp
+      swork_cont = 0.0_dp
+      DO i = 1, my_m
+         CALL dgemm("T", "N", npgfb*nds_max, nshella, npgfa, 1.0_dp, swork(1:npgfa, 1:npgfb, i, 1:nds_max), npgfa, &
+                    scon_ra2m(1:npgfa, i, 1:nshella), npgfa, 1.0_dp, work_pc, npgfb*nds_max)
+      ENDDO
+      CALL dgemm("T", "N", nds_max*nshella, nshellb, npgfb, 1.0_dp, work_pc, npgfb, sconb, npgfb, 0.0_dp, &
+                 swork_cont, nds_max*nshella)
+
+      DEALLOCATE (work_pc)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE contract_s_ra2m_ab
 
 ! **************************************************************************************************
 !> \brief Contraction and normalization of the (abb) overlap

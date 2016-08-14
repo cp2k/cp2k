@@ -17,6 +17,8 @@
     TEST_VERFC
     TEST_VGAUSS
     TEST_GAUSS
+    TEST_RA2M
+    M 3
     &BASIS 
     10
     2   0   0   1  1 
