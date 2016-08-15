@@ -7,7 +7,7 @@
       CUTOFF 200
     &END MGRID
     &QS
-      EPS_DEFAULT 1.E-10
+      EPS_DEFAULT 1.E-14
       EPS_KG_ORB 1.0E-5
       LS_SCF
       KG_METHOD
@@ -23,8 +23,8 @@
        &ENERGY_CORRECTION
          HARRIS_BASIS HARRIS
          MAO
-         MAO_MAX_ITER 100
-         MAO_EPS_GRAD 1.e-4
+         MAO_MAX_ITER 2000
+         MAO_EPS_GRAD 1.e-7
          &XC
            &XC_FUNCTIONAL 
               &PBE

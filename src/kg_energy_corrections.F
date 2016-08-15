@@ -116,7 +116,7 @@ MODULE kg_energy_corrections
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Energy correction to a KG simulation
 !>
 !> \param qs_env ...
@@ -182,7 +182,9 @@ CONTAINS
          END IF
          CALL ec_ks_solver(qs_env, ec_env)
          CALL ec_energy(qs_env, ec_env, unit_nr)
-!          CALL kg_response_solver(qs_env,kg_env,calculate_forces,error)
+         IF (calculate_forces) THEN
+!           CALL kg_response_solver(qs_env,ec_env)
+         END IF
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
          END IF
@@ -193,7 +195,7 @@ CONTAINS
 
    END SUBROUTINE kg_energy_correction
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Construction of the Core Hamiltonian Matrix
 !>        Short version of qs_core_hamiltonian
 !> \param qs_env ...
@@ -299,7 +301,7 @@ CONTAINS
 
    END SUBROUTINE ec_build_core_hamiltonian
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief calculate the complete KS matrix
 !> \param qs_env ...
 !> \param ec_env ...
@@ -347,18 +349,9 @@ CONTAINS
 
       CALL cp_dbcsr_allocate_matrix_set(ec_env%matrix_ks, nspins, 1)
       DO ispin = 1, nspins
+         headline = "KOHN-SHAM MATRIX"
          ALLOCATE (ec_env%matrix_ks(ispin, 1)%matrix)
          CALL cp_dbcsr_init(ec_env%matrix_ks(ispin, 1)%matrix)
-
-         IF (nspins > 1) THEN
-            IF (ispin == 1) THEN
-               headline = "KOHN-SHAM MATRIX FOR ALPHA SPIN"
-            ELSE
-               headline = "KOHN-SHAM MATRIX FOR BETA SPIN"
-            END IF
-         ELSE
-            headline = "KOHN-SHAM MATRIX"
-         END IF
          CALL cp_dbcsr_create(ec_env%matrix_ks(ispin, 1)%matrix, name=TRIM(headline), &
                               template=ec_env%matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%sab_orb)
@@ -473,7 +466,7 @@ CONTAINS
 
    END SUBROUTINE ec_build_ks_matrix
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Solve KS equation for a given matrix
 !> \param qs_env ...
 !> \param ec_env ...
@@ -535,7 +528,7 @@ CONTAINS
 
    END SUBROUTINE ec_ks_solver
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create matrices with MAO sizes
 !> \param ec_env ...
 !> \param ksmat ...
@@ -606,7 +599,7 @@ CONTAINS
 
    END SUBROUTINE mao_create_matrices
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Release matrices with MAO sizes
 !> \param ec_env ...
 !> \param ksmat ...
@@ -652,7 +645,7 @@ CONTAINS
 
    END SUBROUTINE mao_release_matrices
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Solve KS equation using diagonalization
 !> \param qs_env ...
 !> \param matrix_ks ...
@@ -767,7 +760,7 @@ CONTAINS
 
    END SUBROUTINE ec_diag_solver
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculate the energy correction
 !> \param qs_env ...
 !> \param ec_env ...
@@ -954,5 +947,7 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ec_build_neighborlist
+
+! **************************************************************************************************
 
 END MODULE kg_energy_corrections

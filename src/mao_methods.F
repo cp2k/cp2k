@@ -27,13 +27,14 @@ MODULE mao_methods
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_get_block_diag, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_replicate_all, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, &
-        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_norm_frobenius, &
-        dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
+        cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
+        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_norm, &
+        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_replicate_all, cp_dbcsr_reserve_diag_blocks, &
+        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_mp, &
+        dbcsr_distribution_obj, dbcsr_mp_group, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t
    USE cp_fm_diag,                      ONLY: cp_fm_geeig
@@ -1239,7 +1240,7 @@ CONTAINS
                                        matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .FALSE.)
             CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
             CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
-            CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnold)
+            fnold = mao_scalar_product(mao_grad(ispin)%matrix, mao_grad(ispin)%matrix)
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,T2,A,T73,A,I2)") "MAO OPTIMIZATION", "Spin =", ispin
                WRITE (UNIT=iw, FMT="(T2,A,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
@@ -1253,11 +1254,11 @@ CONTAINS
                CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
                                           matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
                CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
-               CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_frobenius, norm_scalar=fnnew)
                IF (iw > 0) THEN
                   WRITE (UNIT=iw, FMT="(T2,A,i8,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
                      "iter=", iter, "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha
                END IF
+               fnnew = mao_scalar_product(mao_grad(ispin)%matrix, mao_grad(ispin)%matrix)
                beta = fnnew/fnold
                CALL cp_dbcsr_add(cgmat, mao_grad(ispin)%matrix, beta, 1.0_dp)
                fnold = fnnew
@@ -1377,7 +1378,7 @@ CONTAINS
       TYPE(cp_dbcsr_type)                                :: bmat, scmat, tmat
 
       threshold = 1.e-8_dp
-      convergence = 1.e-4_dp
+      convergence = 1.e-6_dp
       ! temp matrices
       CALL cp_dbcsr_init(scmat)
       CALL cp_dbcsr_create(scmat, template=mao_coef)
@@ -1426,7 +1427,7 @@ CONTAINS
       TYPE(cp_dbcsr_type)                                :: bmat, scmat, t2mat, tmat
 
       threshold = 1.e-8_dp
-      convergence = 1.e-4_dp
+      convergence = 1.e-6_dp
       ! temp matrices
       CALL cp_dbcsr_init(scmat)
       CALL cp_dbcsr_create(scmat, template=mao_coef)
@@ -1450,7 +1451,7 @@ CONTAINS
       ! Gradient part 1: g = 2*Q*C*Binv = 2*Q*R
       CALL cp_dbcsr_multiply("N", "N", 2.0_dp, qmat, scmat, 0.0_dp, mao_grad, &
                              retain_sparsity=.TRUE.)
-!     ! Gradient part 2: g = -2*S*T*X; X = Q*R
+      ! Gradient part 2: g = -2*S*T*X; X = Q*R
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, qmat, scmat, 0.0_dp, t2mat)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmat, t2mat, 0.0_dp, scmat)
       CALL cp_dbcsr_multiply("N", "N", -2.0_dp, smat, scmat, 1.0_dp, mao_grad, &
@@ -1526,12 +1527,9 @@ CONTAINS
 
       INTEGER                                            :: iatom, jatom, m, n
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: fnin, fnout
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, gblock, sblock
       TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
-
-      CALL cp_dbcsr_norm(mao_grad, dbcsr_norm_frobenius, norm_scalar=fnin)
 
       CALL cp_dbcsr_iterator_start(dbcsr_iter, mao_coef)
       DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
@@ -1552,9 +1550,44 @@ CONTAINS
       END DO
       CALL cp_dbcsr_iterator_stop(dbcsr_iter)
 
-      CALL cp_dbcsr_norm(mao_grad, dbcsr_norm_frobenius, norm_scalar=fnout)
-
    END SUBROUTINE mao_project_gradient
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fmat1 ...
+!> \param fmat2 ...
+!> \retval spro ...
+! **************************************************************************************************
+   FUNCTION mao_scalar_product(fmat1, fmat2) RESULT(spro)
+      TYPE(cp_dbcsr_type)                                :: fmat1, fmat2
+      REAL(KIND=dp)                                      :: spro
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mao_scalar_product', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: group, iatom, jatom, m, n
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ablock, bblock
+      TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
+
+      spro = 0.0_dp
+
+      CALL cp_dbcsr_iterator_start(dbcsr_iter, fmat1)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL cp_dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, ablock)
+         CPASSERT(iatom == jatom)
+         m = SIZE(ablock, 2)
+         n = SIZE(ablock, 1)
+         CALL cp_dbcsr_get_block_p(matrix=fmat2, row=iatom, col=jatom, block=bblock, found=found)
+         CPASSERT(found)
+         spro = spro+SUM(ablock(1:n, 1:m)*bblock(1:n, 1:m))
+      END DO
+      CALL cp_dbcsr_iterator_stop(dbcsr_iter)
+
+      group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(fmat1)))
+      CALL mp_sum(spro, group)
+
+   END FUNCTION mao_scalar_product
 
 ! **************************************************************************************************
 !> \brief Calculate the density matrix at the Gamma point
