@@ -2090,6 +2090,7 @@ CONTAINS
 
          NULLIFY (fm_mat_L_transposed)
          CALL cp_fm_create(fm_mat_L_transposed, fm_mat_L%matrix_struct)
+         CALL cp_fm_to_fm(fm_mat_L, fm_mat_L_transposed)
          CALL cp_fm_set_all(matrix=fm_mat_L_transposed, alpha=0.0_dp)
 
          CALL cp_fm_get_info(fm_mat_L, context=blacs_env)
