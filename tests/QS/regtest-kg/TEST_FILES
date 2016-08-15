@@ -22,5 +22,5 @@ H2_H2O_lsks.inp                                       11      1e-10            -
 H2_H2O_ec.inp                                         66      1e-10            -18.4642032438     
 H2_H2O_ecprim.inp                                     66      1e-10            -18.4070965525     
 2H2O_ecmao.inp                                        66      1e-10            -34.0838901711
-2H2O_ecmao2.inp                                       66      1e-10            -34.5024811487
+2H2O_ecmao2.inp                                       66      1e-08            -34.5024811487
 #EOF
