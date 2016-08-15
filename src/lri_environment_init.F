@@ -14,6 +14,7 @@ MODULE lri_environment_init
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: copy_gto_basis_set,&
                                               gto_basis_set_type
+   USE generic_shg_integrals,           ONLY: int_overlap_aba_shg
    USE generic_shg_integrals_init,      ONLY: contraction_matrix_shg,&
                                               contraction_matrix_shg_mix,&
                                               get_clebsch_gordon_coefficients
@@ -90,7 +91,6 @@ CONTAINS
          maxl_orb = MAX(maxl_orb, lmax_ikind_orb)
          maxl_ri = MAX(maxl_ri, lmax_ikind_ri)
       END DO
-      CALL lri_basis_init(lri_env)
 
       ! CG coefficients needed for lri integrals
       IF (ASSOCIATED(lri_env%cg_shg)) THEN
@@ -99,6 +99,7 @@ CONTAINS
                                               lri_env%cg_shg%ncg_none0, &
                                               maxl_orb, maxl_ri)
       ENDIF
+      CALL lri_basis_init(lri_env)
       ! init keywords
 
       ! check for debug (OS scheme)
@@ -132,8 +133,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: orb_norm_r, ri_int_fbas, ri_norm_r, &
                                                             ri_norm_s
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orb_ovlp, ri_ovlp
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: scon_orb, scon_ri
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: scon_mix
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ovlp3, scon_orb, scon_ri
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dovlp3, scon_mix
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
 
       IF (ASSOCIATED(lri_env)) THEN
@@ -175,7 +176,19 @@ CONTAINS
                   lri_env%bas_prop(ikind)%scon_mix => scon_mix
                   lri_env%bas_prop(ikind)%orb_index => orb_index
                   lri_env%bas_prop(ikind)%ri_index => ri_index
+                  NULLIFY (ovlp3)
+                  ALLOCATE (ovlp3(orb_basis%nsgf, orb_basis%nsgf, ri_basis%nsgf))
+                  ALLOCATE (dovlp3(orb_basis%nsgf, orb_basis%nsgf, ri_basis%nsgf, 3))
+                  CALL int_overlap_aba_shg(ovlp3, dovlp3, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                           orb_basis, orb_basis, ri_basis, scon_orb, &
+                                           scon_mix, orb_index, ri_index, &
+                                           lri_env%cg_shg%cg_coeff, &
+                                           lri_env%cg_shg%cg_none0_list, &
+                                           lri_env%cg_shg%ncg_none0, &
+                                           calculate_forces=.FALSE.)
+                  lri_env%bas_prop(ikind)%ovlp3 => ovlp3
                   DEALLOCATE (orb_norm_r, ri_norm_r, ri_norm_s)
+                  DEALLOCATE (dovlp3)
                END IF
             END DO
          END IF
@@ -330,9 +343,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'basis_ovlp', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ipgf, iset, isgf, ishell, jpgf, jset, &
-                                                            jsgf, jshell, l, li, lj, nbas
-      REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, m_i, m_j, &
-                                                            norm_i, norm_j, oo, ppl
+                                                            jsgf, jshell, l, li, lj, m_i, m_j, nbas
+      REAL(KIND=dp)                                      :: aai, aaj, cci, ccj, expa, norm_i, &
+                                                            norm_j, oo, ppl
 
       nbas = basis%nsgf
       ALLOCATE (ovlp(nbas, nbas))

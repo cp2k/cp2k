@@ -147,6 +147,8 @@ MODULE lri_environment_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: ri_ovlp
       ! self overlap orb basis
       REAL(KIND=dp), DIMENSION(:, :), POINTER                 :: orb_ovlp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: ovlp3
+      ! contraction matrix for SHG integrals ri basis
       ! contraction matrix for SHG integrals ri basis
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER              :: scon_ri
       ! contraction matrix for SHG integrals orb basis
@@ -839,6 +841,7 @@ CONTAINS
             DEALLOCATE (lri_env%bas_prop(i)%int_fbas)
             DEALLOCATE (lri_env%bas_prop(i)%ri_ovlp)
             DEALLOCATE (lri_env%bas_prop(i)%orb_ovlp)
+            DEALLOCATE (lri_env%bas_prop(i)%ovlp3)
             DEALLOCATE (lri_env%bas_prop(i)%scon_ri)
             DEALLOCATE (lri_env%bas_prop(i)%scon_orb)
             DEALLOCATE (lri_env%bas_prop(i)%orb_index)

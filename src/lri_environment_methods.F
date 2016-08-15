@@ -190,10 +190,9 @@ CONTAINS
 
             ra(:) = pbc(particle_set(iatom)%r, cell)
             rb(:) = pbc(particle_set(jatom)%r, cell)
-
             ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
             IF (lri_env%use_shg_integrals) THEN
-               CALL lri_int_shg(lri_env, lrii, ra, rb, rab, obasa, obasb, fbasa, fbasb, &
+               CALL lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
                                 iatom, jatom, ikind, jkind)
             ELSE
                CALL lri_int_os(lri_env, lrii, ra, rb, rab, obasa, obasb, fbasa, fbasb, &
@@ -706,8 +705,6 @@ CONTAINS
 !> \brief calcuates the lri integrals using solid harmonic Gaussians
 !> \param lri_env ...
 !> \param lrii ...
-!> \param ra position of center A
-!> \param rb position of center B
 !> \param rab distance vector
 !> \param obasa orb basis on A
 !> \param obasb orb basis on B
@@ -718,12 +715,12 @@ CONTAINS
 !> \param ikind kind atom A
 !> \param jkind kind atom B
 ! **************************************************************************************************
-   SUBROUTINE lri_int_shg(lri_env, lrii, ra, rb, rab, obasa, obasb, fbasa, fbasb, &
+   SUBROUTINE lri_int_shg(lri_env, lrii, rab, obasa, obasb, fbasa, fbasb, &
                           iatom, jatom, ikind, jkind)
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_int_type), POINTER                        :: lrii
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb, rab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
       TYPE(gto_basis_set_type), POINTER                  :: obasa, obasb, fbasa, fbasb
       INTEGER, INTENT(IN)                                :: iatom, jatom, ikind, jkind
 
@@ -756,9 +753,7 @@ CONTAINS
          lrii%soo(1:nba, 1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba, 1:nba)
          lrii%dsoo = 0._dp
          !*** (a,a,fa)
-         CALL int_overlap_aba_os(lrii%abaint, ra=ra, rb=rb, rab=rab, oba=obasa, obb=obasb, &
-                                 fba=fbasa, calculate_forces=.FALSE., debug=lri_env%debug, &
-                                 dmax=lrii%dmax_aba)
+         lrii%abaint(1:nba, 1:nba, 1:nfa) = lri_env%bas_prop(ikind)%ovlp3
          lrii%dabdaint = 0.0_dp
          lrii%dabbint = 0.0_dp
       ELSE
