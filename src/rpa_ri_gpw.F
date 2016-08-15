@@ -2093,7 +2093,7 @@ CONTAINS
          CALL cp_fm_to_fm(fm_mat_L, fm_mat_L_transposed)
          CALL cp_fm_set_all(matrix=fm_mat_L_transposed, alpha=0.0_dp)
 
-         CALL cp_fm_get_info(fm_mat_L, context=blacs_env)
+         CALL cp_fm_get_info(fm_mat_L_transposed, context=blacs_env)
 
          CALL cp_fm_copy_general(fm_matrix_L_RI_metric, fm_mat_L_transposed, blacs_env%group)
 
