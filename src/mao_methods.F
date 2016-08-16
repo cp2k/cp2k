@@ -1273,8 +1273,12 @@ CONTAINS
                CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
                a2 = (4._dp*fa1-fa2-3._dp*fval)/alpha
                a1 = (fa2-fval-a2*alpha)/(alpha*alpha)
-               an = -a2/(2._dp*a1)
-               an = MIN(an, 2.0_dp*alpha)
+               IF (ABS(a1) > 1.e-14_dp) THEN
+                  an = -a2/(2._dp*a1)
+                  an = MIN(an, 2.0_dp*alpha)
+               ELSE
+                  an = 2.0_dp*alpha
+               END IF
                IF (an < 0.05_dp .OR. a1 > 0.0_dp) THEN
                   CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
                   alpha = 0.25_dp
