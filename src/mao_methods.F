@@ -1064,12 +1064,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
-         WRITE (UNIT=unit_nr, FMT="(T37,A)") "MAO BASIS"
-         WRITE (unit_nr, '(T2,A)') '!-----------------------------------------------------------------------------!'
-      END IF
-
       ! k-points?
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nimages = dft_control%nimages
@@ -1103,6 +1097,12 @@ CONTAINS
          mao_eps_grad = 0.00001_dp
       END IF
       eps_fun = 10._dp*mao_eps_grad
+
+      IF (iw > 0) THEN
+         WRITE (iw, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
+         WRITE (UNIT=iw, FMT="(T37,A)") "MAO BASIS"
+         WRITE (iw, '(T2,A)') '!-----------------------------------------------------------------------------!'
+      END IF
 
       ! Reference basis set
       IF (PRESENT(ref_basis_set)) THEN
