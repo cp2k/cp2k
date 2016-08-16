@@ -161,12 +161,12 @@ Library ELPA for the solution of the eigenvalue problem
   * For specific architectures it can be better to install specifically
     optimized kernels (see BG) and/or employ a higher optimization level to compile it.
 
-==== 2m. PEXSI (optional, enables low scaling SCF methods) ====
+==== 2m. PEXSI (optional, low scaling SCF method) ====
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library
 and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
   * Download PEXSI (www.pexsi.org) and install it and its dependencies by following 
     the instructions in the README.md file distributed with PEXSI.
-  * The version 0.9.0 has been tested with CP2K.
+  * PEXSI v0.9.x has been tested with CP2K.
   * Building the Fortran interface of PEXSI (provided in the fortran
     subdirectory) is required.
 

@@ -6,7 +6,7 @@
 ! **************************************************************************************************
 !> \brief Interface to the PEXSI library, providing wrappers for all PEXSI
 !>        routines that are called inside CP2K. Tested for PEXSI versions
-!>        v0.7.3 - v0.9.0
+!>        v0.7.3 - v0.9.2
 !> \par History
 !>       2014.12 created [Patrick Seewald]
 !> \author Patrick Seewald
