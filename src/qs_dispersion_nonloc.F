@@ -15,8 +15,6 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_dispersion_nonloc
-!$ USE OMP_LIB
-
    USE bibliography,                    ONLY: Dion2004,&
                                               Romanperez2009,&
                                               Sabatini2013,&
