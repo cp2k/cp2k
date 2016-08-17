@@ -1230,8 +1230,6 @@ CONTAINS
 
       CALL cp_fm_struct_release(fm_struct)
 
-      PRINT*, 'para_env_L%mepos =', para_env_L%mepos
-
       CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric, blacs_env%group)
 
       CALL cp_fm_release(fm_matrix_S_global)
