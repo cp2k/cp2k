@@ -151,8 +151,7 @@ CONTAINS
                                    matrix_name="OVERLAP", &
                                    basis_type_a="ORB", &
                                    basis_type_b="ORB", &
-                                   sab_nl=sab_orb, &
-                                   qs_input=qs_env%input)
+                                   sab_nl=sab_orb)
          CALL set_ks_env(ks_env, matrix_s=matrix_s)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       ELSE
@@ -160,8 +159,7 @@ CONTAINS
                                    matrix_name="OVERLAP", &
                                    basis_type_a="ORB", &
                                    basis_type_b="ORB", &
-                                   sab_nl=sab_orb, &
-                                   qs_input=qs_env%input)
+                                   sab_nl=sab_orb)
          CALL set_ks_env(ks_env, matrix_s=matrix_s)
          use_virial = .FALSE.
       END IF

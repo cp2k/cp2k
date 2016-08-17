@@ -133,8 +133,7 @@ CONTAINS
                                 matrix_name="OVERLAP", &
                                 basis_type_a="ORB", &
                                 basis_type_b="ORB", &
-                                sab_nl=sab_orb, &
-                                qs_input=qs_env%input)
+                                sab_nl=sab_orb)
 
       CALL set_ks_env(ks_env, matrix_s=matrix_s)
       CALL get_qs_env(qs_env=qs_env, &

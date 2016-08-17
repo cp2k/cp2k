@@ -1193,8 +1193,7 @@ CONTAINS
                                 matrix_s=matrix_s_RI_aux, &
                                 basis_type_a='RI_AUX', &
                                 basis_type_b='RI_AUX', &
-                                sab_nl=sab_orb, &
-                                qs_input=qs_env%input)
+                                sab_nl=sab_orb)
 
       CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux=matrix_s_RI_aux)
 

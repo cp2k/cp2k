@@ -259,7 +259,7 @@ CONTAINS
                                 matrix_name="OVERLAP MATRIX", &
                                 basis_type_a="HARRIS", &
                                 basis_type_b="HARRIS", &
-                                sab_nl=sab_orb, qs_input=qs_env%input)
+                                sab_nl=sab_orb)
 
       CALL build_kinetic_matrix(ks_env, matrixkp_t=ec_env%matrix_t, &
                                 matrix_name="KINETIC ENERGY MATRIX", &

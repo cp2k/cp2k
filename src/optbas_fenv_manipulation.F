@@ -286,12 +286,10 @@ CONTAINS
 !> \brief ...
 !> \param ks_env ...
 !> \param S_type ...
-!> \param qs_input ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_overlap(ks_env, S_type, qs_input)
+   SUBROUTINE calculate_overlap(ks_env, S_type)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       CHARACTER(LEN=*)                                   :: S_type
-      TYPE(section_vals_type), POINTER                   :: qs_input
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_overlap', &
          routineP = moduleN//':'//routineN
@@ -309,8 +307,7 @@ CONTAINS
                                    matrix_name="OVERLAP", &
                                    basis_type_a="ORB", &
                                    basis_type_b="ORB", &
-                                   sab_nl=sab_orb, &
-                                   qs_input=qs_input)
+                                   sab_nl=sab_orb)
          CALL set_ks_env(ks_env, matrix_s=matrix_s)
       ELSE IF (S_type == "S_AB_AUX") THEN
          CALL get_ks_env(ks_env, &
@@ -322,14 +319,12 @@ CONTAINS
                                    matrix_name="AUX_FIT_OVERLAP", &
                                    basis_type_a="AUX_FIT", &
                                    basis_type_b="AUX_FIT", &
-                                   sab_nl=sab_aux_fit, &
-                                   qs_input=qs_input)
+                                   sab_nl=sab_aux_fit)
          CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_fit_vs_orb, &
                                    matrix_name="MIXED_OVERLAP", &
                                    basis_type_a="AUX_FIT", &
                                    basis_type_b="ORB", &
-                                   sab_nl=sab_aux_fit_vs_orb, &
-                                   qs_input=qs_input)
+                                   sab_nl=sab_aux_fit_vs_orb)
          CALL set_ks_env(ks_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
                          matrix_s_aux_fit=matrix_s_aux_fit)
       END IF

@@ -33,11 +33,8 @@ MODULE qs_overlap
         cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
         dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_should_output,&
-                                              cp_print_key_unit_nr
-   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -106,7 +103,7 @@ CONTAINS
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with k_points (optional)
-!> \param qs_input ...
+!> \param   condition_number ...
 !> \date    11.03.2002
 !> \par     History
 !>          Enlarged functionality of this routine. Now overlap matrices based
@@ -121,7 +118,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_overlap_matrix(ks_env, matrix_s, matrixkp_s, matrix_name, &
                                    nderivative, basis_type_a, basis_type_b, sab_nl, calculate_forces, &
-                                   matrix_p, matrixkp_p, qs_input)
+                                   matrix_p, matrixkp_p, condition_number)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -137,7 +134,7 @@ CONTAINS
       TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_p
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
-      TYPE(section_vals_type), POINTER                   :: qs_input
+      LOGICAL, INTENT(IN), OPTIONAL                      :: condition_number
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
          routineP = moduleN//':'//routineN
@@ -151,9 +148,9 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: converged, do_forces, do_symmetric, &
-                                                            dokp, found, trans, use_cell_mapping, &
-                                                            use_virial
+      LOGICAL                                            :: calculate_condition_number, converged, &
+                                                            do_forces, do_symmetric, dokp, found, &
+                                                            trans, use_cell_mapping, use_virial
       REAL(KIND=dp)                                      :: dab, eps_ev, f, f0, ff, max_ev, min_ev, &
                                                             rab2, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, pmat
@@ -217,6 +214,12 @@ CONTAINS
          nder = 0
       END IF
       maxder = ncoset(nder)
+
+      IF (PRESENT(condition_number)) THEN
+         calculate_condition_number = condition_number
+      ELSE
+         calculate_condition_number = .FALSE.
+      END IF
 
       ! check for symmetry
       CPASSERT(SIZE(sab_nl) > 0)
@@ -449,11 +452,19 @@ CONTAINS
                                  dft_control%qs_control%eps_filter_matrix)
          ENDDO
 
-         logger => cp_get_default_logger()
-         output_unit = cp_print_key_unit_nr(logger, qs_input, "DFT%PRINT%OVERLAP_CONDITION", &
-                                            extension=".Log")
-         IF (cp_print_key_should_output(logger%iter_info, qs_input, &
-                                        "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+         IF (calculate_condition_number) THEN
+!        logger => cp_get_default_logger()
+!        output_unit = cp_print_key_unit_nr(logger, qs_input, "DFT%PRINT%OVERLAP_CONDITION", &
+!                                           extension=".Log")
+!        IF (cp_print_key_should_output(logger%iter_info, qs_input, &
+!                                       "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+            logger => cp_get_default_logger()
+            IF (logger%para_env%mepos == logger%para_env%source) THEN
+               output_unit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+            ELSE
+               output_unit = -1
+            ENDIF
+
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
             END IF
@@ -493,8 +504,8 @@ CONTAINS
                      "S matrix is not symmetric - eigenvalues not available"
                END IF
             END IF
+!        CALL cp_print_key_finished_output(output_unit, logger, qs_input, "DFT%PRINT%OVERLAP_CONDITION")
          END IF
-         CALL cp_print_key_finished_output(output_unit, logger, qs_input, "DFT%PRINT%OVERLAP_CONDITION")
       END IF
 
       ! *** Release work storage ***

@@ -160,8 +160,9 @@ CONTAINS
       INTEGER                                            :: handle, img, maxder, natom, nder, nders, &
                                                             nimages, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: all_potential_present, kgpot, lrigpw, &
-                                                            ofdft, ppl_present, use_virial
+      LOGICAL                                            :: all_potential_present, condition_number, &
+                                                            kgpot, lrigpw, ofdft, ppl_present, &
+                                                            use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit, eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
@@ -270,6 +271,14 @@ CONTAINS
          nders = 1
       END IF
 
+      ! overlap matrix condition number
+      IF (cp_print_key_should_output(logger%iter_info, qs_env%input, &
+                                     "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+         condition_number = .TRUE.
+      ELSE
+         condition_number = .FALSE.
+      END IF
+
       ! the delta pulse in the periodic case needs the momentum operator,
       ! which is equivalent to the derivative of the overlap matrix
       IF (ASSOCIATED(dft_control%rtp_control)) THEN
@@ -298,7 +307,7 @@ CONTAINS
                                    basis_type_a="ORB", &
                                    basis_type_b="ORB", &
                                    sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                   matrixkp_p=matrix_w, qs_input=qs_env%input)
+                                   matrixkp_p=matrix_w)
          ! T matrix
          IF (.NOT. ofdft) &
             CALL build_kinetic_matrix(ks_env, matrixkp_t=matrix_t, &
@@ -313,7 +322,7 @@ CONTAINS
                                    matrix_name="OVERLAP MATRIX", &
                                    basis_type_a="ORB", &
                                    basis_type_b="ORB", &
-                                   sab_nl=sab_orb, qs_input=qs_env%input)
+                                   sab_nl=sab_orb, condition_number=condition_number)
          ! T matrix
          IF (.NOT. ofdft) &
             CALL build_kinetic_matrix(ks_env, matrixkp_t=matrix_t, &
@@ -331,7 +340,7 @@ CONTAINS
                                       matrix_name="AUX_FIT_OVERLAP", &
                                       basis_type_a="AUX_FIT", &
                                       basis_type_b="AUX_FIT", &
-                                      sab_nl=sab_aux_fit, qs_input=qs_env%input)
+                                      sab_nl=sab_aux_fit)
             CALL set_ks_env(ks_env, matrix_s_aux_fit=matrix_s_aux_fit)
             CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
                             sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
@@ -339,7 +348,7 @@ CONTAINS
                                       matrix_name="MIXED_OVERLAP", &
                                       basis_type_a="AUX_FIT", &
                                       basis_type_b="ORB", &
-                                      sab_nl=sab_aux_fit_vs_orb, qs_input=qs_env%input)
+                                      sab_nl=sab_aux_fit_vs_orb)
             CALL set_ks_env(ks_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
          END IF
       END IF
