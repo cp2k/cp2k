@@ -261,13 +261,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: add_cut_RI, color_sub_3c, cut_memory, cut_RI, eri_method, eri_method_3c, &
-         gw_corr_lev_total, handle, handle2, handle3, i, i_counter, itmp(2), LLL, &
-         max_row_col_local, max_row_col_local_beta, max_row_col_local_gw, my_B_all_end, &
-         my_B_all_size, my_B_all_start, my_B_size, my_B_size_beta, my_B_virtual_end, &
-         my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
-         my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, nfullrows_total, ngroup, &
-         ngroup_im_time, nrow_local, num_small_eigen, virtual, virtual_beta
+      INTEGER :: color_sub_3c, cut_memory, cut_RI, eri_method, eri_method_3c, gw_corr_lev_total, &
+         handle, handle2, handle3, i, i_counter, itmp(2), LLL, max_row_col_local, &
+         max_row_col_local_beta, max_row_col_local_gw, my_B_all_end, my_B_all_size, &
+         my_B_all_start, my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
+         my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
+         my_group_L_start, ncol_local, nfullcols_total, nfullrows_total, ngroup, ngroup_im_time, &
+         nrow_local, num_small_eigen, virtual, virtual_beta
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_group_L_ends_im_time, &
                                                             my_group_L_sizes_im_time, &
                                                             my_group_L_starts_im_time, sub_proc_map
@@ -717,14 +717,12 @@ CONTAINS
 
          cut_memory = qs_env%mp2_env%ri_rpa_im_time%cut_memory
 
-         add_cut_RI = qs_env%mp2_env%ri_rpa_im_time%add_cut_RI
-
          ngroup_im_time = para_env%num_pe/qs_env%mp2_env%ri_rpa_im_time%group_size_3c
 
          color_sub_3c = para_env%mepos/qs_env%mp2_env%ri_rpa_im_time%group_size_3c
 
          CALL setup_group_L_im_time(my_group_L_starts_im_time, my_group_L_ends_im_time, my_group_L_sizes_im_time, &
-                                    dimen_RI, ngroup_im_time, cut_memory*add_cut_RI, cut_RI, color_sub_3c, qs_env)
+                                    dimen_RI, ngroup_im_time, cut_memory, cut_RI, color_sub_3c, qs_env)
 
          qs_env%mp2_env%ri_rpa_im_time_util(1)%n_group_RI_orig = ngroup
 
@@ -1084,7 +1082,7 @@ CONTAINS
                                       mo_coeff, dft_control, psi_L, rho_r, rho_g, pot_g, pw_env_sub, poisson_env, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                       sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
-                                      num_small_eigen, auxbas_pw_pool, do_mult_2c, do_inversion)
+                                      num_small_eigen, auxbas_pw_pool, do_mult_2c, do_inversion, do_im_time=do_im_time)
 
       IF (ri_metric == ri_overlap) THEN
 
@@ -1171,16 +1169,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'OS_overlap_mat_and_cholesky', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: comm_exchange, handle, i_global, iiB, &
-                                                            info_chol, j_global, jjB, ncol_local, &
-                                                            nrow_local, sub_sub_color
+      INTEGER                                            :: handle, i_global, iiB, info_chol, &
+                                                            j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_RI_aux
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_RI_aux_desymm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_dummy, fm_matrix_S_global
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_exchange
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_S_global
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
@@ -1233,26 +1230,11 @@ CONTAINS
 
       CALL cp_fm_struct_release(fm_struct)
 
-      ! create the new group for the mp_sum of the local data
-      sub_sub_color = para_env_L%mepos
-      CALL mp_comm_split_direct(para_env%group, comm_exchange, sub_sub_color)
+      PRINT*, 'para_env_L%mepos =', para_env_L%mepos
 
-      NULLIFY (para_env_exchange)
-      CALL cp_para_env_create(para_env_exchange, comm_exchange)
-
-      NULLIFY (fm_dummy)
-
-      IF (para_env_exchange%mepos == 0) THEN
-         CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric, blacs_env%group)
-      ELSE
-         CALL cp_fm_copy_general(fm_matrix_S_global, fm_dummy, blacs_env%group)
-      END IF
+      CALL cp_fm_copy_general(fm_matrix_S_global, fm_matrix_L_RI_metric, blacs_env%group)
 
       CALL cp_fm_release(fm_matrix_S_global)
-
-      CALL mp_sum(fm_matrix_L_RI_metric%local_data, para_env_exchange%group)
-
-      CALL cp_para_env_release(para_env_exchange)
 
       ! do cholesky decomposition
       CALL cp_fm_cholesky_decompose(matrix=fm_matrix_L_RI_metric, n=dimen_RI, info_out=info_chol)
@@ -1313,6 +1295,7 @@ CONTAINS
 !> \param do_mult_2c ...
 !> \param do_inversion ...
 !> \param external_matrix_struc ...
+!> \param do_im_time ...
 !> \param fm_matrix_L_extern ...
 !> \param ri_metric ...
 ! **************************************************************************************************
@@ -1322,7 +1305,7 @@ CONTAINS
                                          my_group_L_size, my_group_L_start, my_group_L_end, sab_orb_sub, &
                                          sizes_array, starts_array, ends_array, calc_PQ_cond_num, cond_num, &
                                          num_small_eigen, auxbas_pw_pool, do_mult_2c, do_inversion, &
-                                         external_matrix_struc, fm_matrix_L_extern, ri_metric)
+                                         external_matrix_struc, do_im_time, fm_matrix_L_extern, ri_metric)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: eri_method
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -1345,7 +1328,7 @@ CONTAINS
       INTEGER                                            :: num_small_eigen
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       LOGICAL                                            :: do_mult_2c, do_inversion
-      LOGICAL, OPTIONAL                                  :: external_matrix_struc
+      LOGICAL, OPTIONAL                                  :: external_matrix_struc, do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
       INTEGER, OPTIONAL                                  :: ri_metric
 
@@ -1374,7 +1357,7 @@ CONTAINS
                                                             row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: check_i, check_j, map_it_here, &
-                                                            my_external_matrix_struc
+                                                            my_do_im_time, my_external_matrix_struc
       REAL(KIND=dp)                                      :: min_mem_for_QK, pair_energy, rab2, rac2, &
                                                             scaling, zet_tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: egen_L, f, wf_vector
@@ -1413,6 +1396,11 @@ CONTAINS
       my_external_matrix_struc = .FALSE.
       IF (PRESENT(external_matrix_struc)) THEN
          my_external_matrix_struc = external_matrix_struc
+      END IF
+
+      my_do_im_time = .FALSE.
+      IF (PRESENT(do_im_time)) THEN
+         my_do_im_time = do_im_time
       END IF
 
       ! get stuff
@@ -2365,6 +2353,11 @@ CONTAINS
          best_group_size = group_size
          EXIT
       END DO
+
+      IF (my_do_im_time) THEN
+         ! para_env_L is the para_env for im. time to avoid bug
+         best_group_size = para_env%num_pe
+      END IF
 
       ! create the L group
       color_L = para_env%mepos/best_group_size
