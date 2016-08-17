@@ -166,15 +166,14 @@ CONTAINS
 !>        transposition for a given matrix and matrix logical row and
 !>        column.
 !> \param[in] matrix          DBCSR matrix
-!> \param[in,out] row         input is logical row, output is lookup row
-!> \param[in,out] column      input is logical column, output is lookup
-!>                            column
+!> \param[in] row             input is logical row
+!> \param[in] column          input is logical column
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! **************************************************************************************************
   PURE SUBROUTINE get_stored_coordinates_type(matrix, row, column,processor)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER, INTENT(INOUT)                             :: row, column
+      INTEGER, INTENT(IN)                                :: row, column
       INTEGER, INTENT(OUT), OPTIONAL                     :: processor
 
 !   ---------------------------------------------------------------------------
@@ -233,15 +232,14 @@ CONTAINS
 !>        transposition for a given matrix and matrix logical row and
 !>        column.
 !> \param[in] matrix          DBCSR matrix
-!> \param[in,out] row         input is logical row, output is lookup row
-!> \param[in,out] column      input is logical column, output is lookup
-!>                            column
+!> \param[in] row             logical row
+!> \param[in] column          logical column
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! **************************************************************************************************
   SUBROUTINE get_stored_coordinates_obj(matrix, row, column, processor)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      INTEGER, INTENT(INOUT)                             :: row, column
+      INTEGER, INTENT(IN)                                :: row, column
       INTEGER, INTENT(OUT), OPTIONAL                     :: processor
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &

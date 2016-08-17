@@ -636,7 +636,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_get_stored_coordinates(matrix, row, column, processor)
       TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix
-      INTEGER, INTENT(INOUT)                             :: row, column
+      INTEGER, INTENT(IN)                                :: row, column
       INTEGER, INTENT(OUT), OPTIONAL                     :: processor
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_stored_coordinates', &
