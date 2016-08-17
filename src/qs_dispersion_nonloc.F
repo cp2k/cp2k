@@ -15,6 +15,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_dispersion_nonloc
+!$ USE OMP_LIB
 
    USE bibliography,                    ONLY: Dion2004,&
                                               Romanperez2009,&
@@ -213,13 +214,13 @@ CONTAINS
 
       b_value = dispersion_env%b_value
       beta = 0.03125_dp*(3.0_dp/(b_value**2.0_dp))**0.75_dp
+      nspin = SIZE(rho_r)
 
-      ! tempory arrays for FFT
+      ! temporary arrays for FFT
       CALL pw_pool_create_pw(pw_pool, tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pw_pool, tmp_r, use_data=REALDATA3D, in_space=REALSPACE)
 
       ! get density derivatives
-      nspin = SIZE(rho_r)
       ALLOCATE (drho_r(3, nspin))
       DO ispin = 1, nspin
          DO idir = 1, 3
@@ -447,6 +448,8 @@ CONTAINS
 !> \param vdW_xc_energy ...
 !> \param energy_only ...
 !> \param virial ...
+!> \par History
+!>    OpenMP added: Aug 2016  MTucker
 ! **************************************************************************************************
    SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial)
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: thetas_g
@@ -458,46 +461,64 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'vdW_energy', routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=dp)                                   :: uu
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: theta, theta_g, thetam
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: theta
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: u_vdw(:, :)
-      INTEGER                                            :: handle, ig, igs, iq, l, m, nqs, q1_i, &
-                                                            q2_i
+      INTEGER                                            :: handle, ig, iq, l, m, nl_type, nqs, &
+                                                            q1_i, q2_i
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: g, g2, g2_last, g_multiplier, gm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dkernel_of_dk, kernel_of_k
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_thread
       TYPE(pw_grid_type), POINTER                        :: grid
 
       CALL timeset(routineN, handle)
       nqs = dispersion_env%nqs
-      ALLOCATE (kernel_of_k(nqs, nqs), dkernel_of_dk(nqs, nqs))
-      ALLOCATE (theta(nqs), thetam(nqs), theta_g(nqs))
 
       IF (PRESENT(virial)) THEN
          use_virial = .TRUE.
+         virial_thread(:, :) = 0.0_dp
       ELSE
          use_virial = .FALSE.
       END IF
 
       vdW_xc_energy = 0._dp
-      g2_last = HUGE(0._dp)
       grid => thetas_g(1)%pw%pw_grid
-
-      IF (.NOT. energy_only) THEN
-         ALLOCATE (u_vdW(grid%ngpts_cut_local, nqs))
-         u_vdW(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-      END IF
 
       IF (grid%grid_span == HALFSPACE) THEN
          g_multiplier = 2._dp
       ELSE
          g_multiplier = 1._dp
       END IF
-      igs = 0
+
+      nl_type = dispersion_env%nl_type
+
+      IF (.NOT. energy_only) THEN
+         ALLOCATE (u_vdW(grid%ngpts_cut_local, nqs))
+         u_vdW(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      END IF
+
+!$OMP PARALLEL DEFAULT( NONE )                                             &
+!$OMP           SHARED( nqs, energy_only, grid, dispersion_env             &
+!$OMP                 , use_virial, thetas_g, g_multiplier, nl_type        &
+!$OMP                 , u_vdW                                              &
+!$OMP                 )                                                    &
+!$OMP          PRIVATE( g2_last, kernel_of_k, dkernel_of_dk, theta         &
+!$OMP                 , g2, g, iq                                          &
+!$OMP                 , q2_i, uu, q1_i, gm, l, m                           &
+!$OMP                 )                                                    &
+!$OMP        REDUCTION( +: vdW_xc_energy, virial_thread                    &
+!$OMP                 )
+
+      g2_last = HUGE(0._dp)
+
+      ALLOCATE (kernel_of_k(nqs, nqs), dkernel_of_dk(nqs, nqs))
+      ALLOCATE (theta(nqs))
+
+!$OMP DO
       DO ig = 1, grid%ngpts_cut_local
          g2 = grid%gsq(ig)
          IF (ABS(g2-g2_last) > 1.e-10) THEN
             g2_last = g2
-            igs = igs+1
             g = SQRT(g2)
             CALL interpolate_kernel(g, kernel_of_k, dispersion_env)
             IF (use_virial) CALL interpolate_dkernel_dk(g, dkernel_of_dk, dispersion_env)
@@ -505,35 +526,39 @@ CONTAINS
          DO iq = 1, nqs
             theta(iq) = thetas_g(iq)%pw%cc(ig)
          END DO
-         DO q2_i = 1, Nqs
+         DO q2_i = 1, nqs
             uu = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-            DO q1_i = 1, Nqs
+            DO q1_i = 1, nqs
                uu = uu+kernel_of_k(q2_i, q1_i)*theta(q1_i)
             END DO
             IF (ig < grid%first_gne0) THEN
                vdW_xc_energy = vdW_xc_energy+REAL(uu*CONJG(theta(q2_i)), KIND=dp)
             ELSE
-               vdW_xc_energy = vdW_xc_energy+G_multiplier*REAL(uu*CONJG(theta(q2_i)), KIND=dp)
+               vdW_xc_energy = vdW_xc_energy+g_multiplier*REAL(uu*CONJG(theta(q2_i)), KIND=dp)
             END IF
             IF (.NOT. energy_only) u_vdW(ig, q2_i) = uu
+
             IF (use_virial .AND. ig >= grid%first_gne0) THEN
-               DO q1_i = 1, Nqs
-                  gm = 0.5_dp*G_multiplier*grid%vol*dkernel_of_dk(q1_i, q2_i)*REAL(theta(q1_i)*CONJG(theta(q2_i)), KIND=dp)
-                  SELECT CASE (dispersion_env%nl_type)
-                  CASE (vdw_nl_RVV10)
+               DO q1_i = 1, nqs
+                  gm = 0.5_dp*g_multiplier*grid%vol*dkernel_of_dk(q1_i, q2_i)*REAL(theta(q1_i)*CONJG(theta(q2_i)), KIND=dp)
+                  IF (nl_type == vdw_nl_RVV10) THEN
                      gm = 0.5_dp*gm
-                  END SELECT
+                  END IF
                   DO l = 1, 3
                      DO m = 1, l
-                        virial%pv_xc(l, m) = virial%pv_xc(l, m)-gm*(grid%g(l, ig)*grid%g(m, ig))/g
-                        virial%pv_xc(m, l) = virial%pv_xc(l, m)
+                        virial_thread(l, m) = virial_thread(l, m)-gm*(grid%g(l, ig)*grid%g(m, ig))/g
                      END DO
                   END DO
                END DO
             END IF
+
          END DO
       END DO
-      vdW_xc_energy = vdW_xc_energy*grid%vol*0.5_dp
+!$OMP END DO
+
+      DEALLOCATE (theta)
+      DEALLOCATE (kernel_of_k, dkernel_of_dk)
+!$OMP END PARALLEL
 
       IF (.NOT. energy_only) THEN
          DO iq = 1, nqs
@@ -543,8 +568,19 @@ CONTAINS
          END DO
          DEALLOCATE (u_vdW)
       END IF
-      DEALLOCATE (theta, thetam, theta_g)
-      DEALLOCATE (kernel_of_k, dkernel_of_dk)
+
+      vdW_xc_energy = vdW_xc_energy*grid%vol*0.5_dp
+
+      IF (use_virial) THEN
+         DO l = 1, 3
+            DO m = 1, (l-1)
+               virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+               virial%pv_xc(m, l) = virial%pv_xc(l, m)
+            END DO
+            m = l
+            virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+         END DO
+      END IF
 
       CALL timestop(handle)
 
@@ -1166,18 +1202,19 @@ CONTAINS
 !> \param k ...
 !> \param kernel_of_k ...
 !> \param dispersion_env ...
+!> \par History
+!>     Optimised when adding OpenMP to vdw_energy (which calls this routine): Aug 2016 MTucker
 ! **************************************************************************************************
    SUBROUTINE interpolate_kernel(k, kernel_of_k, dispersion_env)
-
       REAL(dp), INTENT(in)                               :: k
-      REAL(dp), INTENT(inout)                            :: kernel_of_k(:, :)
+      REAL(dp), INTENT(out)                              :: kernel_of_k(:, :)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_kernel', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: k_i, Nr_points, q1_i, q2_i
-      REAL(dp)                                           :: A, B, C, D, dk, r_max
+      REAL(dp)                                           :: A, B, C, const, D, dk, r_max
       REAL(dp), DIMENSION(:, :, :), POINTER              :: d2phi_dk2, kernel
 
       Nr_points = dispersion_env%nr_points
@@ -1214,10 +1251,11 @@ CONTAINS
       !! ----------------------------------------------------------------------------------------
       !! If we are not on a function point then we carry out the interpolation
       !! ----------------------------------------------------------------------------------------
+      const = dk*dk/6.0_dp
       A = (dk*(k_i+1.0_dp)-k)/dk
       B = (k-dk*k_i)/dk
-      C = (A**3-A)*dk**2/6.0_dp
-      D = (B**3-B)*dk**2/6.0_dp
+      C = (A**3-A)*const
+      D = (B**3-B)*const
       DO q1_i = 1, dispersion_env%Nqs
          DO q2_i = 1, q1_i
             kernel_of_k(q1_i, q2_i) = A*kernel(k_i, q1_i, q2_i)+B*kernel(k_i+1, q1_i, q2_i) &
@@ -1233,24 +1271,26 @@ CONTAINS
 !> \param k ...
 !> \param dkernel_of_dk ...
 !> \param dispersion_env ...
+!> \par History
+!>     Optimised when adding OpenMP to vdw_energy (which calls this routine): Aug 2016 MTucker
 ! **************************************************************************************************
    SUBROUTINE interpolate_dkernel_dk(k, dkernel_of_dk, dispersion_env)
       REAL(dp), INTENT(in)                               :: k
-      REAL(dp), INTENT(inout)                            :: dkernel_of_dk(:, :)
+      REAL(dp), INTENT(out)                              :: dkernel_of_dk(:, :)
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'interpolate_dkernel_dk', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: k_i, Nr_points, q1_i, q2_i
-      REAL(dp)                                           :: A, B, dAdk, dBdk, dCdk, dDdk, dk, r_max
+      REAL(dp)                                           :: A, B, dAdk, dBdk, dCdk, dDdk, dk, dk_6
       REAL(dp), DIMENSION(:, :, :), POINTER              :: d2phi_dk2, kernel
 
       Nr_points = dispersion_env%nr_points
-      r_max = dispersion_env%r_max
       dk = dispersion_env%dk
       kernel => dispersion_env%kernel
       d2phi_dk2 => dispersion_env%d2phi_dk2
+      dk_6 = dk/6.0_dp
 
       CPASSERT(k < Nr_points*dk)
 
@@ -1261,8 +1301,8 @@ CONTAINS
       B = (k-dk*k_i)/dk
       dAdk = -1.0_dp/dk
       dBdk = 1.0_dp/dk
-      dCdk = -((3*A**2-1.0_dp)/6.0_dp)*dk
-      dDdk = ((3*B**2-1.0_dp)/6.0_dp)*dk
+      dCdk = -(3*A**2-1.0_dp)*dk_6
+      dDdk = (3*B**2-1.0_dp)*dk_6
       DO q1_i = 1, dispersion_env%Nqs
          DO q2_i = 1, q1_i
             dkernel_of_dk(q1_i, q2_i) = dAdk*kernel(k_i, q1_i, q2_i)+dBdk*kernel(k_i+1, q1_i, q2_i) &
@@ -1271,7 +1311,7 @@ CONTAINS
          END DO
       END DO
 
-   END SUBROUTINE interpolate_Dkernel_Dk
+   END SUBROUTINE interpolate_dkernel_dk
 
 ! **************************************************************************************************
 
