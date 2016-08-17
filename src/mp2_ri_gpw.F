@@ -1094,7 +1094,7 @@ CONTAINS
             dft_control%qs_control%eps_pgf_orb = mp2_eps_pgf_orb_S
             CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
 
-            CALL OS_overlap_mat_and_cholesky(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, para_env_L, dimen_RI)
+            CALL OS_overlap_mat_and_cholesky(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI)
 
             ! re-init the radii to previous values
             dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
@@ -1159,11 +1159,10 @@ CONTAINS
 !> \param para_env_L ...
 !> \param dimen_RI ...
 ! **************************************************************************************************
-   SUBROUTINE OS_overlap_mat_and_cholesky(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, para_env_L, dimen_RI)
+   SUBROUTINE OS_overlap_mat_and_cholesky(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_RI_metric, fm_matrix_L
-      TYPE(cp_para_env_type), POINTER                    :: para_env_L
       INTEGER                                            :: dimen_RI
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'OS_overlap_mat_and_cholesky', &
