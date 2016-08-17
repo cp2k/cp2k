@@ -556,14 +556,20 @@ CONTAINS
 
       DEALLOCATE (theta)
       DEALLOCATE (kernel_of_k, dkernel_of_dk)
-!$OMP END PARALLEL
 
       IF (.NOT. energy_only) THEN
-         DO iq = 1, nqs
-            DO ig = 1, grid%ngpts_cut_local
+!$OMP DO
+         DO ig = 1, grid%ngpts_cut_local
+            DO iq = 1, nqs
                thetas_g(iq)%pw%cc(ig) = u_vdW(ig, iq)
             END DO
          END DO
+!$OMP END DO
+      END IF
+
+!$OMP END PARALLEL
+
+      IF (.NOT. energy_only) THEN
          DEALLOCATE (u_vdW)
       END IF
 
@@ -585,16 +591,14 @@ CONTAINS
    END SUBROUTINE vdW_energy
 
 ! **************************************************************************************************
-!! This routine finds the non-local correlation contribution to the potential
-!! (i.e. the derivative of the non-local piece of the energy with respect to
-!! density) given in SOLER equation 10.  The u_alpha(k) functions were found
-!! while calculating the energy. They are passed in as the matrix u_vdW.
-!! Most of the required derivatives were calculated in the "get_q0_on_grid"
-!! routine, but the derivative of the interpolation polynomials, P_alpha(q),
-!! (SOLER equation 3) with respect to q is interpolated here, along with the
-!! polynomials themselves.
-! **************************************************************************************************
-!> \brief ...
+!> \brief This routine finds the non-local correlation contribution to the potential
+!> (i.e. the derivative of the non-local piece of the energy with respect to
+!> density) given in SOLER equation 10.  The u_alpha(k) functions were found
+!> while calculating the energy. They are passed in as the matrix u_vdW.
+!> Most of the required derivatives were calculated in the "get_q0_on_grid"
+!> routine, but the derivative of the interpolation polynomials, P_alpha(q),
+!> (SOLER equation 3) with respect to q is interpolated here, along with the
+!> polynomials themselves.
 !> \param q0 ...
 !> \param dq0_drho ...
 !> \param dq0_dgradrho ...
@@ -606,33 +610,37 @@ CONTAINS
 !> \param drho ...
 !> \param dvol ...
 !> \param virial ...
+!> OpenMP added: Aug 2016  MTucker
 ! **************************************************************************************************
    SUBROUTINE get_potential(q0, dq0_drho, dq0_dgradrho, total_rho, u_vdW, potential, h_prefactor, &
                             dispersion_env, drho, dvol, virial)
 
       REAL(dp), DIMENSION(:), INTENT(in)                 :: q0, dq0_drho, dq0_dgradrho, total_rho
       REAL(dp), DIMENSION(:, :), INTENT(in)              :: u_vdW
-      REAL(dp), DIMENSION(:), INTENT(inout)              :: potential, h_prefactor
+      REAL(dp), DIMENSION(:), INTENT(out)                :: potential, h_prefactor
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
-      REAL(dp), DIMENSION(:, :), OPTIONAL                :: drho
+      REAL(dp), DIMENSION(:, :), INTENT(in), OPTIONAL    :: drho
       REAL(dp), INTENT(IN), OPTIONAL                     :: dvol
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_potential', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i_grid, l, m, nqs, P_i, q, q_hi, &
-                                                            q_low
+      INTEGER                                            :: handle, i_grid, l, m, nl_type, nqs, P_i, &
+                                                            q, q_hi, q_low
       LOGICAL                                            :: use_virial
       REAL(dp)                                           :: a, b, b_value, c, const, d, dP_dq0, dq, &
-                                                            e, f, P, prefactor
+                                                            dq_6, e, f, P, prefactor, tmp_1_2, &
+                                                            tmp_1_4, tmp_3_4
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: y
       REAL(dp), DIMENSION(:), POINTER                    :: q_mesh
       REAL(dp), DIMENSION(:, :), POINTER                 :: d2y_dx2
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_thread
 
       CALL timeset(routineN, handle)
 
       IF (PRESENT(virial)) THEN
          use_virial = .TRUE.
+         virial_thread(:, :) = 0.0_dp
          CPASSERT(PRESENT(drho))
          CPASSERT(PRESENT(dvol))
       ELSE
@@ -647,11 +655,28 @@ CONTAINS
       d2y_dx2 => dispersion_env%d2y_dx2
       q_mesh => dispersion_env%q_mesh
       nqs = dispersion_env%nqs
+      nl_type = dispersion_env%nl_type
+
+!$OMP PARALLEL DEFAULT( NONE )                                         &
+!$OMP           SHARED( nqs, u_vdW, q_mesh, q0, d2y_dx2, nl_type       &
+!$OMP                 , potential, h_prefactor                         &
+!$OMP                 , dq0_drho, dq0_dgradrho, total_rho, const       &
+!$OMP                 , use_virial, drho, dvol, virial                 &
+!$OMP                 )                                                &
+!$OMP          PRIVATE( y                                              &
+!$OMP                 , q_low, q_hi, q, dq, dq_6, A, b, c, d, e, f     &
+!$OMP                 , P_i, dP_dq0, P, prefactor, l, m                &
+!$OMP                 , tmp_1_2, tmp_1_4, tmp_3_4                      &
+!$OMP                 )                                                &
+!$OMP        REDUCTION(+: virial_thread                                &
+!$OMP                 )
+
       ALLOCATE (y(nqs))
 
-      DO i_grid = 1, SIZE(u_vdw, 1)
+!$OMP DO
+      DO i_grid = 1, SIZE(u_vdW, 1)
          q_low = 1
-         q_hi = Nqs
+         q_hi = nqs
          ! Figure out which bin our value of q0 is in in the q_mesh
          DO WHILE ((q_hi-q_low) > 1)
             q = INT((q_hi+q_low)/2)
@@ -664,21 +689,22 @@ CONTAINS
          IF (q_hi == q_low) CPABORT("get_potential:  qhi == qlow")
 
          dq = q_mesh(q_hi)-q_mesh(q_low)
+         dq_6 = dq/6.0_dp
 
          a = (q_mesh(q_hi)-q0(i_grid))/dq
          b = (q0(i_grid)-q_mesh(q_low))/dq
-         c = (a**3-a)*dq**2/6.0_dp
-         d = (b**3-b)*dq**2/6.0_dp
-         e = (3.0_dp*a**2-1.0_dp)*dq/6.0_dp
-         f = (3.0_dp*b**2-1.0_dp)*dq/6.0_dp
+         c = (a**3-a)*dq*dq_6
+         d = (b**3-b)*dq*dq_6
+         e = (3.0_dp*a**2-1.0_dp)*dq_6
+         f = (3.0_dp*b**2-1.0_dp)*dq_6
 
-         DO P_i = 1, Nqs
+         DO P_i = 1, nqs
             y = 0.0_dp
             y(P_i) = 1.0_dp
             dP_dq0 = (y(q_hi)-y(q_low))/dq-e*d2y_dx2(P_i, q_low)+f*d2y_dx2(P_i, q_hi)
             P = a*y(q_low)+b*y(q_hi)+c*d2y_dx2(P_i, q_low)+d*d2y_dx2(P_i, q_hi)
             !! The first term in equation 13 of SOLER
-            SELECT CASE (dispersion_env%nl_type)
+            SELECT CASE (nl_type)
             CASE DEFAULT
                CPABORT("Unknown vdW-DF functional")
             CASE (vdw_nl_DRSLL, vdw_nl_LMKLL)
@@ -686,20 +712,23 @@ CONTAINS
                prefactor = u_vdW(i_grid, P_i)*dP_dq0*dq0_dgradrho(i_grid)
             CASE (vdw_nl_RVV10)
                IF (total_rho(i_grid) > epsr) THEN
-                  potential(i_grid) = potential(i_grid)+u_vdW(i_grid, P_i)* &
-                                      (const*(3.0_dp/4.0_dp)/(total_rho(i_grid)**(1.0_dp/4.0_dp))*P+ &
-                                       const*total_rho(i_grid)**(3.0_dp/4.0_dp)*dP_dq0*dq0_drho(i_grid))
-                  prefactor = u_vdW(i_grid, P_i)*const*total_rho(i_grid)**(3.0_dp/4.0_dp)* &
-                              dP_dq0*dq0_dgradrho(i_grid)
+                  tmp_1_2 = SQRT(total_rho(i_grid))
+                  tmp_1_4 = SQRT(tmp_1_2) ! == total_rho(i_grid)**(1.0_dp/4.0_dp)
+                  tmp_3_4 = tmp_1_4*tmp_1_4*tmp_1_4 ! == total_rho(i_grid)**(3.0_dp/4.0_dp)
+                  potential(i_grid) = potential(i_grid) &
+                                      +u_vdW(i_grid, P_i)*(const*0.75_dp/tmp_1_4*P &
+                                                           +const*tmp_3_4*dP_dq0*dq0_drho(i_grid))
+                  prefactor = u_vdW(i_grid, P_i)*const*tmp_3_4*dP_dq0*dq0_dgradrho(i_grid)
                ELSE
                   prefactor = 0.0_dp
                ENDIF
             END SELECT
-            IF (q0(i_grid) .NE. q_mesh(Nqs)) THEN
+            IF (q0(i_grid) .NE. q_mesh(nqs)) THEN
                h_prefactor(i_grid) = h_prefactor(i_grid)+prefactor
             END IF
+
             IF (use_virial .AND. ABS(prefactor) > 0.0_dp) THEN
-               SELECT CASE (dispersion_env%nl_type)
+               SELECT CASE (nl_type)
                CASE DEFAULT
                   ! do nothing
                CASE (vdw_nl_RVV10)
@@ -708,17 +737,30 @@ CONTAINS
                prefactor = prefactor*dvol
                DO l = 1, 3
                   DO m = 1, l
-                     virial%pv_xc(l, m) = virial%pv_xc(l, m)-prefactor*drho(i_grid, l)*drho(i_grid, m)
-                     virial%pv_xc(m, l) = virial%pv_xc(l, m)
+                     virial_thread(l, m) = virial_thread(l, m)-prefactor*drho(i_grid, l)*drho(i_grid, m)
                   ENDDO
                ENDDO
             END IF
-         END DO
-      END DO
+
+         END DO ! P_i = 1, nqs
+      END DO ! i_grid = 1, SIZE(u_vdW, 1)
+!$OMP END DO
+
       DEALLOCATE (y)
+!$OMP END PARALLEL
+
+      IF (use_virial) THEN
+         DO l = 1, 3
+            DO m = 1, (l-1)
+               virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+               virial%pv_xc(m, l) = virial%pv_xc(l, m)
+            ENDDO
+            m = l
+            virial%pv_xc(l, m) = virial%pv_xc(l, m)+virial_thread(l, m)
+         ENDDO
+      END IF
 
       CALL timestop(handle)
-
    END SUBROUTINE get_potential
 
    !! This routine first calculates the q value defined in (DION equations 11 and 12), then
