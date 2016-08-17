@@ -229,8 +229,6 @@ MODULE lri_environment_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: dtvec
       ! derivative davec/dR
       REAL(KIND=dp), DIMENSION(:, :), POINTER                   :: davec
-      ! derivative overlap matrix dS/dR
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER                 :: ds
    END TYPE lri_force_type
 
 ! **************************************************************************************************
@@ -800,8 +798,6 @@ CONTAINS
       IF (.NOT. ASSOCIATED(lri_force)) THEN
          ALLOCATE (lri_force)
 
-         ALLOCATE (lri_force%ds(nn, nn, 3))
-         lri_force%ds = 0._dp
          ALLOCATE (lri_force%st(nn))
          lri_force%st = 0._dp
          ALLOCATE (lri_force%dsst(nn, 3))
@@ -1071,9 +1067,6 @@ CONTAINS
          ENDIF
          IF (ASSOCIATED(lri_force%davec)) THEN
             DEALLOCATE (lri_force%davec)
-         ENDIF
-         IF (ASSOCIATED(lri_force%ds)) THEN
-            DEALLOCATE (lri_force%ds)
          ENDIF
 
          DEALLOCATE (lri_force)

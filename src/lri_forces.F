@@ -150,7 +150,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: st, v_dadra, v_dadrb, v_inta, v_intb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: davec, dssn, dsst, dtvec, pbij, sdssn, &
                                                             sdsst, sdt
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ds
       TYPE(cp_dbcsr_type), POINTER                       :: pmat
       TYPE(lri_force_type), POINTER                      :: lri_force
       TYPE(lri_int_type), POINTER                        :: lrii
@@ -166,7 +165,7 @@ CONTAINS
       NULLIFY (atom_of_kind, lri_coef, lri_force, lrii, lri_rho, lrho, &
                nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb, v_inta, &
                v_intb)
-      NULLIFY (davec, ds, dssn, dsst, dtvec, sdssn, sdsst, sdt, st)
+      NULLIFY (davec, dssn, dsst, dtvec, sdssn, sdsst, sdt, st)
 
       IF (ASSOCIATED(lri_env%soo_list)) THEN
          soo_list => lri_env%soo_list
@@ -210,7 +209,6 @@ CONTAINS
 
                CALL allocate_lri_force_components(lri_density%lri_force, nfa, nfb)
                lri_force => lri_density%lri_force
-               ds => lri_force%ds
                st => lri_force%st
                dsst => lri_force%dsst
                sdsst => lri_force%sdsst
@@ -251,32 +249,42 @@ CONTAINS
                   END IF
                ENDDO
 
-               ! construct derivative of S (overlap) matrix
-               ds(1:nfa, 1:nfa, 1:3) = 0._dp
-               ds(1:nfa, nfa+1:nn, 1:3) = lrii%dsab(1:nfa, 1:nfb, 1:3)
-               DO k = 1, 3
-                  ds(nfa+1:nn, 1:nfa, k) = TRANSPOSE(lrii%dsab(1:nfa, 1:nfb, k))
-               ENDDO
-               ds(nfa+1:nn, nfa+1:nn, 1:3) = 0._dp
+               ! derivative of S (overlap) matrix dS
+               !dS: dsaa and dsbb are zero, only work with ab blocks in following
 
                ! n*Sinv*dS*Sinv*t
+               CALL dgemm("N", "N", nn, 1, nn, 1.0_dp, lrii%sinv, nn, lrho%tvec, nn, &
+                          0.0_dp, st, nn)
                DO k = 1, 3
-                  st(1:nn) = MATMUL(lrii%sinv(1:nn, 1:nn), lrho%tvec(1:nn))
-                  dsst(1:nn, k) = MATMUL(ds(1:nn, 1:nn, k), st(1:nn))
-                  sdsst(1:nn, k) = MATMUL(lrii%sinv(1:nn, 1:nn), dsst(1:nn, k))
+                  CALL dgemm("N", "N", nfa, 1, nfb, 1.0_dp, lrii%dsab(1:nfa, 1:nfb, k), nfa, &
+                             st(nfa+1:nn), nn, 0.0_dp, dsst(1:nfa, k), nn)
+               ENDDO
+               CALL dgemm("T", "N", 3*nfb, 1, nfa, 1.0_dp, lrii%dsab, nfa, st(1:nfa), nn, &
+                          0.0_dp, dsst(nfa+1:nn, 1:3), nn*3)
+               CALL dgemm("N", "N", nn, 3, nn, 1.0_dp, lrii%sinv, nn, dsst, nn, &
+                          0.0_dp, sdsst, nn)
+
+               DO k = 1, 3
                   nsdsst(k) = SUM(sdsst(1:nn, k)*lrii%n(1:nn))
                ENDDO
 
                ! n*Sinv*dS*Sinv*n
                DO k = 1, 3
-                  dssn(1:nn, k) = MATMUL(ds(1:nn, 1:nn, k), lrii%sn(1:nn))
-                  sdssn(1:nn, k) = MATMUL(lrii%sinv(1:nn, 1:nn), dssn(1:nn, k))
+                  CALL dgemm("N", "N", nfa, 1, nfb, 1.0_dp, lrii%dsab(1:nfa, 1:nfb, k), nfa, &
+                             lrii%sn(nfa+1:nn), nn, 0.0_dp, dssn(1:nfa, k), nn)
+               ENDDO
+               CALL dgemm("T", "N", 3*nfb, 1, nfa, 1.0_dp, lrii%dsab, nfa, lrii%sn(1:nfa), nn, &
+                          0.0_dp, dssn(nfa+1:nn, 1:3), nn*3)
+               CALL dgemm("N", "N", nn, 3, nn, 1.0_dp, lrii%sinv, nn, dssn, nn, &
+                          0.0_dp, sdssn, nn)
+               DO k = 1, 3
                   nsdssn(k) = SUM(sdssn(1:nn, k)*lrii%n(1:nn))
                ENDDO
 
                ! Sinv*dtvec/dR_a
+               CALL dgemm("N", "N", nn, 3, nn, 1.0_dp, lrii%sinv, nn, dtvec, nn, &
+                          0.0_dp, sdt, nn)
                DO k = 1, 3
-                  sdt(1:nn, k) = MATMUL(lrii%sinv(1:nn, 1:nn), dtvec(1:nn, k))
                   nsdt(k) = SUM(sdt(1:nn, k)*lrii%n(1:nn))
                ENDDO
 
