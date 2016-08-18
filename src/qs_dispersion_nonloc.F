@@ -634,7 +634,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: y
       REAL(dp), DIMENSION(:), POINTER                    :: q_mesh
       REAL(dp), DIMENSION(:, :), POINTER                 :: d2y_dx2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_thread
+      REAL(dp), DIMENSION(3, 3)                          :: virial_thread
 
       CALL timeset(routineN, handle)
 
@@ -1126,33 +1126,41 @@ CONTAINS
 
    END SUBROUTINE get_q0_on_grid_eo_rvv10
 
-   !! This routine is modeled after an algorithm from "Numerical Recipes in C" by Cambridge University
-   !! press, page 97.  It was adapted for Fortran, of course and for the problem at hand, in that it finds
-   !! the bin a particular x value is in and then loops over all the P_i functions so we only have to find
-   !! the bin once.
 ! **************************************************************************************************
-!> \brief ...
+!> \brief This routine is modeled after an algorithm from "Numerical Recipes in C" by Cambridge University
+!> press, page 97.  It was adapted for Fortran, of course and for the problem at hand, in that it finds
+!> the bin a particular x value is in and then loops over all the P_i functions so we only have to find
+!> the bin once.
 !> \param x ...
 !> \param d2y_dx2 ...
 !> \param evaluation_points ...
 !> \param values ...
+!> \par History
+!>     OpenMP added: Aug 2016  MTucker
 ! **************************************************************************************************
    SUBROUTINE spline_interpolation(x, d2y_dx2, evaluation_points, values)
-
       REAL(dp), INTENT(in)                               :: x(:), d2y_dx2(:, :), evaluation_points(:)
-      REAL(dp), INTENT(inout)                            :: values(:, :)
+      REAL(dp), INTENT(out)                              :: values(:, :)
 
       INTEGER                                            :: i_grid, index, lower_bound, &
                                                             Ngrid_points, Nx, P_i, upper_bound
-      REAL(dp)                                           :: a, b, c, d, dx
+      REAL(dp)                                           :: a, b, c, d, dx, const
       REAL(dp), ALLOCATABLE                              :: y(:)
 
       Nx = SIZE(x)
       Ngrid_points = SIZE(evaluation_points)
 
-      !! Allocate the temporary array
+!$OMP PARALLEL DEFAULT( NONE )                                         &
+!$OMP           SHARED( x, d2y_dx2, evaluation_points, values          &
+!$OMP                 , Nx, Ngrid_points                               &
+!$OMP                 )                                                &
+!$OMP          PRIVATE( y, lower_bound, upper_bound, index             &
+!$OMP                 , dx, const, a, b, c, d, P_i                     &
+!$OMP                 )
+
       ALLOCATE (y(Nx))
 
+!$OMP DO
       DO i_grid = 1, Ngrid_points
          lower_bound = 1
          upper_bound = Nx
@@ -1166,30 +1174,33 @@ CONTAINS
          END DO
 
          dx = x(upper_bound)-x(lower_bound)
+         const = dx*dx/6.0_dp
 
          a = (x(upper_bound)-evaluation_points(i_grid))/dx
          b = (evaluation_points(i_grid)-x(lower_bound))/dx
-         c = ((a**3-a)*dx**2)/6.0_dp
-         d = ((b**3-b)*dx**2)/6.0_dp
+         c = (a**3-a)*const
+         d = (b**3-b)*const
 
          DO P_i = 1, Nx
             y = 0
             y(P_i) = 1
-            values(i_grid, P_i) = a*y(lower_bound)+b*y(upper_bound) &
-                                  +(c*d2y_dx2(P_i, lower_bound)+d*d2y_dx2(P_i, upper_bound))
+            values(i_grid, P_i) = a*y(lower_bound) + b*y(upper_bound) &
+                                + (c*d2y_dx2(P_i, lower_bound) + d*d2y_dx2(P_i, upper_bound))
          END DO
       END DO
+!$OMP END DO
 
       DEALLOCATE (y)
-
+!$OMP END PARALLEL
    END SUBROUTINE spline_interpolation
 
-   !! This routine is modeled after an algorithm from "Numerical Recipes in C" by Cambridge
-   !! University Press, pages 96-97.  It was adapted for Fortran and for the problem at hand.
 ! **************************************************************************************************
-!> \brief ...
+!> \brief This routine is modeled after an algorithm from "Numerical Recipes in C" by Cambridge
+!> University Press, pages 96-97.  It was adapted for Fortran and for the problem at hand.
 !> \param x ...
 !> \param d2y_dx2 ...
+!> \par History
+!>     OpenMP added: Aug 2016  MTucker
 ! **************************************************************************************************
    SUBROUTINE initialize_spline_interpolation(x, d2y_dx2)
 
@@ -1201,10 +1212,18 @@ CONTAINS
       REAL(dp), ALLOCATABLE                              :: temp_array(:), y(:)
 
       Nx = SIZE(x)
+
+!$OMP PARALLEL DEFAULT( NONE )                  &
+!$OMP           SHARED( x, d2y_dx2, Nx )        &
+!$OMP          PRIVATE( temp_array, y           &
+!$OMP                 , index, temp1, temp2     &
+!$OMP                 )
+
       ALLOCATE (temp_array(Nx), y(Nx))
 
+!$OMP DO
       DO P_i = 1, Nx
-         !! In the Soler method, the polynomicals that are interpolated are Kronecker delta funcions
+         !! In the Soler method, the polynomials that are interpolated are Kronecker delta funcions
          !! at a particular q point.  So, we set all y values to 0 except the one corresponding to
          !! the particular function P_i.
          !! ----------------------------------------------------------------------------------------
@@ -1228,8 +1247,10 @@ CONTAINS
             d2y_dx2(P_i, index) = d2y_dx2(P_i, index)*d2y_dx2(P_i, index+1)+temp_array(index)
          END DO
       END DO
+!$OMP END DO
 
       DEALLOCATE (temp_array, y)
+!$OMP END PARALLEL
 
    END SUBROUTINE initialize_spline_interpolation
 
