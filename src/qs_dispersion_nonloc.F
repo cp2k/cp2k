@@ -632,9 +632,9 @@ CONTAINS
                                                             dq_6, e, f, P, prefactor, tmp_1_2, &
                                                             tmp_1_4, tmp_3_4
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: y
+      REAL(dp), DIMENSION(3, 3)                          :: virial_thread
       REAL(dp), DIMENSION(:), POINTER                    :: q_mesh
       REAL(dp), DIMENSION(:, :), POINTER                 :: d2y_dx2
-      REAL(dp), DIMENSION(3, 3)                          :: virial_thread
 
       CALL timeset(routineN, handle)
 
@@ -1144,7 +1144,7 @@ CONTAINS
 
       INTEGER                                            :: i_grid, index, lower_bound, &
                                                             Ngrid_points, Nx, P_i, upper_bound
-      REAL(dp)                                           :: a, b, c, d, dx, const
+      REAL(dp)                                           :: a, b, c, const, d, dx
       REAL(dp), ALLOCATABLE                              :: y(:)
 
       Nx = SIZE(x)
@@ -1155,7 +1155,7 @@ CONTAINS
 !$OMP                 , Nx, Ngrid_points                               &
 !$OMP                 )                                                &
 !$OMP          PRIVATE( y, lower_bound, upper_bound, index             &
-!$OMP                 , dx, const, a, b, c, d, P_i                     &
+!$OMP                 , dx, const, A, b, c, d, P_i                     &
 !$OMP                 )
 
       ALLOCATE (y(Nx))
@@ -1184,8 +1184,8 @@ CONTAINS
          DO P_i = 1, Nx
             y = 0
             y(P_i) = 1
-            values(i_grid, P_i) = a*y(lower_bound) + b*y(upper_bound) &
-                                + (c*d2y_dx2(P_i, lower_bound) + d*d2y_dx2(P_i, upper_bound))
+            values(i_grid, P_i) = a*y(lower_bound)+b*y(upper_bound) &
+                                  +(c*d2y_dx2(P_i, lower_bound)+d*d2y_dx2(P_i, upper_bound))
          END DO
       END DO
 !$OMP END DO
