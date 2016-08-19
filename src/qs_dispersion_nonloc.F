@@ -181,9 +181,9 @@ CONTAINS
       INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
       INTEGER                                            :: handle, i, i_grid, idir, ispin, n1, n2, &
-                                                            n3, np, nspin
+                                                            n3, nl_type, np, nspin
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: b_value, beta, Ec_nl, sumnp
+      REAL(KIND=dp)                                      :: b_value, beta, const, Ec_nl, sumnp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dq0_dgradrho, dq0_drho, hpot, potential, &
                                                             q0, rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, thetas
@@ -210,9 +210,13 @@ CONTAINS
          CPASSERT(ASSOCIATED(vxc_rho))
       END IF
 
+      nl_type = dispersion_env%nl_type
+
       b_value = dispersion_env%b_value
       beta = 0.03125_dp*(3.0_dp/(b_value**2.0_dp))**0.75_dp
       nspin = SIZE(rho_r)
+
+      const = 1.0_dp/(3.0_dp*SQRT(pi)*b_value**1.5_dp)/(pi**0.75_dp)
 
       ! temporary arrays for FFT
       CALL pw_pool_create_pw(pw_pool, tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -254,7 +258,7 @@ CONTAINS
 
       IF (energy_only) THEN
          ALLOCATE (q0(np))
-         SELECT CASE (dispersion_env%nl_type)
+         SELECT CASE (nl_type)
          CASE DEFAULT
             CPABORT("Unknown vdW-DF functional")
          CASE (vdw_nl_DRSLL, vdw_nl_LMKLL)
@@ -264,7 +268,7 @@ CONTAINS
          END SELECT
       ELSE
          ALLOCATE (q0(np), dq0_drho(np), dq0_dgradrho(np))
-         SELECT CASE (dispersion_env%nl_type)
+         SELECT CASE (nl_type)
          CASE DEFAULT
             CPABORT("Unknown vdW-DF functional")
          CASE (vdw_nl_DRSLL, vdw_nl_LMKLL)
@@ -296,24 +300,34 @@ CONTAINS
       !! Form the thetas where theta is defined as rho*p_i(q0) for vdW and vdW2 or
       !! constant*rho^(3/4)*p_i(q0) for rVV10
       !! ------------------------------------------------------------------------------------
-      SELECT CASE (dispersion_env%nl_type)
+      SELECT CASE (nl_type)
       CASE DEFAULT
          CPABORT("Unknown vdW-DF functional")
       CASE (vdw_nl_DRSLL, vdw_nl_LMKLL)
+!$OMP PARALLEL DEFAULT( NONE )                          &
+!$OMP           SHARED( dispersion_env, thetas, rho)
+!$OMP DO
          DO i = 1, dispersion_env%nqs
             thetas(:, i) = thetas(:, i)*rho(:)
          END DO
+!$OMP END DO
+!$OMP END PARALLEL
       CASE (vdw_nl_RVV10)
+!$OMP PARALLEL DEFAULT( NONE )                                      &
+!$OMP           SHARED( np, rho, dispersion_env, thetas, const )    &
+!$OMP          PRIVATE( i )
+!$OMP DO SCHEDULE(DYNAMIC)    ! use dynamic to allow for possibility of cases having   (rho(i_grid) .LE. epsr)
          DO i_grid = 1, np
             IF (rho(i_grid) > epsr) THEN
                DO i = 1, dispersion_env%nqs
-                  thetas(i_grid, i) = thetas(i_grid, i)*(1.0_dp/(3.0_dp*SQRT(pi)* &
-                                                                 (b_value**(3.0_dp/2.0_dp))))*(rho(i_grid)/pi)**(3.0_dp/4.0_dp)
+                  thetas(i_grid, i) = thetas(i_grid, i)*const*rho(i_grid)**(0.75_dp)
                END DO
             ELSE
                thetas(i_grid, :) = 0.0_dp
             END IF
          END DO
+!$OMP END DO
+!$OMP END PARALLEL
       END SELECT
       !! ------------------------------------------------------------------------------------
       !! Get thetas in reciprocal space.
@@ -338,7 +352,7 @@ CONTAINS
       IF (use_virial) THEN
          ! calculates kernel contribution to stress
          CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only, virial)
-         SELECT CASE (dispersion_env%nl_type)
+         SELECT CASE (nl_type)
          CASE (vdw_nl_RVV10)
             Ec_nl = 0.5_dp*Ec_nl+beta*SUM(rho(:))*grid%vol/sumnp
          END SELECT
@@ -349,7 +363,7 @@ CONTAINS
          END DO
       ELSE
          CALL vdW_energy(thetas_g, dispersion_env, Ec_nl, energy_only)
-         SELECT CASE (dispersion_env%nl_type)
+         SELECT CASE (nl_type)
          CASE (vdw_nl_RVV10)
             Ec_nl = 0.5_dp*Ec_nl+beta*SUM(rho(:))*grid%vol/sumnp
          END SELECT
@@ -357,7 +371,9 @@ CONTAINS
       CALL mp_sum(Ec_nl, para_env%group)
       edispersion = Ec_nl
 
-      IF (.NOT. energy_only) THEN
+      IF (energy_only) THEN
+         DEALLOCATE (q0)
+      ELSE
          !! ----------------------------------------------------------------------------
          !! Inverse Fourier transform the u_i(k) to get the u_i(r) of SOLER equation 11.
          !!-----------------------------------------------------------------------------
@@ -382,7 +398,7 @@ CONTAINS
             CALL get_potential(q0, dq0_drho, dq0_dgradrho, rho, thetas, potential, hpot, &
                                dispersion_env)
          END IF
-         SELECT CASE (dispersion_env%nl_type)
+         SELECT CASE (nl_type)
          CASE (vdw_nl_RVV10)
             potential(:) = 0.5_dp*potential(:)+beta
             hpot(:) = 0.5_dp*hpot(:)
@@ -410,6 +426,7 @@ CONTAINS
          END DO
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_r)
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g)
+         DEALLOCATE (q0, dq0_drho, dq0_dgradrho)
       END IF
 
       DEALLOCATE (thetas)
@@ -426,11 +443,6 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, tmp_g)
 
       DEALLOCATE (rho, drho, drho_r, thetas_g)
-      IF (energy_only) THEN
-         DEALLOCATE (q0)
-      ELSE
-         DEALLOCATE (q0, dq0_drho, dq0_dgradrho)
-      END IF
 
       CALL timestop(handle)
 
