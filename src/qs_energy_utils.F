@@ -42,6 +42,8 @@ MODULE qs_energy_utils
                                               kpoint_density_transform,&
                                               kpoint_init_cell_index
    USE kpoint_types,                    ONLY: kpoint_type
+   USE lri_environment_methods,         ONLY: build_lri_matrices
+   USE lri_environment_types,           ONLY: lri_environment_type
    USE molecule_types_new,              ONLY: molecule_of_atom,&
                                               molecule_type
    USE mp2,                             ONLY: mp2_main
@@ -264,6 +266,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
@@ -323,6 +326,11 @@ CONTAINS
          IF (.NOT. dft_control%qs_control%gapw) THEN
             CALL external_c_potential(qs_env, calculate_forces=.FALSE.)
          END IF
+         ! LRIGPW  matrices
+         IF (dft_control%qs_control%lrigpw) THEN
+            CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+            CALL build_lri_matrices(lri_env, qs_env, calc_forces)
+         ENDIF
 
          ! ZMP addition to read external density
          CALL external_read_density(qs_env)

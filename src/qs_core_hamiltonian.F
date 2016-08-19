@@ -105,8 +105,6 @@ MODULE qs_core_hamiltonian
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE lri_environment_methods,         ONLY: build_lri_matrices
-   USE lri_environment_types,           ONLY: lri_environment_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -162,8 +160,7 @@ CONTAINS
                                                             nimages, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: all_potential_present, condition_number, &
-                                                            kgpot, lrigpw, ofdft, ppl_present, &
-                                                            use_virial
+                                                            kgpot, ofdft, ppl_present, use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit, eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
@@ -175,7 +172,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit, sab_aux_fit_vs_orb, &
                                                             sab_orb, sac_ae, sac_ppl, sap_oce, &
@@ -215,8 +211,6 @@ CONTAINS
 
       ! is this a orbital-free method calculation
       ofdft = dft_control%qs_control%ofgpw
-      ! is this a LRI method calculation
-      lrigpw = dft_control%qs_control%lrigpw
       ! is this a KG method calculation using atomic TNADD potentials
       IF (dft_control%qs_control%do_kg) THEN
          kgpot = (qs_env%kg_env%tnadd_method == kg_tnadd_atomic)
@@ -455,12 +449,6 @@ CONTAINS
          IF (ASSOCIATED(sap_oce)) &
             CALL build_oce_matrices(oce%intac, calculate_forces, nder, qs_kind_set, particle_set, &
                                     sap_oce, eps_fit)
-      END IF
-
-      ! *** LRIGPW  matrices
-      IF (lrigpw) THEN
-         CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
-         CALL build_lri_matrices(lri_env, qs_env, calculate_forces)
       END IF
 
       ! *** KG atomic potentials for nonadditive kinetic energy
