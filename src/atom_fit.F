@@ -1368,13 +1368,21 @@ CONTAINS
       REAL(KIND=dp), INTENT(in)                          :: fval, ftarget
       REAL(KIND=dp)                                      :: errval
 
+      REAL(KIND=dp), PARAMETER                           :: dt = LOG(10._dp)
+
+      REAL(KIND=dp)                                      :: lt, lv, t2
+
       CPASSERT(fval >= 0.0_dp)
 
       IF (fval <= ftarget) THEN
          errval = 0.0_dp
       ELSE
+         lv = LOG(fval)
+         lt = LOG(ftarget)
          errval = -(LOG(fval)-LOG(ftarget))/LOG(ftarget)
-         errval = SQRT(errval)
+         errval = SQRT(-(lv-lt)/lt)
+         t2 = lt+dt
+         errval = errval*0.5_dp*(1._dp+TANH((lv-t2)/dt/12.566_dp))
       END IF
 
    END FUNCTION get_error_value
