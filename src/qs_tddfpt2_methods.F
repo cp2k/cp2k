@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2016  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 MODULE qs_tddfpt2_methods
+   USE admm_types,                      ONLY: admm_type
    USE bibliography,                    ONLY: Iannuzzi2005,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -77,9 +78,11 @@ MODULE qs_tddfpt2_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
+   USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
@@ -94,6 +97,7 @@ MODULE qs_tddfpt2_methods
                                               qs_rho_set,&
                                               qs_rho_type
    USE qs_scf_methods,                  ONLY: eigensolver
+   USE qs_vxc,                          ONLY: qs_vxc_create
    USE string_utilities,                ONLY: integer_to_string
    USE util,                            ONLY: sort
    USE xc,                              ONLY: xc_calc_2nd_deriv,&
@@ -450,7 +454,7 @@ CONTAINS
 
          CALL tddfpt_compute_Aop_evects(Aop_evects=Aop_evects(:, nvects_exists+1:nvects_exists+nvects_new), &
                                         evects=evects(:, nvects_exists+1:nvects_exists+nvects_new), &
-                                        is_rks_triplets=tddfpt_control%rks_triplets, do_hfx=do_hfx, &
+                                        is_rks_triplets=tddfpt_control%rks_triplets, do_hfx=do_hfx, do_admm=dft_control%do_admm, &
                                         gs_mos=gs_mos, qs_env=qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s(1)%matrix, &
                                         xc_rho_set=xc_rho_set, xc_deriv_set=xc_deriv_set, xc_section=xc_section)
 
@@ -1733,6 +1737,7 @@ CONTAINS
 !> \param evects     trial vectors C_{1,i}
 !> \param gs_mos     molecular orbitals optimised for the ground state (only occupied molecular
 !>                   orbitals [field %matrix_mos_occ] are needed)
+!> \param do_admm    perform auxiliary density matrix method calculations
 !> \param qs_env     Quickstep environment
 !> \param matrix_s   overlap matrix
 !> \par History
@@ -1740,28 +1745,37 @@ CONTAINS
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, qs_env, matrix_s)
+   SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, qs_env, matrix_s)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
+      LOGICAL, INTENT(in)                                :: do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_hfx', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
+      INTEGER                                            :: handle, ispin, ivect, nao, nao_aux, &
+                                                            nspins, nvects
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmo_occ
-      REAL(kind=dp)                                      :: alpha
+      REAL(kind=dp)                                      :: alpha, exc_aux_fit
+      REAL(kind=dp), DIMENSION(:), POINTER               :: tot_rho_aux_r
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: K_ia_munu_dbcsr, rho_ia_ao
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: hmat, hmat_aux, matrix_s_aux_fit, &
+                                                            rho_aux_ia_ao, rho_ia_ao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: rho_ia_fm
+      TYPE(cp_fm_type), POINTER                          :: rho_aux_ia_fm, rho_ia_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_aux_g, rho_aux_r, v_rspace_new, &
+                                                            v_rspace_new_aux_fit, v_tau_rspace, &
+                                                            v_tau_rspace_aux_fit
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho_aux_ia_struct, rho_ia_struct
 
       CALL timeset(routineN, handle)
 
@@ -1775,8 +1789,13 @@ CONTAINS
       END IF
 
       ! *** initialize variables ***
-      NULLIFY (blacs_env, para_env, pw_env)
+      NULLIFY (admm_env, blacs_env, para_env, pw_env, matrix_s_aux_fit, ks_env)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env, pw_env=pw_env)
+
+      IF (do_admm) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env, ks_env=ks_env, matrix_s_aux_fit=matrix_s_aux_fit)
+         CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
+      END IF
 
       NULLIFY (auxbas_pw_pool, poisson_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
@@ -1786,28 +1805,53 @@ CONTAINS
          CALL cp_fm_get_info(gs_mos(ispin)%matrix_mos_occ, nrow_global=nao, ncol_global=nmo_occ(ispin))
       END DO
 
-      NULLIFY (rho_ia_ao)
+      NULLIFY (fm_struct, hmat, rho_ia_ao, rho_ia_fm, rho_ia_struct, &
+               hmat_aux, rho_aux_ia_ao, rho_aux_ia_fm, rho_aux_ia_struct)
+
+      CALL cp_dbcsr_allocate_matrix_set(hmat, nspins)
+      DO ispin = 1, nspins
+         CALL cp_dbcsr_init_p(hmat(ispin)%matrix)
+         CALL cp_dbcsr_copy(hmat(ispin)%matrix, matrix_s)
+      END DO
+
       CALL cp_dbcsr_allocate_matrix_set(rho_ia_ao, nspins)
       DO ispin = 1, nspins
          CALL cp_dbcsr_init_p(rho_ia_ao(ispin)%matrix)
          CALL cp_dbcsr_copy(rho_ia_ao(ispin)%matrix, matrix_s)
       END DO
 
-      NULLIFY (rho_ia_struct)
       CALL qs_rho_create(rho_ia_struct)
       CALL qs_rho_set(rho_ia_struct, rho_ao=rho_ia_ao)
 
-      NULLIFY (K_ia_munu_dbcsr)
-      CALL cp_dbcsr_allocate_matrix_set(K_ia_munu_dbcsr, nspins)
-      DO ispin = 1, nspins
-         CALL cp_dbcsr_init_p(K_ia_munu_dbcsr(ispin)%matrix)
-         CALL cp_dbcsr_copy(K_ia_munu_dbcsr(ispin)%matrix, matrix_s)
-      END DO
-
-      NULLIFY (fm_struct, rho_ia_fm)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env, para_env=para_env)
       CALL cp_fm_create(rho_ia_fm, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
+
+      IF (do_admm) THEN
+         CALL cp_dbcsr_allocate_matrix_set(hmat_aux, nspins)
+         DO ispin = 1, nspins
+            CALL cp_dbcsr_init_p(hmat_aux(ispin)%matrix)
+            CALL cp_dbcsr_copy(hmat_aux(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+         END DO
+
+         CALL cp_dbcsr_allocate_matrix_set(rho_aux_ia_ao, nspins)
+         DO ispin = 1, nspins
+            CALL cp_dbcsr_init_p(rho_aux_ia_ao(ispin)%matrix)
+            CALL cp_dbcsr_copy(rho_aux_ia_ao(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
+         END DO
+
+         CALL qs_rho_create(rho_aux_ia_struct)
+         CALL qs_rho_set(rho_aux_ia_struct, rho_ao=rho_aux_ia_ao)
+
+         ! grid representation of the electron density is needed to compute ADMM correction
+         CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
+         CALL qs_rho_rebuild(rho_aux_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
+         CALL qs_rho_get(rho_aux_ia_struct, rho_g=rho_aux_g, rho_r=rho_aux_r, tot_rho_r=tot_rho_aux_r)
+
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao_aux, context=blacs_env, para_env=para_env)
+         CALL cp_fm_create(rho_aux_ia_fm, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+      END IF
 
       ! *** compute hfx terms ***
       DO ivect = 1, nvects
@@ -1818,20 +1862,146 @@ CONTAINS
                          evects(ispin, ivect)%matrix, gs_mos(ispin)%matrix_mos_occ, 1.0_dp, rho_ia_fm)
 
             CALL copy_fm_to_dbcsr(rho_ia_fm, rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
-            CALL cp_dbcsr_set(K_ia_munu_dbcsr(ispin)%matrix, 0.0_dp)
+
+            IF (do_admm) THEN
+               CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, rho_ia_fm, 0.0_dp, admm_env%work_aux_orb)
+               CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, rho_aux_ia_fm)
+
+               CALL copy_fm_to_dbcsr(rho_aux_ia_fm, rho_aux_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+            END IF
          END DO
 
-         CALL tddft_hfx_matrix(qs_env, rho_ia_struct, K_ia_munu_dbcsr)
+         IF (do_admm) THEN
+            CALL qs_rho_update_rho(rho_ia_struct, qs_env)
+            DO ispin = 1, nspins
+               CALL calculate_rho_elec(matrix_p=rho_aux_ia_ao(ispin)%matrix, &
+                                       rho=rho_aux_r(ispin), rho_gspace=rho_aux_g(ispin), &
+                                       total_rho=tot_rho_aux_r(ispin), ks_env=ks_env, &
+                                       soft_valid=.FALSE., basis_type="AUX_FIT")
+            END DO
 
-         DO ispin = 1, nspins
-            CALL cp_dbcsr_sm_fm_multiply(K_ia_munu_dbcsr(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ, &
-                                         Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), alpha=alpha, beta=1.0_dp)
-         END DO
+            ! E_{x}^{HFX}[\hat{\rho}]
+            DO ispin = 1, nspins
+               CALL cp_dbcsr_set(hmat_aux(ispin)%matrix, 0.0_dp)
+            END DO
+
+            CALL tddft_hfx_matrix(qs_env, rho_aux_ia_struct, hmat_aux)
+            DO ispin = 1, nspins
+               CALL cp_dbcsr_sm_fm_multiply(hmat_aux(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
+                                            ncol=nao, alpha=1.0_dp, beta=0.0_dp)
+               CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, rho_ia_fm)
+
+               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, alpha, rho_ia_fm, &
+                            gs_mos(ispin)%matrix_mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+            END DO
+
+            ! some stuff from qs_ks_build_kohn_sham_matrix
+            ! TO DO: add SIC support
+
+            ! E_{x}^{DFT}[\rho]
+            NULLIFY (v_rspace_new, v_tau_rspace)
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_ia_struct, xc_section=admm_env%xc_section_aux, &
+                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc_aux_fit, just_energy=.FALSE.)
+
+            IF (ASSOCIATED(v_rspace_new)) THEN
+               DO ispin = 1, nspins
+                  CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
+
+                  CALL cp_dbcsr_set(hmat(ispin)%matrix, 0.0_dp)
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), pmat=rho_ia_ao(ispin), hmat=hmat(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE.)
+
+                  CALL cp_dbcsr_sm_fm_multiply(hmat(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ, &
+                                               Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), &
+                                               alpha=-1.0_dp, beta=1.0_dp)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
+               END DO
+               DEALLOCATE (v_rspace_new)
+            END IF
+
+            IF (ASSOCIATED(v_tau_rspace)) THEN
+               DO ispin = 1, nspins
+                  CALL pw_scale(v_tau_rspace(ispin)%pw, v_tau_rspace(ispin)%pw%pw_grid%dvol)
+
+                  CALL cp_dbcsr_set(hmat(ispin)%matrix, 0.0_dp)
+                  CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin), pmat=rho_ia_ao(ispin), hmat=hmat(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.TRUE., gapw=.FALSE.)
+
+                  CALL cp_dbcsr_sm_fm_multiply(hmat(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ, &
+                                               Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), &
+                                               alpha=-1.0_dp, beta=1.0_dp)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+               END DO
+               DEALLOCATE (v_tau_rspace)
+            END IF
+
+            ! E_{x}^{DFT}[\hat{\rho}]
+            NULLIFY (v_rspace_new_aux_fit, v_tau_rspace_aux_fit)
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_aux_ia_struct, xc_section=admm_env%xc_section_aux, &
+                               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=exc_aux_fit, &
+                               just_energy=.FALSE.)
+
+            IF (ASSOCIATED(v_rspace_new_aux_fit)) THEN
+               DO ispin = 1, nspins
+                  CALL pw_scale(v_rspace_new_aux_fit(ispin)%pw, v_rspace_new_aux_fit(ispin)%pw%pw_grid%dvol)
+
+                  CALL cp_dbcsr_set(hmat_aux(ispin)%matrix, 0.0_dp)
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), pmat=rho_aux_ia_ao(ispin), hmat=hmat_aux(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., force_adm=.TRUE., ispin=ispin, &
+                                          gapw=.FALSE., basis_type="AUX_FIT")
+
+                  CALL cp_dbcsr_sm_fm_multiply(hmat_aux(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
+                                               ncol=nao, alpha=1.0_dp, beta=0.0_dp)
+                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, rho_ia_fm)
+                  CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, 1.0_dp, rho_ia_fm, &
+                               gs_mos(ispin)%matrix_mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new_aux_fit(ispin)%pw)
+               END DO
+               DEALLOCATE (v_rspace_new_aux_fit)
+            END IF
+
+            IF (ASSOCIATED(v_tau_rspace_aux_fit)) THEN
+               DO ispin = 1, nspins
+                  CALL pw_scale(v_tau_rspace_aux_fit(ispin)%pw, v_tau_rspace_aux_fit(ispin)%pw%pw_grid%dvol)
+
+                  CALL cp_dbcsr_set(hmat_aux(ispin)%matrix, 0.0_dp)
+                  CALL integrate_v_rspace(v_rspace=v_tau_rspace_aux_fit(ispin), pmat=rho_aux_ia_ao(ispin), hmat=hmat_aux(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., force_adm=.TRUE., ispin=ispin, &
+                                          compute_tau=.TRUE., gapw=.FALSE., basis_type="AUX_FIT")
+
+                  CALL cp_dbcsr_sm_fm_multiply(hmat_aux(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
+                                               ncol=nao, alpha=1.0_dp, beta=0.0_dp)
+                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, rho_ia_fm)
+                  CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, 1.0_dp, rho_ia_fm, &
+                               gs_mos(ispin)%matrix_mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace_aux_fit(ispin)%pw)
+               END DO
+               DEALLOCATE (v_tau_rspace_aux_fit)
+            END IF
+         ELSE
+            DO ispin = 1, nspins
+               CALL cp_dbcsr_set(hmat(ispin)%matrix, 0.0_dp)
+            END DO
+
+            CALL tddft_hfx_matrix(qs_env, rho_ia_struct, hmat)
+            DO ispin = 1, nspins
+               CALL cp_dbcsr_sm_fm_multiply(hmat(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ, &
+                                            Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), alpha=alpha, beta=1.0_dp)
+            END DO
+         END IF
       END DO
 
       ! *** clean up ***
+      IF (do_admm) THEN
+         CALL cp_fm_release(rho_aux_ia_fm)
+         CALL cp_dbcsr_deallocate_matrix_set(hmat_aux)
+         CALL qs_rho_release(rho_aux_ia_struct)
+      END IF
+
       CALL cp_fm_release(rho_ia_fm)
-      CALL cp_dbcsr_deallocate_matrix_set(K_ia_munu_dbcsr)
+      CALL cp_dbcsr_deallocate_matrix_set(hmat)
       CALL qs_rho_release(rho_ia_struct)
 
       DEALLOCATE (nmo_occ)
@@ -1846,7 +2016,8 @@ CONTAINS
 !> \param gs_mos          molecular orbitals optimised for the ground state
 !> \param is_rks_triplets indicates that a triplet excited states calculation using
 !>                        spin-unpolarised molecular orbitals has been requested
-!> \param do_hfx          flags that activates computation of exact-exchange terms
+!> \param do_hfx          flag that activates computation of exact-exchange terms
+!> \param do_admm         perform auxiliary density matrix method calculations
 !> \param qs_env          Quickstep environment
 !> \param matrix_ks       Kohn-Sham matrix
 !> \param matrix_s        overlap matrix
@@ -1856,12 +2027,12 @@ CONTAINS
 !> \par History
 !>    * 06.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_compute_Aop_evects(Aop_evects, evects, gs_mos, is_rks_triplets, do_hfx, &
+   SUBROUTINE tddfpt_compute_Aop_evects(Aop_evects, evects, gs_mos, is_rks_triplets, do_hfx, do_admm, &
                                         qs_env, matrix_ks, matrix_s, xc_rho_set, xc_deriv_set, xc_section)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
-      LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx
+      LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), INTENT(in)    :: matrix_ks
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
@@ -1909,7 +2080,8 @@ CONTAINS
 
          ! add contributions from exact-exchange terms
          IF (do_hfx) &
-            CALL tddfpt_apply_hfx(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env, matrix_s=matrix_s)
+            CALL tddfpt_apply_hfx(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, &
+                                  do_admm=do_admm, qs_env=qs_env, matrix_s=matrix_s)
       END IF
 
       CALL timestop(handle)

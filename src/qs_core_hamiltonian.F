@@ -94,7 +94,8 @@ MODULE qs_core_hamiltonian
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE input_constants,                 ONLY: do_ppl_analytic,&
+   USE input_constants,                 ONLY: do_admm_purify_none,&
+                                              do_ppl_analytic,&
                                               kg_tnadd_atomic,&
                                               rel_none,&
                                               rel_trans_atom
@@ -288,8 +289,15 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF (dft_control%tddfpt2_control%enabled) &
+      IF (dft_control%tddfpt2_control%enabled) THEN
          nders = 1
+
+         IF (dft_control%do_admm) THEN
+            IF (dft_control%admm_control%purification_method /= do_admm_purify_none) &
+               CALL cp_abort(__LOCATION__, &
+                             "Only purification method NONE is possible with TDDFT at the moment")
+         END IF
+      END IF
 
       ! filter for new matrices
       eps_filter = dft_control%qs_control%eps_filter_matrix
