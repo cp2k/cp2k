@@ -187,8 +187,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="ERI_METHOD", &
                           description="Method for calculating periodic electron repulsion integrals "// &
-                          "(MME method is faster but experimental, in the current implementation only 2-center ERIs with "// &
-                          "Coulomb metric are supported).", &
+                          "(MME method is faster but experimental, forces and 3-center integrals not yet implemented).", &
                           usage="ERI_METHOD MME", &
                           enum_c_vals=s2a("GPW", "MME"), &
                           enum_i_vals=(/do_eri_gpw, do_eri_mme/), &

@@ -77,33 +77,41 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Create main input section
 !> \param section ...
+!> \param default_n_minimax ...
 ! **************************************************************************************************
-   SUBROUTINE create_eri_mme_section(section)
+   SUBROUTINE create_eri_mme_section(section, default_n_minimax)
       TYPE(section_type), INTENT(INOUT), POINTER         :: section
+      INTEGER, INTENT(IN), OPTIONAL                      :: default_n_minimax
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_eri_mme_section', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: my_default_n_minimax
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
       NULLIFY (keyword, print_key, subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
+
+      IF (PRESENT(default_n_minimax)) THEN
+         my_default_n_minimax = default_n_minimax
+      ELSE
+         my_default_n_minimax = 20
+      ENDIF
+
       CALL section_create(section, "ERI_MME", &
-                          description="Parameters for the calculation of electron repulsion "// &
+                          description="Parameters for the calculation of periodic electron repulsion "// &
                           "integrals (ERI) using the Minimax-Ewald (MME) method. "// &
                           "Note: N_MINIMAX is the only parameter to be tuned for accuracy, "// &
-                          "all other parameters can be left to default. "// &
-                          "Method may not yet be sufficiently accurate since the number "// &
-                          "of terms in minimax approximation is limited to 15 in the current "// &
-                          "implementation.", &
+                          "all other parameters can be left to default. MME method is faster "// &
+                          "than numerical GPW.", &
                           n_keywords=5, n_subsections=1)
 
       CALL keyword_create(keyword, &
                           name="N_MINIMAX", &
                           description="Number of terms in minimax approximation of "// &
                           "reciprocal space potential. ", &
-                          default_i_val=20)
+                          default_i_val=my_default_n_minimax)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

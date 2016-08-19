@@ -653,7 +653,8 @@ CONTAINS
       CALL section_create(section, name="IMAGE_CHARGE", &
                           description="Inclusion of polarization effects within the image charge "// &
                           "approach for systems where QM molecules are physisorbed on e.g. metal "// &
-                          "surfaces described by MM. QM box size has to be equal to MM box size.", &
+                          "surfaces described by MM. This correction introduces only a very small overhead. "// &
+                          "QM box size has to be equal to MM box size.", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
                           citations=(/Golze2013/))
 
@@ -711,20 +712,18 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="IMAGE_MATRIX_METHOD", &
-                          description="Method for calculating the image matrix. The MME method is "// &
-                          "much faster than GPW s.t. the overhead of the IC approach compared to "// &
-                          "standard QM/MM becomes negligible in total computation time. Note that MME "// &
-                          "is an approximative method that has limited accuracy in the current implementation.", &
+                          description="Method for calculating the image matrix.", &
                           usage="IMAGE_MATRIX_METHOD MME", &
                           enum_c_vals=s2a("GPW", "MME"), &
                           enum_i_vals=(/do_eri_gpw, do_eri_mme/), &
                           enum_desc=s2a("Uses Gaussian Plane Wave method [Golze2013]", &
                                         "Uses MiniMax-Ewald method (ERI_MME subsection)"), &
-                          default_i_val=do_eri_gpw)
+                          default_i_val=do_eri_mme)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL create_eri_mme_section(subsection)
+      ! for qmmm image charges we can afford taking the most accurate minimax approximation
+      CALL create_eri_mme_section(subsection, default_n_minimax=53)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
