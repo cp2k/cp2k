@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE input_cp2k_transport
    USE bibliography,                    ONLY: Bruck2014
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_banded, &
         linsolver_full, linsolver_mumps, linsolver_splitsolve, linsolver_superlu, &
@@ -171,7 +172,9 @@ CONTAINS
 
       CALL keyword_create(keyword, name="TEMPERATURE", &
                           description="Temperature.", &
-                          usage="TEMPERATURE [K] 300.0", default_r_val=300.0_dp, unit_str="K")
+                          usage="TEMPERATURE [K] 300.0", &
+                          default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
+                          unit_str="K")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
