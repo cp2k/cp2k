@@ -560,6 +560,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="ROW_ORDERING", &
+                          description="row permutation strategy for factorization and selected inversion.", &
+                          enum_c_vals=s2a("NOROWPERM", "LARGEDIAG"), &
+                          enum_desc=s2a("No row permutation (NOROWPERM option in SuperLU_DIST)", &
+                                        "Make diagonal entry larger than off diagonal (LargeDiag option in SuperLU_DIST)"), &
+                          enum_i_vals=(/0, 1/), default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="NP_SYMB_FACT", &
                           description="Number of processors for PARMETIS/PT-SCOTCH. Only used if ORDERING is set to PARALLEL. "// &
                           "If 0, the number of processors for PARMETIS/PT-SCOTCH will be set equal to the number of "// &

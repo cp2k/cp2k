@@ -267,7 +267,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
 
       INTEGER                                            :: mynode, npSymbFact, numnodes, numPole, &
-                                                            ordering
+                                                            ordering, rowOrdering
       REAL(KIND=dp)                                      :: gap, muInertiaExpansion, &
                                                             muInertiaTolerance, muMax0, muMin0, &
                                                             muPEXSISafeGuard, temperature
@@ -277,7 +277,8 @@ CONTAINS
       CALL cp_pexsi_get_options(pexsi_env%options, temperature=temperature, gap=gap, &
                                 numPole=numPole, muMin0=muMin0, muMax0=muMax0, muInertiaTolerance= &
                                 muInertiaTolerance, muInertiaExpansion=muInertiaExpansion, &
-                                muPEXSISafeGuard=muPEXSISafeGuard, ordering=ordering, npSymbFact=npSymbFact)
+                                muPEXSISafeGuard=muPEXSISafeGuard, ordering=ordering, rowOrdering=rowOrdering, &
+                                npSymbFact=npSymbFact)
 
       WRITE (unit_nr, '(/A)') " PEXSI| Initialized with parameters"
       WRITE (unit_nr, '(A,T61,E20.3)') " PEXSI|   Electronic temperature", temperature
@@ -306,6 +307,12 @@ CONTAINS
          WRITE (unit_nr, '(A,T61,A20)') " PEXSI|   Ordering strategy", "sequential"
       CASE (2)
          WRITE (unit_nr, '(A,T61,A20)') " PEXSI|   Ordering strategy", "multiple minimum degree"
+      END SELECT
+      SELECT CASE (rowOrdering)
+      CASE (0)
+         WRITE (unit_nr, '(A,T61,A20)') " PEXSI|   Row permutation strategy", "no row permutation"
+      CASE (1)
+         WRITE (unit_nr, '(A,T61,A20)') " PEXSI|   Row permutation strategy", "make diagonal entry larger than off diagonal"
       END SELECT
       IF (ordering .EQ. 0) WRITE (unit_nr, '(A,T61,I20/)') &
          " PEXSI|   Number of processors for symbolic factorization", npSymbFact

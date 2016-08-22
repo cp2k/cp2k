@@ -5,8 +5,7 @@
 
 ! **************************************************************************************************
 !> \brief Interface to the PEXSI library, providing wrappers for all PEXSI
-!>        routines that are called inside CP2K. Tested for PEXSI versions
-!>        v0.7.3 - v0.9.2
+!>        routines that are called inside CP2K. Requires PEXSI version 0.9.2.
 !> \par History
 !>       2014.12 created [Patrick Seewald]
 !> \author Patrick Seewald
@@ -67,6 +66,7 @@ CONTAINS
 !> \param matrixType ...
 !> \param isSymbolicFactorize ...
 !> \param ordering ...
+!> \param rowOrdering ...
 !> \param npSymbFact ...
 !> \param verbosity ...
 ! **************************************************************************************************
@@ -74,7 +74,7 @@ CONTAINS
                                    isInertiaCount, maxPEXSIIter, muMin0, muMax0, mu0, &
                                    muInertiaTolerance, muInertiaExpansion, &
                                    muPEXSISafeGuard, numElectronPEXSITolerance, &
-                                   matrixType, isSymbolicFactorize, ordering, &
+                                   matrixType, isSymbolicFactorize, ordering, rowOrdering, &
                                    npSymbFact, verbosity)
 
       TYPE(cp_pexsi_options), INTENT(INOUT)    :: pexsi_options
@@ -86,7 +86,7 @@ CONTAINS
                                                  numElectronPEXSITolerance
       INTEGER, INTENT(IN), OPTIONAL            :: matrixType, &
                                                   isSymbolicFactorize, &
-                                                  ordering, npSymbFact, &
+                                                  ordering, rowOrdering, npSymbFact, &
                                                   verbosity
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_set_options', &
@@ -114,6 +114,7 @@ CONTAINS
       IF (PRESENT(isSymbolicFactorize)) &
          pexsi_options%options%isSymbolicFactorize = isSymbolicFactorize
       IF (PRESENT(ordering)) pexsi_options%options%ordering = ordering
+      IF (PRESENT(rowOrdering)) pexsi_options%options%rowOrdering = rowOrdering
       IF (PRESENT(npSymbFact)) pexsi_options%options%npSymbFact = npSymbFact
       IF (PRESENT(verbosity)) pexsi_options%options%verbosity = verbosity
 #else
@@ -134,10 +135,17 @@ CONTAINS
       MARK_USED(matrixType)
       MARK_USED(isSymbolicFactorize)
       MARK_USED(ordering)
+      MARK_USED(rowOrdering)
       MARK_USED(npSymbFact)
       MARK_USED(verbosity)
       CPABORT("Requires linking to the PEXSI library.")
 #endif
+
+      ! Additional PEXSI parameters and their defaults not made available here
+      ! because CP2K should always use PEXSI's defaults:
+      ! isConstructCommPattern (=?, pexsi does not even use it)
+      ! symmetric (=1)
+      ! transpose (=0)
    END SUBROUTINE cp_pexsi_set_options
 
 ! **************************************************************************************************
@@ -159,6 +167,7 @@ CONTAINS
 !> \param matrixType ...
 !> \param isSymbolicFactorize ...
 !> \param ordering ...
+!> \param rowOrdering ...
 !> \param npSymbFact ...
 !> \param verbosity ...
 ! **************************************************************************************************
@@ -166,7 +175,7 @@ CONTAINS
                                    isInertiaCount, maxPEXSIIter, muMin0, muMax0, mu0, &
                                    muInertiaTolerance, muInertiaExpansion, &
                                    muPEXSISafeGuard, numElectronPEXSITolerance, &
-                                   matrixType, isSymbolicFactorize, ordering, &
+                                   matrixType, isSymbolicFactorize, ordering, rowOrdering, &
                                    npSymbFact, verbosity)
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
       REAL(KIND=real_8), INTENT(OUT), OPTIONAL :: temperature, gap, deltaE
@@ -177,7 +186,7 @@ CONTAINS
                                                   numElectronPEXSITolerance
       INTEGER, INTENT(OUT), OPTIONAL           :: matrixType, &
                                                   isSymbolicFactorize, &
-                                                  ordering, npSymbFact, &
+                                                  ordering, rowOrdering, npSymbFact, &
                                                   verbosity
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_pexsi_get_options', &
@@ -205,6 +214,7 @@ CONTAINS
       IF (PRESENT(isSymbolicFactorize)) &
          isSymbolicFactorize = pexsi_options%options%isSymbolicFactorize
       IF (PRESENT(ordering)) ordering = pexsi_options%options%ordering
+      IF (PRESENT(rowOrdering)) rowOrdering = pexsi_options%options%rowOrdering
       IF (PRESENT(npSymbFact)) npSymbFact = pexsi_options%options%npSymbFact
       IF (PRESENT(verbosity)) verbosity = pexsi_options%options%verbosity
 #else
@@ -226,6 +236,7 @@ CONTAINS
       IF (PRESENT(matrixType)) matrixType = -1
       IF (PRESENT(isSymbolicFactorize)) isSymbolicFactorize = -1
       IF (PRESENT(ordering)) ordering = -1
+      IF (PRESENT(rowOrdering)) rowOrdering = -1
       IF (PRESENT(npSymbFact)) npSymbFact = -1
       IF (PRESENT(verbosity)) verbosity = -1
       CPABORT("Requires linking to the PEXSI library.")

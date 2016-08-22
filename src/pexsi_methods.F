@@ -79,7 +79,8 @@ CONTAINS
 
       INTEGER                                            :: isInertiaCount_int, maxPEXSIIter, &
                                                             min_ranks_per_pole, npSymbFact, &
-                                                            numPole, ordering, verbosity
+                                                            numPole, ordering, rowOrdering, &
+                                                            verbosity
       LOGICAL                                            :: csr_screening, isInertiaCount
       REAL(KIND=dp) :: gap, muInertiaExpansion, muInertiaTolerance, muMax0, muMin0, &
          muPEXSISafeGuard, numElectronInitialTolerance, numElectronTargetTolerance, temperature
@@ -115,6 +116,8 @@ CONTAINS
                                 r_val=numElectronTargetTolerance)
       CALL section_vals_val_get(pexsi_section, "ORDERING", &
                                 i_val=ordering)
+      CALL section_vals_val_get(pexsi_section, "ROW_ORDERING", &
+                                i_val=rowOrdering)
       CALL section_vals_val_get(pexsi_section, "NP_SYMB_FACT", &
                                 i_val=npSymbFact)
       CALL section_vals_val_get(pexsi_section, "VERBOSITY", &
@@ -134,7 +137,7 @@ CONTAINS
                                 numPole=numPole, isInertiaCount=isInertiaCount_int, maxPEXSIIter=maxPEXSIIter, &
                                 muMin0=muMin0, muMax0=muMax0, muInertiaTolerance=muInertiaTolerance, &
                                 muInertiaExpansion=muInertiaExpansion, muPEXSISafeGuard=muPEXSISafeGuard, &
-                                ordering=ordering, npSymbFact=npSymbFact, verbosity=verbosity)
+                                ordering=ordering, rowOrdering=rowOrdering, npSymbFact=npSymbFact, verbosity=verbosity)
 
       pexsi_env%num_ranks_per_pole = min_ranks_per_pole ! not a PEXSI option
       pexsi_env%csr_screening = csr_screening

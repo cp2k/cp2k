@@ -43,7 +43,7 @@ case "$with_superlu" in
             cat <<EOF >> make.inc
 PLAT=_${OPENBLAS_ARCH}
 DSUPERLULIB= ${PWD}/lib/libsuperlu_dist.a
-LIBS=\$(DSUPERLULIB) ${PARMETIS_LDFLAGS} ${METIS_LDFLAGS} ${MATH_LDFLAGS} ${PARMETIS_LIBS} ${METIS_LIBS} ${MATH_LIBS}
+LIBS=\$(DSUPERLULIB) ${PARMETIS_LDFLAGS} ${METIS_LDFLAGS} ${MATH_LDFLAGS} ${PARMETIS_LIBS} ${METIS_LIBS} ${MATH_LIBS} -lgfortran
 ARCH=ar
 ARCHFLAGS=cr
 RANLIB=ranlib
@@ -90,7 +90,8 @@ if [ "$with_superlu" != "__DONTUSE__" ] ; then
     # superlu (<4.2) includes old and buggy lapack routines that are not thread safe. 
     # Make sure to put a copy of lapack before superlu so that the linker picks the bug free ones first
     # eventually this can be solved by an upgrade of pexsi to >=v0.9.2 which requires a later version of superlu.
-    SUPERLU_LIBS="IF_DEBUG(${REF_MATH_LIBS}|IF_VALGRIND(${REF_MATH_LIBS}|${FAST_MATH_LIBS})) -lsuperlu_dist"
+    SUPERLU_LIBS="-lsuperlu_dist"
+    #SUPERLU_LIBS="IF_DEBUG(${REF_MATH_LIBS}|IF_VALGRIND(${REF_MATH_LIBS}|${FAST_MATH_LIBS})) -lsuperlu_dist"
     if [ "$with_superlu" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_superlu"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"

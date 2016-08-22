@@ -51,6 +51,7 @@ case "$with_pexsi" in
                     -e "s|\(PAR_ND_LIBRARY *=\).*|\1 parmetis|g" \
                     -e "s|\(SEQ_ND_LIBRARY *=\).*|\1 metis|g" \
                     -e "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|g" \
+                    -e "s|\(PEXSI_BUILD_DIR *=\).*|\1 ${pkg_install_dir}|g" \
                     -e "s|\(CPP_LIB *=\).*|\1 -lstdc++ ${MPI_LDFLAGS} ${MPI_LIBS} |g" \
                     -e "s|\(LAPACK_LIB *=\).*|\1 ${MATH_LDFLAGS} ${MATH_LIBS}|g" \
                     -e "s|\(BLAS_LIB *=\).*|\1|g" \
@@ -59,10 +60,9 @@ case "$with_pexsi" in
                     -e "s|\(DSUPERLU_LIB *=\).*|\1 ${SUPERLU_LDFLAGS} -lsuperlu_dist|g" \
                     -e "s|\(SCOTCH_LIB *=\).*|\1 ${SCOTCH_LDFLAGS} -lscotchmetis -lscotch -lscotcherr|g" \
                     -e "s|\(PTSCOTCH_LIB *=\).*|\1 ${SCOTCH_LDFLAGS} -lptscotchparmetis -lptscotch -lptscotcherr -lscotch|g" \
-                    -e "s|#FLOADOPTS *=.*|FLOADOPTS    = \${LIBS} \${CPP_LIB}|g" \
                     -e "s|\(DSUPERLU_INCLUDE *=\).*|\1 ${SUPERLU_CFLAGS}|g" \
                     -e "s|\(INCLUDES *=\).*|\1 ${METIS_CFLAGS} ${PARMETIS_CFLAGS} ${MATH_CFLAGS} \${DSUPERLU_INCLUDE} \${PEXSI_INCLUDE}|g" \
-                    -e "s|\(COMPILE_FLAG *=\).*|\1 ${CFLAGS} -fpermissive|g" \
+                    -e "s|\(COMPILE_FLAG *=\).*|\1 ${CFLAGS}|g" \
                     -e "s|\(SUFFIX *=\).*|\1 ${OPENBLAS_ARCH}|g" \
                     -e "s|\(DSUPERLU_DIR *=\).*|\1|g" \
                     -e "s|\(METIS_DIR *=\).*|\1|g" \
@@ -70,28 +70,34 @@ case "$with_pexsi" in
                     -e "s|\(PTSCOTCH_DIR *=\).*|\1|g" \
                     -e "s|\(LAPACK_DIR *=\).*|\1|g" \
                     -e "s|\(BLAS_DIR *=\).*|\1|g" \
-                    -e "s|\(GFORTRAN_LIB *=\).*|\1|g" > make.inc
-            cd src
-            make -j $NPROCS > make.log 2>&1
-            # no make install, need to do install manually
-            chmod a+r libpexsi_${OPENBLAS_ARCH}.a
-            ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
-            cp libpexsi_${OPENBLAS_ARCH}.a "${pkg_install_dir}/lib"
+                    -e "s|\(GFORTRAN_LIB *=\).*|\1 -lgfortran|g" > make.inc
+            # patch PEXSI makefile to enable proper fortran installation
+            cat <<EOF >> pexsi_make.patch
+--- Makefile
++++ Makefile
+@@ -22 +22 @@
+-install:
++install: pexsi_lib
+@@ -27 +27,4 @@
+-	(cp include/c_pexsi_interface.h include/ppexsi.hpp fortran/f_interface.f90 \${PEXSI_BUILD_DIR}/include)
++	(cp include/c_pexsi_interface.h include/ppexsi.hpp \${PEXSI_BUILD_DIR}/include)
++
++finstall: install fortran_examples
++	(cp fortran/f_ppexsi_interface.mod \${PEXSI_BUILD_DIR}/include)
+EOF
+            patch -p0 < pexsi_make.patch >& patch.log
+
+            make finstall > make.log 2>&1 # still issues with parallel make (fortran_examples target)
+
             ln -sf "${pkg_install_dir}/lib/libpexsi_${OPENBLAS_ARCH}.a" \
                    "${pkg_install_dir}/lib/libpexsi.a"
-            # make fortran interface
-            cd ../fortran
-            make > make.log 2>&1 #-j $nprocs will crash
-            chmod a+r f_ppexsi_interface.mod
-            ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
-            cp f_ppexsi_interface.mod "${pkg_install_dir}/include"
-            cd ..
-            cp -r include/* "${pkg_install_dir}/include"
-            cd ..
+
             touch "${install_lock_file}"
         fi
         PEXSI_CFLAGS="-I'${pkg_install_dir}/include'"
-        PEXSI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
+
+        # --allow-multiple-definition is needed as workaround for a problem with SuperLU_Dist 4.3
+        PEXSI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib' -Wl,--allow-multiple-definition"
         ;;
     __SYSTEM__)
         echo "==================== Finding Pexsi_DIST from system paths ===================="
@@ -106,8 +112,6 @@ case "$with_pexsi" in
         pkg_install_dir="$with_pexsi"
         check_dir "${pkg_install_dir}/lib"
         check_dir "${pkg_install_dir}/include"
-        PEXSI_CFLAGS="-I'${pkg_install_dir}/include'"
-        PEXSI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
         ;;
 esac
 if [ "$with_pexsi" != "__DONTUSE__" ] ; then
