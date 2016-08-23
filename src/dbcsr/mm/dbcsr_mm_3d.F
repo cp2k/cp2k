@@ -1749,13 +1749,13 @@ CONTAINS
          isend3D, ithread, ivirt_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
          left_data_offset, left_data_size, left_meta_size, left_myfirstvcol, left_myfirstvrow, &
          left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, &
-         left_row_nimages, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, myrow3D, &
-         nblkrows_local, ncols3D, nleft_buffers, nranks3D, nrows3D, nthreads, numnodes
-      INTEGER :: nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
+         left_row_nimages, left_vrow, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, &
+         myrow3D, nblkrows_local, ncols3D, nleft_buffers, nranks3D, nrows3D, nthreads
+      INTEGER :: numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
          right_col_mult, right_col_nimages, right_data_offset, right_data_size, right_meta_size, &
          right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
          right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
-         right_row_total_nimages, row, size_guess, v_ki
+         right_row_total_nimages, right_vcol, row, size_guess, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices_common_unmerged, &
                                                             product_matrix_epss_displ, &
@@ -2341,13 +2341,13 @@ CONTAINS
                ! Take first image global virtual coordinates
                CALL image_calculator(imgdist_right, &
                                      vprow=recv_vrow, &
-                                     vpcol=buffers_comm%right%vpcol, &
+                                     vpcol=right_vcol, &
                                      myvprow=right_myfirstvrow, &
                                      myvpcol=right_myfirstvcol, &
                                      vprow_shift=ivirt_k, &
                                      shifting='R')
                CALL image_calculator(imgdist_left, &
-                                     vprow=left_buffer(ileft_buffer_comm)%vprow, &
+                                     vprow=left_vrow, &
                                      vpcol=recv_vcol, &
                                      myvprow=left_myfirstvrow, &
                                      myvpcol=left_myfirstvcol, &
@@ -2363,6 +2363,8 @@ CONTAINS
             ENDIF
             !
             buffers_comm%right%vprow = MOD(recv_vrow+v_ki, right_row_total_nimages)
+            buffers_comm%right%vpcol = right_vcol
+            left_buffer(ileft_buffer_comm)%vprow = left_vrow
             left_buffer(ileft_buffer_comm)%vpcol = MOD(recv_vcol+v_ki, left_col_total_nimages)
             !
             buffers_comm%right%nrequests = 0
