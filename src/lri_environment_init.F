@@ -26,6 +26,7 @@ MODULE lri_environment_init
                                               lri_environment_type
    USE mathconstants,                   ONLY: fac,&
                                               pi
+   USE mathlib,                         ONLY: invmat_symm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -132,7 +133,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: orb_index, ri_index
       REAL(KIND=dp), DIMENSION(:), POINTER               :: orb_norm_r, ri_int_fbas, ri_norm_r, &
                                                             ri_norm_s
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orb_ovlp, ri_ovlp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orb_ovlp, ri_ovlp, ri_ovlp_inv
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ovlp3, scon_orb, scon_ri
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: dovlp3, scon_mix
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
@@ -189,6 +190,10 @@ CONTAINS
                   lri_env%bas_prop(ikind)%ovlp3 => ovlp3
                   DEALLOCATE (orb_norm_r, ri_norm_r, ri_norm_s)
                   DEALLOCATE (dovlp3)
+                  ALLOCATE (ri_ovlp_inv(ri_basis%nsgf, ri_basis%nsgf))
+                  ri_ovlp_inv(:, :) = ri_ovlp
+                  CALL invmat_symm(ri_ovlp_inv)
+                  lri_env%bas_prop(ikind)%ri_ovlp_inv => ri_ovlp_inv
                END IF
             END DO
          END IF

@@ -198,24 +198,29 @@ CONTAINS
                CALL lri_int_os(lri_env, lrii, ra, rb, rab, obasa, obasb, fbasa, fbasb, &
                                iatom, jatom, ikind)
             ENDIF
+
             ! construct and invert S matrix
-            lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
-            IF (dab > lri_env%delta) THEN
+            IF (iatom == jatom .AND. dab < lri_env%delta) THEN
+               lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp_inv(1:nfa, 1:nfa)
+            ELSE
                nn = nfa+nfb
+               lrii%sinv(1:nfa, 1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa, 1:nfa)
                lrii%sinv(1:nfa, nfa+1:nn) = lrii%sab(1:nfa, 1:nfb)
                lrii%sinv(nfa+1:nn, 1:nfa) = TRANSPOSE(lrii%sab(1:nfa, 1:nfb))
                lrii%sinv(nfa+1:nn, nfa+1:nn) = lri_env%bas_prop(jkind)%ri_ovlp(1:nfb, 1:nfb)
+               CALL inverse_lri_overlap(lri_env, lrii%sinv)
             ENDIF
-            CALL inverse_lri_overlap(lri_env, lrii%sinv)
 
             ! calculate Sinv*n and n*Sinv*n
             lrii%n(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
             IF (iatom == jatom .AND. dab < lri_env%delta) THEN
-               lrii%sn(1:nfa) = MATMUL(lrii%sinv(1:nfa, 1:nfa), lrii%n(1:nfa))
+               CALL dgemv("N", nfa, nfa, 1.0_dp, lrii%sinv(1, 1), nfa, &
+                          lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
                lrii%nsn = SUM(lrii%sn(1:nfa)*lrii%n(1:nfa))
             ELSE
                lrii%n(nfa+1:nn) = lri_env%bas_prop(jkind)%int_fbas(1:nfb)
-               lrii%sn(1:nn) = MATMUL(lrii%sinv(1:nn, 1:nn), lrii%n(1:nn))
+               CALL dgemv("N", nn, nn, 1.0_dp, lrii%sinv(1, 1), nn, &
+                          lrii%n(1), 1, 0.0_dp, lrii%sn, 1)
                lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
             ENDIF
 
