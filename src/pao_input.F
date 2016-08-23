@@ -4,7 +4,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE pao_input
-   USE bibliography,                    ONLY: Berghold2011
+   USE bibliography,                    ONLY: Berghold2011,&
+                                              Zhu2016
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: add_last_numeric,&
@@ -431,6 +432,7 @@ CONTAINS
                           enum_desc=s2a("Eigenvalues of local potential matrix", &
                                         "Eigenvalues of local overlap matrix", &
                                         "Distance between two atoms (just for testing)"), &
+                          citations=(/Zhu2016/), &
                           default_i_val=pao_ml_desc_pot)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

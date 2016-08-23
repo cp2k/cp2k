@@ -78,7 +78,7 @@ MODULE bibliography
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
-                            Bates2013, Andermatt2016
+                            Bates2013, Andermatt2016, Zhu2016
 
 CONTAINS
 
@@ -3488,6 +3488,46 @@ CONTAINS
                          "PM 27244103", &
                          "ER"), &
                          DOI="10.1021/acs.jctc.6b00398")
+
+      CALL add_reference(key=Zhu2016, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Zhu, L", &
+                         "   Amsler, M", &
+                         "   Fuhrer, T", &
+                         "   Schaefer, B", &
+                         "   Faraji, S", &
+                         "   Rostami, S", &
+                         "   Ghasemi, SA", &
+                         "   Sadeghi, A", &
+                         "   Grauzinyte, M", &
+                         "   Wolverton, C", &
+                         "   Goedecker, S", &
+                         "AF Zhu, Li", &
+                         "   Amsler, Maximilian", &
+                         "   Fuhrer, Tobias", &
+                         "   Schaefer, Bastian", &
+                         "   Faraji, Somayeh", &
+                         "   Rostami, Samare", &
+                         "   Ghasemi, S. Alireza", &
+                         "   Sadeghi, Ali", &
+                         "   Grauzinyte, Migle", &
+                         "   Wolverton, Chris", &
+                         "   Goedecker, Stefan", &
+                         "TI A fingerprint based metric for measuring similarities of crystalline", &
+                         "   structures", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "SN 0021-9606", &
+                         "EI 1089-7690", &
+                         "PD JAN 21", &
+                         "PY 2016", &
+                         "VL 144", &
+                         "IS 3", &
+                         "AR 034203", &
+                         "DI 10.1063/1.4940026", &
+                         "UT WOS:000368619100017", &
+                         "PM 26801027", &
+                         "ER"), &
+                         DOI="10.1063/1.4940026")
 
    END SUBROUTINE add_all_references
 

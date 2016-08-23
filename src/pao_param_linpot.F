@@ -399,6 +399,7 @@ CONTAINS
          ALLOCATE (vec_V(n*n))
          vec_V(:) = 0.0_dp
          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=block_V_terms, found=found)
+         CPASSERT(ASSOCIATED(block_V_terms))
          nterms = SIZE(block_V_terms, 2)
          IF (nterms > 0) & ! protect against corner-case of zero pao parameters
             vec_V = MATMUL(block_V_terms, block_X(:, 1))
