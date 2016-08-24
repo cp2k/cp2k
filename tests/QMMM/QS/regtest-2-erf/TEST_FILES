@@ -18,7 +18,7 @@ H2O-qmmm-gauss-14-geep-12.inp                          1      5e-14             
 H2O-qmmm-gauss-14-geep-13.inp                          1      6e-14             -12.91325023093564
 H2O-qmmm-gauss-14-geep-14.inp                          1      9e-14             -12.91299456139047
 H2O-qmmm-gauss-14-geep-15.inp                          1      6e-14             -12.91325018773841
-H2O-qmmm-gauss-14-geep-16.inp                          1    1.0E-14             -12.91325925146546
+H2O-qmmm-gauss-14-geep-16.inp     1     2e-14             -12.91325925146546
 H2O-qmmm-gauss-14-geep-17.inp     1     6e-14            -12.913367183821659
 H2O-qmmm-gauss-14-geep-18.inp                          1      8e-14              -12.9133675363151
 #EOF
