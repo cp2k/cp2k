@@ -193,6 +193,9 @@ CONTAINS
       rab2 = SUM(rab*rab)
       dab = SQRT(rab2)
 
+      vab = 0.0_dp
+      dvab = 0.0_dp
+
       DO iset = 1, nseta
 
          ncoa = npgfa(iset)*ncoset(la_max(iset))
