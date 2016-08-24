@@ -8,7 +8,6 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_linpot
-   USE machine,                         ONLY: m_flush
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -20,6 +19,7 @@ MODULE pao_param_linpot
         dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum,&

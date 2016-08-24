@@ -8,7 +8,6 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_ml
-   USE machine,                         ONLY: m_flush
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -24,6 +23,7 @@ MODULE pao_ml
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_sum
    USE pao_input,                       ONLY: id2str,&
