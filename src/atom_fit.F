@@ -49,6 +49,10 @@ MODULE atom_fit
 
    PUBLIC :: atom_fit_density, atom_fit_basis, atom_fit_pseudo, atom_fit_kgpot
 
+   TYPE wfn_init
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER       :: wfn
+   END TYPE wfn_init
+
 ! **************************************************************************************************
 
 CONTAINS
@@ -488,6 +492,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: w
       TYPE(atom_type), POINTER                           :: atom
       TYPE(opt_state_type)                               :: ostate
+      TYPE(wfn_init), DIMENSION(:, :), POINTER           :: wfn_guess
 
       ! weights for the optimization
       CALL section_vals_val_get(powell_section, "ACCURACY", r_val=ostate%rhoend)
@@ -516,6 +521,19 @@ CONTAINS
       ALLOCATE (pval(8, 10, 0:3, m, n))
       ALLOCATE (dener(2, m, m, n, n))
       dener = 0.0_dp
+
+      ALLOCATE (wfn_guess(n, m))
+      DO i = 1, n
+         DO j = 1, m
+            atom => atom_info(i, j)%atom
+            NULLIFY (wfn_guess(i, j)%wfn)
+            IF (atom_consistent_method(atom%method_type, atom%state%multiplicity)) THEN
+               i1 = SIZE(atom%orbitals%wfn, 1)
+               i2 = SIZE(atom%orbitals%wfn, 2)
+               ALLOCATE (wfn_guess(i, j)%wfn(i1, i2, 0:3))
+            END IF
+         END DO
+      END DO
 
       CALL section_vals_val_get(powell_section, "WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit)
       IF (explicit) THEN
@@ -722,7 +740,7 @@ CONTAINS
       DO nre = 1, nreinit
          xi(:) = x(:)
          CALL put_pseudo_param(x, ppot%gth_pot)
-         CALL pseudo_fit(atom_info, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener)
+         CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .TRUE.)
          IF (nre == 1) THEN
             WRITE (iunit, '(/," POWELL| Initial errors of target values")')
             afun = ostate%f*wtot
@@ -730,6 +748,9 @@ CONTAINS
                DO j = 1, SIZE(atom_info, 2)
                   atom => atom_info(i, j)%atom
                   IF (atom_consistent_method(atom%method_type, atom%state%multiplicity)) THEN
+                     ! start orbitals
+                     wfn_guess(i, j)%wfn = atom%orbitals%wfn
+                     !
                      WRITE (iunit, '(/," Reference configuration  ",T31,i5,T50," Method number ",T76,i5)') i, j
                      IF (atom%state%multiplicity == -1) THEN
                         ! no spin polarization
@@ -851,7 +872,7 @@ CONTAINS
 
             IF (ostate%state == 2) THEN
                CALL put_pseudo_param(x, ppot%gth_pot)
-               CALL pseudo_fit(atom_info, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener)
+               CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .FALSE.)
                fopt = MIN(fopt, ostate%f)
             END IF
 
@@ -891,7 +912,7 @@ CONTAINS
          WRITE (iunit, '(" POWELL| Final value of function",T61,F20.10)') ostate%fopt
 
          CALL put_pseudo_param(x, ppot%gth_pot)
-         CALL pseudo_fit(atom_info, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener)
+         CALL pseudo_fit(atom_info, wfn_guess, ppot, ostate%f, wtot, pval, dener, w_ener, t_ener, .FALSE.)
          afun = wtot*ostate%f
 
          WRITE (iunit, '(/," POWELL| Final errors of target values")')
@@ -1028,6 +1049,15 @@ CONTAINS
       END IF
 
       DEALLOCATE (x, pval, dener)
+
+      DO i = 1, SIZE(wfn_guess, 1)
+         DO j = 1, SIZE(wfn_guess, 2)
+            IF (ASSOCIATED(wfn_guess(i, j)%wfn)) THEN
+               DEALLOCATE (wfn_guess(i, j)%wfn)
+            END IF
+         END DO
+      END DO
+      DEALLOCATE (wfn_guess)
 
       IF (ALLOCATED(xtob)) THEN
          DEALLOCATE (xtob)
@@ -1200,6 +1230,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param atom_info ...
+!> \param wfn_guess ...
 !> \param ppot ...
 !> \param afun ...
 !> \param wtot ...
@@ -1207,19 +1238,23 @@ CONTAINS
 !> \param dener ...
 !> \param wen ...
 !> \param ten ...
+!> \param init ...
 ! **************************************************************************************************
-   SUBROUTINE pseudo_fit(atom_info, ppot, afun, wtot, pval, dener, wen, ten)
+   SUBROUTINE pseudo_fit(atom_info, wfn_guess, ppot, afun, wtot, pval, dener, wen, ten, init)
       TYPE(atom_p_type), DIMENSION(:, :), POINTER        :: atom_info
+      TYPE(wfn_init), DIMENSION(:, :), POINTER           :: wfn_guess
       TYPE(atom_potential_type), POINTER                 :: ppot
       REAL(dp), INTENT(OUT)                              :: afun
       REAL(dp), INTENT(IN)                               :: wtot
       REAL(dp), DIMENSION(:, :, 0:, :, :), INTENT(INOUT) :: pval
       REAL(dp), DIMENSION(:, :, :, :, :), INTENT(INOUT)  :: dener
       REAL(dp), INTENT(IN)                               :: wen, ten
+      LOGICAL, INTENT(IN)                                :: init
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_fit', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, i1, i2, j, j1, j2, k, l, n, node
+      LOGICAL                                            :: converged, noguess, shift
       REAL(KIND=dp)                                      :: charge, de, fde, pv, rcov, rcov1, rcov2, &
                                                             tv
       TYPE(atom_integrals), POINTER                      :: pp_int
@@ -1229,6 +1264,8 @@ CONTAINS
       pval = 0._dp
       dener(1, :, :, :, :) = 0._dp
 
+      noguess = .NOT. init
+
       pp_int => atom_info(1, 1)%atom%integrals
       CALL atom_ppint_release(pp_int)
       CALL atom_ppint_setup(pp_int, atom_info(1, 1)%atom%basis, potential=ppot)
@@ -1237,8 +1274,17 @@ CONTAINS
          DO j = 1, SIZE(atom_info, 2)
             atom => atom_info(i, j)%atom
             IF (atom_consistent_method(atom%method_type, atom%state%multiplicity)) THEN
+               IF (noguess) THEN
+                  atom%orbitals%wfn = wfn_guess(i, j)%wfn
+               END IF
                CALL set_atom(atom, integrals=pp_int, potential=ppot)
-               CALL calculate_atom(atom, 0, noguess=.TRUE.)
+               CALL calculate_atom(atom, 0, noguess=noguess, converged=converged)
+               IF (.NOT. converged) THEN
+                  CALL calculate_atom(atom, 0, noguess=.FALSE., converged=shift)
+                  IF (.NOT. shift) THEN
+                     atom%orbitals%ener(:, :) = 1.5_dp*atom%orbitals%ener(:, :)+0.5_dp
+                  END IF
+               END IF
                dener(1, j, j, i, i) = atom%energy%etot
                DO l = 0, atom%state%maxl_calc
                   n = atom%state%maxn_calc(l)

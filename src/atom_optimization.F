@@ -19,21 +19,24 @@ MODULE atom_optimization
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_optimization'
 
    TYPE hmat_type
+      REAL(dp)                                  :: energy
+      REAL(dp)                                  :: error
       REAL(dp), DIMENSION(:, :, :), POINTER     :: emat
       REAL(dp), DIMENSION(:, :, :), POINTER     :: fmat
+      REAL(dp), DIMENSION(:, :, :), POINTER     :: pmat
    END TYPE hmat_type
 
    TYPE atom_history_type
-      INTEGER                               :: max_history
-      INTEGER                               :: hlen
-      INTEGER                               :: hpos
-      REAL(dp)                              :: damping
-      REAL(dp)                              :: eps_diis
+      INTEGER                                  :: max_history
+      INTEGER                                  :: hlen
+      INTEGER                                  :: hpos
+      REAL(dp)                                 :: damping
+      REAL(dp)                                 :: eps_diis
       REAL(dp), DIMENSION(:, :), POINTER       :: dmat
-      TYPE(hmat_type), DIMENSION(:), POINTER  :: hmat
+      TYPE(hmat_type), DIMENSION(:), POINTER   :: hmat
    END TYPE atom_history_type
 
-   PUBLIC :: atom_opt, &
+   PUBLIC :: atom_opt_fmat, &
              atom_history_type, atom_history_init, atom_history_update, atom_history_release
 
 ! **************************************************************************************************
@@ -75,20 +78,27 @@ CONTAINS
       n2 = SIZE(matrix, 2)
       n3 = SIZE(matrix, 3)
       DO i = 1, ndiis
+         history%hmat(i)%energy = 0.0_dp
+         history%hmat(i)%error = 0.0_dp
          ALLOCATE (history%hmat(i)%emat(n1, n2, n3))
          ALLOCATE (history%hmat(i)%fmat(n1, n2, n3))
+         ALLOCATE (history%hmat(i)%pmat(n1, n2, n3))
       END DO
 
    END SUBROUTINE atom_history_init
 ! **************************************************************************************************
 !> \brief ...
 !> \param history ...
+!> \param pmat ...
 !> \param fmat ...
 !> \param emat ...
+!> \param energy ...
+!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE atom_history_update(history, fmat, emat)
+   SUBROUTINE atom_history_update(history, pmat, fmat, emat, energy, error)
       TYPE(atom_history_type), INTENT(INOUT)             :: history
-      REAL(dp), DIMENSION(:, :, :), INTENT(IN)           :: fmat, emat
+      REAL(dp), DIMENSION(:, :, :), INTENT(IN)           :: pmat, fmat, emat
+      REAL(dp), INTENT(IN)                               :: energy, error
 
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_history_update', &
          routineP = moduleN//':'//routineN
@@ -100,6 +110,9 @@ CONTAINS
       nnow = history%hpos+1
       IF (nnow > nmax) nnow = 1
 
+      history%hmat(nnow)%energy = energy
+      history%hmat(nnow)%error = error
+      history%hmat(nnow)%pmat = pmat
       history%hmat(nnow)%fmat = fmat
       history%hmat(nnow)%emat = emat
 
@@ -135,6 +148,9 @@ CONTAINS
             IF (ASSOCIATED(history%hmat(i)%fmat)) THEN
                DEALLOCATE (history%hmat(i)%fmat)
             END IF
+            IF (ASSOCIATED(history%hmat(i)%pmat)) THEN
+               DEALLOCATE (history%hmat(i)%pmat)
+            END IF
          END DO
          DEALLOCATE (history%hmat)
       END IF
@@ -146,12 +162,12 @@ CONTAINS
 !> \param history ...
 !> \param err ...
 ! **************************************************************************************************
-   SUBROUTINE atom_opt(fmat, history, err)
+   SUBROUTINE atom_opt_fmat(fmat, history, err)
       REAL(dp), DIMENSION(:, :, :), INTENT(INOUT)        :: fmat
       TYPE(atom_history_type), INTENT(INOUT)             :: history
       REAL(dp), INTENT(IN)                               :: err
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'atom_opt', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_opt_fmat', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, j, lwork, na, nb, nlen, nm, &
                                                             nmax, nnow, rank
@@ -208,7 +224,7 @@ CONTAINS
          CPABORT("")
       END IF
 
-   END SUBROUTINE atom_opt
-! **************************************************************************************************
+   END SUBROUTINE atom_opt_fmat
 
+! **************************************************************************************************
 END MODULE atom_optimization

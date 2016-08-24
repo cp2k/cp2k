@@ -9,7 +9,7 @@ MODULE atom_electronic_structure
                                               atom_history_release,&
                                               atom_history_type,&
                                               atom_history_update,&
-                                              atom_opt
+                                              atom_opt_fmat
    USE atom_output,                     ONLY: atom_print_energies,&
                                               atom_print_iteration,&
                                               atom_print_state,&
@@ -53,11 +53,13 @@ CONTAINS
 !> \param atom ...
 !> \param iw ...
 !> \param noguess ...
+!> \param converged ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_atom(atom, iw, noguess)
+   SUBROUTINE calculate_atom(atom, iw, noguess, converged)
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom', routineP = moduleN//':'//routineN
 
@@ -69,9 +71,9 @@ CONTAINS
 
       SELECT CASE (method)
       CASE (do_rks_atom, do_rhf_atom)
-         CALL calculate_atom_restricted(atom, iw, noguess)
+         CALL calculate_atom_restricted(atom, iw, noguess, converged)
       CASE (do_uks_atom, do_uhf_atom)
-         CALL calculate_atom_unrestricted(atom, iw, noguess)
+         CALL calculate_atom_unrestricted(atom, iw, noguess, converged)
       CASE (do_rohf_atom)
          CPABORT("")
       CASE DEFAULT
@@ -87,19 +89,21 @@ CONTAINS
 !> \param atom ...
 !> \param iw ...
 !> \param noguess ...
+!> \param converged ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_atom_restricted(atom, iw, noguess)
+   SUBROUTINE calculate_atom_restricted(atom, iw, noguess, converged)
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_restricted', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, iter, l, max_iter, method, &
                                                             reltyp
-      LOGICAL                                            :: do_hfx, doguess, need_vxc, need_x, &
-                                                            need_xc, need_zmp
+      LOGICAL                                            :: do_hfx, doguess, is_converged, need_vxc, &
+                                                            need_x, need_xc, need_zmp
       REAL(KIND=dp)                                      :: deps, eps_scf, hf_frac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ext_density, ext_vxc, tmp_dens
       TYPE(atom_history_type)                            :: history
@@ -221,7 +225,6 @@ CONTAINS
       IF (doguess) THEN
          ! initial guess
          ALLOCATE (tmp_dens(SIZE(density%op)))
-         tmp_dens = 0
          CALL slater_density(density%op, tmp_dens, atom%z, atom%state, atom%basis%grid)
          density%op = density%op+tmp_dens
          DEALLOCATE (tmp_dens)
@@ -240,6 +243,7 @@ CONTAINS
       NULLIFY (history%dmat, history%hmat)
       CALL atom_history_init(history, atom%optimization, fmat%op)
 
+      is_converged = .FALSE.
       iter = 0
       DO !SCF Loop
 
@@ -357,7 +361,10 @@ CONTAINS
             ENDIF
          END IF
 
-         IF (deps < eps_scf) EXIT
+         IF (deps < eps_scf) THEN
+            is_converged = .TRUE.
+            EXIT
+         END IF
          IF (iter >= max_iter) THEN
             IF (iw > 0) THEN
                WRITE (iw, "(A)") " No convergence within maximum number of iterations "
@@ -366,8 +373,8 @@ CONTAINS
          END IF
 
          ! update history container and extrapolate KS matrix
-         CALL atom_history_update(history, fmat%op, jmat%op)
-         CALL atom_opt(fmat%op, history, deps)
+         CALL atom_history_update(history, atom%orbitals%pmat, fmat%op, jmat%op, atom%energy%etot, deps)
+         CALL atom_opt_fmat(fmat%op, history, deps)
 
          ! Solve HF/KS equations
          CALL atom_solve(fmat%op, atom%integrals%utrans, atom%orbitals%wfn, atom%orbitals%ener, &
@@ -397,6 +404,10 @@ CONTAINS
       IF (need_zmp) DEALLOCATE (ext_density)
       IF (need_vxc) DEALLOCATE (ext_vxc)
 
+      IF (PRESENT(converged)) THEN
+         converged = is_converged
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE calculate_atom_restricted
@@ -406,18 +417,21 @@ CONTAINS
 !> \param atom ...
 !> \param iw ...
 !> \param noguess ...
+!> \param converged ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_atom_unrestricted(atom, iw, noguess)
+   SUBROUTINE calculate_atom_unrestricted(atom, iw, noguess, converged)
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
       LOGICAL, INTENT(IN), OPTIONAL                      :: noguess
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atom_unrestricted', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, iter, k, l, max_iter, method, &
                                                             reltyp
-      LOGICAL                                            :: do_hfx, doguess, lsdpot, need_x, need_xc
+      LOGICAL                                            :: do_hfx, doguess, is_converged, lsdpot, &
+                                                            need_x, need_xc
       REAL(KIND=dp)                                      :: deps, depsa, depsb, eps_scf, hf_frac, &
                                                             ne, nm
       TYPE(atom_history_type)                            :: historya, historyb
@@ -580,6 +594,7 @@ CONTAINS
       NULLIFY (historyb%dmat, historyb%hmat)
       CALL atom_history_init(historyb, atom%optimization, fmatb%op)
 
+      is_converged = .FALSE.
       iter = 0
       DO !SCF Loop
 
@@ -706,7 +721,10 @@ CONTAINS
             CALL atom_print_iteration(iter, deps, atom%energy%etot, iw)
          END IF
 
-         IF (deps < eps_scf) EXIT
+         IF (deps < eps_scf) THEN
+            is_converged = .TRUE.
+            EXIT
+         END IF
          IF (iter >= max_iter) THEN
             IF (iw > 0) THEN
                WRITE (iw, "(A)") " No convergence within maximum number of iterations "
@@ -715,10 +733,10 @@ CONTAINS
          END IF
 
          ! update history container and extrapolate KS matrix
-         CALL atom_history_update(historya, fmata%op, xcmata%op)
-         CALL atom_history_update(historyb, fmatb%op, xcmatb%op)
-         CALL atom_opt(fmata%op, historya, depsa)
-         CALL atom_opt(fmatb%op, historyb, depsb)
+         CALL atom_history_update(historya, atom%orbitals%pmata, fmata%op, xcmata%op, atom%energy%etot, deps)
+         CALL atom_history_update(historyb, atom%orbitals%pmatb, fmatb%op, xcmatb%op, atom%energy%etot, deps)
+         CALL atom_opt_fmat(fmata%op, historya, depsa)
+         CALL atom_opt_fmat(fmatb%op, historyb, depsb)
 
          ! Solve HF/KS equations
          CALL atom_solve(fmata%op, atom%integrals%utrans, atom%orbitals%wfna, atom%orbitals%enera, &
@@ -755,6 +773,10 @@ CONTAINS
       CALL release_opmat(xcmatb)
       CALL release_opmat(hlsd)
       CALL release_opmat(hcore)
+
+      IF (PRESENT(converged)) THEN
+         converged = is_converged
+      END IF
 
       CALL timestop(handle)
 
