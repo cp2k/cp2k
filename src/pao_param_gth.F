@@ -22,6 +22,7 @@ MODULE pao_param_gth
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
    USE orbital_pointers,                ONLY: init_orbital_pointers
@@ -344,12 +345,17 @@ CONTAINS
 
       ! print homo-lumo gap encountered by fock-layer
       CALL mp_min(gaps, group)
-      DO iatom = 1, natoms
-         IF (pao%iw_gap > 0) WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)
-      ENDDO
+      IF (pao%iw_gap > 0) THEN
+         DO iatom = 1, natoms
+            WRITE (pao%iw_gap, *) "PAO| atom:", iatom, " fock gap:", gaps(iatom)
+         ENDDO
+         CALL m_flush(pao%iw_gap)
+      ENDIF
 
       ! one-line summary
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO| min_gap:", MINVAL(gaps), " for atom:", MINLOC(gaps)
+      IF (pao%iw > 0) THEN
+         WRITE (pao%iw, "(A,E20.10,A,T71,I10)") " PAO| min_gap:", MINVAL(gaps), " for atom:", MINLOC(gaps)
+      ENDIF
 
       DEALLOCATE (gaps)
       CALL timestop(handle)

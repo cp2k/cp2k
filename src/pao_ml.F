@@ -8,6 +8,7 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_ml
+   USE machine,                         ONLY: m_flush
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
@@ -445,6 +446,7 @@ CONTAINS
                   " out:", training_matrix%outputs(:, i)
             ENDDO
          ENDDO
+         CALL m_flush(pao%iw_mldata)
       ENDIF
 
       ! print stats
@@ -563,6 +565,7 @@ CONTAINS
          DO iatom = 1, natoms
             WRITE (pao%iw_mlvar, *) "PAO|ML| atom:", iatom, " prediction variance:", variances(iatom)
          ENDDO
+         CALL m_flush(pao%iw_mlvar)
       ENDIF
 
       ! one-line summary
