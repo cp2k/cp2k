@@ -589,7 +589,7 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       abaint = 0.0_dp
-      IF(PRESENT(dabdaint)) dabdaint = 0.0_dp
+      IF (PRESENT(dabdaint)) dabdaint = 0.0_dp
 
       DO iset = 1, nseta
 
@@ -757,7 +757,7 @@ CONTAINS
       dab = SQRT(SUM(rab**2))
 
       abbint = 0.0_dp
-      IF(PRESENT(dabbint)) dabbint = 0.0_dp
+      IF (PRESENT(dabbint)) dabbint = 0.0_dp
 
       DO iset = 1, nseta
 
