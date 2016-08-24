@@ -588,6 +588,9 @@ CONTAINS
 
       dab = SQRT(SUM(rab**2))
 
+      abaint = 0.0_dp
+      dabdaint = 0.0_dp
+
       DO iset = 1, nseta
 
          ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -752,6 +755,9 @@ CONTAINS
       zetcb => fbb%zet
 
       dab = SQRT(SUM(rab**2))
+
+      abbint = 0.0_dp
+      dabbint = 0.0_dp
 
       DO iset = 1, nseta
 
