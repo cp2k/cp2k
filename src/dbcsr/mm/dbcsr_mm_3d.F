@@ -2334,6 +2334,7 @@ CONTAINS
       CALL timeset(routineN//"_loop", handle2)
       ! Take into account when ticks are not multiple of 3D layers
       shift_k = MOD(nvirt_k, nranks3D)*myrank3D
+      ileft_buffer_comm = 0
       ALLOCATE (do_comm_left(nrows3D))
       grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
          ivirt_k = istep_k/nranks3D
@@ -2373,7 +2374,7 @@ CONTAINS
             ENDIF
             !
             IF (do_comm_left(irow3D) .OR. nrows3D .GT. 1) THEN
-               ileft_buffer_comm = MOD(istep_k, nleft_buffers)+1
+               ileft_buffer_comm = MOD(ileft_buffer_comm, nleft_buffers)+1
             ENDIF
             IF (right_refs_meta_size_layers3D(icol3D, buffers_comm%right%vprow) .NE. 0) THEN
                ! First col, communicate left matrix
