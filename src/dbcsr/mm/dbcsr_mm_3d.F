@@ -135,6 +135,7 @@ MODULE dbcsr_mm_3d
                                                          offset
       INTEGER                            :: nrequests = 0
       INTEGER                            :: num_layers_3D = 1
+      INTEGER                            :: coord3D = 1
       TYPE(dbcsr_1d_array_type)          :: buffer
       LOGICAL                            :: is_valid = .FALSE., &
                                             has_rma_win = .FALSE.
@@ -1746,16 +1747,17 @@ CONTAINS
 
       INTEGER :: blk, data_type, data_type_byte, grp_left, grp_right, handle, handle2, handle3, &
          icol3D, ileft_buffer_calc, ileft_buffer_comm, index_row_max_epss, iproc, irecv3D, irow3D, &
-         isend3D, ithread, ivirt_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
-         left_data_offset, left_data_size, left_meta_size, left_myfirstvcol, left_myfirstvrow, &
-         left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, &
-         left_row_nimages, left_vrow, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, &
-         myrow3D, nblkrows_local, ncols3D, nleft_buffers, nranks3D, nrows3D, nthreads
-      INTEGER :: numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
-         right_col_mult, right_col_nimages, right_data_offset, right_data_size, right_meta_size, &
-         right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
-         right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
-         right_row_total_nimages, right_vcol, row, size_guess, v_ki
+         isend3D, istep_k, ithread, ivirt_k, left_col_mult, left_col_nimages, &
+         left_col_total_nimages, left_data_size, left_meta_size, left_myfirstvcol, &
+         left_myfirstvrow, left_mypcol, left_myproc_3D, left_myprow, left_npcols, left_nprows, &
+         left_nrequests, left_row_mult, left_row_nimages, left_vrow, min_nimages, mycol3D, mynode, &
+         mypcol, myprow, myrank3D, myrow3D, nblkrows_local, ncols3D, nleft_buffers, nranks3D, &
+         nrows3D
+      INTEGER :: nthreads, numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, &
+         request_keep_sparsity, right_col_mult, right_col_nimages, right_data_size, &
+         right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myproc_3D, &
+         right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
+         right_row_nimages, right_row_total_nimages, right_vcol, row, shift_k, size_guess, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices_common_unmerged, &
                                                             product_matrix_epss_displ, &
@@ -1777,9 +1779,9 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
       INTEGER, DIMENSION(idata:imeta+1, 2), TARGET       :: product_matrix_size_1, &
                                                             product_matrix_size_2
-      LOGICAL                                            :: do_comm, do_layers3D, keep_sparsity, &
-                                                            otf_filtering
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: common_unmerged
+      LOGICAL                                            :: do_comm, do_layers3D, do_right_swap, &
+                                                            keep_sparsity, otf_filtering
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: common_unmerged, do_comm_left
       REAL(kind=sp)                                      :: filter_eps_sp
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET   :: row_max_epss
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: left_norms, right_norms
@@ -1865,14 +1867,14 @@ CONTAINS
       left_npcols = dbcsr_mp_npcols(left_mp_obj)
       left_myprow = dbcsr_mp_myprow(left_mp_obj)
       left_mypcol = dbcsr_mp_mypcol(left_mp_obj)
-      left_myfirstvrow = left_myprow*left_row_nimages
-      left_myfirstvcol = left_mypcol*left_col_nimages
+      left_myfirstvrow = MOD(left_myprow, layers_3D_C_reduction%side3D)*left_row_nimages
+      left_myfirstvcol = MOD(left_mypcol, layers_3D_C_reduction%side3D)*left_col_nimages
       right_nprows = dbcsr_mp_nprows(right_mp_obj)
       right_npcols = dbcsr_mp_npcols(right_mp_obj)
       right_myprow = dbcsr_mp_myprow(right_mp_obj)
       right_mypcol = dbcsr_mp_mypcol(right_mp_obj)
-      right_myfirstvrow = right_myprow*right_row_nimages
-      right_myfirstvcol = right_mypcol*right_col_nimages
+      right_myfirstvrow = MOD(right_myprow, layers_3D_C_reduction%side3D)*right_row_nimages
+      right_myfirstvcol = MOD(right_mypcol, layers_3D_C_reduction%side3D)*right_col_nimages
       left_col_total_nimages = left_npcols*left_col_nimages
       right_row_total_nimages = right_nprows*right_row_nimages
       grp_right = buffers_orig%right%subgrp
@@ -1885,6 +1887,10 @@ CONTAINS
       ncols3D = UBOUND(right_refs_meta_size, 2)
       myrank3D = get_rank3D(myprow, mypcol, dbcsr_mp_nprows(product_mp_obj), layers_3D_C_reduction%side3D)
       nranks3D = layers_3D_C_reduction%num_layers_3D
+      myprow = MOD(myprow, layers_3D_C_reduction%side3D)
+      mypcol = MOD(mypcol, layers_3D_C_reduction%side3D)
+      left_myproc_3D = left_mypcol*nrows3D+myrow3D-1
+      right_myproc_3D = right_myprow*ncols3D+mycol3D-1
       !
       ! Dummy checks
       ! subcommunicators
@@ -2010,16 +2016,16 @@ CONTAINS
       ENDIF
       !
       ! Needs to remap refs for 3D
-      CALL remap_size_layers3D(left_col_nimages, SIZE(left_refs_meta_size, 2), left_npcols, &
+      CALL remap_size_layers3D(left_col_nimages, nrows3D, left_npcols, &
                                left_refs_meta_size, &
                                left_refs_meta_size_layers3D)
-      CALL remap_size_layers3D(right_row_nimages, SIZE(right_refs_meta_size, 2), right_nprows, &
+      CALL remap_size_layers3D(right_row_nimages, ncols3D, right_nprows, &
                                right_refs_meta_size, &
                                right_refs_meta_size_layers3D)
-      CALL remap_displ_layers3D(left_col_nimages, SIZE(left_refs_meta_size, 2), left_npcols, &
+      CALL remap_displ_layers3D(left_col_nimages, nrows3D, left_npcols, &
                                 left_refs_displ_unmerged, &
                                 left_refs_displ_unmerged_layers3D)
-      CALL remap_displ_layers3D(right_row_nimages, SIZE(right_refs_meta_size, 2), right_nprows, &
+      CALL remap_displ_layers3D(right_row_nimages, ncols3D, right_nprows, &
                                 right_refs_displ_unmerged, &
                                 right_refs_displ_unmerged_layers3D)
       !
@@ -2045,9 +2051,9 @@ CONTAINS
                                            product_matrix)
                ENDIF
                product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_prow) = &
-                  (irow3D-1)*layers_3D_C_reduction%side3D
+                  (irow3D-1)*layers_3D_C_reduction%side3D+myprow
                product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_pcol) = &
-                  (icol3D-1)*layers_3D_C_reduction%side3D
+                  (icol3D-1)*layers_3D_C_reduction%side3D+mypcol
                CALL dbcsr_reset_locals(product_matrix3D%mats(irow3D, icol3D)%matrix)
                CALL dbcsr_repoint_index(product_matrix3D%mats(irow3D, icol3D)%matrix%m)
                product_matrix3D%mats(irow3D, icol3D)%matrix%m%valid = .FALSE.
@@ -2209,10 +2215,10 @@ CONTAINS
       !
       IF (nvirt_k .EQ. 1) THEN
          nleft_buffers = 1
-      ELSEIF (nrows3D .NE. ncols3D) THEN
+      ELSEIF (nrows3D .NE. ncols3D .OR. nranks3D .EQ. 1) THEN
          nleft_buffers = 2
       ELSE
-         nleft_buffers = nrows3D+1
+         nleft_buffers = nrows3D
       ENDIF
       !
       ! Prepare buffers for computation
@@ -2323,111 +2329,137 @@ CONTAINS
       ENDIF
       !
       ! Here is the main loop
+      ! 3D multiplication
       !
       CALL timeset(routineN//"_loop", handle2)
-      grouped_k_index: DO ivirt_k = 0, nvirt_k
+      ! Take into account when ticks are not multiple of 3D layers
+      shift_k = MOD(nvirt_k, nranks3D)*myrank3D
+      ALLOCATE (do_comm_left(nrows3D))
+      grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
+         ivirt_k = istep_k/nranks3D
+         v_ki = MOD(ivirt_k, min_nimages)
+         icol3D = MOD(istep_k/nrows3D, ncols3D)+1
+         irow3D = MOD(istep_k, nrows3D)+1
+         !
+         do_right_swap = irow3D .EQ. 1
+         IF (do_right_swap .AND. icol3D .EQ. 1) do_comm_left(:) = .TRUE.
          !
          ! Matrix transfer. Transfer in all but the last loop
          ! iteration.
-         xfer: IF (ivirt_k .LT. nvirt_k) THEN
-            v_ki = MOD(ivirt_k, min_nimages)
-            ileft_buffer_comm = MOD(ivirt_k, nleft_buffers)+1
-            IF (v_ki .EQ. 0) THEN
-               IF (debug_mod) WRITE (*, '(1X,A,3(1X,A,1X,I5))') routineN, &
-                  "step", ivirt_k/min_nimages, &
-                  "first k", ivirt_k, &
-                  "last k", ivirt_k+min_nimages-1
-               !
-               ! Take first image global virtual coordinates
-               CALL image_calculator(imgdist_right, &
-                                     vprow=recv_vrow, &
-                                     vpcol=right_vcol, &
-                                     myvprow=right_myfirstvrow, &
-                                     myvpcol=right_myfirstvcol, &
-                                     vprow_shift=ivirt_k, &
-                                     shifting='R')
-               CALL image_calculator(imgdist_left, &
-                                     vprow=left_vrow, &
-                                     vpcol=recv_vcol, &
-                                     myvprow=left_myfirstvrow, &
-                                     myvpcol=left_myfirstvcol, &
-                                     vpcol_shift=ivirt_k, &
-                                     shifting='L')
-            ENDIF
-            !
-            IF (has_acc) THEN
-               CALL timeset(routineN//"_acc_sync", handle3)
-               CALL acc_event_synchronize(buffers_comm%right%data(1)%d%acc_ready)
-               CALL acc_event_synchronize(left_buffer(ileft_buffer_comm)%data(1)%d%acc_ready)
-               CALL timestop(handle3)
-            ENDIF
-            !
-            buffers_comm%right%vprow = MOD(recv_vrow+v_ki, right_row_total_nimages)
-            buffers_comm%right%vpcol = right_vcol
-            left_buffer(ileft_buffer_comm)%vprow = left_vrow
-            left_buffer(ileft_buffer_comm)%vpcol = MOD(recv_vcol+v_ki, left_col_total_nimages)
-            !
-            buffers_comm%right%nrequests = 0
-            left_buffer(ileft_buffer_comm)%nrequests = 0
-            !
-            IF (right_refs_meta_size_layers3D(mycol3D, buffers_comm%right%vprow) .NE. 0 .AND. &
-                left_refs_meta_size_layers3D(myrow3D, left_buffer(ileft_buffer_comm)%vpcol) .NE. 0) THEN
-               do_comm = .TRUE.
-               IF (otf_filtering .AND. use_mpi_filtering) THEN
-                  IF (left_max_norms(left_displ_vunmerged(myrow3D, left_buffer(ileft_buffer_comm)%vpcol)+1)* &
-                      right_max_norms(right_displ_vunmerged(mycol3D, buffers_comm%right%vprow)+1) .LT. &
-                      product_matrix_epss(product_matrix_epss_displ(myrow3D))) THEN
-                     dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
-                     do_comm = .FALSE.
-                  ENDIF
+         xfer: IF (istep_k .LT. (nvirt_k+shift_k)) THEN
+            ! First row, communicate right matrix
+            IF (do_right_swap) THEN
+               IF (v_ki .EQ. 0) THEN
+                  ! Take first image global virtual coordinates
+                  CALL image_calculator(imgdist_right, &
+                                        vprow=recv_vrow, &
+                                        vpcol=right_vcol, &
+                                        mypcol=mypcol, &
+                                        myvprow=right_myfirstvrow, &
+                                        myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
+                                        vprow_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
+                                        shifting='R')
                ENDIF
                !
-               IF (do_comm) THEN
-                  ! Right
-                  buffers_comm%right%offset(:, :) = 0
-                  right_data_offset = 0
-                  right_data_size = 0
-                  CALL rma_transfer(buffers_comm%right%vprow, &
-                                    right_row_nimages, &
-                                    right_displ_vunmerged, &
-                                    right_refs_displ_unmerged_layers3D, &
-                                    buffers_comm%right, &
-                                    right_refs_meta_size_layers3D, right_refs_data_size, &
-                                    right_data_size, right_data_offset, &
-                                    buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myprow, &
-                                    data_get, data_type_byte, buffers_orig%right, mycol3D)
-                  ! Set the referenced sizes to the actual data moved via MPI
-                  CALL dbcsr_data_set_size_referenced(buffers_comm%right%data(1), &
-                                                      buffers_comm%right%offset(idata, 2))
-                  ! Left
-                  left_buffer(ileft_buffer_comm)%offset(:, :) = 0
-                  left_data_offset = 0
-                  left_data_size = 0
-                  CALL rma_transfer(left_buffer(ileft_buffer_comm)%vpcol, &
-                                    left_col_nimages, &
-                                    left_displ_vunmerged, &
-                                    left_refs_displ_unmerged_layers3D, &
-                                    left_buffer(ileft_buffer_comm), &
-                                    left_refs_meta_size_layers3D, left_refs_data_size, &
-                                    left_data_size, left_data_offset, &
-                                    buffers_orig%left%meta_win, buffers_orig%left%data_win, left_mypcol, &
-                                    data_get, data_type_byte, buffers_orig%left, myrow3D)
-                  ! Set the referenced sizes to the actual data moved via MPI
-                  CALL dbcsr_data_set_size_referenced(left_buffer(ileft_buffer_comm)%data(1), &
-                                                      left_buffer(ileft_buffer_comm)%offset(idata, 2))
+               IF (has_acc) THEN
+                  CALL timeset(routineN//"_acc_sync", handle3)
+                  CALL acc_event_synchronize(buffers_comm%right%data(1)%d%acc_ready)
+                  CALL timestop(handle3)
+               ENDIF
+               !
+               buffers_comm%right%vprow = MOD(recv_vrow+v_ki, right_row_total_nimages)
+               buffers_comm%right%vpcol = right_vcol
+               buffers_comm%right%nrequests = 0
+            ENDIF
+            !
+            IF (do_comm_left(irow3D) .OR. nrows3D .GT. 1) THEN
+               ileft_buffer_comm = MOD(istep_k, nleft_buffers)+1
+            ENDIF
+            IF (right_refs_meta_size_layers3D(icol3D, buffers_comm%right%vprow) .NE. 0) THEN
+               ! First col, communicate left matrix
+               IF (do_comm_left(irow3D)) THEN
+                  IF (v_ki .EQ. 0) THEN
+                     !
+                     ! Take first image global virtual coordinates
+                     CALL image_calculator(imgdist_left, &
+                                           vprow=left_vrow, &
+                                           vpcol=recv_vcol, &
+                                           myprow=myprow, &
+                                           myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
+                                           myvpcol=left_myfirstvcol, &
+                                           vpcol_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
+                                           shifting='L')
+                  ENDIF
+                  !
+                  IF (has_acc) THEN
+                     CALL timeset(routineN//"_acc_sync", handle3)
+                     CALL acc_event_synchronize(left_buffer(ileft_buffer_comm)%data(1)%d%acc_ready)
+                     CALL timestop(handle3)
+                  ENDIF
+                  !
+                  left_buffer(ileft_buffer_comm)%vprow = left_vrow
+                  left_buffer(ileft_buffer_comm)%vpcol = MOD(recv_vcol+v_ki, left_col_total_nimages)
+                  left_buffer(ileft_buffer_comm)%nrequests = 0
+               ENDIF
+               !
+               IF (left_refs_meta_size_layers3D(irow3D, left_buffer(ileft_buffer_comm)%vpcol) .NE. 0) THEN
+                  do_comm = .TRUE.
+                  IF (otf_filtering .AND. use_mpi_filtering) THEN
+                     IF (left_max_norms(left_displ_vunmerged(irow3D, left_buffer(ileft_buffer_comm)%vpcol)+1)* &
+                         right_max_norms(right_displ_vunmerged(icol3D, buffers_comm%right%vprow)+1) .LT. &
+                         product_matrix_epss(product_matrix_epss_displ(irow3D))) THEN
+                        dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
+                        do_comm = .FALSE.
+                     ENDIF
+                  ENDIF
+                  !
+                  IF (do_comm) THEN
+                     ! Right
+                     IF (do_right_swap .OR. buffers_comm%right%nrequests .EQ. 0) THEN
+                        buffers_comm%right%offset(:, :) = 0
+                        buffers_comm%right%coord3D = icol3D
+                        ! Force swapping
+                        do_right_swap = .TRUE.
+                        CALL rma_transfer(buffers_comm%right%vprow, &
+                                          right_row_nimages, &
+                                          right_displ_vunmerged, &
+                                          right_refs_displ_unmerged_layers3D, &
+                                          buffers_comm%right, &
+                                          right_refs_meta_size_layers3D, right_refs_data_size, &
+                                          buffers_orig%right%meta_win, buffers_orig%right%data_win, right_myproc_3D, &
+                                          data_get, data_type_byte, buffers_orig%right, icol3D)
+                        ! Set the referenced sizes to the actual data moved via MPI
+                        CALL dbcsr_data_set_size_referenced(buffers_comm%right%data(1), &
+                                                            buffers_comm%right%offset(idata, 2))
+                     ENDIF
+                     ! Left
+                     IF (do_comm_left(irow3D)) THEN
+                        do_comm_left(irow3D) = .FALSE.
+                        left_buffer(ileft_buffer_comm)%offset(:, :) = 0
+                        left_buffer(ileft_buffer_comm)%coord3D = irow3D
+                        CALL rma_transfer(left_buffer(ileft_buffer_comm)%vpcol, &
+                                          left_col_nimages, &
+                                          left_displ_vunmerged, &
+                                          left_refs_displ_unmerged_layers3D, &
+                                          left_buffer(ileft_buffer_comm), &
+                                          left_refs_meta_size_layers3D, left_refs_data_size, &
+                                          buffers_orig%left%meta_win, buffers_orig%left%data_win, left_myproc_3D, &
+                                          data_get, data_type_byte, buffers_orig%left, irow3D)
+                        ! Set the referenced sizes to the actual data moved via MPI
+                        CALL dbcsr_data_set_size_referenced(left_buffer(ileft_buffer_comm)%data(1), &
+                                                            left_buffer(ileft_buffer_comm)%offset(idata, 2))
+                     ENDIF
+                  ENDIF
                ENDIF
             ENDIF
          ENDIF xfer
          !
-         ! Wait data, merge and do the multiplications.
+         ! Wait data and do the multiplications.
          ! Exclude the first interation
-         wait_merge_calc: IF (ivirt_k .GT. 0) THEN
+         wait_calc: IF (istep_k .GT. shift_k) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
-            buffers_calc%right%buffer%mats(1)%m%nblks = 0
-            left_buffer(ileft_buffer_calc)%buffer%mats(1)%m%nblks = 0
-            !
-            IF (ivirt_k == nvirt_k) THEN
+            IF (istep_k == (nvirt_k+shift_k)) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
 !$OMP SHARED (multrec, nrows3D, ncols3D) &
 !$OMP PRIVATE (ithread, irow3D, icol3D)
@@ -2446,28 +2478,32 @@ CONTAINS
             left_nrequests = left_buffer(ileft_buffer_calc)%nrequests
             !
             IF (right_nrequests .GT. 0 .AND. left_nrequests .GT. 0) THEN
-               common_unmerged(:) = .FALSE.
-               !
-               CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
-               IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data(1))
-               CALL merge_calc(buffers_calc%right, &
-                               left_buffer(ileft_buffer_calc), &
-                               multrec(:, myrow3D, mycol3D), .TRUE., flop, &
-                               imgdist_right, .FALSE., &
-                               1, 1, &
-                               min_nimages, 1, &
-                               right_row_total_nimages, &
-                               right_global_indices, (/1/), &
-                               otf_filtering=otf_filtering, data_type=data_type, &
-                               right_norms=right_norms, left_norms=left_norms, &
-                               common_unmerged=common_unmerged, &
-                               indices_common_unmerged=indices_common_unmerged, &
-                               has_acc=has_acc)
+               ! check if right matrix was already initialized
+               IF (.NOT. common_unmerged(1)) THEN
+                  CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
+                  IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data(1))
+                  CALL merge_calc(buffers_calc%right, &
+                                  left_buffer(ileft_buffer_calc), &
+                                  multrec(:, left_buffer(ileft_buffer_calc)%coord3D, buffers_calc%right%coord3D), &
+                                  .TRUE., flop, &
+                                  imgdist_right, .FALSE., &
+                                  1, 1, &
+                                  min_nimages, 1, &
+                                  right_row_total_nimages, &
+                                  right_global_indices, (/1/), &
+                                  otf_filtering=otf_filtering, data_type=data_type, &
+                                  right_norms=right_norms, left_norms=left_norms, &
+                                  common_unmerged=common_unmerged, &
+                                  indices_common_unmerged=indices_common_unmerged, &
+                                  has_acc=has_acc)
+               ENDIF
+               ! check if left matrix was already initialized
                CALL mp_waitall(left_buffer(ileft_buffer_calc)%get_requests(:, 1:left_nrequests))
                IF (has_acc) CALL dbcsr_data_host2dev(left_buffer(ileft_buffer_calc)%data(1))
                CALL merge_calc(buffers_calc%right, &
                                left_buffer(ileft_buffer_calc), &
-                               multrec(:, myrow3D, mycol3D), .TRUE., flop, &
+                               multrec(:, left_buffer(ileft_buffer_calc)%coord3D, buffers_calc%right%coord3D), &
+                               .TRUE., flop, &
                                imgdist_left, .TRUE., &
                                1, 1, &
                                1, min_nimages, &
@@ -2479,19 +2515,22 @@ CONTAINS
                                indices_common_unmerged=indices_common_unmerged, &
                                has_acc=has_acc, nthreads=nthreads, &
                                trs_stackbuf=buffers_calc%trs_stackbuf)
-               !
-               IF (debug_mod) THEN
-                  CALL dbcsr_print(buffers_calc%right%buffer%mats(1), nodata=.TRUE.)
-                  CALL dbcsr_print(left_buffer(ileft_buffer_calc)%buffer%mats(1), nodata=.TRUE.)
-               ENDIF
             ENDIF
-         ENDIF wait_merge_calc
+         ENDIF wait_calc
          !
-         buffers => buffers_comm
-         buffers_comm => buffers_calc
-         buffers_calc => buffers
+         IF (do_right_swap) THEN
+            buffers => buffers_comm
+            buffers_comm => buffers_calc
+            buffers_calc => buffers
+            IF (nrows3D .GT. 1) THEN
+               buffers_comm%right%vprow = buffers_calc%right%vprow
+               buffers_comm%right%vpcol = buffers_calc%right%vpcol
+               buffers_comm%right%nrequests = buffers_calc%right%nrequests
+            ENDIF
+            common_unmerged(1) = .FALSE.
+         ENDIF
          ileft_buffer_calc = ileft_buffer_comm
-      ENDDO grouped_k_index
+      ENDDO grouped_steps_index
       !
 !$OMP PARALLEL DEFAULT (NONE) &
 !$OMP SHARED (multrec, nrows3D, ncols3D) &
@@ -2536,21 +2575,39 @@ CONTAINS
       !
       CALL dbcsr_finalize(product_matrix)
       !
+      ! clean-up wins
+      CALL mp_win_unlock_all(buffers_orig%right%data_win)
+      CALL mp_win_unlock_all(buffers_orig%right%meta_win)
+      CALL mp_win_unlock_all(buffers_orig%left%data_win)
+      CALL mp_win_unlock_all(buffers_orig%left%meta_win)
+      !
       ! 3D reduction
       IF (do_layers3D) THEN
          CALL timeset(routineN//"_reduction3D", handle2)
          product_matrix_size_comm => product_matrix_size_1
          product_matrix_size_calc => product_matrix_size_2
          ! Reuse right buffers for the recv product matrices
-         ! Use original data
+         ! Use original data_diag as temporary buffers
          product_matrix_recv_comm%matrix => buffers_comm%right%buffer%mats(1)
+         product_matrix_recv_comm%matrix%m%symmetry = product_matrix%m%symmetry
+         product_matrix_recv_comm%matrix%m%negate_real = product_matrix%m%negate_real
+         product_matrix_recv_comm%matrix%m%negate_imaginary = product_matrix%m%negate_imaginary
+         product_matrix_recv_comm%matrix%m%local_indexing = .FALSE.
+         product_matrix_recv_comm%matrix%m%list_indexing = .FALSE.
          CALL dbcsr_data_release(product_matrix_recv_comm%matrix%m%data_area)
-         product_matrix_recv_comm%matrix%m%data_area = buffers_orig%right%data(1)
+         product_matrix_recv_comm%matrix%m%data_area = buffers_orig%right%data_diag
          CALL dbcsr_data_hold(product_matrix_recv_comm%matrix%m%data_area)
+         !
          product_matrix_recv_calc%matrix => buffers_calc%right%buffer%mats(1)
+         product_matrix_recv_calc%matrix%m%symmetry = product_matrix%m%symmetry
+         product_matrix_recv_calc%matrix%m%negate_real = product_matrix%m%negate_real
+         product_matrix_recv_calc%matrix%m%negate_imaginary = product_matrix%m%negate_imaginary
+         product_matrix_recv_calc%matrix%m%local_indexing = .FALSE.
+         product_matrix_recv_calc%matrix%m%list_indexing = .FALSE.
          CALL dbcsr_data_release(product_matrix_recv_calc%matrix%m%data_area)
-         product_matrix_recv_calc%matrix%m%data_area = buffers_orig%left%data(1)
+         product_matrix_recv_calc%matrix%m%data_area = buffers_orig%left%data_diag
          CALL dbcsr_data_hold(product_matrix_recv_calc%matrix%m%data_area)
+         !
          CALL dbcsr_data_init(data_send)
          CALL dbcsr_data_new(data_send, data_type)
          DO iproc = 1, nranks3D+1
@@ -2622,14 +2679,13 @@ CONTAINS
                   DEALLOCATE (product_matrix_send(MOD(iproc-3, 3))%matrix)
                   !
                   CALL dbcsr_reset_locals(product_matrix_recv_calc%matrix)
+                  product_matrix_recv_calc%matrix%m%nblks = 0
+                  product_matrix_recv_calc%matrix%m%nze = 0
                   CALL dbcsr_repoint_index(product_matrix_recv_calc%matrix%m)
                   product_matrix_recv_calc%matrix%m%nblkrows_total = &
                      product_matrix_recv_calc%matrix%m%index(dbcsr_slot_nblkrows_total)
                   product_matrix_recv_calc%matrix%m%nblkcols_total = &
                      product_matrix_recv_calc%matrix%m%index(dbcsr_slot_nblkcols_total)
-                  product_matrix_recv_calc%matrix%m%symmetry = product_matrix%m%symmetry
-                  product_matrix_recv_calc%matrix%m%negate_real = product_matrix%m%negate_real
-                  product_matrix_recv_calc%matrix%m%negate_imaginary = product_matrix%m%negate_imaginary
                   CALL dbcsr_add(product_matrix, product_matrix_recv_calc%matrix, flop=flop)
                ENDIF
                tmp_product_matrix_recv => product_matrix_recv_comm%matrix
@@ -2662,6 +2718,7 @@ CONTAINS
          DEALLOCATE (left_buffer(ileft_buffer_comm)%get_requests)
       ENDDO
       DEALLOCATE (left_buffer)
+      DEALLOCATE (do_comm_left)
       !
       IF (debug_mod) THEN
          v_ki = 0
@@ -2672,12 +2729,6 @@ CONTAINS
             LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0), &
             LOG(REAL(v_ki))/LOG(10.0)
       ENDIF
-      !
-      ! clean-up wins
-      CALL mp_win_unlock_all(buffers_orig%right%data_win)
-      CALL mp_win_unlock_all(buffers_orig%right%meta_win)
-      CALL mp_win_unlock_all(buffers_orig%left%data_win)
-      CALL mp_win_unlock_all(buffers_orig%left%meta_win)
       !
       CALL timestop(handle)
    END SUBROUTINE multiply_3D
@@ -2691,8 +2742,6 @@ CONTAINS
 !> \param buffer ...
 !> \param refs_meta_size ...
 !> \param refs_data_size ...
-!> \param data_size ...
-!> \param data_offset ...
 !> \param meta_win ...
 !> \param data_win ...
 !> \param mypunmerged ...
@@ -2707,8 +2756,6 @@ CONTAINS
                            displ_vunmerged, &
                            refs_displ_unmerged, &
                            buffer, refs_meta_size, refs_data_size, &
-                           data_size, &
-                           data_offset, &
                            meta_win, data_win, mypunmerged, &
                            data_get, data_type_byte, &
                            buffer_orig, layer3D)
@@ -2718,7 +2765,6 @@ CONTAINS
       TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
       INTEGER, DIMENSION(:, :), INTENT(IN), POINTER      :: refs_meta_size
       INTEGER, DIMENSION(:), INTENT(IN)                  :: refs_data_size
-      INTEGER, INTENT(INOUT)                             :: data_size, data_offset
       INTEGER, INTENT(IN)                                :: meta_win, data_win, mypunmerged
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: data_get
       INTEGER, INTENT(IN)                                :: data_type_byte
@@ -2734,41 +2780,39 @@ CONTAINS
       buffer%nrequests = 1
       buffer%get_requests(:, :) = mp_request_null
       !
-      recv_punmerged = recv_vunmerged/unmerged_nimages
+      recv_punmerged = (recv_vunmerged/unmerged_nimages)*SIZE(refs_meta_size, 1)+layer3D-1
       buffer%offset(idata, 2) = &
          buffer%offset(idata, 1)+ &
          refs_data_size(displ_vunmerged(layer3D, recv_vunmerged)+1)
       buffer%offset(imeta, 2) = &
          buffer%offset(imeta, 1)+ &
          refs_meta_size(layer3D, recv_vunmerged)
-      data_size = data_size+refs_data_size(displ_vunmerged(layer3D, recv_vunmerged)+1)
       !
       meta_get => buffer%meta(1:refs_meta_size(layer3D, recv_vunmerged))
       ! Workaround for OpenMPI RMA bug
       meta_get(dbcsr_slot_size) = -999
-      CALL mp_rget(meta_get, recv_punmerged*SIZE(refs_meta_size, 1)+layer3D-1, &
+      CALL mp_rget(meta_get, recv_punmerged, &
                    meta_win, &
                    buffer_orig%meta, &
-                   mypunmerged*SIZE(refs_meta_size, 1)+layer3D-1, &
+                   mypunmerged, &
                    refs_displ_unmerged(imeta, layer3D, recv_vunmerged), &
                    buffer%get_requests(1, buffer%nrequests))
       CALL dbcsr_data_set_pointer( &
          area=data_get, &
-         rsize=data_size-data_offset, &
+         rsize=refs_data_size(displ_vunmerged(layer3D, recv_vunmerged)+1), &
          csize=1, &
          pointee=buffer%data(1), &
-         source_lb=data_offset+1)
-      CALL dbcsr_rget_any(data_get, recv_punmerged*SIZE(refs_meta_size, 1)+layer3D-1, &
+         source_lb=1)
+      CALL dbcsr_rget_any(data_get, recv_punmerged, &
                           data_win, &
                           buffer_orig%data(1), &
-                          mypunmerged*SIZE(refs_meta_size, 1)+layer3D-1, &
+                          mypunmerged, &
                           refs_displ_unmerged(idata, layer3D, recv_vunmerged), &
                           buffer%get_requests(2, buffer%nrequests))
       CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1, :), &
-                                data_size-data_offset, &
+                                refs_data_size(displ_vunmerged(layer3D, recv_vunmerged)+1), &
                                 dbcsr_mpi_statistics%data_size_breakdown(:, :, 1), data_type_byte)
       dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
-      data_offset = data_size
    END SUBROUTINE rma_transfer
 
 ! **************************************************************************************************
@@ -5346,7 +5390,11 @@ CONTAINS
             !
             ! Reset
 !$OMP CRITICAL(merge_images_reset_vlocals)
-            CALL dbcsr_reset_vlocals(image_obj, imgdist, do_rows=.NOT. do_merge_rows)
+            IF (nimages_merged .GT. 1) THEN
+               CALL dbcsr_reset_vlocals(image_obj, imgdist, do_rows=.NOT. do_merge_rows)
+            ELSE
+               CALL dbcsr_reset_vlocals(image_obj, imgdist)
+            ENDIF
 !$OMP END CRITICAL(merge_images_reset_vlocals)
          ENDIF
          !
