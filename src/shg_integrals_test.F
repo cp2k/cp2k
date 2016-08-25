@@ -878,7 +878,6 @@ CONTAINS
             DO i = 1, SIZE(vab_shg, 1)
                diff = ABS(vab_shg(i, j, k)-vab_os(i, j, k))
                dmax = MAX(dmax, diff)
-               WRITE (*, *) "diff", i, j, k, diff, vab_shg(i, j, k), vab_os(i, j, k)
             ENDDO
          ENDDO
       ENDDO
