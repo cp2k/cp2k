@@ -721,7 +721,7 @@ CONTAINS
             fba%set_radius(:) = 1.0E+09_dp
             fba%pgf_radius(:, :) = 1.0E+09_dp
             nfa = fba%nsgf
-            maxl_ri = MAXVAL(fba%lmax)
+            maxl_ri = MAXVAL(fba%lmax)+1 ! + 1 to avoid fail for l=0
             ALLOCATE (saba_shg(nba, nbb, nfa), dsaba_shg(nba, nbb, nfa, 3))
             ALLOCATE (saba_os(nba, nbb, nfa), dsaba_os(nba, nbb, nfa, 3))
             CALL contraction_matrix_shg_mix(oba, fba, oba_index, fba_index, scona_mix)
@@ -730,7 +730,7 @@ CONTAINS
             fbb%set_radius(:) = 1.0E+09_dp
             fbb%pgf_radius(:, :) = 1.0E+09_dp
             nfb = fbb%nsgf
-            maxl_ri = MAXVAL(fbb%lmax)
+            maxl_ri = MAXVAL(fbb%lmax)+1
             lbb_max = MAXVAL(obb%lmax)+MAXVAL(fbb%lmax)
             ALLOCATE (sabb_shg(nba, nbb, nfb), dsabb_shg(nba, nbb, nfb, 3))
             ALLOCATE (sabb_os(nba, nbb, nfb), dsabb_os(nba, nbb, nfb, 3))
@@ -878,6 +878,7 @@ CONTAINS
             DO i = 1, SIZE(vab_shg, 1)
                diff = ABS(vab_shg(i, j, k)-vab_os(i, j, k))
                dmax = MAX(dmax, diff)
+               WRITE (*, *) "diff", i, j, k, diff, vab_shg(i, j, k), vab_os(i, j, k)
             ENDDO
          ENDDO
       ENDDO
