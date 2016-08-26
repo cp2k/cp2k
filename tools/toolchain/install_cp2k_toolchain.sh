@@ -865,8 +865,7 @@ FCDEB_FLAGS="-ffree-form -std=f2003 -fimplicit-none"
 FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck=bounds,do,recursion,pointer -ffpe-trap=invalid,zero,overflow -finit-real=snan -fno-fast-math"
 
 # code coverage generation flags
-#For gcc 6.0 use -O1 -coverage -fkeep-static-functions
-COVERAGE_FLAGS="-O0 -coverage"
+COVERAGE_FLAGS="-O1 -coverage -fkeep-static-functions"
 COVERAGE_DFLAGS="-D__NO_ABORT"
 
 # profile based optimization, see https://www.cp2k.org/howto:pgo
