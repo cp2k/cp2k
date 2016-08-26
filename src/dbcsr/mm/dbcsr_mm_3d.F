@@ -2491,7 +2491,7 @@ CONTAINS
                                   right_norms=right_norms, left_norms=left_norms, &
                                   common_unmerged=common_unmerged, &
                                   indices_common_unmerged=indices_common_unmerged, &
-                                  has_acc=has_acc, trs_stackbuf=buffers_calc%trs_stackbuf)
+                                  has_acc=has_acc)
                ENDIF
                ! check if left matrix was already initialized
                CALL mp_waitall(left_buffer(ileft_buffer_calc)%get_requests(:, 1:left_nrequests))
@@ -2509,7 +2509,8 @@ CONTAINS
                                right_norms=right_norms, left_norms=left_norms, &
                                common_unmerged=common_unmerged, &
                                indices_common_unmerged=indices_common_unmerged, &
-                               has_acc=has_acc, nthreads=nthreads)
+                               has_acc=has_acc, nthreads=nthreads, &
+                               trs_stackbuf=buffers_calc%trs_stackbuf)
             ENDIF
          ENDIF wait_calc
          !
@@ -3714,8 +3715,7 @@ CONTAINS
                                   right_global_indices, right_vunmerged(:, metronome-1), &
                                   right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                   right_norms, left_norms, &
-                                  common_unmerged, indices_common_unmerged, &
-                                  has_acc=has_acc, trs_stackbuf=buffers_calc%trs_stackbuf)
+                                  common_unmerged, indices_common_unmerged, has_acc)
                ENDIF
                IF (left_nrequests .GT. 0) THEN
                   CALL mp_waitall(buffers_calc%left%get_requests(:, 1:left_nrequests))
@@ -3731,7 +3731,7 @@ CONTAINS
                                   left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                   right_norms, left_norms, &
                                   common_unmerged, indices_common_unmerged, &
-                                  has_acc, nthreads)
+                                  has_acc, nthreads, buffers_calc%trs_stackbuf)
                ENDIF
             ELSE
                !
