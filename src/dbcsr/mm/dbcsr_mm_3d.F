@@ -2348,20 +2348,28 @@ CONTAINS
          ! Matrix transfer. Transfer in all but the last loop
          ! iteration.
          xfer: IF (istep_k .LT. (nvirt_k+shift_k)) THEN
+            ! Take first image global virtual coordinates
+            IF (v_ki .EQ. 0) THEN
+               CALL image_calculator(imgdist_right, &
+                                     vprow=recv_vrow, &
+                                     vpcol=right_vcol, &
+                                     mypcol=mypcol, &
+                                     myvprow=right_myfirstvrow, &
+                                     myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
+                                     vprow_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
+                                     shifting='R')
+               CALL image_calculator(imgdist_left, &
+                                     vprow=left_vrow, &
+                                     vpcol=recv_vcol, &
+                                     myprow=myprow, &
+                                     myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
+                                     myvpcol=left_myfirstvcol, &
+                                     vpcol_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
+                                     shifting='L')
+            ENDIF
+            !
             ! First row, communicate right matrix
             IF (do_right_swap) THEN
-               IF (v_ki .EQ. 0) THEN
-                  ! Take first image global virtual coordinates
-                  CALL image_calculator(imgdist_right, &
-                                        vprow=recv_vrow, &
-                                        vpcol=right_vcol, &
-                                        mypcol=mypcol, &
-                                        myvprow=right_myfirstvrow, &
-                                        myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
-                                        vprow_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
-                                        shifting='R')
-               ENDIF
-               !
                IF (has_acc) THEN
                   CALL timeset(routineN//"_acc_sync", handle3)
                   CALL acc_event_synchronize(buffers_comm%right%data(1)%d%acc_ready)
@@ -2379,19 +2387,6 @@ CONTAINS
             IF (right_refs_meta_size_layers3D(icol3D, buffers_comm%right%vprow) .NE. 0) THEN
                ! First col, communicate left matrix
                IF (do_comm_left(irow3D)) THEN
-                  IF (v_ki .EQ. 0) THEN
-                     !
-                     ! Take first image global virtual coordinates
-                     CALL image_calculator(imgdist_left, &
-                                           vprow=left_vrow, &
-                                           vpcol=recv_vcol, &
-                                           myprow=myprow, &
-                                           myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
-                                           myvpcol=left_myfirstvcol, &
-                                           vpcol_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
-                                           shifting='L')
-                  ENDIF
-                  !
                   IF (has_acc) THEN
                      CALL timeset(routineN//"_acc_sync", handle3)
                      CALL acc_event_synchronize(left_buffer(ileft_buffer_comm)%data(1)%d%acc_ready)
