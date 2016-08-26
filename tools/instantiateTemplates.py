@@ -2,9 +2,6 @@
 
 import sys, re
 from sys import argv
-import prettify
-from formatting import normalizeFortranFile
-from formatting import replacer
 
 def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
   import re
@@ -35,7 +32,7 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
             arg=arg.strip()
             if not subs.has_key(arg):
               logFile.write("ERROR: missing required argument:"+arg+"\n")
-              outfile.write("! ERROR argument '"+arg+"' missing\n") 
+              outfile.write("! ERROR argument '"+arg+"' missing\n")
           kList=subs.keys()
           kList.sort()
           for arg in kList:
