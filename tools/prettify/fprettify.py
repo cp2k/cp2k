@@ -66,7 +66,7 @@ def upcaseOMP(line):
     return toUpcaseOMPRe.sub(lambda match: match.group("toUpcase").upper(), line)
 
 
-def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stdout):
+def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stderr):
     """Writes infile to outfile with all the fortran keywords upcased"""
     while 1:
         line = infile.readline()
@@ -79,7 +79,7 @@ def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stdout):
         outfile.write(line)
 
 
-def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
+def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                  reformat, indent, whitespace, upcase_keywords,
                  upcase_omp, replace, logFile):
     """prettifyes the fortran source in infile into a temporary file that is
@@ -91,7 +91,7 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
 
     does not close the input file"""
     ifile = infile
-    orig_filename = infile.name
+    orig_filename = filename
     tmpfile = None
     max_pretty_iter = 5
     n_pretty_iter = 0
@@ -151,19 +151,34 @@ def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
             raise
 
 
-def prettfyInplace(fileName, bkDir, **kwargs):
+def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
     """Same as prettify, but inplace, replaces only if needed"""
-    if not os.path.exists(bkDir):
+
+    if fileName == 'stdin':
+        infile = os.tmpfile()
+        infile.write(sys.stdin.read())
+    else:
+        infile = open(fileName, 'r')
+
+    if stdout:
+        outfile = prettifyFile(infile=infile, filename=fileName, **kwargs)
+        outfile.seek(0)
+        sys.stdout.write(outfile.read())
+        outfile.close()
+        return
+
+    if bkDir and not os.path.exists(bkDir):
         os.mkdir(bkDir)
-    if not os.path.isdir(bkDir):
+    if bkDir and not os.path.isdir(bkDir):
         raise Error("bk-dir must be a directory, was " + bkDir)
-    infile = open(fileName, 'r')
-    outfile = prettifyFile(infile=infile, **kwargs)
+
+    outfile = prettifyFile(infile=infile, filename=fileName, **kwargs)
     if (infile == outfile):
         return
     infile.seek(0)
     outfile.seek(0)
     same = 1
+
     while 1:
         l1 = outfile.readline()
         l2 = infile.readline()
@@ -173,52 +188,50 @@ def prettfyInplace(fileName, bkDir, **kwargs):
         if not l1:
             break
     if (not same):
-        bkName = os.path.join(bkDir, os.path.basename(fileName))
-        bName = bkName
-        i = 0
-        while os.path.exists(bkName):
-            i += 1
-            bkName = bName + "." + str(i)
+        bkFile = None
+        if bkDir:
+            bkName = os.path.join(bkDir, os.path.basename(fileName))
+            bName = bkName
+            i = 0
+            while os.path.exists(bkName):
+                i += 1
+                bkName = bName + "." + str(i)
+            bkFile = file(bkName, "w")
         infile.seek(0)
-        bkFile = file(bkName, "w")
-        while 1:
-            l1 = infile.readline()
-            if not l1:
-                break
-            bkFile.write(l1)
-        bkFile.close()
+        if bkFile:
+            bkFile.write(infile.read())
+            bkFile.close()
         outfile.seek(0)
         newFile = file(fileName, 'w')
-        while 1:
-            l1 = outfile.readline()
-            if not l1:
-                break
-            newFile.write(l1)
+        newFile.write(outfile.read())
         newFile.close()
     infile.close()
     outfile.close()
 
 
-def main(argv):
-    # future defaults
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
     defaultsDict = {'upcase': 1, 'normalize-use': 1, 'omp-upcase': 1,
                     'decl-linelength': 100, 'decl-offset': 50,
                     'reformat': 1, 'indent': 3, 'whitespace': 1,
                     'replace': 1,
-                    'backup-dir': 'preprettify'}
+                    'stdout': 0,
+                    'do-backup': 0,
+                    'backup-dir': 'preprettify',
+                    'report-errors': 1}
 
-    usageDesc = ("usage:\n" + argv[0] + """
+    usageDesc = ("usage:\nfprettify" +"""
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]omp-upcase] [--[no-]replace]
-    [--[no-]reformat] --indent=3 --whitespace=1 [--help]
-    [--backup-dir=bk_dir] file1 [file2 ...]
+    [--[no-]reformat] [--indent=3] [--whitespace=1] [--help]
+    [--[no-]stdout] [--[no-]do-backup] [--backup-dir=bk_dir] [--[no-]report-errors] file1 [file2 ...]
 
     Auto-format F90 source file1, file2, ...:
+    If no files are given, stdin is used.
     --normalize-use
              Sorting and alignment of variable declarations and USE statements, removal of unused list entries.
              The line length of declarations is controlled by --decl-linelength=n, the offset of the variable list
              is controlled by --decl-offset=n.
-    --upcase
-             Upcasing fortran keywords.
     --reformat
              Auto-indentation, auto-alignment and whitespace formatting.
              Amount of whitespace controlled by --whitespace = 0, 1, 2.
@@ -228,22 +241,32 @@ def main(argv):
              - completely disable reformatting by adding a comment '!&'.
              For manual formatting of a code block, use:
              - start a manually formatted block with a '!&<' comment and close it with a '!&>' comment.
+    --upcase
+             Upcasing fortran keywords.
     --omp-upcase
              Upcasing OMP directives.
     --replace
-             If requested the replacements performed by the replacer.py script are also performed. (FIXME: what replacements?)
+             If requested the replacements performed by the replacer.py script are also performed. Note: these replacements are specific to CP2K.
+    --stdout
+             write output to stdout
+    --[no-]do-backup
+             store backups of original files in backup-dir (--backup-dir option)
+    --[no-]report-errors
+             report warnings and errors
+
+    Note: for editor integration, use options --no-normalize-use --no-report-errors
 
     Defaults:
     """ + str(defaultsDict))
 
     replace = None
     if "--help" in argv:
-        print(usageDesc)
+        sys.stderr.write(usageDesc + '\n')
         return(0)
     args = []
     for arg in argv[1:]:
         m = re.match(
-            r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat)", arg)
+            r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat|stdout|do-backup|report-errors)", arg)
         if m:
             defaultsDict[m.groups()[1]] = not m.groups()[0]
         else:
@@ -258,53 +281,65 @@ def main(argv):
                     defaultsDict[m.groups()[0]] = path
                 else:
                     if arg.startswith('--'):
-                        print('unknown option', arg)
+                        sys.stderr.write('unknown option ' + arg + '\n')
                     else:
                         args.append(arg)
-    if len(args) < 1:
-        print(usageDesc)
-    else:
+    bkDir = ''
+    if defaultsDict['do-backup']:
         bkDir = defaultsDict['backup-dir']
-        if not os.path.exists(bkDir):
-            # Another parallel running instance might just have created the
-            # dir.
-            try:
-                os.mkdir(bkDir)
-            except:
-                assert(os.path.exists(bkDir))
-        if not os.path.isdir(bkDir):
-            print("bk-dir must be a directory")
-            print(usageDesc)
-        else:
-            failure = 0
-            for fileName in args:
-                if not os.path.isfile(fileName):
-                    print("file", fileName, "does not exists!")
-                else:
-                    try:
-                        prettfyInplace(fileName, bkDir=bkDir, logFile=sys.stdout,
-                                       normalize_use=defaultsDict[
-                                           'normalize-use'],
-                                       decl_linelength=defaultsDict[
-                                           'decl-linelength'],
-                                       decl_offset=defaultsDict['decl-offset'],
-                                       reformat=defaultsDict['reformat'],
-                                       indent=defaultsDict['indent'],
-                                       whitespace=defaultsDict['whitespace'],
-                                       upcase_keywords=defaultsDict['upcase'],
-                                       upcase_omp=defaultsDict['omp-upcase'],
-                                       replace=defaultsDict['replace'])
-                    except:
-                        failure += 1
-                        import traceback
-                        sys.stdout.write('-' * 60 + "\n")
-                        traceback.print_exc(file=sys.stdout)
-                        sys.stdout.write('-' * 60 + "\n")
-                        sys.stdout.write(
-                            "Processing file '" + fileName + "'\n")
-            return(failure > 0)
+    if bkDir and not os.path.exists(bkDir):
+        # Another parallel running instance might just have created the
+        # dir.
+        try:
+            os.mkdir(bkDir)
+        except:
+            assert(os.path.exists(bkDir))
+    if bkDir and not os.path.isdir(bkDir):
+        sys.stderr.write("bk-dir must be a directory" + '\n')
+        sys.stderr.write(usageDesc + '\n')
+    else:
+        failure = 0
+        if not args:
+            args = ['stdin']
+        for fileName in args:
+            if not os.path.isfile(fileName) and not fileName == 'stdin':
+                sys.stderr.write("file " + fileName + " does not exists!\n")
+            else:
+                stdout = defaultsDict['stdout'] or fileName == 'stdin'
+                try:
+                    logFile = sys.stderr if defaultsDict[
+                        'report-errors'] else open(os.devnull, "w")
+                    prettfyInplace(fileName, bkDir=bkDir,
+                                   stdout=stdout,
+                                   logFile=logFile,
+                                   normalize_use=defaultsDict[
+                                       'normalize-use'],
+                                   decl_linelength=defaultsDict[
+                                       'decl-linelength'],
+                                   decl_offset=defaultsDict[
+                                       'decl-offset'],
+                                   reformat=defaultsDict['reformat'],
+                                   indent=defaultsDict['indent'],
+                                   whitespace=defaultsDict[
+                                       'whitespace'],
+                                   upcase_keywords=defaultsDict[
+                                       'upcase'],
+                                   upcase_omp=defaultsDict[
+                                       'omp-upcase'],
+                                   replace=defaultsDict['replace'])
+                except:
+                    failure += 1
+                    import traceback
+                    sys.stderr.write('-' * 60 + "\n")
+                    traceback.print_exc(file=sys.stderr)
+                    sys.stderr.write('-' * 60 + "\n")
+                    sys.stderr.write(
+                        "Processing file '" + fileName + "'\n")
+        return(failure > 0)
 
 #=========================================================================
+
+
 def run_selftest():
     # create temporary file with example code
     fn = os.path.join(tempfile.gettempdir(), "prettify_selftest.F")
@@ -315,15 +350,15 @@ def run_selftest():
 
     # call prettify
     rtn = main([sys.argv[0], fn])
-    assert(rtn==0)
+    assert(rtn == 0)
 
     # check if file was altered
     result = open(fn).read()
     for i, (l1, l2) in enumerate(zip(result.split("\n"), ref.split("\n"))):
         if(l1 != l2):
-            print("Error: Line %d is not invariant."%i)
-            print("before: "+l1)
-            print("after : "+l2)
+            print("Error: Line %d is not invariant." % i)
+            print("before: " + l1)
+            print("after : " + l2)
             os.remove(fn)
             return(1)
 
@@ -336,7 +371,7 @@ if(__name__ == '__main__'):
     if(len(sys.argv) == 2 and sys.argv[-1] == "--selftest"):
         rtn = run_selftest()
     else:
-        rtn = main(sys.argv)
+        rtn = main()
 
     sys.exit(rtn)
 # EOF

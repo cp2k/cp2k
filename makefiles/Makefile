@@ -181,7 +181,7 @@ test:
 
 testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
-	@$(TOOLSRC)/regtesting/do_regtest -nobuild -nosvn -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS) >& $(TSTDIR)/regtest.log 
+	@$(TOOLSRC)/regtesting/do_regtest -nobuild -nosvn -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS) >& $(TSTDIR)/regtest.log
 	@cat `grep 'regtesting location error_summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
 	@cat `grep 'regtesting location summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
 	@grep "Number of FAILED  tests 0" $(TSTDIR)/regtest.log >& /dev/null
@@ -229,8 +229,8 @@ OTHER_HELP += "install : Print installation help"
 clean:
 	rm -rf  $(LIBCUSMM_DIR)/libcusmm.cu $(LIBCUSMM_DIR)/libcusmm_part*.cu
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.o)
-	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.mod $(MAINOBJDIR)/$(ARCH)/$(v)/*.MOD $(MAINOBJDIR)/$(ARCH)/$(v)/*.smod) 
-	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.dep) 
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.mod $(MAINOBJDIR)/$(ARCH)/$(v)/*.MOD $(MAINOBJDIR)/$(ARCH)/$(v)/*.smod)
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.dep)
 OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
 
 execlean:
@@ -300,7 +300,7 @@ TOOL_HELP += "prettyclean : Remove prettify marker files and preprettify directo
 
 $(PRETTYOBJDIR)/%.pretty: %.F $(DOXIFYOBJDIR)/%.doxified
 	@mkdir -p $(PRETTYOBJDIR)
-	cd $(dir $<); $(TOOLSRC)/prettify.py --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
+	cd $(dir $<); $(TOOLSRC)/prettify/fprettify.py --do-backup --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
 	@touch $@
 
 $(PRETTYOBJDIR)/%.pretty: %.c $(DOXIFYOBJDIR)/%.doxified
@@ -427,7 +427,7 @@ CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
 endif
 
 ifneq ($(CPP),)
-# always add the SRCDIR to the include path (-I here might not be portable) 
+# always add the SRCDIR to the include path (-I here might not be portable)
 CPPFLAGS += $(CPPSHELL) -I$(SRCDIR)
 else
 FCFLAGS += $(CPPSHELL)

@@ -58,7 +58,6 @@ class CharFilter(object):
 
         return (pos, char)
 
-
     def next(self):
         """ python 2 version"""
         pos, char = self._it.next()
@@ -76,6 +75,7 @@ class CharFilter(object):
             return self.next()
 
         return (pos, char)
+
 
 class InputStream(object):
     """
@@ -217,8 +217,10 @@ def parseRoutine(inFile):
                 subF.close()
             except:
                 import traceback
-                print("error trying to follow include ", m.group('file'))
-                print("warning this might lead to the removal of used variables")
+                sys.stderr.write(
+                    "error trying to follow include " + m.group('file') + '\n')
+                sys.stderr.write(
+                    "warning this might lead to the removal of used variables\n")
                 traceback.print_exc()
     if jline:
         routine['begin'] = lines
@@ -357,8 +359,10 @@ def parseRoutine(inFile):
                 subF.close()
             except:
                 import traceback
-                print("error trying to follow include ", m.group('file'))
-                print("warning this might lead to the removal of used variables")
+                sys.stderr.write(
+                    "error trying to follow include " + m.group('file') + '\n')
+                sys.stderr.write(
+                    "warning this might lead to the removal of used variables\n")
                 traceback.print_exc()
         (jline, _, lines) = stream.nextFortranLine()
     return routine
@@ -596,7 +600,7 @@ def writeDeclarations(parsedDeclarations, file):
             writeExtendedDeclaration(d, file)
 
 
-def cleanDeclarations(routine, logFile=sys.stdout):
+def cleanDeclarations(routine, logFile=sys.stderr):
     """cleans up the declaration part of the given parsed routine
     removes unused variables"""
     global rVar
@@ -708,8 +712,8 @@ def cleanDeclarations(routine, logFile=sys.stdout):
             if argDeclDict.has_key(arg):
                 argDecl.append(argDeclDict[arg])
             else:
-                print("warning, implicitly typed argument '",
-                      arg, "' in routine", routine['name'])
+                sys.stderr.write("warning, implicitly typed argument '" +
+                                 arg + "' in routine " + routine['name'] + '\n')
         if routine['kind'].lower() == 'function':
             aDecl = argDecl[:-1]
         else:
@@ -868,8 +872,6 @@ def parseUse(inFile):
         # parse use
         m = useParseRe.match(jline)
         if m:
-            if comments:
-                print("jline", jline, "lines", lines)
             useAtt = {'module': m.group('module'), 'comments': []}
 
             if m.group('only'):
@@ -1001,7 +1003,7 @@ def prepareImplicitUses(modules):
     return mods
 
 
-def cleanUse(modulesDict, rest, implicitUses=None, logFile=sys.stdout):
+def cleanUse(modulesDict, rest, implicitUses=None, logFile=sys.stderr):
     """Removes the unneded modules (the ones that are not used in rest)"""
     global rUse
     exceptions = {}
@@ -1048,12 +1050,12 @@ def resetModuleN(moduleName, lines):
                            flags=re.IGNORECASE)
     for i in range(len(lines)):
         lines[i] = moduleNRe.sub(
-            " "*indentSize + "CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '" +
+            " " * indentSize + "CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '" +
             moduleName + "'",
             lines[i])
 
 
-def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, logFile=sys.stdout, orig_filename=None):
+def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, logFile=sys.stderr, orig_filename=None):
     """rewrites the use statements and declarations of inFile to outFile.
     It sorts them and removes the repetitions."""
     import os.path
@@ -1080,9 +1082,6 @@ def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, lo
             if not orig_filename:
                 orig_filename = inFile.name
             fn = os.path.basename(orig_filename).rsplit(".", 1)[0]
-            if (m.group('moduleName') != fn):
-                raise SyntaxError("Module name is different from filename (" +
-                                  m.group('moduleName') + "!=" + fn + ")")
             break
     try:
         modulesDict = parseUse(inFile)
@@ -1104,7 +1103,7 @@ def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, lo
         nonStPrep = 0
         for line in modulesDict['origLines']:
             if (re.search('^#', line) and not commonUsesRe.match(line)):
-                print('noMatch', repr(line))
+                sys.stderr.write('noMatch ' + repr(line) + '\n')
                 nonStPrep = 1
         if nonStPrep:
             logFile.write(
@@ -1124,8 +1123,8 @@ def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, lo
                     implicitUses = prepareImplicitUses(
                         implicitUsesRaw['modules'])
                 except:
-                    print ("ERROR trying to parse use statements contained in common",
-                           "uses precompiler file ", inc_absfn)
+                    sys.stderr.write(
+                        "ERROR trying to parse use statements contained in common uses precompiler file " + inc_absfn + '\n')
                     raise
             cleanUse(modulesDict, rest,
                      implicitUses=implicitUses, logFile=logFile)
