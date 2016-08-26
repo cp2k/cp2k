@@ -470,9 +470,9 @@ CONTAINS
                CALL section_vals_val_get(work_section, "K", r_val=metavar%walls(i)%k_quartic)
                SELECT CASE (metavar%walls (i)%id_direction)
                CASE (do_wall_m)
-                  metavar%walls(i)%pos0 = metavar%walls(i)%pos+(0.05_dp/metavar%walls(i)%k_quartic**(1/4))
+                  metavar%walls(i)%pos0 = metavar%walls(i)%pos+(0.05_dp/metavar%walls(i)%k_quartic**(0.25_dp))
                CASE (do_wall_p)
-                  metavar%walls(i)%pos0 = metavar%walls(i)%pos-(0.05_dp/metavar%walls(i)%k_quartic**(1/4))
+                  metavar%walls(i)%pos0 = metavar%walls(i)%pos-(0.05_dp/metavar%walls(i)%k_quartic**(0.25_dp))
                END SELECT
             CASE (do_wall_gaussian)
                work_section => section_vals_get_subs_vals(wall_section, "GAUSSIAN", i_rep_section=i)

@@ -1,8 +1,8 @@
 # metadyn
 metadyn1.inp                                           2    1.0E-14            -0.465672945738E-02
 metadyn2.inp                                           2    1.0E-14            -0.146726946152E-02
-metadyn3.inp                                           2    1.0E-14            -0.465614912423E-02
-metadyn4.inp                                           2    1.0E-14            -0.465636428374E-02
+metadyn3.inp                      2     1e-14            -0.465541396806E-02
+metadyn4.inp                      2     1e-14            -0.466434098306E-02
 metadyn5.inp                                           2    1.0E-14             0.260815657919E-02
 metadyn6.inp                                           2      1e-11             -0.000190599068492
 metadyn7.inp                                           2    1.0E-14            -0.339349055640E-03
