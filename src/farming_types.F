@@ -72,8 +72,8 @@ CONTAINS
          NULLIFY (farming_env%group_partition)
          farming_env%cwd = "."
          farming_env%Njobs = 0
-         ! so that maxsteps*ngroup is not overflowing
-         farming_env%max_steps = HUGE(0)/32768
+         ! so that maxsteps*ngroup is (likely) not overflowing
+         farming_env%max_steps = 65535
          NULLIFY (farming_env%Job)
       ENDIF
    END SUBROUTINE
