@@ -1759,8 +1759,7 @@ CONTAINS
          right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
          right_row_nimages, right_row_total_nimages, right_vcol, row, shift_k, size_guess, v_ki
       INTEGER(KIND=int_8)                                :: mem
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices_common_unmerged, &
-                                                            product_matrix_epss_displ, &
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: product_matrix_epss_displ, &
                                                             product_matrix_epss_size, &
                                                             product_matrix_meta
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: left_displ_vunmerged, &
@@ -1781,7 +1780,7 @@ CONTAINS
                                                             product_matrix_size_2
       LOGICAL                                            :: do_comm, do_layers3D, do_right_swap, &
                                                             keep_sparsity, otf_filtering
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: common_unmerged, do_comm_left
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_comm_left
       REAL(kind=sp)                                      :: filter_eps_sp
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET   :: row_max_epss
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: left_norms, right_norms
@@ -2319,9 +2318,6 @@ CONTAINS
          matrix_left%m%nfullrows_local, &
          matrix_left%m%nfullcols_local/)
       !
-      ALLOCATE (common_unmerged(1))
-      ALLOCATE (indices_common_unmerged(1))
-      !
       ! Preallocate norms arrays
       IF (otf_filtering) THEN
          ALLOCATE (left_norms(left_meta_size/3, 1))
@@ -2427,6 +2423,7 @@ CONTAINS
                         ! Set the referenced sizes to the actual data moved via MPI
                         CALL dbcsr_data_set_size_referenced(buffers_comm%right%data(1), &
                                                             buffers_comm%right%offset(idata, 2))
+                        buffers_comm%right%buffer%mats(1)%m%valid = .FALSE.
                      ENDIF
                      ! Left
                      IF (do_comm_left(irow3D)) THEN
@@ -2444,6 +2441,7 @@ CONTAINS
                         ! Set the referenced sizes to the actual data moved via MPI
                         CALL dbcsr_data_set_size_referenced(left_buffer(ileft_buffer_comm)%data(1), &
                                                             left_buffer(ileft_buffer_comm)%offset(idata, 2))
+                        left_buffer(ileft_buffer_comm)%buffer%mats(1)%m%valid = .FALSE.
                      ENDIF
                   ENDIF
                ENDIF
@@ -2475,42 +2473,66 @@ CONTAINS
             !
             IF (right_nrequests .GT. 0 .AND. left_nrequests .GT. 0) THEN
                ! check if right matrix was already initialized
-               IF (.NOT. common_unmerged(1)) THEN
+               IF (.NOT. buffers_calc%right%buffer%mats(1)%m%valid) THEN
                   CALL mp_waitall(buffers_calc%right%get_requests(:, 1:right_nrequests))
                   IF (has_acc) CALL dbcsr_data_host2dev(buffers_calc%right%data(1))
-                  CALL merge_calc(buffers_calc%right, &
-                                  left_buffer(ileft_buffer_calc), &
-                                  multrec(:, left_buffer(ileft_buffer_calc)%coord3D, buffers_calc%right%coord3D), &
-                                  .TRUE., flop, &
-                                  imgdist_right, .FALSE., &
-                                  1, 1, &
-                                  min_nimages, 1, &
-                                  right_row_total_nimages, &
-                                  right_global_indices, (/1/), &
-                                  otf_filtering=otf_filtering, data_type=data_type, &
-                                  right_norms=right_norms, left_norms=left_norms, &
-                                  common_unmerged=common_unmerged, &
-                                  indices_common_unmerged=indices_common_unmerged, &
-                                  has_acc=has_acc)
+                  ! Repoint indices of matrices
+                  CALL merge_images(buffers_calc%right%buffer, min_nimages, 1, &
+                                    right_row_total_nimages, &
+                                    buffers_calc%right%vprow, buffers_calc%right%vpcol, &
+                                    buffers_calc%right%offset, buffers_calc%right%meta, &
+                                    imgdist=imgdist_right, do_merge_rows=.FALSE., &
+                                    global_indices=right_global_indices)
+                  IF (otf_filtering) THEN
+                     CALL calculate_image_norms(buffers_calc%right%buffer, &
+                                                data_type, right_norms, uf=1, ul=1)
+                  ENDIF
+                  IF (has_acc) THEN
+                     CALL acc_transpose_blocks_images(buffers_calc%right%buffer, &
+                                                      buffers_calc%right%data(1), &
+                                                      buffers_calc%trs_stackbuf, &
+                                                      (/1/))
+                  ENDIF
                ENDIF
                ! check if left matrix was already initialized
-               CALL mp_waitall(left_buffer(ileft_buffer_calc)%get_requests(:, 1:left_nrequests))
-               IF (has_acc) CALL dbcsr_data_host2dev(left_buffer(ileft_buffer_calc)%data(1))
-               CALL merge_calc(buffers_calc%right, &
-                               left_buffer(ileft_buffer_calc), &
-                               multrec(:, left_buffer(ileft_buffer_calc)%coord3D, buffers_calc%right%coord3D), &
-                               .TRUE., flop, &
-                               imgdist_left, .TRUE., &
-                               1, 1, &
-                               1, min_nimages, &
-                               left_col_total_nimages, &
-                               left_global_indices, (/1/), &
-                               otf_filtering=otf_filtering, data_type=data_type, &
-                               right_norms=right_norms, left_norms=left_norms, &
-                               common_unmerged=common_unmerged, &
-                               indices_common_unmerged=indices_common_unmerged, &
-                               has_acc=has_acc, nthreads=nthreads, &
-                               trs_stackbuf=buffers_calc%trs_stackbuf)
+               IF (.NOT. left_buffer(ileft_buffer_calc)%buffer%mats(1)%m%valid) THEN
+                  CALL mp_waitall(left_buffer(ileft_buffer_calc)%get_requests(:, 1:left_nrequests))
+                  IF (has_acc) CALL dbcsr_data_host2dev(left_buffer(ileft_buffer_calc)%data(1))
+                  ! Repoint indices of matrices
+                  CALL merge_images(left_buffer(ileft_buffer_calc)%buffer, 1, min_nimages, &
+                                    left_col_total_nimages, &
+                                    left_buffer(ileft_buffer_calc)%vprow, left_buffer(ileft_buffer_calc)%vpcol, &
+                                    left_buffer(ileft_buffer_calc)%offset, left_buffer(ileft_buffer_calc)%meta, &
+                                    imgdist=imgdist_left, do_merge_rows=.TRUE., &
+                                    global_indices=left_global_indices, &
+                                    nthreads=nthreads)
+                  IF (otf_filtering) THEN
+                     CALL calculate_image_norms(left_buffer(ileft_buffer_calc)%buffer, &
+                                                data_type, left_norms, uf=1, ul=1)
+                  ENDIF
+               ENDIF
+               !
+               CALL timeset(routineN//"_multrec", handle3)
+               !
+!$OMP PARALLEL DEFAULT (NONE) &
+!$OMP SHARED (buffers_calc,left_buffer, ileft_buffer_calc, &
+!$OMP         left_norms,right_norms, &
+!$OMP         multrec) &
+!$OMP PRIVATE (ithread) &
+!$OMP REDUCTION (+: flop)
+               ithread = 0
+!$             ithread = omp_get_thread_num()
+               CALL dbcsr_mm_multrec_multiply(multrec(ithread, &
+                                                      left_buffer(ileft_buffer_calc)%coord3D, &
+                                                      buffers_calc%right%coord3D)%p, &
+                                              left=left_buffer(ileft_buffer_calc)%buffer%mats(1)%m, &
+                                              right=buffers_calc%right%buffer%mats(1)%m, &
+                                              flop=flop, &
+                                              a_norms=left_norms(:, 1), &
+                                              b_norms=right_norms(:, 1))
+!$OMP END PARALLEL
+               !
+               CALL timestop(handle3)
             ENDIF
          ENDIF wait_calc
          !
@@ -2523,7 +2545,6 @@ CONTAINS
                buffers_comm%right%vpcol = buffers_calc%right%vpcol
                buffers_comm%right%nrequests = buffers_calc%right%nrequests
             ENDIF
-            common_unmerged(1) = .FALSE.
          ENDIF
          ileft_buffer_calc = ileft_buffer_comm
       ENDDO grouped_steps_index
@@ -2557,7 +2578,6 @@ CONTAINS
          DEALLOCATE (row_max_epss)
       ENDIF
       !
-      DEALLOCATE (common_unmerged, indices_common_unmerged)
       DEALLOCATE (left_refs_meta_size, left_refs_displ_unmerged)
       DEALLOCATE (right_refs_meta_size, right_refs_displ_unmerged)
       IF (left_col_nimages .GT. 1) &
@@ -5193,23 +5213,25 @@ CONTAINS
                                                             ntotal_images, vprow, vpcol
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: offset_images
       INTEGER, DIMENSION(:), INTENT(IN), TARGET          :: meta_buffer
-      INTEGER, INTENT(IN)                                :: uf, ul
+      INTEGER, INTENT(IN), OPTIONAL                      :: uf, ul
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
       LOGICAL, INTENT(IN)                                :: do_merge_rows
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: global_indices, vunmerged
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: global_indices
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: vunmerged
       INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL     :: vmerged
-      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: common_unmerged
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: indices_common_unmerged
-      INTEGER, INTENT(INOUT)                             :: ncommons_unmerged
+      LOGICAL, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: common_unmerged
+      INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL     :: indices_common_unmerged
+      INTEGER, INTENT(INOUT), OPTIONAL                   :: ncommons_unmerged
       INTEGER, INTENT(IN), OPTIONAL                      :: nthreads
 
       CHARACTER(len=*), PARAMETER :: routineN = 'merge_images', routineP = moduleN//':'//routineN
 
-      INTEGER :: handle, ioffset, ithread, kf, ki, kl, mi, my_nthreads, my_vpcol, my_vprow, &
-         nimages_merged, nimages_unmerged, offset_data, offset_meta, size_index_merged, &
+      INTEGER :: handle, ioffset, ithread, kf, ki, kl, mi, my_nthreads, my_uf, my_ul, my_vpcol, &
+         my_vprow, nimages_merged, nimages_unmerged, offset_data, offset_meta, size_index_merged, &
          size_index_unmerged, ui, v_merged
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ioffset_first
       INTEGER, DIMENSION(:), POINTER                     :: unmerged_indices
+      LOGICAL                                            :: noempty
       TYPE(dbcsr_obj), POINTER                           :: image_obj
       TYPE(dbcsr_type), POINTER                          :: image
 
@@ -5238,13 +5260,22 @@ CONTAINS
          my_nthreads = nthreads
       ENDIF
       !
-      ALLOCATE (ioffset_first(ul))
+      my_uf = 1
+      IF (PRESENT(uf)) my_uf = uf
+      my_ul = 1
+      IF (PRESENT(ul)) my_ul = ul
+      !
+      ALLOCATE (ioffset_first(my_ul))
       ioffset_first(1) = 0
-      DO ui = 1, ul-1
-         ioffset_first(ui+1) = ioffset_first(ui)+vunmerged(ui)
+      DO ui = 1, my_ul-1
+         IF (PRESENT(vunmerged)) THEN
+            ioffset_first(ui+1) = ioffset_first(ui)+vunmerged(ui)
+         ELSE
+            ioffset_first(ui+1) = ioffset_first(ui)+1
+         ENDIF
       ENDDO
       ! Workaround for OpenMPI RMA bug
-      IF (meta_buffer(offset_images(imeta, ioffset_first(uf)+1)+dbcsr_slot_size) .EQ. -999) THEN
+      IF (meta_buffer(offset_images(imeta, ioffset_first(my_uf)+1)+dbcsr_slot_size) .EQ. -999) THEN
          CALL cp_warn(__LOCATION__, "MPI_rget operation didn't complete! "// &
                       "Probably you are using a buggy OpenMPI (version<1.10.4 or 2.0.1). "// &
                       "Try to enforce communication with window flush.")
@@ -5257,34 +5288,40 @@ CONTAINS
          ENDIF
       ENDIF
       !
-      ncommons_unmerged = 0
+      IF (PRESENT(ncommons_unmerged)) ncommons_unmerged = 0
       !
 !$OMP PARALLEL DO DEFAULT (NONE) &
 !$OMP PRIVATE(image_obj,image,ioffset,ui,mi,v_merged, &
 !$OMP         offset_meta,offset_data,unmerged_indices, &
-!$OMP         ithread,kf,kl,ki) &
+!$OMP         ithread,kf,kl,ki,noempty) &
 !$OMP SHARED(nimages_unmerged,images,global_indices, &
 !$OMP        size_index_merged,vunmerged,do_merge_rows, &
 !$OMP        my_vprow,my_vpcol,nimages_merged,nthreads, &
 !$OMP        my_nthreads,ioffset_first,vmerged,offset_images, &
-!$OMP        meta_buffer,size_index_unmerged,imgdist,uf,ul, &
+!$OMP        meta_buffer,size_index_unmerged,imgdist,my_uf,my_ul, &
 !$OMP        ncommons_unmerged,common_unmerged,indices_common_unmerged, &
 !$OMP        ntotal_images) &
 !$OMP SCHEDULE(guided)
-      images_unmerge: DO ui = uf, ul
+      images_unmerge: DO ui = my_uf, my_ul
          image_obj => images%mats(ui)
          image => image_obj%m
          CALL set_empty_meta_index(image%index, global_indices, size_index_merged)
-         IF (vunmerged(ui) .NE. 0) THEN
+         noempty = .TRUE.
+         IF (PRESENT(vunmerged)) THEN
+            noempty = vunmerged(ui) .NE. 0
+         ENDIF
+         IF (noempty) THEN
             !
+            IF (PRESENT(common_unmerged) .AND. PRESENT(ncommons_unmerged) .AND. PRESENT(indices_common_unmerged)) THEN
 !$OMP CRITICAL(merge_images_common)
-            IF (common_unmerged(ui)) THEN
-               ncommons_unmerged = ncommons_unmerged+1
-               indices_common_unmerged(ncommons_unmerged) = ui
-            ELSE
-               common_unmerged(ui) = .TRUE.
-            ENDIF
+               IF (common_unmerged(ui)) THEN
+                  ncommons_unmerged = ncommons_unmerged+1
+                  indices_common_unmerged(ncommons_unmerged) = ui
+               ELSE
+                  common_unmerged(ui) = .TRUE.
+               ENDIF
 !$OMP END CRITICAL(merge_images_common)
+            ENDIF
             !
             ! Virtual coords
             IF (do_merge_rows) THEN
