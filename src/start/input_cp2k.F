@@ -410,7 +410,8 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="EXT_RESTART", &
                           description="Section for external restart, specifies an external "// &
-                          "input file where to take positions,...", &
+                          "input file where to take positions, etc. "// &
+                          "By default they are all set to TRUE", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
@@ -440,7 +441,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="RESTART_COUNTERS", &
-                          description="Restarts the counters in MD schemes", &
+                          description="Restarts the counters in MD schemes and optimization STEP", &
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
