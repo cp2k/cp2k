@@ -144,7 +144,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief handles properties and calculations of a scaled cell
-!> \param cell .. original cell
+!> \param cell original cell
 !> \param box_scale scaling factors for each direction
 !> \param scaled_hmat returns the scaled h matrix (matrix of cell vectors)
 !> \param scaled_cell ...
@@ -200,7 +200,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief handles properties and calculations of a scaled cell
-!> \param cell .. original cell
+!> \param cell original cell
 !> \param scaled_hmat returns the scaled h matrix (matrix of cell vectors)
 !> \param box_scale scaling factors for each direction
 !> \author Mandes 11.2012

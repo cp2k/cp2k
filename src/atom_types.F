@@ -59,7 +59,7 @@ MODULE atom_types
                                                          STO_BASIS = 102, &
                                                          NUM_BASIS = 103
 
-!> Provides all information about a basis set
+!> \brief Provides all information about a basis set
 ! **************************************************************************************************
    TYPE atom_basis_type
       INTEGER                                       :: basis_type
@@ -79,7 +79,7 @@ MODULE atom_types
       INTEGER, DIMENSION(0:3)                       :: start
    END TYPE atom_basis_type
 
-!> Provides all information about a pseudopotential
+!> \brief Provides all information about a pseudopotential
 ! **************************************************************************************************
    TYPE atom_gthpot_type
       CHARACTER(LEN=2)                              :: symbol
@@ -141,7 +141,7 @@ MODULE atom_types
       TYPE(atom_upfpot_type)                        :: upf_pot
    END TYPE atom_potential_type
 
-!> Provides all information on states and occupation
+!> \brief Provides all information on states and occupation
 ! **************************************************************************************************
    TYPE atom_state
       REAL(KIND=dp), DIMENSION(0:3, 10)             :: occ
@@ -155,7 +155,7 @@ MODULE atom_types
       REAL(KIND=dp), DIMENSION(0:3, 10)             :: occa, occb
    END TYPE atom_state
 
-!> Holds atomic integrals
+!> \brief Holds atomic integrals
 ! **************************************************************************************************
    TYPE eri
       REAL(KIND=dp), DIMENSION(:, :), POINTER       :: int
@@ -180,7 +180,7 @@ MODULE atom_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: hdkh
    END TYPE atom_integrals
 
-!> Holds atomic orbitals and energies
+!> \brief Holds atomic orbitals and energies
 ! **************************************************************************************************
    TYPE atom_orbitals
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wfn, wfna, wfnb
@@ -193,21 +193,21 @@ MODULE atom_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: rcmax
    END TYPE atom_orbitals
 
-!> Operator matrices
+!> \brief Operator matrices
 ! **************************************************************************************************
    TYPE opmat_type
       INTEGER, DIMENSION(0:3)                       :: n
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: op
    END TYPE opmat_type
 
-!> Operator grids
+!> \brief Operator grids
 ! **************************************************************************************************
    TYPE opgrid_type
       REAL(KIND=dp), DIMENSION(:), POINTER          :: op
       TYPE(grid_atom_type), POINTER                 :: grid
    END TYPE opgrid_type
 
-!> All energies
+!> \brief All energies
 ! **************************************************************************************************
    TYPE atom_energy_type
       REAL(KIND=dp)                                 :: etot
@@ -225,7 +225,7 @@ MODULE atom_types
       REAL(KIND=dp)                                 :: econfinement
    END TYPE atom_energy_type
 
-!> Information on optimization procedure
+!> \brief Information on optimization procedure
 ! **************************************************************************************************
    TYPE atom_optimization_type
       REAL(KIND=dp)                                 :: damping
@@ -235,7 +235,7 @@ MODULE atom_types
       INTEGER                                       :: n_diis
    END TYPE atom_optimization_type
 
-!> Provides all information about an atomic kind
+!> \brief Provides all information about an atomic kind
 ! **************************************************************************************************
    TYPE atom_type
       INTEGER                                       :: z

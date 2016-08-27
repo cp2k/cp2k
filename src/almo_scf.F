@@ -78,8 +78,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief The entry point into ALMO SCF routines
-!> \param qs_env - pointer to the QS environment
-!> \param calc_forces - calculate forces?
+!> \param qs_env   pointer to the QS environment
+!> \param calc_forces   calculate forces?
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin

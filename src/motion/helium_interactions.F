@@ -42,8 +42,8 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Calculate the helium energy (including helium-solute interaction)
-!> \param    helium   - helium environment
-!> \param    pint_env - path integral environment
+!> \param    helium     helium environment
+!> \param    pint_env   path integral environment
 !> \par History
 !>         2009-06 moved I/O out from here [lwalewski]
 !> \author hforbert
@@ -367,9 +367,9 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief Calculate total helium-solute interaction energy and forces.
-!> \param   pint_env - path integral environment
+!> \param   pint_env   path integral environment
 !> \param helium ...
-!> \param   energy   - calculated interaction energy
+!> \param   energy     calculated interaction energy
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_solute_e_f(pint_env, helium, energy)
@@ -411,9 +411,9 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief Calculate total helium-solute interaction energy.
-!> \param   pint_env - path integral environment
+!> \param   pint_env   path integral environment
 !> \param helium ...
-!> \param   energy   - calculated interaction energy
+!> \param   energy     calculated interaction energy
 !> \author Lukasz Walewski
 ! **************************************************************************************************
    SUBROUTINE helium_solute_e(pint_env, helium, energy)

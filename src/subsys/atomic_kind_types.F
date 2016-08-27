@@ -40,7 +40,7 @@ MODULE atomic_kind_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
-!> Provides all information about an atomic kind
+!> \brief Provides all information about an atomic kind
 ! **************************************************************************************************
    TYPE atomic_kind_type
       TYPE(fist_potential_type), POINTER     :: fist_potential => Null()
@@ -55,7 +55,7 @@ MODULE atomic_kind_types
       TYPE(damping_p_type), POINTER          :: damping => Null()
    END TYPE atomic_kind_type
 
-!> Provides a vector of pointers of type atomic_kind_type
+!> \brief Provides a vector of pointers of type atomic_kind_type
 ! **************************************************************************************************
    TYPE atomic_kind_p_type
       TYPE(atomic_kind_type), DIMENSION(:), &

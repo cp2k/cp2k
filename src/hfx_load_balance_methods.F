@@ -84,7 +84,7 @@ CONTAINS
 !> \brief Distributes the computation of eri's to all available processes.
 !> \param x_data Object that stores the indices array
 !> \param eps_schwarz screening parameter
-!> \param particle_set , atomic_kind_set, para_env
+!> \param particle_set , atomic_kind_set, para_env ...
 !> \param max_set Maximum number of set to be considered
 !> \param para_env para_env
 !> \param coeffs_set screening functions

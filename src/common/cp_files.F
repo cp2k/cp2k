@@ -484,7 +484,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Checks if file exists, considering also the file discovery mechanism.
 !> \param file_name ...
-!> \retval exist
+!> \retval exist ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    FUNCTION file_exists(file_name) RESULT(exist)

@@ -555,7 +555,7 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  ...
 !> \param helium ...
-!> \param  pint_env  - path integral environment
+!> \param  pint_env    path integral environment
 !> \par    History
 !>        2010-06-17 added different distributions for m-sampling [lwalewski]
 !>        2010-06-17 ratio for m-value added (m-sampling related) [lwalewski]

@@ -581,7 +581,7 @@ CONTAINS
 !> \brief The optimizer section is a collection of keywords that are similar
 !>        to all optimization methods (e.g. target error, number of iterations)
 !> \param section ...
-!> \param optimizer_id - allows to adapt the standard section for specific needs
+!> \param optimizer_id   allows to adapt the standard section for specific needs
 !> \par History
 !>       2012.03 created [Rustam Z Khaliullin]
 !>       2014.10 fully integrated [Rustam Z Khaliullin]

@@ -102,8 +102,8 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Wrap r back to the helium box (if helium box is periodic)
-!> \param    helium - helium environment for which to wrap
-!> \param    r      - 3D vector to be wraped back to periodic box
+!> \param    helium   helium environment for which to wrap
+!> \param    r        3D vector to be wraped back to periodic box
 !> \par History
 !>      2009-10-02 renamed, originally was helium_box
 !>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
@@ -273,7 +273,7 @@ CONTAINS
 ! ***************************************************************************
 !> \brief  Calculate the point equidistant from two other points a and b
 !>         within the helium box - 3D version
-!> \param    helium - helium environment for which
+!> \param    helium   helium environment for which
 !> \param a vectors for which to find the mean within the He box
 !> \param b vectors for which to find the mean within the He box
 !> \param c ...

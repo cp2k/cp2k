@@ -114,7 +114,7 @@ END SUBROUTINE calc_max_image_norms_d
 ! **************************************************************************************************
 !> \brief Calculates norms of each cluster with minimal overhead.
 !> \param buffer ...
-!> \param norms ..
+!> \param norms ...
 ! **************************************************************************************************
   SUBROUTINE calc_image_norms_d(images,norms,uf,ul)
   TYPE(dbcsr_1d_array_type), INTENT(IN)    :: images

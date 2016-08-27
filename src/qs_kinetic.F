@@ -73,7 +73,7 @@ CONTAINS
 !> \param   matrix_name The name of the matrix (i.e. for output)
 !> \param   basis_type basis set to be used
 !> \param   sab_nl pair list (must be consistent with basis sets!)
-!> \param   calculate_forces (optional)
+!> \param   calculate_forces (optional) ...
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with kpoints (optional)
 !> \param   eps_filter Filter final matrix (optional)

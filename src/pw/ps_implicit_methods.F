@@ -1876,7 +1876,7 @@ CONTAINS
 !> \param res_new residual
 !> \param v_old old v
 !> \param v_new new v
-!> \param QAinvxres_new \Delta^-1(res_new)
+!> \param QAinvxres_new Delta^-1(res_new)
 !> \param pres_error preconditioned residual norm error
 !> \param nabs_error normalized absolute error
 !> \par History
@@ -1927,7 +1927,7 @@ CONTAINS
 !> \param res_new residual
 !> \param v_old old v
 !> \param v_new new v
-!> \param QAinvxres_new \Delta^-1(res_new)
+!> \param QAinvxres_new Delta^-1(res_new)
 !> \param pres_error preconditioned residual norm error
 !> \param nabs_error normalized absolute error
 !> \par History

@@ -100,7 +100,7 @@ CONTAINS
 !> \param   basis_type_a basis set to be used for bra in <a|b>
 !> \param   basis_type_b basis set to be used for ket in <a|b>
 !> \param   sab_nl pair list (must be consistent with basis sets!)
-!> \param   calculate_forces (optional)
+!> \param   calculate_forces (optional) ...
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with k_points (optional)
 !> \param   condition_number ...

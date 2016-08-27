@@ -691,8 +691,8 @@ CONTAINS
 !> \param xkp      Kpoint coordinates
 !> \param cell_to_index   mapping of cell indices to RS index
 !> \param sab_nl   Defining neighbor list
-!> \param is_complex ... Matrix to be transformed is imaginary
-!> \param rs_sign ... Matrix to be transformed is csaled by rs_sign
+!> \param is_complex  Matrix to be transformed is imaginary
+!> \param rs_sign  Matrix to be transformed is csaled by rs_sign
 ! **************************************************************************************************
    SUBROUTINE rskp_transform(rmatrix, cmatrix, rsmat, ispin, &
                              xkp, cell_to_index, sab_nl, is_complex, rs_sign)

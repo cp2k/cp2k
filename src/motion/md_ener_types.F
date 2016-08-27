@@ -57,7 +57,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief retains the given md_ener structure
-!> \param md_ener :
+!> \param md_ener ...
 !> \par History
 !>      10.2007 created [MI]
 !> \author MI
@@ -84,7 +84,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief retains the given md_ener structure
-!> \param md_ener :
+!> \param md_ener ...
 !> \par History
 !>      10.2007 created [MI]
 !> \author MI
@@ -101,7 +101,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief releases the given md_ener structure
-!> \param md_ener :
+!> \param md_ener ...
 !> \par History
 !>      10.2007 created [MI]
 !> \author MI
@@ -142,7 +142,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief initialize to zero energies and temperatures
-!> \param md_ener :
+!> \param md_ener ...
 !> \param tkind ...
 !> \param tshell ...
 !> \par History

@@ -38,7 +38,7 @@ MODULE gopt_param_types
 !> \brief stores the parameters nedeed for a geometry optimization
 !> \param method_id the optimization method
 !> \param wanted_proj_gradient the wanted accuracy on the projected gradient
-!> \param wanted_rel_f_error :
+!> \param wanted_rel_f_error ...
 !> \param max_h_rank maximum rank of the hessian approximation
 !> \param max_f_per_iter maximum number of function evaluations per iteration
 !> \param max_iter maximum number of iterations

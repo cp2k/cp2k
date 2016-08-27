@@ -64,7 +64,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocates data
 !> \param env ...
-!> \param nfrags - number of entries
+!> \param nfrags   number of entries
 !> \par History
 !>       2014.10 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
@@ -126,9 +126,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Creates a distributed matrix from MOs on fragments
-!> \param mscfg_env - env containing MOs of fragments
-!> \param matrix_out - all existing blocks will be deleted!
-!> \param iset - which set of MOs in mscfg_env has to be converted (e.g. spin)
+!> \param mscfg_env   env containing MOs of fragments
+!> \param matrix_out   all existing blocks will be deleted!
+!> \param iset   which set of MOs in mscfg_env has to be converted (e.g. spin)
 !> \par History
 !>       10.2014 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
@@ -196,7 +196,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Copies a distributed dbcsr submatrix into a distributed dbcsr matrix
 !> \param submatrix_in ...
-!> \param matrix_out - all existing blocks will be deleted!
+!> \param matrix_out   all existing blocks will be deleted!
 !> \param offset ...
 !> \param submatrix_size ...
 !> \param matrix_size ...

@@ -5485,7 +5485,7 @@ CONTAINS
 !> \brief These functions evaluate products exp(x)*Ei(x) and pi*exp(x)*erfc(sqrt(x)),
 !>      as well as their derivatives with respect to various combinations of
 !>      rho and norm_drho.
-!> \param Q , dQrho, dQndrho, d2Qrhondrho.... :
+!> \param Q , dQrho, dQndrho, d2Qrhondrho :
 !>        Argument Q and derivatives with respect to various combinations of
 !>        rho and norm_drho
 !> \retval exei ...

@@ -59,7 +59,7 @@ MODULE pexsi_types
 !> \param kTS                           entropic energy contribution
 !> \param matrix_w                      energy-weighted density matrix as needed
 !>                                      for the forces
-!> \param csr_mat*                      intermediate matrices in CSR format
+!> \param csr_mat                       intermediate matrices in CSR format
 !> \param dbcsr_template_matrix_sym     Symmetric template matrix fixing DBCSR
 !>                                      sparsity pattern
 !> \param dbcsr_template_matrix_nonsym  Nonsymmetric template matrix fixing
@@ -75,7 +75,7 @@ MODULE pexsi_types
 !> \param do_adaptive_tol_nel           Whether or not to use adaptive threshold
 !>                                      for PEXSI convergence
 !> \param adaptive_nel_alpha            constants for adaptive thresholding
-!> \param adaptive_nel_beta
+!> \param adaptive_nel_beta             ...
 !> \param tol_nel_initial               Initial convergence threshold (in number of electrons)
 !> \param tol_nel_target                Target convergence threshold (in number of electrons)
 !> \par History

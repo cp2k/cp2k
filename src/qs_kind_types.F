@@ -94,7 +94,7 @@ MODULE qs_kind_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kind_types'
 
-!> Input parameters for the DFT+U method
+!> \brief Input parameters for the DFT+U method
 ! **************************************************************************************************
    TYPE dft_plus_u_type
       INTEGER                                :: l, max_scf
@@ -130,7 +130,7 @@ MODULE qs_kind_types
       REAL(KIND=dp)                          :: screening_radius = HUGE(dp)
    END TYPE pao_descriptor_type
 
-!> Provides all information about a quickstep kind
+!> \brief Provides all information about a quickstep kind
 ! **************************************************************************************************
    TYPE qs_kind_type
       CHARACTER(LEN=default_string_length)   :: name = ""
@@ -181,7 +181,7 @@ MODULE qs_kind_types
       TYPE(pao_descriptor_type), DIMENSION(:), POINTER :: pao_descriptors => Null()
    END TYPE qs_kind_type
 
-!> Provides a vector of pointers of type qs_kind_type
+!> \brief Provides a vector of pointers of type qs_kind_type
 ! **************************************************************************************************
    TYPE qs_kind_p_type
       TYPE(qs_kind_type), DIMENSION(:), &

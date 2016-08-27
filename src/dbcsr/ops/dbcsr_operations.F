@@ -597,8 +597,8 @@ CONTAINS
 !>    A = alpha*A + beta*B or
 !> \param[in,out] matrix_a   DBCSR matrix
 !> \param[in] matrix_b       DBCSR matrix
-!> \param[in] alpha_scalar   (optional)
-!> \param[in] beta_scalar    (optional)
+!> \param[in] alpha_scalar   (optional) ...
+!> \param[in] beta_scalar    (optional) ...
 !>
 !> \param flop ...
 ! **************************************************************************************************
@@ -2176,7 +2176,7 @@ CONTAINS
 !> \param[inout] matrix the matrix
 !> \param[in] eps          the threshold
 !> \param[in] method       how the matrix is filtered
-!> \param[in] use_absolute ?
+!> \param[in] use_absolute ...
 !> \param[in] filter_diag  NYI
 !> \param[in] quick        (optional) filter just the index (no data copying)
 ! **************************************************************************************************

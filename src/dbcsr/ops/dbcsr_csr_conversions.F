@@ -96,7 +96,9 @@ MODULE dbcsr_csr_conversions
 !>                          then brd_to_csr_ind(dbcsr_ind) is -1.
 !> \param brd_mat DBCSR     BRD matrix acting as an intermediate step in any
 !>                          conversion from and to DBCSR format.
-!> \param dbcsr_*           data from original DBCSR matrix (not block-row
+!> \param dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nblks_local,
+!>        dbcsr_row_p, dbcsr_col_i, dbcsr_row_blk_size, dbcsr_col_blk_size
+!>                          data from original DBCSR matrix (not block-row
 !>                          distributed), representing the original block
 !>                          structure.
 !> \param has_dbcsr_block_data    whether dbcsr_* fields are defined

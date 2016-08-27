@@ -48,11 +48,11 @@ MODULE molsym
 !> \param point_group_symbol: Point group symbol.
 !> \param rotmat            : Rotation matrix.
 !> \param sec               : List of C axes
-!> \param                     (sec(:,i,j) => x,y,z of the ith j-fold C axis).
+!>                            (sec(:,i,j) => x,y,z of the ith j-fold C axis).
 !> \param ses               : List of S axes
-!> \param                     (ses(:,i,j) => x,y,z of the ith j-fold S axis).
+!>                            (ses(:,i,j) => x,y,z of the ith j-fold S axis).
 !> \param sig               : List of mirror planes
-!> \param                     (sig(:,i) => x,y,z of the ith mirror plane).
+!>                            (sig(:,i) => x,y,z of the ith mirror plane).
 !> \param center_of_mass    : Shift vector for the center of mass.
 !> \param tenmat            : Molecular tensor of inertia.
 !> \param tenval            : Eigenvalues of the molecular tensor of inertia.

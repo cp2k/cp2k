@@ -482,7 +482,7 @@ CONTAINS
 !> \param orbitals S-orthonormal orbitals
 !> \param ks_matrix Kohn-Sham matrix
 !> \param evals_arg optional, filled with the evals
-!> \param ionode /scr  : if present write to unit scr where ionode
+!> \param ionode , scr if present write to unit scr where ionode
 !> \param scr ...
 !> \param do_rotation optional rotate orbitals (default=.TRUE.)
 !>        note that rotating the orbitals is slower

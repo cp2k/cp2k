@@ -848,7 +848,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief prints the number of OH- ions or H3O+ ions near surface
-!> \param nr_ions ... number of ions
+!> \param nr_ions number of ions
 !> \param mm_section ...
 !> \param para_env ...
 !> \param print_oh flag indicating if number OH- is printed

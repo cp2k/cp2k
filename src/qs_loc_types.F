@@ -106,7 +106,7 @@ MODULE qs_loc_types
 !> \brief A type that holds controling information for the
 !>    calculation of the spread of wfn and theoptimization of
 !>    the spread functional
-!> \param ref_count:
+!> \param ref_count ...
 !> \param localization_method which algorithm is used for the optimization
 !> \param operator_type how the spread is defined
 !> \param nloc_states number of states on which the spread is computed

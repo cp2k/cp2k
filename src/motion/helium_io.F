@@ -1552,12 +1552,12 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief Write volumetric data to an orthorhombic cubefile
-!> \param   unit - unit number to which output will be sent
-!> \param   comment - description of the data stored in the cubefile
-!> \param   origin - position of the cubefile origin
-!> \param   deltar - voxel side length
-!> \param   ndim - number of voxels in each dimension
-!> \param   DATA - array (ndim x ndim x ndim) with the data for output
+!> \param   unit   unit number to which output will be sent
+!> \param   comment   description of the data stored in the cubefile
+!> \param   origin   position of the cubefile origin
+!> \param   deltar   voxel side length
+!> \param   ndim   number of voxels in each dimension
+!> \param   DATA   array (ndim x ndim x ndim) with the data for output
 !> \date 2013-11-25
 !> \author Lukasz Walewski
 ! **************************************************************************************************

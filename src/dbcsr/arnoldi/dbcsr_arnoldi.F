@@ -249,7 +249,7 @@ CONTAINS
 !> \param matrix_a input mat
 !> \param max_ev estimated max eval
 !> \param min_ev estimated min eval
-!> \param converged ? Usually arnoldi is more accurate than claimed.
+!> \param converged Usually arnoldi is more accurate than claimed.
 !> \param threshold target precision
 !> \param max_iter max allowed iterations (will be rounded up)
 ! **************************************************************************************************
