@@ -507,7 +507,10 @@ CONTAINS
       NULLIFY (keyword, print_key, subsection)
 
       CALL keyword_create(keyword, name="TRAJ_FILE_NAME", &
-                          description="Specify the filename where the trajectory is stored.", repeats=.FALSE., &
+                          description="Specify the filename where the trajectory is stored. "// &
+                          "If you built your own trajectory file make sure it has the trajectory format. "// &
+                          'In particular, each structure has to be enumerated using " i = ..."', &
+                          repeats=.FALSE., &
                           usage="TRAJ_FILE_NAME <CHARACTER>", default_lc_val="reftraj.xyz")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

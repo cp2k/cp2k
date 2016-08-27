@@ -126,7 +126,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="PERIODIC", &
-                          description="Specify the directions on wich apply PBC. Important notice, "// &
+                          description="Specify the directions in which PBC apply. Important notice, "// &
                           " this only applies to the electrostatics."// &
                           " See the CELL section to specify the periodicity used for e.g. the pair lists."// &
                           " Typically the settings should be the same.", &
