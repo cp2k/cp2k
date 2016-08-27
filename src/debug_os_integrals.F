@@ -56,11 +56,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(1)                        :: rpgfa, rpgfb, xa_work, xb_work
       REAL(KIND=dp), DIMENSION(3)                        :: A, B, rab
 
-      xa = 0.783300000000 ! exponents
-      xb = 1.239648746700
+      xa = 0.783300000000_dp ! exponents
+      xb = 1.239648746700_dp
 
-      A = (/0.329309000000, 0.28408240000, 0.28408240000/) !* bohr  !positions
-      B = (/0.983983000000, 0.00453720000, 0.00432740000/) !* bohr
+      A = (/0.329309000000_dp, 0.28408240000_dp, 0.28408240000_dp/) !* bohr  !positions
+      B = (/0.983983000000_dp, 0.00453720000_dp, 0.00432740000_dp/) !* bohr
 
       la_min = 0
       lb_min = 0
@@ -208,13 +208,13 @@ CONTAINS
                                                             xc_work
       REAL(KIND=dp), DIMENSION(3)                        :: A, B, C, rab, rac, rbc
 
-      xa = 0.783300000000 ! exponents
-      xb = 1.239648746700
-      xc = 0.548370000000
+      xa = 0.783300000000_dp ! exponents
+      xb = 1.239648746700_dp
+      xc = 0.548370000000_dp
 
-      A = (/0.329309000000, 0.28408240000, 0.28408240000/) !* bohr  !positions
-      B = (/0.983983000000, 0.00453720000, 0.00432740000/) !* bohr
-      C = (/0.032380000000, 1.23470000000, 0.11137400000/) !* bohr
+      A = (/0.329309000000_dp, 0.28408240000_dp, 0.28408240000_dp/) !* bohr  !positions
+      B = (/0.983983000000_dp, 0.00453720000_dp, 0.00432740000_dp/) !* bohr
+      C = (/0.032380000000_dp, 1.23470000000_dp, 0.11137400000_dp/) !* bohr
 
       la_min = 0
       lb_min = 0
@@ -409,13 +409,13 @@ CONTAINS
                                                             xa_work1, xa_work2, xb_work1, xb_work2
       REAL(KIND=dp), DIMENSION(3)                        :: A, B, rab
 
-      xa1 = 0.783300000000 ! exponents
-      xb1 = 1.239648746700
-      xa2 = 0.3400000000 ! exponents
-      xb2 = 2.76
+      xa1 = 0.783300000000_dp ! exponents
+      xb1 = 1.239648746700_dp
+      xa2 = 0.3400000000_dp ! exponents
+      xb2 = 2.76_dp
 
-      A = (/0.329309000000, 0.28408240000, 0.28408240000/) !* bohr  !positions
-      B = (/0.983983000000, 0.00453720000, 0.00432740000/) !* bohr
+      A = (/0.329309000000_dp, 0.28408240000_dp, 0.28408240000_dp/) !* bohr  !positions
+      B = (/0.983983000000_dp, 0.00453720000_dp, 0.00432740000_dp/) !* bohr
 
       la_min1 = 0
       la_min2 = 0

@@ -68,6 +68,7 @@ def check_warnings(fn):
         if("defined but not used" in warning): continue
         if("Removing call to function" in warning): continue
         if("Conversion from" in warning): continue
+        if("Non-significant digits in 'REAL(8)'" in warning): continue
         if("CHARACTER expression" in warning and "truncated" in warning): continue
         if("POINTER-valued function appears on right-hand side" in warning): continue
 
