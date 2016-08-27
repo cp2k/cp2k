@@ -2447,7 +2447,7 @@ CONTAINS
       INTEGER                                            :: fgpm, k, l, lgpm
       REAL(dp)                                           :: error, xa(max_inter), ya(max_inter)
 
-      lgpm = MIN(clgp+max_inter/2, ngrd)
+      lgpm = MIN(clgp+INT(max_inter/2.0), ngrd)
       fgpm = lgpm-max_inter+1
       DO k = 0, max_inter-1
          xa(k+1) = (fgpm+k)*dgrd
