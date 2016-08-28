@@ -960,7 +960,7 @@ gen_arch_file() {
     if [ "$__CUDA" = "on" ] ; then
       cat <<EOF >> $__filename
 #
-NVCC        = \${NVCC} -D__GNUC_MINOR__=6 -D__GNUC__=4
+NVCC        = \${NVCC} -D__GNUC__=4 -D__GNUC_MINOR__=9 -Xcompiler=--std=gnu++98
 NVFLAGS     = \${NVFLAGS}
 EOF
     fi
