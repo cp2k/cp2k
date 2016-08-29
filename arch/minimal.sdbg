@@ -4,7 +4,7 @@
 CC          = gcc
 CXX         = g++
 CPP         = cpp
-CPPFLAGS    = -C -P -traditional -D__NO_IPI_DRIVER
+CPPFLAGS    = -C -P -traditional -D__NO_IPI_DRIVER -nostdinc
 AR          = ar -r
 FC          = gfortran
 LD          = gfortran
