@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Implemenation of machine interface based on Fortran 2003 and POSIX
+!> \brief Implementation of machine interface based on Fortran 2003 and POSIX
 !> \author Ole Schuett
 ! *****************************************************************************
   USE kinds,                           ONLY: dp, int_8, default_path_length,&
@@ -24,7 +24,7 @@
 CONTAINS
 
 ! *****************************************************************************
-! can be used to get a nice core
+!> \brief Can be used to get a nice core
 ! *****************************************************************************
   SUBROUTINE m_abort()
     INTERFACE
@@ -37,7 +37,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-! the number of arguments of the fortran program
+!> \brief The number of arguments of the fortran program
 ! *****************************************************************************
   FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
@@ -47,7 +47,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-! flush a given unit
+!> \brief Flush a given unit
 ! *****************************************************************************
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
@@ -57,8 +57,8 @@ CONTAINS
 
 
 ! *****************************************************************************
-! returns if a process is running on the local machine
-! 1 if yes and 0 if not
+!> \brief Returns if a process is running on the local machine
+!>        1 if yes and 0 if not
 ! *****************************************************************************
   FUNCTION m_procrun(pid) RESULT (run_on)
     INTEGER, INTENT(IN)       ::   pid
@@ -88,7 +88,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-! returns the total amount of memory [bytes] in use, if known, zero otherwise
+!> \brief Returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   SUBROUTINE m_memory(mem)
 
