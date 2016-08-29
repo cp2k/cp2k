@@ -13,7 +13,7 @@ H2O-32_NPT_res_3.inp                                   2    1.0E-14            -
 H2O-32_NPT_res_4.inp                                   2    1.0E-14            -0.617383381810E+00
 H2O-32_NPT_res_5.inp                                   2    1.0E-14            -0.614523994245E+00
 water_IPBV.inp                                         2      1e-09            -7.7442661855899999
-water_IPBV_flex.inp                                    2      7e-10                 -6.42809999235
+water_IPBV_flex.inp                                    2      9e-10                 -6.42809999235
 sod.inp                                                2    1.0E-14             0.119421504330E+02
 sod2.inp                                               2    1.0E-14             0.119421504330E+02
 #Nose with constraints
