@@ -1783,7 +1783,8 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_comm_left
       REAL(kind=sp)                                      :: filter_eps_sp
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET   :: row_max_epss
-      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: left_norms, right_norms
+      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: right_norms
+      REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :, :)     :: left_norms
       REAL(kind=sp), DIMENSION(:), POINTER               :: product_matrix_epss
       TYPE(dbcsr_2d_array_obj)                           :: product_matrix3D
       TYPE(dbcsr_buffer), ALLOCATABLE, DIMENSION(:)      :: left_buffer
@@ -2008,10 +2009,8 @@ CONTAINS
             product_matrix_epss => row_max_epss
          ENDIF
       ELSE
-         ! The array must be valid when passed to called subroutines.
          product_matrix_epss_size(:) = 0
          product_matrix_epss_displ(:) = 0
-         ALLOCATE (left_norms(0, 1), right_norms(0, 1), product_matrix_epss(0))
       ENDIF
       !
       ! Needs to remap refs for 3D
@@ -2035,6 +2034,8 @@ CONTAINS
          DO irow3D = 1, nrows3D
             IF (irow3D .EQ. myrow3D .AND. icol3D .EQ. mycol3D) THEN
                product_matrix3D%mats(irow3D, icol3D)%matrix => product_matrix
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = 0
             ELSE
                ALLOCATE (product_matrix3D%mats(irow3D, icol3D)%matrix)
                IF (keep_sparsity) THEN
@@ -2054,12 +2055,13 @@ CONTAINS
                product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_pcol) = &
                   (icol3D-1)*layers_3D_C_reduction%side3D+mypcol
                CALL dbcsr_reset_locals(product_matrix3D%mats(irow3D, icol3D)%matrix)
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = 0
                CALL dbcsr_repoint_index(product_matrix3D%mats(irow3D, icol3D)%matrix%m)
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%valid = .FALSE.
+               CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, 0)
             ENDIF
-            product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
-            product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = 0
             product_matrix3D%mats(irow3D, icol3D)%matrix%m%row_p(:) = 0
+            product_matrix3D%mats(irow3D, icol3D)%matrix%m%valid = .FALSE.
          ENDDO
       ENDDO
       IF (do_layers3D .AND. keep_sparsity) THEN
@@ -2320,8 +2322,11 @@ CONTAINS
       !
       ! Preallocate norms arrays
       IF (otf_filtering) THEN
-         ALLOCATE (left_norms(left_meta_size/3, 1))
+         ALLOCATE (left_norms(left_meta_size/3, 1, nleft_buffers))
          ALLOCATE (right_norms(right_meta_size/3, 1))
+      ELSE
+         ! The array must be valid when passed to called subroutines.
+         ALLOCATE (left_norms(0, 1, nleft_buffers), right_norms(0, 1), product_matrix_epss(0))
       ENDIF
       !
       ! Here is the main loop
@@ -2508,7 +2513,7 @@ CONTAINS
                                     nthreads=nthreads)
                   IF (otf_filtering) THEN
                      CALL calculate_image_norms(left_buffer(ileft_buffer_calc)%buffer, &
-                                                data_type, left_norms, uf=1, ul=1)
+                                                data_type, left_norms(:, :, ileft_buffer_calc), uf=1, ul=1)
                   ENDIF
                ENDIF
                !
@@ -2528,7 +2533,7 @@ CONTAINS
                                               left=left_buffer(ileft_buffer_calc)%buffer%mats(1)%m, &
                                               right=buffers_calc%right%buffer%mats(1)%m, &
                                               flop=flop, &
-                                              a_norms=left_norms(:, 1), &
+                                              a_norms=left_norms(:, 1, ileft_buffer_calc), &
                                               b_norms=right_norms(:, 1))
 !$OMP END PARALLEL
                !
@@ -5432,6 +5437,8 @@ CONTAINS
          ENDIF
          !
          ! Repoint index
+         image%nblks = 0
+         image%nze = 0
          CALL dbcsr_repoint_index(image)
          image%valid = .TRUE.
       ENDDO images_unmerge
