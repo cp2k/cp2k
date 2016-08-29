@@ -412,7 +412,8 @@ CONTAINS
          block_V = 0.5_dp*(block_V+TRANSPOSE(block_V)) ! symmetrize exactly
 
          ! regularization energy
-         IF (PRESENT(penalty)) &
+         ! protect against corner-case of zero pao parameters
+         IF (PRESENT(penalty) .AND. nterms > 0) &
             regu_energy = regu_energy+DOT_PRODUCT(block_X(:, 1), MATMUL(block_R, block_X(:, 1)))
 
          IF (.NOT. PRESENT(matrix_G) .AND. .NOT. PRESENT(matrix_G)) THEN
