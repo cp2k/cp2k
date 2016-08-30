@@ -888,6 +888,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="MAO", &
+                          description="Decide whether to use modified atomic orbitals to reduce the "// &
+                          "prefactor of the quadratic-scaling step in im. time RPA. The number of MAOs"// &
+                          "per atom have to be specified in the KIND section for all elements.", &
+                          usage="MEMORY_INFO", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword=keyword, name="GROUP_SIZE_3c", &
                           description="Group size used for cutting the RI index P in (alpha beta P) and for "// &
                           "the multiplication M^occ/virt(it)=(alpha beta P)*D^occ/virt. Has to be increased "// &
@@ -907,30 +917,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="ADD_CUT_RI", &
-                          variants=(/"ADD_RI_CUT"/), &
-                          description="Additional cutting of the RI range for the three-center overlap integrals. "// &
-                          "Default is to use no cutting. Recommended for larger systems for better load balancing. ", &
-                          usage="ADD_CUT_RI 8", &
-                          default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword=keyword, name="POINTS_PER_MAGNITUDE", &
                           variants=(/"PPM"/), &
                           description="Number of evaluation points (x) of the function 2x/(x^2+omega^2) per order of  "// &
                           "magnitude of the range Rc. Normally, this parameter needs not to be touched.", &
                           usage="PPM 1000", &
                           default_i_val=200)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, name="EPS_COMM", &
-         description="Screening for the communication of data. If numbers are smaller than EPS_COMM,  "// &
-         "they won't be communicated.", &
-         usage="EPS_COMM 1.0E-10 ", type_of_var=real_t, &
-         default_r_val=1.0E-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

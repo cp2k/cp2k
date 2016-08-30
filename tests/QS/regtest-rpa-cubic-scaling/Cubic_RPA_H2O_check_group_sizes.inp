@@ -59,8 +59,6 @@
             GROUP_SIZE_3c 2
             ! normally, GROUP_SIZE_P 1 is fine
             GROUP_SIZE_P 2
-            ! normally, ADD_RI_CUT 1 is fine
-            ADD_RI_CUT 3
           &END IM_TIME
           &HF
             FRACTION 1.0000000

@@ -133,9 +133,9 @@ MODULE mp2_types
 
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info
-      REAL(KIND=dp)            :: eps_comm, eps_filter_im_time
-      INTEGER                  :: group_size_P, group_size_3c, add_cut_RI, num_points_per_magnitude
+      LOGICAL                  :: memory_info, do_mao
+      REAL(KIND=dp)            :: eps_filter_im_time
+      INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude
       INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_cm, starts_array_cm, &
                                             ends_array_cm
    END TYPE

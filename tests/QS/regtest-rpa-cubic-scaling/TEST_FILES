@@ -1,5 +1,6 @@
 Cubic_RPA_H2O_standard.inp                             11      1e-08           -17.158844078570908
 Cubic_RPA_H2O_check_filtering.inp                      11      1e-08           -17.158844078569892
 Cubic_RPA_H2O_check_group_sizes.inp                    11      1e-08           -17.158844078570855
-Cubic_RPA_2x_H2_check_filtering.inp                    11      1e-08           -2.122939782519313
+Cubic_RPA_2x_H2_check_filtering.inp                    11      1e-08            -2.122939782519313
+Cubic_RPA_CH3.inp                                      11      1e-08            -7.414304442907595
 #EOF

@@ -167,14 +167,12 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa_im_time%cut_memory)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MEMORY_INFO", &
                                 l_val=mp2_env%ri_rpa_im_time%memory_info)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%EPS_COMM", &
-                                r_val=mp2_env%ri_rpa_im_time%eps_comm)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO", &
+                                l_val=mp2_env%ri_rpa_im_time%do_mao)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%GROUP_SIZE_3c", &
                                 i_val=mp2_env%ri_rpa_im_time%group_size_3c)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%GROUP_SIZE_P", &
                                 i_val=mp2_env%ri_rpa_im_time%group_size_P)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%ADD_CUT_RI", &
-                                i_val=mp2_env%ri_rpa_im_time%add_cut_RI)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%POINTS_PER_MAGNITUDE", &
                                 i_val=mp2_env%ri_rpa_im_time%num_points_per_magnitude)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%EPS_FILTER_IM_TIME", &

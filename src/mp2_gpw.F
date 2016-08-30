@@ -23,14 +23,14 @@ MODULE mp2_gpw
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_clear_mempools, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution_new, &
-        cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, &
-        cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_mp_new, cp_dbcsr_mp_release, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_distribution_obj, dbcsr_mp_obj, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
-        dbcsr_type_symmetric
+        cp_dbcsr_clear_mempools, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
+        cp_dbcsr_distribution_new, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
+        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
+        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+        cp_dbcsr_iterator_stop, cp_dbcsr_mp_new, cp_dbcsr_mp_release, cp_dbcsr_multiply, &
+        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, cp_dbcsr_set, &
+        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_mp_obj, dbcsr_type_no_symmetry, &
+        dbcsr_type_real_default, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_dist2d_to_dist,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -65,6 +65,7 @@ MODULE mp2_gpw
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush,&
                                               m_memory
+   USE mao_methods,                     ONLY: mao_basis_simple
    USE message_passing,                 ONLY: mp_comm_split_direct,&
                                               mp_max,&
                                               mp_min,&
@@ -115,6 +116,8 @@ MODULE mp2_gpw
                                               build_neighbor_lists,&
                                               local_atoms_type,&
                                               pair_radius_setup
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
    USE rpa_ri_gpw,                      ONLY: rpa_ri_compute_en
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
@@ -189,9 +192,11 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_im_time_3c, &
                                                             blacs_env_sub_mat_munu
-      TYPE(cp_dbcsr_p_type)                              :: mat_M, mat_munu, mat_P_global, &
-                                                            mat_P_local
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int, matrix_s
+      TYPE(cp_dbcsr_p_type)                              :: mat_dm_occ_global_mao, &
+                                                            mat_dm_virt_global_mao, mat_M, &
+                                                            mat_munu, mat_P_global, mat_P_local
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coeff_occ, mao_coeff_virt, &
+                                                            mat_3c_overl_int, matrix_s
       TYPE(cp_dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, mo_coeff_gw, &
          mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_RI_metric, mo_coeff, &
@@ -593,8 +598,10 @@ CONTAINS
 
          IF (do_im_time) THEN
 
-            CALL create_dbcsr_matrices_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, qs_env, mp2_env, &
-                                               para_env, dft_control, atomic_kind_set, qs_kind_set, &
+            CALL create_dbcsr_matrices_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
+                                               mat_dm_occ_global_mao, mat_dm_virt_global_mao, mao_coeff_occ, &
+                                               mao_coeff_virt, qs_env, &
+                                               mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                                                atom2d, molecule_kind_set, molecule_set, particle_set, cell, &
                                                eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old, &
                                                para_env_sub_im_time_P, blacs_env_sub_im_time_3c, unit_nr, sab_orb_all)
@@ -629,8 +636,9 @@ CONTAINS
          END IF
 
          IF (do_im_time) THEN
-            CALL clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, fm_matrix_L_RI_metric, &
-                                  para_env_sub_im_time_3c, para_env_sub_im_time_P, mp2_env)
+            CALL clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, mat_dm_occ_global_mao, &
+                                  mat_dm_virt_global_mao, fm_matrix_L_RI_metric, para_env_sub_im_time_3c, &
+                                  para_env_sub_im_time_P, mao_coeff_occ, mao_coeff_virt, mp2_env)
          END IF
 
          ! Release some memory for AXK
@@ -2380,6 +2388,10 @@ CONTAINS
 !> \param mat_P_local ...
 !> \param mat_P_global ...
 !> \param mat_M ...
+!> \param mat_dm_occ_global_mao ...
+!> \param mat_dm_virt_global_mao ...
+!> \param mao_coeff_occ ...
+!> \param mao_coeff_virt ...
 !> \param qs_env ...
 !> \param mp2_env ...
 !> \param para_env ...
@@ -2401,13 +2413,17 @@ CONTAINS
 !> \author Jan Wilhelm
 ! **************************************************************************************************
    SUBROUTINE create_dbcsr_matrices_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, &
+                                            mat_dm_occ_global_mao, mat_dm_virt_global_mao, mao_coeff_occ, &
+                                            mao_coeff_virt, &
                                             qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                                             atom2d, molecule_kind_set, molecule_set, particle_set, cell, &
                                             eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old, &
                                             para_env_sub_im_time_P, blacs_env_sub_im_time_3c, unit_nr, sab_orb_all)
 
       TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
-                                                            mat_M
+                                                            mat_M, mat_dm_occ_global_mao, &
+                                                            mat_dm_virt_global_mao
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coeff_occ, mao_coeff_virt
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2439,14 +2455,16 @@ CONTAINS
          offset_fullrow, ref_col, ref_row, row_end_local, row_start_local, size_col, size_row, &
          start_col
       INTEGER :: start_col_data_block, start_row, start_row_data_block
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_offset, col_blk_sizes_prim, &
-                                                            max_col_blk_sizes, row_blk_offset, &
-                                                            row_blk_sizes, row_blk_sizes_prim
-      INTEGER, DIMENSION(:, :), POINTER                  :: col_blk_sizes
-      LOGICAL                                            :: blacs_repeatable
+      INTEGER, DIMENSION(:), POINTER :: col_blk_offset, col_blk_sizes, col_blk_sizes_prim, &
+         max_col_blk_sizes, row_blk_offset, row_blk_sizes, row_blk_sizes_prim
+      INTEGER, DIMENSION(:, :), POINTER                  :: col_blk_sizes_cut_memory
+      LOGICAL                                            :: blacs_repeatable, do_mao
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global, blacs_env_sub_P
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
+      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
 
@@ -2463,6 +2481,50 @@ CONTAINS
                            unit_nr, do_im_time=.TRUE.)
 
       CALL cp_blacs_env_release(blacs_env_sub_im_time_3c)
+
+      do_mao = mp2_env%ri_rpa_im_time%do_mao
+
+      IF (do_mao) THEN
+
+         ! get density matrix
+         CALL get_qs_env(qs_env, rho=rho)
+         NULLIFY (rho_ao_kp)
+         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+
+         ! get mao transformation matrix
+         CALL mao_basis_simple(qs_env, mao_coef=mao_coeff_occ, pmat_external=rho_ao_kp, unit_nr=unit_nr)
+         ! hack to satisfy unused dummy variable
+         CALL mao_basis_simple(qs_env, mao_coef=mao_coeff_virt, pmat_external=rho_ao_kp, unit_nr=unit_nr)
+
+         ! the column has the MAO basis
+         CALL cp_dbcsr_get_info(mao_coeff_occ(1)%matrix, &
+                                row_blk_size=row_blk_sizes, &
+                                col_blk_size=col_blk_sizes)
+
+         ! hack to satisfy unused dummy variable
+         CALL cp_dbcsr_get_info(mao_coeff_virt(1)%matrix, &
+                                row_blk_size=row_blk_sizes, &
+                                col_blk_size=col_blk_sizes)
+
+         CALL get_qs_env(qs_env=qs_env, dbcsr_dist=dbcsr_dist)
+
+         ALLOCATE (mat_dm_occ_global_mao%matrix)
+         CALL cp_dbcsr_init(mat_dm_occ_global_mao%matrix)
+         CALL cp_dbcsr_create(matrix=mat_dm_occ_global_mao%matrix, &
+                              name="mat_dm_occ_global_mao", &
+                              dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
+
+         ! little hack for the beginning: mat_dm_virt_global_mao has the full nmo x nmo size
+         ! due to row_blk_sizes
+         ALLOCATE (mat_dm_virt_global_mao%matrix)
+         CALL cp_dbcsr_init(mat_dm_virt_global_mao%matrix)
+         CALL cp_dbcsr_create(matrix=mat_dm_virt_global_mao%matrix, &
+                              name="mat_dm_virt_global_mao", &
+                              dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
+
+      END IF
 
       group_size_P = mp2_env%ri_rpa_im_time%group_size_P
 
@@ -2706,8 +2768,8 @@ CONTAINS
 
       END DO
 
-      ALLOCATE (col_blk_sizes(cut_memory, cut_memory))
-      col_blk_sizes(:, :) = 0
+      ALLOCATE (col_blk_sizes_cut_memory(cut_memory, cut_memory))
+      col_blk_sizes_cut_memory(:, :) = 0
 
       ALLOCATE (mp2_env%ri_rpa_im_time_2d_util(cut_memory, cut_memory))
 
@@ -2795,9 +2857,10 @@ CONTAINS
                mp2_env%ri_rpa_im_time_util(j_mem)%start_col_data_block(ref_col) = start_col_data_block
                mp2_env%ri_rpa_im_time_util(j_mem)%end_col_data_block(ref_col) = end_col_data_block
 
-               mp2_env%ri_rpa_im_time_2d_util(i_mem, j_mem)%offset_combi_block(ref_row, ref_col) = col_blk_sizes(i_mem, j_mem)
+               mp2_env%ri_rpa_im_time_2d_util(i_mem, j_mem)%offset_combi_block(ref_row, ref_col) = &
+                  col_blk_sizes_cut_memory(i_mem, j_mem)
 
-               col_blk_sizes(i_mem, j_mem) = col_blk_sizes(i_mem, j_mem)+size_row*size_col
+               col_blk_sizes_cut_memory(i_mem, j_mem) = col_blk_sizes_cut_memory(i_mem, j_mem)+size_row*size_col
 
             END DO
 
@@ -2806,12 +2869,12 @@ CONTAINS
       END DO
 
       ALLOCATE (max_col_blk_sizes(1))
-      max_col_blk_sizes(1) = MAXVAL(col_blk_sizes)
+      max_col_blk_sizes(1) = MAXVAL(col_blk_sizes_cut_memory)
 
       CALL create_mat_M(mat_M, blacs_env_sub_P, nblkrows_RI, row_blk_sizes, max_col_blk_sizes, &
                         mp2_env%ri_rpa_im_time_util(1)%mepos_P_from_RI_row)
 
-      DEALLOCATE (col_blk_sizes, max_col_blk_sizes)
+      DEALLOCATE (col_blk_sizes_cut_memory, max_col_blk_sizes)
 
       CALL cp_blacs_env_release(blacs_env_sub_P)
 
@@ -2853,28 +2916,38 @@ CONTAINS
 !> \param mat_P_local ...
 !> \param mat_P_global ...
 !> \param mat_M ...
+!> \param mat_dm_occ_global_mao ...
+!> \param mat_dm_virt_global_mao ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param para_env_sub_im_time_3c ...
 !> \param para_env_sub_im_time_P ...
+!> \param mao_coeff_occ ...
+!> \param mao_coeff_virt ...
 !> \param mp2_env ...
 !> \author Jan Wilhelm
 ! **************************************************************************************************
-   SUBROUTINE clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, fm_matrix_L_RI_metric, &
-                               para_env_sub_im_time_3c, para_env_sub_im_time_P, mp2_env)
+   SUBROUTINE clean_up_im_time(mat_munu, mat_P_local, mat_P_global, mat_M, mat_dm_occ_global_mao, &
+                               mat_dm_virt_global_mao, fm_matrix_L_RI_metric, para_env_sub_im_time_3c, &
+                               para_env_sub_im_time_P, mao_coeff_occ, mao_coeff_virt, mp2_env)
 
       TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_P_local, mat_P_global, &
-                                                            mat_M
+                                                            mat_M, mat_dm_occ_global_mao, &
+                                                            mat_dm_virt_global_mao
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_RI_metric
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_im_time_3c, &
                                                             para_env_sub_im_time_P
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coeff_occ, mao_coeff_virt
       TYPE(mp2_type)                                     :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_up_im_time', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: do_mao
 
       CALL timeset(routineN, handle)
+
+      do_mao = mp2_env%ri_rpa_im_time%do_mao
 
       CALL cp_dbcsr_release(mat_munu%matrix)
       DEALLOCATE (mat_munu%matrix)
@@ -2887,6 +2960,15 @@ CONTAINS
 
       CALL cp_dbcsr_release(mat_M%matrix)
       DEALLOCATE (mat_M%matrix)
+
+      IF (do_mao) THEN
+         CALL cp_dbcsr_deallocate_matrix_set(mao_coeff_occ)
+         CALL cp_dbcsr_deallocate_matrix_set(mao_coeff_virt)
+         CALL cp_dbcsr_release(mat_dm_occ_global_mao%matrix)
+         DEALLOCATE (mat_dm_occ_global_mao%matrix)
+         CALL cp_dbcsr_release(mat_dm_virt_global_mao%matrix)
+         DEALLOCATE (mat_dm_virt_global_mao%matrix)
+      END IF
 
       CALL cp_fm_release(fm_matrix_L_RI_metric)
 
@@ -3120,8 +3202,8 @@ CONTAINS
       DO blk = 1, nblkrows_total
 
          IF (row_blk_offset(blk) >= itmp_1 .AND. row_blk_offset(blk) <= itmp_2) THEN
-            ! check if new first block (on entry, start_block has to be 0)
 
+            ! check if new first block (on entry, start_block has to be 0)
             IF (start_indx == 0) THEN
                start_indx = row_blk_offset(blk)
             END IF
@@ -3133,6 +3215,11 @@ CONTAINS
       END DO
 
       size_indx = end_indx-start_indx+1
+
+      ! have a check that if there is nothing to be done for the specific memory_cut, then we know it
+      IF (start_indx == 0 .AND. end_indx == 0) THEN
+         size_indx = 0
+      END IF
 
    END SUBROUTINE
 

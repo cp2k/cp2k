@@ -70,7 +70,6 @@ CONTAINS
 !> \param tau_tj ...
 !> \param e_fermi ...
 !> \param eps_filter ...
-!> \param eps_comm ...
 !> \param alpha ...
 !> \param eps_filter_im_time ...
 !> \param Eigenval ...
@@ -112,9 +111,8 @@ CONTAINS
                                   mat_P_local, mat_P_global, mat_P_global_copy, mat_M_mu_Pnu_occ, &
                                   mat_M_mu_Pnu_virt, matrix_s, mat_M_P_munu_occ, &
                                   mat_M_P_munu_virt, mat_3c_overl_int_cut, mat_dm_loc_occ_cut, &
-                                  mat_dm_loc_virt_cut, tau_wj_2d, tj, tau_tj, &
-                                  e_fermi, eps_filter, eps_comm, alpha, &
-                                  eps_filter_im_time, Eigenval, nmo, n_group_col, &
+                                  mat_dm_loc_virt_cut, tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, &
+                                  alpha, eps_filter_im_time, Eigenval, nmo, n_group_col, &
                                   group_size_P, num_integ_points, jquad, cut_memory, cut_RI, unit_nr, &
                                   mp2_env, para_env, para_env_sub, &
                                   starts_array_prim_col, ends_array_prim_col, &
@@ -140,7 +138,7 @@ CONTAINS
                                                             mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tau_wj_2d
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tj, tau_tj
-      REAL(KIND=dp)                                      :: e_fermi, eps_filter, eps_comm, alpha, &
+      REAL(KIND=dp)                                      :: e_fermi, eps_filter, alpha, &
                                                             eps_filter_im_time
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: nmo, n_group_col, group_size_P, &
@@ -200,7 +198,6 @@ CONTAINS
             CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_virt_global(jquad)%matrix, nmo, &
                                           mat_dm_loc_virt_cut, starts_array_cm, ends_array_cm, &
                                           j_mem, cut_memory, cut_RI, non_zero_blocks_3c, &
-                                          !                                          non_zero_blocks_3c_cut_row, multiply_needed_virt)
                                           non_zero_blocks_3c_cut_col, multiply_needed_virt)
 
             DO i_mem = 1, cut_memory
@@ -269,7 +266,7 @@ CONTAINS
 
                CALL fill_mat_M_P_munu_from_M_mu_Pnu(mat_M_P_munu_occ, mat_M_mu_Pnu_occ, para_env, my_group_L_starts_im_time, &
                                                     my_group_L_sizes_im_time, mepos_P_from_RI_row, &
-                                                    n_group_col, cut_RI, eps_comm, row_from_LLL, &
+                                                    n_group_col, cut_RI, row_from_LLL, &
                                                     starts_array_prim_row, ends_array_prim_row, &
                                                     starts_array_prim_col, ends_array_prim_col, &
                                                     offset_combi_block(i_mem, j_mem)%array, starts_array_prim_fullcol, &
@@ -280,7 +277,7 @@ CONTAINS
 
                CALL fill_mat_M_P_munu_from_M_mu_Pnu(mat_M_P_munu_virt, mat_M_mu_Pnu_virt, para_env, my_group_L_starts_im_time, &
                                                     my_group_L_sizes_im_time, mepos_P_from_RI_row, &
-                                                    n_group_col, cut_RI, eps_comm, row_from_LLL, &
+                                                    n_group_col, cut_RI, row_from_LLL, &
                                                     starts_array_prim_row, ends_array_prim_row, &
                                                     starts_array_prim_col, ends_array_prim_col, &
                                                     offset_combi_block(i_mem, j_mem)%array, starts_array_prim_fullcol, &
@@ -369,12 +366,6 @@ CONTAINS
          END DO ! cut memory j
 
       END DO ! time points
-
-!      DO iquad = 1, num_integ_points
-!
-!         CALL copy_dbcsr_to_fm(mat_P_omega(iquad)%matrix, fm_mat_P_omega(iquad)%matrix)
-!
-!      END DO
 
       CALL clean_up(mat_dm_occ_global, mat_dm_virt_global)
 
@@ -1546,7 +1537,6 @@ CONTAINS
 
       DO i_mem = 1, cut_memory
          DO j_mem = 1, cut_memory
-!          DO jquad = 1, num_integ_points
 
             IF (cycle_due_to_sparse_dm_occ_tmp(i_mem, j_mem, jquad) > 0) THEN
                cycle_due_to_sparse_dm_occ_tmp(i_mem, j_mem, jquad) = 1
@@ -1556,7 +1546,6 @@ CONTAINS
                cycle_due_to_sparse_dm_virt_tmp(i_mem, j_mem, jquad) = 1
             END IF
 
-!          END DO
          END DO
       END DO
 
@@ -1568,7 +1557,6 @@ CONTAINS
 
       DO i_mem = 1, cut_memory
          DO j_mem = 1, cut_memory
-!          DO jquad = 1, num_integ_points
 
             IF (cycle_combined(i_mem, j_mem, jquad) == 2) THEN
                cycle_due_to_sparse_dm(i_mem, j_mem, jquad) = .FALSE.
@@ -1576,7 +1564,6 @@ CONTAINS
                cycle_due_to_sparse_dm(i_mem, j_mem, jquad) = .TRUE.
             END IF
 
-!          END DO
          END DO
       END DO
 
@@ -1672,7 +1659,6 @@ CONTAINS
 !> \param mepos_P_from_RI_row ...
 !> \param n_group_col ...
 !> \param cut_RI ...
-!> \param eps_comm ...
 !> \param row_from_LLL ...
 !> \param starts_array_prim_row ...
 !> \param ends_array_prim_row ...
@@ -1693,7 +1679,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_mat_M_P_munu_from_M_mu_Pnu(mat_M_P_munu, mat_M_mu_Pnu, para_env, my_group_L_starts_im_time, &
                                               my_group_L_sizes_im_time, mepos_P_from_RI_row, &
-                                              n_group_col, cut_RI, eps_comm, row_from_LLL, &
+                                              n_group_col, cut_RI, row_from_LLL, &
                                               starts_array_prim_row, ends_array_prim_row, &
                                               starts_array_prim_col, ends_array_prim_col, &
                                               offset_combi_block, starts_array_prim_fullcol, &
@@ -1709,7 +1695,6 @@ CONTAINS
                                                             my_group_L_sizes_im_time, &
                                                             mepos_P_from_RI_row
       INTEGER                                            :: n_group_col, cut_RI
-      REAL(KIND=dp)                                      :: eps_comm
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_from_LLL
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: starts_array_prim_row, ends_array_prim_row, &
          starts_array_prim_col, ends_array_prim_col, offset_combi_block, &
@@ -1737,7 +1722,7 @@ CONTAINS
          num_blocks_rec, num_blocks_send, num_entries_rec, num_entries_send, rows_to_allocate, &
          sizes_rec, sizes_send
       INTEGER, DIMENSION(:, :), POINTER                  :: req_array
-      LOGICAL                                            :: is_large_enough, is_new_block
+      LOGICAL                                            :: is_new_block
       REAL(KIND=dp)                                      :: checksum
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_dbcsr_iterator)                            :: iter
@@ -2270,25 +2255,6 @@ CONTAINS
          send_counter = 0
          rec_counter = 0
 
-!old
-!         ! send around the data and indices
-!         DO imepos = 0, para_env%num_pe-1
-!            IF (num_entries_send(imepos) > 0) THEN
-!               send_counter = send_counter+1
-!               CALL mp_isend(buffer_send(imepos)%indx, imepos, para_env%group, req_array(send_counter, 1), tag=4)
-!            END IF
-!            IF (num_entries_rec(imepos) > 0) THEN
-!               rec_counter = rec_counter+1
-!               CALL mp_irecv(buffer_rec(imepos)%indx, imepos, para_env%group, req_array(rec_counter, 3), tag=4)
-!            END IF
-!            IF (num_entries_send(imepos) > 0) THEN
-!               CALL mp_isend(buffer_send(imepos)%msg, imepos, para_env%group, req_array(send_counter, 2), tag=7)
-!            END IF
-!            IF (num_entries_rec(imepos) > 0) THEN
-!               CALL mp_irecv(buffer_rec(imepos)%msg, imepos, para_env%group, req_array(rec_counter, 4), tag=7)
-!            END IF
-!         END DO
-
          DO imepos = 0, para_env%num_pe-1
             IF (num_entries_rec(imepos) > 0) THEN
                rec_counter = rec_counter+1
@@ -2367,9 +2333,7 @@ CONTAINS
 
             checksum = SUM(ABS(buffer_rec(imepos)%msg(offset_rec+1:offset_rec+block_size)))
 
-            is_large_enough = (checksum > eps_comm)
-
-            IF (is_new_block .AND. is_large_enough) THEN
+            IF (is_new_block) THEN
 
                block_counter_int = block_counter_int+1
 

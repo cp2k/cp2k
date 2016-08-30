@@ -1424,6 +1424,9 @@ CONTAINS
          dimen_RI = dimen_RI+nsgf
       END DO
 
+      ! check that very small systems are not running on too many processes
+      CPASSERT(dimen_RI > para_env%num_pe)
+
       ! calculate which rows of L^{-1} to have
       ALLOCATE (sizes_array(0:ngroup-1))
       sizes_array = 0

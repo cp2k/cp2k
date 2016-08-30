@@ -542,7 +542,7 @@ CONTAINS
          IF (do_im_time) THEN
 
             CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ_beta, fm_mo_coeff_virt_beta, mo_coeff_beta, &
-                                           nmo, homo)
+                                           nmo, homo_beta)
 
             ! for RPA with imaginary frequency, we have to build the same matrices for beta as for alpha
          ELSE
@@ -1797,10 +1797,10 @@ CONTAINS
                                                             my_open_shell, remove_neg_virt_energies
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: multiply_needed_occ, multiply_needed_virt
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm
-      REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, e_fermi, E_Range, &
-         eigen_diff, Emax, Emax_beta, Emin, Emin_beta, eps_comm, eps_filter_im_time, FComega, &
-         frac_rix, max_error_min, my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, t_end, &
-         t_start, tau, tau_old
+      REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, e_fermi, &
+         e_fermi_beta, E_Range, eigen_diff, Emax, Emax_beta, Emin, Emin_beta, eps_filter_im_time, &
+         FComega, frac_rix, max_error_min, my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, &
+         t_end, t_start, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
          Eigenval_scf_beta, Lambda_Im, Lambda_Re, m_value, m_value_beta, Q_log, real_freq, tau_tj, &
          tau_wj, tj, trace_Qomega, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
@@ -1862,7 +1862,6 @@ CONTAINS
          ALLOCATE (tau_wj(num_integ_points))
          tau_wj = 0.0_dp
 
-         eps_comm = mp2_env%ri_rpa_im_time%eps_comm
          group_size_P = mp2_env%ri_rpa_im_time%group_size_P
          cut_memory = mp2_env%ri_rpa_im_time%cut_memory
          cut_RI = mp2_env%ri_rpa_im_time_util(1)%cut_RI
@@ -2574,6 +2573,10 @@ CONTAINS
          IF (do_im_time) THEN
 
             e_fermi = (Eigenval(homo)+Eigenval(homo+1))*0.5_dp
+            IF (my_open_shell) THEN
+               e_fermi_beta = (Eigenval_beta(homo_beta)+Eigenval_beta(homo_beta+1))*0.5_dp
+            END IF
+
             tau = 0.0_dp
             tau_old = 0.0_dp
 
@@ -2600,7 +2603,7 @@ CONTAINS
                                      mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
                                      mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                      mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
-                                     tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, eps_comm, alpha, &
+                                     tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, alpha, &
                                      eps_filter_im_time, Eigenval, nmo, n_group_col, &
                                      group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
                                      unit_nr, mp2_env, para_env, para_env_sub, &
@@ -2623,8 +2626,8 @@ CONTAINS
                                         mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, matrix_s, &
                                         mat_M_P_munu_occ, mat_M_P_munu_virt, mat_3c_overl_int_cut, &
                                         mat_dm_loc_occ_cut, mat_dm_loc_virt_cut, &
-                                        tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, eps_comm, alpha, &
-                                        eps_filter_im_time, Eigenval, nmo, n_group_col, &
+                                        tau_wj_2d, tj, tau_tj, e_fermi_beta, eps_filter, alpha, &
+                                        eps_filter_im_time, Eigenval_beta, nmo, n_group_col, &
                                         group_size_P, num_integ_points, jquad, cut_memory, cut_RI, &
                                         unit_nr, mp2_env, para_env, para_env_sub, &
                                         starts_array_prim_col, ends_array_prim_col, &
@@ -3055,7 +3058,6 @@ CONTAINS
                                        map_send_size_beta, map_rec_size_beta, local_size_source_beta, para_env_RPA)
 
                   CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q, beta=1.0_dp, matrix_b=fm_mat_Q_beta)
-                  ! fm_mat_Q%local_data=fm_mat_Q%local_data+fm_mat_Q_beta%local_data
 
                END IF ! open shell
 
