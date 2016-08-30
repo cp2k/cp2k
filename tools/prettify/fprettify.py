@@ -5,7 +5,7 @@ import re
 import tempfile
 import os
 import os.path
-import tempfile
+import logging
 
 try:
     from hashlib import md5
@@ -66,7 +66,7 @@ def upcaseOMP(line):
     return TO_UPCASE_OMP_RE.sub(lambda match: match.group("toUpcase").upper(), line)
 
 
-def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stderr):
+def upcaseKeywords(infile, outfile, upcase_omp):
     """Writes infile to outfile with all the fortran keywords upcased"""
     while 1:
         line = infile.readline()
@@ -81,7 +81,7 @@ def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stderr):
 
 def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                  reformat, indent, whitespace, upcase_keywords,
-                 upcase_omp, replace, logFile):
+                 upcase_omp, replace):
     """prettifyes the fortran source in infile into a temporary file that is
     returned. It can be the same as infile.
     if normalize_use normalizes the use statements (defaults to true)
@@ -104,7 +104,7 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
         try:
             if replace:
                 tmpfile2 = tempfile.TemporaryFile(mode="w+")
-                replacer.replaceWords(ifile, tmpfile2, logFile=logFile)
+                replacer.replaceWords(ifile, tmpfile2)
                 tmpfile2.seek(0)
                 if tmpfile:
                     tmpfile.close()
@@ -112,7 +112,7 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                 ifile = tmpfile
             if reformat:  # reformat needs to be done first
                 tmpfile2 = tempfile.TemporaryFile(mode="w+")
-                reformatFortranFile.reformat_ffile(ifile, tmpfile2, logFile=logFile,
+                reformatFortranFile.reformat_ffile(ifile, tmpfile2,
                                                    indent_size=indent, whitespace=whitespace,
                                                    orig_filename=orig_filename)
                 tmpfile2.seek(0)
@@ -124,7 +124,7 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                 tmpfile2 = tempfile.TemporaryFile(mode="w+")
                 normalizeFortranFile.rewriteFortranFile(ifile, tmpfile2, indent,
                                                         decl_linelength, decl_offset,
-                                                        logFile, orig_filename=orig_filename)
+                                                        orig_filename=orig_filename)
                 tmpfile2.seek(0)
                 if tmpfile:
                     tmpfile.close()
@@ -132,7 +132,7 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                 ifile = tmpfile
             if upcase_keywords:
                 tmpfile2 = tempfile.TemporaryFile(mode="w+")
-                upcaseKeywords(ifile, tmpfile2, upcase_omp, logFile)
+                upcaseKeywords(ifile, tmpfile2, upcase_omp)
                 tmpfile2.seek(0)
                 if tmpfile:
                     tmpfile.close()
@@ -147,7 +147,7 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                 raise RuntimeError(
                     "Prettify did not converge in", max_pretty_iter, "steps.")
         except:
-            logFile.write("error processing file '" + infile.name + "'\n")
+            logging.critical("error processing file '" + infile.name + "'\n")
             raise
 
 
@@ -260,6 +260,8 @@ def main(argv=None):
     """ + str(defaultsDict))
 
     replace = None
+
+    debug=False
     if "--help" in argv:
         sys.stderr.write(usageDesc + '\n')
         return(0)
@@ -306,14 +308,21 @@ def main(argv=None):
                 sys.stderr.write("file " + fileName + " does not exists!\n")
             else:
                 stdout = defaultsDict['stdout'] or fileName == 'stdin'
-                try:
-                    if defaultsDict['report-errors']:
-                        logFile = sys.stderr
+
+                if defaultsDict['report-errors']:
+                    if debug:
+                        level=logging.DEBUG
                     else:
-                        logFile = open(os.devnull, "w")
+                        level=logging.INFO
+
+                else:
+                    level=logging.CRITICAL
+
+                logging.basicConfig(stream=sys.stderr, level=level)
+
+                try:
                     prettfyInplace(fileName, bkDir=bkDir,
                                    stdout=stdout,
-                                   logFile=logFile,
                                    normalize_use=defaultsDict[
                                        'normalize-use'],
                                    decl_linelength=defaultsDict[
