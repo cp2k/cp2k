@@ -39,7 +39,7 @@
 import re
 import sys
 import os
-from formatting.normalizeFortranFile import useParseRe, typeRe, InputStream, CharFilter, ompRe, ompDirRe
+from formatting.normalizeFortranFile import USE_PARSE_RE, VAR_DECL_RE, InputStream, CharFilter, OMP_RE, OMP_DIR_RE
 
 #=========================================================================
 # constants, mostly regular expressions
@@ -99,7 +99,7 @@ ENDINTERFACE_RE = re.compile(
 
 CONTAINS_RE = re.compile(SOL_STR + r"CONTAINS" + EOL_STR, RE_FLAGS)
 
-PUBLIC_RE = re.compile(SOL_STR + r"PUBLIC\s*::")
+PUBLIC_RE = re.compile(SOL_STR + r"PUBLIC\s*::", RE_FLAGS)
 
 # intrinsic statements with parenthesis notation that are not functions
 INTR_STMTS_PAR = "(ALLOCATE|DEALLOCATE|REWIND|BACKSPACE|INQUIRE|OPEN|CLOSE|WRITE|READ|FORALL|WHERE|NULLIFY)"
@@ -297,7 +297,7 @@ class F90Aligner(object):
 
         self.__init_line(line_nr)
 
-        is_decl = typeRe.match(f_line) or PUBLIC_RE.match(f_line)
+        is_decl = VAR_DECL_RE.match(f_line) or PUBLIC_RE.match(f_line)
         for pos, line in enumerate(lines):
             self.__align_line_continuations(
                 line, is_decl, rel_ind, self._line_nr + pos)
@@ -683,6 +683,7 @@ def reformat_ffile(infile, outfile, logFile=sys.stderr, indent_size=2, whitespac
 
     indenter = F90Indenter(orig_filename)
 
+    infile.seek(0)
     req_indents, first_indent, is_f90 = inspect_ffile_format(
         infile, indent_size)
     infile.seek(0)
@@ -741,21 +742,21 @@ def reformat_ffile(infile, outfile, logFile=sys.stderr, indent_size=2, whitespac
 
         is_omp_conditional = False
 
-        if ompRe.match(f_line) and not ompDirRe.match(f_line):
+        if OMP_RE.match(f_line) and not OMP_DIR_RE.match(f_line):
             # convert OMP-conditional fortran statements into normal fortran statements
             # but remember to convert them back
-            f_line = ompRe.sub('  ', f_line, count=1)
-            lines = [ompRe.sub('  ', l, count=1) for l in lines]
+            f_line = OMP_RE.sub('  ', f_line, count=1)
+            lines = [OMP_RE.sub('  ', l, count=1) for l in lines]
             is_omp_conditional = True
 
         is_empty = EMPTY_RE.search(f_line)  # blank line or comment only line
 
-        if useParseRe.match(f_line):
+        if USE_PARSE_RE.match(f_line):
             do_indent = False
-        elif ompDirRe.match(f_line):
+        elif OMP_DIR_RE.match(f_line):
             # move '!$OMP' to line start, otherwise don't format omp directives
             lines = ['!$OMP' + (len(l) - len(l.lstrip())) *
-                     ' ' + ompDirRe.sub('', l, count=1) for l in lines]
+                     ' ' + OMP_DIR_RE.sub('', l, count=1) for l in lines]
             do_indent = False
         elif lines[0].startswith('#'):  # preprocessor macros
             assert len(lines) == 1
@@ -875,7 +876,7 @@ def reformat_ffile(infile, outfile, logFile=sys.stderr, indent_size=2, whitespac
                 outfile.write('!$' * is_omp_conditional + ' ' *
                               (133 - 2 * is_omp_conditional -
                                len(line.lstrip(' '))) + line.lstrip(' '))
-                if not typeRe.match(f_line):
+                if not VAR_DECL_RE.match(f_line):
                     logFile.write("*** " + orig_filename + ":" + str(stream.line_nr) +
                                   ": auto indentation failed due to 132 chars limit, line should be splitted. ***\n")
             else:

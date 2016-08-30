@@ -18,27 +18,27 @@ from formatting import reformatFortranFile
 from formatting import selftest
 
 
-operatorsStr = r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
+OPERATORS_STR = r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
 
-keywordsStr = "(?:a(?:llocat(?:able|e)|ssign(?:|ment))|c(?:a(?:ll|se)|haracter|lose|o(?:m(?:mon|plex)|nt(?:ains|inue))|ycle)|d(?:ata|eallocate|imension|o(?:|uble))|e(?:lse(?:|if|where)|n(?:d(?:|do|file|if)|try)|quivalence|x(?:it|ternal))|f(?:or(?:all|mat)|unction)|goto|i(?:f|mplicit|n(?:clude|quire|t(?:e(?:ger|nt|rface)|rinsic)))|logical|module|n(?:amelist|one|ullify)|o(?:nly|p(?:en|erator|tional))|p(?:a(?:rameter|use)|ointer|r(?:ecision|i(?:nt|vate)|o(?:cedure|gram))|ublic)|re(?:a[dl]|cursive|sult|turn|wind)|s(?:ave|e(?:lect|quence)|top|ubroutine)|t(?:arget|hen|ype)|use|w(?:h(?:ere|ile)|rite))"
+KEYWORDS_STR = "(?:a(?:llocat(?:able|e)|ssign(?:|ment))|c(?:a(?:ll|se)|haracter|lose|o(?:m(?:mon|plex)|nt(?:ains|inue))|ycle)|d(?:ata|eallocate|imension|o(?:|uble))|e(?:lse(?:|if|where)|n(?:d(?:|do|file|if)|try)|quivalence|x(?:it|ternal))|f(?:or(?:all|mat)|unction)|goto|i(?:f|mplicit|n(?:clude|quire|t(?:e(?:ger|nt|rface)|rinsic)))|logical|module|n(?:amelist|one|ullify)|o(?:nly|p(?:en|erator|tional))|p(?:a(?:rameter|use)|ointer|r(?:ecision|i(?:nt|vate)|o(?:cedure|gram))|ublic)|re(?:a[dl]|cursive|sult|turn|wind)|s(?:ave|e(?:lect|quence)|top|ubroutine)|t(?:arget|hen|ype)|use|w(?:h(?:ere|ile)|rite))"
 
-intrinsic_procStr = r"(?:a(?:bs|c(?:har|os)|djust[lr]|i(?:mag|nt)|ll(?:|ocated)|n(?:int|y)|s(?:in|sociated)|tan2?)|b(?:it_size|test)|c(?:eiling|har|mplx|o(?:njg|sh?|unt)|shift)|d(?:ate_and_time|ble|i(?:gits|m)|ot_product|prod)|e(?:oshift|psilon|xp(?:|onent))|f(?:loor|raction)|huge|i(?:a(?:char|nd)|b(?:clr|its|set)|char|eor|n(?:dex|t)|or|shftc?)|kind|l(?:bound|en(?:|_trim)|g[et]|l[et]|og(?:|10|ical))|m(?:a(?:tmul|x(?:|exponent|loc|val))|erge|in(?:|exponent|loc|val)|od(?:|ulo)|vbits)|n(?:earest|int|ot)|p(?:ack|r(?:e(?:cision|sent)|oduct))|r(?:a(?:dix|n(?:dom_(?:number|seed)|ge))|e(?:peat|shape)|rspacing)|s(?:ca(?:le|n)|e(?:lected_(?:int_kind|real_kind)|t_exponent)|hape|i(?:gn|nh?|ze)|p(?:acing|read)|qrt|um|ystem_clock)|t(?:anh?|iny|r(?:ans(?:fer|pose)|im))|u(?:bound|npack)|verify)(?= *\()"
+INTRINSIC_PROCSTR = r"(?:a(?:bs|c(?:har|os)|djust[lr]|i(?:mag|nt)|ll(?:|ocated)|n(?:int|y)|s(?:in|sociated)|tan2?)|b(?:it_size|test)|c(?:eiling|har|mplx|o(?:njg|sh?|unt)|shift)|d(?:ate_and_time|ble|i(?:gits|m)|ot_product|prod)|e(?:oshift|psilon|xp(?:|onent))|f(?:loor|raction)|huge|i(?:a(?:char|nd)|b(?:clr|its|set)|char|eor|n(?:dex|t)|or|shftc?)|kind|l(?:bound|en(?:|_trim)|g[et]|l[et]|og(?:|10|ical))|m(?:a(?:tmul|x(?:|exponent|loc|val))|erge|in(?:|exponent|loc|val)|od(?:|ulo)|vbits)|n(?:earest|int|ot)|p(?:ack|r(?:e(?:cision|sent)|oduct))|r(?:a(?:dix|n(?:dom_(?:number|seed)|ge))|e(?:peat|shape)|rspacing)|s(?:ca(?:le|n)|e(?:lected_(?:int_kind|real_kind)|t_exponent)|hape|i(?:gn|nh?|ze)|p(?:acing|read)|qrt|um|ystem_clock)|t(?:anh?|iny|r(?:ans(?:fer|pose)|im))|u(?:bound|npack)|verify)(?= *\()"
 
-ompDir = r"(?:atomic|barrier|c(?:apture|ritical)|do|end|flush|if|master|num_threads|ordered|parallel|read|s(?:ection(?:|s)|ingle)|t(?:ask(?:|wait|yield)|hreadprivate)|update|w(?:orkshare|rite)|!\$omp)"
+OMP_DIR = r"(?:atomic|barrier|c(?:apture|ritical)|do|end|flush|if|master|num_threads|ordered|parallel|read|s(?:ection(?:|s)|ingle)|t(?:ask(?:|wait|yield)|hreadprivate)|update|w(?:orkshare|rite)|!\$omp)"
 
-ompClause = r"(?:a|co(?:llapse|py(?:in|private))|default|fi(?:nal|rstprivate)|i(?:and|eor|or)|lastprivate|m(?:ax|ergeable|in)|n(?:one|owait)|ordered|private|reduction|shared|untied|\.(?:and|eqv|neqv|or)\.)"
+OMP_CLAUSE = r"(?:a|co(?:llapse|py(?:in|private))|default|fi(?:nal|rstprivate)|i(?:and|eor|or)|lastprivate|m(?:ax|ergeable|in)|n(?:one|owait)|ordered|private|reduction|shared|untied|\.(?:and|eqv|neqv|or)\.)"
 
-ompEnv = r"omp_(?:dynamic|max_active_levels|n(?:ested|um_threads)|proc_bind|s(?:tacksize|chedule)|thread_limit|wait_policy)"
+OMP_ENV = r"omp_(?:dynamic|max_active_levels|n(?:ested|um_threads)|proc_bind|s(?:tacksize|chedule)|thread_limit|wait_policy)"
 
 # FIXME: does not correctly match operator '.op.' if it is not separated
 # by whitespaces.
-toUpcaseRe = re.compile("(?<![A-Za-z0-9_%#])(?<!% )(?P<toUpcase>" + operatorsStr +
-                        "|" + keywordsStr + "|" + intrinsic_procStr +
+TO_UPCASE_RE = re.compile("(?<![A-Za-z0-9_%#])(?<!% )(?P<toUpcase>" + OPERATORS_STR +
+                        "|" + KEYWORDS_STR + "|" + INTRINSIC_PROCSTR +
                         ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
-toUpcaseOMPRe = re.compile("(?<![A-Za-z0-9_%#])(?P<toUpcase>"
-                           + ompDir + "|" + ompClause + "|" + ompEnv +
+TO_UPCASE_OMP_RE = re.compile("(?<![A-Za-z0-9_%#])(?P<toUpcase>"
+                           + OMP_DIR + "|" + OMP_CLAUSE + "|" + OMP_ENV +
                            ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
-linePartsRe = re.compile("(?P<commands>[^\"'!]*)(?P<comment>!.*)?" +
+LINE_PARTS_RE = re.compile("(?P<commands>[^\"'!]*)(?P<comment>!.*)?" +
                          "(?P<string>(?P<qchar>[\"']).*?(?P=qchar))?")
 
 
@@ -48,10 +48,10 @@ def upcaseStringKeywords(line):
     res = ""
     start = 0
     while start < len(line):
-        m = linePartsRe.match(line[start:])
+        m = LINE_PARTS_RE.match(line[start:])
         if not m:
             raise SyntaxError("Syntax error, open string")
-        res = res + toUpcaseRe.sub(lambda match: match.group("toUpcase").upper(),
+        res = res + TO_UPCASE_RE.sub(lambda match: match.group("toUpcase").upper(),
                                    m.group("commands"))
         if m.group("comment"):
             res = res + m.group("comment")
@@ -63,7 +63,7 @@ def upcaseStringKeywords(line):
 
 def upcaseOMP(line):
     """Upcases OpenMP stuff."""
-    return toUpcaseOMPRe.sub(lambda match: match.group("toUpcase").upper(), line)
+    return TO_UPCASE_OMP_RE.sub(lambda match: match.group("toUpcase").upper(), line)
 
 
 def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stderr):
@@ -74,7 +74,7 @@ def upcaseKeywords(infile, outfile, upcase_omp, logFile=sys.stderr):
             break
         line = upcaseStringKeywords(line)
         if upcase_omp:
-            if normalizeFortranFile.ompDirRe.match(line):
+            if normalizeFortranFile.OMP_DIR_RE.match(line):
                 line = upcaseOMP(line)
         outfile.write(line)
 
@@ -307,8 +307,10 @@ def main(argv=None):
             else:
                 stdout = defaultsDict['stdout'] or fileName == 'stdin'
                 try:
-                    logFile = sys.stderr if defaultsDict[
-                        'report-errors'] else open(os.devnull, "w")
+                    if defaultsDict['report-errors']:
+                        logFile = sys.stderr
+                    else:
+                        logFile = open(os.devnull, "w")
                     prettfyInplace(fileName, bkDir=bkDir,
                                    stdout=stdout,
                                    logFile=logFile,
