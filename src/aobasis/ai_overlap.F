@@ -32,7 +32,8 @@ MODULE ai_overlap
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap'
 
 ! *** Public subroutines ***
-   PUBLIC :: overlap, overlap_ab, overlap_aab, overlap_ab_s, overlap_ab_sp
+   PUBLIC :: overlap, overlap_ab, overlap_aab, overlap_ab_s, overlap_ab_sp, &
+             overlap_abb
 
 CONTAINS
 
@@ -688,15 +689,18 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, ia, &
-                                                            ib, ipgf, jpgf, la, lb, ldrr, lma, &
-                                                            lmb, ma, mb, na, nb, ofa, ofb
+      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, &
+                                                            handle, ia, ib, ipgf, jpgf, la, lb, &
+                                                            ldrr, lma, lmb, ma, mb, na, nb, ofa, &
+                                                            ofb
       REAL(KIND=dp)                                      :: a, ambm, ambp, apbm, apbp, b, dumx, &
                                                             dumy, dumz, f0, rab2, tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
-! Distance of the centers a and b
+      CALL timeset(routineN, handle)
+
+      ! Distance of the centers a and b
 
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
       tab = SQRT(rab2)
@@ -933,6 +937,8 @@ CONTAINS
 
       DEALLOCATE (rr)
 
+      CALL timestop(handle)
+
    END SUBROUTINE overlap_ab
 
 ! **************************************************************************************************
@@ -956,13 +962,15 @@ CONTAINS
 !> \param rab        Distance vector A-B
 !> \param saab       Final overlap integrals
 !> \param daab       First derivative overlap integrals
+!> \param saba       Final overlap integrals; different order
+!> \param daba       First derivative overlap integrals; different order
 !> \date    01.07.2014
 !> \author  JGH
 ! **************************************************************************************************
    SUBROUTINE overlap_aab(la1_max, la1_min, npgfa1, rpgfa1, zeta1, &
                           la2_max, la2_min, npgfa2, rpgfa2, zeta2, &
                           lb_max, lb_min, npgfb, rpgfb, zetb, &
-                          rab, saab, daab)
+                          rab, saab, daab, saba, daba)
       INTEGER, INTENT(IN)                                :: la1_max, la1_min, npgfa1
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa1, zeta1
       INTEGER, INTENT(IN)                                :: la2_max, la2_min, npgfa2
@@ -974,28 +982,34 @@ CONTAINS
          OPTIONAL                                        :: saab
       REAL(KIND=dp), DIMENSION(:, :, :, :), &
          INTENT(INOUT), OPTIONAL                         :: daab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         OPTIONAL                                        :: saba
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT), OPTIONAL                         :: daba
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap_aab', routineP = moduleN//':'//routineN
 
-      INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, coa2, cob, i1pgf, &
-         i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, lmb, ma1, ma2, mb, na1, na2, nb, &
-         ofa1, ofa2, ofb
+      INTEGER :: ax, ax1, ax2, ay, ay1, ay2, az, az1, az2, bx, by, bz, coa1, coa2, cob, handle, &
+         i1pgf, i2pgf, ia1, ia2, ib, jpgf, la1, la2, lb, ldrr, lma, lmb, ma1, ma2, mb, na1, na2, &
+         nb, ofa1, ofa2, ofb
       REAL(KIND=dp)                                      :: a, b, dumx, dumy, dumz, f0, rab2, rpgfa, &
                                                             tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
-! Distance of the centers a and b
+      CALL timeset(routineN, handle)
+
+      ! Distance of the centers a and b
 
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
       tab = SQRT(rab2)
 
       ! Maximum l for auxiliary integrals
-      IF (PRESENT(saab)) THEN
+      IF (PRESENT(saab) .OR. PRESENT(saba)) THEN
          lma = la1_max+la2_max
          lmb = lb_max
       END IF
-      IF (PRESENT(daab)) THEN
+      IF (PRESENT(daab) .OR. PRESENT(daba)) THEN
          lma = la1_max+la2_max+1
          lmb = lb_max
       END IF
@@ -1022,6 +1036,17 @@ CONTAINS
          CPASSERT((SIZE(daab, 3) >= nb*npgfb))
          CPASSERT((SIZE(daab, 4) >= 3))
       END IF
+      IF (PRESENT(saba)) THEN
+         CPASSERT((SIZE(saba, 1) >= na1*npgfa1))
+         CPASSERT((SIZE(saba, 2) >= nb*npgfb))
+         CPASSERT((SIZE(saba, 3) >= na2*npgfa2))
+      END IF
+      IF (PRESENT(daba)) THEN
+         CPASSERT((SIZE(daba, 1) >= na1*npgfa1))
+         CPASSERT((SIZE(daba, 2) >= nb*npgfb))
+         CPASSERT((SIZE(daba, 3) >= na2*npgfa2))
+         CPASSERT((SIZE(daba, 4) >= 3))
+      END IF
 
       ! Loops over all primitive Gaussian-type functions
       ma1 = 0
@@ -1035,6 +1060,8 @@ CONTAINS
                IF (rpgfa+rpgfb(jpgf) < tab) THEN
                   IF (PRESENT(saab)) saab(ma1+1:ma1+na1, ma2+1:ma2+na2, mb+1:mb+nb) = 0.0_dp
                   IF (PRESENT(daab)) daab(ma1+1:ma1+na1, ma2+1:ma2+na2, mb+1:mb+nb, 1:3) = 0.0_dp
+                  IF (PRESENT(saba)) saba(ma1+1:ma1+na1, mb+1:mb+nb, ma2+1:ma2+na2) = 0.0_dp
+                  IF (PRESENT(daba)) daba(ma1+1:ma1+na1, mb+1:mb+nb, ma2+1:ma2+na2, 1:3) = 0.0_dp
                   mb = mb+nb
                   CYCLE
                ENDIF
@@ -1075,6 +1102,9 @@ CONTAINS
                         IF (PRESENT(saab)) THEN
                            saab(ia1, ia2, ib) = f0*rr(ax1+ax2, bx, 1)*rr(ay1+ay2, by, 2)*rr(az1+az2, bz, 3)
                         END IF
+                        IF (PRESENT(saba)) THEN
+                           saba(ia1, ib, ia2) = f0*rr(ax1+ax2, bx, 1)*rr(ay1+ay2, by, 2)*rr(az1+az2, bz, 3)
+                        END IF
                         ! first derivatives
                         IF (PRESENT(daab)) THEN
                            ax = ax1+ax2
@@ -1093,6 +1123,24 @@ CONTAINS
                            dumz = 2.0_dp*a*rr(az+1, bz, 3)
                            IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
                            daab(ia1, ia2, ib, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
+                        END IF
+                        IF (PRESENT(daba)) THEN
+                           ax = ax1+ax2
+                           ay = ay1+ay2
+                           az = az1+az2
+                           ! (da|b) = 2*a*(a+1|b) - N(a)*(a-1|b)
+                           ! dx
+                           dumx = 2.0_dp*a*rr(ax+1, bx, 1)
+                           IF (ax > 0) dumx = dumx-REAL(ax, dp)*rr(ax-1, bx, 1)
+                           daba(ia1, ib, ia2, 1) = f0*dumx*rr(ay, by, 2)*rr(az, bz, 3)
+                           ! dy
+                           dumy = 2.0_dp*a*rr(ay+1, by, 2)
+                           IF (ay > 0) dumy = dumy-REAL(ay, dp)*rr(ay-1, by, 2)
+                           daba(ia1, ib, ia2, 2) = f0*rr(ax, bx, 1)*dumy*rr(az, bz, 3)
+                           ! dz
+                           dumz = 2.0_dp*a*rr(az+1, bz, 3)
+                           IF (az > 0) dumz = dumz-REAL(az, dp)*rr(az-1, bz, 3)
+                           daba(ia1, ib, ia2, 3) = f0*rr(ax, bx, 1)*rr(ay, by, 2)*dumz
                         END IF
                         !
                      ENDDO
@@ -1113,6 +1161,8 @@ CONTAINS
       END DO
 
       DEALLOCATE (rr)
+
+      CALL timestop(handle)
 
    END SUBROUTINE overlap_aab
 
@@ -1158,15 +1208,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'overlap_abb', routineP = moduleN//':'//routineN
 
-      INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, cob1, cob2, ia, ib1, &
-         ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, lmb, ma, mb1, mb2, na, nb1, nb2, ofa, &
-         ofb1, ofb2
+      INTEGER :: ax, ay, az, bx, bx1, bx2, by, by1, by2, bz, bz1, bz2, coa, cob1, cob2, handle, &
+         ia, ib1, ib2, ipgf, j1pgf, j2pgf, la, lb1, lb2, ldrr, lma, lmb, ma, mb1, mb2, na, nb1, &
+         nb2, ofa, ofb1, ofb2
       REAL(KIND=dp)                                      :: a, b, dumx, dumy, dumz, f0, rab2, rpgfb, &
                                                             tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
-! Distance of the centers a and b
+      CALL timeset(routineN, handle)
+
+      ! Distance of the centers a and b
 
       rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
       tab = SQRT(rab2)
@@ -1294,6 +1346,8 @@ CONTAINS
       END DO
 
       DEALLOCATE (rr)
+
+      CALL timestop(handle)
 
    END SUBROUTINE overlap_abb
 

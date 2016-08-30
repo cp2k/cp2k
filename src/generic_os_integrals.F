@@ -25,8 +25,9 @@ MODULE generic_os_integrals
                                               cps_verfc2,&
                                               cps_vgauss2,&
                                               operator2
-   USE ai_overlap,                      ONLY: overlap
-   USE ai_overlap3,                     ONLY: overlap3
+   USE ai_overlap,                      ONLY: overlap_aab,&
+                                              overlap_ab,&
+                                              overlap_abb
    USE ai_overlap_aabb,                 ONLY: overlap_aabb
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
@@ -149,13 +150,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vac, vac_plus
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: devab, vwork
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sphi_a, sphi_b, zeta, zetb
 
       CALL timeset(routineN, handle)
       NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, &
-               first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb, &
-               sphi_a, sphi_b, zeta, zetb)
+               first_sgfa, first_sgfb, sphi_a, sphi_b, zeta, zetb)
 
       ! basis ikind
       first_sgfa => fba%first_sgf
@@ -164,8 +163,6 @@ CONTAINS
       npgfa => fba%npgf
       nseta = fba%nset
       nsgfa => fba%nsgf_set
-      rpgfa => fba%pgf_radius
-      set_radius_a => fba%set_radius
       sphi_a => fba%sphi
       zeta => fba%zet
       ! basis jkind
@@ -175,8 +172,6 @@ CONTAINS
       npgfb => fbb%npgf
       nsetb = fbb%nset
       nsgfb => fbb%nsgf_set
-      rpgfb => fbb%pgf_radius
-      set_radius_b => fbb%set_radius
       sphi_b => fbb%sphi
       zetb => fbb%zet
 
@@ -274,23 +269,23 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'int_overlap_ab_os', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, iset, jset, lds, m1, m2, &
-                                                            maxco, maxcoa, maxcob, maxl, maxla, &
-                                                            maxlb, ncoa, ncob, nseta, nsetb, sgfa, &
-                                                            sgfb
+      INTEGER                                            :: handle, i, iset, jset, m1, m2, maxco, &
+                                                            maxcoa, maxcob, maxl, maxla, maxlb, &
+                                                            ncoa, ncob, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: failure
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sint
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: devab, swork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dsint
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, scon_a, scon_b, zeta, zetb
 
+      failure = .FALSE.
       CALL timeset(routineN, handle)
       NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, &
-               first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb, &
-               sphi_a, sphi_b, zeta, zetb)
+               first_sgfa, first_sgfb, scon_a, scon_b, zeta, zetb)
 
       ! basis ikind
       first_sgfa => fba%first_sgf
@@ -301,7 +296,7 @@ CONTAINS
       nsgfa => fba%nsgf_set
       rpgfa => fba%pgf_radius
       set_radius_a => fba%set_radius
-      sphi_a => fba%sphi
+      scon_a => fba%scon
       zeta => fba%zet
       ! basis jkind
       first_sgfb => fbb%first_sgf
@@ -312,28 +307,15 @@ CONTAINS
       nsgfb => fbb%nsgf_set
       rpgfb => fbb%pgf_radius
       set_radius_b => fbb%set_radius
-      sphi_b => fbb%sphi
+      scon_b => fbb%scon
       zetb => fbb%zet
 
       CALL get_gto_basis_set(fba, maxco=maxcoa, maxl=maxla)
       CALL get_gto_basis_set(fbb, maxco=maxcob, maxl=maxlb)
       maxco = MAX(maxcoa, maxcob)
-      IF (calculate_forces) THEN
-         maxl = MAX(maxla+1, maxlb)
-      ELSE
-         maxl = MAX(maxla, maxlb)
-      ENDIF
-      lds = ncoset(maxl)
+      maxl = MAX(maxla, maxlb)
       ALLOCATE (sint(maxco, maxco))
-      IF (calculate_forces) THEN
-         !derivatives will be stored in devab(:,:,2:4)
-         ALLOCATE (swork(lds, lds, 4), devab(maxco, maxco, 4))
-         devab = 0._dp
-      ELSE
-         ALLOCATE (swork(lds, lds, 1))
-      ENDIF
-      sint = 0._dp
-      swork = 0._dp
+      ALLOCATE (dsint(maxco, maxco, 3))
 
       dab = SQRT(SUM(rab**2))
 
@@ -353,26 +335,18 @@ CONTAINS
             sgfb = first_sgfb(1, jset)
             m1 = sgfa+nsgfa(iset)-1
             m2 = sgfb+nsgfb(jset)-1
-            sint = 0._dp
-            swork = 0._dp
+            sint(1:ncoa, 1:ncob) = 0._dp
+            dsint(1:ncoa, 1:ncob, :) = 0._dp
 
-            ! calculate integrals
             IF (calculate_forces) THEN
-               devab = 0._dp
-               CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                            lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
-                            rab, dab, sint, 0, .FALSE., swork, lds, sdab=devab)
-               DO i = 1, 3
-                  !NOTE: devab(:,:,2:4) contains all derivatives for lmin=0 to lmax=lmax
-                  !      correct after contraction (multiply with zero for elements l < lmin)
-                  CALL ab_contract(dsab(sgfa:m1, sgfb:m2, i), devab(:, :, i+1), sphi_a(:, sgfa:), &
-                                   sphi_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
-               ENDDO
-
+               CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                               lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                               rab, sint, dsint)
             ELSE
-               CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
-                            lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
-                            rab, dab, sint, 0, .FALSE., swork, lds)
+               CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                               lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                               rab, sint)
+
             ENDIF
             ! debug if requested
             IF (debug) THEN
@@ -381,16 +355,18 @@ CONTAINS
                                     ra, rb, sint, dmax)
             ENDIF
 
-            CALL ab_contract(sab(sgfa:m1, sgfb:m2), sint, sphi_a(:, sgfa:), sphi_b(:, sgfb:), &
+            CALL ab_contract(sab(sgfa:m1, sgfb:m2), sint, scon_a(:, sgfa:), scon_b(:, sgfb:), &
                              ncoa, ncob, nsgfa(iset), nsgfb(jset))
+            IF (calculate_forces) THEN
+               DO i = 1, 3
+                  CALL ab_contract(dsab(sgfa:m1, sgfb:m2, i), dsint(:, :, i), scon_a(:, sgfa:), &
+                                   scon_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
+               ENDDO
+            ENDIF
          END DO
       END DO
 
-      IF (calculate_forces) THEN
-         DEALLOCATE (devab)
-      ENDIF
-
-      DEALLOCATE (sint, swork)
+      DEALLOCATE (sint, dsint)
 
       CALL timestop(handle)
 
@@ -538,17 +514,17 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb, first_sgfca
       REAL(KIND=dp)                                      :: dab, dac, dbc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: saba
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sabda, sdaba, sdabda
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sdaba
       REAL(KIND=dp), DIMENSION(3)                        :: rac, rbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_ca
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, rpgfca, sphi_a, sphi_b, &
-                                                            sphi_ca, zeta, zetb, zetca
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, rpgfca, scon_a, scon_b, &
+                                                            scon_ca, zeta, zetb, zetca
 
       CALL timeset(routineN, handle)
       NULLIFY (la_max, la_min, lb_max, lb_min, lca_max, lca_min, npgfa, npgfb, &
                npgfca, nsgfa, nsgfb, nsgfca)
       NULLIFY (first_sgfa, first_sgfb, first_sgfca, set_radius_a, set_radius_b, &
-               set_radius_ca, rpgfa, rpgfb, rpgfca, sphi_a, sphi_b, sphi_ca, &
+               set_radius_ca, rpgfa, rpgfb, rpgfca, scon_a, scon_b, scon_ca, &
                zeta, zetb, zetca)
 
       ! basis ikind
@@ -560,7 +536,7 @@ CONTAINS
       nsgfa => oba%nsgf_set
       rpgfa => oba%pgf_radius
       set_radius_a => oba%set_radius
-      sphi_a => oba%sphi
+      scon_a => oba%scon
       zeta => oba%zet
       ! basis jkind
       first_sgfb => obb%first_sgf
@@ -571,7 +547,7 @@ CONTAINS
       nsgfb => obb%nsgf_set
       rpgfb => obb%pgf_radius
       set_radius_b => obb%set_radius
-      sphi_b => obb%sphi
+      scon_b => obb%scon
       zetb => obb%zet
 
       ! basis RI A
@@ -583,7 +559,7 @@ CONTAINS
       nsgfca => fba%nsgf_set
       rpgfca => fba%pgf_radius
       set_radius_ca => fba%set_radius
-      sphi_ca => fba%sphi
+      scon_ca => fba%scon
       zetca => fba%zet
 
       dab = SQRT(SUM(rab**2))
@@ -624,30 +600,25 @@ CONTAINS
                   ! integrals
                   IF (calculate_forces) THEN
                      ALLOCATE (sdaba(ncoa, ncob, ncoc, 3))
-                     ALLOCATE (sabda(ncoa, ncob, ncoc, 3))
-                     ALLOCATE (sdabda(ncoa, ncob, ncoc, 3))
                      sdaba(:, :, :, :) = 0._dp
-                     sabda(:, :, :, :) = 0._dp
-                     sdabda(:, :, :, :) = 0._dp
-                     CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                   lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                                   lca_max(kaset), npgfca(kaset), zetca(:, kaset), rpgfca(:, kaset), lca_min(kaset), &
-                                   rab, dab, rac, dac, rbc, dbc, saba, sdaba, sabda)
-                     !d(a,b,a)/dA = (da/dA,b,a) + (a,b,da/dA)
-                     sdabda(:, :, :, :) = sdaba+sabda
+                     CALL overlap_aab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                      lca_max(kaset), lca_min(kaset), npgfca(kaset), rpgfca(:, kaset), zetca(:, kaset), &
+                                      lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                      rab, saba=saba, daba=sdaba)
 
                      DO i = 1, 3
-                        CALL abc_contract(dabdaint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdabda(:, :, :, i), &
-                                          sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_ca(:, sgfc:), &
+                        CALL abc_contract(dabdaint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdaba(:, :, :, i), &
+                                          scon_a(:, sgfa:), scon_b(:, sgfb:), scon_ca(:, sgfc:), &
                                           ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfca(kaset))
                      ENDDO
 
-                     DEALLOCATE (sdaba, sabda, sdabda)
+                     DEALLOCATE (sdaba)
                   ELSE
-                     CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                   lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                                   lca_max(kaset), npgfca(kaset), zetca(:, kaset), rpgfca(:, kaset), lca_min(kaset), &
-                                   rab, dab, rac, dac, rbc, dbc, saba)
+                     CALL overlap_aab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                      lca_max(kaset), lca_min(kaset), npgfca(kaset), rpgfca(:, kaset), zetca(:, kaset), &
+                                      lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                      rab, saba=saba)
+
                   ENDIF
                   ! debug if requested
                   IF (debug) THEN
@@ -657,7 +628,7 @@ CONTAINS
                                            ra, rb, ra, saba, dmax)
                   ENDIF
                   CALL abc_contract(abaint(sgfa:m1, sgfb:m2, sgfc:m3), saba, &
-                                    sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_ca(:, sgfc:), &
+                                    scon_a(:, sgfa:), scon_b(:, sgfb:), scon_ca(:, sgfc:), &
                                     ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfca(kaset))
                   DEALLOCATE (saba)
                END IF
@@ -709,14 +680,14 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: sdabb
       REAL(KIND=dp), DIMENSION(3)                        :: rac, rbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b, set_radius_cb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, rpgfcb, sphi_a, sphi_b, &
-                                                            sphi_cb, zeta, zetb, zetcb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, rpgfcb, scon_a, scon_b, &
+                                                            scon_cb, zeta, zetb, zetcb
 
       CALL timeset(routineN, handle)
       NULLIFY (la_max, la_min, lb_max, lb_min, lcb_max, lcb_min, npgfa, npgfb, &
                npgfcb, nsgfa, nsgfb, nsgfcb)
       NULLIFY (first_sgfa, first_sgfb, first_sgfcb, set_radius_a, set_radius_b, &
-               set_radius_cb, rpgfa, rpgfb, rpgfcb, sphi_a, sphi_b, sphi_cb, &
+               set_radius_cb, rpgfa, rpgfb, rpgfcb, scon_a, scon_b, scon_cb, &
                zeta, zetb, zetcb)
 
       ! basis ikind
@@ -728,7 +699,7 @@ CONTAINS
       nsgfa => oba%nsgf_set
       rpgfa => oba%pgf_radius
       set_radius_a => oba%set_radius
-      sphi_a => oba%sphi
+      scon_a => oba%scon
       zeta => oba%zet
       ! basis jkind
       first_sgfb => obb%first_sgf
@@ -739,7 +710,7 @@ CONTAINS
       nsgfb => obb%nsgf_set
       rpgfb => obb%pgf_radius
       set_radius_b => obb%set_radius
-      sphi_b => obb%sphi
+      scon_b => obb%scon
       zetb => obb%zet
 
       ! basis RI B
@@ -751,7 +722,7 @@ CONTAINS
       nsgfcb => fbb%nsgf_set
       rpgfcb => fbb%pgf_radius
       set_radius_cb => fbb%set_radius
-      sphi_cb => fbb%sphi
+      scon_cb => fbb%scon
       zetcb => fbb%zet
 
       dab = SQRT(SUM(rab**2))
@@ -792,21 +763,22 @@ CONTAINS
                   IF (calculate_forces) THEN
                      ALLOCATE (sdabb(ncoa, ncob, ncoc, 3))
                      sdabb(:, :, :, :) = 0._dp
-                     CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                   lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                                   lcb_max(kbset), npgfcb(kbset), zetcb(:, kbset), rpgfcb(:, kbset), lcb_min(kbset), &
-                                   rab, dab, rac, dac, rbc, dbc, sabb, sdabc=sdabb)
+                     CALL overlap_abb(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                      lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                      lcb_max(kbset), lcb_min(kbset), npgfcb(kbset), rpgfcb(:, kbset), zetcb(:, kbset), &
+                                      rab, sabb, sdabb)
+
                      DO i = 1, 3
                         CALL abc_contract(dabbint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdabb(:, :, :, i), &
-                                          sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_cb(:, sgfc:), &
+                                          scon_a(:, sgfa:), scon_b(:, sgfb:), scon_cb(:, sgfc:), &
                                           ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfcb(kbset))
                      ENDDO
                      DEALLOCATE (sdabb)
                   ELSE
-                     CALL overlap3(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                   lb_max(jset), npgfb(jset), zetb(:, jset), rpgfb(:, jset), lb_min(jset), &
-                                   lcb_max(kbset), npgfcb(kbset), zetcb(:, kbset), rpgfcb(:, kbset), lcb_min(kbset), &
-                                   rab, dab, rac, dac, rbc, dbc, sabb)
+                     CALL overlap_abb(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
+                                      lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
+                                      lcb_max(kbset), lcb_min(kbset), npgfcb(kbset), rpgfcb(:, kbset), zetcb(:, kbset), &
+                                      rab, sabb)
                   ENDIF
                   ! debug if requested
                   IF (debug) THEN
@@ -815,8 +787,9 @@ CONTAINS
                                            lcb_max(kbset), npgfcb(kbset), zetcb(:, kbset), lcb_min(kbset), &
                                            ra, rb, rb, sabb, dmax)
                   ENDIF
+
                   CALL abc_contract(abbint(sgfa:m1, sgfb:m2, sgfc:m3), sabb, &
-                                    sphi_a(:, sgfa:), sphi_b(:, sgfb:), sphi_cb(:, sgfc:), &
+                                    scon_a(:, sgfa:), scon_b(:, sgfb:), scon_cb(:, sgfc:), &
                                     ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfcb(kbset))
                   DEALLOCATE (sabb)
                ENDIF
