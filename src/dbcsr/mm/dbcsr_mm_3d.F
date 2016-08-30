@@ -1757,7 +1757,8 @@ CONTAINS
          request_keep_sparsity, right_col_mult, right_col_nimages, right_data_size, &
          right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myproc_3D, &
          right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
-         right_row_nimages, right_row_total_nimages, right_vcol, row, shift_k, size_guess, v_ki
+         right_row_nimages, right_row_total_nimages, right_vcol, row, shift_k, size_guess, &
+         start_k, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: product_matrix_epss_displ, &
                                                             product_matrix_epss_size, &
@@ -2335,6 +2336,7 @@ CONTAINS
       CALL timeset(routineN//"_loop", handle2)
       ! Take into account when ticks are not multiple of 3D layers
       shift_k = MOD(nvirt_k, nranks3D)*myrank3D
+      start_k = (nvirt_k/nranks3D)*myrank3D
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_left(nrows3D))
       grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
@@ -2343,8 +2345,8 @@ CONTAINS
          icol3D = MOD(istep_k/nrows3D, ncols3D)+1
          irow3D = MOD(istep_k, nrows3D)+1
          !
-         do_right_swap = irow3D .EQ. 1
-         IF (do_right_swap .AND. icol3D .EQ. 1) do_comm_left(:) = .TRUE.
+         do_right_swap = irow3D .EQ. 1 .OR. istep_k .EQ. shift_k
+         IF ((do_right_swap .AND. icol3D .EQ. 1) .OR. istep_k .EQ. shift_k) do_comm_left(:) = .TRUE.
          !
          ! Matrix transfer. Transfer in all but the last loop
          ! iteration.
@@ -2357,7 +2359,7 @@ CONTAINS
                                      mypcol=mypcol, &
                                      myvprow=right_myfirstvrow, &
                                      myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
-                                     vprow_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
+                                     vprow_shift=ivirt_k+start_k, &
                                      shifting='R')
                CALL image_calculator(imgdist_left, &
                                      vprow=left_vrow, &
@@ -2365,7 +2367,7 @@ CONTAINS
                                      myprow=myprow, &
                                      myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
                                      myvpcol=left_myfirstvcol, &
-                                     vpcol_shift=ivirt_k+myrank3D*MAX(nrows3D, ncols3D), &
+                                     vpcol_shift=ivirt_k+start_k, &
                                      shifting='L')
             ENDIF
             !
@@ -2604,7 +2606,7 @@ CONTAINS
       !
       ! 3D reduction
       IF (do_layers3D) THEN
-         CALL timeset(routineN//"_reduction3D", handle2)
+         CALL timeset(routineN//"_red3D", handle2)
          product_matrix_size_comm => product_matrix_size_1
          product_matrix_size_calc => product_matrix_size_2
          ! Reuse right buffers for the recv product matrices
@@ -2633,7 +2635,9 @@ CONTAINS
          CALL dbcsr_data_new(data_send, data_type)
          DO iproc = 1, nranks3D+1
             IF (iproc .GT. 1 .AND. iproc .LE. nranks3D) THEN
+               CALL timeset(routineN//"_red3D_size", handle3)
                CALL mp_waitall(requests_reduction_size)
+               CALL timestop(handle3)
             ENDIF
             ! Send/recv data and meta sizes
             IF (iproc .LT. nranks3D) THEN
@@ -2662,7 +2666,9 @@ CONTAINS
             ! Send/recv data and meta
             IF (iproc .GT. 1) THEN
                IF (iproc .GT. 2) THEN
+                  CALL timeset(routineN//"_red3D_data", handle3)
                   CALL mp_waitall(requests_reduction)
+                  CALL timestop(handle3)
                ENDIF
                IF (iproc .LE. nranks3D) THEN
                   CALL ensure_array_size(product_matrix_recv_comm%matrix%m%index, &
@@ -2694,6 +2700,9 @@ CONTAINS
                                            data_get, product_matrix_size_calc(imeta+1, 2), &
                                            layers_3D_C_reduction%grp3D, &
                                            requests_reduction(3), requests_reduction(4))
+                  CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1, :), &
+                                            product_matrix_size_calc(idata, 2), &
+                                            dbcsr_mpi_statistics%data_size_breakdown(:, :, 1), data_type_byte)
                ENDIF
                IF (iproc .GT. 2) THEN
                   CALL dbcsr_release(product_matrix_send(MOD(iproc-3, 3))%matrix)
