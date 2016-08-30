@@ -160,6 +160,7 @@ class F90Indenter(object):
         current Fortran line, and `rel_ind_con` for line continuation. By default line continuations are
         auto-aligned by F90Aligner - manual offsets can be set by manual_lines_indents.
         """
+        logger = logging.getLogger('prettify-logger')
 
         self._line_indents = [0] * len(lines)
         br_indent_list = [0] * len(lines)
@@ -178,7 +179,7 @@ class F90Indenter(object):
                 is_new = True
                 valid_new = True
                 scopes.append(what_new)
-                logging.debug(f_line + '\n')
+                logger.debug(f_line + '\n')
 
         # check statements that continue scope
         is_con = False
@@ -191,7 +192,7 @@ class F90Indenter(object):
                     what = scopes[-1]
                     if what == what_con:
                         valid_con = True
-                        logging.debug(f_line + '\n')
+                        logger.debug(f_line + '\n')
 
         # check statements that end scope
         is_end = False
@@ -204,7 +205,7 @@ class F90Indenter(object):
                     what = scopes.pop()
                     if what == what_end:
                         valid_end = True
-                        logging.debug(f_line + '\n')
+                        logger.debug(f_line + '\n')
 
         # deal with line breaks
         if not manual_lines_indent:
@@ -666,6 +667,7 @@ def reformat_ffile(infile, outfile, indent_size=2, whitespace=2, orig_filename=N
     """
     main method to be invoked for formatting a Fortran file.
     """
+    logger = logging.getLogger('prettify-logger')
 
     # don't change original indentation if rel-indents set to 0
     adopt_indents = indent_size <= 0
@@ -681,8 +683,8 @@ def reformat_ffile(infile, outfile, indent_size=2, whitespace=2, orig_filename=N
     infile.seek(0)
 
     if not is_f90:
-        logging.error("*** " + orig_filename +
-                      ": formatter can not handle f77 constructs. ***\n")
+        logger.error(orig_filename +
+                     ": formatter can not handle f77 constructs.\n")
         outfile.write(infile.read())
         return
 
@@ -869,13 +871,13 @@ def reformat_ffile(infile, outfile, indent_size=2, whitespace=2, orig_filename=N
                               (133 - 2 * is_omp_conditional -
                                len(line.lstrip(' '))) + line.lstrip(' '))
                 if not VAR_DECL_RE.match(f_line):
-                    logging.warning("*** " + orig_filename + ":" + str(stream.line_nr) +
-                                  ": auto indentation failed due to 132 chars limit, line should be splitted. ***\n")
+                    logger.warning(orig_filename + ":" + str(stream.line_nr) +
+                                   ": auto indentation failed due to 132 chars limit, line should be splitted.\n")
             else:
                 outfile.write(orig_line)
-                logging.warning("*** " + orig_filename + ":" + str(stream.line_nr) +
-                              (": auto indentation and whitespace formatting failed due to 132 chars limit, line should be splitted. ***\n"))
-            logging.debug(' ' * ind_use + line + '\n')
+                logger.warning(orig_filename + ":" + str(stream.line_nr) +
+                               (": auto indentation and whitespace formatting failed due to 132 chars limit, line should be splitted.\n"))
+            logger.debug(' ' * ind_use + line + '\n')
 
         # no indentation of semicolon separated lines
         if re.search(r";\s*$", f_line, RE_FLAGS):

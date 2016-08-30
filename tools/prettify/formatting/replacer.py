@@ -1,6 +1,5 @@
 import re
 import sys
-import logging
 
 repl = {
     'routine_name': 'routineN',

@@ -33,13 +33,13 @@ OMP_ENV = r"omp_(?:dynamic|max_active_levels|n(?:ested|um_threads)|proc_bind|s(?
 # FIXME: does not correctly match operator '.op.' if it is not separated
 # by whitespaces.
 TO_UPCASE_RE = re.compile("(?<![A-Za-z0-9_%#])(?<!% )(?P<toUpcase>" + OPERATORS_STR +
-                        "|" + KEYWORDS_STR + "|" + INTRINSIC_PROCSTR +
-                        ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
+                          "|" + KEYWORDS_STR + "|" + INTRINSIC_PROCSTR +
+                          ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
 TO_UPCASE_OMP_RE = re.compile("(?<![A-Za-z0-9_%#])(?P<toUpcase>"
-                           + OMP_DIR + "|" + OMP_CLAUSE + "|" + OMP_ENV +
-                           ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
+                              + OMP_DIR + "|" + OMP_CLAUSE + "|" + OMP_ENV +
+                              ")(?![A-Za-z0-9_%])", flags=re.IGNORECASE)
 LINE_PARTS_RE = re.compile("(?P<commands>[^\"'!]*)(?P<comment>!.*)?" +
-                         "(?P<string>(?P<qchar>[\"']).*?(?P=qchar))?")
+                           "(?P<string>(?P<qchar>[\"']).*?(?P=qchar))?")
 
 
 def upcaseStringKeywords(line):
@@ -52,7 +52,7 @@ def upcaseStringKeywords(line):
         if not m:
             raise SyntaxError("Syntax error, open string")
         res = res + TO_UPCASE_RE.sub(lambda match: match.group("toUpcase").upper(),
-                                   m.group("commands"))
+                                     m.group("commands"))
         if m.group("comment"):
             res = res + m.group("comment")
         if m.group("string"):
@@ -147,7 +147,8 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
                 raise RuntimeError(
                     "Prettify did not converge in", max_pretty_iter, "steps.")
         except:
-            logging.critical("error processing file '" + infile.name + "'\n")
+            logger = logging.getLogger('prettify-logger')
+            logger.critical("error processing file '" + infile.name + "'\n")
             raise
 
 
@@ -219,12 +220,14 @@ def main(argv=None):
                     'stdout': 0,
                     'do-backup': 0,
                     'backup-dir': 'preprettify',
-                    'report-errors': 1}
+                    'report-errors': 1,
+                    'debug': 0}
 
-    usageDesc = ("usage:\nfprettify" +"""
+    usageDesc = ("usage:\nfprettify" + """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]omp-upcase] [--[no-]replace]
     [--[no-]reformat] [--indent=3] [--whitespace=1] [--help]
     [--[no-]stdout] [--[no-]do-backup] [--backup-dir=bk_dir] [--[no-]report-errors] file1 [file2 ...]
+    [--[no-]debug]
 
     Auto-format F90 source file1, file2, ...:
     If no files are given, stdin is used.
@@ -261,14 +264,13 @@ def main(argv=None):
 
     replace = None
 
-    debug=False
     if "--help" in argv:
         sys.stderr.write(usageDesc + '\n')
         return(0)
     args = []
     for arg in argv[1:]:
         m = re.match(
-            r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat|stdout|do-backup|report-errors)", arg)
+            r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat|stdout|do-backup|report-errors|debug)", arg)
         if m:
             defaultsDict[m.groups()[1]] = not m.groups()[0]
         else:
@@ -310,15 +312,21 @@ def main(argv=None):
                 stdout = defaultsDict['stdout'] or fileName == 'stdin'
 
                 if defaultsDict['report-errors']:
-                    if debug:
-                        level=logging.DEBUG
+                    if defaultsDict['debug']:
+                        level = logging.DEBUG
                     else:
-                        level=logging.INFO
+                        level = logging.INFO
 
                 else:
-                    level=logging.CRITICAL
+                    level = logging.CRITICAL
 
-                logging.basicConfig(stream=sys.stderr, level=level)
+                logger = logging.getLogger('prettify-logger')
+                logger.setLevel(level)
+                sh = logging.StreamHandler()
+                sh.setLevel(level)
+                formatter = logging.Formatter('%(levelname)s - %(message)s')
+                sh.setFormatter(formatter)
+                logger.addHandler(sh)
 
                 try:
                     prettfyInplace(fileName, bkDir=bkDir,
