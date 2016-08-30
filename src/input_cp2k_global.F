@@ -14,7 +14,8 @@ MODULE input_cp2k_global
    USE bibliography,                    ONLY: Borstnik2014,&
                                               Ceriotti2014,&
                                               Frigo2005,&
-                                              Schonherr2014
+                                              Schonherr2014,&
+                                              Schuett2016
    USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
                                               BLACS_GRID_ROW,&
                                               BLACS_GRID_SQUARE
@@ -512,7 +513,7 @@ CONTAINS
       CALL section_create(section, name="DBCSR", &
                           description="Configuration options for the DBCSR library.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Borstnik2014/))
+                          citations=(/Borstnik2014, Schuett2016/))
 
       NULLIFY (keyword)
       !

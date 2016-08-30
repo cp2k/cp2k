@@ -14,6 +14,7 @@
 ! **************************************************************************************************
 MODULE cp_dbcsr_interface
    USE bibliography,                    ONLY: Borstnik2014,&
+                                              Schuett2016,&
                                               cite_reference
    USE dbcsr_api,                       ONLY: &
         accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
@@ -374,6 +375,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CALL cite_reference(Borstnik2014)
+      CALL cite_reference(Schuett2016)
 
       CALL dbcsr_init_lib()
    END SUBROUTINE cp_dbcsr_init_lib

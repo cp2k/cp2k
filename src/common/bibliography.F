@@ -78,7 +78,7 @@ MODULE bibliography
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
-                            Bates2013, Andermatt2016, Zhu2016
+                            Bates2013, Andermatt2016, Zhu2016, Schuett2016
 
 CONTAINS
 
@@ -3528,6 +3528,24 @@ CONTAINS
                          "PM 26801027", &
                          "ER"), &
                          DOI="10.1063/1.4940026")
+
+      CALL add_reference(key=Schuett2016, ISI_record=s2a( &
+                         "TY CHAP", &
+                         "TI GPU-Accelerated Sparse Matrix-Matrix Multiplication for Linear Scaling Density Functional Theory", &
+                         "AU Schuett, Ole", &
+                         "AU Messmer, Peter", &
+                         "AU Hutter, Juerg", &
+                         "AU VandeVondele, Joost", &
+                         "VL John Wiley & Sons, Ltd", &
+                         "SN 9781118670712", &
+                         "UR http://dx.doi.org/10.1002/9781118670712.ch8", &
+                         "DO 10.1002/9781118670712.ch8", &
+                         "BP 173", &
+                         "EP 190", &
+                         "SO Electronic Structure Calculations on Graphics Processing Units", &
+                         "PY 2016", &
+                         "ER "), &
+                         DOI="10.1002/9781118670712.ch8")
 
    END SUBROUTINE add_all_references
 
