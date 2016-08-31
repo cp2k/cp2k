@@ -2011,6 +2011,7 @@ CONTAINS
       ELSE
          product_matrix_epss_size(:) = 0
          product_matrix_epss_displ(:) = 0
+         ALLOCATE (product_matrix_epss(0))
       ENDIF
       !
       ! Needs to remap refs for 3D
@@ -2326,7 +2327,7 @@ CONTAINS
          ALLOCATE (right_norms(right_meta_size/3, 1))
       ELSE
          ! The array must be valid when passed to called subroutines.
-         ALLOCATE (left_norms(0, 1, nleft_buffers), right_norms(0, 1), product_matrix_epss(0))
+         ALLOCATE (left_norms(0, 1, nleft_buffers), right_norms(0, 1))
       ENDIF
       !
       ! Here is the main loop
