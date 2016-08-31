@@ -422,9 +422,6 @@ CONTAINS
       tmp_section => section_vals_get_subs_vals(dft_section, "EXTERNAL_VXC")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_external_vxc)
 
-      ! reimplemented TDDFPT
-!      CALL read_tddfpt2_control(dft_control%tddfpt2_control, dft_section)
-
    END SUBROUTINE read_dft_control
 
 ! **************************************************************************************************
@@ -1085,6 +1082,7 @@ CONTAINS
       CALL section_vals_val_get(t_section, "ORTHOGONAL_EPS", r_val=t_control%orthogonal_eps)
 
       CALL section_vals_val_get(t_section, "ADD_DEGENERATE_STATES", l_val=t_control%add_degenerate)
+      CALL section_vals_val_get(t_section, "RESTART", l_val=t_control%is_restart)
       CALL section_vals_val_get(t_section, "RKS_TRIPLETS", l_val=t_control%rks_triplets)
 
       IF (t_control%conv < 0) &

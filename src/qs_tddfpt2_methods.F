@@ -20,6 +20,8 @@ MODULE qs_tddfpt2_methods
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
@@ -36,14 +38,18 @@ MODULE qs_tddfpt2_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_read_unformatted, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
+        cp_fm_type, cp_fm_write_unformatted
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
+                                              cp_p_file,&
                                               cp_print_key_finished_output,&
+                                              cp_print_key_generate_filename,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -58,10 +64,14 @@ MODULE qs_tddfpt2_methods
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_min,&
+                                              mp_sum
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -137,6 +147,9 @@ MODULE qs_tddfpt2_methods
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_occ
       !> virtual orbital energies
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_virt
+      !> phase of occupied MOs; +1.0 -- positive, -1.0 -- negative;
+      !> it is mainly needed to make the restart file transferable
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: phases_occ
    END TYPE tddfpt_ground_state_mos
 
 ! **************************************************************************************************
@@ -213,7 +226,8 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ij_r, rho_ij_r2
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho_ij_struct
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input, tddfpt_section, &
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
+                                                            tddfpt_print_section, tddfpt_section, &
                                                             xc_section
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), ALLOCATABLE, &
@@ -244,6 +258,7 @@ CONTAINS
       END IF
 
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
+      tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       hfx_section => section_vals_get_subs_vals(xc_section, "HF")
 
@@ -304,12 +319,12 @@ CONTAINS
          END IF
       END IF
 
-      log_unit = cp_print_key_unit_nr(logger, tddfpt_section, "PRINT%GUESS_VECTORS", extension=".tddfptLog")
+      log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "GUESS_VECTORS", extension=".tddfptLog")
       CALL tddfpt_init_guess_vectors(guess_vectors=guess_vectors, nstates=nstates, &
                                      nstates_active=nstates+tddfpt_control%added_states, &
                                      gs_mos=gs_mos, is_add_degenerate=tddfpt_control%add_degenerate, &
                                      degenerate_eps=tddfpt_control%degenerate_eps, log_unit=log_unit)
-      CALL cp_print_key_finished_output(log_unit, logger, tddfpt_section, "PRINT%GUESS_VECTORS")
+      CALL cp_print_key_finished_output(log_unit, logger, tddfpt_print_section, "GUESS_VECTORS")
 
       nstates_total = SIZE(guess_vectors%evals)
       ! adjust the number of Krylov vectors
@@ -339,9 +354,9 @@ CONTAINS
       ALLOCATE (Aop_ritz(nspins, nstates))
       DO istate = 1, nstates
          DO ispin = 1, nspins
-            ! allocate few initial trial vectors, other vectors will be allocated during Krylov's space expansion
-            CALL cp_fm_create(evects(ispin, istate)%matrix, gs_mos(ispin)%matrix_mos_occ%matrix_struct)
-
+            ! allocate few ritz vectors;
+            ! initial guess vectors are allocated at the moment they are reading from the restart file;
+            ! other vectors are allocated at the Krylov's space expansion step
             NULLIFY (ritz_vects(ispin, istate)%matrix, Aop_ritz(ispin, istate)%matrix)
             CALL cp_fm_create(ritz_vects(ispin, istate)%matrix, gs_mos(ispin)%matrix_mos_occ%matrix_struct)
             CALL cp_fm_create(Aop_ritz(ispin, istate)%matrix, gs_mos(ispin)%matrix_mos_occ%matrix_struct)
@@ -415,27 +430,53 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
 
       ! *** initial Krylov vectors ***
-      nvects_exists = 0
-      nvects_new = nstates
-      DO istate = 1, nvects_new
-         ! initial guess
-         DO ispin = 1, nspins
-            CALL cp_fm_set_all(evects(ispin, istate)%matrix, 0.0_dp)
-         END DO
-
-         ispin = guess_vectors%ispins(istate)
-         CALL cp_fm_to_fm(gs_mos(ispin)%matrix_mos_virt, evects(ispin, istate)%matrix, &
-                          ncol=1, source_start=guess_vectors%imos_virt(istate), &
-                          target_start=guess_vectors%imos_occ(istate))
-      END DO
-
       ALLOCATE (evals_last(max_krylov_vects))
       ALLOCATE (evals_prev(nstates))
-      evals_prev(1:nstates) = guess_vectors%evals(1:nstates)
+
+      ! reuse the last ritz vectors from the previous calculation if available
+      is_restarted = .TRUE.
+      IF (tddfpt_control%is_restart) &
+         CALL tddfpt_read_restart(evects=evects(:, 1:nstates), evals=evals_prev(1:nstates), &
+                                  para_env=para_env, gs_mos=gs_mos, logger=logger, &
+                                  tddfpt_section=tddfpt_section, tddfpt_print_section=tddfpt_print_section)
+
+      DO istate = 1, nstates
+         ! initial guess
+         IF (.NOT. ASSOCIATED(evects(1, istate)%matrix)) THEN
+            DO ispin = 1, nspins
+               CALL cp_fm_create(evects(ispin, istate)%matrix, gs_mos(ispin)%matrix_mos_occ%matrix_struct)
+               CALL cp_fm_set_all(evects(ispin, istate)%matrix, 0.0_dp)
+            END DO
+
+            ispin = guess_vectors%ispins(istate)
+            CALL cp_fm_to_fm(gs_mos(ispin)%matrix_mos_virt, evects(ispin, istate)%matrix, &
+                             ncol=1, source_start=guess_vectors%imos_virt(istate), &
+                             target_start=guess_vectors%imos_occ(istate))
+
+            evals_prev(istate) = guess_vectors%evals(istate)
+            ! some of the wave functions have not been read;
+            ! need to restart Davidson iterations at least once to get them right
+            is_restarted = .FALSE.
+         END IF
+      END DO
+
+      IF (tddfpt_control%is_restart) THEN
+         DO istate = tddfpt_control%nreortho, 1, -1
+            CALL tddfpt_orthogonalize_psi1_psi0(evects=evects(:, 1:nstates), S_C0_C0T=S_C0_C0T)
+            CALL tddfpt_orthonormalize_psi1_psi1(evects=evects(:, 1:nstates), nvects_new=nstates, &
+                                                 matrix_s=matrix_s(1)%matrix)
+            is_nonortho = tddfpt_is_nonorthogonal_psi1_psi0(evects=evects(:, 1:nstates), S_C0=S_C0, &
+                                                            max_norm=tddfpt_control%orthogonal_eps)
+            IF (.NOT. is_nonortho) EXIT
+         END DO
+      END IF
+
+      nvects_exists = 0
+      nvects_new = nstates
 
       ! *** perform Davidson iterations ***
-      log_unit = cp_print_key_unit_nr(logger, tddfpt_section, "PRINT%ITERATION_INFO", extension=".tddfptLog")
-      energy_unit = cp_print_key_unit_nr(logger, tddfpt_section, "PRINT%DETAILED_ENERGY", extension=".tddfptLog")
+      log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "ITERATION_INFO", extension=".tddfptLog")
+      energy_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "DETAILED_ENERGY", extension=".tddfptLog")
 
       IF (log_unit > 0) THEN
          WRITE (log_unit, '(/,1X,A,/)') 'TDDFPT WAVEFUNCTION OPTIMIZATION'
@@ -446,7 +487,6 @@ CONTAINS
       CALL cp_add_iter_level(logger%iter_info, "TDDFT_SCF")
 
       niters = tddfpt_control%niters
-      is_restarted = .FALSE.
       t1 = m_walltime()
 
       DO iter = 1, niters
@@ -535,10 +575,6 @@ CONTAINS
             END DO
 
             WRITE (log_unit, '(1X,I8,T12,F7.1,T24,ES11.4,T42,I8)') iter, t2-t1, conv, nstates_conv
-
-            IF (nvects_exists == 0) &
-               WRITE (log_unit, '(1X,10("-"),1X,A,1X,11("-"))') "Restart Davidson iterations"
-
             CALL m_flush(log_unit)
          END IF
 
@@ -547,13 +583,24 @@ CONTAINS
 
          IF (conv <= tddfpt_control%conv) THEN
             IF (is_restarted) THEN
-               CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=iter)
                EXIT
             ELSE
                is_restarted = .TRUE.
             END IF
          END IF
+
+         IF (log_unit > 0 .AND. (nvects_exists == 0 .OR. conv <= tddfpt_control%conv)) THEN
+            WRITE (log_unit, '(1X,10("-"),1X,A,1X,11("-"))') "Restart Davidson iterations"
+            CALL m_flush(log_unit)
+         END IF
+
+         CALL tddfpt_write_restart(evects=ritz_vects(:, 1:nstates), evals=evals_prev(1:nstates), &
+                                   gs_mos=gs_mos, logger=logger, tddfpt_print_section=tddfpt_print_section)
       END DO
+
+      CALL cp_iterate(logger%iter_info, last=.TRUE., iter_nr=iter)
+      CALL tddfpt_write_restart(evects=ritz_vects(:, 1:nstates), evals=evals_prev(1:nstates), &
+                                gs_mos=gs_mos, logger=logger, tddfpt_print_section=tddfpt_print_section)
 
       CALL cp_rm_iter_level(logger%iter_info, "TDDFT_SCF")
 
@@ -567,8 +614,8 @@ CONTAINS
          END IF
       END IF
 
-      CALL cp_print_key_finished_output(energy_unit, logger, tddfpt_section, "PRINT%DETAILED_ENERGY")
-      CALL cp_print_key_finished_output(log_unit, logger, tddfpt_section, "PRINT%ITERATION_INFO")
+      CALL cp_print_key_finished_output(energy_unit, logger, tddfpt_print_section, "DETAILED_ENERGY")
+      CALL cp_print_key_finished_output(log_unit, logger, tddfpt_print_section, "ITERATION_INFO")
 
       ! *** print summary information ***
       log_unit = cp_logger_get_default_io_unit()
@@ -648,11 +695,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: cholesky_method_inout, handle, imo, nao, &
-                                                            nelectrons, nmo_occ, nmo_scf, nmo_virt
-      REAL(kind=dp)                                      :: maxocc
+      INTEGER :: cholesky_method_inout, handle, icol, icol_global, imo, irow, irow_global, nao, &
+         ncol_local, nelectrons, nmo_occ, nmo_scf, nmo_virt, nrow_local, sign_int
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: minrow_neg_array, minrow_pos_array, &
+                                                            sum_sign_array
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(kind=dp)                                      :: element, maxocc
       REAL(kind=dp), DIMENSION(:), POINTER               :: mo_evals_extended, mo_occ_extended, &
                                                             mo_occ_scf
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
       TYPE(cp_fm_pool_type), POINTER                     :: ao_ao_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
                                                             ao_mo_virt_fm_struct, ao_vect_fm_struct
@@ -699,6 +750,7 @@ CONTAINS
 
       ALLOCATE (gs_mos%evals_occ(nmo_occ))
       ALLOCATE (gs_mos%evals_virt(nmo_virt))
+      ALLOCATE (gs_mos%phases_occ(nmo_occ))
 
       CALL cp_fm_struct_release(ao_vect_fm_struct)
       CALL cp_fm_struct_release(ao_mo_virt_fm_struct)
@@ -776,6 +828,67 @@ CONTAINS
                           ncol=1, source_start=nmo_occ+imo, target_start=1)
       END DO
       gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ+1:nmo_occ+nmo_virt)
+
+      ! compute the phase of molecular orbitals
+      CALL cp_fm_get_info(gs_mos%matrix_mos_occ, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices, matrix_struct=ao_ao_fm_struct)
+      my_block => gs_mos%matrix_mos_occ%local_data
+
+      ALLOCATE (minrow_neg_array(nmo_occ), minrow_pos_array(nmo_occ), sum_sign_array(nmo_occ))
+      minrow_neg_array(:) = nao
+      minrow_pos_array(:) = nao
+      sum_sign_array(:) = 0
+      DO icol = 1, ncol_local
+         icol_global = col_indices(icol)
+
+         DO irow = 1, nrow_local
+            element = my_block(irow, icol)
+
+            sign_int = 0
+            IF (element > 0.0_dp) THEN
+               sign_int = 1
+            ELSE IF (element < 0.0_dp) THEN
+               sign_int = -1
+            END IF
+
+            sum_sign_array(icol_global) = sum_sign_array(icol_global)+sign_int
+
+            irow_global = row_indices(irow)
+            IF (sign_int > 0) THEN
+               IF (minrow_pos_array(icol_global) > irow_global) &
+                  minrow_pos_array(icol_global) = irow_global
+            ELSE IF (sign_int < 0) THEN
+               IF (minrow_neg_array(icol_global) > irow_global) &
+                  minrow_neg_array(icol_global) = irow_global
+            END IF
+         END DO
+      END DO
+
+      CALL mp_sum(sum_sign_array, para_env%group)
+      CALL mp_min(minrow_neg_array, para_env%group)
+      CALL mp_min(minrow_pos_array, para_env%group)
+
+      DO icol = 1, nmo_occ
+         IF (sum_sign_array(icol) > 0) THEN
+            ! most of the expansion coefficients are positive => MO's phase = +1
+            gs_mos%phases_occ(icol) = 1.0_dp
+         ELSE IF (sum_sign_array(icol) < 0) THEN
+            ! most of the expansion coefficients are negative => MO's phase = -1
+            gs_mos%phases_occ(icol) = -1.0_dp
+         ELSE
+            ! equal number of positive and negative expansion coefficients
+            IF (minrow_pos_array(icol) <= minrow_neg_array(icol)) THEN
+               ! the first positive expansion coefficient has a lower index then
+               ! the first negative expansion coefficient; MO's phase = +1
+               gs_mos%phases_occ(icol) = 1.0_dp
+            ELSE
+               ! MO's phase = -1
+               gs_mos%phases_occ(icol) = -1.0_dp
+            END IF
+         END IF
+      END DO
+
+      DEALLOCATE (minrow_neg_array, minrow_pos_array, sum_sign_array)
 
       CALL deallocate_mo_set(mos_extended)
       CALL timestop(handle)
@@ -1092,7 +1205,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Make TDDFPT trial vectors orthogonal to all occupied molecular orbitals.
 !> \param evects   trial vectors (modified on exit)
-!> \param S_C0_C0T matrix product S * C_0 * C_0^T, where C_0 is the ground state wave-function
+!> \param S_C0_C0T matrix product S * C_0 * C_0^T, where C_0 is the ground state wave function
 !>            for each spin expressed in atomic basis set, and S is the corresponding overlap matrix
 !> \par History
 !>    * 05.2016 created [Sergey Chulkov]
@@ -1158,10 +1271,10 @@ CONTAINS
 !> \brief Check that orthogonalised TDDFPT trial vectors remain orthogonal to
 !>        occupied molecular orbitals.
 !> \param evects   trial vectors (modified on exit)
-!> \param S_C0     matrix product S * C_0, where C_0 is the ground state wave-function
+!> \param S_C0     matrix product S * C_0, where C_0 is the ground state wave function
 !>                 for each spin in atomic basis set, and S is the corresponding overlap matrix
 !> \param max_norm the largest possible overlap between the ground state and
-!>                 excited state wave-functions
+!>                 excited state wave functions
 !> \retval is_nonortho true if trial vectors are non-orthogonal to occupied molecular orbitals
 !> \par History
 !>    * 07.2016 created [Sergey Chulkov]
@@ -2325,7 +2438,7 @@ CONTAINS
 !>       Adapted version of the subroutine find_contributions() which was originally created
 !>       by Thomas Chassaing on 02.2005.
 !>
-!>       To compute transition dipole integrals we use the fact that the ground state wave-function
+!>       To compute transition dipole integrals we use the fact that the ground state wave function
 !>       and all response functions (which are in fact a linear combination of virtual molecular
 !>       orbitals) are eigenfunctions of the Hamiltonian operator. Using the identity:
 !>       \f[\vec{r}\hat{H} - \hat{H}\vec{r} = [\vec{r},\hat{H}] = [\vec{r},-1/2 \nabla^2] = \nabla\f]
@@ -2351,7 +2464,7 @@ CONTAINS
       CHARACTER(len=1)                                   :: lsd_str
       CHARACTER(len=20)                                  :: mult_str
       CHARACTER(len=5)                                   :: spin_label
-      INTEGER :: ideriv, iexc, imo_occ, imo_virt, ind, ispin, istate, nao, nmo_virt_occ, &
+      INTEGER :: handle, ideriv, iexc, imo_occ, imo_virt, ind, ispin, istate, nao, nmo_virt_occ, &
          nmo_virt_occ_alpha, nmo_virt_occ_spin, nspins, nstates, state_spin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds, nmo_occ, nmo_virt
       REAL(kind=dp)                                      :: oscillator_strength
@@ -2367,6 +2480,8 @@ CONTAINS
          DIMENSION(:)                                    :: weights_2d
 
       EXTERNAL :: dcopy
+
+      CALL timeset(routineN, handle)
 
       nspins = SIZE(evects, 1)
       nstates = SIZE(evects, 2)
@@ -2568,5 +2683,241 @@ CONTAINS
       DEALLOCATE (S_mos_virt)
 
       DEALLOCATE (nmo_virt, nmo_occ)
+
+      CALL timestop(handle)
    END SUBROUTINE tddfpt_print_summary
+
+! **************************************************************************************************
+!> \brief Write Ritz vectors to a binary restart file
+!> \param evects               vectors to store
+!> \param evals                TDDFPT eigenvalues
+!> \param gs_mos               structure that holds ground state occupied and virtual
+!>                             molecular orbitals
+!> \param logger               a logger object
+!> \param tddfpt_print_section TDDFPT%PRINT input section
+!> \par History
+!>    * 08.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_write_restart(evects, evals, gs_mos, logger, tddfpt_print_section)
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: tddfpt_print_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_write_restart', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ispin, istate, nao, nspins, &
+                                                            nstates, ounit
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmo_occ
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, tddfpt_print_section, "RESTART"), cp_p_file)) THEN
+         CALL timeset(routineN, handle)
+
+         nspins = SIZE(evects, 1)
+         nstates = SIZE(evects, 2)
+
+         CPASSERT(SIZE(evals) == nstates)
+         CPASSERT(nspins > 0)
+         CPASSERT(nstates > 0)
+
+         ALLOCATE (nmo_occ(nspins))
+         DO ispin = 1, nspins
+            CALL cp_fm_get_info(evects(ispin, 1)%matrix, nrow_global=nao, ncol_global=nmo_occ(ispin))
+         END DO
+
+         ounit = cp_print_key_unit_nr(logger, tddfpt_print_section, "RESTART", &
+                                      extension=".tdwfn", file_status="REPLACE", file_action="WRITE", &
+                                      do_backup=.TRUE., file_form="UNFORMATTED")
+
+         IF (ounit > 0) THEN
+            WRITE (ounit) nstates, nspins, nao
+            WRITE (ounit) nmo_occ
+            WRITE (ounit) evals
+         END IF
+
+         DO istate = 1, nstates
+            DO ispin = 1, nspins
+               ! TDDFPT wave function is actually stored as a linear combination of virtual MOs
+               ! that replaces the corresponding deoccupied MO. Unfortunately, the phase
+               ! of the occupied MOs varies depending on the eigensolver used as well as
+               ! how eigenvectors are distributed across computational cores. The phase is important
+               ! because TDDFPT wave functions are used to compute a response electron density
+               ! \rho^{-} = 1/2 * [C_{0} * evect^T + evect * C_{0}^{-}], where C_{0} is the expansion
+               ! coefficients of the reference ground-state wave function. To make the restart file
+               ! transferable, TDDFPT wave functions are stored in assumption that all ground state
+               ! MOs have a positive phase.
+               CALL cp_fm_column_scale(evects(ispin, istate)%matrix, gs_mos(ispin)%phases_occ)
+
+               CALL cp_fm_write_unformatted(evects(ispin, istate)%matrix, ounit)
+
+               CALL cp_fm_column_scale(evects(ispin, istate)%matrix, gs_mos(ispin)%phases_occ)
+            END DO
+         END DO
+
+         DEALLOCATE (nmo_occ)
+
+         CALL cp_print_key_finished_output(ounit, logger, tddfpt_print_section, "RESTART")
+
+         CALL timestop(handle)
+      END IF
+   END SUBROUTINE tddfpt_write_restart
+
+! **************************************************************************************************
+!> \brief Initialise initial guess vectors by reading (un-normalised) Ritz vectors
+!>        from a binary restart file.
+!> \param evects               vectors to initialise (initialised on exit)
+!> \param evals                TDDFPT eigenvalues (initialised on exit)
+!> \param para_env             BLACS parallel environment
+!> \param gs_mos               structure that holds ground state occupied and virtual
+!>                             molecular orbitals
+!> \param logger               a logger object
+!> \param tddfpt_section       TDDFPT input section
+!> \param tddfpt_print_section TDDFPT%PRINT input section
+!> \par History
+!>    * 08.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_read_restart(evects, evals, para_env, gs_mos, logger, tddfpt_section, tddfpt_print_section)
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
+      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         INTENT(in)                                      :: gs_mos
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: tddfpt_section, tddfpt_print_section
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_read_restart', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(len=20)                                  :: read_str, ref_str
+      CHARACTER(LEN=default_path_length)                 :: filename
+      INTEGER                                            :: group, handle, ispin, istate, iunit, &
+                                                            n_rep_val, nao, nao_read, nspins, &
+                                                            nspins_read, nstates, nstates_read, &
+                                                            source
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmo_occ, nmo_occ_read
+      LOGICAL                                            :: file_exists
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_read
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: evects_read
+      TYPE(section_vals_type), POINTER                   :: print_key
+
+      CALL timeset(routineN, handle)
+
+      ! generate restart file name
+      CALL section_vals_val_get(tddfpt_section, "WFN_RESTART_FILE_NAME", n_rep_val=n_rep_val)
+      IF (n_rep_val > 0) THEN
+         CALL section_vals_val_get(tddfpt_section, "WFN_RESTART_FILE_NAME", c_val=filename)
+      ELSE
+         print_key => section_vals_get_subs_vals(tddfpt_print_section, "RESTART")
+         filename = cp_print_key_generate_filename(logger, print_key, &
+                                                   extension=".tdwfn", my_local=.FALSE.)
+      END IF
+
+      INQUIRE (FILE=filename, exist=file_exists)
+
+      IF (.NOT. file_exists) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "User requested to restart the TDDFPT wave functions from the file '"//TRIM(filename)// &
+                      "' which does not exist. Guess wave functions will be constructed using Kohn-Sham orbitals.")
+         RETURN
+      END IF
+
+      IF (para_env%ionode) &
+         CALL open_file(file_name=filename, file_action="READ", file_form="UNFORMATTED", file_status="OLD", unit_number=iunit)
+
+      group = para_env%group
+      source = para_env%source
+
+      nspins = SIZE(evects, 1)
+      nstates = SIZE(evects, 2)
+      CALL cp_fm_get_info(gs_mos(1)%matrix_mos_occ, nrow_global=nao)
+
+      ALLOCATE (evects_read(nspins), nmo_occ(nspins), nmo_occ_read(nspins))
+      DO ispin = 1, nspins
+         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         NULLIFY (evects_read(ispin)%matrix)
+      END DO
+
+      IF (para_env%ionode) THEN
+         READ (iunit) nstates_read, nspins_read, nao_read
+
+         IF (nspins_read /= nspins) THEN
+            CALL integer_to_string(nspins, ref_str)
+            CALL integer_to_string(nspins_read, read_str)
+            CALL cp_abort(__LOCATION__, &
+                          "Restarted TDDFPT wave function contains incompartible number of spin components ("// &
+                          TRIM(read_str)//" instead of "//TRIM(ref_str)//").")
+         END IF
+
+         IF (nao_read /= nao) THEN
+            CALL integer_to_string(nao, ref_str)
+            CALL integer_to_string(nao_read, read_str)
+            CALL cp_abort(__LOCATION__, &
+                          "Incompartible number of atomic orbitals ("//TRIM(read_str)//" instead of "//TRIM(ref_str)//").")
+         END IF
+
+         READ (iunit) nmo_occ_read
+
+         DO ispin = 1, nspins
+            IF (nmo_occ_read(ispin) /= nmo_occ(ispin)) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Incompartible number of electrons and/or multiplicity.")
+            END IF
+         END DO
+
+         IF (nstates_read /= nstates) THEN
+            CALL integer_to_string(nstates, ref_str)
+            CALL integer_to_string(nstates_read, read_str)
+            CALL cp_warn(__LOCATION__, &
+                         "TDDFPT restart file contains "//TRIM(read_str)// &
+                         " wave function(s) however "//TRIM(ref_str)// &
+                         " excited states were requested.")
+         END IF
+      END IF
+      CALL mp_bcast(nstates_read, source, group)
+
+      IF (para_env%ionode) THEN
+         ALLOCATE (evals_read(nstates_read))
+         READ (iunit) evals_read
+         IF (nstates_read <= nstates) THEN
+            evals(1:nstates_read) = evals_read(1:nstates_read)
+         ELSE
+            evals(1:nstates) = evals_read(1:nstates)
+         END IF
+         DEALLOCATE (evals_read)
+      END IF
+      CALL mp_bcast(evals, source, group)
+
+      DO istate = 1, nstates_read
+         DO ispin = 1, nspins
+            IF (istate <= nstates) THEN
+               IF (.NOT. ASSOCIATED(evects(ispin, istate)%matrix)) &
+                  CALL cp_fm_create(evects(ispin, istate)%matrix, gs_mos(ispin)%matrix_mos_occ%matrix_struct)
+
+               CALL cp_fm_read_unformatted(evects(ispin, istate)%matrix, iunit)
+               CALL cp_fm_column_scale(evects(ispin, istate)%matrix, gs_mos(ispin)%phases_occ)
+            ELSE
+               ! the number of stored excited states is greater than the number of requested excited states;
+               ! drop the needless ones
+               IF (.NOT. ASSOCIATED(evects_read(ispin)%matrix)) &
+                  CALL cp_fm_create(evects_read(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ%matrix_struct)
+
+               CALL cp_fm_read_unformatted(evects_read(ispin)%matrix, iunit)
+            END IF
+         END DO
+      END DO
+
+      IF (para_env%ionode) &
+         CALL close_file(unit_number=iunit)
+
+      DO ispin = nspins, 1, -1
+         IF (ASSOCIATED(evects_read(ispin)%matrix)) &
+            CALL cp_fm_release(evects_read(ispin)%matrix)
+      END DO
+      DEALLOCATE (evects_read, nmo_occ, nmo_occ_read)
+
+      CALL timestop(handle)
+   END SUBROUTINE tddfpt_read_restart
 END MODULE qs_tddfpt2_methods

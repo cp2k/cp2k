@@ -392,11 +392,13 @@ MODULE cp_control_types
       REAL(kind=dp)                             :: degenerate_eps
       !> the smallest excitation amplitude to print
       REAL(kind=dp)                             :: min_excitation_amplitude
-      !> threshold which controls when two wavefunctions considered to be orthogonal:
+      !> threshold which controls when two wave functions considered to be orthogonal:
       !> maxabs(Ci^T * S * Cj) <= orthogonal_eps
       REAL(kind=dp)                             :: orthogonal_eps
       !> should all degenerate excited states be automatically added to the active space
       LOGICAL                                   :: add_degenerate
+      !> read guess wave functions from restart file if exists
+      LOGICAL                                   :: is_restart
       !> compute triplet excited states using spin-unpolarised molecular orbitals
       LOGICAL                                   :: rks_triplets
    END TYPE tddfpt2_control_type
