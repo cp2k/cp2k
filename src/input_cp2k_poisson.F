@@ -910,7 +910,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="AA_PLANAR", &
                           description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary regions.", &
-                          n_keywords=9, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=10, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -974,6 +974,13 @@ CONTAINS
       CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
                           description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
                           usage="SMOOTHING_WIDTH <real>", default_r_val=0.2_dp, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PERIODIC_REGION", &
+                          description="Whether or not to take into consideration the effects of the periodicity of the "// &
+                          "simulation cell (MIXED_PERIODIC bc) for regions defined sufficiently close to the boundaries.", &
+                          usage="PERIODIC_REGION <logical>", default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1167,7 +1174,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="AA_CUBOIDAL", &
                           description="Parameters for creating axis-aligned cuboidal Dirichlet regions.", &
-                          n_keywords=6, n_subsections=0, repeats=.TRUE.)
+                          n_keywords=7, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -1208,6 +1215,13 @@ CONTAINS
       CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants=s2a('SIGMA'), &
                           description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
                           usage="SMOOTHING_WIDTH <real>", default_r_val=0.2_dp, unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PERIODIC_REGION", &
+                          description="Whether or not to take into consideration the effects of the periodicity of the "// &
+                          "simulation cell (MIXED_PERIODIC bc) for regions defined sufficiently close to the boundaries.", &
+                          usage="PERIODIC_REGION <logical>", default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

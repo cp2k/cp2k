@@ -81,7 +81,7 @@ CONTAINS
          n_aa_cylindrical, n_aa_planar, n_dbcs, n_planar, parallel_axis, parallel_plane, unit_nr
       INTEGER, DIMENSION(3)                              :: n_prtn, npts
       INTEGER, DIMENSION(:), POINTER                     :: aa_cylindrical_nsides
-      LOGICAL                                            :: verbose
+      LOGICAL                                            :: is_periodic, verbose
       REAL(dp)                                           :: base_radius, delta_alpha, sigma, &
                                                             thickness, v_D
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: x_glbl, x_locl, y_glbl, y_locl, z_glbl, &
@@ -139,6 +139,7 @@ CONTAINS
             sigma = poisson_params%dbc_params%aa_planar_sigma(j)
             thickness = poisson_params%dbc_params%aa_planar_thickness(j)
             parallel_plane = poisson_params%dbc_params%aa_planar_pplane(j)
+            is_periodic = poisson_params%dbc_params%aa_planar_is_periodic(j)
 
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
@@ -152,7 +153,7 @@ CONTAINS
                                      thickness, sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+                                        x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
 
          l = n_aa_planar
@@ -162,6 +163,7 @@ CONTAINS
             dbc_id = AA_CUBOIDAL+j-l
             v_D = poisson_params%dbc_params%aa_cuboidal_vD(j-l)
             sigma = poisson_params%dbc_params%aa_cuboidal_sigma(j-l)
+            is_periodic = poisson_params%dbc_params%aa_cuboidal_is_periodic(j-l)
 
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
@@ -175,7 +177,7 @@ CONTAINS
                                        sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+                                        x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
 
          l = n_aa_planar+n_aa_cuboidal
@@ -186,7 +188,8 @@ CONTAINS
             dbc_id = PLANAR+j-l
             v_D = poisson_params%dbc_params%planar_vD(j-l)
             sigma = poisson_params%dbc_params%planar_sigma(j-l)
-            thickness = poisson_params%dbc_params%planar_thickness(j)
+            thickness = poisson_params%dbc_params%planar_thickness(j-l)
+            is_periodic = poisson_params%dbc_params%planar_is_periodic(j-l)
 
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
@@ -200,7 +203,7 @@ CONTAINS
                                             thickness, sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+                                        x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
 
          l = n_aa_planar+n_aa_cuboidal+n_planar
@@ -218,6 +221,7 @@ CONTAINS
             delta_alpha = poisson_params%dbc_params%aa_cylindrical_sgap(j)
             sigma = poisson_params%dbc_params%aa_cylindrical_sigma(j)
             v_D = poisson_params%dbc_params%aa_cylindrical_vD(j)
+            is_periodic = poisson_params%dbc_params%aa_cylindrical_is_periodic(j)
 
             IF (unit_nr .GT. 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", l+j
@@ -227,7 +231,7 @@ CONTAINS
             CALL aa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, parallel_axis, &
                                           poisson_params%dbc_params%aa_cylindrical_xtnt(:, j), &
                                           base_center, base_radius, thickness, delta_alpha, sigma, v_D, &
-                                          n_prtn, verbose, dbcs(ind_start:ind_end))
+                                          n_prtn, is_periodic, verbose, dbcs(ind_start:ind_end))
 
             l = l+aa_cylindrical_nsides(j)
          END DO
@@ -253,6 +257,7 @@ CONTAINS
 !> \param x_locl x grid vetor of the simulation box local to this process
 !> \param y_locl y grid vetor of the simulation box local to this process
 !> \param z_locl z grid vetor of the simulation box local to this process
+!> \param is_periodic whether or not the tile is periodic with a periodicity of one unit cell
 !> \param verbose whether or not to print out the coordinates of the vertices
 !> \param dirichlet_bc the dirichlet_bc object to be partitioned
 !> \par History
@@ -260,14 +265,14 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                     x_locl, y_locl, z_locl, verbose, dirichlet_bc)
+                                     x_locl, y_locl, z_locl, is_periodic, verbose, dirichlet_bc)
 
       REAL(dp), INTENT(IN)                               :: sigma
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_prtn
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
-      LOGICAL, INTENT(IN)                                :: verbose
+      LOGICAL, INTENT(IN)                                :: is_periodic, verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_bc_partition', &
@@ -393,7 +398,7 @@ CONTAINS
             END IF
 
             CALL aa_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
-                                    sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
+                                    sigma, is_periodic, dirichlet_bc%tiles(k)%tile%tile_pw)
             tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
             CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
@@ -740,6 +745,7 @@ CONTAINS
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
 !> \param n_prtn number of partitions along the edges of the faces of the prism
+!> \param is_periodic whether or not the tile is periodic with a periodicity of one unit cell
 !> \param verbose whether or not to print out the coordinates of the vertices
 !> \param dbcs  the x-axis-aligned cylindrical gate region to be created
 !> \par History
@@ -748,7 +754,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE aa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, parallel_axis, &
                                        xtnt, base_center, base_radius, thickness, delta_alpha, &
-                                       sigma, v_D, n_prtn, verbose, dbcs)
+                                       sigma, v_D, n_prtn, is_periodic, verbose, dbcs)
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
@@ -759,7 +765,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: base_radius, thickness, delta_alpha, &
                                                             sigma, v_D
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_prtn
-      LOGICAL, INTENT(IN)                                :: verbose
+      LOGICAL, INTENT(IN)                                :: is_periodic, verbose
       TYPE(dirichlet_bc_p_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: dbcs
 
@@ -914,7 +920,7 @@ CONTAINS
             END IF
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+                                        x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
       CASE (y_axis)
          DO j = 1, n_dbcs
@@ -963,7 +969,7 @@ CONTAINS
             END IF
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+                                        x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
       CASE (z_axis)
          DO j = 1, n_dbcs
@@ -1012,7 +1018,7 @@ CONTAINS
             END IF
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
-                                        x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
+                                        x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
          END DO
       END SELECT
 
@@ -1336,18 +1342,20 @@ CONTAINS
 !> \param z_locl z grid vetor of the simulation box local to this process
 !> \param tile_vertices coordinates of the vertices of the input tile
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
+!> \param is_periodic whether or not the tile is periodic with a periodicity of one unit cell
 !> \param tile_pw the output pw data
 !> \par History
 !>       10.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE aa_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, tile_vertices, &
-                                 sigma, tile_pw)
+                                 sigma, is_periodic, tile_pw)
 
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: tile_vertices
       REAL(dp), INTENT(IN)                               :: sigma
+      LOGICAL, INTENT(IN)                                :: is_periodic
       TYPE(pw_type), INTENT(INOUT), POINTER              :: tile_pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'aa_tile_pw_compute', &
@@ -1356,12 +1364,8 @@ CONTAINS
       INTEGER                                            :: handle, i, j, k, lb1, lb2, lb3, ub1, &
                                                             ub2, ub3
       INTEGER, DIMENSION(2, 3)                           :: bounds_local
-      LOGICAL                                            :: xleft_ok, xright_ok, yleft_ok, &
-                                                            yright_ok, zleft_ok, zright_ok
       REAL(dp)                                           :: fx, fy, fz, gx, gy, gz, hx, hy, hz, xi0, &
-                                                            xil, xir, xleft, xright, yj0, yjl, &
-                                                            yjr, yleft, yright, zk0, zkl, zkr, &
-                                                            zleft, zright
+                                                            xil, xir, yj0, yjl, yjr, zk0, zkl, zkr
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: xlocll, xloclr, ylocll, yloclr, zlocll, &
                                                             zloclr
       REAL(dp), DIMENSION(2)                             :: x_xtnt, y_xtnt, z_xtnt
@@ -1385,60 +1389,51 @@ CONTAINS
       y_xtnt(1) = MINVAL(tile_vertices(2, :)); y_xtnt(2) = MAXVAL(tile_vertices(2, :))
       z_xtnt(1) = MINVAL(tile_vertices(3, :)); z_xtnt(2) = MAXVAL(tile_vertices(3, :))
 
-      xright = 0.5_dp*(erf((cell_xtnts(2, 1)-x_xtnt(1))/sigma)-erf((cell_xtnts(2, 1)-x_xtnt(2))/sigma))
-      xleft = 0.5_dp*(erf((cell_xtnts(1, 1)-x_xtnt(1))/sigma)-erf((cell_xtnts(1, 1)-x_xtnt(2))/sigma))
-      yright = 0.5_dp*(erf((cell_xtnts(2, 2)-y_xtnt(1))/sigma)-erf((cell_xtnts(2, 2)-y_xtnt(2))/sigma))
-      yleft = 0.5_dp*(erf((cell_xtnts(1, 2)-y_xtnt(1))/sigma)-erf((cell_xtnts(1, 2)-y_xtnt(2))/sigma))
-      zright = 0.5_dp*(erf((cell_xtnts(2, 3)-z_xtnt(1))/sigma)-erf((cell_xtnts(2, 3)-z_xtnt(2))/sigma))
-      zleft = 0.5_dp*(erf((cell_xtnts(1, 3)-z_xtnt(1))/sigma)-erf((cell_xtnts(1, 3)-z_xtnt(2))/sigma))
-
-      xright_ok = .FALSE.; xleft_ok = .FALSE.
-      yright_ok = .FALSE.; yleft_ok = .FALSE.
-      zright_ok = .FALSE.; zleft_ok = .FALSE.
-
-      xright_ok = xright .LT. 0.5_dp
-      yright_ok = yright .LT. 0.5_dp
-      zright_ok = zright .LT. 0.5_dp
-      xleft_ok = xleft .LT. 0.5_dp
-      yleft_ok = yleft .LT. 0.5_dp
-      zleft_ok = zleft .LT. 0.5_dp
-
 ! prefactor: columns: left, original, right - rows: x , y, z directions
       prefactor = 0.5_dp
 
-      IF (.NOT. xright_ok) prefactor(1, 1) = 0.0_dp
-      IF (.NOT. yright_ok) prefactor(2, 1) = 0.0_dp
-      IF (.NOT. zright_ok) prefactor(3, 1) = 0.0_dp
-      IF (.NOT. xleft_ok) prefactor(1, 3) = 0.0_dp
-      IF (.NOT. yleft_ok) prefactor(2, 3) = 0.0_dp
-      IF (.NOT. zleft_ok) prefactor(3, 3) = 0.0_dp
+      IF (is_periodic) THEN
+         DO k = lb3, ub3
+            DO j = lb2, ub2
+               DO i = lb1, ub1
+                  xi0 = x_locl(i); yj0 = y_locl(j); zk0 = z_locl(k)
+                  xil = x_locl(i)-per(1); yjl = y_locl(j)-per(2); zkl = z_locl(k)-per(3)
+                  xir = x_locl(i)+per(1); yjr = y_locl(j)+per(2); zkr = z_locl(k)+per(3)
 
-      DO k = lb3, ub3
-         DO j = lb2, ub2
-            DO i = lb1, ub1
-               xi0 = x_locl(i); yj0 = y_locl(j); zk0 = z_locl(k)
-               xil = x_locl(i)-per(1); yjl = y_locl(j)-per(2); zkl = z_locl(k)-per(3)
-               xir = x_locl(i)+per(1); yjr = y_locl(j)+per(2); zkr = z_locl(k)+per(3)
+                  ! points from the original cell local to the current processor
+                  fx = prefactor(1, 2)*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
+                  fy = prefactor(2, 2)*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
+                  fz = prefactor(3, 2)*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
 
-! points from the original cell local to the current processor
-               fx = prefactor(1, 2)*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
-               fy = prefactor(2, 2)*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
-               fz = prefactor(3, 2)*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
+                  ! periodically replicated cell on the left, points local to the current processor
+                  gx = prefactor(1, 1)*(erf((xil-x_xtnt(1))/sigma)-erf((xil-x_xtnt(2))/sigma))
+                  gy = prefactor(2, 1)*(erf((yjl-y_xtnt(1))/sigma)-erf((yjl-y_xtnt(2))/sigma))
+                  gz = prefactor(3, 1)*(erf((zkl-z_xtnt(1))/sigma)-erf((zkl-z_xtnt(2))/sigma))
 
-! periodically replicated cell on the left, points local to the current processor
-               gx = prefactor(1, 1)*(erf((xil-x_xtnt(1))/sigma)-erf((xil-x_xtnt(2))/sigma))
-               gy = prefactor(2, 1)*(erf((yjl-y_xtnt(1))/sigma)-erf((yjl-y_xtnt(2))/sigma))
-               gz = prefactor(3, 1)*(erf((zkl-z_xtnt(1))/sigma)-erf((zkl-z_xtnt(2))/sigma))
+                  ! periodically replicated cell on the right, points local to the current processor
+                  hx = prefactor(1, 3)*(erf((xir-x_xtnt(1))/sigma)-erf((xir-x_xtnt(2))/sigma))
+                  hy = prefactor(2, 3)*(erf((yjr-y_xtnt(1))/sigma)-erf((yjr-y_xtnt(2))/sigma))
+                  hz = prefactor(3, 3)*(erf((zkr-z_xtnt(1))/sigma)-erf((zkr-z_xtnt(2))/sigma))
 
-! periodically replicated cell on the right, points local to the current processor
-               hx = prefactor(1, 3)*(erf((xir-x_xtnt(1))/sigma)-erf((xir-x_xtnt(2))/sigma))
-               hy = prefactor(2, 3)*(erf((yjr-y_xtnt(1))/sigma)-erf((yjr-y_xtnt(2))/sigma))
-               hz = prefactor(3, 3)*(erf((zkr-z_xtnt(1))/sigma)-erf((zkr-z_xtnt(2))/sigma))
-
-               tile_pw%cr3d(i, j, k) = (fx*fy*fz)+(gx*gy*gz)+(hx*hy*hz)
+                  tile_pw%cr3d(i, j, k) = (fx+gx+hx)*(fy+gy+hy)*(fz+gz+hz)
+               END DO
             END DO
          END DO
-      END DO
+      ELSE
+         DO k = lb3, ub3
+            DO j = lb2, ub2
+               DO i = lb1, ub1
+                  xi0 = x_locl(i); yj0 = y_locl(j); zk0 = z_locl(k)
+
+                  fx = 0.5_dp*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
+                  fy = 0.5_dp*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
+                  fz = 0.5_dp*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
+
+                  tile_pw%cr3d(i, j, k) = fx*fy*fz
+               END DO
+            END DO
+         END DO
+      END IF
 
       CALL timestop(handle)
 
@@ -1472,17 +1467,13 @@ CONTAINS
       INTEGER                                            :: handle, i, j, k, lb1, lb2, lb3, ub1, &
                                                             ub2, ub3
       INTEGER, DIMENSION(2, 3)                           :: bounds_local
-      LOGICAL                                            :: xleft_ok, xright_ok, yleft_ok, &
-                                                            yright_ok, zleft_ok, zright_ok
-      REAL(dp)                                           :: cm_x, cm_y, cm_z, fx, fy, fz, gx, gy, &
-                                                            gz, hx, hy, hz, xi0, xil, xir, xleft, &
-                                                            xright, yj0, yjl, yjr, yleft, yright, &
-                                                            zk0, zkl, zkr, zleft, zright
+      REAL(dp)                                           :: cm_x, cm_y, cm_z, fx, fy, fz, xi0, yj0, &
+                                                            zk0
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: xlocll, xloclr, ylocll, yloclr, zlocll, &
                                                             zloclr
       REAL(dp), DIMENSION(2)                             :: transfdx_xtnt, transfdy_xtnt, &
                                                             transfdz_xtnt, x_xtnt, y_xtnt, z_xtnt
-      REAL(dp), DIMENSION(3)                             :: per, pnt0, pntl, pntr, Tpnt
+      REAL(dp), DIMENSION(3)                             :: per, pnt0, Tpnt
       REAL(dp), DIMENSION(3, 3)                          :: prefactor, Rmat
       REAL(dp), DIMENSION(3, 8)                          :: tile_transfd_vertices
 
@@ -1515,57 +1506,20 @@ CONTAINS
       y_xtnt = transfdy_xtnt-cm_y
       z_xtnt = transfdz_xtnt-cm_z
 
-      xright = 0.5_dp*(erf((cell_xtnts(2, 1)-x_xtnt(1))/sigma)-erf((cell_xtnts(2, 1)-x_xtnt(2))/sigma))
-      xleft = 0.5_dp*(erf((cell_xtnts(1, 1)-x_xtnt(1))/sigma)-erf((cell_xtnts(1, 1)-x_xtnt(2))/sigma))
-      yright = 0.5_dp*(erf((cell_xtnts(2, 2)-y_xtnt(1))/sigma)-erf((cell_xtnts(2, 2)-y_xtnt(2))/sigma))
-      yleft = 0.5_dp*(erf((cell_xtnts(1, 2)-y_xtnt(1))/sigma)-erf((cell_xtnts(1, 2)-y_xtnt(2))/sigma))
-      zright = 0.5_dp*(erf((cell_xtnts(2, 3)-z_xtnt(1))/sigma)-erf((cell_xtnts(2, 3)-z_xtnt(2))/sigma))
-      zleft = 0.5_dp*(erf((cell_xtnts(1, 3)-z_xtnt(1))/sigma)-erf((cell_xtnts(1, 3)-z_xtnt(2))/sigma))
-
-      xright_ok = .FALSE.; xleft_ok = .FALSE.
-      yright_ok = .FALSE.; yleft_ok = .FALSE.
-      zright_ok = .FALSE.; zleft_ok = .FALSE.
-
-      xright_ok = xright .LT. 0.5_dp
-      yright_ok = yright .LT. 0.5_dp
-      zright_ok = zright .LT. 0.5_dp
-      xleft_ok = xleft .LT. 0.5_dp
-      yleft_ok = yleft .LT. 0.5_dp
-      zleft_ok = zleft .LT. 0.5_dp
-
       prefactor = 0.5_dp
-
-      IF (.NOT. xright_ok) prefactor(1, 1) = 0.0_dp
-      IF (.NOT. yright_ok) prefactor(2, 1) = 0.0_dp
-      IF (.NOT. zright_ok) prefactor(3, 1) = 0.0_dp
-      IF (.NOT. xleft_ok) prefactor(1, 3) = 0.0_dp
-      IF (.NOT. yleft_ok) prefactor(2, 3) = 0.0_dp
-      IF (.NOT. zleft_ok) prefactor(3, 3) = 0.0_dp
 
       DO k = lb3, ub3
          DO j = lb2, ub2
             DO i = lb1, ub1
                pnt0 = rotate_translate_vector(Rmat, Tpnt, BWROT, (/x_locl(i), y_locl(j), z_locl(k)/))
-               pntl = rotate_translate_vector(Rmat, Tpnt, BWROT, (/x_locl(i)-per(1), y_locl(j)-per(2), z_locl(k)-per(3)/))
-               pntr = rotate_translate_vector(Rmat, Tpnt, BWROT, (/x_locl(i)+per(1), y_locl(j)+per(2), z_locl(k)+per(3)/))
 
                xi0 = pnt0(1); yj0 = pnt0(2); zk0 = pnt0(3)
-               xil = pntl(1); yjl = pntl(2); zkl = pntl(3)
-               xir = pntr(1); yjr = pntr(2); zkr = pntr(3)
 
-               fx = prefactor(1, 2)*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
-               fy = prefactor(2, 2)*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
-               fz = prefactor(3, 2)*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
+               fx = 0.5_dp*(erf((xi0-x_xtnt(1))/sigma)-erf((xi0-x_xtnt(2))/sigma))
+               fy = 0.5_dp*(erf((yj0-y_xtnt(1))/sigma)-erf((yj0-y_xtnt(2))/sigma))
+               fz = 0.5_dp*(erf((zk0-z_xtnt(1))/sigma)-erf((zk0-z_xtnt(2))/sigma))
 
-               gx = prefactor(1, 1)*(erf((xil-x_xtnt(1))/sigma)-erf((xil-x_xtnt(2))/sigma))
-               gy = prefactor(2, 1)*(erf((yjl-y_xtnt(1))/sigma)-erf((yjl-y_xtnt(2))/sigma))
-               gz = prefactor(3, 1)*(erf((zkl-z_xtnt(1))/sigma)-erf((zkl-z_xtnt(2))/sigma))
-
-               hx = prefactor(1, 3)*(erf((xir-x_xtnt(1))/sigma)-erf((xir-x_xtnt(2))/sigma))
-               hy = prefactor(2, 3)*(erf((yjr-y_xtnt(1))/sigma)-erf((yjr-y_xtnt(2))/sigma))
-               hz = prefactor(3, 3)*(erf((zkr-z_xtnt(1))/sigma)-erf((zkr-z_xtnt(2))/sigma))
-
-               tile_pw%cr3d(i, j, k) = (fx*fy*fz)+(gx*gy*gz)+(hx*hy*hz)
+               tile_pw%cr3d(i, j, k) = fx*fy*fz
             END DO
          END DO
       END DO

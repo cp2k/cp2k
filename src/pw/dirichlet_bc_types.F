@@ -37,6 +37,7 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_vD => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_sigma => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_thickness => NULL()
+      LOGICAL, DIMENSION(:), POINTER           :: aa_planar_is_periodic => NULL()
 
       INTEGER                                  :: n_planar
       INTEGER, DIMENSION(:, :), POINTER         :: planar_nprtn => NULL()
@@ -47,6 +48,7 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_vD => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_sigma => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_thickness => NULL()
+      LOGICAL, DIMENSION(:), POINTER           :: planar_is_periodic => NULL()
 
       INTEGER                                  :: n_aa_cylindrical
       INTEGER, DIMENSION(:, :), POINTER         :: aa_cylindrical_nprtn => NULL()
@@ -60,6 +62,7 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_sigma => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_thickness => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_sgap => NULL()
+      LOGICAL, DIMENSION(:), POINTER           :: aa_cylindrical_is_periodic => NULL()
 
       INTEGER                                  :: n_aa_cuboidal
       INTEGER, DIMENSION(:, :), POINTER         :: aa_cuboidal_nprtn => NULL()
@@ -68,7 +71,7 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cuboidal_zxtnt => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cuboidal_vD => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cuboidal_sigma => NULL()
-
+      LOGICAL, DIMENSION(:), POINTER           :: aa_cuboidal_is_periodic => NULL()
    END TYPE dirichlet_bc_parameters
 
    TYPE :: dirichlet_bc_type
@@ -226,6 +229,7 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%aa_planar_vD)) DEALLOCATE (dbc_params%aa_planar_vD)
       IF (ASSOCIATED(dbc_params%aa_planar_sigma)) DEALLOCATE (dbc_params%aa_planar_sigma)
       IF (ASSOCIATED(dbc_params%aa_planar_thickness)) DEALLOCATE (dbc_params%aa_planar_thickness)
+      IF (ASSOCIATED(dbc_params%aa_planar_is_periodic)) DEALLOCATE (dbc_params%aa_planar_is_periodic)
 
       IF (ASSOCIATED(dbc_params%planar_nprtn)) DEALLOCATE (dbc_params%planar_nprtn)
       IF (ASSOCIATED(dbc_params%planar_Avtx)) DEALLOCATE (dbc_params%planar_Avtx)
@@ -235,6 +239,7 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%planar_vD)) DEALLOCATE (dbc_params%planar_vD)
       IF (ASSOCIATED(dbc_params%planar_sigma)) DEALLOCATE (dbc_params%planar_sigma)
       IF (ASSOCIATED(dbc_params%planar_thickness)) DEALLOCATE (dbc_params%planar_thickness)
+      IF (ASSOCIATED(dbc_params%planar_is_periodic)) DEALLOCATE (dbc_params%planar_is_periodic)
 
       IF (ASSOCIATED(dbc_params%aa_cylindrical_paxis)) DEALLOCATE (dbc_params%aa_cylindrical_paxis)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_nprtn)) DEALLOCATE (dbc_params%aa_cylindrical_nprtn)
@@ -247,6 +252,7 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%aa_cylindrical_sigma)) DEALLOCATE (dbc_params%aa_cylindrical_sigma)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_thickness)) DEALLOCATE (dbc_params%aa_cylindrical_thickness)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_sgap)) DEALLOCATE (dbc_params%aa_cylindrical_sgap)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_is_periodic)) DEALLOCATE (dbc_params%aa_cylindrical_is_periodic)
 
       IF (ASSOCIATED(dbc_params%aa_cuboidal_nprtn)) DEALLOCATE (dbc_params%aa_cuboidal_nprtn)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_xxtnt)) DEALLOCATE (dbc_params%aa_cuboidal_xxtnt)
@@ -254,6 +260,7 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%aa_cuboidal_zxtnt)) DEALLOCATE (dbc_params%aa_cuboidal_zxtnt)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_vD)) DEALLOCATE (dbc_params%aa_cuboidal_vD)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_sigma)) DEALLOCATE (dbc_params%aa_cuboidal_sigma)
+      IF (ASSOCIATED(dbc_params%aa_cuboidal_is_periodic)) DEALLOCATE (dbc_params%aa_cuboidal_is_periodic)
 
    END SUBROUTINE dbc_parameters_dealloc
 

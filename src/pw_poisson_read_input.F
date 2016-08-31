@@ -335,13 +335,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dirichlet_bc_read_parameters', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: aa_cylindrical_apxtyp, aa_cylindrical_nsides, i, n_aac_rep, n_aap_rep, n_p_rep, &
-         n_xaac_rep, parallel_axis, parallel_plane
+      INTEGER :: aa_cylindrical_apxtyp, aa_cylindrical_nsides, i, n_aac_rep, n_aacyl_rep, &
+         n_aap_rep, n_p_rep, parallel_axis, parallel_plane
       INTEGER, DIMENSION(:), POINTER                     :: aa_cuboidal_nprtn, aa_cylindrical_nprtn, &
                                                             aa_planar_nprtn, planar_nprtn
       LOGICAL                                            :: aa_cuboidal_explicit, &
                                                             aa_cylindrical_explicit, &
-                                                            aa_planar_explicit, planar_explicit
+                                                            aa_planar_explicit, is_periodic, &
+                                                            planar_explicit
       REAL(dp)                                           :: aa_cylindrical_brad, delta_alpha, &
                                                             intercept, sigma, thickness, v_D
       REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt, &
@@ -358,7 +359,7 @@ CONTAINS
       aa_cuboidal_section => section_vals_get_subs_vals(dbc_section, "AA_CUBOIDAL")
       CALL section_vals_get(aa_planar_section, explicit=aa_planar_explicit, n_repetition=n_aap_rep)
       CALL section_vals_get(planar_section, explicit=planar_explicit, n_repetition=n_p_rep)
-      CALL section_vals_get(aa_cylindrical_section, explicit=aa_cylindrical_explicit, n_repetition=n_xaac_rep)
+      CALL section_vals_get(aa_cylindrical_section, explicit=aa_cylindrical_explicit, n_repetition=n_aacyl_rep)
       CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep)
 
       IF (params%solver .EQ. pw_poisson_implicit) THEN
@@ -372,16 +373,19 @@ CONTAINS
                       params%dbc_params%aa_planar_zxtnt(2, n_aap_rep), &
                       params%dbc_params%aa_planar_vD(n_aap_rep), &
                       params%dbc_params%aa_planar_sigma(n_aap_rep), &
-                      params%dbc_params%aa_planar_thickness(n_aap_rep))
+                      params%dbc_params%aa_planar_thickness(n_aap_rep), &
+                      params%dbc_params%aa_planar_is_periodic(n_aap_rep))
             NULLIFY (aa_planar_nprtn, aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt)
             DO i = 1, n_aap_rep
                CALL section_vals_val_get(aa_planar_section, "v_D", i_rep_section=i, r_val=v_D)
                CALL section_vals_val_get(aa_planar_section, "SIGMA", i_rep_section=i, r_val=sigma)
                CALL section_vals_val_get(aa_planar_section, "THICKNESS", i_rep_section=i, r_val=thickness)
+               CALL section_vals_val_get(aa_planar_section, "PERIODIC_REGION", i_rep_section=i, l_val=is_periodic)
 
                params%dbc_params%aa_planar_vD(i) = v_D
                params%dbc_params%aa_planar_sigma(i) = sigma
                params%dbc_params%aa_planar_thickness(i) = thickness
+               params%dbc_params%aa_planar_is_periodic(i) = is_periodic
 
                CALL section_vals_val_get(aa_planar_section, "PARALLEL_PLANE", i_rep_section=i, i_val=parallel_plane)
                CALL section_vals_val_get(aa_planar_section, "INTERCEPT", i_rep_section=i, r_val=intercept)
@@ -437,7 +441,8 @@ CONTAINS
                       params%dbc_params%planar_Cvtx(3, n_p_rep), &
                       params%dbc_params%planar_vD(n_p_rep), &
                       params%dbc_params%planar_sigma(n_p_rep), &
-                      params%dbc_params%planar_thickness(n_p_rep))
+                      params%dbc_params%planar_thickness(n_p_rep), &
+                      params%dbc_params%planar_is_periodic(n_p_rep))
             NULLIFY (planar_nprtn, planar_Avtx, planar_Bvtx, planar_Cvtx)
             DO i = 1, n_p_rep
                CALL section_vals_val_get(planar_section, "N_PRTN", i_rep_section=i, i_vals=planar_nprtn)
@@ -454,26 +459,28 @@ CONTAINS
                params%dbc_params%planar_vD(i) = v_D
                params%dbc_params%planar_sigma(i) = sigma
                params%dbc_params%planar_thickness(i) = thickness
+               params%dbc_params%planar_is_periodic(i) = .FALSE. ! periodic not yet implemented
             END DO
          ELSE
             params%dbc_params%n_planar = 0
          END IF
 
          IF (aa_cylindrical_explicit) THEN
-            params%dbc_params%n_aa_cylindrical = n_xaac_rep
-            ALLOCATE (params%dbc_params%aa_cylindrical_paxis(n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_nprtn(2, n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_nsides(n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_apxtyp(n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_xtnt(2, n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_bctr(2, n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_brad(n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_vD(n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_sigma(n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_thickness(n_xaac_rep), &
-                      params%dbc_params%aa_cylindrical_sgap(n_xaac_rep))
+            params%dbc_params%n_aa_cylindrical = n_aacyl_rep
+            ALLOCATE (params%dbc_params%aa_cylindrical_paxis(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_nprtn(2, n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_nsides(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_apxtyp(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_xtnt(2, n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_bctr(2, n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_brad(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_vD(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_sigma(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_thickness(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_sgap(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_is_periodic(n_aacyl_rep))
             NULLIFY (aa_cylindrical_nprtn, aa_cylindrical_xtnt, aa_cylindrical_bctr)
-            DO i = 1, n_xaac_rep
+            DO i = 1, n_aacyl_rep
                CALL section_vals_val_get(aa_cylindrical_section, "PARALLEL_AXIS", i_rep_section=i, i_val=parallel_axis)
                CALL section_vals_val_get(aa_cylindrical_section, "N_PRTN", i_rep_section=i, i_vals=aa_cylindrical_nprtn)
                CALL section_vals_val_get(aa_cylindrical_section, "N_SIDES", i_rep_section=i, i_val=aa_cylindrical_nsides)
@@ -496,10 +503,11 @@ CONTAINS
                params%dbc_params%aa_cylindrical_sigma(i) = sigma
                params%dbc_params%aa_cylindrical_thickness(i) = thickness
                params%dbc_params%aa_cylindrical_sgap(i) = delta_alpha
+               params%dbc_params%aa_cylindrical_is_periodic(i) = .FALSE. ! periodic not yet implemented
             END DO
          ELSE
             params%dbc_params%n_aa_cylindrical = 0
-            ALLOCATE (params%dbc_params%aa_cylindrical_nsides(n_xaac_rep))
+            ALLOCATE (params%dbc_params%aa_cylindrical_nsides(n_aacyl_rep))
          END IF
 
          IF (aa_cuboidal_explicit) THEN
@@ -509,7 +517,8 @@ CONTAINS
                       params%dbc_params%aa_cuboidal_yxtnt(2, n_aac_rep), &
                       params%dbc_params%aa_cuboidal_zxtnt(2, n_aac_rep), &
                       params%dbc_params%aa_cuboidal_vD(n_aac_rep), &
-                      params%dbc_params%aa_cuboidal_sigma(n_aac_rep))
+                      params%dbc_params%aa_cuboidal_sigma(n_aac_rep), &
+                      params%dbc_params%aa_cuboidal_is_periodic(n_aac_rep))
             NULLIFY (aa_cuboidal_nprtn, aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt)
             DO i = 1, n_aac_rep
                CALL section_vals_val_get(aa_cuboidal_section, "N_PRTN", i_rep_section=i, i_vals=aa_cuboidal_nprtn)
@@ -518,12 +527,14 @@ CONTAINS
                CALL section_vals_val_get(aa_cuboidal_section, "Z_xtnt", i_rep_section=i, r_vals=aa_cuboidal_zxtnt)
                CALL section_vals_val_get(aa_cuboidal_section, "v_D", i_rep_section=i, r_val=v_D)
                CALL section_vals_val_get(aa_cuboidal_section, "SIGMA", i_rep_section=i, r_val=sigma)
+               CALL section_vals_val_get(aa_cuboidal_section, "PERIODIC_REGION", i_rep_section=i, l_val=is_periodic)
                params%dbc_params%aa_cuboidal_nprtn(:, i) = aa_cuboidal_nprtn
                params%dbc_params%aa_cuboidal_xxtnt(:, i) = aa_cuboidal_xxtnt
                params%dbc_params%aa_cuboidal_yxtnt(:, i) = aa_cuboidal_yxtnt
                params%dbc_params%aa_cuboidal_zxtnt(:, i) = aa_cuboidal_zxtnt
                params%dbc_params%aa_cuboidal_vD(i) = v_D
                params%dbc_params%aa_cuboidal_sigma(i) = sigma
+               params%dbc_params%aa_cuboidal_is_periodic(i) = is_periodic
             END DO
          ELSE
             params%dbc_params%n_aa_cuboidal = 0
