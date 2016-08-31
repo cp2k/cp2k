@@ -930,6 +930,8 @@ CONTAINS
             size_scatter(idata, pdiag) = 0
             CALL ensure_array_size(meta_scatter, ub=meta_size_diag_scatter, &
                                    nocopy=.TRUE., memory_type=memtype_mpi_buffer)
+         ELSE
+            ALLOCATE (size_scatter(idata:imeta, 0), displ_scatter(idata:imeta, 0))
          ENDIF
          !
          ! Scatter the diagonal sizes
@@ -1542,8 +1544,8 @@ CONTAINS
          !
          IF (is_diagonal) THEN
             DEALLOCATE (meta_displ_cluster_scatter, meta_size_cluster_scatter)
-            DEALLOCATE (size_scatter, displ_scatter)
          ENDIF
+         DEALLOCATE (size_scatter, displ_scatter)
       ENDIF
       !
       CALL timestop(handle)
