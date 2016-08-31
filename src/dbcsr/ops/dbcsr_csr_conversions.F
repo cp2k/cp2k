@@ -1551,13 +1551,14 @@ CONTAINS
 
       CHARACTER                                          :: matrix_type
       CHARACTER(LEN=default_string_length)               :: matrix_name
-      INTEGER :: chunk_size, data_type, handle, i, k, l, m, mp_group, mynode, nblkcols_total, &
-         nblkrows_total, nfullrows_local, nfullrows_total, node_size, numnodes_total, remainder, &
-         row_index, split_row
+      INTEGER :: cs, data_type, end_ind, handle, i, k, l, m, mp_group, mynode, nblkcols_total, &
+         nblkrows_total, nfullrows_local, nfullrows_total, node_size, numnodes_total, row_index, &
+         split_row, start_ind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rdist_tmp, row_blk_size_new_tmp
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pgrid
       INTEGER, DIMENSION(:), POINTER                     :: cdist, col_blk_size, rdist, &
                                                             row_blk_size, row_blk_size_new
+      REAL(KIND=real_8)                                  :: chunk_size
       TYPE(dbcsr_distribution_obj)                       :: dist_current, dist_new
       TYPE(dbcsr_mp_obj)                                 :: mp_obj_current, mp_obj_new
 
@@ -1641,14 +1642,16 @@ CONTAINS
          IF (numnodes .GT. nblkrows_total) THEN
             rdist = (/(i, i=0, nblkrows_total-1)/)
          ELSE
-            chunk_size = FLOOR(REAL(nblkrows_total)/numnodes)
-            remainder = MOD(nblkrows_total, numnodes)
+            chunk_size = REAL(nblkrows_total)/numnodes
             row_index = 0
-            DO i = 1, chunk_size*numnodes, chunk_size
-               rdist(i:i+chunk_size-1) = row_index
+            start_ind = 1
+            DO i = 0, numnodes-1
+               cs = NINT(i*chunk_size)-NINT((i-1)*chunk_size)
+               end_ind = start_ind-1+cs
+               rdist(start_ind:end_ind) = row_index
+               start_ind = end_ind+1; 
                row_index = row_index+1
             END DO
-            IF (remainder .GT. 0) rdist(chunk_size*numnodes+1:nblkrows_total) = row_index-1
          END IF
          row_blk_size_new => row_blk_size
       ENDIF

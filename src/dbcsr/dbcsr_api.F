@@ -46,8 +46,8 @@ MODULE dbcsr_api
         mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
    USE dbcsr_csr_conversions,           ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_create_new, &
-        csr_create_template, csr_destroy, csr_eqrow_ceil_dist, csr_eqrow_floor_dist, csr_p_type, &
-        csr_print_sparsity, csr_type
+        csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
+        csr_eqrow_floor_dist, csr_p_type, csr_print_sparsity, csr_type
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
         dbcsr_get_data_p, dbcsr_scalar, dbcsr_scalar_fill_all, dbcsr_scalar_get_type, &
@@ -341,6 +341,7 @@ MODULE dbcsr_api
              csr_create_template, &
              csr_eqrow_ceil_dist, &
              csr_eqrow_floor_dist, &
+             csr_dbcsr_blkrow_dist, &
              csr_print_sparsity, &
              dbcsr_distribution_get_num_images_1d, &
              dbcsr_set_conf_randmat_seed, dbcsr_get_conf_randmat_seed, &

@@ -33,7 +33,7 @@ MODULE transport
         cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, cp_csr_create_from_dbcsr, &
         cp_csr_print_sparsity, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
         cp_dbcsr_desymmetrize, cp_dbcsr_has_symmetry, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
-        csr_eqrow_ceil_dist, csr_type, dbcsr_type_real_8
+        csr_dbcsr_blkrow_dist, csr_type, dbcsr_type_real_8
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -311,7 +311,7 @@ CONTAINS
       IF (.NOT. transport_env%csr_screening) CALL cp_dbcsr_set(transport_env%csr_sparsity, 1.0)
       CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
                                     transport_env%s_matrix, &
-                                    csr_eqrow_ceil_dist, &
+                                    csr_dbcsr_blkrow_dist, &
                                     csr_sparsity=transport_env%csr_sparsity, &
                                     numnodes=numnodes)
 
