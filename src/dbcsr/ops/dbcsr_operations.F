@@ -618,7 +618,7 @@ CONTAINS
       LOGICAL                                            :: do_scale, tr
       TYPE(dbcsr_data_obj)                               :: data_block
       TYPE(dbcsr_iterator)                               :: iter
-      TYPE(dbcsr_scalar_type)                            :: my_alpha_scalar, my_beta_scalar
+      TYPE(dbcsr_scalar_type)                            :: my_beta_scalar
 
 !   ---------------------------------------------------------------------------
 
@@ -636,8 +636,6 @@ CONTAINS
       data_type_a = dbcsr_get_data_type(matrix_a)
       data_type_b = dbcsr_get_data_type(matrix_b)
       !
-      my_alpha_scalar = dbcsr_scalar_one(data_type_a)
-      IF (PRESENT(alpha_scalar)) my_alpha_scalar = alpha_scalar
       my_beta_scalar = dbcsr_scalar_one(data_type_b)
       IF (PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
       !
@@ -648,7 +646,9 @@ CONTAINS
       do_scale = dbcsr_scalar_are_equal( &
                  my_beta_scalar, dbcsr_scalar_one(data_type_b))
 
-      CALL dbcsr_scale(matrix_a, alpha_scalar=my_alpha_scalar)
+      IF (PRESENT(alpha_scalar)) THEN
+         CALL dbcsr_scale(matrix_a, alpha_scalar=alpha_scalar)
+      ENDIF
 
       ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
       size_a = dbcsr_data_get_size_referenced(matrix_a%m%data_area)
