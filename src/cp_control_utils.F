@@ -1793,8 +1793,6 @@ CONTAINS
                                 l_val=dft_control%rtp_control%periodic)
       CALL section_vals_val_get(rtp_section, "DENSITY_PROPAGATION", &
                                 l_val=dft_control%rtp_control%linear_scaling)
-      CALL section_vals_val_get(rtp_section, "ORTHONORMAL", &
-                                l_val=dft_control%rtp_control%orthonormal)
       CALL section_vals_val_get(rtp_section, "MCWEENY_MAX_ITER", &
                                 i_val=dft_control%rtp_control%mcweeny_max_iter)
       CALL section_vals_val_get(rtp_section, "ACCURACY_REFINEMENT", &

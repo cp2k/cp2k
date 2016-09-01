@@ -7055,15 +7055,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create( &
-         keyword, name="ORTHONORMAL", &
-         description="Performs rtp in the orthonormal basis. This keyword is only intended for development purposes."// &
-         "It should not be used outside code development", &
-         usage="ORTHONORMAL", &
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="MCWEENY_MAX_ITER", &
                           description="Determines the maximum amount of McWeeny steps used after each converged"// &
                           " step in density propagation", &

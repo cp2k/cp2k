@@ -256,25 +256,10 @@ CONTAINS
       DO ispin = 1, SIZE(SinvH)
          re = 2*ispin-1
          im = 2*ispin
-         IF (rtp_control%orthonormal) THEN
-            CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, SinvH(ispin)%matrix, zero, tmp2, &
-                                   filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp2, rho_new(re)%matrix, zero, tmp3, &
-                                   filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp3, S_minus_half, zero, tmp, &
-                                   filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, SinvB(ispin)%matrix, zero, tmp2, &
-                                   filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp2, rho_new(im)%matrix, zero, tmp3, &
-                                   filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp3, S_minus_half, one, tmp, &
-                                   filter_eps=rtp%filter_eps)
-         ELSE
-            CALL cp_dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
-                                   filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
-                                   filter_eps=rtp%filter_eps)
-         ENDIF
+         CALL cp_dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
+                                filter_eps=rtp%filter_eps)
+         CALL cp_dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
+                                filter_eps=rtp%filter_eps)
 
          CALL compute_forces(force, tmp, S_der, rho_new(im)%matrix, C_mat, kind_of, atom_of_kind)
 

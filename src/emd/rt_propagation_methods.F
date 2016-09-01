@@ -302,13 +302,8 @@ CONTAINS
       IF (rtp%converged) THEN
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
-            IF (rtp_control%orthonormal) THEN
-               CALL purify_mcweeny_complex_orth(rho_new, rtp%filter_eps, rtp%filter_eps_small, &
+            CALL purify_mcweeny_complex_nonorth(rho_new, s_mat, rtp%filter_eps, rtp%filter_eps_small, &
                                                 rtp_control%mcweeny_max_iter, rtp_control%mcweeny_eps)
-            ELSE
-               CALL purify_mcweeny_complex_nonorth(rho_new, s_mat, rtp%filter_eps, rtp%filter_eps_small, &
-                                                   rtp_control%mcweeny_max_iter, rtp_control%mcweeny_eps)
-            ENDIF
             IF (rtp_control%mcweeny_max_iter > 0) CALL calc_update_rho_sparse(qs_env)
             CALL report_density_occupation(rtp%filter_eps, rho_new)
             DO i = 1, SIZE(rho_new)
@@ -405,15 +400,8 @@ CONTAINS
          re = ispin*2-1
          im = ispin*2
          CALL cp_dbcsr_desymmetrize(matrix_ks(ispin)%matrix, matrix_ks_nosym)
-         IF (rtp_control%orthonormal) THEN
-            CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, matrix_ks_nosym, zero, tmp, &
-                                   filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, exp_H(im)%matrix, &
-                                   filter_eps=rtp%filter_eps)
-         ELSE
-            CALL cp_dbcsr_multiply("N", "N", one, S_inv, matrix_ks_nosym, zero, exp_H(im)%matrix, &
-                                   filter_eps=rtp%filter_eps)
-         ENDIF
+         CALL cp_dbcsr_multiply("N", "N", one, S_inv, matrix_ks_nosym, zero, exp_H(im)%matrix, &
+                                filter_eps=rtp%filter_eps)
          IF (.NOT. rtp_control%fixed_ions) THEN
             CALL get_rtp(rtp=rtp, SinvH=SinvH)
             CALL cp_dbcsr_copy(SinvH(ispin)%matrix, exp_H(im)%matrix)
@@ -432,29 +420,15 @@ CONTAINS
                IF (.NOT. rtp_control%fixed_ions) &
                   CALL cp_dbcsr_add(matrix_ks_nosym, B_mat, 1.0_dp, -1.0_dp)
 
-               IF (rtp_control%orthonormal) THEN
-                  CALL cp_dbcsr_multiply("N", "N", -one, S_minus_half, matrix_ks_nosym, zero, tmp, &
-                                         filter_eps=rtp%filter_eps)
-                  CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, exp_H(re)%matrix, &
-                                         filter_eps=rtp%filter_eps)
-               ELSE
-                  CALL cp_dbcsr_multiply("N", "N", -one, S_inv, matrix_ks_nosym, zero, exp_H(re)%matrix, &
-                                         filter_eps=rtp%filter_eps)
-               ENDIF
+               CALL cp_dbcsr_multiply("N", "N", -one, S_inv, matrix_ks_nosym, zero, exp_H(re)%matrix, &
+                                      filter_eps=rtp%filter_eps)
 
                IF (.NOT. rtp_control%fixed_ions) &
                   CALL cp_dbcsr_copy(SinvB(ispin)%matrix, exp_H(re)%matrix)
             END DO
          ELSE
             ! in case of pure EMD its only needed once as B is the same for both spins
-            IF (rtp_control%orthonormal) THEN
-               CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, B_mat, zero, tmp, &
-                                      filter_eps=rtp%filter_eps)
-               CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, exp_H(1)%matrix, &
-                                      filter_eps=rtp%filter_eps)
-            ELSE
-               CALL cp_dbcsr_multiply("N", "N", one, S_inv, B_mat, zero, exp_H(1)%matrix, filter_eps=rtp%filter_eps)
-            ENDIF
+            CALL cp_dbcsr_multiply("N", "N", one, S_inv, B_mat, zero, exp_H(1)%matrix, filter_eps=rtp%filter_eps)
 
             CALL cp_dbcsr_copy(SinvB(1)%matrix, exp_H(1)%matrix)
 
@@ -675,99 +649,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE purify_mcweeny_complex_nonorth
-
-! **************************************************************************************************
-!> \brief Does McWeeny for complex matrices in the orthonormal basis
-!> \param P ...
-!> \param eps ...
-!> \param eps_small ...
-!> \param max_iter ...
-!> \param threshold ...
-!> \author Samuel Andermatt (04.14)
-! **************************************************************************************************
-
-   SUBROUTINE purify_mcweeny_complex_orth(P, eps, eps_small, max_iter, threshold)
-
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: P
-      REAL(KIND=dp), INTENT(in)                          :: eps, eps_small
-      INTEGER, INTENT(in)                                :: max_iter
-      REAL(KIND=dp), INTENT(in)                          :: threshold
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'purify_mcweeny_complex_orth', &
-         routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
-
-      INTEGER                                            :: handle, i, im, imax, ispin, re, unit_nr
-      REAL(KIND=dp)                                      :: frob_norm
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: PP, tmp
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         unit_nr = -1
-      ENDIF
-
-      NULLIFY (tmp, PP)
-      CALL cp_dbcsr_allocate_matrix_set(tmp, SIZE(P))
-      CALL cp_dbcsr_allocate_matrix_set(PP, SIZE(P))
-      DO i = 1, SIZE(P)
-         CALL cp_dbcsr_init_p(PP(i)%matrix)
-         CALL cp_dbcsr_create(PP(i)%matrix, template=P(1)%matrix)
-         CALL cp_dbcsr_init_p(tmp(i)%matrix)
-         CALL cp_dbcsr_create(tmp(i)%matrix, template=P(1)%matrix)
-      ENDDO
-      IF (SIZE(P) == 2) THEN
-         CALL cp_dbcsr_scale(P(1)%matrix, one/2)
-         CALL cp_dbcsr_scale(P(2)%matrix, one/2)
-      ENDIF
-      DO ispin = 1, SIZE(P)/2
-         re = 2*ispin-1
-         im = 2*ispin
-         imax = MAX(max_iter, 1) !if max_iter is 0 then only the deviation from idempotency needs to be calculated
-         DO i = 1, imax
-            CALL cp_complex_dbcsr_gemm_3("N", "N", one, P(re)%matrix, P(im)%matrix, &
-                                         P(re)%matrix, P(im)%matrix, zero, PP(re)%matrix, PP(im)%matrix, &
-                                         filter_eps=eps_small)
-            CALL cp_dbcsr_copy(tmp(re)%matrix, PP(re)%matrix)
-            CALL cp_dbcsr_copy(tmp(im)%matrix, PP(im)%matrix)
-            CALL cp_dbcsr_add(tmp(re)%matrix, P(re)%matrix, 1.0_dp, -1.0_dp)
-            CALL cp_dbcsr_add(tmp(im)%matrix, P(im)%matrix, 1.0_dp, -1.0_dp)
-            CALL complex_frobenius_norm(frob_norm, tmp(re)%matrix, tmp(im)%matrix)
-            IF (unit_nr .GT. 0) WRITE (unit_nr, '(t3,a,2f16.8)') "Deviation from idempotency: ", frob_norm
-            IF (frob_norm .GT. threshold .AND. max_iter > 0) THEN
-               CALL cp_dbcsr_copy(tmp(re)%matrix, P(re)%matrix)
-               CALL cp_dbcsr_copy(tmp(im)%matrix, P(im)%matrix)
-               CALL cp_dbcsr_copy(P(re)%matrix, PP(re)%matrix)
-               CALL cp_dbcsr_copy(P(im)%matrix, PP(im)%matrix)
-               CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, tmp(re)%matrix, tmp(im)%matrix, &
-                                            PP(re)%matrix, PP(im)%matrix, 3.0_dp, P(re)%matrix, P(im)%matrix, &
-                                            filter_eps=eps_small)
-               CALL cp_dbcsr_filter(P(re)%matrix, eps)
-               CALL cp_dbcsr_filter(P(im)%matrix, eps)
-               !make sure P is exactly hermitian
-               CALL cp_dbcsr_transposed(tmp(re)%matrix, P(re)%matrix)
-               CALL cp_dbcsr_add(P(re)%matrix, tmp(re)%matrix, one/2, one/2)
-               CALL cp_dbcsr_transposed(tmp(im)%matrix, P(im)%matrix)
-               CALL cp_dbcsr_add(P(im)%matrix, tmp(im)%matrix, one/2, -one/2)
-            ELSE
-               EXIT
-            END IF
-         END DO
-      END DO
-      IF (SIZE(P) == 2) THEN
-         CALL cp_dbcsr_scale(P(1)%matrix, one*2)
-         CALL cp_dbcsr_scale(P(2)%matrix, one*2)
-      ENDIF
-      CALL cp_dbcsr_deallocate_matrix_set(tmp)
-      CALL cp_dbcsr_deallocate_matrix_set(PP)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE purify_mcweeny_complex_orth
 
 ! **************************************************************************************************
 !> \brief ...

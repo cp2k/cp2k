@@ -421,16 +421,14 @@ CONTAINS
 !> \param matrix_ks ...
 !> \param matrix_s ...
 !> \param nelectron_spin ...
-!> \param orthonormal ...
 !> \author Samuel Andermatt (03.14)
 ! **************************************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_ks(rtp, matrix_ks, matrix_s, nelectron_spin, orthonormal)
+   SUBROUTINE rt_initialize_rho_from_ks(rtp, matrix_ks, matrix_s, nelectron_spin)
 
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
       INTEGER, DIMENSION(2)                              :: nelectron_spin
-      LOGICAL                                            :: orthonormal
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
          routineP = moduleN//':'//routineN
@@ -462,10 +460,6 @@ CONTAINS
                                   nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp, &
                                   max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold)
          IF (SIZE(matrix_ks) == 1) CALL cp_dbcsr_scale(rho_old(re)%matrix, 2.0_dp)
-         IF (orthonormal) THEN
-            CALL cp_dbcsr_multiply("N", "N", one, S_half, rho_old(re)%matrix, zero, tmp, filter_eps=rtp%filter_eps_small)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp, S_half, zero, rho_old(re)%matrix, filter_eps=rtp%filter_eps_small)
-         ENDIF
          CALL cp_dbcsr_filter(rho_old(re)%matrix, eps=rtp%filter_eps)
       END DO
 
@@ -481,16 +475,14 @@ CONTAINS
 !> \param rtp ...
 !> \param mos ...
 !> \param matrix_s ...
-!> \param orthonormal ...
 !> \author Samuel Andermatt (08.15)
 ! **************************************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_mos(rtp, mos, matrix_s, orthonormal)
+   SUBROUTINE rt_initialize_rho_from_mos(rtp, mos, matrix_s)
 
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      LOGICAL                                            :: orthonormal
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_mos', &
          routineP = moduleN//':'//routineN
@@ -499,19 +491,8 @@ CONTAINS
       INTEGER                                            :: ispin, ncol, re
       REAL(KIND=dp)                                      :: alpha
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_new, rho_old
-      TYPE(cp_dbcsr_type), POINTER                       :: S_half, S_minus_half, tmp
 
       CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
-      IF (orthonormal) THEN
-         CALL get_rtp(rtp=rtp, S_half=S_half, S_minus_half=S_minus_half)
-         NULLIFY (tmp)
-         ALLOCATE (tmp)
-         CALL cp_dbcsr_init(tmp)
-         CALL cp_dbcsr_create(tmp, template=rho_old(1)%matrix, matrix_type="N")
-         !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
-         CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, rtp%filter_eps, &
-                                        rtp%newton_schulz_order, rtp%lanzcos_threshold, rtp%lanzcos_max_iter)
-      ENDIF
 
       DO ispin = 1, SIZE(mos)
          re = 2*ispin-1
@@ -521,15 +502,9 @@ CONTAINS
          CALL cp_fm_column_scale(mos(ispin)%mo_set%mo_coeff, mos(ispin)%mo_set%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
                                     matrix_v=mos(ispin)%mo_set%mo_coeff, ncol=ncol, alpha=alpha, keep_sparsity=.FALSE.)
-         IF (orthonormal) THEN
-            CALL cp_dbcsr_multiply("N", "N", one, S_half, rho_old(re)%matrix, zero, tmp, filter_eps=rtp%filter_eps_small)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp, S_half, zero, rho_old(re)%matrix, filter_eps=rtp%filter_eps_small)
-         ENDIF
          CALL cp_dbcsr_filter(rho_old(re)%matrix, eps=rtp%filter_eps)
          CALL cp_dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
       END DO
-
-      IF (orthonormal) CALL cp_dbcsr_deallocate_matrix(tmp)
 
    END SUBROUTINE rt_initialize_rho_from_mos
 

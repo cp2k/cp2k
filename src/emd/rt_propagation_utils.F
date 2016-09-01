@@ -18,7 +18,7 @@ MODULE rt_propagation_utils
         cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
         cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
         cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
+        cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -423,16 +423,15 @@ CONTAINS
          routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: handle, im, ispin, re
+      INTEGER                                            :: handle, ispin
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao, rho_ao_im, rho_new
-      TYPE(cp_dbcsr_type), POINTER                       :: S_minus_half, tmp, tmp2
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
-      NULLIFY (rho, ks_env, rtp, tmp, tmp2, dft_control)
+      NULLIFY (rho, ks_env, rtp, dft_control)
       CALL timeset(routineN, handle)
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -443,39 +442,11 @@ CONTAINS
       CALL get_rtp(rtp=rtp, rho_new=rho_new)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
       IF (rtp%do_hfx) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
-      IF (rtp_control%orthonormal) THEN
-         CALL get_rtp(rtp=rtp, S_minus_half=S_minus_half)
-         ALLOCATE (tmp)
-         CALL cp_dbcsr_init(tmp)
-         CALL cp_dbcsr_create(tmp, template=rho_new(1)%matrix)
-         ALLOCATE (tmp2)
-         CALL cp_dbcsr_init(tmp2)
-         CALL cp_dbcsr_create(tmp2, template=rho_new(1)%matrix)
-         DO ispin = 1, SIZE(rho_ao)
-            re = 2*ispin-1
-            CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, rho_new(re)%matrix, zero, tmp, filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, tmp2, filter_eps=rtp%filter_eps)
-            CALL cp_dbcsr_set(rho_ao(ispin)%matrix, zero)
-            CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix, tmp2)
-         END DO
-         IF (rtp%do_hfx) THEN
-            DO ispin = 1, SIZE(rho_ao_im)
-               im = 2*ispin
-               CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, rho_new(im)%matrix, zero, tmp, filter_eps=rtp%filter_eps)
-               CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, tmp2, filter_eps=rtp%filter_eps)
-               CALL cp_dbcsr_set(rho_ao_im(ispin)%matrix, zero)
-               CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, tmp2)
-            END DO
-         ENDIF
-         CALL cp_dbcsr_deallocate_matrix(tmp)
-         CALL cp_dbcsr_deallocate_matrix(tmp2)
-      ELSE
-         DO ispin = 1, SIZE(rho_ao)
-            CALL cp_dbcsr_set(rho_ao(ispin)%matrix, zero)
-            CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2-1)%matrix)
-            IF (rtp%do_hfx) CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
-         END DO
-      ENDIF
+      DO ispin = 1, SIZE(rho_ao)
+         CALL cp_dbcsr_set(rho_ao(ispin)%matrix, zero)
+         CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2-1)%matrix)
+         IF (rtp%do_hfx) CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
+      END DO
 
       CALL qs_rho_update_rho(rho, qs_env)
       CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)

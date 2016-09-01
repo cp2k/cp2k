@@ -228,11 +228,11 @@ CONTAINS
                             nelectron_spin=nelectron_spin)
             IF (ASSOCIATED(mos)) THEN
                !The wavefunction was minimized by an mo based algorith. P is therefore calculated from the mos
-               CALL rt_initialize_rho_from_mos(rtp, mos, matrix_s, rtp_control%orthonormal)
+               CALL rt_initialize_rho_from_mos(rtp, mos, matrix_s)
             ELSE
                !The wavefunction was minimized using a linear scaling method. Because the rho in the qs_env has the sparsity of S
                !the matrix P needs to be recalculated from H
-               CALL rt_initialize_rho_from_ks(rtp, matrix_ks, matrix_s, nelectron_spin, rtp_control%orthonormal)
+               CALL rt_initialize_rho_from_ks(rtp, matrix_ks, matrix_s, nelectron_spin)
             ENDIF
          ENDIF
          CALL calc_update_rho_sparse(qs_env)
