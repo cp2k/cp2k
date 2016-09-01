@@ -72,6 +72,7 @@ MODULE dbcsr_data_methods
    PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c, &
              dbcsr_get_data_p_d, dbcsr_get_data_p_z
    PUBLIC :: dbcsr_data_host2dev, dbcsr_data_dev2host
+   PUBLIC :: dbcsr_data_zero
 
 CONTAINS
 

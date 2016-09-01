@@ -815,8 +815,6 @@ CONTAINS
                                 memory_type=memtype_product_wm(ithread)%p)
 !$OMP END PARALLEL
       ENDIF
-      CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
-      product_matrix%m%valid = .FALSE.
       !
       IF (use_mpi_exp) THEN
          !
@@ -840,6 +838,8 @@ CONTAINS
          product_matrix%m%nblks = 0
          product_matrix%m%nze = 0
          product_matrix%m%row_p(:) = 0
+         CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
+         product_matrix%m%valid = .FALSE.
          !
          ! Right images
          CALL make_m2s(matrix_right, m2s_right, rdist_right, dense_rdist_right, &
