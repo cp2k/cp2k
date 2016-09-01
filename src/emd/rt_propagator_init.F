@@ -432,7 +432,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
          routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: i, ispin, nelectron_spin_real, re
       REAL(KIND=dp)                                      :: e_homo, e_lumo, e_mu
@@ -484,7 +483,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_mos', &
          routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: ispin, ncol, re
       REAL(KIND=dp)                                      :: alpha

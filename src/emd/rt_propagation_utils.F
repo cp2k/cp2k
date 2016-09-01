@@ -421,7 +421,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_update_rho_sparse', &
          routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: handle, ispin
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao, rho_ao_im, rho_new
