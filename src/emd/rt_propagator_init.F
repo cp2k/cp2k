@@ -474,15 +474,13 @@ CONTAINS
 !> \brief Computes the density matrix from the mos
 !> \param rtp ...
 !> \param mos ...
-!> \param matrix_s ...
 !> \author Samuel Andermatt (08.15)
 ! **************************************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_mos(rtp, mos, matrix_s)
+   SUBROUTINE rt_initialize_rho_from_mos(rtp, mos)
 
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_mos', &
          routineP = moduleN//':'//routineN
