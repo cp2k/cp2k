@@ -20,6 +20,7 @@ MODULE dbcsr_mm_3d
                                               array_hold,&
                                               array_release
    USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
+   USE dbcsr_block_access,              ONLY: dbcsr_put_block
    USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                               dbcsr_block_copy_aa,&
                                               dbcsr_block_real_neg,&
@@ -2722,7 +2723,7 @@ CONTAINS
                         product_matrix_recv_calc%matrix%m%index(dbcsr_slot_nblkrows_total)
                      product_matrix_recv_calc%matrix%m%nblkcols_total = &
                         product_matrix_recv_calc%matrix%m%index(dbcsr_slot_nblkcols_total)
-                     CALL dbcsr_add(product_matrix, product_matrix_recv_calc%matrix, flop=flop)
+                     CALL reduce_3D(product_matrix, product_matrix_recv_calc%matrix, flop, data_type)
                   ENDIF
                ENDIF
                tmp_product_matrix_recv => product_matrix_recv_comm%matrix
@@ -2887,6 +2888,54 @@ CONTAINS
       product_matrix_recv%matrix%m%col_blk_offset = product_matrix%m%col_blk_offset
       CALL array_hold(product_matrix_recv%matrix%m%col_blk_offset)
    END SUBROUTINE set_reduction_product_matrix_3D
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix_result ...
+!> \param matrix_other ...
+!> \param flop ...
+!> \param data_type ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE reduce_3D(matrix_result, matrix_other, flop, data_type)
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_result
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
+      INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
+      INTEGER, INTENT(IN)                                :: data_type
+
+      INTEGER                                            :: blk, col, ithread, row
+      INTEGER, DIMENSION(2)                              :: lb_row_col
+      LOGICAL                                            :: tr
+      TYPE(dbcsr_data_obj)                               :: data_block
+      TYPE(dbcsr_iterator)                               :: iter
+
+!$OMP PARALLEL DEFAULT (NONE) &
+!$OMP          PRIVATE (iter, data_block) &
+!$OMP          PRIVATE (row, col, tr, blk, lb_row_col, ithread) &
+!$OMP          SHARED (matrix_result, matrix_other, data_type, memtype_product_wm) &
+!$OMP          REDUCTION (+ : flop)
+      ithread = 0
+!$    ithread = OMP_GET_THREAD_NUM()
+      CALL dbcsr_work_create(matrix_result, work_mutable=.FALSE., &
+                             memory_type=memtype_product_wm(ithread)%p)
+!$OMP BARRIER
+      lb_row_col(:) = 0
+      CALL dbcsr_data_init(data_block)
+      CALL dbcsr_data_new(data_block, data_type)
+      CALL dbcsr_iterator_start(iter, matrix_other, &
+                                shared=.TRUE., read_only=.TRUE., contiguous_pointers=.FALSE., &
+                                dynamic=.TRUE., dynamic_byrows=.TRUE.)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
+         CALL dbcsr_put_block(matrix_result, row, col, data_block, lb_row_col, tr, &
+                              summation=.TRUE., flop=flop)
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
+      CALL dbcsr_data_clear_pointer(data_block)
+      CALL dbcsr_data_release(data_block)
+      CALL dbcsr_finalize(matrix_result)
+!$OMP END PARALLEL
+   END SUBROUTINE reduce_3D
 
 ! **************************************************************************************************
 !> \brief Multiplies two DBCSR matrices by means of RMA MPI operations.
