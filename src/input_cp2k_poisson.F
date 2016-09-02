@@ -980,7 +980,7 @@ CONTAINS
       CALL keyword_create(keyword, name="PERIODIC_REGION", &
                           description="Whether or not to take into consideration the effects of the periodicity of the "// &
                           "simulation cell (MIXED_PERIODIC bc) for regions defined sufficiently close to the boundaries.", &
-                          usage="PERIODIC_REGION <logical>", default_l_val=.FALSE.)
+                          usage="PERIODIC_REGION <logical>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1221,7 +1221,7 @@ CONTAINS
       CALL keyword_create(keyword, name="PERIODIC_REGION", &
                           description="Whether or not to take into consideration the effects of the periodicity of the "// &
                           "simulation cell (MIXED_PERIODIC bc) for regions defined sufficiently close to the boundaries.", &
-                          usage="PERIODIC_REGION <logical>", default_l_val=.FALSE.)
+                          usage="PERIODIC_REGION <logical>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
