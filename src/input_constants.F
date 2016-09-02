@@ -971,11 +971,9 @@ MODULE input_constants
                                                dispersion_d3 = 200
 
    ! Transport section
-   INTEGER, PARAMETER, PUBLIC               :: transport_writeout = 0, &
-                                               transport_diagscalapack = 1, &
-                                               transport_localscf = 2, &
+   INTEGER, PARAMETER, PUBLIC               :: transport_localscf = 1, &
+                                               transport_transmission = 2, &
                                                transport_negf = 3, &
-                                               transport_transmission = 4, &
                                                linsolver_splitsolve = 11, &
                                                linsolver_superlu = 12, &
                                                linsolver_mumps = 13, &
@@ -987,7 +985,9 @@ MODULE input_constants
                                                injsign_negative = -1, &
                                                rlaxisint_GaussChebyshev = 31, &
                                                rlaxisint_trapezoidal = 32, &
-                                               rlaxisint_readfromfile = 33
+                                               rlaxisint_readfromfile = 33, &
+                                               rho_negf = 41, &
+                                               rho_qtbm = 42
 
    ! Active Space Section: orbital selection methods
    INTEGER, PARAMETER, PUBLIC               :: casci_canonical = 100, &

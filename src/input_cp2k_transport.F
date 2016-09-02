@@ -16,10 +16,9 @@ MODULE input_cp2k_transport
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_banded, &
-        linsolver_full, linsolver_mumps, linsolver_splitsolve, linsolver_superlu, &
-        rlaxisint_GaussChebyshev, rlaxisint_readfromfile, rlaxisint_trapezoidal, &
-        transport_diagscalapack, transport_localscf, transport_negf, transport_transmission, &
-        transport_writeout
+        linsolver_full, linsolver_mumps, linsolver_splitsolve, linsolver_superlu, rho_negf, &
+        rho_qtbm, rlaxisint_GaussChebyshev, rlaxisint_readfromfile, rlaxisint_trapezoidal, &
+        transport_localscf, transport_negf, transport_transmission
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -59,7 +58,7 @@ CONTAINS
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also http://www.nano-tcad.ethz.ch/ ", &
                           citations=(/Bruck2014/), &
-                          n_keywords=22, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=25, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -68,14 +67,23 @@ CONTAINS
          description="Preferred method for transport calculations.", &
          usage="TRANSPORT_METHOD <method>", &
          default_i_val=transport_negf, &
-         enum_c_vals=s2a("DIAG", "TRANSPORT", "LOCAL_SCF", "TRANSMISSION", "WRITEOUT"), &
-         enum_desc=s2a("standard diagonalization using ScaLapack routines", &
-                       "self-consistent CP2K and OMEN transport calculations", &
+         enum_c_vals=s2a("TRANSPORT", "LOCAL_SCF", "TRANSMISSION"), &
+         enum_desc=s2a("self-consistent CP2K and OMEN transport calculations", &
                        "CP2K valence Hamiltonian + OMEN self-consistent calculations on conduction electrons", &
-                       "self-consistent transmission calculations without applied bias voltage", &
-                       "write out the Hamiltonian and overlap matrices"), &
-         enum_i_vals=(/transport_diagscalapack, transport_negf, transport_localscf, &
-                       transport_transmission, transport_writeout/))
+                       "self-consistent transmission calculations without applied bias voltage"), &
+         enum_i_vals=(/transport_negf, transport_localscf, transport_transmission/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="QT_FORMALISM", &
+         description="Preferred quantum transport formalism to compute the current and density.", &
+         usage="QT_FORMALISM <method>", &
+         default_i_val=rho_qtbm, &
+         enum_c_vals=s2a("NEGF", "QTMB"), &
+         enum_desc=s2a("The non-equilibrium Green's function formalism", &
+                       "The quantum transmitting boundary method / wave-function formalism"), &
+         enum_i_vals=(/rho_negf, rho_qtbm/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -226,6 +234,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="N_POINTS_INV", &
+                          description="Number of integration points for the sigma solver on the complex contour.", &
+                          usage="N_POINTS_INV <integer>", default_i_val=64)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OBC_EQUILIBRIUM", &
+                          description="Compute the equilibrium density with open boundary conditions.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection)
 
       CALL create_contact_section(subsection)
@@ -233,6 +253,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_beyn_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_pexsi_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -353,5 +377,64 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_beyn_section
+
+! **************************************************************************************************
+!> \brief Creates the section for the PEXSI solver.
+!> \param[inout] section the section to be created
+! **************************************************************************************************
+   SUBROUTINE create_pexsi_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_pexsi_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="PEXSI", &
+                          description="Parameters for the PEXSI solver to be used within OMEN.", &
+                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="ORDERING", &
+                          description="Ordering strategy for factorization and selected inversion.", &
+                          enum_c_vals=s2a("PARALLEL", "SEQUENTIAL", "MULTIPLE_MINIMUM_DEGREE"), &
+                          enum_desc=s2a("Parallel ordering using ParMETIS/PT-SCOTCH (PARMETIS option in SuperLU_DIST)", &
+                                        "Sequential ordering using METIS (METIS_AT_PLUS_A option in SuperLU_DIST)", &
+                                        "Multiple minimum degree ordering (MMD_AT_PLUS_A option in SuperLU_DIST)"), &
+                          enum_i_vals=(/0, 1, 2/), &
+                          usage="ORDERING <integer>", default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ROW_ORDERING", &
+                          description="row permutation strategy for factorization and selected inversion.", &
+                          enum_c_vals=s2a("NOROWPERM", "LARGEDIAG"), &
+                          enum_desc=s2a("No row permutation (NOROWPERM option in SuperLU_DIST)", &
+                                        "Make diagonal entry larger than off diagonal (LargeDiag option in SuperLU_DIST)"), &
+                          enum_i_vals=(/0, 1/), &
+                          usage="ROW_ORDERING <integer>", default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="VERBOSITY", &
+                          description="The level of output information.", &
+                          enum_c_vals=s2a("SILENT", "BASIC", "DETAILED"), &
+                          enum_i_vals=(/0, 1, 2/), &
+                          usage="VERBOSITY <integer>", default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="NP_SYMB_FACT", &
+                          description="Number of processors for PARMETIS/PT-SCOTCH. Only used if ORDERING is set to PARALLEL. "// &
+                          "If 0, the number of processors for PARMETIS/PT-SCOTCH will be set equal to the number of "// &
+                          "MPI ranks per pole. Note: if more than one processor is used, a segmentation fault may occur in the "// &
+                          "symbolic factorization phase.", &
+                          usage="NP_SYMB_FACT <integer>", default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_pexsi_section
 
 END MODULE input_cp2k_transport

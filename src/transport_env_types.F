@@ -45,19 +45,25 @@ MODULE transport_env_types
       REAL(C_DOUBLE)  :: energy_diff
       REAL(C_DOUBLE)  :: evoltfactor
       INTEGER(C_INT)  :: method
+      INTEGER(C_INT)  :: qt_formalism
       INTEGER(C_INT)  :: injection_method
       INTEGER(C_INT)  :: rlaxis_integration_method
       INTEGER(C_INT)  :: linear_solver
       INTEGER(C_INT)  :: n_abscissae
+      INTEGER(C_INT)  :: ordering
+      INTEGER(C_INT)  :: row_ordering
+      INTEGER(C_INT)  :: verbosity
+      INTEGER(C_INT)  :: pexsi_np_symb_fact
       INTEGER(C_INT)  :: n_kpoint
       INTEGER(C_INT)  :: num_interval
       INTEGER(C_INT)  :: num_contacts
+      INTEGER(C_INT)  :: stride_contacts
       INTEGER(C_INT)  :: tasks_per_energy_point
       INTEGER(C_INT)  :: gpus_per_point
-      INTEGER(C_INT)  :: n_blocks
       INTEGER(C_INT)  :: n_points_beyn
       INTEGER(C_INT)  :: ncrc_beyn
       INTEGER(C_INT)  :: tasks_per_integration_point
+      INTEGER(C_INT)  :: n_points_inv
       INTEGER(C_INT)  :: cutout(2)
       REAL(C_DOUBLE)  :: colzero_threshold
       REAL(C_DOUBLE)  :: eps_limit
@@ -76,7 +82,7 @@ MODULE transport_env_types
       TYPE(C_PTR)     :: contacts_data
       TYPE(C_PTR)     :: nsgf
       TYPE(C_PTR)     :: zeff
-      TYPE(C_PTR)     :: tridiag_blocks
+      LOGICAL(C_BOOL) :: obc_equilibrium
       LOGICAL(C_BOOL) :: extra_scf
    END TYPE cp2k_transport_parameters
 
@@ -90,7 +96,6 @@ MODULE transport_env_types
       TYPE(csr_type)                   :: ks_matrix
       TYPE(csr_type)                   :: p_matrix
       LOGICAL                          :: csr_screening
-      INTEGER, DIMENSION(:), POINTER   :: tridiag_blocks => NULL()
       INTEGER, DIMENSION(:), POINTER   :: contacts_data => NULL()
       INTEGER, DIMENSION(:), POINTER   :: nsgf => NULL()
       REAL(dp), DIMENSION(:), POINTER  :: zeff => NULL()
@@ -143,7 +148,6 @@ CONTAINS
 
       transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 
-      IF (ASSOCIATED(transport_env%tridiag_blocks)) DEALLOCATE (transport_env%tridiag_blocks)
       IF (ASSOCIATED(transport_env%contacts_data)) DEALLOCATE (transport_env%contacts_data)
       IF (ASSOCIATED(transport_env%nsgf)) DEALLOCATE (transport_env%nsgf)
       IF (ASSOCIATED(transport_env%zeff)) DEALLOCATE (transport_env%zeff)

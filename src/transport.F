@@ -22,10 +22,7 @@ MODULE transport
                                               C_NULL_PTR,&
                                               C_PTR
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind,&
-                                              get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
-                                              gto_basis_set_type
+                                              get_atomic_kind
    USE bibliography,                    ONLY: Bruck2014,&
                                               cite_reference
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
@@ -37,16 +34,12 @@ MODULE transport
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE input_constants,                 ONLY: transport_diagscalapack
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp,&
-                                              int_1
+   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_allgather,&
-                                              mp_bcast,&
                                               mp_environ
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -54,18 +47,9 @@ MODULE transport
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_env_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                              get_neighbor_list_set_p,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE transport_env_types,             ONLY: cp2k_csr_interop_type,&
                                               cp2k_transport_parameters,&
                                               csr_interop_matrix_get_info,&
@@ -155,15 +139,16 @@ CONTAINS
                                                             i, n_contacts, stride_contacts
       INTEGER, DIMENSION(:), POINTER                     :: i_vals
       LOGICAL                                            :: contact_explicit, injecting_contact, &
-                                                            one_circle
+                                                            obc_equilibrium, one_circle
       TYPE(section_vals_type), POINTER                   :: beyn_section, contact_section, &
-                                                            transport_section
+                                                            pexsi_section, transport_section
 
       CALL timeset(routineN, handle)
 
       transport_section => section_vals_get_subs_vals(input, "DFT%TRANSPORT")
       contact_section => section_vals_get_subs_vals(transport_section, "CONTACT")
       beyn_section => section_vals_get_subs_vals(transport_section, "BEYN")
+      pexsi_section => section_vals_get_subs_vals(transport_section, "PEXSI")
       CALL section_vals_get(contact_section, explicit=contact_explicit, n_repetition=n_contacts)
 
       NULLIFY (i_vals)
@@ -172,13 +157,15 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "INJECTION_METHOD", i_val=transport_env%params%injection_method)
       CALL section_vals_val_get(transport_section, "REAL_AXIS_INTEGRATION_METHOD", &
                                 i_val=transport_env%params%rlaxis_integration_method)
+      CALL section_vals_val_get(transport_section, "QT_FORMALISM", i_val=transport_env%params%qt_formalism)
       CALL section_vals_val_get(transport_section, "LINEAR_SOLVER", i_val=transport_env%params%linear_solver)
-      CALL section_vals_val_get(transport_section, "N_ABSCISSAE", i_val=transport_env%params%n_abscissae)
       CALL section_vals_val_get(transport_section, "N_KPOINTS", i_val=transport_env%params%n_kpoint)
       CALL section_vals_val_get(transport_section, "NUM_INTERVAL", i_val=transport_env%params%num_interval)
       CALL section_vals_val_get(transport_section, "TASKS_PER_ENERGY_POINT", &
                                 i_val=transport_env%params%tasks_per_energy_point)
+      CALL section_vals_val_get(transport_section, "N_ABSCISSAE", i_val=transport_env%params%n_abscissae)
       CALL section_vals_val_get(transport_section, "GPUS_PER_POINT", i_val=transport_env%params%gpus_per_point)
+      CALL section_vals_val_get(transport_section, "N_POINTS_INV", i_val=transport_env%params%n_points_inv)
       CALL section_vals_val_get(transport_section, "COLZERO_THRESHOLD", r_val=transport_env%params%colzero_threshold)
       CALL section_vals_val_get(transport_section, "EPS_LIMIT", r_val=transport_env%params%eps_limit)
       CALL section_vals_val_get(transport_section, "EPS_LIMIT_CC", r_val=transport_env%params%eps_limit_cc)
@@ -192,6 +179,14 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "MIN_INTERVAL", r_val=transport_env%params%min_interval)
       CALL section_vals_val_get(transport_section, "TEMPERATURE", r_val=transport_env%params%temperature)
       CALL section_vals_val_get(transport_section, "CSR_SCREENING", l_val=transport_env%csr_screening)
+
+      ! logical*1 to logical*4 , l_val is logical*1 and c_bool is equivalent to logical*4
+      CALL section_vals_val_get(transport_section, "OBC_EQUILIBRIUM", l_val=obc_equilibrium)
+      IF (obc_equilibrium) THEN
+         transport_env%params%obc_equilibrium = .TRUE.
+      ELSE
+         transport_env%params%obc_equilibrium = .FALSE.
+      END IF
 
       CALL section_vals_val_get(transport_section, "CUTOUT", i_vals=i_vals)
       transport_env%params%cutout = i_vals
@@ -209,9 +204,15 @@ CONTAINS
          transport_env%params%ncrc_beyn = 2
       END IF
 
+      CALL section_vals_val_get(pexsi_section, "ORDERING", i_val=transport_env%params%ordering)
+      CALL section_vals_val_get(pexsi_section, "ROW_ORDERING", i_val=transport_env%params%row_ordering)
+      CALL section_vals_val_get(pexsi_section, "VERBOSITY", i_val=transport_env%params%verbosity)
+      CALL section_vals_val_get(pexsi_section, "NP_SYMB_FACT", i_val=transport_env%params%pexsi_np_symb_fact)
+
       IF (contact_explicit) THEN
          transport_env%params%num_contacts = n_contacts
-         stride_contacts = 6; 
+         stride_contacts = 5
+         transport_env%params%stride_contacts = stride_contacts
          ALLOCATE (transport_env%contacts_data(stride_contacts*n_contacts))
 
          DO i = 1, n_contacts
@@ -233,16 +234,10 @@ CONTAINS
             ELSE
                transport_env%contacts_data((i-1)*stride_contacts+5) = 0
             END IF
-            transport_env%contacts_data((i-1)*stride_contacts+6) = contact_bandwidth*contact_natoms
          END DO
          transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1))
       ELSE
-         IF (transport_env%params%method .EQ. transport_diagscalapack) THEN
-            transport_env%params%num_contacts = 0
-            transport_env%params%contacts_data = C_NULL_PTR
-         ELSE
-            CPABORT("No contact region is defined.")
-         END IF
+         CPABORT("No contact region is defined.")
       END IF
 
       CALL timestop(handle)
@@ -321,8 +316,6 @@ CONTAINS
 
       CALL cp_csr_create(transport_env%ks_matrix, transport_env%s_matrix)
       CALL cp_csr_create(transport_env%p_matrix, transport_env%s_matrix)
-
-      CALL transport_eval_blocks(ks_env, transport_env)
 
       CALL timestop(handle)
 
@@ -565,8 +558,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_contact_params', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, iat, ikind, natom, nkind, &
-                                                            stride_contacts
+      INTEGER                                            :: i, iat, ikind, natom, nkind
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       REAL(KIND=dp)                                      :: zeff
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -597,221 +589,7 @@ CONTAINS
       transport_env%params%nsgf = C_LOC(transport_env%nsgf(1))
       transport_env%params%zeff = C_LOC(transport_env%zeff(1))
 
-      stride_contacts = 6
-      DO i = 1, transport_env%params%num_contacts
-         IF (transport_env%contacts_data((i-1)*stride_contacts+2) .LT. 0) THEN
-            IF (transport_env%contacts_data((i-1)*stride_contacts+5) .EQ. 0) THEN
-               transport_env%contacts_data((i-1)*stride_contacts+2) = natom/2; 
-            ELSE IF (transport_env%contacts_data((i-1)*stride_contacts+4) .EQ. -1) THEN
-               transport_env%contacts_data((i-1)*stride_contacts+2) = &
-                  natom-transport_env%contacts_data((i-1)*stride_contacts+3)-transport_env%params%cutout(2)
-            ELSE
-               transport_env%contacts_data((i-1)*stride_contacts+2) = &
-                  transport_env%params%cutout(1)
-            END IF
-         END IF
-      END DO
-
    END SUBROUTINE transport_set_contact_params
-
-! **************************************************************************************************
-!> \brief determine the interaction range of the contact unit cells, the size of the self energy
-!>        matrices and the adjacency matrix to partition the system into tridiagonal blocks
-!> \param[inout] ks_env ks environment
-!> \param[inout] transport_env transport environment
-!> \author Sascha Brueck
-! **************************************************************************************************
-   SUBROUTINE transport_eval_blocks(ks_env, transport_env)
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'transport_eval_blocks', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER :: colend, contact_bandwidth, contact_injsign, contact_natoms, contact_start, &
-         handle, i, iatom, icol, icol_end, icol_start, ikind, irow, jatom, jkind, maxcol, mincol, &
-         natom, nkind, num_glo_atom_pairs, num_loc_atom_pairs, num_tridiag_blocks, sigmasize, &
-         stride_contacts, tridiag_end, tridiag_start
-      INTEGER(KIND=int_1), ALLOCATABLE, DIMENSION(:, :)  :: fulladjmat
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, glo_atom_pairs, &
-                                                            loc_atom_pairs, loc_atom_pairs_big, &
-                                                            rcount, rdispl, tridiag_blocks_start
-      LOGICAL                                            :: block_exists, do_symmetric
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: neighbour_list
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-! fulladjmat could probably be int_8 but is defined int_1 to save memory, just to be on the safe side
-
-      NULLIFY (atomic_kind_set, qs_kind_set, nl_iterator)
-      NULLIFY (basis_set_list_a, basis_set_list_b, basis_set_a, basis_set_b)
-
-      CALL timeset(routineN, handle)
-
-      CALL get_ks_env(ks_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
-                      sab_orb=neighbour_list, &
-                      natom=natom, &
-                      para_env=para_env)
-
-      ALLOCATE (loc_atom_pairs_big(2*natom*natom))
-      num_loc_atom_pairs = 0
-
-      nkind = SIZE(qs_kind_set)
-      ALLOCATE (atom_of_kind(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
-      CPASSERT(SIZE(neighbour_list) > 0)
-      CALL get_neighbor_list_set_p(neighbor_list_sets=neighbour_list, symmetric=do_symmetric)
-      CPASSERT(do_symmetric)
-      ALLOCATE (basis_set_list_a(nkind), basis_set_list_b(nkind))
-      CALL basis_set_list_setup(basis_set_list_a, "ORB", qs_kind_set)
-      CALL basis_set_list_setup(basis_set_list_b, "ORB", qs_kind_set)
-
-      NULLIFY (nl_iterator)
-      CALL neighbor_list_iterator_create(nl_iterator, neighbour_list)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, &
-                                ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom)
-
-         basis_set_a => basis_set_list_a(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
-         basis_set_b => basis_set_list_b(jkind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-
-         loc_atom_pairs_big(num_loc_atom_pairs+1) = iatom
-         loc_atom_pairs_big(num_loc_atom_pairs+2) = jatom
-         num_loc_atom_pairs = num_loc_atom_pairs+2
-      ENDDO
-
-      ALLOCATE (loc_atom_pairs(num_loc_atom_pairs))
-      DO i = 1, num_loc_atom_pairs
-         loc_atom_pairs(i) = loc_atom_pairs_big(i)
-      END DO
-      DEALLOCATE (loc_atom_pairs_big)
-      CALL neighbor_list_iterator_release(nl_iterator)
-      DEALLOCATE (basis_set_list_a, basis_set_list_b)
-
-      ALLOCATE (rcount(para_env%num_pe), rdispl(para_env%num_pe))
-      CALL mp_allgather(num_loc_atom_pairs, rcount, para_env%group)
-      num_glo_atom_pairs = SUM(rcount)
-      rdispl(1) = 0
-      DO i = 2, para_env%num_pe
-         rdispl(i) = rdispl(i-1)+rcount(i-1)
-      ENDDO
-
-      ALLOCATE (glo_atom_pairs(num_glo_atom_pairs))
-      CALL mp_allgather(loc_atom_pairs, glo_atom_pairs, rcount, rdispl, para_env%group)
-      DEALLOCATE (loc_atom_pairs, rcount, rdispl)
-
-      IF (para_env%mepos == para_env%source) THEN
-         ALLOCATE (fulladjmat(natom, natom))
-         fulladjmat = 0
-         DO i = 1, num_glo_atom_pairs, 2
-            irow = glo_atom_pairs(i)
-            icol = glo_atom_pairs(i+1)
-            fulladjmat(irow, icol) = 1
-            fulladjmat(icol, irow) = 1
-         END DO
-         DO i = 1, transport_env%params%num_contacts
-            stride_contacts = 6
-            contact_bandwidth = transport_env%contacts_data((i-1)*stride_contacts+1)
-            contact_start = transport_env%contacts_data((i-1)*stride_contacts+2)
-            contact_natoms = transport_env%contacts_data((i-1)*stride_contacts+3)
-            contact_injsign = transport_env%contacts_data((i-1)*stride_contacts+4)
-            IF (contact_bandwidth .LE. 0) THEN
-               contact_bandwidth = 0
-               block_exists = .TRUE.
-               DO WHILE (block_exists)
-                  block_exists = .FALSE.
-                  DO irow = contact_start+1, contact_start+contact_natoms
-                     icol_start = contact_start+1+contact_injsign*(contact_bandwidth+1)*contact_natoms
-                     icol_end = contact_start+contact_natoms+contact_injsign*(contact_bandwidth+1)*contact_natoms
-                     DO icol = icol_start, icol_end
-                        IF (fulladjmat(irow, icol) .EQ. 1) THEN
-                           block_exists = .TRUE.
-                           contact_bandwidth = contact_bandwidth+1
-                           EXIT
-                        END IF
-                     END DO
-                     IF (block_exists) EXIT
-                  END DO
-               END DO
-               transport_env%contacts_data((i-1)*stride_contacts+1) = contact_bandwidth
-            END IF
-            tridiag_start = contact_start
-            IF (contact_injsign .EQ. -1) tridiag_start = contact_start-(contact_bandwidth-1)*contact_natoms
-            mincol = natom
-            maxcol = 0
-            DO irow = tridiag_start+1, tridiag_start+contact_bandwidth*contact_natoms
-               icol_start = tridiag_start+1+contact_injsign*contact_bandwidth*contact_natoms
-               icol_end = tridiag_start+contact_bandwidth*contact_natoms+contact_injsign*contact_bandwidth*contact_natoms
-               DO icol = icol_start, icol_end
-                  IF (fulladjmat(irow, icol) .EQ. 1) THEN
-                     IF (icol < mincol) mincol = icol; 
-                     IF (icol > maxcol) maxcol = icol; 
-                  END IF
-               END DO
-            END DO
-            sigmasize = maxcol-(tridiag_start+contact_bandwidth*contact_natoms)
-            IF (contact_injsign .EQ. -1) sigmasize = tridiag_start+1-mincol
-            transport_env%contacts_data((i-1)*stride_contacts+6) = sigmasize
-         END DO
-         ALLOCATE (tridiag_blocks_start(MAX(3, natom)))
-         num_tridiag_blocks = 1
-         tridiag_blocks_start(1) = transport_env%params%cutout(1)
-         tridiag_blocks_start(2) = transport_env%contacts_data(2)+transport_env%contacts_data(6)
-         tridiag_end = transport_env%contacts_data(stride_contacts+2)+ &
-                       transport_env%contacts_data(stride_contacts+3)- &
-                       transport_env%contacts_data(stride_contacts+6)
-         maxcol = 0
-         DO WHILE (tridiag_blocks_start(num_tridiag_blocks+1) < tridiag_end)
-            DO irow = tridiag_blocks_start(num_tridiag_blocks)+1, tridiag_blocks_start(num_tridiag_blocks+1)
-               colend = natom-transport_env%params%cutout(2)
-               IF (irow .LE. transport_env%contacts_data(1)*transport_env%contacts_data(3)) THEN
-                  colend = transport_env%contacts_data(2)+2*transport_env%contacts_data(1)*transport_env%contacts_data(3)
-               END IF
-               DO icol = irow, colend
-                  IF (fulladjmat(irow, icol) .EQ. 1) THEN
-                     IF (icol > maxcol) maxcol = icol; 
-                  END IF
-               END DO
-            END DO
-            num_tridiag_blocks = num_tridiag_blocks+1
-            tridiag_blocks_start(num_tridiag_blocks+1) = maxcol
-         END DO
-         tridiag_blocks_start(1) = 0
-         tridiag_blocks_start(num_tridiag_blocks+1) = natom
-         ALLOCATE (transport_env%tridiag_blocks(num_tridiag_blocks))
-         DO i = 1, num_tridiag_blocks
-            transport_env%tridiag_blocks(i) = tridiag_blocks_start(i+1)-tridiag_blocks_start(i)
-         END DO
-         DEALLOCATE (tridiag_blocks_start)
-         DEALLOCATE (fulladjmat)
-      END IF
-      DEALLOCATE (glo_atom_pairs)
-
-      CALL mp_bcast(num_tridiag_blocks, para_env%source, para_env%group)
-      transport_env%params%n_blocks = num_tridiag_blocks
-      IF (para_env%mepos .NE. para_env%source) ALLOCATE (transport_env%tridiag_blocks(num_tridiag_blocks))
-      CALL mp_bcast(transport_env%tridiag_blocks, para_env%source, para_env%group)
-      transport_env%params%tridiag_blocks = C_LOC(transport_env%tridiag_blocks(1))
-
-      DO i = 1, transport_env%params%num_contacts
-         stride_contacts = 6
-         CALL mp_bcast(transport_env%contacts_data((i-1)*stride_contacts+1), para_env%source, para_env%group)
-         CALL mp_bcast(transport_env%contacts_data((i-1)*stride_contacts+6), para_env%source, para_env%group)
-      END DO
-
-      CALL timestop(handle)
-   END SUBROUTINE transport_eval_blocks
 
 END MODULE transport
 

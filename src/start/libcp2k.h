@@ -153,19 +153,25 @@ typedef struct {
     double  energy_diff;
     double  evoltfactor;
     int     method;
+    int     qt_formalism;
     int     injection_method;
     int     rlaxis_integration_method;
     int     linear_solver;
     int     n_abscissae;
+    int     ordering;
+    int     row_ordering;
+    int     verbosity;
+    int     pexsi_np_symb_fact;
     int     n_kpoint;
     int     num_interval;
     int     num_contacts;
+    int     stride_contacts;
     int     tasks_per_energy_point;
     int     gpus_per_point;
-    int     n_blocks;
     int     n_points_beyn;
     int     ncrc_beyn;
     int     tasks_per_integration_point;
+    int     n_points_inv;
     int     cutout[2];
     double  colzero_threshold;
     double  eps_limit;
@@ -184,7 +190,7 @@ typedef struct {
     int*    contacts_data;
     int*    nsgf;
     double* zeff;
-    int*    tridiag_blocks;
+    bool    obc_equilibrium;
     bool    extra_scf;
 } cp2k_transport_parameters;
 
