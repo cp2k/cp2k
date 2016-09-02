@@ -63,7 +63,6 @@ MODULE rt_propagator_init
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagator_init'
 
    PUBLIC :: init_propagators, &
-             rt_initialize_rho_from_ks, &
              rt_initialize_rho_from_mos
 
 CONTAINS
@@ -413,40 +412,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE backtransform_matrix
-
-! **************************************************************************************************
-!> \brief Computes the density matrix starting from the kohn-sham matrix
-!> \param qs_env ...
-!> \param rtp ...
-!> \param matrix_s ...
-!> \author Samuel Andermatt (03.14)
-! **************************************************************************************************
-
-   SUBROUTINE rt_initialize_rho_from_ks(qs_env, rtp, matrix_s)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: ispin, re
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_new, rho_old
-      TYPE(cp_dbcsr_type), POINTER                       :: S_half, S_minus_half
-
-      CALL get_rtp(rtp=rtp, rho_old=rho_old, S_half=S_half, S_minus_half=S_minus_half, rho_new=rho_new)
-      !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
-      CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, rtp%filter_eps, &
-                                     rtp%newton_schulz_order, rtp%lanzcos_threshold, rtp%lanzcos_max_iter)
-
-      DO ispin = 1, SIZE(rho_old)/2
-         re = 2*ispin-1
-         CALL cp_dbcsr_copy(rho_old(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
-         CALL cp_dbcsr_copy(rho_new(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
-      END DO
-
-   END SUBROUTINE rt_initialize_rho_from_ks
 
 ! **************************************************************************************************
 !> \brief Computes the density matrix from the mos

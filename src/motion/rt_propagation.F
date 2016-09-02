@@ -13,7 +13,8 @@ MODULE rt_propagation
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                              cp_dbcsr_p_type
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -71,7 +72,6 @@ MODULE rt_propagation
                                               calc_update_rho_sparse,&
                                               get_restart_wfn
    USE rt_propagator_init,              ONLY: init_propagators,&
-                                              rt_initialize_rho_from_ks,&
                                               rt_initialize_rho_from_mos
 #include "../base/base_uses.f90"
 
@@ -177,9 +177,9 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, ispin, re
       INTEGER, DIMENSION(2)                              :: nelectron_spin
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_new, rho_old
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_old
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -230,9 +230,13 @@ CONTAINS
                !The wavefunction was minimized by an mo based algorith. P is therefore calculated from the mos
                CALL rt_initialize_rho_from_mos(rtp, mos)
             ELSE
-               !The wavefunction was minimized using a linear scaling method. Because the rho in the qs_env has the sparsity of S
-               !the matrix P needs to be recalculated from H
-               CALL rt_initialize_rho_from_ks(qs_env, rtp, matrix_s)
+               !The wavefunction was minimized using a linear scaling method. The density matrix is therefore taken from the ls_scf_env.
+               CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
+               DO ispin = 1, SIZE(rho_old)/2
+                  re = 2*ispin-1
+                  CALL cp_dbcsr_copy(rho_old(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
+                  CALL cp_dbcsr_copy(rho_new(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
+               END DO
             ENDIF
          ENDIF
          CALL calc_update_rho_sparse(qs_env)
