@@ -80,9 +80,9 @@ CONTAINS
          description="Preferred quantum transport formalism to compute the current and density.", &
          usage="QT_FORMALISM <method>", &
          default_i_val=rho_qtbm, &
-         enum_c_vals=s2a("NEGF", "QTMB"), &
-         enum_desc=s2a("The non-equilibrium Green's function formalism", &
-                       "The quantum transmitting boundary method / wave-function formalism"), &
+         enum_c_vals=s2a("NEGF", "QTBM"), &
+         enum_desc=s2a("The non-equilibrium Green's function formalism.", &
+                       "The quantum transmitting boundary method / wave-function formalism."), &
          enum_i_vals=(/rho_negf, rho_qtbm/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
