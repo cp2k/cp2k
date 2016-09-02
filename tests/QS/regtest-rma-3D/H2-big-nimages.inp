@@ -67,7 +67,7 @@
   &DBCSR
     USE_MPI_EXP T
     num_layers_3D 2
-    avg_elements_images 500
+    avg_elements_images 100
   &END
 ! TRACE
 ! TRACE_MASTER

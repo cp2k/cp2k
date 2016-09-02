@@ -1752,18 +1752,18 @@ CONTAINS
          isend3D, istep_k, ithread, ivirt_k, left_col_mult, left_col_nimages, &
          left_col_total_nimages, left_data_size, left_meta_size, left_myfirstvcol, &
          left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
-         left_row_mult, left_row_nimages, left_vrow, min_nimages, mycol3D, mynode, mypcol, myprow, &
-         myrank3D, myrow3D, nblkrows_local, ncols3D, nleft_buffers, nranks3D, nrows3D, nthreads, &
-         numnodes
-      INTEGER :: nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
-         right_col_mult, right_col_nimages, right_data_size, right_meta_size, right_myfirstvcol, &
+         left_row_mult, left_row_nimages, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, &
+         myrow3D, nblkrows_local, ncols3D, nleft_buffers, nranks3D, nrows3D, nthreads, numnodes, &
+         nvirt_k
+      INTEGER :: recv_vcol, recv_vrow, request_epss, request_keep_sparsity, right_col_mult, &
+         right_col_nimages, right_data_size, right_meta_size, right_myfirstvcol, &
          right_myfirstvrow, right_mypcol, right_myprow, right_npcols, right_nprows, &
-         right_nrequests, right_row_mult, right_row_nimages, right_row_total_nimages, right_vcol, &
-         row, shift_k, size_guess, start_k, v_ki
+         right_nrequests, right_row_mult, right_row_nimages, right_row_total_nimages, row, &
+         shift_k, size_guess, start_k, v_ki
       INTEGER(KIND=int_8)                                :: mem
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: product_matrix_epss_displ, &
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: left_vrow, product_matrix_epss_displ, &
                                                             product_matrix_epss_size, &
-                                                            product_matrix_meta
+                                                            product_matrix_meta, right_vcol
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: left_displ_vunmerged, &
                                                             product_matrix_meta_displ, &
                                                             product_matrix_meta_size, &
@@ -2351,6 +2351,7 @@ CONTAINS
       start_k = (nvirt_k/nranks3D)*myrank3D
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_left(nrows3D))
+      ALLOCATE (right_vcol(ncols3D), left_vrow(nrows3D))
       grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
          ivirt_k = istep_k/nranks3D
          v_ki = MOD(ivirt_k, min_nimages)
@@ -2367,14 +2368,14 @@ CONTAINS
             IF (v_ki .EQ. 0) THEN
                CALL image_calculator(imgdist_right, &
                                      vprow=recv_vrow, &
-                                     vpcol=right_vcol, &
+                                     vpcol=right_vcol(icol3D), &
                                      mypcol=mypcol, &
                                      myvprow=right_myfirstvrow, &
                                      myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
                                      vprow_shift=ivirt_k+start_k, &
                                      shifting='R')
                CALL image_calculator(imgdist_left, &
-                                     vprow=left_vrow, &
+                                     vprow=left_vrow(irow3D), &
                                      vpcol=recv_vcol, &
                                      myprow=myprow, &
                                      myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
@@ -2392,7 +2393,7 @@ CONTAINS
                ENDIF
                !
                buffers_comm%right%vprow = MOD(recv_vrow+v_ki, right_row_total_nimages)
-               buffers_comm%right%vpcol = right_vcol
+               buffers_comm%right%vpcol = right_vcol(icol3D)
                buffers_comm%right%nrequests = 0
             ENDIF
             !
@@ -2408,7 +2409,7 @@ CONTAINS
                      CALL timestop(handle3)
                   ENDIF
                   !
-                  left_buffer(ileft_buffer_comm)%vprow = left_vrow
+                  left_buffer(ileft_buffer_comm)%vprow = left_vrow(irow3D)
                   left_buffer(ileft_buffer_comm)%vpcol = MOD(recv_vcol+v_ki, left_col_total_nimages)
                   left_buffer(ileft_buffer_comm)%nrequests = 0
                ENDIF
@@ -2755,6 +2756,7 @@ CONTAINS
       ENDDO
       DEALLOCATE (left_buffer)
       DEALLOCATE (do_comm_left)
+      DEALLOCATE (right_vcol, left_vrow)
       !
       IF (debug_mod) THEN
          v_ki = 0
