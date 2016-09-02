@@ -295,7 +295,14 @@ CONTAINS
                             ls_mstruct=ls_scf_env%ls_mstruct)
 
       nspin = ls_scf_env%nspins
-      ALLOCATE (ls_scf_env%matrix_p(nspin))
+      IF (ALLOCATED(ls_scf_env%matrix_p)) THEN
+         DO ispin = 1, SIZE(ls_scf_env%matrix_p)
+            CALL cp_dbcsr_release(ls_scf_env%matrix_p(ispin))
+         ENDDO
+      ELSE
+         ALLOCATE (ls_scf_env%matrix_p(nspin))
+      END IF
+
       DO ispin = 1, nspin
          CALL cp_dbcsr_init(ls_scf_env%matrix_p(ispin))
          CALL cp_dbcsr_create(ls_scf_env%matrix_p(ispin), template=ls_scf_env%matrix_s, &
@@ -1188,11 +1195,6 @@ CONTAINS
          CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt)
          CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt_inv)
       ENDIF
-
-      DO ispin = 1, SIZE(ls_scf_env%matrix_p)
-         CALL cp_dbcsr_release(ls_scf_env%matrix_p(ispin))
-      ENDDO
-      DEALLOCATE (ls_scf_env%matrix_p)
 
       DO ispin = 1, SIZE(ls_scf_env%matrix_ks)
          CALL cp_dbcsr_release(ls_scf_env%matrix_ks(ispin))

@@ -180,6 +180,13 @@ CONTAINS
       ENDDO
       DEALLOCATE (ls_scf_env%scf_history%matrix)
 
+      IF (ALLOCATED(ls_scf_env%matrix_p)) THEN
+         DO ispin = 1, SIZE(ls_scf_env%matrix_p)
+            CALL cp_dbcsr_release(ls_scf_env%matrix_p(ispin))
+         ENDDO
+         DEALLOCATE (ls_scf_env%matrix_p)
+      END IF
+
       IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_dos)) &
          CALL section_vals_release(ls_scf_env%chebyshev%print_key_dos)
       IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_cube)) &

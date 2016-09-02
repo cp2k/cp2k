@@ -232,7 +232,7 @@ CONTAINS
             ELSE
                !The wavefunction was minimized using a linear scaling method. Because the rho in the qs_env has the sparsity of S
                !the matrix P needs to be recalculated from H
-               CALL rt_initialize_rho_from_ks(rtp, matrix_ks, matrix_s, nelectron_spin)
+               CALL rt_initialize_rho_from_ks(qs_env, rtp, matrix_s)
             ENDIF
          ENDIF
          CALL calc_update_rho_sparse(qs_env)

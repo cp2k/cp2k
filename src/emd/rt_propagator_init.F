@@ -33,7 +33,6 @@ MODULE rt_propagator_init
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dm_ls_scf_methods,               ONLY: density_matrix_trs4
    USE input_constants,                 ONLY: do_arnoldi,&
                                               do_bch,&
                                               do_cn,&
@@ -417,56 +416,36 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the density matrix starting from the kohn-sham matrix
+!> \param qs_env ...
 !> \param rtp ...
-!> \param matrix_ks ...
 !> \param matrix_s ...
-!> \param nelectron_spin ...
 !> \author Samuel Andermatt (03.14)
 ! **************************************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_ks(rtp, matrix_ks, matrix_s, nelectron_spin)
+   SUBROUTINE rt_initialize_rho_from_ks(qs_env, rtp, matrix_s)
 
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
-      INTEGER, DIMENSION(2)                              :: nelectron_spin
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, ispin, nelectron_spin_real, re
-      REAL(KIND=dp)                                      :: e_homo, e_lumo, e_mu
+      INTEGER                                            :: ispin, re
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_new, rho_old
-      TYPE(cp_dbcsr_type), POINTER                       :: S_half, S_minus_half, tmp
+      TYPE(cp_dbcsr_type), POINTER                       :: S_half, S_minus_half
 
       CALL get_rtp(rtp=rtp, rho_old=rho_old, S_half=S_half, S_minus_half=S_minus_half, rho_new=rho_new)
       !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
       CALL matrix_sqrt_Newton_Schulz(S_half, S_minus_half, matrix_s(1)%matrix, rtp%filter_eps, &
                                      rtp%newton_schulz_order, rtp%lanzcos_threshold, rtp%lanzcos_max_iter)
-      NULLIFY (tmp)
-      ALLOCATE (tmp)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=matrix_ks(1)%matrix, matrix_type="N")
 
-      e_homo = 0.0_dp
-      e_lumo = 0.0_dp
-      e_mu = 0.0_dp
-
-      DO ispin = 1, SIZE(matrix_ks)
+      DO ispin = 1, SIZE(rho_old)/2
          re = 2*ispin-1
-         nelectron_spin_real = nelectron_spin(ispin)
-         IF (SIZE(matrix_ks) == 1) nelectron_spin_real = nelectron_spin_real/2
-         CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
-                                  nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp, &
-                                  max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold)
-         IF (SIZE(matrix_ks) == 1) CALL cp_dbcsr_scale(rho_old(re)%matrix, 2.0_dp)
-         CALL cp_dbcsr_filter(rho_old(re)%matrix, eps=rtp%filter_eps)
+         CALL cp_dbcsr_copy(rho_old(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
+         CALL cp_dbcsr_copy(rho_new(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
       END DO
 
-      DO i = 1, SIZE(rho_new)
-         CALL cp_dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
-      ENDDO
-
-      CALL cp_dbcsr_deallocate_matrix(tmp)
    END SUBROUTINE rt_initialize_rho_from_ks
 
 ! **************************************************************************************************
