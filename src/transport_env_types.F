@@ -44,6 +44,10 @@ MODULE transport_env_types
       INTEGER(C_INT)  :: n_atoms
       REAL(C_DOUBLE)  :: energy_diff
       REAL(C_DOUBLE)  :: evoltfactor
+      REAL(C_DOUBLE)  :: e_charge
+      REAL(C_DOUBLE)  :: boltzmann
+      REAL(C_DOUBLE)  :: h_bar
+      INTEGER(C_INT)  :: iscf
       INTEGER(C_INT)  :: method
       INTEGER(C_INT)  :: qt_formalism
       INTEGER(C_INT)  :: injection_method

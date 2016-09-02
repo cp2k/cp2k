@@ -1003,7 +1003,7 @@ CONTAINS
                   ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                   CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
                                            ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, &
-                                           energy_diff, extra_scf)
+                                           energy_diff, iscf, extra_scf)
 
                ELSE
                   SELECT CASE (ls_scf_env%purification_method)

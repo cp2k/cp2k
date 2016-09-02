@@ -43,7 +43,10 @@ MODULE transport
                                               mp_environ
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: evolt
+   USE physcon,                         ONLY: boltzmann,&
+                                              e_charge,&
+                                              evolt,&
+                                              h_bar
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -330,6 +333,7 @@ CONTAINS
 !> \param[in]    nelectron_spin number of electrons
 !> \param[in]    natoms         number of atoms
 !> \param[in]    energy_diff    scf energy difference
+!> \param[in]    iscf           the current scf iteration
 !> \param[in]    extra_scf      whether or not an extra scf step will be performed
 !> \par History
 !>       12.2012 created [Hossein Bani-Hashemian]
@@ -337,13 +341,14 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, &
-                                  nelectron_spin, natoms, energy_diff, extra_scf)
+                                  nelectron_spin, natoms, energy_diff, iscf, extra_scf)
 
       TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
       TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix_s, matrix_ks
       TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p
       INTEGER, INTENT(IN)                                :: nelectron_spin, natoms
       REAL(dp), INTENT(IN)                               :: energy_diff
+      INTEGER, INTENT(IN)                                :: iscf
       LOGICAL, INTENT(IN)                                :: extra_scf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'external_scf_method', &
@@ -366,6 +371,10 @@ CONTAINS
       transport_env%params%n_atoms = natoms
       transport_env%params%energy_diff = energy_diff
       transport_env%params%evoltfactor = evolt
+      transport_env%params%e_charge = e_charge
+      transport_env%params%boltzmann = boltzmann
+      transport_env%params%h_bar = h_bar
+      transport_env%params%iscf = iscf
       transport_env%params%extra_scf = extra_scf
 
       CALL csr_interop_nullify(s_mat)

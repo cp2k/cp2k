@@ -152,6 +152,10 @@ typedef struct {
     int     n_atoms;
     double  energy_diff;
     double  evoltfactor;
+    double  e_charge;
+    double  boltzmann;
+    double  h_bar;
+    int     iscf;
     int     method;
     int     qt_formalism;
     int     injection_method;
