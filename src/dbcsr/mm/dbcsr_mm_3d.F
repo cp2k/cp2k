@@ -1748,16 +1748,16 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'multiply_3D', routineP = moduleN//':'//routineN
 
-      INTEGER :: blk, data_type, data_type_byte, grp_left, grp_right, handle, handle2, handle3, &
-         icol3D, ileft_buffer_calc, ileft_buffer_comm, index_row_max_epss, iproc, irecv3D, irow3D, &
-         isend3D, istep_k, ithread, ivirt_k, left_col_mult, left_col_nimages, &
-         left_col_total_nimages, left_data_size, left_meta_size, left_myfirstvcol, &
-         left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
-         left_row_mult, left_row_nimages, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, &
-         myrow3D, nblkrows_local, ncols3D, nleft_buffers, nranks3D, nrows3D, nthreads, numnodes, &
-         nvirt_k
-      INTEGER :: recv_vcol, recv_vrow, request_epss, request_keep_sparsity, right_col_mult, &
-         right_col_nimages, right_data_size, right_meta_size, right_myfirstvcol, &
+      INTEGER :: blk, data_type, data_type_byte, final_step_k, grp_left, grp_right, handle, &
+         handle2, handle3, icol3D, ileft_buffer_calc, ileft_buffer_comm, index_row_max_epss, &
+         iproc, irecv3D, irow3D, isend3D, istep_k, ithread, ivirt_k, left_col_mult, &
+         left_col_nimages, left_col_total_nimages, left_data_size, left_meta_size, &
+         left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
+         left_nrequests, left_row_mult, left_row_nimages, min_nimages, mycol3D, mynode, mypcol, &
+         myprow, myrank3D, myrow3D, nblkrows_local, ncols3D, nleft_buffers, nranks3D, nrows3D, &
+         nthreads
+      INTEGER :: numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, &
+         right_col_mult, right_col_nimages, right_data_size, right_meta_size, right_myfirstvcol, &
          right_myfirstvrow, right_mypcol, right_myprow, right_npcols, right_nprows, &
          right_nrequests, right_row_mult, right_row_nimages, right_row_total_nimages, row, &
          shift_k, size_guess, start_k, v_ki
@@ -2350,6 +2350,7 @@ CONTAINS
       ! Take into account when ticks are not multiple of 3D layers
       shift_k = MOD(nvirt_k, nranks3D)*myrank3D
       start_k = (nvirt_k/nranks3D)*myrank3D
+      final_step_k = nvirt_k+shift_k-nranks3D
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_left(nrows3D))
       ALLOCATE (right_vcol(ncols3D), left_vrow(nrows3D))
@@ -2401,6 +2402,10 @@ CONTAINS
             IF (do_comm_left(irow3D) .OR. nrows3D .GT. 1) THEN
                ileft_buffer_comm = MOD(ileft_buffer_comm, nleft_buffers)+1
             ENDIF
+            !
+            buffers_comm%right%coord3D = icol3D
+            left_buffer(ileft_buffer_comm)%coord3D = irow3D
+            !
             IF (right_refs_meta_size_layers3D(icol3D, buffers_comm%right%vprow) .NE. 0) THEN
                ! First col, communicate left matrix
                IF (do_comm_left(irow3D)) THEN
@@ -2429,8 +2434,6 @@ CONTAINS
                   IF (do_comm) THEN
                      ! Right
                      IF (do_right_swap .OR. buffers_comm%right%nrequests .EQ. 0) THEN
-                        buffers_comm%right%offset(:, :) = 0
-                        buffers_comm%right%coord3D = icol3D
                         ! Force swapping
                         do_right_swap = .TRUE.
                         CALL rma_transfer(buffers_comm%right%vprow, &
@@ -2449,8 +2452,6 @@ CONTAINS
                      ! Left
                      IF (do_comm_left(irow3D)) THEN
                         do_comm_left(irow3D) = .FALSE.
-                        left_buffer(ileft_buffer_comm)%offset(:, :) = 0
-                        left_buffer(ileft_buffer_comm)%coord3D = irow3D
                         CALL rma_transfer(left_buffer(ileft_buffer_comm)%vpcol, &
                                           left_col_nimages, &
                                           left_displ_vunmerged, &
@@ -2474,18 +2475,15 @@ CONTAINS
          wait_calc: IF (istep_k .GT. shift_k) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
-            IF (istep_k == (nvirt_k+shift_k)) THEN
+            IF (istep_k .GT. final_step_k) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (multrec, nrows3D, ncols3D) &
-!$OMP PRIVATE (ithread, irow3D, icol3D)
+!$OMP SHARED (multrec, left_buffer, ileft_buffer_calc, buffers_calc) &
+!$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
-               !
-               DO icol3D = 1, ncols3D
-                  DO irow3D = 1, nrows3D
-                     CALL dbcsr_mm_multrec_phaseout(multrec(ithread, irow3D, icol3D)%p)
-                  ENDDO
-               ENDDO
+               CALL dbcsr_mm_multrec_phaseout(multrec(ithread, &
+                                                      left_buffer(ileft_buffer_calc)%coord3D, &
+                                                      buffers_calc%right%coord3D)%p)
 !$OMP END PARALLEL
             ENDIF
             !
@@ -2555,6 +2553,20 @@ CONTAINS
                !
                CALL timestop(handle3)
             ENDIF
+            IF (istep_k .GT. final_step_k) THEN
+!$OMP PARALLEL DEFAULT (NONE) &
+!$OMP SHARED (multrec, left_buffer, ileft_buffer_calc, buffers_calc) &
+!$OMP PRIVATE (ithread)
+               ithread = 0
+!$             ithread = omp_get_thread_num()
+               CALL dbcsr_mm_multrec_finalize(multrec(ithread, &
+                                                      left_buffer(ileft_buffer_calc)%coord3D, &
+                                                      buffers_calc%right%coord3D)%p)
+               DEALLOCATE (multrec(ithread, &
+                                   left_buffer(ileft_buffer_calc)%coord3D, &
+                                   buffers_calc%right%coord3D)%p)
+!$OMP END PARALLEL
+            ENDIF
          ENDIF wait_calc
          !
          IF (do_right_swap) THEN
@@ -2569,19 +2581,6 @@ CONTAINS
          ENDIF
          ileft_buffer_calc = ileft_buffer_comm
       ENDDO grouped_steps_index
-      !
-!$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (multrec, nrows3D, ncols3D) &
-!$OMP PRIVATE (ithread, irow3D, icol3D)
-      ithread = 0
-!$    ithread = omp_get_thread_num()
-      DO icol3D = 1, ncols3D
-         DO irow3D = 1, nrows3D
-            CALL dbcsr_mm_multrec_finalize(multrec(ithread, irow3D, icol3D)%p)
-            DEALLOCATE (multrec(ithread, irow3D, icol3D)%p)
-         ENDDO
-      ENDDO
-!$OMP END PARALLEL
       !
       CALL timestop(handle2)
       !
@@ -2819,12 +2818,8 @@ CONTAINS
       buffer%get_requests(:, :) = mp_request_null
       !
       recv_punmerged = (recv_vunmerged/unmerged_nimages)*SIZE(refs_meta_size, 1)+layer3D-1
-      buffer%offset(idata, 2) = &
-         buffer%offset(idata, 1)+ &
-         refs_data_size(displ_vunmerged(layer3D, recv_vunmerged)+1)
-      buffer%offset(imeta, 2) = &
-         buffer%offset(imeta, 1)+ &
-         refs_meta_size(layer3D, recv_vunmerged)
+      buffer%offset(idata, 2) = refs_data_size(displ_vunmerged(layer3D, recv_vunmerged)+1)
+      buffer%offset(imeta, 2) = refs_meta_size(layer3D, recv_vunmerged)
       !
       meta_get => buffer%meta(1:refs_meta_size(layer3D, recv_vunmerged))
       ! Workaround for OpenMPI RMA bug

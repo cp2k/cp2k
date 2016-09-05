@@ -168,12 +168,15 @@ CONTAINS
       TYPE(array_i1d_obj), INTENT(IN)                    :: k_vmap, m_map, n_map
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: alpha
 
-      INTEGER                                            :: i, im, j, jm
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_m2s', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, im, j, jm
       INTEGER, DIMENSION(4)                              :: f_crop
       LOGICAL                                            :: do_scale, thread_redist
       TYPE(array_i1d_obj)                                :: col_map, row_map
       TYPE(dbcsr_obj)                                    :: dense_template, matrix_tmp
 
+      CALL timeset(routineN, handle)
       ALLOCATE (m2s)
       do_scale = .FALSE.
       IF (PRESENT(alpha)) THEN
@@ -260,6 +263,7 @@ CONTAINS
          CALL dbcsr_release(dense_template)
       ENDIF
 
+      CALL timestop(handle)
    END SUBROUTINE make_m2s
 
 ! **************************************************************************************************
@@ -280,14 +284,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: no_copy_data
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: scale_value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_images', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
-
 !   ---------------------------------------------------------------------------
 
-      CALL timeset(routineN, handle)
       IF (use_mpi_exp) &
          CPABORT("RMA algo not supported here!")
       IF (.NOT. dbcsr_valid_index(source)) &
@@ -299,7 +297,6 @@ CONTAINS
                        scale_value=scale_value)
       normalized%image_dist = target_image_dist
       CALL dbcsr_image_dist_hold(normalized%image_dist)
-      CALL timestop(handle)
    END SUBROUTINE dbcsr_make_images
 
 ! **************************************************************************************************
