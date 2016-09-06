@@ -387,15 +387,13 @@ CONTAINS
       INTEGER                                            :: handle, im, ispin, re
       REAL(dp)                                           :: t
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: exp_H, SinvB, SinvH
-      TYPE(cp_dbcsr_type)                                :: matrix_ks_nosym, tmp
+      TYPE(cp_dbcsr_type)                                :: matrix_ks_nosym
       TYPE(cp_dbcsr_type), POINTER                       :: B_mat, S_inv, S_minus_half
 
       CALL timeset(routineN, handle)
       CALL get_rtp(rtp=rtp, S_inv=S_inv, S_minus_half=S_minus_half, exp_H_new=exp_H, dt=t)
       CALL cp_dbcsr_init(matrix_ks_nosym)
       CALL cp_dbcsr_create(matrix_ks_nosym, template=matrix_ks(1)%matrix, matrix_type="N")
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=matrix_ks(1)%matrix, matrix_type="N")
       DO ispin = 1, SIZE(matrix_ks)
          re = ispin*2-1
          im = ispin*2
@@ -444,7 +442,6 @@ CONTAINS
          ENDDO
       END IF
       CALL cp_dbcsr_release(matrix_ks_nosym)
-      CALL cp_dbcsr_release(tmp)
       CALL timestop(handle)
    END SUBROUTINE calc_SinvH
 
