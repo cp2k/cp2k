@@ -61,7 +61,6 @@ case "$with_openmpi" in
         check_command mpif90 "openmpi"
         check_command mpic++ "openmpi"
         check_lib -lmpi "openmpi"
-        check_lib -lmpi_cxx "openmpi"
         add_include_from_paths OPENMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
         add_lib_from_paths OPENMPI_LDFLAGS "libmpi.*" $LIB_PATHS
         ;;
@@ -78,7 +77,6 @@ case "$with_openmpi" in
         ;;
 esac
 if [ "$with_openmpi" != "__DONTUSE__" ] ; then
-    OPENMPI_LIBS="-lmpi -lmpi_cxx"
     if [ "$with_openmpi" != "__SYSTEM__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_openmpi"
 prepend_path PATH "$pkg_install_dir/bin"
@@ -92,11 +90,18 @@ EOF
     else
         mpi_bin=mpirun
     fi
-    # check openmpi version, versions less than 1.7 will get -D__MPI_VERSION=2 flag
+    # check openmpi version as reported by mpirun
     raw_version=$($mpi_bin --version 2>&1 | \
                       grep "(Open MPI)" | awk '{print $4}')
     major_version=$(echo $raw_version | cut -d '.' -f 1)
     minor_version=$(echo $raw_version | cut -d '.' -f 2)
+    # old versions required -lmpi_cxx to link cxx code, new version don't
+    if [ $major_version -gt 1 ] ; then
+       OPENMPI_LIBS="-lmpi"
+    else
+       OPENMPI_LIBS="-lmpi -lmpi_cxx"
+    fi
+    # old versions didn't support MPI 3, so adjust __MPI_VERSION accordingly (needed e.g. for pexsi)
     if [ $major_version -lt 1 ] || \
        [ $major_version -eq 1 -a $minor_version -lt 7 ] ; then
         mpi2_dflags="-D__MPI_VERSION=2"
