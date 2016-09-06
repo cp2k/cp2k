@@ -404,7 +404,7 @@ CONTAINS
                                         "Sequential ordering using METIS (METIS_AT_PLUS_A option in SuperLU_DIST)", &
                                         "Multiple minimum degree ordering (MMD_AT_PLUS_A option in SuperLU_DIST)"), &
                           enum_i_vals=(/0, 1, 2/), &
-                          usage="ORDERING <integer>", default_i_val=0)
+                          usage="ORDERING <integer>", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
