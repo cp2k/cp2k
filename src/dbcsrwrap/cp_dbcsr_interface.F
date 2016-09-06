@@ -20,9 +20,8 @@ MODULE cp_dbcsr_interface
         accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
         accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
         accdrv_posterior_buffers, accdrv_posterior_streams, accdrv_priority_buffers, &
-        accdrv_priority_streams, add_work_coordinate, array_data, convert_csr_to_dbcsr, &
-        convert_dbcsr_to_csr, convert_offsets_to_sizes, convert_sizes_to_offsets, &
-        cp_dbcsr_iterator=>dbcsr_iterator, &
+        accdrv_priority_streams, add_work_coordinate, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
+        convert_offsets_to_sizes, convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
         cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
         create_bl_distribution, csr_create_from_dbcsr, csr_create_new, csr_create_template, &
         csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, csr_eqrow_floor_dist, csr_p_type, &
@@ -2129,7 +2128,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_sizes', &
          routineP = moduleN//':'//routineN
 
-      row_blk_sizes => array_data(matrix%matrix%m%row_blk_size)
+      CALL dbcsr_get_info(matrix%matrix, row_blk_size=row_blk_sizes)
+
    END FUNCTION cp_dbcsr_row_block_sizes
 
 ! **************************************************************************************************
@@ -2144,7 +2144,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_sizes', &
          routineP = moduleN//':'//routineN
 
-      col_blk_sizes => array_data(matrix%matrix%m%col_blk_size)
+      CALL dbcsr_get_info(matrix%matrix, col_blk_size=col_blk_sizes)
+
    END FUNCTION cp_dbcsr_col_block_sizes
 
 ! **************************************************************************************************

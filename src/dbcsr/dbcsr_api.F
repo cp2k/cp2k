@@ -13,7 +13,6 @@
 !> \author  Joost VandeVondele
 ! **************************************************************************************************
 MODULE dbcsr_api
-   USE array_types,                     ONLY: array_data
    USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev,&
                                               dbcsr_arnoldi_extremal
    USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
@@ -133,7 +132,6 @@ MODULE dbcsr_api
              heap_release, &
              heap_reset_first, &
              heap_t, &
-             array_data, &
              add_work_coordinate, &
              convert_offsets_to_sizes, &
              convert_sizes_to_offsets, &
