@@ -97,7 +97,6 @@ MODULE dbcsr_api
                                               dbcsr_test_arnoldi,&
                                               dbcsr_test_binary_io,&
                                               dbcsr_test_mm
-   USE dbcsr_toollib,                   ONLY: swap
    USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                               dbcsr_desymmetrize_deep,&
                                               dbcsr_distribute,&
@@ -326,7 +325,6 @@ MODULE dbcsr_api
              mm_name_xsmm, &
              has_acc, &
              multrec_limit, &
-             swap, &
              dbcsr_set_default_config, &
              dbcsr_row_block_sizes, &
              dbcsr_col_block_sizes, &
