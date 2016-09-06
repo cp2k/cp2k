@@ -94,7 +94,7 @@ MODULE f77_interface
                                               m_getcwd,&
                                               m_memory
    USE message_passing,                 ONLY: &
-        MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, mp_perf_env_release, &
+        add_mp_perf_env, get_mp_perf_env, mp_comm_world, mp_max, mp_perf_env_release, &
         mp_perf_env_retain, mp_perf_env_type, mp_world_finalize, mp_world_init, rm_mp_perf_env
    USE metadynamics_types,              ONLY: meta_env_release,&
                                               meta_env_type
@@ -220,7 +220,7 @@ CONTAINS
             ! get the default system wide communicator
             CALL mp_world_init(mpi_comm_default)
          ELSE
-            mpi_comm_default = MPI_COMM_WORLD
+            mpi_comm_default = mp_comm_world
          END IF
 
          CALL string_table_allocate()

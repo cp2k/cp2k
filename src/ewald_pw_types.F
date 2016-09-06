@@ -27,7 +27,7 @@ MODULE ewald_pw_types
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE message_passing,                 ONLY: MPI_COMM_SELF
+   USE message_passing,                 ONLY: mp_comm_self
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create,&
@@ -214,7 +214,7 @@ CONTAINS
          ! set up Classic EWALD sum
          logger => cp_get_default_logger()
          output_unit = cp_print_key_unit_nr(logger, print_section, "", extension=".Log")
-         CALL pw_grid_create(pw_big_grid, MPI_COMM_SELF)
+         CALL pw_grid_create(pw_big_grid, mp_comm_self)
 
          IF (ANY(gmax == 2*(gmax/2))) THEN
             CPABORT("gmax has to be odd.")
@@ -238,7 +238,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(ewald_pw%poisson_env)) THEN
             CALL pw_poisson_create(ewald_pw%poisson_env)
          END IF
-         CALL pw_grid_create(pw_small_grid, MPI_COMM_SELF)
+         CALL pw_grid_create(pw_small_grid, mp_comm_self)
          CALL pw_grid_create(pw_big_grid, para_env%group)
          IF (ns_max == 2*(ns_max/2)) THEN
             CPABORT("ns_max has to be odd.")

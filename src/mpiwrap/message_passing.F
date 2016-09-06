@@ -76,6 +76,8 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = MPI_ANY_TAG
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = MPI_ANY_SOURCE
    INTEGER, PARAMETER, PUBLIC :: mp_comm_null = MPI_COMM_NULL
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_self = MPI_COMM_SELF
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_world = MPI_COMM_WORLD
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = MPI_REQUEST_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = MPI_WIN_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
@@ -91,6 +93,8 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mp_any_tag = -1
    INTEGER, PARAMETER, PUBLIC :: mp_any_source = -2
    INTEGER, PARAMETER, PUBLIC :: mp_comm_null = -3
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_self = -11
+   INTEGER, PARAMETER, PUBLIC :: mp_comm_world = -12
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = -4
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = -5
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = -6
@@ -146,9 +150,6 @@ MODULE message_passing
    ! MPI re-ordering
    PUBLIC :: mp_reordering
 
-   ! default communicators
-   PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL
-
    ! I/O
    PUBLIC :: mp_file_open, mp_file_close
    PUBLIC :: mp_file_write_at
@@ -170,10 +171,6 @@ MODULE message_passing
    ! vector types
    PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
              mp_type_indexed_make_c, mp_type_indexed_make_z
-
-#ifndef __parallel
-   INTEGER, PARAMETER :: MPI_COMM_SELF = 0, MPI_COMM_WORLD = 0, MPI_COMM_NULL = -1
-#endif
 
    ! assumed to be private
 

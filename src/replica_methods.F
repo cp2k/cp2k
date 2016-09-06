@@ -46,9 +46,9 @@ MODULE replica_methods
                                               section_vals_write
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: MPI_COMM_NULL,&
-                                              mp_cart_create,&
+   USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_cart_sub,&
+                                              mp_comm_null,&
                                               mp_sum
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -130,7 +130,7 @@ CONTAINS
          WRITE (unit_nr, FMT="(T2,A,I0,A)") "REPLICA| ", para_env%num_pe-dims(1)*dims(2), " MPI process(es) will be idle"
       END IF
       CALL mp_cart_create(comm_old=para_env%group, ndims=2, dims=dims, pos=pos, comm_cart=comm_cart)
-      IF (comm_cart /= MPI_COMM_NULL) THEN
+      IF (comm_cart /= mp_comm_null) THEN
          CALL cp_cart_create(cart, comm_cart, ndims=2, owns_group=.TRUE.)
          NULLIFY (para_env_full)
          CALL cp_para_env_create(para_env_full, comm_cart, owns_group=.FALSE.)

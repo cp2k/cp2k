@@ -44,9 +44,8 @@ MODULE pw_grids
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
    USE message_passing,                 ONLY: &
-        MPI_COMM_SELF, mp_allgather, mp_cart_coords, mp_cart_create, mp_cart_rank, &
-        mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, mp_environ, mp_max, mp_min, &
-        mp_sum
+        mp_allgather, mp_cart_coords, mp_cart_create, mp_cart_rank, mp_comm_compare, mp_comm_dup, &
+        mp_comm_free, mp_comm_self, mp_dims_create, mp_environ, mp_max, mp_min, mp_sum
    USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                               pw_grid_bounds_from_n,&
                                               pw_grid_init_setup
@@ -856,7 +855,7 @@ CONTAINS
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
          pw_grid%para%rs_dims = 1
-         CALL mp_cart_create(MPI_COMM_SELF, 2, &
+         CALL mp_cart_create(mp_comm_self, 2, &
                              pw_grid%para%rs_dims, &
                              pw_grid%para%rs_pos, &
                              pw_grid%para%rs_group)

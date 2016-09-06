@@ -38,7 +38,7 @@ MODULE cp_parser_types
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               max_line_length
-   USE message_passing,                 ONLY: MPI_COMM_SELF
+   USE message_passing,                 ONLY: mp_comm_self
    USE string_utilities,                ONLY: compress
 #include "../base/base_uses.f90"
 
@@ -219,7 +219,7 @@ CONTAINS
          CALL cp_para_env_retain(para_env)
       ELSE
          NULLIFY (parser%para_env)
-         CALL cp_para_env_create(parser%para_env, group=MPI_COMM_SELF, source=0, &
+         CALL cp_para_env_create(parser%para_env, group=mp_comm_self, source=0, &
                                  mepos=0, num_pe=1, owns_group=.FALSE.)
       END IF
 
