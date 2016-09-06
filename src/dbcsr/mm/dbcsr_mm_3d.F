@@ -289,14 +289,13 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: g2l_map_cols, g2l_map_rows, img_map, img_refs, &
          img_refs_cols, img_refs_rows, meta_displ_cluster_scatter, meta_size_cluster_scatter, &
          tmp_img_offset
-      INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: meta_recv, meta_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: displ_scatter, recv_displ, recv_size, &
                                                             send_displ, send_size, size_scatter
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: local_refs_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: recv_refs, refs_displ, refs_size
       INTEGER, DIMENSION(2)                              :: block_col_bounds, block_row_bounds
       INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, local_cols, local_refs_data_size, &
-         local_rows, meta_buffer_p, row_dist, row_img_dist, threads_dist
+         local_rows, meta_buffer_p, meta_recv, meta_send, row_dist, row_img_dist, threads_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi, local_refs_displ_unmerged, &
                                                             local_refs_meta_size, no_empty_images, &
                                                             no_empty_images_displ
@@ -1075,8 +1074,12 @@ CONTAINS
          !
          ! Allocate data/meta to send
          CALL dbcsr_data_init(data_send)
-         CALL dbcsr_data_new(data_send, data_type, SUM(send_size(idata, :)))
-         ALLOCATE (meta_send(SUM(send_size(imeta, :))))
+         CALL dbcsr_data_new(data_send, data_type, SUM(send_size(idata, :)), &
+                             memory_type=memtype_mpi_buffer)
+         CALL dbcsr_data_zero(data_send, lb=(/1/), ub=(/dbcsr_data_get_size(data_send)/))
+         NULLIFY (meta_send)
+         CALL ensure_array_size(meta_send, ub=SUM(send_size(imeta, :)), &
+                                nocopy=.TRUE., memory_type=memtype_mpi_buffer, zero_pad=.TRUE.)
       ENDIF
       !
       refs_displ(idata, :, :, :, :) = refs_size(idata, :, :, :, :)-1
@@ -1144,7 +1147,7 @@ CONTAINS
                   data_buffer_p => buffer%data(1)
                   meta_buffer_p => buffer%meta
                ELSE
-                  ! Move data to remove symmetric proc
+                  ! Move data to remote symmetric proc
                   dst_proc = isym_proc
                   data_buffer_p => data_send
                   meta_buffer_p => meta_send
@@ -1235,8 +1238,11 @@ CONTAINS
 !$OMP BARRIER
 !$OMP MASTER
          CALL dbcsr_data_init(data_recv)
-         CALL dbcsr_data_new(data_recv, data_type, SUM(recv_size(idata, :)))
-         ALLOCATE (meta_recv(SUM(recv_size(imeta, :))))
+         CALL dbcsr_data_new(data_recv, data_type, SUM(recv_size(idata, :)), &
+                             memory_type=memtype_mpi_buffer)
+         NULLIFY (meta_recv)
+         CALL ensure_array_size(meta_recv, ub=SUM(recv_size(imeta, :)), &
+                                nocopy=.TRUE., memory_type=memtype_mpi_buffer, zero_pad=.TRUE.)
          IF (do_virt) THEN
             ! Exchange data
             CALL timeset(routineN//"_data", handle2)
@@ -5382,7 +5388,7 @@ CONTAINS
       ! Workaround for OpenMPI RMA bug
       ioffset = ioffset_first(my_uf)+1
       IF (offset_images(idata, ioffset) .LT. offset_images(idata, ioffset+1)) THEN
-         IF (meta_buffer(offset_images(imeta, ioffset_first(my_uf)+1)+dbcsr_slot_size) .EQ. -999) THEN
+         IF (meta_buffer(offset_images(imeta, ioffset)+dbcsr_slot_size) .EQ. -999) THEN
             CALL cp_warn(__LOCATION__, "MPI_rget operation didn't complete! "// &
                          "Probably you are using a buggy OpenMPI (version<1.10.4 or 2.0.1). "// &
                          "Try to enforce communication with window flush.")
