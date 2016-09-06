@@ -152,6 +152,7 @@ cat <<EOF > ${INSTALLDIR}/lsan.supp
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
 # leak related to mpi or scalapack  triggers sometimes for regtest-kp-2/cc2.inp
 leak:Cblacs_gridmap
+leak:blacs_gridmap_
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
 EOF
