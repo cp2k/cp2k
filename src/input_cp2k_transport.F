@@ -16,9 +16,10 @@ MODULE input_cp2k_transport
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, linsolver_banded, &
-        linsolver_full, linsolver_mumps, linsolver_splitsolve, linsolver_superlu, rho_negf, &
-        rho_qtbm, rlaxisint_GaussChebyshev, rlaxisint_readfromfile, rlaxisint_trapezoidal, &
-        transport_localscf, transport_negf, transport_transmission
+        linsolver_full, linsolver_mumps, linsolver_pardiso, linsolver_splitsolve, &
+        linsolver_superlu, linsolver_umfpack, matrixinv_full, matrixinv_pardiso, matrixinv_pexsi, &
+        matrixinv_rgf, rho_negf, rho_qtbm, rlaxisint_GaussChebyshev, rlaxisint_readfromfile, &
+        rlaxisint_trapezoidal, transport_localscf, transport_negf, transport_transmission
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -58,7 +59,7 @@ CONTAINS
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also http://www.nano-tcad.ethz.ch/ ", &
                           citations=(/Bruck2014/), &
-                          n_keywords=25, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=26, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -87,9 +88,9 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_ABSCISSAE", &
+      CALL keyword_create(keyword, name="NUM_POLE", &
                           description="The number of terms in the PEXSI's pole expansion method.", &
-                          usage="N_ABSCISSAE <integer>", default_i_val=64)
+                          usage="NUM_POLE <integer>", default_i_val=64)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -194,11 +195,22 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, name="LINEAR_SOLVER", &
-         description="Solver to solve the linear system of equations.", &
+         description="Preferred solver for solving the linear system of equations.", &
          usage="LINEAR_SOLVER <solver>", &
          default_i_val=linsolver_full, &
-         enum_c_vals=s2a("SplitSolve", "SuperLU", "MUMPS", "Full", "Banded"), &
-         enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps, linsolver_full, linsolver_banded/))
+         enum_c_vals=s2a("SplitSolve", "SuperLU", "MUMPS", "Full", "Banded", "PARDISO", "UMFPACK"), &
+         enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps, linsolver_full, linsolver_banded, &
+                       linsolver_pardiso, linsolver_umfpack/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, name="MATRIX_INVERSION_METHOD", &
+         description="Preferred matrix inversion method.", &
+         usage="MATRIX_INVERSION_METHOD <solver>", &
+         default_i_val=matrixinv_full, &
+         enum_c_vals=s2a("Full", "PEXSI", "PARDISO", "RGF"), &
+         enum_i_vals=(/matrixinv_full, matrixinv_pexsi, matrixinv_pardiso, matrixinv_rgf/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -162,11 +162,13 @@ CONTAINS
                                 i_val=transport_env%params%rlaxis_integration_method)
       CALL section_vals_val_get(transport_section, "QT_FORMALISM", i_val=transport_env%params%qt_formalism)
       CALL section_vals_val_get(transport_section, "LINEAR_SOLVER", i_val=transport_env%params%linear_solver)
+      CALL section_vals_val_get(transport_section, "MATRIX_INVERSION_METHOD", &
+                                i_val=transport_env%params%matrixinv_method)
       CALL section_vals_val_get(transport_section, "N_KPOINTS", i_val=transport_env%params%n_kpoint)
       CALL section_vals_val_get(transport_section, "NUM_INTERVAL", i_val=transport_env%params%num_interval)
       CALL section_vals_val_get(transport_section, "TASKS_PER_ENERGY_POINT", &
                                 i_val=transport_env%params%tasks_per_energy_point)
-      CALL section_vals_val_get(transport_section, "N_ABSCISSAE", i_val=transport_env%params%n_abscissae)
+      CALL section_vals_val_get(transport_section, "NUM_POLE", i_val=transport_env%params%num_pole)
       CALL section_vals_val_get(transport_section, "GPUS_PER_POINT", i_val=transport_env%params%gpus_per_point)
       CALL section_vals_val_get(transport_section, "N_POINTS_INV", i_val=transport_env%params%n_points_inv)
       CALL section_vals_val_get(transport_section, "COLZERO_THRESHOLD", r_val=transport_env%params%colzero_threshold)

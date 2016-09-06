@@ -53,7 +53,8 @@ MODULE transport_env_types
       INTEGER(C_INT)  :: injection_method
       INTEGER(C_INT)  :: rlaxis_integration_method
       INTEGER(C_INT)  :: linear_solver
-      INTEGER(C_INT)  :: n_abscissae
+      INTEGER(C_INT)  :: matrixinv_method
+      INTEGER(C_INT)  :: num_pole
       INTEGER(C_INT)  :: ordering
       INTEGER(C_INT)  :: row_ordering
       INTEGER(C_INT)  :: verbosity

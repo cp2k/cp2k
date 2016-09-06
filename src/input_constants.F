@@ -979,6 +979,12 @@ MODULE input_constants
                                                linsolver_mumps = 13, &
                                                linsolver_full = 14, &
                                                linsolver_banded = 15, &
+                                               linsolver_pardiso = 16, &
+                                               linsolver_umfpack = 17, &
+                                               matrixinv_full = 101, &
+                                               matrixinv_pexsi = 102, &
+                                               matrixinv_pardiso = 103, &
+                                               matrixinv_rgf = 104, &
                                                injmethod_evp = 21, &
                                                injmethod_beyn = 22, &
                                                injsign_positive = 1, &

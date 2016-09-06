@@ -161,7 +161,8 @@ typedef struct {
     int     injection_method;
     int     rlaxis_integration_method;
     int     linear_solver;
-    int     n_abscissae;
+    int     matrixinv_method;
+    int     num_pole;
     int     ordering;
     int     row_ordering;
     int     verbosity;
