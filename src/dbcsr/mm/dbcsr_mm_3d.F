@@ -2298,6 +2298,7 @@ CONTAINS
             buffers_comm%left%meta(left_meta_size*((ileft_buffer_comm-1)/2)+1: &
                                    left_meta_size*((ileft_buffer_comm-1)/2+1))
          ALLOCATE (left_buffer(ileft_buffer_comm)%offset(2, 2))
+         left_buffer(ileft_buffer_comm)%offset(:, 1) = 0
          ALLOCATE (left_buffer(ileft_buffer_comm)%get_requests(2, 1))
          CALL setup_buffer_matrices_images(left_buffer(ileft_buffer_comm)%buffer, 1, &
                                            imgdist_left, matrix_left, &
@@ -5118,6 +5119,8 @@ CONTAINS
          ENDIF
          IF (.NOT. ALLOCATED(buffer%get_requests_map)) ALLOCATE (buffer%get_requests_map(2, requests_size))
       ENDIF
+      !
+      buffer%nrequests = 0
    END SUBROUTINE buffer_init
 
 ! **************************************************************************************************
@@ -5377,16 +5380,19 @@ CONTAINS
          ENDIF
       ENDDO
       ! Workaround for OpenMPI RMA bug
-      IF (meta_buffer(offset_images(imeta, ioffset_first(my_uf)+1)+dbcsr_slot_size) .EQ. -999) THEN
-         CALL cp_warn(__LOCATION__, "MPI_rget operation didn't complete! "// &
-                      "Probably you are using a buggy OpenMPI (version<1.10.4 or 2.0.1). "// &
-                      "Try to enforce communication with window flush.")
-         IF (do_merge_rows) THEN
-            CALL mp_win_flush_all(buffers_orig%left%data_win)
-            CALL mp_win_flush_all(buffers_orig%left%meta_win)
-         ELSE
-            CALL mp_win_flush_all(buffers_orig%right%data_win)
-            CALL mp_win_flush_all(buffers_orig%right%meta_win)
+      ioffset = ioffset_first(my_uf)+1
+      IF (offset_images(idata, ioffset) .LT. offset_images(idata, ioffset+1)) THEN
+         IF (meta_buffer(offset_images(imeta, ioffset_first(my_uf)+1)+dbcsr_slot_size) .EQ. -999) THEN
+            CALL cp_warn(__LOCATION__, "MPI_rget operation didn't complete! "// &
+                         "Probably you are using a buggy OpenMPI (version<1.10.4 or 2.0.1). "// &
+                         "Try to enforce communication with window flush.")
+            IF (do_merge_rows) THEN
+               CALL mp_win_flush_all(buffers_orig%left%data_win)
+               CALL mp_win_flush_all(buffers_orig%left%meta_win)
+            ELSE
+               CALL mp_win_flush_all(buffers_orig%right%data_win)
+               CALL mp_win_flush_all(buffers_orig%right%meta_win)
+            ENDIF
          ENDIF
       ENDIF
       !
