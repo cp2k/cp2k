@@ -196,7 +196,7 @@ CONTAINS
          keyword, name="LINEAR_SOLVER", &
          description="Solver to solve the linear system of equations.", &
          usage="LINEAR_SOLVER <solver>", &
-         default_i_val=linsolver_superlu, &
+         default_i_val=linsolver_full, &
          enum_c_vals=s2a("SplitSolve", "SuperLU", "MUMPS", "Full", "Banded"), &
          enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps, linsolver_full, linsolver_banded/))
       CALL section_add_keyword(section, keyword)
@@ -215,8 +215,8 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, name="CUTOUT", &
-         description="Degrees of freedom at the beginning and the end of the structure (in the number of atoms) "// &
-         "where the density should not be changed.", &
+         description="The number of atoms at the beginning and the end of the structure where the density should "// &
+         "not be changed.", &
          usage="CUTOUT <integer> <integer>", &
          n_var=2, default_i_vals=(/0, 0/))
       CALL section_add_keyword(section, keyword)
@@ -422,7 +422,7 @@ CONTAINS
                           description="The level of output information.", &
                           enum_c_vals=s2a("SILENT", "BASIC", "DETAILED"), &
                           enum_i_vals=(/0, 1, 2/), &
-                          usage="VERBOSITY <integer>", default_i_val=1)
+                          usage="VERBOSITY <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
