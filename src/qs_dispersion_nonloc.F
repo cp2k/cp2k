@@ -180,8 +180,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
       INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
-      INTEGER                                            :: handle, i, i_grid, idir, ispin, n1, n2, &
-                                                            n3, nl_type, np, nspin
+      INTEGER                                            :: handle, i, i_grid, idir, ispin, nl_type, &
+                                                            np, nspin, p, q, r, s
+      INTEGER, DIMENSION(1:3)                            :: hi, lo, n
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: b_value, beta, const, Ec_nl, sumnp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dq0_dgradrho, dq0_drho, hpot, potential, &
@@ -236,17 +237,68 @@ CONTAINS
       END DO
 
       np = SIZE(tmp_r%cr3d)
-      ALLOCATE (rho(np), drho(np, 3))
-      rho = 0.0_dp
-      drho = 0.0_dp
+      ALLOCATE (rho(np), drho(np, 3)) !in the following loops, rho and drho _will_ have the same bounds
+      DO i = 1, 3
+         lo(i) = LBOUND(tmp_r%cr3d, i)
+         hi(i) = UBOUND(tmp_r%cr3d, i)
+         n(i) = hi(i)-lo(i)+1
+      END DO
+!$OMP PARALLEL DO DEFAULT(NONE)              &
+!$OMP             SHARED(n,rho)              &
+!$OMP             COLLAPSE(3)
+      DO r = 0, n(3)-1
+         DO q = 0, n(2)-1
+            DO p = 0, n(1)-1
+               rho(r*n(2)*n(1)+q*n(1)+p+1) = 0.0_dp
+            END DO
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+      DO i = 1, 3
+!$OMP PARALLEL DO DEFAULT(NONE)              &
+!$OMP             SHARED(n,i,drho)           &
+!$OMP             COLLAPSE(3)
+         DO r = 0, n(3)-1
+            DO q = 0, n(2)-1
+               DO p = 0, n(1)-1
+                  drho(r*n(2)*n(1)+q*n(1)+p+1, i) = 0.0_dp
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      END DO
       DO ispin = 1, nspin
          CPASSERT(rho_r(ispin)%pw%in_use == REALDATA3D)
          CALL pw_transfer(rho_g(ispin)%pw, tmp_g)
          CALL pw_transfer(tmp_g, tmp_r)
-         rho(:) = rho(:)+RESHAPE(tmp_r%cr3d, (/np/))
-         drho(:, 1) = drho(:, 1)+RESHAPE(drho_r(1, ispin)%pw%cr3d, (/np/))
-         drho(:, 2) = drho(:, 2)+RESHAPE(drho_r(2, ispin)%pw%cr3d, (/np/))
-         drho(:, 3) = drho(:, 3)+RESHAPE(drho_r(3, ispin)%pw%cr3d, (/np/))
+!$OMP PARALLEL DO DEFAULT(NONE)            &
+!$OMP             SHARED(n,lo,rho,tmp_r)   &
+!$OMP             PRIVATE(s)               &
+!$OMP             COLLAPSE(3)
+         DO r = 0, n(3)-1
+            DO q = 0, n(2)-1
+               DO p = 0, n(1)-1
+                  s = r*n(2)*n(1)+q*n(1)+p+1
+                  rho(s) = rho(s)+tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3))
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+         DO i = 1, 3
+!$OMP PARALLEL DO DEFAULT(NONE)                      &
+!$OMP             SHARED(ispin,i,n,lo,drho,drho_r)   &
+!$OMP             PRIVATE(s)                         &
+!$OMP             COLLAPSE(3)
+            DO r = 0, n(3)-1
+               DO q = 0, n(2)-1
+                  DO p = 0, n(1)-1
+                     s = r*n(2)*n(1)+q*n(1)+p+1
+                     drho(s, i) = drho(s, i)+drho_r(i, ispin)%pw%cr3d(p+lo(1), q+lo(2), r+lo(3))
+                  END DO
+               END DO
+            END DO
+!$OMP END PARALLEL DO
+         END DO
       END DO
       !! ---------------------------------------------------------------------------------
       !! Find the value of q0 for all assigned grid points.  q is defined in equations
@@ -304,19 +356,17 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown vdW-DF functional")
       CASE (vdw_nl_DRSLL, vdw_nl_LMKLL)
-!$OMP PARALLEL DEFAULT( NONE )                          &
-!$OMP           SHARED( dispersion_env, thetas, rho)
-!$OMP DO
+!$OMP PARALLEL DO DEFAULT( NONE )                          &
+!$OMP             SHARED( dispersion_env, thetas, rho)
          DO i = 1, dispersion_env%nqs
             thetas(:, i) = thetas(:, i)*rho(:)
          END DO
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
       CASE (vdw_nl_RVV10)
-!$OMP PARALLEL DEFAULT( NONE )                                      &
-!$OMP           SHARED( np, rho, dispersion_env, thetas, const )    &
-!$OMP          PRIVATE( i )
-!$OMP DO SCHEDULE(DYNAMIC)    ! use dynamic to allow for possibility of cases having   (rho(i_grid) .LE. epsr)
+!$OMP PARALLEL DO DEFAULT( NONE )                                  &
+!$OMP             SHARED( np, rho, dispersion_env, thetas, const ) &
+!$OMP             PRIVATE( i )                                     &
+!$OMP             SCHEDULE(DYNAMIC)    ! use dynamic to allow for possibility of cases having   (rho(i_grid) .LE. epsr)
          DO i_grid = 1, np
             IF (rho(i_grid) > epsr) THEN
                DO i = 1, dispersion_env%nqs
@@ -326,17 +376,28 @@ CONTAINS
                thetas(i_grid, :) = 0.0_dp
             END IF
          END DO
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
       END SELECT
       !! ------------------------------------------------------------------------------------
       !! Get thetas in reciprocal space.
-      n1 = SIZE(tmp_r%cr3d, 1)
-      n2 = SIZE(tmp_r%cr3d, 2)
-      n3 = SIZE(tmp_r%cr3d, 3)
+      DO i = 1, 3
+         lo(i) = LBOUND(tmp_r%cr3d, i)
+         hi(i) = UBOUND(tmp_r%cr3d, i)
+         n(i) = hi(i)-lo(i)+1
+      END DO
       ALLOCATE (thetas_g(dispersion_env%nqs))
       DO i = 1, dispersion_env%nqs
-         tmp_r%cr3d = RESHAPE(thetas(:, i), (/n1, n2, n3/))
+!$OMP PARALLEL DO DEFAULT(NONE)                   &
+!$OMP             SHARED(i,n,lo,thetas,tmp_r)     &
+!$OMP             COLLAPSE(3)
+         DO r = 0, n(3)-1
+            DO q = 0, n(2)-1
+               DO p = 0, n(1)-1
+                  tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = thetas(r*n(2)*n(1)+q*n(1)+p+1, i)
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
          NULLIFY (thetas_g(i)%pw)
          CALL pw_pool_create_pw(pw_pool, thetas_g(i)%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_transfer(tmp_r, thetas_g(i)%pw)
@@ -377,9 +438,24 @@ CONTAINS
          !! ----------------------------------------------------------------------------
          !! Inverse Fourier transform the u_i(k) to get the u_i(r) of SOLER equation 11.
          !!-----------------------------------------------------------------------------
+         DO i = 1, 3
+            lo(i) = LBOUND(tmp_r%cr3d, i)
+            hi(i) = UBOUND(tmp_r%cr3d, i)
+            n(i) = hi(i)-lo(i)+1
+         END DO
          DO i = 1, dispersion_env%nqs
             CALL pw_transfer(thetas_g(i)%pw, tmp_r)
-            thetas(:, i) = RESHAPE(tmp_r%cr3d, (/np/))
+!$OMP PARALLEL DO DEFAULT(NONE)                        &
+!$OMP             SHARED(i,n,lo,thetas,tmp_r)          &
+!$OMP             COLLAPSE(3)
+            DO r = 0, n(3)-1
+               DO q = 0, n(2)-1
+                  DO p = 0, n(1)-1
+                     thetas(r*n(2)*n(1)+q*n(1)+p+1, i) = tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3))
+                  END DO
+               END DO
+            END DO
+!$OMP END PARALLEL DO
          END DO
          !! -------------------------------------------------------------------------
          !! Here we allocate the array to hold the potential. This is calculated via
@@ -404,11 +480,53 @@ CONTAINS
             hpot(:) = 0.5_dp*hpot(:)
          END SELECT
          CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
-         vxc_r%cr3d = RESHAPE(potential, (/n1, n2, n3/))
+         DO i = 1, 3
+            lo(i) = LBOUND(vxc_r%cr3d, i)
+            hi(i) = UBOUND(vxc_r%cr3d, i)
+            n(i) = hi(i)-lo(i)+1
+         END DO
+!$OMP PARALLEL DO DEFAULT(NONE)                         &
+!$OMP             SHARED(i,n,lo,potential,vxc_r)        &
+!$OMP             COLLAPSE(3)
+         DO r = 0, n(3)-1
+            DO q = 0, n(2)-1
+               DO p = 0, n(1)-1
+                  vxc_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = potential(r*n(2)*n(1)+q*n(1)+p+1)
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+         DO i = 1, 3
+            lo(i) = LBOUND(tmp_r%cr3d, i)
+            hi(i) = UBOUND(tmp_r%cr3d, i)
+            n(i) = hi(i)-lo(i)+1
+         END DO
          DO idir = 1, 3
-            tmp_r%cr3d = 0.0_dp
+!$OMP PARALLEL DO DEFAULT(NONE)                     &
+!$OMP             SHARED(n,lo,tmp_r)                &
+!$OMP             COLLAPSE(3)
+            DO r = 0, n(3)-1
+               DO q = 0, n(2)-1
+                  DO p = 0, n(1)-1
+                     tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = 0.0_dp
+                  END DO
+               END DO
+            END DO
+!$OMP END PARALLEL DO
             DO ispin = 1, nspin
-               tmp_r%cr3d = tmp_r%cr3d+RESHAPE(hpot, (/n1, n2, n3/))*drho_r(idir, ispin)%pw%cr3d
+!$OMP PARALLEL DO DEFAULT(NONE)                              &
+!$OMP             SHARED(n,lo,tmp_r,hpot,drho_r,idir,ispin)  &
+!$OMP             COLLAPSE(3)
+               DO r = 0, n(3)-1
+                  DO q = 0, n(2)-1
+                     DO p = 0, n(1)-1
+                        tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) = tmp_r%cr3d(p+lo(1), q+lo(2), r+lo(3)) &
+                                                                +hpot(r*n(2)*n(1)+q*n(1)+p+1) &
+                                                                *drho_r(idir, ispin)%pw%cr3d(p+lo(1), q+lo(2), r+lo(3))
+                     END DO
+                  END DO
+               END DO
+!$OMP END PARALLEL DO
             END DO
             CALL pw_transfer(tmp_r, tmp_g)
             CALL pw_derive(tmp_g, nd(:, idir))
