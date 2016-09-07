@@ -729,7 +729,7 @@ CONTAINS
    SUBROUTINE mp_reordering(mp_comm, mp_new_comm, ranks_order)
       INTEGER, INTENT(IN)                      :: mp_comm
       INTEGER, INTENT(out)                     :: mp_new_comm
-      INTEGER, DIMENSION(:), POINTER           :: ranks_order
+      INTEGER, DIMENSION(:)                    :: ranks_order
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_reordering', &
                                      routineP = moduleN//':'//routineN
@@ -1934,9 +1934,9 @@ CONTAINS
                             subgroup_min_size, n_subgroups, group_partition, stride)
       INTEGER, INTENT(in)                      :: comm
       INTEGER, INTENT(out)                     :: sub_comm, ngroups
-      INTEGER, DIMENSION(:), POINTER           :: group_distribution
+      INTEGER, DIMENSION(0:)                    :: group_distribution
       INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size, n_subgroups
-      INTEGER, DIMENSION(:), OPTIONAL, POINTER :: group_partition
+      INTEGER, DIMENSION(0:), OPTIONAL          :: group_partition
       INTEGER, OPTIONAL                        :: stride
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
@@ -1964,11 +1964,7 @@ CONTAINS
 
       CALL mp_environ(nnodes, mepos, comm)
 
-      IF (.NOT. ASSOCIATED(group_distribution)) THEN
-         CPABORT(routineP//" group_distribution not associated")
-      ENDIF
-      IF (LBOUND(group_distribution, 1) .NE. 0 .OR. &
-          UBOUND(group_distribution, 1) .NE. nnodes-1) THEN
+      IF (UBOUND(group_distribution, 1) .NE. nnodes-1) THEN
          CPABORT(routineP//" group_distribution wrong bounds")
       ENDIF
 
@@ -2011,18 +2007,16 @@ CONTAINS
       ENDDO
       ! even the user gave a partition, see if we can use it to overwrite this choice
       IF (PRESENT(group_partition)) THEN
-         IF (ASSOCIATED(group_partition)) THEN
-            IF (ALL(group_partition > 0) .AND. SUM(group_partition) .EQ. nnodes .AND. ngroups == SIZE(group_partition)) THEN
-               k = 0
-               DO i = 0, SIZE(group_partition)-1
-                  DO j = 1, group_partition(i)
-                     group_distribution(rank_permutation(k)) = i
-                     k = k+1
-                  ENDDO
+         IF (ALL(group_partition > 0) .AND. (SUM(group_partition) .EQ. nnodes) .AND. (ngroups == SIZE(group_partition))) THEN
+            k = 0
+            DO i = 0, SIZE(group_partition)-1
+               DO j = 1, group_partition(i)
+                  group_distribution(rank_permutation(k)) = i
+                  k = k+1
                ENDDO
-            ELSE
-               ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad
-            ENDIF
+            ENDDO
+         ELSE
+            ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad
          ENDIF
       ENDIF
       color = group_distribution(mepos)

@@ -527,9 +527,14 @@ CONTAINS
             CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
                                subgroup_min_size=farming_env%group_size_wish, stride=farming_env%stride)
          ELSE IF (farming_env%ngroup_wish_set) THEN
-            CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
-                               n_subgroups=farming_env%ngroup_wish, &
-                               group_partition=farming_env%group_partition, stride=farming_env%stride)
+            IF (ASSOCIATED(farming_env%group_partition)) THEN
+               CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
+                                  n_subgroups=farming_env%ngroup_wish, &
+                                  group_partition=farming_env%group_partition, stride=farming_env%stride)
+            ELSE
+               CALL mp_comm_split(slave_group, new_group, ngroups, group_distribution, &
+                                  n_subgroups=farming_env%ngroup_wish, stride=farming_env%stride)
+            ENDIF
          ELSE
             CPABORT("must set either group_size_wish or ngroup_wish")
          ENDIF

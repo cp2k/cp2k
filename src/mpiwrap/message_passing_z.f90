@@ -2051,7 +2051,7 @@
 #else
     MARK_USED(gid)
     request = mp_request_null
-    CPABORT("mp_iallgather requires MPI-3 standard")    
+    CPABORT("mp_iallgather requires MPI-3 standard")
 #endif
 #else
     MARK_USED(gid)
@@ -2917,12 +2917,11 @@
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 !> \note
-!>      The arguments must be pointers to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isendrecv_zv(msgin,dest,msgout,source,comm,send_request,&
        recv_request,tag)
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: msgin
+    COMPLEX(kind=real_8), DIMENSION(:)                    :: msgin
     INTEGER, INTENT(IN)                      :: dest
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
@@ -2994,11 +2993,10 @@
 !>      08.2003 created [f&j]
 !> \note see mp_isendrecv_zv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isend_zv(msgin,dest,comm,request,tag)
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: msgin
+    COMPLEX(kind=real_8), DIMENSION(:)                    :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3059,11 +3057,10 @@
 !> \note see mp_isendrecv_zv
 !> \note see mp_isend_zv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isend_zm2(msgin,dest,comm,request,tag)
-    COMPLEX(kind=real_8), DIMENSION(:, :), POINTER  :: msgin
+    COMPLEX(kind=real_8), DIMENSION(:, :)                 :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3127,12 +3124,10 @@
 !> \note see mp_isendrecv_zv
 !> \note see mp_isend_zv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isend_zm3(msgin,dest,comm,request,tag)
-    COMPLEX(kind=real_8), DIMENSION(:, :, :), &
-      POINTER                                :: msgin
+    COMPLEX(kind=real_8), DIMENSION(:, :, :)              :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3195,8 +3190,7 @@
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \note see mp_isendrecv_zv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_zv(msgout,source,comm,request,tag)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: msgout
@@ -3259,11 +3253,10 @@
 !> \note see mp_isendrecv_zv
 !> \note see mp_irecv_zv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_zm2(msgout,source,comm,request,tag)
-    COMPLEX(kind=real_8), DIMENSION(:, :), POINTER        :: msgout
+    COMPLEX(kind=real_8), DIMENSION(:, :)                 :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3326,12 +3319,10 @@
 !> \note see mp_isendrecv_zv
 !> \note see mp_irecv_zv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_zm3(msgout,source,comm,request,tag)
-    COMPLEX(kind=real_8), DIMENSION(:, :, :), &
-      POINTER                                :: msgout
+    COMPLEX(kind=real_8), DIMENSION(:, :, :)              :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3389,11 +3380,10 @@
 !> \par History
 !>      02.2015 created [Alfio Lazzaro]
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_win_create_zv(base,comm,win)
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER :: base
+    COMPLEX(kind=real_8), DIMENSION(:)          :: base
     INTEGER, INTENT(IN)            :: comm
     INTEGER, INTENT(INOUT)         :: win
 
@@ -3440,14 +3430,13 @@
 !> \par History
 !>      02.2015 created [Alfio Lazzaro]
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_rget_zv(base,source,win,win_data,myproc,disp,request,&
        origin_datatype, target_datatype)
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: base
+    COMPLEX(kind=real_8), DIMENSION(:)                               :: base
     INTEGER, INTENT(IN)                                 :: source, win
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: win_data
+    COMPLEX(kind=real_8), DIMENSION(:)                               :: win_data
     INTEGER, INTENT(IN), OPTIONAL                       :: myproc, disp
     INTEGER, INTENT(OUT)                                :: request
     TYPE(mp_type_descriptor_type), INTENT(IN), OPTIONAL :: origin_datatype, target_datatype
@@ -3479,13 +3468,13 @@
     ENDIF
     handle_origin_datatype = MPI_DOUBLE_COMPLEX
     origin_len = len
-    IF (PRESENT(origin_datatype)) THEN 
+    IF (PRESENT(origin_datatype)) THEN
        handle_origin_datatype = origin_datatype%type_handle
        origin_len = 1
     ENDIF
     handle_target_datatype = MPI_DOUBLE_COMPLEX
     target_len = len
-    IF (PRESENT(target_datatype)) THEN 
+    IF (PRESENT(target_datatype)) THEN
        handle_target_datatype = target_datatype%type_handle
        target_len = 1
     ENDIF

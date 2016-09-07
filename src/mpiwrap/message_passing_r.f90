@@ -2051,7 +2051,7 @@
 #else
     MARK_USED(gid)
     request = mp_request_null
-    CPABORT("mp_iallgather requires MPI-3 standard")    
+    CPABORT("mp_iallgather requires MPI-3 standard")
 #endif
 #else
     MARK_USED(gid)
@@ -2917,12 +2917,11 @@
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 !> \note
-!>      The arguments must be pointers to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
        recv_request,tag)
-    REAL(kind=real_4), DIMENSION(:), POINTER           :: msgin
+    REAL(kind=real_4), DIMENSION(:)                    :: msgin
     INTEGER, INTENT(IN)                      :: dest
     REAL(kind=real_4), DIMENSION(:), POINTER           :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
@@ -2994,11 +2993,10 @@
 !>      08.2003 created [f&j]
 !> \note see mp_isendrecv_rv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isend_rv(msgin,dest,comm,request,tag)
-    REAL(kind=real_4), DIMENSION(:), POINTER           :: msgin
+    REAL(kind=real_4), DIMENSION(:)                    :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3059,11 +3057,10 @@
 !> \note see mp_isendrecv_rv
 !> \note see mp_isend_rv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
-    REAL(kind=real_4), DIMENSION(:, :), POINTER  :: msgin
+    REAL(kind=real_4), DIMENSION(:, :)                 :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3127,12 +3124,10 @@
 !> \note see mp_isendrecv_rv
 !> \note see mp_isend_rv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_isend_rm3(msgin,dest,comm,request,tag)
-    REAL(kind=real_4), DIMENSION(:, :, :), &
-      POINTER                                :: msgin
+    REAL(kind=real_4), DIMENSION(:, :, :)              :: msgin
     INTEGER, INTENT(IN)                      :: dest, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3195,8 +3190,7 @@
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \note see mp_isendrecv_rv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_rv(msgout,source,comm,request,tag)
     REAL(kind=real_4), DIMENSION(:), POINTER           :: msgout
@@ -3259,11 +3253,10 @@
 !> \note see mp_isendrecv_rv
 !> \note see mp_irecv_rv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
-    REAL(kind=real_4), DIMENSION(:, :), POINTER        :: msgout
+    REAL(kind=real_4), DIMENSION(:, :)                 :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3326,12 +3319,10 @@
 !> \note see mp_isendrecv_rv
 !> \note see mp_irecv_rv
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_rm3(msgout,source,comm,request,tag)
-    REAL(kind=real_4), DIMENSION(:, :, :), &
-      POINTER                                :: msgout
+    REAL(kind=real_4), DIMENSION(:, :, :)              :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3389,11 +3380,10 @@
 !> \par History
 !>      02.2015 created [Alfio Lazzaro]
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_win_create_rv(base,comm,win)
-    REAL(kind=real_4), DIMENSION(:), POINTER :: base
+    REAL(kind=real_4), DIMENSION(:)          :: base
     INTEGER, INTENT(IN)            :: comm
     INTEGER, INTENT(INOUT)         :: win
 
@@ -3440,14 +3430,13 @@
 !> \par History
 !>      02.2015 created [Alfio Lazzaro]
 !> \note
-!>      The argument must be a pointer to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_rget_rv(base,source,win,win_data,myproc,disp,request,&
        origin_datatype, target_datatype)
-    REAL(kind=real_4), DIMENSION(:), POINTER                      :: base
+    REAL(kind=real_4), DIMENSION(:)                               :: base
     INTEGER, INTENT(IN)                                 :: source, win
-    REAL(kind=real_4), DIMENSION(:), POINTER                      :: win_data
+    REAL(kind=real_4), DIMENSION(:)                               :: win_data
     INTEGER, INTENT(IN), OPTIONAL                       :: myproc, disp
     INTEGER, INTENT(OUT)                                :: request
     TYPE(mp_type_descriptor_type), INTENT(IN), OPTIONAL :: origin_datatype, target_datatype
@@ -3479,13 +3468,13 @@
     ENDIF
     handle_origin_datatype = MPI_REAL
     origin_len = len
-    IF (PRESENT(origin_datatype)) THEN 
+    IF (PRESENT(origin_datatype)) THEN
        handle_origin_datatype = origin_datatype%type_handle
        origin_len = 1
     ENDIF
     handle_target_datatype = MPI_REAL
     target_len = len
-    IF (PRESENT(target_datatype)) THEN 
+    IF (PRESENT(target_datatype)) THEN
        handle_target_datatype = target_datatype%type_handle
        target_len = 1
     ENDIF
