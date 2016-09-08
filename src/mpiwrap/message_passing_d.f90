@@ -2933,7 +2933,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: lower1, msglen, my_tag
+    INTEGER                                  :: msglen, my_tag
     REAL(kind=real_8)                                  :: foo
 #endif
 
@@ -2947,8 +2947,7 @@
 
     msglen = SIZE(msgout,1)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgout,1)
-       CALL mpi_irecv(msgout(lower1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+       CALL mpi_irecv(msgout(1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
             comm,recv_request,ierr)
     ELSE
        CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
@@ -2958,8 +2957,7 @@
 
     msglen = SIZE(msgin,1)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgin,1)
-       CALL mpi_isend(msgin(lower1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+       CALL mpi_isend(msgin(1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
             comm,send_request,ierr)
     ELSE
        CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
@@ -3006,7 +3004,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: lower1, msglen, my_tag
+    INTEGER                                  :: msglen, my_tag
     REAL(kind=real_8)                                  :: foo(1)
 #endif
 
@@ -3020,8 +3018,7 @@
 
     msglen = SIZE(msgin)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgin,1)
-       CALL mpi_isend(msgin(lower1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+       CALL mpi_isend(msgin(1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
             comm,request,ierr)
     ELSE
        CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
@@ -3070,7 +3067,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: lower1, lower2, msglen, my_tag
+    INTEGER                                  :: msglen, my_tag
     REAL(kind=real_8)                                  :: foo(1)
 #endif
 
@@ -3084,9 +3081,7 @@
 
     msglen = SIZE(msgin,1)*SIZE(msgin,2)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgin,1)
-       lower2=LBOUND(msgin,2)
-       CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+       CALL mpi_isend(msgin(1,1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
             comm,request,ierr)
     ELSE
        CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
@@ -3137,8 +3132,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: lower1, lower2, lower3, &
-                                                msglen, my_tag
+    INTEGER                                  :: msglen, my_tag
     REAL(kind=real_8)                                  :: foo(1)
 #endif
 
@@ -3152,10 +3146,7 @@
 
     msglen = SIZE(msgin,1)*SIZE(msgin,2)*SIZE(msgin,3)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgin,1)
-       lower2=LBOUND(msgin,2)
-       lower3=LBOUND(msgin,3)
-       CALL mpi_isend(msgin(lower1,lower2,lower3),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+       CALL mpi_isend(msgin(1,1,1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
             comm,request,ierr)
     ELSE
        CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
@@ -3203,7 +3194,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: lower1, msglen, my_tag
+    INTEGER                                  :: msglen, my_tag
     REAL(kind=real_8)                                  :: foo(1)
 #endif
 
@@ -3217,8 +3208,7 @@
 
     msglen = SIZE(msgout)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgout,1)
-       CALL mpi_irecv(msgout(lower1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+       CALL mpi_irecv(msgout(1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
             comm,request,ierr)
     ELSE
        CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
@@ -3266,7 +3256,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: lower1, lower2, msglen, my_tag
+    INTEGER                                  :: msglen, my_tag
     REAL(kind=real_8)                                  :: foo(1)
 #endif
 
@@ -3280,9 +3270,7 @@
 
     msglen = SIZE(msgout,1)*SIZE(msgout,2)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgout,1)
-       lower2=LBOUND(msgout,2)
-       CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+       CALL mpi_irecv(msgout(1,1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
             comm,request,ierr)
     ELSE
        CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
@@ -3332,8 +3320,7 @@
 
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
-    INTEGER                                  :: lower1, lower2, lower3, &
-                                                msglen, my_tag
+    INTEGER                                  :: msglen, my_tag
     REAL(kind=real_8)                                  :: foo(1)
 #endif
 
@@ -3347,10 +3334,7 @@
 
     msglen = SIZE(msgout,1)*SIZE(msgout,2)*SIZE(msgout,3)
     IF (msglen>0) THEN
-       lower1=LBOUND(msgout,1)
-       lower2=LBOUND(msgout,2)
-       lower3=LBOUND(msgout,3)
-       CALL mpi_irecv(msgout(lower1,lower2,lower3),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+       CALL mpi_irecv(msgout(1,1,1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
             comm,request,ierr)
     ELSE
        CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
@@ -3393,7 +3377,6 @@
     INTEGER                                  :: ierr, handle
 #if defined(__parallel)
     INTEGER(kind=mpi_address_kind)           :: len
-    INTEGER                                  :: lower1
     REAL(kind=real_8)                                  :: foo(1)
 #endif
 
@@ -3405,8 +3388,7 @@
 
     len = SIZE(base)*real_8_size
     IF (len>0) THEN
-       lower1=LBOUND(base,1)
-       CALL mpi_win_create(base(lower1),len,real_8_size,MPI_INFO_NULL,comm,win,ierr)
+       CALL mpi_win_create(base(1),len,real_8_size,MPI_INFO_NULL,comm,win,ierr)
     ELSE
        CALL mpi_win_create(foo,len,real_8_size,MPI_INFO_NULL,comm,win,ierr)
     ENDIF
@@ -3446,7 +3428,7 @@
 
     INTEGER                                  :: ierr, handle
 #if defined(__parallel) && (__MPI_VERSION > 2)
-    INTEGER                                  :: len, lower1, &
+    INTEGER                                  :: len, &
                                                 handle_origin_datatype, &
                                                 handle_target_datatype, &
                                                 origin_len, target_len
@@ -3479,7 +3461,6 @@
        target_len = 1
     ENDIF
     IF (len>0) THEN
-       lower1=LBOUND(base,1)
        do_local_copy = .FALSE.
        IF (PRESENT(myproc).AND. .NOT.PRESENT(origin_datatype).AND. .NOT.PRESENT(target_datatype)) THEN
           IF (myproc.EQ.source) do_local_copy = .TRUE.
@@ -3491,7 +3472,7 @@
           request = mp_request_null
           ierr = 0
        ELSE
-          CALL mpi_rget(base(lower1),origin_len,handle_origin_datatype,source,disp_aint,&
+          CALL mpi_rget(base(1),origin_len,handle_origin_datatype,source,disp_aint,&
                target_len,handle_target_datatype,win,request,ierr)
        ENDIF
     ELSE
