@@ -221,7 +221,7 @@ def main():
     endc='\033[0m'
     for filename in args.file_lists:
         comp=(float(files[filename][1])-ref)/ref
-        if abs(comp)>1e-15: color='\033[91m'
+        if abs(comp)>1e-14: color='\033[91m'
         else: color='\033[0m'
         print(('{0} ==> {1} : {2} : '+color+'{3}'+endc).format(files[filename][0],filename,files[filename][1],(float(files[filename][1])-ref)/ref))
 

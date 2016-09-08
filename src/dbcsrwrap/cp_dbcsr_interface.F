@@ -44,7 +44,8 @@ MODULE cp_dbcsr_interface
         dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
         dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
         dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, dbcsr_get_conf_num_layers_3D, &
-        dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
+        dbcsr_get_conf_num_mult_images, dbcsr_get_conf_randmat_seed, &
+        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
         dbcsr_get_conf_use_mpi_filtering, dbcsr_get_data_p, dbcsr_get_data_size, &
         dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
         dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
@@ -64,7 +65,8 @@ MODULE cp_dbcsr_interface
         dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_conf_avg_elements_images, &
         dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
         dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, &
-        dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
+        dbcsr_set_conf_num_mult_images, dbcsr_set_conf_randmat_seed, &
+        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
         dbcsr_set_conf_use_mpi_filtering, dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
         dbcsr_test_arnoldi, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, dbcsr_triu, &
         dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
@@ -93,13 +95,14 @@ MODULE cp_dbcsr_interface
    !
    ! Interface to libdbcsr (contains cp2k timing and error)
    PUBLIC :: dbcsr_get_conf_comm_thread_load, &
-             dbcsr_get_conf_avg_elements_images, &
+             dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_num_mult_images, &
              dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks, &
              dbcsr_set_conf_mm_stacksize, &
              dbcsr_get_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_filtering, &
              dbcsr_set_conf_num_layers_3D, dbcsr_get_conf_num_layers_3D
    PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
              dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_use_comm_thread, &
+             dbcsr_set_conf_num_mult_images, &
              has_mpi, dbcsr_set_conf_use_mpi_exp, dbcsr_set_conf_use_mpi_filtering
    PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols, &
              dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows, &

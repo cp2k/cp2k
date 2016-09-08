@@ -2361,6 +2361,29 @@ CONTAINS
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_left(nrows3D))
       ALLOCATE (right_vcol(ncols3D), left_vrow(nrows3D))
+      ! Pre-set image coordinates
+      IF (min_nimages .GT. 1 .AND. shift_k .GT. 0) THEN
+         DO icol3D = 1, ncols3D
+            CALL image_calculator(imgdist_right, &
+                                  vprow=recv_vrow, &
+                                  vpcol=right_vcol(icol3D), &
+                                  mypcol=mypcol, &
+                                  myvprow=right_myfirstvrow, &
+                                  myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
+                                  vprow_shift=start_k, &
+                                  shifting='R')
+         ENDDO
+         DO irow3D = 1, nrows3D
+            CALL image_calculator(imgdist_left, &
+                                  vprow=left_vrow(irow3D), &
+                                  vpcol=recv_vcol, &
+                                  myprow=myprow, &
+                                  myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
+                                  myvpcol=left_myfirstvcol, &
+                                  vpcol_shift=start_k, &
+                                  shifting='L')
+         ENDDO
+      ENDIF
       grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
          ivirt_k = istep_k/nranks3D
          v_ki = MOD(ivirt_k, min_nimages)
@@ -2562,7 +2585,8 @@ CONTAINS
             ENDIF
             IF (istep_k .GT. final_step_k) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (multrec, left_buffer, ileft_buffer_calc, buffers_calc) &
+!$OMP SHARED (multrec, left_buffer, ileft_buffer_calc, buffers_calc, &
+!$OMP         myrow3D, mycol3D, product_matrix3D) &
 !$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
@@ -2572,6 +2596,12 @@ CONTAINS
                DEALLOCATE (multrec(ithread, &
                                    left_buffer(ileft_buffer_calc)%coord3D, &
                                    buffers_calc%right%coord3D)%p)
+               IF (left_buffer(ileft_buffer_calc)%coord3D .NE. myrow3D .OR. &
+                   buffers_calc%right%coord3D .NE. mycol3D) THEN
+                  ! Finalize the matrix to send
+                  CALL dbcsr_finalize(product_matrix3D%mats(left_buffer(ileft_buffer_calc)%coord3D, &
+                                                            buffers_calc%right%coord3D)%matrix)
+               ENDIF
 !$OMP END PARALLEL
             ENDIF
          ENDIF wait_calc
@@ -2654,8 +2684,6 @@ CONTAINS
                irecv3D = MOD(nranks3D+myrank3D-iproc, nranks3D)
                irow3D = MOD(isend3D, nrows3D)+1
                icol3D = isend3D/nrows3D+1
-               ! Finalize the matrix to send
-               CALL dbcsr_finalize(product_matrix3D%mats(irow3D, icol3D)%matrix)
                product_matrix_size_comm(idata, 1) = &
                   product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_nze)
                IF (product_matrix_size_comm(idata, 1) .GT. 0) THEN

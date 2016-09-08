@@ -17,7 +17,8 @@ MODULE dbcsr_dist_methods
                                               array_release,&
                                               array_size
    USE dbcsr_config,                    ONLY: avg_elements_images,&
-                                              comm_thread_load
+                                              comm_thread_load,&
+                                              num_mult_images
    USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                               dbcsr_fatal_level,&
                                               dbcsr_internal_error,&
@@ -501,8 +502,12 @@ CONTAINS
 
       lcmv = lcm(nprows, npcols)
       num_images_1d = lcmv
+      IF (num_mult_images .GT. 1) THEN
+         num_images_1d = num_images_1d*num_mult_images
+         RETURN
+      ENDIF
       IF (matrix_dense_size_1d .EQ. 0) RETURN
-
+      !
       IF (avg_elements_images .GT. 0) THEN
          num_images_1d = num_images_1d* &
                          CEILING((DBLE(matrix_dense_size_1d)/num_images_1d)/ &

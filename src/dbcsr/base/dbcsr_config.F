@@ -33,9 +33,11 @@ MODULE dbcsr_config
 
    PUBLIC :: dbcsr_get_conf_mpi_mem
 
-   PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver, dbcsr_get_conf_avg_elements_images
+   PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver, &
+             dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_num_mult_images
 
-   PUBLIC :: dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
+   PUBLIC :: dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_num_mult_images, &
+             dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
 
    PUBLIC :: dbcsr_set_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_exp
    PUBLIC :: dbcsr_set_conf_num_layers_3D, dbcsr_get_conf_num_layers_3D
@@ -63,7 +65,7 @@ MODULE dbcsr_config
              mm_name_xsmm
    PUBLIC :: use_mpi_exp, use_mpi_filtering, use_comm_thread, comm_thread_load
    PUBLIC :: num_layers_3D
-   PUBLIC :: max_elements_per_block, avg_elements_images
+   PUBLIC :: max_elements_per_block, avg_elements_images, num_mult_images
    !
    PUBLIC :: is_initialized
 
@@ -145,6 +147,9 @@ MODULE dbcsr_config
 
    ! Maximum number of elements for each image
    INTEGER, SAVE :: avg_elements_images = -1
+
+   ! Multiplicative factor for number of virtual images
+   INTEGER, SAVE :: num_mult_images = 1
 
    ! Number of stacks to use
    INTEGER, SAVE :: nm_stacks = 3
@@ -369,11 +374,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_avg_elements_images', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: error_handle
-
-      CALL timeset(routineN, error_handle)
       avg_elements_images = new_avg_elements_images
-      CALL timestop(error_handle)
    END SUBROUTINE dbcsr_set_conf_avg_elements_images
 
 ! **************************************************************************************************
@@ -385,6 +386,29 @@ CONTAINS
 
       dbcsr_get_conf_avg_elements_images = avg_elements_images
    END FUNCTION dbcsr_get_conf_avg_elements_images
+
+! **************************************************************************************************
+!> \brief ...
+!> \param new_num_mult_images ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_set_conf_num_mult_images(new_num_mult_images)
+      INTEGER, INTENT(IN)                                :: new_num_mult_images
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_num_mult_images', &
+         routineP = moduleN//':'//routineN
+
+      num_mult_images = new_num_mult_images
+   END SUBROUTINE dbcsr_set_conf_num_mult_images
+
+! **************************************************************************************************
+!> \brief ...
+!> \retval dbcsr_get_conf_num_mult_images ...
+! **************************************************************************************************
+   FUNCTION dbcsr_get_conf_num_mult_images()
+      INTEGER                                            :: dbcsr_get_conf_num_mult_images
+
+      dbcsr_get_conf_num_mult_images = num_mult_images
+   END FUNCTION dbcsr_get_conf_num_mult_images
 
 ! **************************************************************************************************
 !> \brief ...

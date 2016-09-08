@@ -24,12 +24,13 @@ MODULE cp_dbcsr_cp2k_link
         cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, cp_dbcsr_reserve_blocks, cp_dbcsr_set, &
         cp_dbcsr_type, dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
         dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-        dbcsr_get_conf_nstacks, dbcsr_get_conf_num_layers_3D, dbcsr_get_conf_randmat_seed, &
-        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
+        dbcsr_get_conf_nstacks, dbcsr_get_conf_num_layers_3D, dbcsr_get_conf_num_mult_images, &
+        dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
         dbcsr_get_conf_use_mpi_filtering, dbcsr_set_conf_avg_elements_images, &
         dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
         dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, &
-        dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
+        dbcsr_set_conf_num_mult_images, dbcsr_set_conf_randmat_seed, &
+        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
         dbcsr_set_conf_use_mpi_filtering, dbcsr_type_no_symmetry, has_acc, has_mpi, &
         mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, mm_name_blas, &
         mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
@@ -81,10 +82,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: avg_elements_images, comm_thread_load, &
-                                                            error_handle, max_ele_block, &
-                                                            mm_driver, mm_ss, num_layers, &
-                                                            randmat_seed
+      INTEGER :: avg_elements_images, comm_thread_load, error_handle, max_ele_block, mm_driver, &
+         mm_ss, num_layers, num_mult_images, randmat_seed
       INTEGER, DIMENSION(3)                              :: nstacks
       LOGICAL                                            :: use_comm_thread, use_mpi_exp, &
                                                             use_mpi_filtering
@@ -101,6 +100,8 @@ CONTAINS
                                 "MAX_ELEMENTS_PER_BLOCK", i_val=max_ele_block)
       CALL section_vals_val_get(dbcsr_section, &
                                 "avg_elements_images", i_val=avg_elements_images)
+      CALL section_vals_val_get(dbcsr_section, &
+                                "num_mult_images", i_val=num_mult_images)
       CALL section_vals_val_get(dbcsr_section, &
                                 "n_size_mnk_stacks", i_val=nstacks(1))
       nstacks(2:3) = nstacks(1)
@@ -147,6 +148,8 @@ CONTAINS
          CALL dbcsr_set_conf_mm_stacksize(mm_ss)
       IF (avg_elements_images > 0) &
          CALL dbcsr_set_conf_avg_elements_images(avg_elements_images)
+      IF (num_mult_images > 0) &
+         CALL dbcsr_set_conf_num_mult_images(num_mult_images)
       IF (nstacks(1) > 0) &
          CALL dbcsr_set_conf_nstacks(nstacks)
       CALL dbcsr_set_conf_use_mpi_filtering(use_mpi_filtering)
@@ -202,6 +205,8 @@ CONTAINS
             WRITE (UNIT=unit_num, FMT='(1X,A,T72,A)') &
                "DBCSR| Maximum elements for images", "UNLIMITED"
          ENDIF
+         WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
+            "DBCSR| Multiplicative factor virtual images", dbcsr_get_conf_num_mult_images()
          WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
             "DBCSR| Randmat seed", dbcsr_get_conf_randmat_seed()
 
