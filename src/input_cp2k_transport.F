@@ -107,8 +107,16 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TASKS_PER_ENERGY_POINT", &
-                          description="Number of tasks per energy point.", &
+                          description="Number of tasks per energy point. The value should be a divisor of the total "// &
+                          "number of MPI ranks.", &
                           usage="TASKS_PER_ENERGY_POINT <integer>", default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="TASKS_PER_POLE", &
+                          description="Number of tasks per pole in the pole expansion method. The value should be a "// &
+                          "divisor of the total number of MPI ranks.", &
+                          usage="TASKS_PER_POLE <integer>", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

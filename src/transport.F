@@ -168,6 +168,7 @@ CONTAINS
       CALL section_vals_val_get(transport_section, "NUM_INTERVAL", i_val=transport_env%params%num_interval)
       CALL section_vals_val_get(transport_section, "TASKS_PER_ENERGY_POINT", &
                                 i_val=transport_env%params%tasks_per_energy_point)
+      CALL section_vals_val_get(transport_section, "TASKS_PER_POLE", i_val=transport_env%params%tasks_per_pole)
       CALL section_vals_val_get(transport_section, "NUM_POLE", i_val=transport_env%params%num_pole)
       CALL section_vals_val_get(transport_section, "GPUS_PER_POINT", i_val=transport_env%params%gpus_per_point)
       CALL section_vals_val_get(transport_section, "N_POINTS_INV", i_val=transport_env%params%n_points_inv)
@@ -281,17 +282,6 @@ CONTAINS
 
       mp_group = logger%para_env%group
       CALL mp_environ(numnodes, mynode, mp_group)
-
-      ! Use all tasks if user input for TASKS_PER_ENERGY_POINT is 0 or greater than MPI size.
-      IF ((transport_env%params%tasks_per_energy_point .GT. numnodes) &
-          .OR. (transport_env%params%tasks_per_energy_point .EQ. 0)) THEN
-         transport_env%params%tasks_per_energy_point = numnodes
-      ENDIF
-
-      ! Determine valid TASKS_PER_ENERGY_POINT from user input
-      DO WHILE (MOD(numnodes, transport_env%params%tasks_per_energy_point) .NE. 0)
-         transport_env%params%tasks_per_energy_point = transport_env%params%tasks_per_energy_point+1
-      ENDDO
 
       IF (cp_dbcsr_has_symmetry(template_matrix)) THEN
          CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix)

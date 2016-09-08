@@ -64,6 +64,7 @@ MODULE transport_env_types
       INTEGER(C_INT)  :: num_contacts
       INTEGER(C_INT)  :: stride_contacts
       INTEGER(C_INT)  :: tasks_per_energy_point
+      INTEGER(C_INT)  :: tasks_per_pole
       INTEGER(C_INT)  :: gpus_per_point
       INTEGER(C_INT)  :: n_points_beyn
       INTEGER(C_INT)  :: ncrc_beyn
