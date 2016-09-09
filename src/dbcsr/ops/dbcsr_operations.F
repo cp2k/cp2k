@@ -1573,7 +1573,7 @@ CONTAINS
                               dbcsr_fatal_level, dbcsr_internal_error, routineN, &
                               "Source matrix sizes not consistent!", __LINE__)
             CALL dbcsr_data_ensure_size(matrix_b%m%data_area, &
-                                        dbcsr_get_data_size(matrix_a))
+                                        dbcsr_data_get_size_referenced(matrix_a%m%data_area))
             IF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_get_data_type(matrix_b)) &
                THEN
                CALL dbcsr_data_copyall(matrix_b%m%data_area, &

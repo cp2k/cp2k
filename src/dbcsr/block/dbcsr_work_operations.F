@@ -1354,7 +1354,7 @@ CONTAINS
             CALL dbcsr_data_ensure_size(wm(which_wm)%data_area, &
                                         dbcsr_data_get_size_referenced(matrix%m%data_area))
             CALL dbcsr_data_copyall(wm(which_wm)%data_area, matrix%m%data_area)
-            wm(which_wm)%datasize = dbcsr_data_get_size_referenced(wm(which_wm)%data_area)
+            wm(which_wm)%datasize = size_used
          ENDDO
       ENDIF
       CALL timestop(handle)
