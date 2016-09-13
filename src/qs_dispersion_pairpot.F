@@ -846,7 +846,7 @@ CONTAINS
 
       INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, ia, iatom, icx, icy, &
          icz, idmp, ikind, ilist, jatom, jkind, katom, kkind, kstart, latom, lkind, max_elem, &
-         maxc, na, natom, nb, nc, ni, nj, nkind, unit_nr, za, zb, zc
+         maxc, mepos, na, natom, nb, nc, ni, nj, nkind, num_pe, unit_nr, za, zb, zc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
       INTEGER, DIMENSION(3)                              :: cell_b, cell_c, ncell, periodic
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
@@ -863,7 +863,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rcpbc
       REAL(KIND=dp), DIMENSION(3)                        :: fdij, fdik, ra, rab, rb, rb0, rbc, rc, &
                                                             rc0, rca, rij, rik, sab_max
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: dvirial, pv_virial_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atener
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -882,828 +882,852 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
 
+      IF (dispersion_env%type .NE. xc_vdw_fun_pairpot) THEN
+         RETURN
+      END IF
+
       CALL timeset(routineN, handle)
 
       energy = 0._dp
 
-      IF (dispersion_env%type == xc_vdw_fun_pairpot) THEN
+      NULLIFY (atomic_kind_set, qs_kind_set, sab_cn, sab_vdw)
 
-         NULLIFY (atomic_kind_set, qs_kind_set, sab_cn, sab_vdw)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      cell=cell, virial=virial, para_env=para_env, atprop=atprop)
 
-         CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
-                         cell=cell, virial=virial, para_env=para_env, atprop=atprop)
+      debugx = dispersion_env%verbose
+      debugall = debugx
+      debug = debugx .AND. para_env%ionode
+      nkind = SIZE(atomic_kind_set)
 
-         debugx = dispersion_env%verbose
-         debugall = debugx
-         debug = debugx .AND. para_env%ionode
-         nkind = SIZE(atomic_kind_set)
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      IF (ASSOCIATED(dispersion_env%dftd_section)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, dispersion_env%dftd_section, "PRINT_DFTD", &
+                                        extension=".dftd")
+      ELSE
+         unit_nr = -1
+      END IF
 
-         NULLIFY (logger)
-         logger => cp_get_default_logger()
-         IF (ASSOCIATED(dispersion_env%dftd_section)) THEN
-            unit_nr = cp_print_key_unit_nr(logger, dispersion_env%dftd_section, "PRINT_DFTD", &
-                                           extension=".dftd")
-         ELSE
-            unit_nr = -1
-         END IF
-
-         ! atomic energy and stress arrays
-         atenergy = atprop%energy
-         IF (atenergy) THEN
-            NULLIFY (particle_set)
-            CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
-            natom = SIZE(particle_set)
-            CALL atprop_array_init(atprop%atevdw, natom)
-            atener => atprop%atevdw
-         END IF
-         atstress = atprop%stress
-         IF (atstress) THEN
-            atstr => atprop%atstress
-         END IF
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *)
-            WRITE (unit_nr, *) " Pair potential vdW calculation"
-            IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
-               WRITE (unit_nr, *) " Dispersion potential type: DFT-D2"
-            ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-               WRITE (unit_nr, *) " Dispersion potential type: DFT-D3"
-            ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-               WRITE (unit_nr, *) " Dispersion potential type: DFT-D3(BJ)"
-            END IF
-         END IF
-
+      ! atomic energy and stress arrays
+      atenergy = atprop%energy
+      IF (atenergy) THEN
          NULLIFY (particle_set)
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
          natom = SIZE(particle_set)
-         IF (calculate_forces .OR. debugall) THEN
-            NULLIFY (force)
-            CALL get_qs_env(qs_env=qs_env, force=force)
-            ALLOCATE (atom_of_kind(natom), kind_of(natom))
-            CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
-            use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-            IF (use_virial .AND. debugall) THEN
-               dvirial = virial%pv_virial
-            END IF
-         ELSE IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
-                   dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc) THEN
-            ALLOCATE (atom_of_kind(natom), kind_of(natom))
-            CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
-         END IF
+         CALL atprop_array_init(atprop%atevdw, natom)
+         atener => atprop%atevdw
+      END IF
+      atstress = atprop%stress
+      IF (atstress) THEN
+         atstr => atprop%atstress
+      END IF
 
-         ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
-         DO ikind = 1, nkind
-            CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-            CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
-            dodisp(ikind) = disp_a%defined
-            ghost(ikind) = ghost_a
-            floating(ikind) = floating_a
-            atomnumber(ikind) = za
-            c6d2(ikind) = disp_a%c6
-            radd2(ikind) = disp_a%vdw_radii
-         END DO
-         ALLOCATE (rcpbc(3, natom))
-         DO iatom = 1, natom
-            rcpbc(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
-         END DO
-
-         rcut = 2._dp*dispersion_env%rc_disp
-         rc2 = rcut*rcut
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *)
+         WRITE (unit_nr, *) " Pair potential vdW calculation"
          IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
-            s6 = dispersion_env%scaling
-            dd = dispersion_env%exp_pre
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) " Scaling parameter (s6) ", s6
-               WRITE (unit_nr, *) " Exponential prefactor  ", dd
-            END IF
-         ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
-                  dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-            maxc = SIZE(dispersion_env%c6ab, 3)
-            max_elem = SIZE(dispersion_env%c6ab, 1)
-            alp6 = dispersion_env%alp
-            alp8 = alp6+2._dp
-            s6 = dispersion_env%s6
-            s8 = dispersion_env%s8
-            s9 = dispersion_env%s6
-            rs6 = dispersion_env%sr6
-            rs8 = 1._dp
-            a1 = dispersion_env%a1
-            a2 = dispersion_env%a2
-            eps_cn = dispersion_env%eps_cn
-            e6tot = 0._dp
-            e8tot = 0._dp
-            e9tot = 0._dp
-            ! damping type
-            idmp = 0
-            IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-               idmp = 1
-            ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-               idmp = 2
-            END IF
+            WRITE (unit_nr, *) " Dispersion potential type: DFT-D2"
+         ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+            WRITE (unit_nr, *) " Dispersion potential type: DFT-D3"
+         ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+            WRITE (unit_nr, *) " Dispersion potential type: DFT-D3(BJ)"
+         END IF
+      END IF
 
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) " Scaling parameter (s6) ", s6
-               WRITE (unit_nr, *) " Scaling parameter (s8) ", s8
-               IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
-                  WRITE (unit_nr, *) " Zero Damping parameter (sr6)", rs6
-                  WRITE (unit_nr, *) " Zero Damping parameter (sr8)", rs8
-               ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-                  WRITE (unit_nr, *) " BJ Damping parameter (a1) ", a1
-                  WRITE (unit_nr, *) " BJ Damping parameter (a2) ", a2
-               END IF
-               WRITE (unit_nr, *) " Cutoff coordination numbers", eps_cn
-               IF (dispersion_env%lrc) THEN
-                  WRITE (unit_nr, *) " Apply a long range correction"
-               END IF
-            END IF
-            ! Calculate coordination numbers
-            NULLIFY (particle_set)
-            CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
-            natom = SIZE(particle_set)
-            ALLOCATE (cnumbers(natom))
-            cnumbers = 0._dp
-            IF (calculate_forces .OR. debugall) THEN
-               ALLOCATE (dcnum(natom))
-               dcnum(:)%neighbors = 0
-               DO iatom = 1, natom
-                  ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
-               END DO
-            END IF
-            sab_cn => dispersion_env%sab_cn
-            CALL neighbor_list_iterator_create(nl_iterator, sab_cn)
-            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
-               IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
-               rcc = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
-               IF (rcc > 1.e-6_dp) THEN
-                  za = atomnumber(ikind)
-                  zb = atomnumber(jkind)
-                  rcova = dispersion_env%rcov(za)
-                  rcovb = dispersion_env%rcov(zb)
-                  CALL cnparam_d3(rcc, rcova, rcovb, dispersion_env%k1, cnab, dcnab)
-                  IF (cnab > eps_cn) THEN
-                     cnumbers(iatom) = cnumbers(iatom)+cnab
-                     IF (iatom /= jatom) cnumbers(jatom) = cnumbers(jatom)+cnab
-                  END IF
-                  IF (calculate_forces .OR. debugall .AND. cnab > eps_cn) THEN
-                     dcnum(iatom)%neighbors = dcnum(iatom)%neighbors+1
-                     ni = dcnum(iatom)%neighbors
-                     IF (ni > SIZE(dcnum(iatom)%nlist)) THEN
-                        CALL reallocate(dcnum(iatom)%nlist, 1, 2*ni)
-                        CALL reallocate(dcnum(iatom)%dvals, 1, 2*ni)
-                        CALL reallocate(dcnum(iatom)%rik, 1, 3, 1, 2*ni)
-                     END IF
-                     dcnum(iatom)%nlist(ni) = jatom
-                     dcnum(iatom)%dvals(ni) = dcnab
-                     dcnum(iatom)%rik(1:3, ni) = rij(1:3)
-                     IF (iatom /= jatom) THEN
-                        dcnum(jatom)%neighbors = dcnum(jatom)%neighbors+1
-                        nj = dcnum(jatom)%neighbors
-                        IF (nj > SIZE(dcnum(jatom)%dvals)) THEN
-                           CALL reallocate(dcnum(jatom)%nlist, 1, 2*nj)
-                           CALL reallocate(dcnum(jatom)%dvals, 1, 2*nj)
-                           CALL reallocate(dcnum(jatom)%rik, 1, 3, 1, 2*nj)
-                        END IF
-                        dcnum(jatom)%nlist(nj) = iatom
-                        dcnum(jatom)%dvals(nj) = dcnab
-                        dcnum(jatom)%rik(1:3, nj) = -rij(1:3)
-                     END IF
-                  END IF
-               END IF
-            END DO
-            CALL neighbor_list_iterator_release(nl_iterator)
-            CALL mp_sum(cnumbers, para_env%group)
-            ! for parallel runs we have to update dcnum on all processors
-            IF (calculate_forces .OR. debugall) THEN
-               CALL dcnum_distribute(dcnum, para_env)
-               IF (unit_nr > 0 .AND. SIZE(dcnum) > 0) THEN
-                  WRITE (unit_nr, *)
-                  WRITE (unit_nr, *) "  ATOM       Coordination   Neighbors"
-                  DO i = 1, natom
-                     WRITE (unit_nr, "(I6,F20.10,I12)") i, cnumbers(i), dcnum(i)%neighbors
-                  END DO
-                  WRITE (unit_nr, *)
-               END IF
-            END IF
+      NULLIFY (particle_set)
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
+      natom = SIZE(particle_set)
+      IF (calculate_forces .OR. debugall) THEN
+         NULLIFY (force)
+         CALL get_qs_env(qs_env=qs_env, force=force)
+         ALLOCATE (atom_of_kind(natom), kind_of(natom))
+         CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         IF (use_virial .AND. debugall) THEN
+            dvirial = virial%pv_virial
+         END IF
+      ELSE IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+                dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc) THEN
+         ALLOCATE (atom_of_kind(natom), kind_of(natom))
+         CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
+      END IF
+
+      ALLOCATE (dodisp(nkind), ghost(nkind), floating(nkind), atomnumber(nkind), c6d2(nkind), radd2(nkind))
+      DO ikind = 1, nkind
+         CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+         CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
+         dodisp(ikind) = disp_a%defined
+         ghost(ikind) = ghost_a
+         floating(ikind) = floating_a
+         atomnumber(ikind) = za
+         c6d2(ikind) = disp_a%c6
+         radd2(ikind) = disp_a%vdw_radii
+      END DO
+
+      ALLOCATE (rcpbc(3, natom))
+      DO iatom = 1, natom
+         rcpbc(:, iatom) = pbc(particle_set(iatom)%r(:), cell)
+      END DO
+
+      rcut = 2._dp*dispersion_env%rc_disp
+      rc2 = rcut*rcut
+      IF (dispersion_env%pp_type == vdw_pairpot_dftd2) THEN
+         s6 = dispersion_env%scaling
+         dd = dispersion_env%exp_pre
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *) " Scaling parameter (s6) ", s6
+            WRITE (unit_nr, *) " Exponential prefactor  ", dd
+         END IF
+      ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+               dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+         maxc = SIZE(dispersion_env%c6ab, 3)
+         max_elem = SIZE(dispersion_env%c6ab, 1)
+         alp6 = dispersion_env%alp
+         alp8 = alp6+2._dp
+         s6 = dispersion_env%s6
+         s8 = dispersion_env%s8
+         s9 = dispersion_env%s6
+         rs6 = dispersion_env%sr6
+         rs8 = 1._dp
+         a1 = dispersion_env%a1
+         a2 = dispersion_env%a2
+         eps_cn = dispersion_env%eps_cn
+         e6tot = 0._dp
+         e8tot = 0._dp
+         e9tot = 0._dp
+         ! damping type
+         idmp = 0
+         IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+            idmp = 1
+         ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+            idmp = 2
          END IF
 
-         nab = 0._dp
-         nabc = 0._dp
-         IF (dispersion_env%doabc) THEN
-            rcc = 2._dp*dispersion_env%rc_disp
-            CALL get_cell(cell=cell, periodic=periodic)
-            sab_max(1) = rcc/plane_distance(1, 0, 0, cell)
-            sab_max(2) = rcc/plane_distance(0, 1, 0, cell)
-            sab_max(3) = rcc/plane_distance(0, 0, 1, cell)
-            ncell(:) = (INT(sab_max(:))+1)*periodic(:)
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) " Calculate C9 Terms"
-               WRITE (unit_nr, "(A,T20,I3,A,I3)") "  Search in cells ", -ncell(1), ":", ncell(1)
-               WRITE (unit_nr, "(T20,I3,A,I3)")-ncell(2), ":", ncell(2)
-               WRITE (unit_nr, "(T20,I3,A,I3)")-ncell(3), ":", ncell(3)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *) " Scaling parameter (s6) ", s6
+            WRITE (unit_nr, *) " Scaling parameter (s8) ", s8
+            IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
+               WRITE (unit_nr, *) " Zero Damping parameter (sr6)", rs6
+               WRITE (unit_nr, *) " Zero Damping parameter (sr8)", rs8
+            ELSE IF (dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+               WRITE (unit_nr, *) " BJ Damping parameter (a1) ", a1
+               WRITE (unit_nr, *) " BJ Damping parameter (a2) ", a2
+            END IF
+            WRITE (unit_nr, *) " Cutoff coordination numbers", eps_cn
+            IF (dispersion_env%lrc) THEN
+               WRITE (unit_nr, *) " Apply a long range correction"
+            END IF
+         END IF
+         ! Calculate coordination numbers
+         NULLIFY (particle_set)
+         CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
+         natom = SIZE(particle_set)
+         ALLOCATE (cnumbers(natom))
+         cnumbers = 0._dp
+
+         IF (calculate_forces .OR. debugall) THEN
+            ALLOCATE (dcnum(natom))
+            dcnum(:)%neighbors = 0
+            DO iatom = 1, natom
+               ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
+            END DO
+         END IF
+
+         sab_cn => dispersion_env%sab_cn
+         num_pe = 1
+         CALL neighbor_list_iterator_create(nl_iterator, sab_cn, nthread=num_pe)
+
+         mepos = 0
+         DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
+
+            CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
+            IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
+
+            rcc = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+            IF (rcc > 1.e-6_dp) THEN
+               za = atomnumber(ikind)
+               zb = atomnumber(jkind)
+               rcova = dispersion_env%rcov(za)
+               rcovb = dispersion_env%rcov(zb)
+               CALL cnparam_d3(rcc, rcova, rcovb, dispersion_env%k1, cnab, dcnab)
+               IF (cnab > eps_cn) THEN
+                  cnumbers(iatom) = cnumbers(iatom)+cnab
+                  IF (iatom /= jatom) THEN
+                     cnumbers(jatom) = cnumbers(jatom)+cnab
+                  END IF
+               END IF
+               IF (calculate_forces .OR. debugall .AND. cnab > eps_cn) THEN
+                  dcnum(iatom)%neighbors = dcnum(iatom)%neighbors+1
+                  ni = dcnum(iatom)%neighbors
+                  IF (ni > SIZE(dcnum(iatom)%nlist)) THEN
+                     CALL reallocate(dcnum(iatom)%nlist, 1, 2*ni)
+                     CALL reallocate(dcnum(iatom)%dvals, 1, 2*ni)
+                     CALL reallocate(dcnum(iatom)%rik, 1, 3, 1, 2*ni)
+                  END IF
+                  dcnum(iatom)%nlist(ni) = jatom
+                  dcnum(iatom)%dvals(ni) = dcnab
+                  dcnum(iatom)%rik(1:3, ni) = rij(1:3)
+
+                  IF (iatom /= jatom) THEN
+                     dcnum(jatom)%neighbors = dcnum(jatom)%neighbors+1
+                     nj = dcnum(jatom)%neighbors
+                     IF (nj > SIZE(dcnum(jatom)%dvals)) THEN
+                        CALL reallocate(dcnum(jatom)%nlist, 1, 2*nj)
+                        CALL reallocate(dcnum(jatom)%dvals, 1, 2*nj)
+                        CALL reallocate(dcnum(jatom)%rik, 1, 3, 1, 2*nj)
+                     END IF
+                     dcnum(jatom)%nlist(nj) = iatom
+                     dcnum(jatom)%dvals(nj) = dcnab
+                     dcnum(jatom)%rik(1:3, nj) = -rij(1:3)
+                  END IF
+               END IF
+            END IF
+         END DO
+
+         CALL neighbor_list_iterator_release(nl_iterator)
+
+         CALL mp_sum(cnumbers, para_env%group)
+         ! for parallel runs we have to update dcnum on all processors
+         IF (calculate_forces .OR. debugall) THEN
+            CALL dcnum_distribute(dcnum, para_env)
+            IF (unit_nr > 0 .AND. SIZE(dcnum) > 0) THEN
+               WRITE (unit_nr, *)
+               WRITE (unit_nr, *) "  ATOM       Coordination   Neighbors"
+               DO i = 1, natom
+                  WRITE (unit_nr, "(I6,F20.10,I12)") i, cnumbers(i), dcnum(i)%neighbors
+               END DO
                WRITE (unit_nr, *)
             END IF
-            IF (dispersion_env%c9cnst) THEN
-               IF (unit_nr > 0) WRITE (unit_nr, *) " Use reference coordination numbers for C9 term"
-               ALLOCATE (cnumfix(natom))
-               cnumfix = 0._dp
-               ! first use the default values
-               DO iatom = 1, natom
-                  ikind = kind_of(iatom)
-                  CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-                  cnumfix(iatom) = dispersion_env%cn(za)
+         END IF
+      END IF
+
+      nab = 0._dp
+      nabc = 0._dp
+      IF (dispersion_env%doabc) THEN
+         rcc = 2._dp*dispersion_env%rc_disp
+         CALL get_cell(cell=cell, periodic=periodic)
+         sab_max(1) = rcc/plane_distance(1, 0, 0, cell)
+         sab_max(2) = rcc/plane_distance(0, 1, 0, cell)
+         sab_max(3) = rcc/plane_distance(0, 0, 1, cell)
+         ncell(:) = (INT(sab_max(:))+1)*periodic(:)
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *) " Calculate C9 Terms"
+            WRITE (unit_nr, "(A,T20,I3,A,I3)") "  Search in cells ", -ncell(1), ":", ncell(1)
+            WRITE (unit_nr, "(T20,I3,A,I3)")-ncell(2), ":", ncell(2)
+            WRITE (unit_nr, "(T20,I3,A,I3)")-ncell(3), ":", ncell(3)
+            WRITE (unit_nr, *)
+         END IF
+         IF (dispersion_env%c9cnst) THEN
+            IF (unit_nr > 0) WRITE (unit_nr, *) " Use reference coordination numbers for C9 term"
+            ALLOCATE (cnumfix(natom))
+            cnumfix = 0._dp
+            ! first use the default values
+            DO iatom = 1, natom
+               ikind = kind_of(iatom)
+               CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+               cnumfix(iatom) = dispersion_env%cn(za)
+            END DO
+            ! now check for changes from default
+            IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+               DO i = 1, SIZE(dispersion_env%cnkind)
+                  ikind = dispersion_env%cnkind(i)%kind
+                  cnum = dispersion_env%cnkind(i)%cnum
+                  CPASSERT(ikind <= nkind)
+                  CPASSERT(ikind > 0)
+                  CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, atom_list=atom_list)
+                  DO ia = 1, na
+                     iatom = atom_list(ia)
+                     cnumfix(iatom) = cnum
+                  END DO
                END DO
-               ! now check for changes from default
-               IF (ASSOCIATED(dispersion_env%cnkind)) THEN
-                  DO i = 1, SIZE(dispersion_env%cnkind)
-                     ikind = dispersion_env%cnkind(i)%kind
-                     cnum = dispersion_env%cnkind(i)%cnum
-                     CPASSERT(ikind <= nkind)
-                     CPASSERT(ikind > 0)
-                     CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, atom_list=atom_list)
-                     DO ia = 1, na
-                        iatom = atom_list(ia)
-                        cnumfix(iatom) = cnum
-                     END DO
+            END IF
+            IF (ASSOCIATED(dispersion_env%cnlist)) THEN
+               DO i = 1, SIZE(dispersion_env%cnlist)
+                  DO ilist = 1, dispersion_env%cnlist(i)%natom
+                     iatom = dispersion_env%cnlist(i)%atom(ilist)
+                     cnumfix(iatom) = dispersion_env%cnlist(i)%cnum
                   END DO
-               END IF
-               IF (ASSOCIATED(dispersion_env%cnlist)) THEN
-                  DO i = 1, SIZE(dispersion_env%cnlist)
-                     DO ilist = 1, dispersion_env%cnlist(i)%natom
-                        iatom = dispersion_env%cnlist(i)%atom(ilist)
-                        cnumfix(iatom) = dispersion_env%cnlist(i)%cnum
-                     END DO
-                  END DO
-               END IF
-               IF (unit_nr > 0) THEN
-                  DO i = 1, natom
-                     IF (ABS(cnumbers(i)-cnumfix(i)) > 0.5_dp) THEN
-                        WRITE (unit_nr, "(A,T20,A,I6,T41,2F10.3)") "  Difference in CN ", "Atom:", &
-                           i, cnumbers(i), cnumfix(i)
-                     END IF
-                  END DO
-                  WRITE (unit_nr, *)
-               END IF
+               END DO
+            END IF
+            IF (unit_nr > 0) THEN
+               DO i = 1, natom
+                  IF (ABS(cnumbers(i)-cnumfix(i)) > 0.5_dp) THEN
+                     WRITE (unit_nr, "(A,T20,A,I6,T41,2F10.3)") "  Difference in CN ", "Atom:", &
+                        i, cnumbers(i), cnumfix(i)
+                  END IF
+               END DO
+               WRITE (unit_nr, *)
             END IF
          END IF
+      END IF
 
-         evdw = 0._dp
+      evdw = 0._dp
+      sab_vdw => dispersion_env%sab_vdw
+      nkind = SIZE(atomic_kind_set)
 
-         sab_vdw => dispersion_env%sab_vdw
+      num_pe = 1
 
-         nkind = SIZE(atomic_kind_set)
+      pv_virial_thread(:, :) = 0._dp
 
-         CALL neighbor_list_iterator_create(nl_iterator, sab_vdw)
-         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
-            IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
-            IF (.NOT. (dodisp(ikind) .AND. dodisp(jkind))) CYCLE
-            za = atomnumber(ikind)
-            zb = atomnumber(jkind)
-            ! vdW potential
-            dr = SQRT(SUM(rij(:)**2))
-            IF (dr <= rcut) THEN
-               nab = nab+1._dp
-               fac = 1._dp
-               IF (iatom == jatom) fac = 0.5_dp
-               IF (disp_a%type == dftd2_pp .AND. dr > 0.001_dp) THEN
-                  c6 = SQRT(c6d2(ikind)*c6d2(jkind))
-                  rcc = radd2(ikind)+radd2(jkind)
-                  er = EXP(-dd*(dr/rcc-1._dp))
-                  fdmp = 1._dp/(1._dp+er)
-                  xp = s6*c6/dr**6
-                  evdw = evdw-xp*fdmp*fac
-                  IF (calculate_forces) THEN
-                     dfdmp = dd/rcc*er*fdmp*fdmp
-                     devdw = -xp*(-6._dp*fdmp/dr+dfdmp)
-                     fdij(:) = devdw*rij(:)/dr*fac
-                     atom_a = atom_of_kind(iatom)
-                     atom_b = atom_of_kind(jatom)
-                     force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdij(:)
-                     force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)+fdij(:)
-                     IF (use_virial) THEN
-                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rij)
-                     END IF
-                     IF (atstress) THEN
-                        CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
-                        CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
-                     END IF
+      CALL neighbor_list_iterator_create(nl_iterator, sab_vdw, nthread=num_pe)
+
+      mepos = 0
+      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
+         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
+
+         IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
+
+         IF (.NOT. (dodisp(ikind) .AND. dodisp(jkind))) CYCLE
+
+         za = atomnumber(ikind)
+         zb = atomnumber(jkind)
+         ! vdW potential
+         dr = SQRT(SUM(rij(:)**2))
+         IF (dr <= rcut) THEN
+            nab = nab+1._dp
+            fac = 1._dp
+            IF (iatom == jatom) fac = 0.5_dp
+            IF (disp_a%type == dftd2_pp .AND. dr > 0.001_dp) THEN
+               c6 = SQRT(c6d2(ikind)*c6d2(jkind))
+               rcc = radd2(ikind)+radd2(jkind)
+               er = EXP(-dd*(dr/rcc-1._dp))
+               fdmp = 1._dp/(1._dp+er)
+               xp = s6*c6/dr**6
+               evdw = evdw-xp*fdmp*fac
+               IF (calculate_forces) THEN
+                  dfdmp = dd/rcc*er*fdmp*fdmp
+                  devdw = -xp*(-6._dp*fdmp/dr+dfdmp)
+                  fdij(:) = devdw*rij(:)/dr*fac
+                  atom_a = atom_of_kind(iatom)
+                  atom_b = atom_of_kind(jatom)
+                  force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdij(:)
+                  force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)+fdij(:)
+                  IF (use_virial) THEN
+                     CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rij)
                   END IF
-                  IF (atenergy) THEN
-                     atener(iatom) = atener(iatom)-0.5_dp*xp*fdmp*fac
-                     atener(jatom) = atener(jatom)-0.5_dp*xp*fdmp*fac
+                  IF (atstress) THEN
+                     CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
+                     CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
                   END IF
-               ELSE IF (disp_a%type == dftd3_pp .AND. dr > 0.001_dp) THEN
-                  ! C6 coefficient
-                  CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
-                             cnumbers(iatom), cnumbers(jatom), dispersion_env%k3, c6, dc6a, dc6b)
-                  c8 = 3.0d0*c6*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
-                  dc8a = 3.0d0*dc6a*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
-                  dc8b = 3.0d0*dc6b*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
-                  r6 = dr**6
-                  r8 = r6*dr*dr
+               END IF
+               IF (atenergy) THEN
+                  atener(iatom) = atener(iatom)-0.5_dp*xp*fdmp*fac
+                  atener(jatom) = atener(jatom)-0.5_dp*xp*fdmp*fac
+               END IF
+            ELSE IF (disp_a%type == dftd3_pp .AND. dr > 0.001_dp) THEN
+               ! C6 coefficient
+               CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
+                          cnumbers(iatom), cnumbers(jatom), dispersion_env%k3, c6, dc6a, dc6b)
+               c8 = 3.0d0*c6*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
+               dc8a = 3.0d0*dc6a*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
+               dc8b = 3.0d0*dc6b*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
+               r6 = dr**6
+               r8 = r6*dr*dr
+               ! damping
+               IF (idmp == 1) THEN
+                  ! zero
+                  CALL damping_d3(dr, dispersion_env%r0ab(za, zb), rs6, alp6, rcut, fdab6, dfdab6)
+                  CALL damping_d3(dr, dispersion_env%r0ab(za, zb), rs8, alp8, rcut, fdab8, dfdab8)
+                  e6 = s6*fac*c6*fdab6/r6
+                  e8 = s8*fac*c8*fdab8/r8
+               ELSE IF (idmp == 2) THEN
+                  ! BJ
+                  r0ab = SQRT(3.0d0*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb))
+                  f0ab = a1*r0ab+a2
+                  fdab6 = 1.0_dp/(r6+f0ab**6)
+                  fdab8 = 1.0_dp/(r8+f0ab**8)
+                  e6 = s6*fac*c6*fdab6
+                  e8 = s8*fac*c8*fdab8
+               ELSE
+                  CPABORT("Unknown DFT-D3 damping function:")
+               END IF
+               evdw = evdw-e6-e8
+               e6tot = e6tot-e6
+               e8tot = e8tot-e8
+               IF (atenergy) THEN
+                  atener(iatom) = atener(iatom)-0.5_dp*(e6+e8)
+                  atener(jatom) = atener(jatom)-0.5_dp*(e6+e8)
+               END IF
+               IF (calculate_forces) THEN
                   ! damping
                   IF (idmp == 1) THEN
                      ! zero
-                     CALL damping_d3(dr, dispersion_env%r0ab(za, zb), rs6, alp6, rcut, fdab6, dfdab6)
-                     CALL damping_d3(dr, dispersion_env%r0ab(za, zb), rs8, alp8, rcut, fdab8, dfdab8)
-                     e6 = s6*fac*c6*fdab6/r6
-                     e8 = s8*fac*c8*fdab8/r8
+                     de6 = -s6*c6/r6*(dfdab6-6._dp*fdab6/dr)
+                     de8 = -s8*c8/r8*(dfdab8-8._dp*fdab8/dr)
                   ELSE IF (idmp == 2) THEN
                      ! BJ
-                     r0ab = SQRT(3.0d0*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb))
-                     f0ab = a1*r0ab+a2
-                     fdab6 = 1.0_dp/(r6+f0ab**6)
-                     fdab8 = 1.0_dp/(r8+f0ab**8)
-                     e6 = s6*fac*c6*fdab6
-                     e8 = s8*fac*c8*fdab8
+                     de6 = s6*c6*fdab6*fdab6*6.0_dp*dr**5
+                     de8 = s8*c8*fdab8*fdab8*8.0_dp*dr**7
                   ELSE
                      CPABORT("Unknown DFT-D3 damping function:")
                   END IF
-                  evdw = evdw-e6-e8
-                  e6tot = e6tot-e6
-                  e8tot = e8tot-e8
-                  IF (atenergy) THEN
-                     atener(iatom) = atener(iatom)-0.5_dp*(e6+e8)
-                     atener(jatom) = atener(jatom)-0.5_dp*(e6+e8)
+                  fdij(:) = (de6+de8)*rij(:)/dr*fac
+                  atom_a = atom_of_kind(iatom)
+                  atom_b = atom_of_kind(jatom)
+                  force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdij(:)
+                  force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)+fdij(:)
+                  IF (use_virial) THEN
+                     CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rij)
                   END IF
-                  IF (calculate_forces) THEN
-                     ! damping
-                     IF (idmp == 1) THEN
-                        ! zero
-                        de6 = -s6*c6/r6*(dfdab6-6._dp*fdab6/dr)
-                        de8 = -s8*c8/r8*(dfdab8-8._dp*fdab8/dr)
-                     ELSE IF (idmp == 2) THEN
-                        ! BJ
-                        de6 = s6*c6*fdab6*fdab6*6.0_dp*dr**5
-                        de8 = s8*c8*fdab8*fdab8*8.0_dp*dr**7
-                     ELSE
-                        CPABORT("Unknown DFT-D3 damping function:")
-                     END IF
-                     fdij(:) = (de6+de8)*rij(:)/dr*fac
-                     atom_a = atom_of_kind(iatom)
-                     atom_b = atom_of_kind(jatom)
-                     force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdij(:)
-                     force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)+fdij(:)
+                  IF (atstress) THEN
+                     CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
+                     CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
+                  END IF
+                  ! forces from the r-dependence of the coordination numbers
+                  IF (idmp == 1) THEN
+                     ! zero
+                     dc6a = -s6*fac*dc6a*fdab6/r6
+                     dc6b = -s6*fac*dc6b*fdab6/r6
+                     dc8a = -s8*fac*dc8a*fdab8/r8
+                     dc8b = -s8*fac*dc8b*fdab8/r8
+                  ELSE IF (idmp == 2) THEN
+                     ! BJ
+                     dc6a = -s6*fac*dc6a*fdab6
+                     dc6b = -s6*fac*dc6b*fdab6
+                     dc8a = -s8*fac*dc8a*fdab8
+                     dc8b = -s8*fac*dc8b*fdab8
+                  ELSE
+                     CPABORT("Unknown DFT-D3 damping function:")
+                  END IF
+                  DO i = 1, dcnum(iatom)%neighbors
+                     katom = dcnum(iatom)%nlist(i)
+                     kkind = kind_of(katom)
+                     rik = dcnum(iatom)%rik(:, i)
+                     drk = SQRT(SUM(rik(:)**2))
+                     fdik(:) = (dc6a+dc8a)*dcnum(iatom)%dvals(i)*rik(:)/drk
+                     atom_c = atom_of_kind(katom)
+                     force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdik(:)
+                     force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)+fdik(:)
                      IF (use_virial) THEN
-                        CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rij)
+                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
                      END IF
                      IF (atstress) THEN
-                        CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
-                        CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
+                        CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
                      END IF
-                     ! forces from the r-dependence of the coordination numbers
-                     IF (idmp == 1) THEN
-                        ! zero
-                        dc6a = -s6*fac*dc6a*fdab6/r6
-                        dc6b = -s6*fac*dc6b*fdab6/r6
-                        dc8a = -s8*fac*dc8a*fdab8/r8
-                        dc8b = -s8*fac*dc8b*fdab8/r8
-                     ELSE IF (idmp == 2) THEN
-                        ! BJ
-                        dc6a = -s6*fac*dc6a*fdab6
-                        dc6b = -s6*fac*dc6b*fdab6
-                        dc8a = -s8*fac*dc8a*fdab8
-                        dc8b = -s8*fac*dc8b*fdab8
-                     ELSE
-                        CPABORT("Unknown DFT-D3 damping function:")
+                  END DO
+                  DO i = 1, dcnum(jatom)%neighbors
+                     katom = dcnum(jatom)%nlist(i)
+                     kkind = kind_of(katom)
+                     rik = dcnum(jatom)%rik(:, i)
+                     drk = SQRT(SUM(rik(:)**2))
+                     fdik(:) = (dc6b+dc8b)*dcnum(jatom)%dvals(i)*rik(:)/drk
+                     atom_c = atom_of_kind(katom)
+                     force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdik(:)
+                     force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)+fdik(:)
+                     IF (use_virial) THEN
+                        CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
                      END IF
-                     DO i = 1, dcnum(iatom)%neighbors
-                        katom = dcnum(iatom)%nlist(i)
-                        kkind = kind_of(katom)
-                        rik = dcnum(iatom)%rik(:, i)
-                        drk = SQRT(SUM(rik(:)**2))
-                        fdik(:) = (dc6a+dc8a)*dcnum(iatom)%dvals(i)*rik(:)/drk
-                        atom_c = atom_of_kind(katom)
-                        force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdik(:)
-                        force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)+fdik(:)
-                        IF (use_virial) THEN
-                           CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                        END IF
-                        IF (atstress) THEN
-                           CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdik, rik)
-                           CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
-                        END IF
-                     END DO
-                     DO i = 1, dcnum(jatom)%neighbors
-                        katom = dcnum(jatom)%nlist(i)
-                        kkind = kind_of(katom)
-                        rik = dcnum(jatom)%rik(:, i)
-                        drk = SQRT(SUM(rik(:)**2))
-                        fdik(:) = (dc6b+dc8b)*dcnum(jatom)%dvals(i)*rik(:)/drk
-                        atom_c = atom_of_kind(katom)
-                        force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdik(:)
-                        force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)+fdik(:)
-                        IF (use_virial) THEN
-                           CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                        END IF
-                        IF (atstress) THEN
-                           CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdik, rik)
-                           CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
-                        END IF
-                     END DO
-                  END IF
-                  IF (dispersion_env%doabc) THEN
-                     CALL get_iterator_info(nl_iterator, cell=cell_b)
-                     hashb = cellhash(cell_b, ncell)
-                     is000 = (ALL(cell_b == 0))
-                     rb0(:) = MATMUL(cell%hmat, cell_b)
-                     ra(:) = pbc(particle_set(iatom)%r(:), cell)
-                     rb(:) = pbc(particle_set(jatom)%r(:), cell)+rb0
-                     r2ab = SUM((ra-rb)**2)
-                     DO icx = -ncell(1), ncell(1)
-                        DO icy = -ncell(2), ncell(2)
-                           DO icz = -ncell(3), ncell(3)
-                              cell_c(1) = icx
-                              cell_c(2) = icy
-                              cell_c(3) = icz
-                              hashc = cellhash(cell_c, ncell)
-                              IF (is000 .AND. (ALL(cell_c == 0))) THEN
-                                 ! CASE 1: all atoms in (000), use only ordered triples
-                                 kstart = MAX(jatom+1, iatom+1)
-                                 fac0 = 1.0_dp
-                              ELSE IF (is000) THEN
-                                 ! CASE 2: AB in (000), C in other cell
-                                 !         This case covers also all instances with BC in same
-                                 !         cell not (000)
-                                 kstart = 1
-                                 fac0 = 1.0_dp
-                              ELSE
-                                 ! These are case 2 again, cycle
-                                 IF (hashc == hashb) CYCLE
-                                 IF (ALL(cell_c == 0)) CYCLE
-                                 ! CASE 3: A in (000) and B and C in different cells
-                                 kstart = 1
-                                 fac0 = 1.0_dp/3.0_dp
-                              END IF
-                              rc0 = MATMUL(cell%hmat, cell_c)
-                              DO katom = kstart, natom
+                     IF (atstress) THEN
+                        CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdik, rik)
+                        CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdik, rik)
+                     END IF
+                  END DO
+               END IF
+               IF (dispersion_env%doabc) THEN
+                  CALL get_iterator_info(nl_iterator, cell=cell_b)
+                  hashb = cellhash(cell_b, ncell)
+                  is000 = (ALL(cell_b == 0))
+                  rb0(:) = MATMUL(cell%hmat, cell_b)
+                  ra(:) = pbc(particle_set(iatom)%r(:), cell)
+                  rb(:) = pbc(particle_set(jatom)%r(:), cell)+rb0
+                  r2ab = SUM((ra-rb)**2)
+                  DO icx = -ncell(1), ncell(1)
+                     DO icy = -ncell(2), ncell(2)
+                        DO icz = -ncell(3), ncell(3)
+                           cell_c(1) = icx
+                           cell_c(2) = icy
+                           cell_c(3) = icz
+                           hashc = cellhash(cell_c, ncell)
+                           IF (is000 .AND. (ALL(cell_c == 0))) THEN
+                              ! CASE 1: all atoms in (000), use only ordered triples
+                              kstart = MAX(jatom+1, iatom+1)
+                              fac0 = 1.0_dp
+                           ELSE IF (is000) THEN
+                              ! CASE 2: AB in (000), C in other cell
+                              !         This case covers also all instances with BC in same
+                              !         cell not (000)
+                              kstart = 1
+                              fac0 = 1.0_dp
+                           ELSE
+                              ! These are case 2 again, cycle
+                              IF (hashc == hashb) CYCLE
+                              IF (ALL(cell_c == 0)) CYCLE
+                              ! CASE 3: A in (000) and B and C in different cells
+                              kstart = 1
+                              fac0 = 1.0_dp/3.0_dp
+                           END IF
+                           rc0 = MATMUL(cell%hmat, cell_c)
+                           DO katom = kstart, natom
+                              kkind = kind_of(katom)
+                              IF (ghost(kkind) .OR. floating(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
+                              rc(:) = rcpbc(:, katom)+rc0(:)
+                              r2bc = SUM((rb-rc)**2)
+                              IF (r2bc >= rc2) CYCLE
+                              r2ca = SUM((rc-ra)**2)
+                              IF (r2ca >= rc2) CYCLE
+                              r2abc = r2ab*r2bc*r2ca
+                              IF (r2abc <= 0.001_dp) CYCLE
+                              ! this is an empirical scaling
+                              IF (r2abc <= 0.01*rc2*rc2*rc2) THEN
                                  kkind = kind_of(katom)
-                                 IF (ghost(kkind) .OR. floating(kkind) .OR. .NOT. dodisp(kkind)) CYCLE
-                                 rc(:) = rcpbc(:, katom)+rc0(:)
-                                 r2bc = SUM((rb-rc)**2)
-                                 IF (r2bc >= rc2) CYCLE
-                                 r2ca = SUM((rc-ra)**2)
-                                 IF (r2ca >= rc2) CYCLE
-                                 r2abc = r2ab*r2bc*r2ca
-                                 IF (r2abc <= 0.001_dp) CYCLE
-                                 ! this is an empirical scaling
-                                 IF (r2abc <= 0.01*rc2*rc2*rc2) THEN
-                                    kkind = kind_of(katom)
-                                    atom_c = atom_of_kind(katom)
-                                    zc = atomnumber(kkind)
-                                    ! avoid double counting!
-                                    fac = 1._dp
-                                    IF (iatom == jatom .OR. iatom == katom .OR. jatom == katom) fac = 0.5_dp
-                                    IF (iatom == jatom .AND. iatom == katom) fac = 1._dp/3._dp
-                                    fac = fac*fac0
-                                    nabc = nabc+1._dp
-                                    IF (dispersion_env%c9cnst) THEN
-                                       CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
-                                                  cnumfix(iatom), cnumfix(jatom), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
-                                       CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zb, zc, &
-                                                  cnumfix(jatom), cnumfix(katom), dispersion_env%k3, cc6bc, dcc6bcb, dcc6bcc)
-                                       CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
-                                                  cnumfix(katom), cnumfix(iatom), dispersion_env%k3, cc6ca, dcc6cac, dcc6caa)
-                                    ELSE
-                                       CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
-                                                  cnumbers(iatom), cnumbers(jatom), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
-                                       CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zb, zc, &
-                                                  cnumbers(jatom), cnumbers(katom), dispersion_env%k3, cc6bc, dcc6bcb, dcc6bcc)
-                                       CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
-                                                  cnumbers(katom), cnumbers(iatom), dispersion_env%k3, cc6ca, dcc6cac, dcc6caa)
+                                 atom_c = atom_of_kind(katom)
+                                 zc = atomnumber(kkind)
+                                 ! avoid double counting!
+                                 fac = 1._dp
+                                 IF (iatom == jatom .OR. iatom == katom .OR. jatom == katom) fac = 0.5_dp
+                                 IF (iatom == jatom .AND. iatom == katom) fac = 1._dp/3._dp
+                                 fac = fac*fac0
+                                 nabc = nabc+1._dp
+                                 IF (dispersion_env%c9cnst) THEN
+                                    CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
+                                               cnumfix(iatom), cnumfix(jatom), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
+                                    CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zb, zc, &
+                                               cnumfix(jatom), cnumfix(katom), dispersion_env%k3, cc6bc, dcc6bcb, dcc6bcc)
+                                    CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
+                                               cnumfix(katom), cnumfix(iatom), dispersion_env%k3, cc6ca, dcc6cac, dcc6caa)
+                                 ELSE
+                                    CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
+                                               cnumbers(iatom), cnumbers(jatom), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
+                                    CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zb, zc, &
+                                               cnumbers(jatom), cnumbers(katom), dispersion_env%k3, cc6bc, dcc6bcb, dcc6bcc)
+                                    CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
+                                               cnumbers(katom), cnumbers(iatom), dispersion_env%k3, cc6ca, dcc6cac, dcc6caa)
+                                 END IF
+                                 c9 = -SQRT(cc6ab*cc6bc*cc6ca)
+                                 rabc = r2abc**(1._dp/6._dp)
+                                 r0 = (dispersion_env%r0ab(za, zb)*dispersion_env%r0ab(zb, zc)* &
+                                       dispersion_env%r0ab(zc, za))**(1._dp/3._dp)
+                                 CALL damping_d3(rabc, r0, 4._dp/3._dp, alp6, rcut, fdabc, dfdabc)
+                                 s1 = r2ab+r2bc-r2ca
+                                 s2 = r2ab+r2ca-r2bc
+                                 s3 = r2ca+r2bc-r2ab
+                                 ang = 0.375_dp*s1*s2*s3/r2abc+1.0_dp
+
+                                 e9 = s9*fac*fdabc*c9*ang/r2abc**1.50d0
+                                 evdw = evdw-e9
+                                 e9tot = e9tot-e9
+                                 IF (atenergy) THEN
+                                    atener(iatom) = atener(iatom)-e9/3._dp
+                                    atener(jatom) = atener(jatom)-e9/3._dp
+                                    atener(katom) = atener(katom)-e9/3._dp
+                                 END IF
+
+                                 IF (calculate_forces) THEN
+                                    rab = rb-ra; rbc = rc-rb; rca = ra-rc
+                                    de91 = s9*fac*dfdabc*c9*ang/r2abc**1.50d0
+                                    de91 = -de91/3._dp*rabc+3._dp*e9
+                                    dea = s9*fac*fdabc*c9/r2abc**2.50d0*0.75_dp
+                                    fdij(:) = de91*rab(:)/r2ab
+                                    fdij(:) = fdij(:)+dea*s1*s2*s3*rab(:)/r2ab
+                                    fdij(:) = fdij(:)-dea*(s2*s3+s1*s3-s1*s2)*rab(:)
+                                    force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdij(:)
+                                    force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)+fdij(:)
+                                    IF (use_virial) THEN
+                                       CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rab)
                                     END IF
-                                    c9 = -SQRT(cc6ab*cc6bc*cc6ca)
-                                    rabc = r2abc**(1._dp/6._dp)
-                                    r0 = (dispersion_env%r0ab(za, zb)*dispersion_env%r0ab(zb, zc)* &
-                                          dispersion_env%r0ab(zc, za))**(1._dp/3._dp)
-                                    CALL damping_d3(rabc, r0, 4._dp/3._dp, alp6, rcut, fdabc, dfdabc)
-                                    s1 = r2ab+r2bc-r2ca
-                                    s2 = r2ab+r2ca-r2bc
-                                    s3 = r2ca+r2bc-r2ab
-                                    ang = 0.375_dp*s1*s2*s3/r2abc+1.0_dp
-
-                                    e9 = s9*fac*fdabc*c9*ang/r2abc**1.50d0
-                                    evdw = evdw-e9
-                                    e9tot = e9tot-e9
-                                    IF (atenergy) THEN
-                                       atener(iatom) = atener(iatom)-e9/3._dp
-                                       atener(jatom) = atener(jatom)-e9/3._dp
-                                       atener(katom) = atener(katom)-e9/3._dp
+                                    IF (atstress) THEN
+                                       CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rab)
+                                       CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rab)
+                                    END IF
+                                    fdij(:) = de91*rbc(:)/r2bc
+                                    fdij(:) = fdij(:)+dea*s1*s2*s3*rbc(:)/r2bc
+                                    fdij(:) = fdij(:)-dea*(s2*s3-s1*s3+s1*s2)*rbc(:)
+                                    force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdij(:)
+                                    force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)+fdij(:)
+                                    IF (use_virial) THEN
+                                       CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rbc)
+                                    END IF
+                                    IF (atstress) THEN
+                                       CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rbc)
+                                       CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rbc)
+                                    END IF
+                                    fdij(:) = de91*rca(:)/r2ca
+                                    fdij(:) = fdij(:)+dea*s1*s2*s3*rca(:)/r2ca
+                                    fdij(:) = fdij(:)-dea*(-s2*s3+s1*s3+s1*s2)*rca(:)
+                                    force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)-fdij(:)
+                                    force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)+fdij(:)
+                                    IF (use_virial) THEN
+                                       CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rca)
+                                    END IF
+                                    IF (atstress) THEN
+                                       CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rca)
+                                       CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rca)
                                     END IF
 
-                                    IF (calculate_forces) THEN
-                                       rab = rb-ra; rbc = rc-rb; rca = ra-rc
-                                       de91 = s9*fac*dfdabc*c9*ang/r2abc**1.50d0
-                                       de91 = -de91/3._dp*rabc+3._dp*e9
-                                       dea = s9*fac*fdabc*c9/r2abc**2.50d0*0.75_dp
-                                       fdij(:) = de91*rab(:)/r2ab
-                                       fdij(:) = fdij(:)+dea*s1*s2*s3*rab(:)/r2ab
-                                       fdij(:) = fdij(:)-dea*(s2*s3+s1*s3-s1*s2)*rab(:)
-                                       force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdij(:)
-                                       force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)+fdij(:)
-                                       IF (use_virial) THEN
-                                          CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rab)
-                                       END IF
-                                       IF (atstress) THEN
-                                          CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rab)
-                                          CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rab)
-                                       END IF
-                                       fdij(:) = de91*rbc(:)/r2bc
-                                       fdij(:) = fdij(:)+dea*s1*s2*s3*rbc(:)/r2bc
-                                       fdij(:) = fdij(:)-dea*(s2*s3-s1*s3+s1*s2)*rbc(:)
-                                       force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdij(:)
-                                       force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)+fdij(:)
-                                       IF (use_virial) THEN
-                                          CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rbc)
-                                       END IF
-                                       IF (atstress) THEN
-                                          CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rbc)
-                                          CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rbc)
-                                       END IF
-                                       fdij(:) = de91*rca(:)/r2ca
-                                       fdij(:) = fdij(:)+dea*s1*s2*s3*rca(:)/r2ca
-                                       fdij(:) = fdij(:)-dea*(-s2*s3+s1*s3+s1*s2)*rca(:)
-                                       force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)-fdij(:)
-                                       force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)+fdij(:)
-                                       IF (use_virial) THEN
-                                          CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rca)
-                                       END IF
-                                       IF (atstress) THEN
-                                          CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rca)
-                                          CALL virial_pair_force(atstr(:, :, katom), -0.5_dp, fdij, rca)
-                                       END IF
-                                       IF (.NOT. dispersion_env%c9cnst) THEN
-                                          ! forces from the r-dependence of the coordination numbers
-                                          ! atomic stress not implemented
-                                          de91 = 0.5_dp*e9/cc6ab
-                                          de921 = de91*dcc6aba
-                                          de922 = de91*dcc6abb
-                                          DO i = 1, dcnum(iatom)%neighbors
-                                             latom = dcnum(iatom)%nlist(i)
-                                             lkind = kind_of(latom)
-                                             rik(1) = dcnum(iatom)%rik(1, i)
-                                             rik(2) = dcnum(iatom)%rik(2, i)
-                                             rik(3) = dcnum(iatom)%rik(3, i)
-                                             drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
-                                             fdik(:) = -de921*dcnum(iatom)%dvals(i)*rik(:)/drk
-                                             atom_d = atom_of_kind(latom)
-                                             force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdik(:)
-                                             force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
-                                             IF (use_virial) THEN
-                                                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                                             END IF
-                                          END DO
-                                          DO i = 1, dcnum(jatom)%neighbors
-                                             latom = dcnum(jatom)%nlist(i)
-                                             lkind = kind_of(latom)
-                                             rik(1) = dcnum(jatom)%rik(1, i)
-                                             rik(2) = dcnum(jatom)%rik(2, i)
-                                             rik(3) = dcnum(jatom)%rik(3, i)
-                                             drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
-                                             fdik(:) = -de922*dcnum(jatom)%dvals(i)*rik(:)/drk
-                                             atom_d = atom_of_kind(latom)
-                                             force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdik(:)
-                                             force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
-                                             IF (use_virial) THEN
-                                                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                                             END IF
-                                          END DO
+                                    IF (.NOT. dispersion_env%c9cnst) THEN
+                                       ! forces from the r-dependence of the coordination numbers
+                                       ! atomic stress not implemented
 
-                                          de91 = 0.5_dp*e9/cc6bc
-                                          de921 = de91*dcc6bcb
-                                          de922 = de91*dcc6bcc
-                                          DO i = 1, dcnum(jatom)%neighbors
-                                             latom = dcnum(jatom)%nlist(i)
-                                             lkind = kind_of(latom)
-                                             rik(1) = dcnum(jatom)%rik(1, i)
-                                             rik(2) = dcnum(jatom)%rik(2, i)
-                                             rik(3) = dcnum(jatom)%rik(3, i)
-                                             drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
-                                             fdik(:) = -de921*dcnum(jatom)%dvals(i)*rik(:)/drk
-                                             atom_d = atom_of_kind(latom)
-                                             force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdik(:)
-                                             force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
-                                             IF (use_virial) THEN
-                                                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                                             END IF
-                                          END DO
-                                          DO i = 1, dcnum(katom)%neighbors
-                                             latom = dcnum(katom)%nlist(i)
-                                             lkind = kind_of(latom)
-                                             rik(1) = dcnum(katom)%rik(1, i)
-                                             rik(2) = dcnum(katom)%rik(2, i)
-                                             rik(3) = dcnum(katom)%rik(3, i)
-                                             drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
-                                             fdik(:) = -de922*dcnum(katom)%dvals(i)*rik(:)/drk
-                                             atom_d = atom_of_kind(latom)
-                                             force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)-fdik(:)
-                                             force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
-                                             IF (use_virial) THEN
-                                                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                                             END IF
-                                          END DO
+                                       de91 = 0.5_dp*e9/cc6ab
+                                       de921 = de91*dcc6aba
+                                       de922 = de91*dcc6abb
+                                       DO i = 1, dcnum(iatom)%neighbors
+                                          latom = dcnum(iatom)%nlist(i)
+                                          lkind = kind_of(latom)
+                                          rik(1) = dcnum(iatom)%rik(1, i)
+                                          rik(2) = dcnum(iatom)%rik(2, i)
+                                          rik(3) = dcnum(iatom)%rik(3, i)
+                                          drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
+                                          fdik(:) = -de921*dcnum(iatom)%dvals(i)*rik(:)/drk
+                                          atom_d = atom_of_kind(latom)
+                                          force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdik(:)
+                                          force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
+                                          IF (use_virial) THEN
+                                             CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
+                                          END IF
+                                       END DO
+                                       DO i = 1, dcnum(jatom)%neighbors
+                                          latom = dcnum(jatom)%nlist(i)
+                                          lkind = kind_of(latom)
+                                          rik(1) = dcnum(jatom)%rik(1, i)
+                                          rik(2) = dcnum(jatom)%rik(2, i)
+                                          rik(3) = dcnum(jatom)%rik(3, i)
+                                          drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
+                                          fdik(:) = -de922*dcnum(jatom)%dvals(i)*rik(:)/drk
+                                          atom_d = atom_of_kind(latom)
+                                          force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdik(:)
+                                          force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
+                                          IF (use_virial) THEN
+                                             CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
+                                          END IF
+                                       END DO
 
-                                          de91 = 0.5_dp*e9/cc6ca
-                                          de921 = de91*dcc6cac
-                                          de922 = de91*dcc6caa
-                                          DO i = 1, dcnum(katom)%neighbors
-                                             latom = dcnum(katom)%nlist(i)
-                                             lkind = kind_of(latom)
-                                             rik(1) = dcnum(katom)%rik(1, i)
-                                             rik(2) = dcnum(katom)%rik(2, i)
-                                             rik(3) = dcnum(katom)%rik(3, i)
-                                             drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
-                                             fdik(:) = -de921*dcnum(katom)%dvals(i)*rik(:)/drk
-                                             atom_d = atom_of_kind(latom)
-                                             force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)-fdik(:)
-                                             force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
-                                             IF (use_virial) THEN
-                                                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                                             END IF
-                                          END DO
-                                          DO i = 1, dcnum(iatom)%neighbors
-                                             latom = dcnum(iatom)%nlist(i)
-                                             lkind = kind_of(latom)
-                                             rik(1) = dcnum(iatom)%rik(1, i)
-                                             rik(2) = dcnum(iatom)%rik(2, i)
-                                             rik(3) = dcnum(iatom)%rik(3, i)
-                                             drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
-                                             fdik(:) = -de922*dcnum(iatom)%dvals(i)*rik(:)/drk
-                                             atom_d = atom_of_kind(latom)
-                                             force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdik(:)
-                                             force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
-                                             IF (use_virial) THEN
-                                                CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
-                                             END IF
-                                          END DO
-                                       END IF
+                                       de91 = 0.5_dp*e9/cc6bc
+                                       de921 = de91*dcc6bcb
+                                       de922 = de91*dcc6bcc
+                                       DO i = 1, dcnum(jatom)%neighbors
+                                          latom = dcnum(jatom)%nlist(i)
+                                          lkind = kind_of(latom)
+                                          rik(1) = dcnum(jatom)%rik(1, i)
+                                          rik(2) = dcnum(jatom)%rik(2, i)
+                                          rik(3) = dcnum(jatom)%rik(3, i)
+                                          drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
+                                          fdik(:) = -de921*dcnum(jatom)%dvals(i)*rik(:)/drk
+                                          atom_d = atom_of_kind(latom)
+                                          force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b)-fdik(:)
+                                          force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
+                                          IF (use_virial) THEN
+                                             CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
+                                          END IF
+                                       END DO
+                                       DO i = 1, dcnum(katom)%neighbors
+                                          latom = dcnum(katom)%nlist(i)
+                                          lkind = kind_of(latom)
+                                          rik(1) = dcnum(katom)%rik(1, i)
+                                          rik(2) = dcnum(katom)%rik(2, i)
+                                          rik(3) = dcnum(katom)%rik(3, i)
+                                          drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
+                                          fdik(:) = -de922*dcnum(katom)%dvals(i)*rik(:)/drk
+                                          atom_d = atom_of_kind(latom)
+                                          force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)-fdik(:)
+                                          force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
+                                          IF (use_virial) THEN
+                                             CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
+                                          END IF
+                                       END DO
 
+                                       de91 = 0.5_dp*e9/cc6ca
+                                       de921 = de91*dcc6cac
+                                       de922 = de91*dcc6caa
+                                       DO i = 1, dcnum(katom)%neighbors
+                                          latom = dcnum(katom)%nlist(i)
+                                          lkind = kind_of(latom)
+                                          rik(1) = dcnum(katom)%rik(1, i)
+                                          rik(2) = dcnum(katom)%rik(2, i)
+                                          rik(3) = dcnum(katom)%rik(3, i)
+                                          drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
+                                          fdik(:) = -de921*dcnum(katom)%dvals(i)*rik(:)/drk
+                                          atom_d = atom_of_kind(latom)
+                                          force(kkind)%dispersion(:, atom_c) = force(kkind)%dispersion(:, atom_c)-fdik(:)
+                                          force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
+                                          IF (use_virial) THEN
+                                             CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
+                                          END IF
+                                       END DO
+                                       DO i = 1, dcnum(iatom)%neighbors
+                                          latom = dcnum(iatom)%nlist(i)
+                                          lkind = kind_of(latom)
+                                          rik(1) = dcnum(iatom)%rik(1, i)
+                                          rik(2) = dcnum(iatom)%rik(2, i)
+                                          rik(3) = dcnum(iatom)%rik(3, i)
+                                          drk = SQRT(rik(1)*rik(1)+rik(2)*rik(2)+rik(3)*rik(3))
+                                          fdik(:) = -de922*dcnum(iatom)%dvals(i)*rik(:)/drk
+                                          atom_d = atom_of_kind(latom)
+                                          force(ikind)%dispersion(:, atom_a) = force(ikind)%dispersion(:, atom_a)-fdik(:)
+                                          force(lkind)%dispersion(:, atom_d) = force(lkind)%dispersion(:, atom_d)+fdik(:)
+                                          IF (use_virial) THEN
+                                             CALL virial_pair_force(pv_virial_thread, -1._dp, fdik, rik)
+                                          END IF
+                                       END DO
                                     END IF
 
                                  END IF
-                              END DO
+
+                              END IF
                            END DO
                         END DO
                      END DO
+                  END DO
 
+               END IF
+            END IF
+         END IF
+      END DO
+
+      virial%pv_virial = virial%pv_virial+pv_virial_thread
+
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      elrc6 = 0._dp
+      elrc8 = 0._dp
+      elrc9 = 0._dp
+      IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+          dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+         ! Long range correction (atomic contributions not implemented)
+         IF (dispersion_env%lrc) THEN
+            ALLOCATE (cnkind(nkind))
+            cnkind = 0._dp
+            ! first use the default values
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+               cnkind(ikind) = dispersion_env%cn(za)
+            END DO
+            ! now check for changes from default
+            IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+               DO i = 1, SIZE(dispersion_env%cnkind)
+                  ikind = dispersion_env%cnkind(i)%kind
+                  cnkind(ikind) = dispersion_env%cnkind(i)%cnum
+               END DO
+            END IF
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, z=za)
+               CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
+               IF (.NOT. disp_a%defined .OR. ghost_a .OR. floating_a) CYCLE
+               DO jkind = 1, nkind
+                  CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
+                  CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b, floating=floating_b)
+                  IF (.NOT. disp_b%defined .OR. ghost_b .OR. floating_b) CYCLE
+                  CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
+                             cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
+                  elrc6 = elrc6-s6*twopi*REAL(na*nb, KIND=dp)*cc6ab/(3._dp*rcut**3*cell%deth)
+                  c8 = 3.0d0*cc6ab*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
+                  elrc8 = elrc8-s8*twopi*REAL(na*nb, KIND=dp)*c8/(5._dp*rcut**5*cell%deth)
+                  IF (dispersion_env%doabc) THEN
+                     DO kkind = 1, nkind
+                        CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
+                        CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c, floating=floating_c)
+                        IF (.NOT. disp_c%defined .OR. ghost_c .OR. floating_c) CYCLE
+                        CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
+                                   cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
+                        CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
+                                   cnkind(kkind), cnkind(ikind), dispersion_env%k3, cc6ca, dcc6aba, dcc6abb)
+                        CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zb, zc, &
+                                   cnkind(jkind), cnkind(kkind), dispersion_env%k3, cc6bc, dcc6aba, dcc6abb)
+                        c9 = -SQRT(cc6ab*cc6bc*cc6ca)
+                        elrc9 = elrc9-s9*64._dp*twopi*REAL(na*nb*nc, KIND=dp)*c9/(6._dp*rcut**3*cell%deth**2)
+                     END DO
                   END IF
-               END IF
-            END IF
-         END DO
-         CALL neighbor_list_iterator_release(nl_iterator)
-
-         elrc6 = 0._dp
-         elrc8 = 0._dp
-         elrc9 = 0._dp
-         IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
-             dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-            ! Long range correction (atomic contributions not implemented)
-            IF (dispersion_env%lrc) THEN
-               ALLOCATE (cnkind(nkind))
-               cnkind = 0._dp
-               ! first use the default values
-               DO ikind = 1, nkind
-                  CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-                  cnkind(ikind) = dispersion_env%cn(za)
                END DO
-               ! now check for changes from default
-               IF (ASSOCIATED(dispersion_env%cnkind)) THEN
-                  DO i = 1, SIZE(dispersion_env%cnkind)
-                     ikind = dispersion_env%cnkind(i)%kind
-                     cnkind(ikind) = dispersion_env%cnkind(i)%cnum
-                  END DO
-               END IF
-               DO ikind = 1, nkind
-                  CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, z=za)
-                  CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a, floating=floating_a)
-                  IF (.NOT. disp_a%defined .OR. ghost_a .OR. floating_a) CYCLE
-                  DO jkind = 1, nkind
-                     CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
-                     CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b, floating=floating_b)
-                     IF (.NOT. disp_b%defined .OR. ghost_b .OR. floating_b) CYCLE
-                     CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
-                                cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
-                     elrc6 = elrc6-s6*twopi*REAL(na*nb, KIND=dp)*cc6ab/(3._dp*rcut**3*cell%deth)
-                     c8 = 3.0d0*cc6ab*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
-                     elrc8 = elrc8-s8*twopi*REAL(na*nb, KIND=dp)*c8/(5._dp*rcut**5*cell%deth)
-                     IF (dispersion_env%doabc) THEN
-                        DO kkind = 1, nkind
-                           CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
-                           CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c, floating=floating_c)
-                           IF (.NOT. disp_c%defined .OR. ghost_c .OR. floating_c) CYCLE
-                           CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, za, zb, &
-                                      cnkind(ikind), cnkind(jkind), dispersion_env%k3, cc6ab, dcc6aba, dcc6abb)
-                           CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zc, za, &
-                                      cnkind(kkind), cnkind(ikind), dispersion_env%k3, cc6ca, dcc6aba, dcc6abb)
-                           CALL getc6(maxc, max_elem, dispersion_env%c6ab, dispersion_env%maxci, zb, zc, &
-                                      cnkind(jkind), cnkind(kkind), dispersion_env%k3, cc6bc, dcc6aba, dcc6abb)
-                           c9 = -SQRT(cc6ab*cc6bc*cc6ca)
-                           elrc9 = elrc9-s9*64._dp*twopi*REAL(na*nb*nc, KIND=dp)*c9/(6._dp*rcut**3*cell%deth**2)
-                        END DO
-                     END IF
-                  END DO
+            END DO
+            IF (use_virial) THEN
+               DO i = 1, 3
+                  virial%pv_virial(i, i) = virial%pv_virial(i, i)+(elrc6+elrc8+2._dp*elrc9)
                END DO
-               IF (use_virial) THEN
-                  DO i = 1, 3
-                     virial%pv_virial(i, i) = virial%pv_virial(i, i)+(elrc6+elrc8+2._dp*elrc9)
-                  END DO
-               END IF
-               DEALLOCATE (cnkind)
             END IF
+            DEALLOCATE (cnkind)
          END IF
+      END IF
 
-         IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
-             dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
-            DEALLOCATE (cnumbers)
-            IF (dispersion_env%doabc .AND. dispersion_env%c9cnst) THEN
-               DEALLOCATE (cnumfix)
-            END IF
-            IF (calculate_forces .OR. debugall) THEN
-               DO iatom = 1, natom
-                  DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
-               END DO
-               DEALLOCATE (dcnum)
-            END IF
+      IF (dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+          dispersion_env%pp_type == vdw_pairpot_dftd3bj) THEN
+         DEALLOCATE (cnumbers)
+         IF (dispersion_env%doabc .AND. dispersion_env%c9cnst) THEN
+            DEALLOCATE (cnumfix)
          END IF
-
-         ! set dispersion energy
-         CALL mp_sum(evdw, para_env%group)
-         evdw = evdw+(elrc6+elrc8+elrc9)
-         energy = evdw
-
-         IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
-              dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. debugall) THEN
-            CALL mp_sum(e6tot, para_env%group)
-            CALL mp_sum(e8tot, para_env%group)
-            CALL mp_sum(e9tot, para_env%group)
-            CALL mp_sum(nab, para_env%group)
-            CALL mp_sum(nabc, para_env%group)
-            e6tot = e6tot+elrc6
-            e8tot = e8tot+elrc8
-            e9tot = e9tot+elrc9
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, "(A,F20.0)") "  E6 vdW terms              :", nab
-               WRITE (unit_nr, *) " E6 vdW energy [au/kcal]   :", e6tot, e6tot*kcalmol
-               WRITE (unit_nr, *) " E8 vdW energy [au/kcal]   :", e8tot, e8tot*kcalmol
-               WRITE (unit_nr, *) " %E8 on total vdW energy   :", e8tot/evdw*100._dp
-               WRITE (unit_nr, "(A,F20.0)") "  E9 vdW terms              :", nabc
-               WRITE (unit_nr, *) " E9 vdW energy [au/kcal]   :", e9tot, e9tot*kcalmol
-               WRITE (unit_nr, *) " %E9 on total vdW energy   :", e9tot/evdw*100._dp
-               IF (dispersion_env%lrc) THEN
-                  WRITE (unit_nr, *) " E LRC C6 [au/kcal]        :", elrc6, elrc6*kcalmol
-                  WRITE (unit_nr, *) " E LRC C8 [au/kcal]        :", elrc8, elrc8*kcalmol
-                  WRITE (unit_nr, *) " E LRC C9 [au/kcal]        :", elrc9, elrc9*kcalmol
-               END IF
-            END IF
+         IF (calculate_forces .OR. debugall) THEN
+            DO iatom = 1, natom
+               DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
+            END DO
+            DEALLOCATE (dcnum)
          END IF
+      END IF
+
+      ! set dispersion energy
+      CALL mp_sum(evdw, para_env%group)
+      evdw = evdw+(elrc6+elrc8+elrc9)
+      energy = evdw
+
+      IF ((dispersion_env%pp_type == vdw_pairpot_dftd3 .OR. &
+           dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. debugall) THEN
+         CALL mp_sum(e6tot, para_env%group)
+         CALL mp_sum(e8tot, para_env%group)
+         CALL mp_sum(e9tot, para_env%group)
+         CALL mp_sum(nab, para_env%group)
+         CALL mp_sum(nabc, para_env%group)
+         e6tot = e6tot+elrc6
+         e8tot = e8tot+elrc8
+         e9tot = e9tot+elrc9
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) " Total vdW energy [au]     :", evdw
-            WRITE (unit_nr, *) " Total vdW energy [kcal]   :", evdw*kcalmol
+            WRITE (unit_nr, "(A,F20.0)") "  E6 vdW terms              :", nab
+            WRITE (unit_nr, *) " E6 vdW energy [au/kcal]   :", e6tot, e6tot*kcalmol
+            WRITE (unit_nr, *) " E8 vdW energy [au/kcal]   :", e8tot, e8tot*kcalmol
+            WRITE (unit_nr, *) " %E8 on total vdW energy   :", e8tot/evdw*100._dp
+            WRITE (unit_nr, "(A,F20.0)") "  E9 vdW terms              :", nabc
+            WRITE (unit_nr, *) " E9 vdW energy [au/kcal]   :", e9tot, e9tot*kcalmol
+            WRITE (unit_nr, *) " %E9 on total vdW energy   :", e9tot/evdw*100._dp
+            IF (dispersion_env%lrc) THEN
+               WRITE (unit_nr, *) " E LRC C6 [au/kcal]        :", elrc6, elrc6*kcalmol
+               WRITE (unit_nr, *) " E LRC C8 [au/kcal]        :", elrc8, elrc8*kcalmol
+               WRITE (unit_nr, *) " E LRC C9 [au/kcal]        :", elrc9, elrc9*kcalmol
+            END IF
+         END IF
+      END IF
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *) " Total vdW energy [au]     :", evdw
+         WRITE (unit_nr, *) " Total vdW energy [kcal]   :", evdw*kcalmol
+         WRITE (unit_nr, *)
+      END IF
+      IF (calculate_forces .AND. debugall) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *) " Dispersion Forces         "
+            WRITE (unit_nr, *) " Atom   Kind                            Forces    "
+         END IF
+         gnorm = 0._dp
+         DO iatom = 1, natom
+            ikind = kind_of(iatom)
+            atom_a = atom_of_kind(iatom)
+            fdij(1:3) = force(ikind)%dispersion(:, atom_a)
+            CALL mp_sum(fdij, para_env%group)
+            gnorm = gnorm+SUM(ABS(fdij))
+            IF (unit_nr > 0) WRITE (unit_nr, "(i5,i7,3F20.14)") iatom, ikind, fdij
+         END DO
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *)
+            WRITE (unit_nr, *) "|G| = ", gnorm
             WRITE (unit_nr, *)
          END IF
-         IF (calculate_forces .AND. debugall) THEN
+         IF (use_virial) THEN
+            dvirial = virial%pv_virial-dvirial
+            CALL mp_sum(dvirial, para_env%group)
             IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *) " Dispersion Forces         "
-               WRITE (unit_nr, *) " Atom   Kind                            Forces    "
-            END IF
-            gnorm = 0._dp
-            DO iatom = 1, natom
-               ikind = kind_of(iatom)
-               atom_a = atom_of_kind(iatom)
-               fdij(1:3) = force(ikind)%dispersion(:, atom_a)
-               CALL mp_sum(fdij, para_env%group)
-               gnorm = gnorm+SUM(ABS(fdij))
-               IF (unit_nr > 0) WRITE (unit_nr, "(i5,i7,3F20.14)") iatom, ikind, fdij
-            END DO
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, *)
-               WRITE (unit_nr, *) "|G| = ", gnorm
+               WRITE (unit_nr, *) "Stress Tensor (dispersion)"
+               WRITE (unit_nr, "(3G20.12)") dvirial
+               WRITE (unit_nr, *) "  Tr(P)/3 :  ", (dvirial(1, 1)+dvirial(2, 2)+dvirial(3, 3))/3._dp
                WRITE (unit_nr, *)
             END IF
-            IF (use_virial) THEN
-               dvirial = virial%pv_virial-dvirial
-               CALL mp_sum(dvirial, para_env%group)
-               IF (unit_nr > 0) THEN
-                  WRITE (unit_nr, *) "Stress Tensor (dispersion)"
-                  WRITE (unit_nr, "(3G20.12)") dvirial
-                  WRITE (unit_nr, *) "  Tr(P)/3 :  ", (dvirial(1, 1)+dvirial(2, 2)+dvirial(3, 3))/3._dp
-                  WRITE (unit_nr, *)
-               END IF
-            END IF
          END IF
+      END IF
 
-         IF (calculate_forces .OR. debugall .OR. dispersion_env%doabc) THEN
-            DEALLOCATE (atom_of_kind, kind_of)
-         END IF
+      IF (calculate_forces .OR. debugall .OR. dispersion_env%doabc) THEN
+         DEALLOCATE (atom_of_kind, kind_of)
+      END IF
 
-         DEALLOCATE (dodisp, ghost, floating, atomnumber, rcpbc, radd2, c6d2)
+      DEALLOCATE (dodisp, ghost, floating, atomnumber, rcpbc, radd2, c6d2)
 
-         IF (ASSOCIATED(dispersion_env%dftd_section)) THEN
-            CALL cp_print_key_finished_output(unit_nr, logger, dispersion_env%dftd_section, &
-                                              "PRINT_DFTD")
-         END IF
-
+      IF (ASSOCIATED(dispersion_env%dftd_section)) THEN
+         CALL cp_print_key_finished_output(unit_nr, logger, dispersion_env%dftd_section, "PRINT_DFTD")
       END IF
 
       CALL timestop(handle)
