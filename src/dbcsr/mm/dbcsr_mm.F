@@ -973,7 +973,8 @@ CONTAINS
          CALL dbcsr_verify_matrix(matrix_c)
          IF (debug_mod) THEN
             cs = dbcsr_checksum(matrix_c)
-            WRITE (*, *) routineN//" Product checksum", cs
+            WRITE (*, *) routineN//" Multiplication", &
+               num_multiplications, " Product checksum", cs
          ENDIF
       ENDIF
 

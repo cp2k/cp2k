@@ -125,6 +125,7 @@ MODULE dbcsr_block_operations
 
    INTERFACE block_add
       MODULE PROCEDURE block_add_anytype
+      MODULE PROCEDURE block_add_anytype_bounds
       MODULE PROCEDURE block_add_s, block_add_d, block_add_c, block_add_z
    END INTERFACE block_add
 
@@ -1712,6 +1713,49 @@ CONTAINS
          CPABORT("Invalid data type!")
       END SELECT
    END SUBROUTINE block_add_anytype
+
+! **************************************************************************************************
+!> \brief Adds two blocks
+!> \param[in,out] block_a      Block to add to
+!> \param[in] block_b          Block to add to block_a
+!> \param lb_a ...
+!> \param lb_b ...
+!> \param len ...
+! **************************************************************************************************
+   SUBROUTINE block_add_anytype_bounds(block_a, block_b, lb_a, lb_b, len)
+      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: block_a
+      TYPE(dbcsr_data_obj), INTENT(IN)                   :: block_b
+      INTEGER, INTENT(IN)                                :: lb_a, lb_b, len
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'block_add_anytype_bounds', &
+         routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+      IF (careful_mod) &
+         CALL dbcsr_assert(dbcsr_data_get_type(block_a), "EQ", &
+                           dbcsr_data_get_type(block_a), &
+                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+                           "Mismatched data types.", __LINE__)
+      CALL dbcsr_assert(dbcsr_data_get_size(block_b), "GE", lb_b+len-1, &
+                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+                        "Block B too small.", __LINE__)
+      CALL dbcsr_assert(dbcsr_data_get_size(block_a), "GE", lb_a+len-1, &
+                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+                        "Block A too small.", __LINE__)
+      SELECT CASE (dbcsr_data_get_type (block_a))
+      CASE (dbcsr_type_real_4)
+         CALL block_add_s(block_a%d%r_sp(lb_a:), block_b%d%r_sp(lb_b:), len)
+      CASE (dbcsr_type_real_8)
+         CALL block_add_d(block_a%d%r_dp(lb_a:), block_b%d%r_dp(lb_b:), len)
+      CASE (dbcsr_type_complex_4)
+         CALL block_add_c(block_a%d%c_sp(lb_a:), block_b%d%c_sp(lb_b:), len)
+      CASE (dbcsr_type_complex_8)
+         CALL block_add_z(block_a%d%c_dp(lb_a:), block_b%d%c_dp(lb_b:), len)
+      CASE default
+         CPABORT("Invalid data type!")
+      END SELECT
+   END SUBROUTINE block_add_anytype_bounds
 
 #include "dbcsr_block_operations_d.f90"
 #include "dbcsr_block_operations_z.f90"

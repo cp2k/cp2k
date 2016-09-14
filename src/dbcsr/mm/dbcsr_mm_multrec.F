@@ -33,16 +33,13 @@ MODULE dbcsr_mm_multrec
                                               dbcsr_fatal_level,&
                                               dbcsr_internal_error,&
                                               dbcsr_wrong_args_error
-   USE dbcsr_mm_csr,                    ONLY: dbcsr_mm_csr_finalize,&
-                                              dbcsr_mm_csr_init,&
-                                              dbcsr_mm_csr_lib_finalize,&
-                                              dbcsr_mm_csr_lib_init,&
-                                              dbcsr_mm_csr_multiply,&
-                                              dbcsr_mm_csr_phaseout,&
-                                              dbcsr_mm_csr_purge_stacks,&
-                                              dbcsr_mm_csr_type
+   USE dbcsr_mm_csr,                    ONLY: &
+        dbcsr_mm_csr_finalize, dbcsr_mm_csr_init, dbcsr_mm_csr_lib_finalize, &
+        dbcsr_mm_csr_lib_init, dbcsr_mm_csr_multiply, dbcsr_mm_csr_phaseout, &
+        dbcsr_mm_csr_purge_stacks, dbcsr_mm_csr_reduce_3D, dbcsr_mm_csr_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
-   USE dbcsr_types,                     ONLY: dbcsr_type,&
+   USE dbcsr_types,                     ONLY: dbcsr_obj,&
+                                              dbcsr_type,&
                                               dbcsr_work_type
    USE kinds,                           ONLY: int_8,&
                                               real_8,&
@@ -135,6 +132,7 @@ MODULE dbcsr_mm_multrec
    PUBLIC :: dbcsr_mm_multrec_phaseout
    PUBLIC :: dbcsr_mm_multrec_init, dbcsr_mm_multrec_finalize
    PUBLIC :: dbcsr_mm_multrec_multiply
+   PUBLIC :: dbcsr_mm_multrec_reduce_3D
 
 CONTAINS
 
@@ -419,7 +417,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_finalize', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ithread
+      INTEGER                                            :: handle
 
 !   ---------------------------------------------------------------------------
 
@@ -428,9 +426,6 @@ CONTAINS
          CPABORT("multrec not initialized.")
 
       CALL dbcsr_mm_csr_finalize(this%csr)
-
-      ithread = 0
-!$    ithread = OMP_GET_THREAD_NUM()
 
       ! Release the carrier
       DEALLOCATE (this%m_sizes)
@@ -445,6 +440,34 @@ CONTAINS
       this%initialized = .FALSE.
       CALL timestop(handle)
    END SUBROUTINE dbcsr_mm_multrec_finalize
+
+! **************************************************************************************************
+!> \brief Make the reduction of the 3D layers in the local multrec object
+!>
+!> \param this ...
+!> \param matrix_other ...
+!> \param flop ...
+!> \param g2l_map_rows ...
+!> \param g2l_map_cols ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_mm_multrec_reduce_3D(this, matrix_other, flop, g2l_map_rows, g2l_map_cols)
+      TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
+      INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: g2l_map_rows, g2l_map_cols
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_reduce_3D', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+      IF (.NOT. this%initialized) &
+         CPABORT("multrec not initialized.")
+      CALL dbcsr_mm_csr_reduce_3D(this%csr, matrix_other, flop, &
+                                  g2l_map_rows, g2l_map_cols)
+      CALL timestop(handle)
+   END SUBROUTINE dbcsr_mm_multrec_reduce_3D
 
 ! **************************************************************************************************
 !> \brief Performs recursive multiplication
@@ -726,3 +749,4 @@ CONTAINS
    END SUBROUTINE local_filter_sp
 
 END MODULE dbcsr_mm_multrec
+

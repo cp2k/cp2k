@@ -59,12 +59,12 @@ MODULE dbcsr_data_methods_low
              dbcsr_data_clear_pointer, &
              dbcsr_data_get_sizes, dbcsr_data_verify_bounds, &
              dbcsr_data_exists, dbcsr_data_get_memory_type
-   PUBLIC :: dbcsr_data_zero
    PUBLIC :: dbcsr_data_set_size_referenced, dbcsr_data_get_size_referenced
    PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c, &
              dbcsr_get_data_p_d, dbcsr_get_data_p_z, &
              dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_d, &
              dbcsr_get_data_p_2d_c, dbcsr_get_data_p_2d_z
+   PUBLIC :: dbcsr_data_zero
 
    PUBLIC :: internal_data_allocate, internal_data_deallocate
 

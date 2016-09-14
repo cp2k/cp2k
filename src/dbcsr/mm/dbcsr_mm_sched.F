@@ -72,6 +72,7 @@ MODULE dbcsr_mm_sched
    PUBLIC :: dbcsr_mm_sched_process
    PUBLIC :: dbcsr_mm_sched_begin_burst, dbcsr_mm_sched_end_burst
    PUBLIC :: dbcsr_mm_sched_barrier
+   PUBLIC :: dbcsr_mm_sched_set_orig_datasize
 
    ! **************************************************************************************************
    TYPE dbcsr_mm_sched_type
@@ -427,6 +428,18 @@ CONTAINS
 
    END SUBROUTINE dbcsr_mm_sched_process
 
+! **************************************************************************************************
+!> \brief Change the datasize of the original workspace buffer
+!> \param this ...
+!> \param newsize ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE dbcsr_mm_sched_set_orig_datasize(this, newsize)
+      TYPE(dbcsr_mm_sched_type), INTENT(INOUT)           :: this
+      INTEGER, INTENT(IN)                                :: newsize
+
+      this%product_wm_orig_datasize = newsize
+   END SUBROUTINE dbcsr_mm_sched_set_orig_datasize
 ! ***************************************************************************************************
 !> \brief Helper-routine used by dbcsr_mm_sched_process to supply statistics.
 !> \param stats ...

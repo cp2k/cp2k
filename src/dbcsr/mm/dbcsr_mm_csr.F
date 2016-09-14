@@ -21,24 +21,33 @@
 MODULE dbcsr_mm_csr
 
    USE array_types,                     ONLY: array_data
+   USE dbcsr_block_operations,          ONLY: block_add,&
+                                              dbcsr_block_copy_aa
    USE dbcsr_config,                    ONLY: dbcsr_get_conf_nstacks,&
                                               default_resize_factor,&
                                               mm_stack_size
+   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size
    USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                               dbcsr_fatal_level,&
                                               dbcsr_internal_error,&
                                               dbcsr_wrong_args_error
+   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop
    USE dbcsr_mm_sched,                  ONLY: &
         dbcsr_mm_sched_barrier, dbcsr_mm_sched_begin_burst, dbcsr_mm_sched_end_burst, &
         dbcsr_mm_sched_finalize, dbcsr_mm_sched_init, dbcsr_mm_sched_lib_finalize, &
         dbcsr_mm_sched_lib_init, dbcsr_mm_sched_phaseout, dbcsr_mm_sched_process, &
-        dbcsr_mm_sched_type
+        dbcsr_mm_sched_set_orig_datasize, dbcsr_mm_sched_type
    USE dbcsr_mm_types,                  ONLY: &
         dbcsr_ps_width, p_a_first, p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n, &
         stack_descriptor_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
    USE dbcsr_toollib,                   ONLY: sort
-   USE dbcsr_types,                     ONLY: dbcsr_type,&
+   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                              dbcsr_obj,&
+                                              dbcsr_type,&
                                               dbcsr_work_type
    USE dbcsr_util,                      ONLY: map_most_common
    USE kinds,                           ONLY: int_1,&
@@ -90,6 +99,7 @@ MODULE dbcsr_mm_csr
    PUBLIC :: dbcsr_mm_csr_phaseout
    PUBLIC :: dbcsr_mm_csr_init, dbcsr_mm_csr_finalize
    PUBLIC :: dbcsr_mm_csr_multiply, dbcsr_mm_csr_purge_stacks
+   PUBLIC :: dbcsr_mm_csr_reduce_3D
 
 CONTAINS
 
@@ -728,6 +738,75 @@ CONTAINS
       DEALLOCATE (this%stacks_fillcount)
       DEALLOCATE (this%stacks_data)
    END SUBROUTINE dbcsr_mm_csr_finalize
+
+! **************************************************************************************************
+!> \brief Make the reduction of the 3D layers in the local csr object
+!>
+!> \param this ...
+!> \param matrix_other ...
+!> \param flop ...
+!> \param g2l_map_rows ...
+!> \param g2l_map_cols ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE dbcsr_mm_csr_reduce_3D(this, matrix_other, flop, g2l_map_rows, g2l_map_cols)
+      TYPE(dbcsr_mm_csr_type), INTENT(INOUT)             :: this
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
+      INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: g2l_map_rows, g2l_map_cols
+
+      INTEGER                                            :: blk, blk_p, bp, c_blk_id, col, col_l, &
+                                                            col_size, lb, nblks_max, nze, nze_max, &
+                                                            row, row_l, row_size
+      LOGICAL                                            :: block_exists, tr
+      TYPE(dbcsr_iterator)                               :: iter
+
+      ! Assume no overlapping in blocks too set a maximum size
+      nze_max = this%product_wm%datasize+matrix_other%m%nze
+      CALL dbcsr_data_ensure_size(this%product_wm%data_area, &
+                                  nze_max, factor=default_resize_factor, nocopy=.FALSE.)
+      nblks_max = this%product_wm%lastblk+matrix_other%m%nblks
+      CALL ensure_array_size(this%product_wm%row_i, ub=nblks_max, &
+                             factor=default_resize_factor, nocopy=.FALSE.)
+      CALL ensure_array_size(this%product_wm%col_i, ub=nblks_max, &
+                             factor=default_resize_factor, nocopy=.FALSE.)
+      CALL ensure_array_size(this%product_wm%blk_p, ub=nblks_max, &
+                             factor=default_resize_factor, nocopy=.FALSE.)
+      !
+      CALL dbcsr_iterator_start(iter, matrix_other, shared=.TRUE., read_only=.TRUE.)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, blk, tr, blk_p, &
+                                        row_size, col_size)
+         nze = row_size*col_size
+         IF (nze .EQ. 0) CYCLE
+         bp = ABS(blk_p)
+         row_l = g2l_map_rows(row)
+         col_l = g2l_map_cols(col)
+         !
+         c_blk_id = hash_table_get(this%c_hashes(row_l), col_l)
+         block_exists = c_blk_id .GT. 0
+         IF (block_exists) THEN
+            lb = this%product_wm%blk_p(c_blk_id)
+            CALL block_add(this%product_wm%data_area, matrix_other%m%data_area, &
+                           lb, bp, nze)
+            flop = flop+nze
+         ELSE
+            lb = this%product_wm%datasize+1
+            this%product_wm%lastblk = this%product_wm%lastblk+1
+            this%product_wm%datasize = this%product_wm%datasize+nze
+            c_blk_id = this%product_wm%lastblk ! assign a new c-block-id
+            CALL hash_table_add(this%c_hashes(row_l), col_l, c_blk_id)
+            this%product_wm%row_i(this%product_wm%lastblk) = row_l
+            this%product_wm%col_i(this%product_wm%lastblk) = col_l
+            this%product_wm%blk_p(this%product_wm%lastblk) = lb
+            !
+            CALL dbcsr_block_copy_aa(this%product_wm%data_area, matrix_other%m%data_area, &
+                                     row_size, col_size, lb, bp)
+         ENDIF
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
+      CALL dbcsr_mm_sched_set_orig_datasize(this%sched, this%product_wm%datasize)
+   END SUBROUTINE dbcsr_mm_csr_reduce_3D
 
 ! **************************************************************************************************
 !> \brief ...

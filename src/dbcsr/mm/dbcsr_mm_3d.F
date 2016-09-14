@@ -20,7 +20,6 @@ MODULE dbcsr_mm_3d
                                               array_hold,&
                                               array_release
    USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
-   USE dbcsr_block_access,              ONLY: dbcsr_put_block
    USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                               dbcsr_block_copy_aa,&
                                               dbcsr_block_real_neg,&
@@ -36,17 +35,14 @@ MODULE dbcsr_mm_3d
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, dbcsr_data_host2dev, &
         dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
-        dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_data_zero, dbcsr_get_data_p_c, &
-        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar_are_equal, &
-        dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_type_1d_to_2d
+        dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
+        dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
+        dbcsr_scalar_one, dbcsr_type_1d_to_2d
    USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
-   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
-                                              dbcsr_distribution_has_threads,&
-                                              dbcsr_distribution_local_cols,&
-                                              dbcsr_distribution_local_rows,&
-                                              dbcsr_distribution_mp,&
-                                              dbcsr_distribution_row_dist,&
-                                              dbcsr_distribution_thread_dist
+   USE dbcsr_dist_methods,              ONLY: &
+        dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+        dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
    USE dbcsr_dist_operations,           ONLY: dbcsr_reset_locals,&
                                               dbcsr_reset_vlocals,&
                                               image_calculator
@@ -71,7 +67,8 @@ MODULE dbcsr_mm_3d
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                               dbcsr_mm_multrec_init,&
                                               dbcsr_mm_multrec_multiply,&
-                                              dbcsr_mm_multrec_phaseout
+                                              dbcsr_mm_multrec_phaseout,&
+                                              dbcsr_mm_multrec_reduce_3D
    USE dbcsr_mp_methods,                ONLY: &
         dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
         dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
@@ -190,6 +187,8 @@ MODULE dbcsr_mm_3d
    REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_max_norms, right_max_norms, &
                                                                 left_local_max_norms, right_local_max_norms
 
+   INTEGER, ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: g2l_map_cols, g2l_map_rows
+
    INTEGER, PRIVATE                :: request_count_rows
    INTEGER, DIMENSION(8), PRIVATE  :: requests
    INTEGER, DIMENSION(4), PRIVATE  :: requests_diag
@@ -286,16 +285,16 @@ CONTAINS
          scatter_images_proc
       INTEGER :: size_index_unmerged, stored_col, stored_row, sym_p, symmetry_i, &
          total_no_empty_images, tr_col_size, tr_row_size
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: g2l_map_cols, g2l_map_rows, img_map, img_refs, &
-         img_refs_cols, img_refs_rows, meta_displ_cluster_scatter, meta_size_cluster_scatter, &
-         tmp_img_offset
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: img_map, img_refs, img_refs_cols, img_refs_rows, &
+         meta_displ_cluster_scatter, meta_size_cluster_scatter, tmp_img_offset
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: displ_scatter, recv_displ, recv_size, &
                                                             send_displ, send_size, size_scatter
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: local_refs_size
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: recv_refs, refs_displ, refs_size
       INTEGER, DIMENSION(2)                              :: block_col_bounds, block_row_bounds
-      INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, local_cols, local_refs_data_size, &
-         local_rows, meta_buffer_p, meta_recv, meta_send, row_dist, row_img_dist, threads_dist
+      INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, local_cols, local_g2l_map_cols, &
+         local_g2l_map_rows, local_refs_data_size, local_rows, meta_buffer_p, meta_recv, &
+         meta_send, row_dist, row_img_dist, threads_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi, local_refs_displ_unmerged, &
                                                             local_refs_meta_size, no_empty_images, &
                                                             no_empty_images_displ
@@ -578,14 +577,22 @@ CONTAINS
       ! Evaluate maps for global -> local indexing (g2l_map_rows, g2l_map_cols)
       ! Evaluate maps for local_image -> local indexing (img_map)
       ! Evaluate refs (count and offset) per each image
-      ALLOCATE (g2l_map_rows(sm%nblkrows_total), g2l_map_cols(sm%nblkcols_total))
+      IF (is_left) THEN
+         ALLOCATE (g2l_map_rows(sm%nblkrows_total))
+         local_g2l_map_rows => g2l_map_rows
+         ALLOCATE (local_g2l_map_cols(sm%nblkcols_total))
+      ELSE
+         ALLOCATE (local_g2l_map_rows(sm%nblkrows_total))
+         ALLOCATE (g2l_map_cols(sm%nblkcols_total))
+         local_g2l_map_cols => g2l_map_cols
+      ENDIF
       ALLOCATE (img_refs_rows(nimages_unmerged), img_refs_cols(nimages_unmerged))
       !
-      g2l_map_rows(:) = 0
+      local_g2l_map_rows(:) = 0
       IF (is_left .OR. nrows_images .EQ. 1) THEN
          ! Use merge global -> local indexing
          DO row = 1, nblkrows_local
-            g2l_map_rows(local_rows(row)) = row
+            local_g2l_map_rows(local_rows(row)) = row
          ENDDO
          img_refs_rows(1) = nblkrows_local
       ELSE
@@ -594,15 +601,15 @@ CONTAINS
             row_img = row_img_dist(local_rows(row))
             mi = MOD(row_img-1, nrows_images)+1
             img_refs_rows(mi) = img_refs_rows(mi)+1
-            g2l_map_rows(local_rows(row)) = img_refs_rows(mi)
+            local_g2l_map_rows(local_rows(row)) = img_refs_rows(mi)
          ENDDO
       ENDIF
       !
-      g2l_map_cols(:) = 0
+      local_g2l_map_cols(:) = 0
       IF (.NOT. is_left .OR. ncols_images .EQ. 1) THEN
          ! Use merge global -> local indexing
          DO col = 1, nblkcols_local
-            g2l_map_cols(local_cols(col)) = col
+            local_g2l_map_cols(local_cols(col)) = col
          ENDDO
          img_refs_cols(1) = nblkcols_local
       ELSE
@@ -611,7 +618,7 @@ CONTAINS
             col_img = col_img_dist(local_cols(col))
             mi = MOD(col_img-1, ncols_images)+1
             img_refs_cols(mi) = img_refs_cols(mi)+1
-            g2l_map_cols(local_cols(col)) = img_refs_cols(mi)
+            local_g2l_map_cols(local_cols(col)) = img_refs_cols(mi)
          ENDDO
       ENDIF
       !
@@ -678,7 +685,7 @@ CONTAINS
 !$OMP         is_left,local_refs_size,nimages_merged,nimages_unmerged,&
 !$OMP         local_size,data_type,memtype_mpi_buffer,sm,&
 !$OMP         img_refs_cols,img_refs_rows,img_refs,img_map,&
-!$OMP         g2l_map_cols,g2l_map_rows,recv_refs,grp,meta_send,&
+!$OMP         local_g2l_map_cols,local_g2l_map_rows,recv_refs,grp,meta_send,&
 !$OMP         scale_value,scale_neg_one,data_send,data_recv,&
 !$OMP         size_index_unmerged,recv_displ,send_displ,recv_size,send_size,&
 !$OMP         mp_obj,threads_dist,meta_recv,nrows_images,ncols_images,&
@@ -1076,7 +1083,7 @@ CONTAINS
          CALL dbcsr_data_init(data_send)
          CALL dbcsr_data_new(data_send, data_type, SUM(send_size(idata, :)), &
                              memory_type=memtype_mpi_buffer)
-         CALL dbcsr_data_zero(data_send, lb=(/1/), ub=(/dbcsr_data_get_size(data_send)/))
+         CALL dbcsr_data_clear(data_send)
          NULLIFY (meta_send)
          CALL ensure_array_size(meta_send, ub=SUM(send_size(imeta, :)), &
                                 nocopy=.TRUE., memory_type=memtype_mpi_buffer, zero_pad=.TRUE.)
@@ -1353,8 +1360,8 @@ CONTAINS
             ! Make local indexing
             DO blk = local_refs_displ(imeta, mi, ui)+size_index_unmerged+1, &
                      local_refs_displ(imeta, mi, ui)+local_refs_size(imeta, mi, ui), 3
-               meta_buffer_p(blk) = g2l_map_rows(meta_buffer_p(blk))
-               meta_buffer_p(blk+1) = g2l_map_cols(meta_buffer_p(blk+1))
+               meta_buffer_p(blk) = local_g2l_map_rows(meta_buffer_p(blk))
+               meta_buffer_p(blk+1) = local_g2l_map_cols(meta_buffer_p(blk+1))
             ENDDO
             !
             ! Set stats slots
@@ -1445,7 +1452,13 @@ CONTAINS
          CALL dbcsr_data_release(data_recv)
          DEALLOCATE (meta_recv, recv_refs)
       ENDIF
-      DEALLOCATE (g2l_map_rows, g2l_map_cols)
+      IF (is_left) THEN
+         NULLIFY (local_g2l_map_rows)
+         DEALLOCATE (local_g2l_map_cols)
+      ELSE
+         DEALLOCATE (local_g2l_map_rows)
+         NULLIFY (local_g2l_map_cols)
+      ENDIF
 !$    IF (is_left .AND. do_symmetry) THEN
 !$       DEALLOCATE (locks)
 !$    ENDIF
@@ -2058,8 +2071,8 @@ CONTAINS
                      product_matrix_meta(product_matrix_meta_displ(irow3D, icol3D)+1: &
                                          product_matrix_meta_displ(irow3D, icol3D)+ &
                                          product_matrix_meta_size(irow3D, icol3D))
-                  CALL dbcsr_data_zero(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
-                                       lb=(/1/), ub=(/size_guess/))
+                  CALL dbcsr_data_clear(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
+                                        ub=size_guess)
                ELSE
                   CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
                                            product_matrix, data_memory_type=memtype_mpi_buffer)
@@ -2583,10 +2596,13 @@ CONTAINS
                !
                CALL timestop(handle3)
             ENDIF
-            IF (istep_k .GT. final_step_k) THEN
+            ! Finalize all layers, but the local one
+            IF (istep_k .GT. final_step_k .AND. &
+                (left_buffer(ileft_buffer_calc)%coord3D .NE. myrow3D .OR. &
+                 buffers_calc%right%coord3D .NE. mycol3D)) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
 !$OMP SHARED (multrec, left_buffer, ileft_buffer_calc, buffers_calc, &
-!$OMP         myrow3D, mycol3D, product_matrix3D) &
+!$OMP         product_matrix3D) &
 !$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
@@ -2596,12 +2612,9 @@ CONTAINS
                DEALLOCATE (multrec(ithread, &
                                    left_buffer(ileft_buffer_calc)%coord3D, &
                                    buffers_calc%right%coord3D)%p)
-               IF (left_buffer(ileft_buffer_calc)%coord3D .NE. myrow3D .OR. &
-                   buffers_calc%right%coord3D .NE. mycol3D) THEN
-                  ! Finalize the matrix to send
-                  CALL dbcsr_finalize(product_matrix3D%mats(left_buffer(ileft_buffer_calc)%coord3D, &
-                                                            buffers_calc%right%coord3D)%matrix)
-               ENDIF
+               ! Finalize the matrix to send
+               CALL dbcsr_finalize(product_matrix3D%mats(left_buffer(ileft_buffer_calc)%coord3D, &
+                                                         buffers_calc%right%coord3D)%matrix)
 !$OMP END PARALLEL
             ENDIF
          ENDIF wait_calc
@@ -2642,11 +2655,8 @@ CONTAINS
       IF (right_row_nimages .GT. 1) &
          DEALLOCATE (right_refs_meta_size_layers3D, right_refs_displ_unmerged_layers3D)
       DEALLOCATE (right_refs_data_size, left_refs_data_size)
-      DEALLOCATE (multrec)
       DEALLOCATE (right_displ_vunmerged, left_displ_vunmerged)
       DEALLOCATE (right_no_empty_images_displ, left_no_empty_images_displ)
-      !
-      CALL dbcsr_finalize(product_matrix)
       !
       ! clean-up wins
       CALL mp_win_unlock_all(buffers_orig%right%data_win)
@@ -2664,11 +2674,13 @@ CONTAINS
          CALL set_reduction_product_matrix_3D(product_matrix_recv_comm, &
                                               buffers_comm%right%buffer%mats(1), &
                                               product_matrix, &
-                                              buffers_orig%right%data_diag)
+                                              buffers_orig%right%data_diag, &
+                                              product_matrix%m%dist)
          CALL set_reduction_product_matrix_3D(product_matrix_recv_calc, &
                                               buffers_calc%right%buffer%mats(1), &
                                               product_matrix, &
-                                              buffers_orig%left%data_diag)
+                                              buffers_orig%left%data_diag, &
+                                              product_matrix%m%dist)
          !
          CALL dbcsr_data_init(data_send)
          CALL dbcsr_data_new(data_send, data_type)
@@ -2757,7 +2769,17 @@ CONTAINS
                         product_matrix_recv_calc%matrix%m%index(dbcsr_slot_nblkrows_total)
                      product_matrix_recv_calc%matrix%m%nblkcols_total = &
                         product_matrix_recv_calc%matrix%m%index(dbcsr_slot_nblkcols_total)
-                     CALL reduce_3D(product_matrix, product_matrix_recv_calc%matrix, flop, data_type)
+!$OMP PARALLEL DEFAULT (NONE) &
+!$OMP SHARED (myrow3D,mycol3D,multrec,product_matrix_recv_calc,&
+!$OMP         g2l_map_rows,g2l_map_cols) &
+!$OMP PRIVATE (ithread) &
+!$OMP REDUCTION (+: flop)
+                     ithread = 0
+!$                   ithread = omp_get_thread_num()
+                     CALL dbcsr_mm_multrec_reduce_3D(multrec(ithread, myrow3D, mycol3D)%p, &
+                                                     product_matrix_recv_calc%matrix, flop, &
+                                                     g2l_map_rows, g2l_map_cols)
+!$OMP END PARALLEL
                   ENDIF
                ENDIF
                tmp_product_matrix_recv => product_matrix_recv_comm%matrix
@@ -2773,6 +2795,18 @@ CONTAINS
          CALL timestop(handle2)
       ENDIF
       DEALLOCATE (product_matrix3D%mats)
+      ! Finalize local layer
+!$OMP PARALLEL DEFAULT (NONE) &
+!$OMP SHARED (multrec, myrow3D, mycol3D) &
+!$OMP PRIVATE (ithread)
+      ithread = 0
+!$    ithread = omp_get_thread_num()
+      CALL dbcsr_mm_multrec_finalize(multrec(ithread, myrow3D, mycol3D)%p)
+      DEALLOCATE (multrec(ithread, myrow3D, mycol3D)%p)
+!$OMP END PARALLEL
+      DEALLOCATE (multrec)
+      DEALLOCATE (g2l_map_rows, g2l_map_cols)
+      CALL dbcsr_finalize(product_matrix)
       !
       CALL dbcsr_data_clear_pointer(data_get)
       CALL dbcsr_data_release(data_get)
@@ -2887,16 +2921,22 @@ CONTAINS
 !> \param buffer ...
 !> \param product_matrix ...
 !> \param data_buffer ...
+!> \param dist ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE set_reduction_product_matrix_3D(product_matrix_recv, buffer, &
-                                              product_matrix, data_buffer)
+                                              product_matrix, data_buffer, &
+                                              dist)
       TYPE(dbcsr_obj_type_p), INTENT(INOUT)              :: product_matrix_recv
       TYPE(dbcsr_obj), INTENT(IN), TARGET                :: buffer
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: product_matrix
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: data_buffer
+      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dist
 
       product_matrix_recv%matrix => buffer
+      CALL dbcsr_distribution_release(product_matrix_recv%matrix%m%dist)
+      product_matrix_recv%matrix%m%dist = dist
+      CALL dbcsr_distribution_hold(product_matrix_recv%matrix%m%dist)
       product_matrix_recv%matrix%m%symmetry = product_matrix%m%symmetry
       product_matrix_recv%matrix%m%negate_real = product_matrix%m%negate_real
       product_matrix_recv%matrix%m%negate_imaginary = product_matrix%m%negate_imaginary
@@ -2918,54 +2958,6 @@ CONTAINS
       product_matrix_recv%matrix%m%col_blk_offset = product_matrix%m%col_blk_offset
       CALL array_hold(product_matrix_recv%matrix%m%col_blk_offset)
    END SUBROUTINE set_reduction_product_matrix_3D
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix_result ...
-!> \param matrix_other ...
-!> \param flop ...
-!> \param data_type ...
-!> \author Alfio Lazzaro
-! **************************************************************************************************
-   SUBROUTINE reduce_3D(matrix_result, matrix_other, flop, data_type)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_result
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
-      INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
-      INTEGER, INTENT(IN)                                :: data_type
-
-      INTEGER                                            :: blk, col, ithread, row
-      INTEGER, DIMENSION(2)                              :: lb_row_col
-      LOGICAL                                            :: tr
-      TYPE(dbcsr_data_obj)                               :: data_block
-      TYPE(dbcsr_iterator)                               :: iter
-
-!$OMP PARALLEL DEFAULT (NONE) &
-!$OMP          PRIVATE (iter, data_block) &
-!$OMP          PRIVATE (row, col, tr, blk, lb_row_col, ithread) &
-!$OMP          SHARED (matrix_result, matrix_other, data_type, memtype_product_wm) &
-!$OMP          REDUCTION (+ : flop)
-      ithread = 0
-!$    ithread = OMP_GET_THREAD_NUM()
-      CALL dbcsr_work_create(matrix_result, work_mutable=.FALSE., &
-                             memory_type=memtype_product_wm(ithread)%p)
-!$OMP BARRIER
-      lb_row_col(:) = 0
-      CALL dbcsr_data_init(data_block)
-      CALL dbcsr_data_new(data_block, data_type)
-      CALL dbcsr_iterator_start(iter, matrix_other, &
-                                shared=.TRUE., read_only=.TRUE., contiguous_pointers=.FALSE., &
-                                dynamic=.TRUE., dynamic_byrows=.TRUE.)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
-         CALL dbcsr_put_block(matrix_result, row, col, data_block, lb_row_col, tr, &
-                              summation=.TRUE., flop=flop)
-      ENDDO
-      CALL dbcsr_iterator_stop(iter)
-      CALL dbcsr_data_clear_pointer(data_block)
-      CALL dbcsr_data_release(data_block)
-      CALL dbcsr_finalize(matrix_result)
-!$OMP END PARALLEL
-   END SUBROUTINE reduce_3D
 
 ! **************************************************************************************************
 !> \brief Multiplies two DBCSR matrices by means of RMA MPI operations.
@@ -4049,6 +4041,7 @@ CONTAINS
       DEALLOCATE (right_vmerged, left_vmerged)
       DEALLOCATE (right_displ_vunmerged, left_displ_vunmerged)
       DEALLOCATE (right_no_empty_images_displ, left_no_empty_images_displ)
+      DEALLOCATE (g2l_map_rows, g2l_map_cols)
       CALL dbcsr_destroy_array(buffers_2%right%buffer)
       CALL dbcsr_destroy_array(buffers_2%left%buffer)
       !
