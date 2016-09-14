@@ -761,18 +761,33 @@ CONTAINS
       LOGICAL                                            :: block_exists, tr
       TYPE(dbcsr_iterator)                               :: iter
 
-      ! Assume no overlapping in blocks too set a maximum size
-      nze_max = this%product_wm%datasize+matrix_other%m%nze
+      !
+      ! Get sizes
+      nze_max = this%product_wm%datasize
+      nblks_max = this%product_wm%lastblk
+      CALL dbcsr_iterator_start(iter, matrix_other, shared=.TRUE., read_only=.TRUE.)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, blk, tr, blk_p, &
+                                        row_size, col_size)
+         nze = row_size*col_size
+         IF (nze .EQ. 0) CYCLE
+         row_l = g2l_map_rows(row)
+         col_l = g2l_map_cols(col)
+         c_blk_id = hash_table_get(this%c_hashes(row_l), col_l)
+         block_exists = c_blk_id .GT. 0
+         IF (block_exists) CYCLE
+         nblks_max = nblks_max+1
+         nze_max = nze_max+nze
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_data_ensure_size(this%product_wm%data_area, &
                                   nze_max, factor=default_resize_factor, nocopy=.FALSE.)
-      nblks_max = this%product_wm%lastblk+matrix_other%m%nblks
       CALL ensure_array_size(this%product_wm%row_i, ub=nblks_max, &
                              factor=default_resize_factor, nocopy=.FALSE.)
       CALL ensure_array_size(this%product_wm%col_i, ub=nblks_max, &
                              factor=default_resize_factor, nocopy=.FALSE.)
       CALL ensure_array_size(this%product_wm%blk_p, ub=nblks_max, &
                              factor=default_resize_factor, nocopy=.FALSE.)
-      !
       CALL dbcsr_iterator_start(iter, matrix_other, shared=.TRUE., read_only=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, blk, tr, blk_p, &
