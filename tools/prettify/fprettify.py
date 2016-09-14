@@ -156,7 +156,7 @@ def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
     """Same as prettify, but inplace, replaces only if needed"""
 
     if fileName == 'stdin':
-        infile = os.tmpfile()
+        infile = tempfile.TemporaryFile(mode='r+')
         infile.write(sys.stdin.read())
     else:
         infile = open(fileName, 'r')
@@ -197,13 +197,13 @@ def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
             while os.path.exists(bkName):
                 i += 1
                 bkName = bName + "." + str(i)
-            bkFile = file(bkName, "w")
+            bkFile = open(bkName, "w")
         infile.seek(0)
         if bkFile:
             bkFile.write(infile.read())
             bkFile.close()
         outfile.seek(0)
-        newFile = file(fileName, 'w')
+        newFile = open(fileName, 'w')
         newFile.write(outfile.read())
         newFile.close()
     infile.close()

@@ -1,12 +1,10 @@
 import sys
 import re
-import string
-from sys import argv
 from collections import deque
 import logging
 
 try:
-    from cStringIO import StringIO
+    from StringIO import StringIO
 except ImportError:
     from io import StringIO
 
@@ -212,7 +210,7 @@ def parseRoutine(inFile):
         m = includeRe.match(lines[0])
         if m:
             try:
-                subF = file(m.group('file'))
+                subF = open(m.group('file'), 'r')
                 subStream = InputStream(subF)
                 while 1:
                     (subjline, _, sublines) = subStream.nextFortranLine()
@@ -237,8 +235,8 @@ def parseRoutine(inFile):
         routine['name'] = m.group('name')
         routine['kind'] = m.group('kind')
         if (m.group('arguments') and m.group('arguments').strip()):
-            routine['arguments'] = map(lambda x: x.strip(),
-                                       m.group('arguments').split(","))
+            routine['arguments'] = list(map(lambda x: x.strip(),
+                                            m.group('arguments').split(",")))
         if (m.group('result')):
             routine['result'] = m.group('result')
         if (not routine['result'])and(routine['kind'].lower() == "function"):
@@ -355,7 +353,7 @@ def parseRoutine(inFile):
         m = includeRe.match(lines[0])
         if m:
             try:
-                subF = file(m.group('file'))
+                subF = open(m.group('file'), 'r')
                 subStream = InputStream(subF)
                 while 1:
                     (subjline, _, sublines) = subStream.nextFortranLine()
@@ -530,7 +528,7 @@ def writeInCols(dLine, indentCol, maxCol, indentAtt, file):
 def writeCompactDeclaration(declaration, file):
     """Writes a declaration in a compact way"""
     d = declaration
-    if d.has_key('iroutine'):
+    if 'iroutine' in d.keys():
         file.writelines(d['istart'])
         writeRoutine(d['iroutine'], file)
         file.writelines(d['iend'])
@@ -564,7 +562,7 @@ def writeExtendedDeclaration(declaration, file):
     d = declaration
     if len(d['vars']) == 0:
         return
-    if d.has_key('iroutine'):
+    if 'iroutine' in d.keys():
         file.writelines(d['istart'])
         writeRoutine(d['iroutine'], file)
         file.writelines(d['iend'])
@@ -677,8 +675,8 @@ def cleanDeclarations(routine):
                     pos_routinep, "routineN = '" + routine['name'] + "'")
 
         if routine['arguments']:
-            routine['lowercaseArguments'] = map(
-                lambda x: x.lower(), routine['arguments'])
+            routine['lowercaseArguments'] = list(map(
+                lambda x: x.lower(), routine['arguments']))
         else:
             routine['lowercaseArguments'] = []
         if routine['result']:
@@ -697,7 +695,7 @@ def cleanDeclarations(routine):
                     argD = {}
                     argD.update(d)
                     argD['vars'] = [v]
-                    if argDeclDict.has_key(lowerV):
+                    if lowerV in argDeclDict.keys():
                         raise SyntaxError(
                             "multiple declarations not supported. var=" + v +
                             " declaration=" + str(d) + "routine=" + routine['name'])
@@ -719,7 +717,7 @@ def cleanDeclarations(routine):
                 localDecl.append(localD)
         argDecl = []
         for arg in routine['lowercaseArguments']:
-            if argDeclDict.has_key(arg):
+            if arg in argDeclDict.keys():
                 argDecl.append(argDeclDict[arg])
             else:
                 logger.debug("warning, implicitly typed argument '" +
@@ -774,7 +772,7 @@ def cleanDeclarations(routine):
             newDecl.write("\n")
         routine['declarations'] = [newDecl.getvalue()]
     except:
-        if routine.has_key('name'):
+        if 'name' in routine.keys():
             logger.critical("exception cleaning routine " +
                             routine['name'])
         logger.critical("parsedDeclartions=" +
@@ -829,7 +827,7 @@ def rmNullify(var, strings):
                                   "in" + repr(line))
             allVars = []
             vars = m.group("vars")
-            v = map(string.strip, vars.split(","))
+            v = list(map(str.strip, vars.split(",")))
             removedNow = 0
             for j in range(len(v) - 1, -1, -1):
                 if findWord(var, v[j].lower()) != -1:
@@ -885,11 +883,11 @@ def parseUse(inFile):
             useAtt = {'module': m.group('module'), 'comments': []}
 
             if m.group('only'):
-                useAtt['only'] = map(string.strip,
-                                     string.split(m.group('imports'), ','))
+                useAtt['only'] = list(map(str.strip,
+                                      str.split(m.group('imports'), ',')))
             else:
-                useAtt['renames'] = map(string.strip,
-                                        string.split(m.group('imports'), ','))
+                useAtt['renames'] = list(map(str.strip,
+                                         str.split(m.group('imports'), ',')))
                 if useAtt['renames'] == [""]:
                     del useAtt['renames']
             if comments:
@@ -917,8 +915,8 @@ def normalizeModules(modules):
     modules.sort(key=lambda x: x['module'])
     for i in range(len(modules) - 1, 0, -1):
         if modules[i]['module'].lower() == modules[i - 1]['module'].lower():
-            if not (modules[i - 1].has_key('only') and
-                    modules[i].has_key('only')):
+            if not ('only' in modules[i - 1].keys() and
+                    'only' in modules[i].keys()):
                 raise SyntaxError('rejoining of module ' +
                                   str(modules[i]['module']) +
                                   ' failed as at least one of the use is not a use ...,only:')
@@ -926,7 +924,7 @@ def normalizeModules(modules):
             del modules[i]
     # orders imports
     for m in modules:
-        if m.has_key('only'):
+        if 'only' in m.keys():
             m['only'].sort()
             for i in range(len(m['only']) - 1, 0, -1):
                 if m['only'][i - 1].lower() == m['only'][i].lower():
@@ -937,7 +935,7 @@ def writeUses(modules, outFile):
     """Writes the use declaration using a long or short form depending on how
     many only statements there are"""
     for m in modules:
-        if m.has_key('only') and len(m['only']) > 8:
+        if 'only' in m.keys() and len(m['only']) > 8:
             writeUseShort(m, outFile)
         else:
             writeUseLong(m, outFile)
@@ -945,21 +943,21 @@ def writeUses(modules, outFile):
 
 def writeUseLong(m, outFile):
     """Writes a use declaration in a nicer, but longer way"""
-    if m.has_key('only'):
+    if 'only' in m.keys():
         outFile.write(INDENT_SIZE * ' ' + "USE " + m['module'] + "," +
-                      string.rjust('ONLY: ', 38 - len(m['module'])))
+                      str.rjust('ONLY: ', 38 - len(m['module'])))
         if m['only']:
             outFile.write(m['only'][0])
         for i in range(1, len(m['only'])):
-            outFile.write(",&\n" + string.ljust("", 43 +
+            outFile.write(",&\n" + str.ljust("", 43 +
                                                 INDENT_SIZE) + m['only'][i])
     else:
         outFile.write(INDENT_SIZE * ' ' + "USE " + m['module'])
-        if m.has_key('renames') and m['renames']:
-            outFile.write("," + string.ljust("", 38) +
+        if 'renames' in m.keys() and m['renames']:
+            outFile.write("," + str.ljust("", 38) +
                           m['renames'][0])
             for i in range(1, len(m['renames'])):
-                outFile.write(",&\n" + string.ljust("", 43 +
+                outFile.write(",&\n" + str.ljust("", 43 +
                                                     INDENT_SIZE) + m['renames'][i])
     if m['comments']:
         outFile.write("\n")
@@ -970,14 +968,14 @@ def writeUseLong(m, outFile):
 def writeUseShort(m, file):
     """Writes a use declaration in a compact way"""
     uLine = []
-    if m.has_key('only'):
+    if 'only' in m.keys():
         file.write(INDENT_SIZE * ' ' + "USE " + m['module'] + "," +
-                   string.rjust('ONLY: &\n', 40 - len(m['module'])))
+                   str.rjust('ONLY: &\n', 40 - len(m['module'])))
         for k in m['only'][:-1]:
             uLine.append(k + ", ")
         uLine.append(m['only'][-1])
         uLine[0] = " " * (5 + INDENT_SIZE) + uLine[0]
-    elif m.has_key('renames') and m['renames']:
+    elif 'renames' in m.keys() and m['renames']:
         uLine.append(INDENT_SIZE * ' ' + "USE " + m['module'] + ", ")
         for k in m['renames'][:-1]:
             uLine.append(k + ", ")
@@ -998,10 +996,10 @@ def prepareImplicitUses(modules):
     mods = {}
     for m in modules:
         m_name = m['module'].lower()
-        if (not mods.has_key(m_name)):
+        if m_name not in mods.keys():
             mods[m['module']] = {'_WHOLE_': 0}
         m_att = mods[m_name]
-        if m.has_key('only'):
+        if 'only' in m.keys():
             for k in m['only']:
                 m = localNameRe.match(k)
                 if not m:
@@ -1024,13 +1022,13 @@ def cleanUse(modulesDict, rest, implicitUses=None):
     for i in range(len(modules) - 1, -1, -1):
         m_att = {}
         m_name = modules[i]['module'].lower()
-        if implicitUses and implicitUses.has_key(m_name):
+        if implicitUses and m_name in implicitUses.keys():
             m_att = implicitUses[m_name]
-        if m_att.has_key('_WHOLE_') and m_att['_WHOLE_']:
+        if '_WHOLE_' in m_att.keys() and m_att['_WHOLE_']:
             R_USE += 1
             logger.info("removed USE of module " + m_name + "\n")
             del modules[i]
-        elif modules[i].has_key("only"):
+        elif 'only' in modules[i].keys():
             els = modules[i]['only']
             for j in range(len(els) - 1, -1, -1):
                 m = localNameRe.match(els[j])
@@ -1038,12 +1036,12 @@ def cleanUse(modulesDict, rest, implicitUses=None):
                     raise SyntaxError(
                         'could not parse use only:' + repr(els[j]))
                 impAtt = m.group('localName').lower()
-                if m_att.has_key(impAtt):
+                if impAtt in m_att.keys():
                     R_USE += 1
                     logger.info("removed USE " + m_name +
                                 ", only: " + repr(els[j]) + "\n")
                     del els[j]
-                elif not exceptions.has_key(impAtt):
+                elif impAtt not in exceptions.keys():
                     if findWord(impAtt, rest) == -1:
                         R_USE += 1
                         logger.info("removed USE " + m_name +
@@ -1052,7 +1050,7 @@ def cleanUse(modulesDict, rest, implicitUses=None):
             if len(modules[i]['only']) == 0:
                 if modules[i]['comments']:
                     modulesDict['preComments'].extend(
-                        map(lambda x: x + "\n", modules[i]['comments']))
+                        list(map(lambda x: x + "\n", modules[i]['comments'])))
                 del modules[i]
 
 
@@ -1132,7 +1130,7 @@ def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, or
                         modulesDict['commonUses']).group(1)
                     inc_absfn = os.path.join(
                         os.path.dirname(orig_filename), inc_fn)
-                    f = file(inc_absfn)
+                    f = open(inc_absfn, 'r')
                     implicitUsesRaw = parseUse(f)
                     f.close()
                     implicitUses = prepareImplicitUses(
