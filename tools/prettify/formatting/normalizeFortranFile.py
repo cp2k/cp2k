@@ -1107,8 +1107,8 @@ def rewriteFortranFile(inFile, outFile, indent, decl_linelength, decl_offset, or
         while routine['kind']:
             routine = parseRoutine(inFile)
             routines.append(routine)
-        map(lambda x: cleanDeclarations(x), routines)
         for routine in routines:
+            cleanDeclarations(routine)  # in-place modification of 'routine'
             coreLines.extend(routine['declarations'])
             coreLines.extend(routine['strippedCore'])
         rest = "".join(coreLines)
