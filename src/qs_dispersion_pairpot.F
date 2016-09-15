@@ -1054,14 +1054,12 @@ CONTAINS
 !$OMP           SHARED( locks, number_of_locks, nl_iterator           &
 !$OMP                 , ghost, floating, atomnumber, eps_cn           &
 !$OMP                 , dispersion_env, calculate_forces, debugall    &
-!$OMP                 , dcnum                                         &
+!$OMP                 , dcnum, cnumbers                               &
 !$OMP                 )                                               &
 !$OMP          PRIVATE( mepos                                         &
 !$OMP                 , ikind, jkind, iatom, jatom, rij, rcc          &
 !$OMP                 , za, zb, rcova, rcovb, cnab, dcnab             &
 !$OMP                 , ni, nj                                        &
-!$OMP                 )                                               &
-!$OMP        REDUCTION( +: cnumbers                                   &
 !$OMP                 )
 
 !$OMP SINGLE
@@ -1089,8 +1087,10 @@ CONTAINS
                rcovb = dispersion_env%rcov(zb)
                CALL cnparam_d3(rcc, rcova, rcovb, dispersion_env%k1, cnab, dcnab)
                IF (cnab > eps_cn) THEN
+!$OMP ATOMIC
                   cnumbers(iatom) = cnumbers(iatom)+cnab
                   IF (iatom /= jatom) THEN
+!$OMP ATOMIC
                      cnumbers(jatom) = cnumbers(jatom)+cnab
                   END IF
                END IF
