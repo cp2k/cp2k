@@ -892,13 +892,13 @@ CONTAINS
 !$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
 !$    INTEGER                                            :: lock, number_of_locks
 
-      IF (dispersion_env%type .NE. xc_vdw_fun_pairpot) THEN
-         RETURN
-      END IF
-
       CALL timeset(routineN, handle)
 
       energy = 0._dp
+
+      IF (dispersion_env%type .NE. xc_vdw_fun_pairpot) THEN
+         RETURN
+      END IF
 
       NULLIFY (atomic_kind_set, qs_kind_set, sab_cn, sab_vdw)
 
