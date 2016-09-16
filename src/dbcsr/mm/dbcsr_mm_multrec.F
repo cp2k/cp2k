@@ -36,7 +36,7 @@ MODULE dbcsr_mm_multrec
    USE dbcsr_mm_csr,                    ONLY: &
         dbcsr_mm_csr_finalize, dbcsr_mm_csr_init, dbcsr_mm_csr_lib_finalize, &
         dbcsr_mm_csr_lib_init, dbcsr_mm_csr_multiply, dbcsr_mm_csr_phaseout, &
-        dbcsr_mm_csr_purge_stacks, dbcsr_mm_csr_reduce_3D, dbcsr_mm_csr_type
+        dbcsr_mm_csr_purge_stacks, dbcsr_mm_csr_red3D, dbcsr_mm_csr_red3D_init, dbcsr_mm_csr_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
    USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                               dbcsr_type,&
@@ -132,7 +132,7 @@ MODULE dbcsr_mm_multrec
    PUBLIC :: dbcsr_mm_multrec_phaseout
    PUBLIC :: dbcsr_mm_multrec_init, dbcsr_mm_multrec_finalize
    PUBLIC :: dbcsr_mm_multrec_multiply
-   PUBLIC :: dbcsr_mm_multrec_reduce_3D
+   PUBLIC :: dbcsr_mm_multrec_red3D_init, dbcsr_mm_multrec_red3D
 
 CONTAINS
 
@@ -411,6 +411,29 @@ CONTAINS
 !>
 !> \param this ...
 ! **************************************************************************************************
+   SUBROUTINE dbcsr_mm_multrec_red3D_init(this)
+      TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_red3D_init', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+!   ---------------------------------------------------------------------------
+
+      CALL timeset(routineN, handle)
+      IF (.NOT. this%initialized) &
+         CPABORT("multrec not initialized.")
+      CALL dbcsr_mm_csr_red3D_init(this%csr)
+      CALL timestop(handle)
+   END SUBROUTINE dbcsr_mm_multrec_red3D_init
+
+! **************************************************************************************************
+!> \brief Sets up recursive multiplication
+!>
+!>
+!> \param this ...
+! **************************************************************************************************
    SUBROUTINE dbcsr_mm_multrec_finalize(this)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
 
@@ -450,13 +473,13 @@ CONTAINS
 !> \param g2l_map_rows ...
 !> \param g2l_map_cols ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_multrec_reduce_3D(this, matrix_other, flop, g2l_map_rows, g2l_map_cols)
+   SUBROUTINE dbcsr_mm_multrec_red3D(this, matrix_other, flop, g2l_map_rows, g2l_map_cols)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
       INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: g2l_map_rows, g2l_map_cols
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_reduce_3D', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_red3D', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
@@ -464,10 +487,10 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (.NOT. this%initialized) &
          CPABORT("multrec not initialized.")
-      CALL dbcsr_mm_csr_reduce_3D(this%csr, matrix_other, flop, &
-                                  g2l_map_rows, g2l_map_cols)
+      CALL dbcsr_mm_csr_red3D(this%csr, matrix_other, flop, &
+                              g2l_map_rows, g2l_map_cols)
       CALL timestop(handle)
-   END SUBROUTINE dbcsr_mm_multrec_reduce_3D
+   END SUBROUTINE dbcsr_mm_multrec_red3D
 
 ! **************************************************************************************************
 !> \brief Performs recursive multiplication

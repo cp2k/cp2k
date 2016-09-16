@@ -68,7 +68,8 @@ MODULE dbcsr_mm_3d
                                               dbcsr_mm_multrec_init,&
                                               dbcsr_mm_multrec_multiply,&
                                               dbcsr_mm_multrec_phaseout,&
-                                              dbcsr_mm_multrec_reduce_3D
+                                              dbcsr_mm_multrec_red3D,&
+                                              dbcsr_mm_multrec_red3D_init
    USE dbcsr_mp_methods,                ONLY: &
         dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
         dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
@@ -1788,8 +1789,8 @@ CONTAINS
                                                             product_matrix_meta_displ, &
                                                             product_matrix_meta_size, &
                                                             right_displ_vunmerged
-      INTEGER, DIMENSION(2)                              :: requests_reduction_size
-      INTEGER, DIMENSION(4)                              :: requests_reduction
+      INTEGER, DIMENSION(3)                              :: requests_reduction_size
+      INTEGER, DIMENSION(6)                              :: requests_reduction
       INTEGER, DIMENSION(:), POINTER                     :: product_matrix_recv_p, &
                                                             product_matrix_send_p
       INTEGER, DIMENSION(:, :), POINTER :: left_refs_meta_size_layers3D, product_matrix_size_calc, &
@@ -2238,6 +2239,16 @@ CONTAINS
          ALLOCATE (left_norms(0, 1, nleft_buffers), right_norms(0, 1))
       ENDIF
       !
+      IF (do_layers3D .AND. keep_sparsity) CALL mp_wait(request_keep_sparsity)
+      !
+      ALLOCATE (product_matrix3D%mats(nrows3D, ncols3D))
+      DO icol3D = 1, ncols3D
+         DO irow3D = 1, nrows3D
+            NULLIFY (product_matrix3D%mats(irow3D, icol3D)%matrix)
+         ENDDO
+      ENDDO
+      ALLOCATE (multrec(0:nthreads-1, nrows3D, ncols3D))
+      !
       ! Here is the main loop
       ! 3D multiplication
       !
@@ -2388,60 +2399,46 @@ CONTAINS
             ENDIF
          ENDIF xfer
          !
-         ! Create matrices and multrec's, only the first tick
-         IF (istep_k .EQ. shift_k) THEN
-            !
-            IF (do_layers3D .AND. keep_sparsity) CALL mp_wait(request_keep_sparsity)
-            !
-            ALLOCATE (product_matrix3D%mats(nrows3D, ncols3D))
-            DO icol3D = 1, ncols3D
-               DO irow3D = 1, nrows3D
-                  IF (irow3D .EQ. myrow3D .AND. icol3D .EQ. mycol3D) THEN
-                     product_matrix3D%mats(irow3D, icol3D)%matrix => product_matrix
-                  ELSE
-                     ALLOCATE (product_matrix3D%mats(irow3D, icol3D)%matrix)
-                     IF (keep_sparsity) THEN
-                        size_guess = product_matrix_meta(product_matrix_meta_displ(irow3D, icol3D)+ &
-                                                         dbcsr_slot_nze)
-                        CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
-                                                 product_matrix, product_matrix_meta_size(irow3D, icol3D), &
-                                                 data_size=size_guess, &
-                                                 data_memory_type=memtype_mpi_buffer)
-                        product_matrix3D%mats(irow3D, icol3D)% &
-                           matrix%m%index(1:product_matrix_meta_size(irow3D, icol3D)) = &
-                           product_matrix_meta(product_matrix_meta_displ(irow3D, icol3D)+1: &
-                                               product_matrix_meta_displ(irow3D, icol3D)+ &
-                                               product_matrix_meta_size(irow3D, icol3D))
-                        CALL dbcsr_data_clear(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
-                                              ub=size_guess)
-                     ELSE
-                        CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
-                                                 product_matrix, data_memory_type=memtype_mpi_buffer)
-                     ENDIF
-                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_prow) = &
-                        (irow3D-1)*layers_3D_C_reduction%side3D+myprow
-                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_pcol) = &
-                        (icol3D-1)*layers_3D_C_reduction%side3D+mypcol
-                     CALL dbcsr_reset_locals(product_matrix3D%mats(irow3D, icol3D)%matrix)
-                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
-                     CALL dbcsr_repoint_index(product_matrix3D%mats(irow3D, icol3D)%matrix%m)
-                  ENDIF
-               ENDDO
-            ENDDO
-            IF (do_layers3D .AND. keep_sparsity) THEN
-               DEALLOCATE (product_matrix_meta_size, product_matrix_meta_displ)
-               DEALLOCATE (product_matrix_meta)
+         ! Create matrices and multrec's, only the first occurrence
+         IF (.NOT. ASSOCIATED(product_matrix3D%mats(irow3D, icol3D)%matrix)) THEN
+            IF (irow3D .EQ. myrow3D .AND. icol3D .EQ. mycol3D) THEN
+               product_matrix3D%mats(irow3D, icol3D)%matrix => product_matrix
+            ELSE
+               ALLOCATE (product_matrix3D%mats(irow3D, icol3D)%matrix)
+               IF (keep_sparsity) THEN
+                  size_guess = product_matrix_meta(product_matrix_meta_displ(irow3D, icol3D)+ &
+                                                   dbcsr_slot_nze)
+                  CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
+                                           product_matrix, product_matrix_meta_size(irow3D, icol3D), &
+                                           data_size=size_guess, &
+                                           data_memory_type=memtype_mpi_buffer)
+                  product_matrix3D%mats(irow3D, icol3D)% &
+                     matrix%m%index(1:product_matrix_meta_size(irow3D, icol3D)) = &
+                     product_matrix_meta(product_matrix_meta_displ(irow3D, icol3D)+1: &
+                                         product_matrix_meta_displ(irow3D, icol3D)+ &
+                                         product_matrix_meta_size(irow3D, icol3D))
+                  CALL dbcsr_data_clear(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
+                                        ub=size_guess)
+               ELSE
+                  CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
+                                           product_matrix, data_memory_type=memtype_mpi_buffer)
+               ENDIF
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_prow) = &
+                  (irow3D-1)*layers_3D_C_reduction%side3D+myprow
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_pcol) = &
+                  (icol3D-1)*layers_3D_C_reduction%side3D+mypcol
+               CALL dbcsr_reset_locals(product_matrix3D%mats(irow3D, icol3D)%matrix)
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
+               CALL dbcsr_repoint_index(product_matrix3D%mats(irow3D, icol3D)%matrix%m)
             ENDIF
             !
-            ALLOCATE (multrec(0:nthreads-1, nrows3D, ncols3D))
-            !
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP          PRIVATE (size_guess, ithread, irow3D, icol3D) &
+!$OMP          PRIVATE (size_guess, ithread) &
 !$OMP          SHARED (product_matrix3D, multrec, &
 !$OMP                  keep_sparsity, filter_eps, &
 !$OMP                  max_nblocks, product_matrix_epss, &
-!$OMP                  matrix_right, nthreads, nrows3D, ncols3D, &
-!$OMP                  myrow3D, mycol3D, keep_product_data, &
+!$OMP                  matrix_right, nthreads, &
+!$OMP                  irow3D, icol3D, myrow3D, mycol3D, keep_product_data, &
 !$OMP                  product_matrix_epss_displ, product_matrix_epss_size, &
 !$OMP                  memtype_product_wm)
             !
@@ -2450,71 +2447,63 @@ CONTAINS
             ithread = 0
 !$          ithread = OMP_GET_THREAD_NUM()
             !
-            DO icol3D = 1, ncols3D
-               DO irow3D = 1, nrows3D
-                  IF (irow3D .NE. myrow3D .OR. icol3D .NE. mycol3D) THEN
-                     IF (keep_product_data) THEN
-                        CALL dbcsr_add_wm_from_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix)
-                     ELSE
-                        CALL dbcsr_work_create(product_matrix3D%mats(irow3D, icol3D)%matrix, &
-                                               work_mutable=.FALSE., memory_type=memtype_product_wm(ithread)%p)
-                     ENDIF
-                  ENDIF
+            IF (irow3D .NE. myrow3D .OR. icol3D .NE. mycol3D) THEN
+               IF (keep_product_data) THEN
+                  CALL dbcsr_add_wm_from_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix)
+               ELSE
+                  CALL dbcsr_work_create(product_matrix3D%mats(irow3D, icol3D)%matrix, &
+                                         work_mutable=.FALSE., memory_type=memtype_product_wm(ithread)%p)
+               ENDIF
+            ENDIF
 !$OMP BARRIER
-                  ! The work arrays have to be setup
-                  size_guess = product_matrix3D%mats(irow3D, icol3D)% &
-                               matrix%m%wms(ithread+1)%datasize ! Should be minimal
-                  CALL dbcsr_data_ensure_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                              matrix%m%wms(ithread+1)%data_area, &
-                                              size_guess)
-                  CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)% &
-                                                      matrix%m%wms(ithread+1)%data_area, &
-                                                      product_matrix3D%mats(irow3D, icol3D)% &
-                                                      matrix%m%wms(ithread+1)%datasize)
-                  CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                         matrix%m%wms(ithread+1)%row_i, ub=1)
-                  CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                         matrix%m%wms(ithread+1)%col_i, ub=1)
-                  CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                         matrix%m%wms(ithread+1)%blk_p, ub=1)
-                  ALLOCATE (multrec(ithread, irow3D, icol3D)%p)
-                  CALL dbcsr_mm_multrec_init(multrec(ithread, irow3D, icol3D)%p, &
-                                             product=product_matrix3D%mats(irow3D, icol3D)%matrix%m, &
-                                             keep_sparsity=keep_sparsity, &
-                                             eps=filter_eps, &
-                                             row_max_epss=product_matrix_epss(product_matrix_epss_displ(irow3D)+1: &
-                                                                              product_matrix_epss_displ(irow3D)+ &
-                                                                              product_matrix_epss_size(irow3D)-1), &
-                                             block_estimate=max_nblocks/nthreads, &
-                                             right_row_blk_size=dbcsr_row_block_sizes(matrix_right))
-               ENDDO
-            ENDDO
+            ! The work arrays have to be setup
+            size_guess = product_matrix3D%mats(irow3D, icol3D)% &
+                         matrix%m%wms(ithread+1)%datasize ! Should be minimal
+            CALL dbcsr_data_ensure_size(product_matrix3D%mats(irow3D, icol3D)% &
+                                        matrix%m%wms(ithread+1)%data_area, &
+                                        size_guess)
+            CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)% &
+                                                matrix%m%wms(ithread+1)%data_area, &
+                                                product_matrix3D%mats(irow3D, icol3D)% &
+                                                matrix%m%wms(ithread+1)%datasize)
+            CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
+                                   matrix%m%wms(ithread+1)%row_i, ub=1)
+            CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
+                                   matrix%m%wms(ithread+1)%col_i, ub=1)
+            CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
+                                   matrix%m%wms(ithread+1)%blk_p, ub=1)
+            ALLOCATE (multrec(ithread, irow3D, icol3D)%p)
+            CALL dbcsr_mm_multrec_init(multrec(ithread, irow3D, icol3D)%p, &
+                                       product=product_matrix3D%mats(irow3D, icol3D)%matrix%m, &
+                                       keep_sparsity=keep_sparsity, &
+                                       eps=filter_eps, &
+                                       row_max_epss=product_matrix_epss(product_matrix_epss_displ(irow3D)+1: &
+                                                                        product_matrix_epss_displ(irow3D)+ &
+                                                                        product_matrix_epss_size(irow3D)-1), &
+                                       block_estimate=max_nblocks/nthreads, &
+                                       right_row_blk_size=dbcsr_row_block_sizes(matrix_right))
 !$OMP END PARALLEL
             !
-            DO icol3D = 1, ncols3D
-               DO irow3D = 1, nrows3D
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = 0
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%row_p(:) = 0
-                  CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, 0)
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%valid = .FALSE.
-               ENDDO
-            ENDDO
-            !
-            ! Initialize matrices
-            IF (has_acc) THEN
-               IF (nvirt_k .GT. 1 .AND. .NOT. dbcsr_data_valid(buffers_2%trs_stackbuf)) THEN
-                  CALL dbcsr_data_init(buffers_2%trs_stackbuf)
-                  CALL dbcsr_data_new(buffers_2%trs_stackbuf, &
-                                      data_type=dbcsr_type_int_4, data_size=1000, &
-                                      memory_type=memtype_trsbuffer_2)
-               ENDIF
-               IF (.NOT. dbcsr_data_valid(buffers_1%trs_stackbuf)) THEN
-                  CALL dbcsr_data_init(buffers_1%trs_stackbuf)
-                  CALL dbcsr_data_new(buffers_1%trs_stackbuf, &
-                                      data_type=dbcsr_type_int_4, data_size=1000, &
-                                      memory_type=memtype_trsbuffer_1)
-               ENDIF
+            product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
+            product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = 0
+            product_matrix3D%mats(irow3D, icol3D)%matrix%m%row_p(:) = 0
+            CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, 0)
+            product_matrix3D%mats(irow3D, icol3D)%matrix%m%valid = .FALSE.
+         ENDIF
+         !
+         ! Create buffers, only the first tick
+         IF (istep_k .EQ. shift_k .AND. has_acc) THEN
+            IF (nvirt_k .GT. 1 .AND. .NOT. dbcsr_data_valid(buffers_2%trs_stackbuf)) THEN
+               CALL dbcsr_data_init(buffers_2%trs_stackbuf)
+               CALL dbcsr_data_new(buffers_2%trs_stackbuf, &
+                                   data_type=dbcsr_type_int_4, data_size=1000, &
+                                   memory_type=memtype_trsbuffer_2)
+            ENDIF
+            IF (.NOT. dbcsr_data_valid(buffers_1%trs_stackbuf)) THEN
+               CALL dbcsr_data_init(buffers_1%trs_stackbuf)
+               CALL dbcsr_data_new(buffers_1%trs_stackbuf, &
+                                   data_type=dbcsr_type_int_4, data_size=1000, &
+                                   memory_type=memtype_trsbuffer_1)
             ENDIF
          ENDIF
          !
@@ -2642,6 +2631,10 @@ CONTAINS
       CALL m_memory(mem)
       max_memory = MAX(max_memory, REAL(mem))
       !
+      IF (do_layers3D .AND. keep_sparsity) THEN
+         DEALLOCATE (product_matrix_meta_size, product_matrix_meta_displ)
+         DEALLOCATE (product_matrix_meta)
+      ENDIF
       DEALLOCATE (right_norms, left_norms)
       IF (otf_filtering .AND. use_mpi_filtering) THEN
          DEALLOCATE (right_max_norms, left_max_norms)
@@ -2687,12 +2680,24 @@ CONTAINS
                                               buffers_orig%left%data_diag, &
                                               product_matrix%m%dist)
          !
+         ! Start multrec finalization
+!$OMP PARALLEL DEFAULT (NONE) &
+!$OMP SHARED (multrec, myrow3D, mycol3D) &
+!$OMP PRIVATE (ithread)
+         ithread = 0
+!$       ithread = omp_get_thread_num()
+         CALL dbcsr_mm_multrec_red3D_init(multrec(ithread, myrow3D, mycol3D)%p)
+!$OMP END PARALLEL
+         !
          CALL dbcsr_data_init(data_send)
          CALL dbcsr_data_new(data_send, data_type)
          DO iproc = 1, nranks3D+1
-            IF (iproc .GT. 1 .AND. iproc .LE. nranks3D) THEN
+            IF (iproc .GT. 1) THEN
                CALL timeset(routineN//"_red3D_size", handle3)
-               CALL mp_waitall(requests_reduction_size)
+               ! Check recv request
+               IF (iproc .LE. nranks3D) CALL mp_wait(requests_reduction_size(1))
+               ! Check send request
+               IF (iproc .GT. 2) CALL mp_wait(requests_reduction_size(2+MOD(iproc, 2)))
                CALL timestop(handle3)
             ENDIF
             ! Send/recv data and meta sizes
@@ -2714,7 +2719,7 @@ CONTAINS
                CALL mp_isendrecv(product_matrix_send_p, isend3D, &
                                  product_matrix_recv_p, irecv3D, &
                                  layers_3D_C_reduction%grp3D, &
-                                 requests_reduction_size(1), requests_reduction_size(2))
+                                 requests_reduction_size(2+MOD(iproc, 2)), requests_reduction_size(1))
                ! Use comm/calc buffers to store procs indices
                product_matrix_size_comm(imeta+1, 1) = isend3D
                product_matrix_size_comm(imeta+1, 2) = irecv3D
@@ -2725,7 +2730,12 @@ CONTAINS
             IF (iproc .GT. 1) THEN
                IF (iproc .GT. 2) THEN
                   CALL timeset(routineN//"_red3D_data", handle3)
-                  CALL mp_waitall(requests_reduction)
+                  ! Check recv requests
+                  CALL mp_waitall(requests_reduction(1:2))
+                  ! Check send requests
+                  IF (iproc .GT. 3) CALL mp_waitall(requests_reduction(3+MOD(iproc, 2)*2:4+MOD(iproc, 2)*2))
+                  ! Check last send requests
+                  IF (iproc .EQ. nranks3D+1) CALL mp_waitall(requests_reduction(3+MOD(iproc-1, 2)*2:4+MOD(iproc-1, 2)*2))
                   CALL timestop(handle3)
                ENDIF
                IF (iproc .LE. nranks3D) THEN
@@ -2739,7 +2749,7 @@ CONTAINS
                   CALL mp_isendrecv(product_matrix_send_p, product_matrix_size_calc(imeta+1, 1), &
                                     product_matrix_recv_p, product_matrix_size_calc(imeta+1, 2), &
                                     layers_3D_C_reduction%grp3D, &
-                                    requests_reduction(1), requests_reduction(2))
+                                    requests_reduction(3+MOD(iproc, 2)*2), requests_reduction(1))
                   !
                   CALL dbcsr_data_ensure_size(product_matrix_recv_comm%matrix%m%data_area, &
                                               product_matrix_size_calc(idata, 2), &
@@ -2757,7 +2767,7 @@ CONTAINS
                   CALL dbcsr_isendrecv_any(data_send, product_matrix_size_calc(imeta+1, 1), &
                                            data_get, product_matrix_size_calc(imeta+1, 2), &
                                            layers_3D_C_reduction%grp3D, &
-                                           requests_reduction(3), requests_reduction(4))
+                                           requests_reduction(4+MOD(iproc, 2)*2), requests_reduction(2))
                   CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1, :), &
                                             product_matrix_size_calc(idata, 2), &
                                             dbcsr_mpi_statistics%data_size_breakdown(:, :, 1), data_type_byte)
@@ -2781,9 +2791,9 @@ CONTAINS
 !$OMP REDUCTION (+: flop)
                      ithread = 0
 !$                   ithread = omp_get_thread_num()
-                     CALL dbcsr_mm_multrec_reduce_3D(multrec(ithread, myrow3D, mycol3D)%p, &
-                                                     product_matrix_recv_calc%matrix, flop, &
-                                                     g2l_map_rows, g2l_map_cols)
+                     CALL dbcsr_mm_multrec_red3D(multrec(ithread, myrow3D, mycol3D)%p, &
+                                                 product_matrix_recv_calc%matrix, flop, &
+                                                 g2l_map_rows, g2l_map_cols)
 !$OMP END PARALLEL
                   ENDIF
                ENDIF

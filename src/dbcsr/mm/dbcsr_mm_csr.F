@@ -39,7 +39,7 @@ MODULE dbcsr_mm_csr
         dbcsr_mm_sched_barrier, dbcsr_mm_sched_begin_burst, dbcsr_mm_sched_end_burst, &
         dbcsr_mm_sched_finalize, dbcsr_mm_sched_init, dbcsr_mm_sched_lib_finalize, &
         dbcsr_mm_sched_lib_init, dbcsr_mm_sched_phaseout, dbcsr_mm_sched_process, &
-        dbcsr_mm_sched_set_orig_datasize, dbcsr_mm_sched_type
+        dbcsr_mm_sched_red3D_init, dbcsr_mm_sched_set_orig_datasize, dbcsr_mm_sched_type
    USE dbcsr_mm_types,                  ONLY: &
         dbcsr_ps_width, p_a_first, p_b_first, p_c_blk, p_c_first, p_k, p_m, p_n, &
         stack_descriptor_type
@@ -99,7 +99,7 @@ MODULE dbcsr_mm_csr
    PUBLIC :: dbcsr_mm_csr_phaseout
    PUBLIC :: dbcsr_mm_csr_init, dbcsr_mm_csr_finalize
    PUBLIC :: dbcsr_mm_csr_multiply, dbcsr_mm_csr_purge_stacks
-   PUBLIC :: dbcsr_mm_csr_reduce_3D
+   PUBLIC :: dbcsr_mm_csr_red3D_init, dbcsr_mm_csr_red3D
 
 CONTAINS
 
@@ -740,6 +740,18 @@ CONTAINS
    END SUBROUTINE dbcsr_mm_csr_finalize
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE dbcsr_mm_csr_red3D_init(this)
+      TYPE(dbcsr_mm_csr_type), INTENT(INOUT)             :: this
+
+      CALL dbcsr_mm_sched_red3D_init(this%sched)
+
+   END SUBROUTINE dbcsr_mm_csr_red3D_init
+
+! **************************************************************************************************
 !> \brief Make the reduction of the 3D layers in the local csr object
 !>
 !> \param this ...
@@ -749,7 +761,7 @@ CONTAINS
 !> \param g2l_map_cols ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_csr_reduce_3D(this, matrix_other, flop, g2l_map_rows, g2l_map_cols)
+   SUBROUTINE dbcsr_mm_csr_red3D(this, matrix_other, flop, g2l_map_rows, g2l_map_cols)
       TYPE(dbcsr_mm_csr_type), INTENT(INOUT)             :: this
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
       INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
@@ -821,7 +833,7 @@ CONTAINS
       ENDDO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_mm_sched_set_orig_datasize(this%sched, this%product_wm%datasize)
-   END SUBROUTINE dbcsr_mm_csr_reduce_3D
+   END SUBROUTINE dbcsr_mm_csr_red3D
 
 ! **************************************************************************************************
 !> \brief ...

@@ -84,6 +84,7 @@ MODULE dbcsr_mm_accdrv
       TYPE(dbcsr_data_obj)                     :: c_buffer
       LOGICAL                                  :: phase_out = .FALSE.
       INTEGER                                  :: nbuffers_phaseout
+      LOGICAL                                  :: c_area_copy = .TRUE.
    END TYPE dbcsr_mm_accdrv_type
 
 ! **************************************************************************************************
@@ -93,6 +94,7 @@ MODULE dbcsr_mm_accdrv
    PUBLIC :: dbcsr_mm_accdrv_phaseout, dbcsr_mm_accdrv_barrier
    PUBLIC :: dbcsr_mm_accdrv_init, dbcsr_mm_accdrv_finalize
    PUBLIC :: dbcsr_mm_accdrv_process
+   PUBLIC :: dbcsr_mm_accdrv_red3D_init
 
    ! ===== Global Accelerator Memory =====
    ! Allocating memory on the device and host-pinned is slow.
@@ -386,6 +388,22 @@ CONTAINS
 !> \param this ...
 !> \author Ole Schuett
 ! **************************************************************************************************
+   SUBROUTINE dbcsr_mm_accdrv_red3D_init(this)
+      TYPE(dbcsr_mm_accdrv_type), INTENT(INOUT)          :: this
+
+! Transfer C-data from device to host and adding it to host's result
+
+      IF (this%c_area_copy) THEN
+         CALL dbcsr_data_dev2host(this%c_buffer)
+         this%c_area_copy = .FALSE.
+      ENDIF
+   END SUBROUTINE dbcsr_mm_accdrv_red3D_init
+
+! **************************************************************************************************
+!> \brief Finalizes a multiplication cycle for a set of C-blocks.
+!> \param this ...
+!> \author Ole Schuett
+! **************************************************************************************************
    SUBROUTINE dbcsr_mm_accdrv_finalize(this)
       TYPE(dbcsr_mm_accdrv_type), INTENT(INOUT)          :: this
 
@@ -393,7 +411,9 @@ CONTAINS
 
 ! Transfer C-data from device to host and adding it to host's result
 
-      CALL dbcsr_data_dev2host(this%c_buffer)
+      IF (this%c_area_copy) THEN
+         CALL dbcsr_data_dev2host(this%c_buffer)
+      ENDIF
       !TODO: not async, yet
       CALL acc_stream_synchronize(this%c_buffer%d%memory_type%acc_stream)
 
