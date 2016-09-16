@@ -82,13 +82,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'operator_ra2m', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, ia, &
-                                                            ib, ipgf, j, jpgf, k, la, lb, ldrr, &
-                                                            lma, lmb, ma, mb, na, nb, ofa, ofb
+      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, &
+                                                            handle, i, ia, ib, ipgf, j, jpgf, k, &
+                                                            la, lb, ldrr, lma, lmb, ma, mb, na, &
+                                                            nb, ofa, ofb
       REAL(KIND=dp)                                      :: a, b, dumx, dumy, dumz, f0, prefac, &
                                                             rab2, tab, xhi, zet
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
+
+      CALL timeset(routineN, handle)
+
+      sab = 0.0_dp
+      IF (calculate_forces) dsab = 0.0_dp
 
       ! Distance of the centers a and b
 
@@ -183,6 +189,8 @@ CONTAINS
       END DO
 
       DEALLOCATE (rr)
+
+      CALL timestop(handle)
 
    END SUBROUTINE operator_ra2m
 

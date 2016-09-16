@@ -116,10 +116,13 @@ CONTAINS
 
       INTEGER                                            :: ax, ay, az, coc, cocx, cocy, cocz, cx, &
                                                             cy, cz, i, ipgf, j, jpgf, la, lc, &
-                                                            maxder_local, n, na, nap, nc, ncp, nmax
+                                                            maxder_local, n, na, nap, nc, ncp, &
+                                                            nmax, handle
       REAL(KIND=dp)                                      :: dac, f1, f2, f3, f4, f5, f6, fcx, &
                                                             fcy, fcz, rho, zetp, zetq, zetw
       REAL(KIND=dp), DIMENSION(3)                        :: raw, rcw
+
+      CALL timeset(routineN, handle)
 
       v = 0.0_dp
 
@@ -408,6 +411,8 @@ CONTAINS
          nap = nap+ncoset(la_max)
 
       END DO
+
+      CALL timestop(handle)
 
    END SUBROUTINE operator2
 

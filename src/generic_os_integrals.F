@@ -324,19 +324,17 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
             IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
 
-            ncob = npgfb(jset)*ncoset(lb_max(jset))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
             sgfb = first_sgfb(1, jset)
             m1 = sgfa+nsgfa(iset)-1
             m2 = sgfb+nsgfb(jset)-1
-            sint(1:ncoa, 1:ncob) = 0._dp
-            dsint(1:ncoa, 1:ncob, :) = 0._dp
 
             IF (calculate_forces) THEN
                CALL overlap_ab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
@@ -348,6 +346,7 @@ CONTAINS
                                rab, sint)
 
             ENDIF
+
             ! debug if requested
             IF (debug) THEN
                CALL overlap_ab_test(la_max(iset), la_min(iset), npgfa(iset), zeta(:, iset), &
@@ -355,11 +354,11 @@ CONTAINS
                                     ra, rb, sint, dmax)
             ENDIF
 
-            CALL ab_contract(sab(sgfa:m1, sgfb:m2), sint, scon_a(:, sgfa:), scon_b(:, sgfb:), &
+            CALL ab_contract(sab(sgfa:m1, sgfb:m2), sint(1:ncoa, 1:ncob), scon_a(:, sgfa:), scon_b(:, sgfb:), &
                              ncoa, ncob, nsgfa(iset), nsgfb(jset))
             IF (calculate_forces) THEN
                DO i = 1, 3
-                  CALL ab_contract(dsab(sgfa:m1, sgfb:m2, i), dsint(:, :, i), scon_a(:, sgfa:), &
+                  CALL ab_contract(dsab(sgfa:m1, sgfb:m2, i), dsint(1:ncoa, 1:ncob, i), scon_a(:, sgfa:), &
                                    scon_b(:, sgfb:), ncoa, ncob, nsgfa(iset), nsgfb(jset))
                ENDDO
             ENDIF
@@ -444,17 +443,15 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
-            ncob = npgfb(jset)*ncoset(lb_max(jset))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
             sgfb = first_sgfb(1, jset)
             m1 = sgfa+nsgfa(iset)-1
             m2 = sgfb+nsgfb(jset)-1
-            sint(1:ncoa, 1:ncob) = 0._dp
-            dsint(1:ncoa, 1:ncob, :) = 0._dp
 
             CALL operator_ra2m(la_max(iset), la_min(iset), npgfa(iset), zeta(:, iset), &
                                lb_max(jset), lb_min(jset), npgfb(jset), zetb(:, jset), &
@@ -569,14 +566,14 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
             IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
 
-            ncob = npgfb(jset)*ncoset(lb_max(jset))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
             sgfb = first_sgfb(1, jset)
             m1 = sgfa+nsgfa(iset)-1
             m2 = sgfb+nsgfb(jset)-1
@@ -591,23 +588,21 @@ CONTAINS
 
                IF (set_radius_b(jset)+set_radius_ca(kaset) < dab) CYCLE
 
-               ncoc = npgfca(kaset)*ncoset(lca_max(kaset))
+               ncoc = npgfca(kaset)*(ncoset(lca_max(kaset))-ncoset(lca_min(kaset)-1))
                sgfc = first_sgfca(1, kaset)
                m3 = sgfc+nsgfca(kaset)-1
                IF (ncoa*ncob*ncoc > 0) THEN
                   ALLOCATE (saba(ncoa, ncob, ncoc))
-                  saba(:, :, :) = 0._dp
                   ! integrals
                   IF (calculate_forces) THEN
                      ALLOCATE (sdaba(ncoa, ncob, ncoc, 3))
-                     sdaba(:, :, :, :) = 0._dp
                      CALL overlap_aab(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                       lca_max(kaset), lca_min(kaset), npgfca(kaset), rpgfca(:, kaset), zetca(:, kaset), &
                                       lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                       rab, saba=saba, daba=sdaba)
 
                      DO i = 1, 3
-                        CALL abc_contract(dabdaint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdaba(:, :, :, i), &
+                        CALL abc_contract(dabdaint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdaba(1:ncoa, 1:ncob, 1:ncoc, i), &
                                           scon_a(:, sgfa:), scon_b(:, sgfb:), scon_ca(:, sgfc:), &
                                           ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfca(kaset))
                      ENDDO
@@ -627,7 +622,7 @@ CONTAINS
                                            lca_max(kaset), npgfca(kaset), zetca(:, kaset), lca_min(kaset), &
                                            ra, rb, ra, saba, dmax)
                   ENDIF
-                  CALL abc_contract(abaint(sgfa:m1, sgfb:m2, sgfc:m3), saba, &
+                  CALL abc_contract(abaint(sgfa:m1, sgfb:m2, sgfc:m3), saba(1:ncoa, 1:ncob, 1:ncoc), &
                                     scon_a(:, sgfa:), scon_b(:, sgfb:), scon_ca(:, sgfc:), &
                                     ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfca(kaset))
                   DEALLOCATE (saba)
@@ -732,14 +727,14 @@ CONTAINS
 
       DO iset = 1, nseta
 
-         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         ncoa = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
          sgfa = first_sgfa(1, iset)
 
          DO jset = 1, nsetb
 
             IF (set_radius_a(iset)+set_radius_b(jset) < dab) CYCLE
 
-            ncob = npgfb(jset)*ncoset(lb_max(jset))
+            ncob = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(jset)-1))
             sgfb = first_sgfb(1, jset)
             m1 = sgfa+nsgfa(iset)-1
             m2 = sgfb+nsgfb(jset)-1
@@ -754,22 +749,20 @@ CONTAINS
 
                IF (set_radius_a(iset)+set_radius_cb(kbset) < dab) CYCLE
 
-               ncoc = npgfcb(kbset)*ncoset(lcb_max(kbset))
+               ncoc = npgfcb(kbset)*(ncoset(lcb_max(kbset))-ncoset(lcb_min(kbset)-1))
                sgfc = first_sgfcb(1, kbset)
                m3 = sgfc+nsgfcb(kbset)-1
                IF (ncoa*ncob*ncoc > 0) THEN
                   ALLOCATE (sabb(ncoa, ncob, ncoc))
-                  sabb(:, :, :) = 0._dp
                   IF (calculate_forces) THEN
                      ALLOCATE (sdabb(ncoa, ncob, ncoc, 3))
-                     sdabb(:, :, :, :) = 0._dp
                      CALL overlap_abb(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                       lb_max(jset), lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                                       lcb_max(kbset), lcb_min(kbset), npgfcb(kbset), rpgfcb(:, kbset), zetcb(:, kbset), &
                                       rab, sabb, sdabb)
 
                      DO i = 1, 3
-                        CALL abc_contract(dabbint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdabb(:, :, :, i), &
+                        CALL abc_contract(dabbint(sgfa:m1, sgfb:m2, sgfc:m3, i), sdabb(1:ncoa, 1:ncob, 1:ncoc, i), &
                                           scon_a(:, sgfa:), scon_b(:, sgfb:), scon_cb(:, sgfc:), &
                                           ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfcb(kbset))
                      ENDDO
@@ -788,7 +781,7 @@ CONTAINS
                                            ra, rb, rb, sabb, dmax)
                   ENDIF
 
-                  CALL abc_contract(abbint(sgfa:m1, sgfb:m2, sgfc:m3), sabb, &
+                  CALL abc_contract(abbint(sgfa:m1, sgfb:m2, sgfc:m3), sabb(1:ncoa, 1:ncob, 1:ncoc), &
                                     scon_a(:, sgfa:), scon_b(:, sgfb:), scon_cb(:, sgfc:), &
                                     ncoa, ncob, ncoc, nsgfa(iset), nsgfb(jset), nsgfcb(kbset))
                   DEALLOCATE (sabb)

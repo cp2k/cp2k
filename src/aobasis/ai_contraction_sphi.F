@@ -44,8 +44,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ab_contract', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: m1, m2, msphia, msphib, nn
+      INTEGER                                            :: handle, m1, m2, msphia, msphib, nn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpp
+
+      CALL timeset(routineN, handle)
 
       msphia = SIZE(sphi_a, 1)
       msphib = SIZE(sphi_b, 1)
@@ -62,6 +64,8 @@ CONTAINS
                  abint, nn)
 
       DEALLOCATE (cpp)
+
+      CALL timestop(handle)
 
    END SUBROUTINE ab_contract
 
