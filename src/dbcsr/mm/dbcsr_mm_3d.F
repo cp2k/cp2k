@@ -1790,7 +1790,7 @@ CONTAINS
                                                             product_matrix_meta_size, &
                                                             right_displ_vunmerged
       INTEGER, DIMENSION(3)                              :: requests_reduction_size
-      INTEGER, DIMENSION(6)                              :: requests_reduction
+      INTEGER, DIMENSION(4)                              :: requests_reduction
       INTEGER, DIMENSION(:), POINTER                     :: product_matrix_recv_p, &
                                                             product_matrix_send_p
       INTEGER, DIMENSION(:, :), POINTER :: left_refs_meta_size_layers3D, product_matrix_size_calc, &
@@ -2730,12 +2730,7 @@ CONTAINS
             IF (iproc .GT. 1) THEN
                IF (iproc .GT. 2) THEN
                   CALL timeset(routineN//"_red3D_data", handle3)
-                  ! Check recv requests
-                  CALL mp_waitall(requests_reduction(1:2))
-                  ! Check send requests
-                  IF (iproc .GT. 3) CALL mp_waitall(requests_reduction(3+MOD(iproc, 2)*2:4+MOD(iproc, 2)*2))
-                  ! Check last send requests
-                  IF (iproc .EQ. nranks3D+1) CALL mp_waitall(requests_reduction(3+MOD(iproc-1, 2)*2:4+MOD(iproc-1, 2)*2))
+                  CALL mp_waitall(requests_reduction)
                   CALL timestop(handle3)
                ENDIF
                IF (iproc .LE. nranks3D) THEN
@@ -2749,7 +2744,7 @@ CONTAINS
                   CALL mp_isendrecv(product_matrix_send_p, product_matrix_size_calc(imeta+1, 1), &
                                     product_matrix_recv_p, product_matrix_size_calc(imeta+1, 2), &
                                     layers_3D_C_reduction%grp3D, &
-                                    requests_reduction(3+MOD(iproc, 2)*2), requests_reduction(1))
+                                    requests_reduction(1), requests_reduction(2))
                   !
                   CALL dbcsr_data_ensure_size(product_matrix_recv_comm%matrix%m%data_area, &
                                               product_matrix_size_calc(idata, 2), &
@@ -2767,7 +2762,7 @@ CONTAINS
                   CALL dbcsr_isendrecv_any(data_send, product_matrix_size_calc(imeta+1, 1), &
                                            data_get, product_matrix_size_calc(imeta+1, 2), &
                                            layers_3D_C_reduction%grp3D, &
-                                           requests_reduction(4+MOD(iproc, 2)*2), requests_reduction(2))
+                                           requests_reduction(3), requests_reduction(4))
                   CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1, :), &
                                             product_matrix_size_calc(idata, 2), &
                                             dbcsr_mpi_statistics%data_size_breakdown(:, :, 1), data_type_byte)
