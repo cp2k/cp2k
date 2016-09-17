@@ -1429,6 +1429,8 @@ CONTAINS
          errval = SQRT(-(lv-lt)/lt)
          t2 = lt+dt
          errval = errval*0.5_dp*(1._dp+TANH((lv-t2)/dt/12.566_dp))
+         t2 = ABS(fval-ftarget)-100_dp*ABS(ftarget)
+         IF (t2 > 0._dp) errval = errval+10._dp*t2*t2
       END IF
 
    END FUNCTION get_error_value
