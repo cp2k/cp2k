@@ -112,13 +112,17 @@ CONTAINS
 
       INTEGER                                            :: npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
-      REAL(kind=dp)                                      :: epsilon_drho, epsilon_rho, sx
+      REAL(kind=dp)                                      :: a1, a2, epsilon_drho, epsilon_rho, gam, &
+                                                            sx
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_ndrho, e_rho, norm_drho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       NULLIFY (bo, e_0, e_ndrho, e_rho, norm_drho, rho)
 
       CALL section_vals_val_get(optx_params, "scale_x", r_val=sx)
+      CALL section_vals_val_get(optx_params, "a1", r_val=a1)
+      CALL section_vals_val_get(optx_params, "a2", r_val=a2)
+      CALL section_vals_val_get(optx_params, "gamma", r_val=gam)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
@@ -145,7 +149,8 @@ CONTAINS
       CALL optx_lda_calc(rho=rho, norm_drho=norm_drho, &
                          e_0=e_0, e_rho=e_rho, e_ndrho=e_ndrho, &
                          npoints=npoints, epsilon_rho=epsilon_rho, &
-                         epsilon_drho=epsilon_drho, sx=sx)
+                         epsilon_drho=epsilon_drho, sx=sx, &
+                         a1=a1, a2=a2, gam=gam)
    END SUBROUTINE optx_lda_eval
 
 ! **************************************************************************************************
@@ -171,7 +176,8 @@ CONTAINS
 
       INTEGER                                            :: ispin, npoints
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
-      REAL(kind=dp)                                      :: epsilon_drho, epsilon_rho, sx
+      REAL(kind=dp)                                      :: a1, a2, epsilon_drho, epsilon_rho, gam, &
+                                                            sx
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: e_0
       TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: e_ndrho, e_rho, ndrho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
@@ -185,6 +191,9 @@ CONTAINS
       ENDDO
 
       CALL section_vals_val_get(optx_params, "scale_x", r_val=sx)
+      CALL section_vals_val_get(optx_params, "a1", r_val=a1)
+      CALL section_vals_val_get(optx_params, "a2", r_val=a2)
+      CALL section_vals_val_get(optx_params, "gamma", r_val=gam)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
@@ -220,7 +229,8 @@ CONTAINS
          CALL optx_lsd_calc(rho=rho(ispin)%array, norm_drho=ndrho(ispin)%array, &
                             e_0=e_0, e_rho=e_rho(ispin)%array, e_ndrho=e_ndrho(ispin)%array, &
                             npoints=npoints, epsilon_rho=epsilon_rho, &
-                            epsilon_drho=epsilon_drho, sx=sx)
+                            epsilon_drho=epsilon_drho, sx=sx, &
+                            a1=a1, a2=a2, gam=gam)
       ENDDO
    END SUBROUTINE optx_lsd_eval
 
@@ -235,20 +245,23 @@ CONTAINS
 !> \param epsilon_drho ...
 !> \param npoints ...
 !> \param sx scaling-parameter for exchange
+!> \param a1 a1 coefficient of the OPTX functional
+!> \param a2 a2 coefficient of the OPTX functional
+!> \param gam gamma coefficient of the OPTX functional
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE optx_lda_calc(rho, norm_drho, e_0, e_rho, e_ndrho, &
-                            epsilon_rho, epsilon_drho, npoints, sx)
+                            epsilon_rho, epsilon_drho, npoints, sx, &
+                            a1, a2, gam)
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, norm_drho
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0, e_rho, e_ndrho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, epsilon_drho
       INTEGER, INTENT(in)                                :: npoints
-      REAL(kind=dp), INTENT(in)                          :: sx
+      REAL(kind=dp), INTENT(in)                          :: sx, a1, a2, gam
 
-      REAL(KIND=dp), PARAMETER                           :: a1cx = 0.9784571170284421_dp, &
-                                                            a2 = 1.43169_dp, gam = 0.006_dp, &
+      REAL(KIND=dp), PARAMETER                           :: cx = 0.930525736349100_dp, &
                                                             o43 = 4.0_dp/3.0_dp
 
       INTEGER                                            :: ii
@@ -258,6 +271,7 @@ CONTAINS
 !$OMP     PARALLEL DO DEFAULT (NONE) &
 !$OMP                 SHARED(rho, norm_drho, e_0, e_rho, e_ndrho) &
 !$OMP                 SHARED(epsilon_rho, epsilon_drho, sx, npoints) &
+!$OMP                 SHARED(a1, a2, gam) &
 !$OMP                 PRIVATE(ii, myrho, myndrho, rho43, xs, gamxsxs) &
 !$OMP                 PRIVATE(denom, ex, tmp)
 
@@ -270,7 +284,7 @@ CONTAINS
             xs = (myndrho/rho43)
             gamxsxs = gam*xs*xs
             denom = 1.0_dp/(1.0_dp+gamxsxs)
-            ex = rho43*(a1cx+a2*(gamxsxs*denom)**2)
+            ex = rho43*(a1*cx+a2*(gamxsxs*denom)**2)
             ! 2.0 for both spins
             e_0(ii) = e_0(ii)-(2.0_dp*ex)*sx
             tmp = rho43*2.0_dp*a2*gamxsxs*denom**2*(1.0_dp-gamxsxs*denom)
@@ -295,20 +309,23 @@ CONTAINS
 !> \param epsilon_drho ...
 !> \param npoints ...
 !> \param sx scaling parameter for exchange
+!> \param a1 a1 coefficient of the OPTX functional
+!> \param a2 a2 coefficient of the OPTX functional
+!> \param gam gamma coefficient of the OPTX functional
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE optx_lsd_calc(rho, norm_drho, e_0, e_rho, e_ndrho, &
-                            epsilon_rho, epsilon_drho, npoints, sx)
+                            epsilon_rho, epsilon_drho, npoints, sx, &
+                            a1, a2, gam)
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, norm_drho
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0, e_rho, e_ndrho
       REAL(kind=dp), INTENT(in)                          :: epsilon_rho, epsilon_drho
       INTEGER, INTENT(in)                                :: npoints
-      REAL(kind=dp), INTENT(in)                          :: sx
+      REAL(kind=dp), INTENT(in)                          :: sx, a1, a2, gam
 
-      REAL(KIND=dp), PARAMETER                           :: a1cx = 0.9784571170284421_dp, &
-                                                            a2 = 1.43169_dp, gam = 0.006_dp, &
+      REAL(KIND=dp), PARAMETER                           :: cx = 0.930525736349100_dp, &
                                                             o43 = 4.0_dp/3.0_dp
 
       INTEGER                                            :: ii
@@ -318,6 +335,7 @@ CONTAINS
 !$OMP     PARALLEL DO DEFAULT(NONE) &
 !$OMP                 SHARED(rho, norm_drho, e_0, e_rho, e_ndrho) &
 !$OMP                 SHARED(epsilon_rho, epsilon_drho, npoints, sx) &
+!$OMP                 SHARED(a1, a2, gam) &
 !$OMP                 PRIVATE(ii, denom, ex, gamxsxs, myndrho, myrho) &
 !$OMP                 PRIVATE(rho43, tmp, xs)
 
@@ -330,7 +348,7 @@ CONTAINS
             xs = (myndrho/rho43)
             gamxsxs = gam*xs*xs
             denom = 1.0_dp/(1.0_dp+gamxsxs)
-            ex = rho43*(a1cx+a2*(gamxsxs*denom)**2)
+            ex = rho43*(a1*cx+a2*(gamxsxs*denom)**2)
             ! for a single spin
             e_0(ii) = e_0(ii)-ex*sx
             tmp = rho43*2.0_dp*a2*gamxsxs*denom**2*(1.0_dp-gamxsxs*denom)

@@ -250,6 +250,21 @@ CONTAINS
                           default_r_val=1._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, "a1", &
+                          description="OPTX a1 coefficient", &
+                          default_r_val=1.05151_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, "a2", &
+                          description="OPTX a2 coefficient", &
+                          default_r_val=1.43169_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, "gamma", &
+                          description="OPTX gamma coefficient", &
+                          default_r_val=0.006_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

@@ -3087,6 +3087,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, "optx_a1", &
+                          description="OPTX a1 coefficient", &
+                          default_r_val=1.05151_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, "optx_a2", &
+                          description="OPTX a2 coefficient", &
+                          default_r_val=1.43169_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, "optx_gamma", &
+                          description="OPTX gamma coefficient", &
+                          default_r_val=0.006_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="BLOCK_LIST", &
                           description="Specifies a list of atoms.", &
                           usage="LIST {integer} {integer} .. {integer}", &
