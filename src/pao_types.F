@@ -211,7 +211,11 @@ CONTAINS
    SUBROUTINE pao_finalize(pao)
       TYPE(pao_env_type)                                 :: pao
 
-      IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| finalize"
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_finalize', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
 
       CALL cp_dbcsr_release(pao%matrix_X)
       CALL cp_dbcsr_release(pao%matrix_Y)
@@ -227,6 +231,8 @@ CONTAINS
       CALL dbcsr_distribution_release(pao%diag_distribution)
 
       !TODO: should finish printkey
+
+      CALL timestop(handle)
 
    END SUBROUTINE pao_finalize
 
