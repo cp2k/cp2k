@@ -68,7 +68,7 @@ CONTAINS
 ! Upon first call initialize all matrices needed curing optimization
 ! In addtion transform P into orthonormal basis. Will be scaled by 0.5 in closed shell case
 ! Only to be done once as it will be stored and reused afterwards
-! TRS4 might give nondiempotent P therefore McWeeny purification is applied on initial P
+! TRS4 might yield a non-idempotent P therefore McWeeny purification is applied on initial P
 
       IF (.NOT. ALLOCATED(ls_scf_env%curvy_data%matrix_dp)) THEN
          CALL init_curvy(ls_scf_env%curvy_data, ls_scf_env%matrix_s, ls_scf_env%nspins)
