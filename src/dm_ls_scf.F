@@ -430,6 +430,8 @@ CONTAINS
             DO ispin = 1, SIZE(ls_scf_env%matrix_p)
                ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
                IF (SIZE(ls_scf_env%matrix_p) == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 0.5_dp)
+               ! to ensure that noisy blocks do not build up during MD (in particular with curvy) filter that guess a bit more
+               CALL cp_dbcsr_filter(ls_scf_env%matrix_p(ispin), ls_scf_env%eps_filter**(2.0_dp/3.0_dp))
                CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin), ls_scf_env%eps_filter, 3)
                IF (SIZE(ls_scf_env%matrix_p) == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 2.0_dp)
 

@@ -18,7 +18,7 @@ MODULE pao_methods
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_checksum, cp_dbcsr_col_block_sizes, &
         cp_dbcsr_complete_redistribute, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_distribution_new, &
+        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_distribution_new, cp_dbcsr_filter, &
         cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_iterator, &
         cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
         cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
@@ -1230,6 +1230,8 @@ CONTAINS
       ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
       DO ispin = 1, dft_control%nspins
          IF (dft_control%nspins == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 0.5_dp)
+         ! to ensure that noisy blocks do not build up during MD (in particular with curvy) filter that guess a bit more
+         CALL cp_dbcsr_filter(ls_scf_env%matrix_p(ispin), ls_scf_env%eps_filter**(2.0_dp/3.0_dp))
          ! we could go to the orthonomal basis, but it seems not worth the trouble
          ! TODO : 10 iterations is a conservative upper bound, figure out when it fails
          CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin), ls_scf_env%matrix_s, ls_scf_env%eps_filter, 10)
