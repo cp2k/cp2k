@@ -1150,6 +1150,12 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(ls_scf_env_type), TARGET                      :: ls_scf_env
 
+      CHARACTER(len=*), PARAMETER :: routineN = 'pao_guess_initial_P'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
       IF (ls_scf_env%scf_history%istore > 0) THEN
          CALL pao_aspc_guess_P(pao, qs_env, ls_scf_env)
          pao%need_initial_scf = .TRUE.
@@ -1164,6 +1170,8 @@ CONTAINS
             pao%need_initial_scf = .TRUE.
          ENDIF
       ENDIF
+
+      CALL timestop(handle)
 
    END SUBROUTINE pao_guess_initial_P
 
