@@ -15,8 +15,9 @@ MODULE iterate_matrix
         cp_dbcsr_gershgorin_norm, cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, &
         cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, &
         cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, &
-        cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_arnoldi_data, dbcsr_norm_maxabsnorm, &
-        dbcsr_type_no_symmetry, deallocate_arnoldi_data, get_selected_ritz_val
+        cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_arnoldi_data, &
+        dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, deallocate_arnoldi_data, &
+        get_selected_ritz_val
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -671,7 +672,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ispin, unit_nr
-      REAL(KIND=dp)                                      :: frob_norm
+      REAL(KIND=dp)                                      :: frob_norm, trace
       TYPE(cp_dbcsr_type)                                :: matrix_pp, matrix_tmp
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -687,6 +688,7 @@ CONTAINS
       CALL cp_dbcsr_create(matrix_pp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_init(matrix_tmp)
       CALL cp_dbcsr_create(matrix_tmp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
+      CALL cp_dbcsr_trace(matrix_p(1), trace)
 
       DO ispin = 1, SIZE(matrix_p)
          DO i = 1, max_steps
@@ -698,13 +700,14 @@ CONTAINS
             CALL cp_dbcsr_add(matrix_tmp, matrix_p(ispin), 1.0_dp, -1.0_dp)
             frob_norm = cp_dbcsr_frobenius_norm(matrix_tmp) ! tmp = PP - P
             IF (unit_nr > 0) WRITE (unit_nr, '(t3,a,f16.8)') "McWeeny: Deviation of idempotency", frob_norm
-            IF (frob_norm < 1000_dp*threshold .AND. i > 1) EXIT
 
             ! construct new P
             CALL cp_dbcsr_copy(matrix_tmp, matrix_pp)
             CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_pp, matrix_p(ispin), &
                                    3.0_dp, matrix_tmp, filter_eps=threshold)
             CALL cp_dbcsr_copy(matrix_p(ispin), matrix_tmp) ! tmp = 3PP - 2PPP
+
+            IF (frob_norm < trace*SQRT(threshold)) EXIT
          END DO
       END DO
 
@@ -734,7 +737,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ispin, unit_nr
-      REAL(KIND=dp)                                      :: frob_norm
+      REAL(KIND=dp)                                      :: frob_norm, trace
       TYPE(cp_dbcsr_type)                                :: matrix_ps, matrix_psp, matrix_test
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -760,18 +763,20 @@ CONTAINS
                                    0.0_dp, matrix_ps, filter_eps=threshold)
             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_ps, matrix_p(ispin), &
                                    0.0_dp, matrix_psp, filter_eps=threshold)
+            IF (i == 1) CALL cp_dbcsr_trace(matrix_ps, trace)
 
             ! test convergence
             CALL cp_dbcsr_copy(matrix_test, matrix_psp)
             CALL cp_dbcsr_add(matrix_test, matrix_p(ispin), 1.0_dp, -1.0_dp)
             frob_norm = cp_dbcsr_frobenius_norm(matrix_test) ! test = PSP - P
             IF (unit_nr > 0) WRITE (unit_nr, '(t3,a,2f16.8)') "McWeeny: Deviation of idempotency", frob_norm
-            IF (frob_norm < 1000_dp*threshold .AND. i > 1) EXIT
 
             ! construct new P
             CALL cp_dbcsr_copy(matrix_p(ispin), matrix_psp)
             CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_ps, matrix_psp, &
                                    3.0_dp, matrix_p(ispin), filter_eps=threshold)
+
+            IF (frob_norm < trace*SQRT(threshold)) EXIT
          END DO
       END DO
 
