@@ -19,9 +19,21 @@ ALL_KERNELS = (Kernel_dnt_tiny, Kernel_dnt_small, Kernel_dnt_medium, Kernel_dnt_
 
 #===============================================================================
 def main():
+    usage = "Usage: tune.py <blocksize 1> ... <blocksize N>"
+    parser = OptionParser(usage)
+    parser.add_option("-p", "--params", metavar="filename.txt",
+        default="parameters_K20X.txt",
+        help="Default: %default")
+
+    (options, args) = parser.parse_args(sys.argv)
     if(len(sys.argv) < 2):
-        print("Usage: tune.py <blocksize 1> ... <blocksize N>")
+        print(usage)
         sys.exit(1)
+
+    # read existing parameters
+    param_fn = options.params
+    all_kernels = eval(open(param_fn).read())
+    print("Libcusmm: Found %d existing parameter sets."%len(all_kernels))
 
     blocksizes = [int(i) for i in sys.argv[1:]]
     assert(len(set(blocksizes)) == len(blocksizes))
@@ -30,6 +42,11 @@ def main():
     triples  = combinations(*blocksizes)
 
     for (m, n, k)  in triples:
+        existing = [kern for kern in all_kernels if kern.can_handle(m,n,k)]
+        if(existing):
+            print("Found existing parameter set for %dx%dx%d, skipping."%(m,n,k))
+            continue
+
         outdir = "tune_%dx%dx%d/"%(m,n,k)
         if(path.exists(outdir)):
             print("Directory %s exists already, skipping."%outdir)
