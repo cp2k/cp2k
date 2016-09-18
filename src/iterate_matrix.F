@@ -700,6 +700,7 @@ CONTAINS
             CALL cp_dbcsr_add(matrix_tmp, matrix_p(ispin), 1.0_dp, -1.0_dp)
             frob_norm = cp_dbcsr_frobenius_norm(matrix_tmp) ! tmp = PP - P
             IF (unit_nr > 0) WRITE (unit_nr, '(t3,a,f16.8)') "McWeeny: Deviation of idempotency", frob_norm
+            IF (unit_nr > 0) CALL m_flush(unit_nr)
 
             ! construct new P
             CALL cp_dbcsr_copy(matrix_tmp, matrix_pp)
@@ -770,6 +771,7 @@ CONTAINS
             CALL cp_dbcsr_add(matrix_test, matrix_p(ispin), 1.0_dp, -1.0_dp)
             frob_norm = cp_dbcsr_frobenius_norm(matrix_test) ! test = PSP - P
             IF (unit_nr > 0) WRITE (unit_nr, '(t3,a,2f16.8)') "McWeeny: Deviation of idempotency", frob_norm
+            IF (unit_nr > 0) CALL m_flush(unit_nr)
 
             ! construct new P
             CALL cp_dbcsr_copy(matrix_p(ispin), matrix_psp)
