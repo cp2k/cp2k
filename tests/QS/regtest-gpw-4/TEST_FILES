@@ -29,7 +29,7 @@ H2O+SC.inp                                             0
 # spin restraint
 spin_restraint.inp                                     1      9e-11            -4.6386880246752602
 #New grouping colvar
-H2O-meta_g.inp                                         1    1.0E-14             -17.16168353864566
+H2O-meta_g.inp                    1     2e-14             -17.16168353864566
 #Colvar for hydronium
 H2O-meta_hydro.inp                                     1      1e-13             -77.65379785881467 
 #NPT ensemble with QS
