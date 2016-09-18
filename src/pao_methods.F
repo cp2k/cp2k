@@ -1122,9 +1122,9 @@ CONTAINS
       ! We are storing the density matrix in the non-orthonormal primary basis.
       ! While the orthonormal basis would yield better extrapolations,
       ! we simply can not affort to calculat S_sqrt in the primary basis.
-      ! We can't call matrix_ls_to_qs because it uses cp_dbcsr_copy_into_existing()
       DO ispin = 1, dft_control%nspins
          ! reverse possible molecular clustering
+         ! We can't call matrix_ls_to_qs because it uses cp_dbcsr_copy_into_existing()
          CALL matrix_decluster(matrix_p_dc, ls_scf_env%matrix_p(ispin), ls_mstruct)
 
          ! transform into primary basis
@@ -1191,7 +1191,7 @@ CONTAINS
       INTEGER                                            :: handle, iaspc, ispin, istore, naspc
       REAL(dp)                                           :: alpha
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type)                                :: matrix_P, matrix_tmp
+      TYPE(cp_dbcsr_type)                                :: matrix_P
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
 
@@ -1203,8 +1203,6 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Calculating initial guess with ASPC"
 
-      CALL cp_dbcsr_init(matrix_tmp)
-      CALL cp_dbcsr_create(matrix_tmp, template=ls_mstruct%matrix_A)
       CALL cp_dbcsr_init(matrix_P)
       CALL cp_dbcsr_create(matrix_P, template=matrix_s(1)%matrix)
 
@@ -1220,11 +1218,9 @@ CONTAINS
          ENDDO
 
          ! transform back from primary basis into pao basis
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_P, ls_mstruct%matrix_A, 0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, ls_mstruct%matrix_A, matrix_tmp, 0.0_dp, ls_scf_env%matrix_p(ispin))
+         CALL matrix_qs_to_ls(ls_scf_env%matrix_p(ispin), matrix_P, ls_scf_env%ls_mstruct, covariant=.FALSE.)
       ENDDO
 
-      CALL cp_dbcsr_release(matrix_tmp)
       CALL cp_dbcsr_release(matrix_P)
 
       ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
