@@ -210,17 +210,17 @@ MODULE cp_control_types
 ! \brief some parameters useful for becke_restraints
 ! **************************************************************************************************
    TYPE becke_restraint_type
-      INTEGER                         :: ref_count
-      REAL(KIND=dp)                 :: strength
-      REAL(KIND=dp)                 :: TARGET
-      REAL(KIND=dp)                 :: becke_order_p
-      INTEGER                         :: functional_form
-      INTEGER                         :: natoms
-      INTEGER, POINTER, DIMENSION(:)  :: atoms
-      TYPE(pw_p_type)                 :: becke_pot
-      LOGICAL                         :: need_pot
-      REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
-      INTEGER                         :: density_type
+      INTEGER                              :: ref_count
+      REAL(KIND=dp)                        :: strength
+      REAL(KIND=dp)                        :: TARGET
+      REAL(KIND=dp)                        :: becke_order_p
+      INTEGER                              :: functional_form
+      INTEGER                              :: natoms
+      INTEGER, POINTER, DIMENSION(:)       :: atoms
+      TYPE(pw_p_type)                      :: becke_pot
+      LOGICAL                              :: need_pot
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: coeff
+      INTEGER                              :: density_type
    END TYPE becke_restraint_type
 
 ! **************************************************************************************************
@@ -228,9 +228,9 @@ MODULE cp_control_types
 ! **************************************************************************************************
    TYPE s2_restraint_type
       INTEGER                         :: ref_count
-      REAL(KIND=dp)                 :: strength
-      REAL(KIND=dp)                 :: TARGET
-      REAL(KIND=dp)                 :: s2_order_p
+      REAL(KIND=dp)                   :: strength
+      REAL(KIND=dp)                   :: TARGET
+      REAL(KIND=dp)                   :: s2_order_p
       INTEGER                         :: functional_form
    END TYPE s2_restraint_type
 
@@ -242,14 +242,16 @@ MODULE cp_control_types
    END TYPE admm_block_type
 
    TYPE admm_control_type
-      REAL(KIND=dp)                 :: eps_filter
-      INTEGER                         :: purification_method
-      INTEGER                         :: method
-      LOGICAL                         :: charge_constrain
-      INTEGER                         :: scaling_model
-      INTEGER                         :: aux_exch_func
+      REAL(KIND=dp)                         :: eps_filter
+      INTEGER                               :: purification_method
+      INTEGER                               :: method
+      LOGICAL                               :: charge_constrain
+      INTEGER                               :: scaling_model
+      INTEGER                               :: aux_exch_func
+      LOGICAL                               :: aux_exch_func_param
+      REAL(KIND=dp), DIMENSION(3)           :: aux_x_param
       TYPE(admm_block_type), DIMENSION(:), &
-         ALLOCATABLE :: blocks
+         ALLOCATABLE                        :: blocks
    END TYPE admm_control_type
 
 ! **************************************************************************************************

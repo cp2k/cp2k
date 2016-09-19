@@ -125,6 +125,8 @@ MODULE admm_types
       LOGICAL                                  :: charge_constrain = .FALSE.
       INTEGER                                  :: scaling_model, &
                                                   aux_exch_func
+      LOGICAL                                  :: aux_exch_func_param
+      REAL(KIND=dp), DIMENSION(3)              :: aux_x_param
       LOGICAL                                  :: block_dm = .FALSE.
       LOGICAL                                  :: block_fit = .FALSE.
       INTEGER, DIMENSION(:, :), POINTER         :: block_map => Null()
@@ -133,7 +135,7 @@ MODULE admm_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief creates ADDE environment, initializes the basic types
+!> \brief creates ADMM environment, initializes the basic types
 !>
 !> \param admm_env The ADMM env
 !> \param admm_control ...
@@ -302,6 +304,8 @@ CONTAINS
       admm_env%block_dm = ((admm_control%method == do_admm_blocking_purify_full) .OR. &
                            (admm_control%method == do_admm_blocked_projection))
       admm_env%block_fit = admm_control%method == do_admm_blocked_projection
+      admm_env%aux_exch_func_param = admm_control%aux_exch_func_param
+      admm_env%aux_x_param(:) = admm_control%aux_x_param(:)
 
       IF ((admm_control%method == do_admm_blocking_purify_full) .OR. &
           (admm_control%method == do_admm_blocked_projection)) THEN

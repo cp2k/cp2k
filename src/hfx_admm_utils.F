@@ -830,8 +830,18 @@ CONTAINS
                                    r_val=-hfx_fraction)
 
          IF (admm_env%aux_exch_func == do_admm_aux_exch_func_pbex) THEN
-            CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%SCALE_C", &
-                                      r_val=0.0_dp)
+            CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%SCALE_C", r_val=0.0_dp)
+         END IF
+
+         IF (admm_env%aux_exch_func == do_admm_aux_exch_func_opt) THEN
+            IF (admm_env%aux_exch_func_param) THEN
+               CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%A1", &
+                                         r_val=admm_env%aux_x_param(1))
+               CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%A2", &
+                                         r_val=admm_env%aux_x_param(2))
+               CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%GAMMA", &
+                                         r_val=admm_env%aux_x_param(3))
+            END IF
          END IF
 
          !** Now modify the functionals for the primary basis
@@ -859,6 +869,15 @@ CONTAINS
             IF (admm_env%aux_exch_func == do_admm_aux_exch_func_pbex) THEN
                CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%SCALE_C", &
                                          r_val=0.0_dp)
+            ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_opt) THEN
+               IF (admm_env%aux_exch_func_param) THEN
+                  CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%A1", &
+                                            r_val=admm_env%aux_x_param(1))
+                  CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%A2", &
+                                            r_val=admm_env%aux_x_param(2))
+                  CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%GAMMA", &
+                                            r_val=admm_env%aux_x_param(3))
+               END IF
             END IF
 
          ELSE
@@ -867,7 +886,9 @@ CONTAINS
             scale_x = scale_x+hfx_fraction
             CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%SCALE_X", &
                                       r_val=scale_x)
-
+            IF (admm_env%aux_exch_func == do_admm_aux_exch_func_opt) THEN
+               CPASSERT(.NOT. admm_env%aux_exch_func_param)
+            END IF
          END IF
 
       END IF

@@ -90,8 +90,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
       INTEGER                                            :: excitations, i, method_id, nrep, &
                                                             xc_deriv_method_id
-      LOGICAL                                            :: do_ot, do_rtp, is_present, l_param, &
-                                                            not_SE, was_present
+      LOGICAL                                            :: do_ot, do_rtp, explicit, is_present, &
+                                                            l_param, not_SE, was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -194,6 +194,18 @@ CONTAINS
 
          CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_CORRECTION_FUNC", i_val=method_id)
          dft_control%admm_control%aux_exch_func = method_id
+
+         ! parameters for X functional
+         dft_control%admm_control%aux_exch_func_param = .FALSE.
+         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%OPTX_A1", explicit=explicit, &
+                                   r_val=dft_control%admm_control%aux_x_param(1))
+         IF (explicit) dft_control%admm_control%aux_exch_func_param = .TRUE.
+         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%OPTX_A2", explicit=explicit, &
+                                   r_val=dft_control%admm_control%aux_x_param(2))
+         IF (explicit) dft_control%admm_control%aux_exch_func_param = .TRUE.
+         CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%OPTX_GAMMA", explicit=explicit, &
+                                   r_val=dft_control%admm_control%aux_x_param(3))
+         IF (explicit) dft_control%admm_control%aux_exch_func_param = .TRUE.
 
          CALL read_admm_block_list(dft_control%admm_control, dft_section)
 
