@@ -708,7 +708,7 @@ CONTAINS
                                    3.0_dp, matrix_tmp, filter_eps=threshold)
             CALL cp_dbcsr_copy(matrix_p(ispin), matrix_tmp) ! tmp = 3PP - 2PPP
 
-            IF (frob_norm < trace*SQRT(threshold)) EXIT
+            IF (frob_norm < SQRT(trace*threshold)) EXIT
          END DO
       END DO
 
@@ -778,7 +778,7 @@ CONTAINS
             CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_ps, matrix_psp, &
                                    3.0_dp, matrix_p(ispin), filter_eps=threshold)
 
-            IF (frob_norm < trace*SQRT(threshold)) EXIT
+            IF (frob_norm < SQRT(trace*threshold)) EXIT
          END DO
       END DO
 
