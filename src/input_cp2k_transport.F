@@ -262,7 +262,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="OBC_EQUILIBRIUM", &
                           description="Compute the equilibrium density with open boundary conditions.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.FALSE.)
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
