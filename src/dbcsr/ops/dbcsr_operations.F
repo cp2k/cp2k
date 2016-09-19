@@ -194,9 +194,6 @@ MODULE dbcsr_operations
    INTERFACE dbcsr_maxabs
       MODULE PROCEDURE dbcsr_maxabs_r8
    END INTERFACE
-   INTERFACE dbcsr_frobenius_norm
-      MODULE PROCEDURE dbcsr_frobenius_norm_r8
-   END INTERFACE
 
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
@@ -2666,14 +2663,13 @@ CONTAINS
 !> \param local ...
 !> \retval norm ...
 ! **************************************************************************************************
-   FUNCTION dbcsr_frobenius_norm_r8(matrix, local) RESULT(norm)
+   FUNCTION dbcsr_frobenius_norm(matrix, local) RESULT(norm)
 
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       LOGICAL, INTENT(in), OPTIONAL                      :: local
       REAL(KIND=real_8)                                  :: norm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_frobenius_norm_r8', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_frobenius_norm'
 
       COMPLEX(KIND=real_4), DIMENSION(:, :), POINTER     :: data_c
       COMPLEX(KIND=real_8), DIMENSION(:, :), POINTER     :: data_z
@@ -2730,7 +2726,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END FUNCTION dbcsr_frobenius_norm_r8
+   END FUNCTION dbcsr_frobenius_norm
 
 ! **************************************************************************************************
 !> \brief Sums blocks in a replicated dbcsr matrix, which has the same structure on all ranks.
