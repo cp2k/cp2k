@@ -338,31 +338,42 @@ CONTAINS
 !> \param matrix_ls ...
 !> \param ls_mstruct ...
 !> \param covariant ...
+!> \param keep_sparsity If set dbcsr_copy_into_existing will be used, by default set to .TRUE.
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !>       2015.09 add support for PAO [Ole Schuett]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE matrix_ls_to_qs(matrix_qs, matrix_ls, ls_mstruct, covariant)
+   SUBROUTINE matrix_ls_to_qs(matrix_qs, matrix_ls, ls_mstruct, covariant, keep_sparsity)
       TYPE(cp_dbcsr_type)                                :: matrix_qs, matrix_ls
       TYPE(ls_mstruct_type), INTENT(IN), TARGET          :: ls_mstruct
       LOGICAL                                            :: covariant
+      LOGICAL, OPTIONAL                                  :: keep_sparsity
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_ls_to_qs'
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      LOGICAL                                            :: my_keep_sparsity
       TYPE(cp_dbcsr_type)                                :: matrix_declustered, matrix_tmp1, &
                                                             matrix_tmp2
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_trafo
 
       CALL timeset(routineN, handle)
 
+      my_keep_sparsity = .TRUE.
+      IF (PRESENT(keep_sparsity)) &
+         my_keep_sparsity = keep_sparsity
+
       IF (.NOT. ls_mstruct%do_pao) THEN
          CALL cp_dbcsr_init(matrix_declustered)
          CALL cp_dbcsr_create(matrix_declustered, template=matrix_qs)
          CALL matrix_decluster(matrix_declustered, matrix_ls, ls_mstruct)
-         CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_declustered) ! preserve sparsity of matrix_qs
+         IF (my_keep_sparsity) THEN
+            CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_declustered) ! preserve sparsity of matrix_qs
+         ELSE
+            CALL cp_dbcsr_copy(matrix_qs, matrix_declustered) ! overwrite sparsity of matrix_qs
+         ENDIF
          CALL cp_dbcsr_release(matrix_declustered)
 
       ELSE ! using pao
@@ -383,7 +394,11 @@ CONTAINS
          CALL cp_dbcsr_create(matrix_tmp2, template=matrix_qs)
          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_trafo, matrix_declustered, 0.0_dp, matrix_tmp1)
          CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp1, matrix_trafo, 0.0_dp, matrix_tmp2)
-         CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_tmp2) ! preserve sparsity of matrix_qs
+         IF (my_keep_sparsity) THEN
+            CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_tmp2) ! preserve sparsity of matrix_qs
+         ELSE
+            CALL cp_dbcsr_copy(matrix_qs, matrix_tmp2) ! overwrite sparsity of matrix_qs
+         ENDIF
          CALL cp_dbcsr_release(matrix_declustered)
          CALL cp_dbcsr_release(matrix_tmp1)
          CALL cp_dbcsr_release(matrix_tmp2)

@@ -34,6 +34,7 @@ MODULE pao_methods
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                               ls_scf_qs_atomic_guess,&
                                               matrix_decluster,&
+                                              matrix_ls_to_qs,&
                                               matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
@@ -1084,9 +1085,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_store_P'
 
       INTEGER                                            :: handle, ispin, istore
-      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type)                                :: matrix_p_dc, matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -1109,32 +1108,14 @@ CONTAINS
          ENDDO
       ENDIF
 
-      CALL cp_dbcsr_init(matrix_p_dc)
-      pao_blk_sizes => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
-      CALL cp_dbcsr_create(matrix_p_dc, &
-                           template=matrix_s(1)%matrix, &
-                           row_blk_size=pao_blk_sizes, &
-                           col_blk_size=pao_blk_sizes)
-
-      CALL cp_dbcsr_init(matrix_tmp)
-      CALL cp_dbcsr_create(matrix_tmp, template=ls_mstruct%matrix_B)
-
       ! We are storing the density matrix in the non-orthonormal primary basis.
       ! While the orthonormal basis would yield better extrapolations,
       ! we simply can not affort to calculat S_sqrt in the primary basis.
       DO ispin = 1, dft_control%nspins
-         ! reverse possible molecular clustering
-         ! We can't call matrix_ls_to_qs because it uses cp_dbcsr_copy_into_existing()
-         CALL matrix_decluster(matrix_p_dc, ls_scf_env%matrix_p(ispin), ls_mstruct)
-
          ! transform into primary basis
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_mstruct%matrix_B, matrix_p_dc, &
-                                0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp, ls_mstruct%matrix_B, &
-                                0.0_dp, ls_scf_env%scf_history%matrix(ispin, istore))
+         CALL matrix_ls_to_qs(ls_scf_env%scf_history%matrix(ispin, istore), ls_scf_env%matrix_p(ispin), &
+                              ls_scf_env%ls_mstruct, covariant=.FALSE., keep_sparsity=.FALSE.)
       ENDDO
-      CALL cp_dbcsr_release(matrix_tmp)
-      CALL cp_dbcsr_release(matrix_p_dc)
 
       CALL timestop(handle)
    END SUBROUTINE pao_store_P
@@ -1166,7 +1147,8 @@ CONTAINS
             pao%preopt_dm_file = "" ! load only for first MD step
          ELSE
             CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env%energy_init)
-            IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') " PAO| Energy from initial atomic guess:", ls_scf_env%energy_init
+            IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') &
+               " PAO| Energy from initial atomic guess:", ls_scf_env%energy_init
             pao%need_initial_scf = .TRUE.
          ENDIF
       ENDIF
@@ -1222,6 +1204,8 @@ CONTAINS
       ENDDO
 
       CALL cp_dbcsr_release(matrix_P)
+
+      CALL pao_check_trace_PS(ls_scf_env) ! sanity check
 
       ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
       DO ispin = 1, dft_control%nspins

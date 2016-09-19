@@ -11,6 +11,7 @@ H2O_pao_gth.inp                   11     9e-05    -17.202700812326320
 H2O_pao_exp_cluster.inp           11     1e-08    -17.202700812326320
 H2O_pao_exp_cluster_sp.inp        11     4e-07    -17.202700812326320
 H2O_pao_exp_sp.inp                11     1e-07    -17.202700812326320
+H2O_pao_exp_cluster_MD.inp         2     1e-07    -17.2025787384
 #
 # hybrids calculations where Oxygen uses full primary basis set
 #
