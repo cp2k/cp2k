@@ -2923,7 +2923,7 @@
        recv_request,tag)
     COMPLEX(kind=real_4), DIMENSION(:)                    :: msgin
     INTEGER, INTENT(IN)                      :: dest
-    COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: msgout
+    COMPLEX(kind=real_4), DIMENSION(:)                    :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: send_request, recv_request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3184,7 +3184,7 @@
 !>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_cv(msgout,source,comm,request,tag)
-    COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: msgout
+    COMPLEX(kind=real_4), DIMENSION(:)                    :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag

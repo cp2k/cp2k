@@ -2923,7 +2923,7 @@
        recv_request,tag)
     INTEGER(KIND=int_4), DIMENSION(:)                    :: msgin
     INTEGER, INTENT(IN)                      :: dest
-    INTEGER(KIND=int_4), DIMENSION(:), POINTER           :: msgout
+    INTEGER(KIND=int_4), DIMENSION(:)                    :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: send_request, recv_request
     INTEGER, INTENT(in), OPTIONAL            :: tag
@@ -3184,7 +3184,7 @@
 !>      arrays can be pointers or assumed shape, but they must be contiguous!
 ! *****************************************************************************
   SUBROUTINE mp_irecv_iv(msgout,source,comm,request,tag)
-    INTEGER(KIND=int_4), DIMENSION(:), POINTER           :: msgout
+    INTEGER(KIND=int_4), DIMENSION(:)                    :: msgout
     INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(out)                     :: request
     INTEGER, INTENT(in), OPTIONAL            :: tag
