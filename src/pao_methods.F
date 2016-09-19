@@ -1205,8 +1205,6 @@ CONTAINS
 
       CALL cp_dbcsr_release(matrix_P)
 
-      CALL pao_check_trace_PS(ls_scf_env) ! sanity check
-
       ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
       DO ispin = 1, dft_control%nspins
          IF (dft_control%nspins == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 0.5_dp)
@@ -1217,6 +1215,8 @@ CONTAINS
          CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin), ls_scf_env%matrix_s, ls_scf_env%eps_filter, 10)
          IF (dft_control%nspins == 1) CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin), 2.0_dp)
       ENDDO
+
+      CALL pao_check_trace_PS(ls_scf_env) ! sanity check
 
       ! compute corresponding energy and ks matrix
       CALL ls_scf_dm_to_ks(qs_env, ls_scf_env, ls_scf_env%energy_init, iscf=0)
