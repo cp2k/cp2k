@@ -307,9 +307,6 @@ CONTAINS
          CALL cp_dbcsr_create(matrix_in_nosym, template=matrix_in, matrix_type="N")
          CALL cp_dbcsr_desymmetrize(matrix_in, matrix_in_nosym)
 
-         ! complete_redistribute does not zero blocks that might be present in the target but not in the source
-         CALL cp_dbcsr_set(matrix_out, 0.0_dp)
-
          ! perform the magic complete redistribute copy
          IF (ls_mstruct%single_precision) THEN
             CALL cp_dbcsr_init(matrix_tmp)
@@ -431,9 +428,6 @@ CONTAINS
          CALL cp_dbcsr_copy(matrix_out, matrix_in) ! takes care of an eventual data_type conversion
 
       CASE (ls_cluster_molecular)
-         ! complete_redistribute does not zero blocks that might be present in the target but not in the source
-         CALL cp_dbcsr_set(matrix_out, 0.0_dp)
-
          ! perform the magic complete redistribute copy
          IF (ls_mstruct%single_precision) THEN
             CALL cp_dbcsr_init(matrix_tmp)

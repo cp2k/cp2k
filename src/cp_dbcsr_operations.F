@@ -19,14 +19,14 @@ MODULE cp_dbcsr_operations
    USE cp_dbcsr_interface,              ONLY: &
         convert_sizes_to_offsets, cp_add_work_coordinate, cp_create_bl_distribution, cp_dbcsr_add, &
         cp_dbcsr_col_block_sizes, cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_distribution, cp_dbcsr_distribution_new, cp_dbcsr_finalize, cp_dbcsr_get_data_p, &
-        cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_get_info, &
-        cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_mp_new, cp_dbcsr_mp_release, cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_norm, &
-        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_type, &
-        cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, cp_dbcsr_work_create, cp_set_work_size, &
-        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
+        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_distribution_new, &
+        cp_dbcsr_finalize, cp_dbcsr_get_data_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
+        cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
+        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+        cp_dbcsr_iterator_stop, cp_dbcsr_mp_new, cp_dbcsr_mp_release, cp_dbcsr_multiply, &
+        cp_dbcsr_name, cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+        cp_dbcsr_type, cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, cp_dbcsr_work_create, &
+        cp_set_work_size, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, dbcsr_distribution_init, &
         dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
         dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
@@ -1171,7 +1171,7 @@ CONTAINS
       REAL(KIND=sp), DIMENSION(:, :), POINTER            :: fm_block_sp
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_type)                                :: bc_mat
+      TYPE(cp_dbcsr_type)                                :: bc_mat, matrix_nosym
       TYPE(dbcsr_distribution_obj)                       :: bc_dist
 
 !   ---------------------------------------------------------------------------
@@ -1213,7 +1213,12 @@ CONTAINS
                            dbcsr_type_no_symmetry, row_blk_size_tmp, col_blk_size_tmp, nze=0, &
                            reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(bc_dist)
-      CALL cp_dbcsr_complete_redistribute(matrix, bc_mat)
+
+      CALL cp_dbcsr_init(matrix_nosym)
+      CALL cp_dbcsr_create(matrix_nosym, template=matrix, matrix_type="N")
+      CALL cp_dbcsr_desymmetrize(matrix, matrix_nosym)
+      CALL cp_dbcsr_complete_redistribute(matrix_nosym, bc_mat)
+      CALL cp_dbcsr_release(matrix_nosym)
 
       ! Find the local extents of the local blocked rows so that index lookups
       ! into the FM matrix work correctly.

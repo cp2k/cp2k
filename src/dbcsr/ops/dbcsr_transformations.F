@@ -13,7 +13,6 @@
 !> - 2010-02-18 Moved from dbcsr_util and dbcsr_operations
 ! **************************************************************************************************
 MODULE dbcsr_transformations
-
    USE array_types,                     ONLY: array_data,&
                                               array_hold,&
                                               array_i1d_obj,&
@@ -77,6 +76,7 @@ MODULE dbcsr_transformations
                                               hybrid_alltoall_i1,&
                                               hybrid_alltoall_s1,&
                                               hybrid_alltoall_z1
+   USE dbcsr_operations,                ONLY: dbcsr_set
    USE dbcsr_ptr_util,                  ONLY: pointer_view
    USE dbcsr_types,                     ONLY: &
         dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_meta_size, dbcsr_mp_obj, &
@@ -1617,8 +1617,7 @@ CONTAINS
 !>        matrix.
 !> \param[in] matrix          matrix to redistribute
 !> \param[in,out] redist      redistributed matrix
-!> \param[in] keep_sparsity   (optional) retains the sparsity of the redist
-!>                            matrix
+!> \param[in] keep_sparsity   (optional) retains the sparsity of the redist matrix
 ! **************************************************************************************************
   SUBROUTINE dbcsr_complete_redistribute(matrix, redist, keep_sparsity)
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
@@ -1656,16 +1655,22 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
+
     IF(.NOT.dbcsr_valid_index(matrix%m))&
        CPABORT("Input not valid.")
     IF(.NOT.dbcsr_is_initialized(redist%m))&
        CPABORT("Output matrix not initialized.")
     IF(matrix%m%replication_type.NE.dbcsr_repl_none)&
        CPWARN("Can not redistribute replicated matrix.")
+    IF(dbcsr_has_symmetry (matrix).AND..NOT.dbcsr_has_symmetry (redist))&
+       CPABORT("Can not redistribute a symmetric matrix into a non-symmetric one")
     !
     my_keep_sparsity = .FALSE.
     IF (PRESENT (keep_sparsity)) my_keep_sparsity = keep_sparsity
-    !
+
+    ! zero blocks that might be present in the target (redist) but not in the source (matrix)
+    CALL dbcsr_set(redist, 0.0_dp)
+
     sym = dbcsr_has_symmetry (redist)
     data_type = matrix%m%data_type
     ! Get row and column start and end positions
