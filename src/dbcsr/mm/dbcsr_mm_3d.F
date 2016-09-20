@@ -132,6 +132,7 @@ MODULE dbcsr_mm_3d
       INTEGER, DIMENSION(:, :), ALLOCATABLE           :: get_requests, &
                                                          get_requests_map, &
                                                          offset
+      TYPE(dbcsr_data_obj)               :: trs_stackbuf
       INTEGER                            :: nrequests = 0
       INTEGER                            :: num_layers_3D = 1
       INTEGER                            :: coord3D = 1
@@ -142,7 +143,6 @@ MODULE dbcsr_mm_3d
 
    TYPE dbcsr_buffers
       TYPE(dbcsr_buffer)             :: left, right
-      TYPE(dbcsr_data_obj)           :: trs_stackbuf
    END TYPE dbcsr_buffers
 
    TYPE dbcsr_layers_3D_C_reduction
@@ -2515,15 +2515,15 @@ CONTAINS
          !
          ! Create buffers, only the first tick
          IF (istep_k .EQ. shift_k .AND. has_acc) THEN
-            IF (nvirt_k .GT. 1 .AND. .NOT. dbcsr_data_valid(buffers_2%trs_stackbuf)) THEN
-               CALL dbcsr_data_init(buffers_2%trs_stackbuf)
-               CALL dbcsr_data_new(buffers_2%trs_stackbuf, &
+            IF (nvirt_k .GT. 1 .AND. .NOT. dbcsr_data_valid(buffers_2%right%trs_stackbuf)) THEN
+               CALL dbcsr_data_init(buffers_2%right%trs_stackbuf)
+               CALL dbcsr_data_new(buffers_2%right%trs_stackbuf, &
                                    data_type=dbcsr_type_int_4, data_size=1000, &
                                    memory_type=memtype_trsbuffer_2)
             ENDIF
-            IF (.NOT. dbcsr_data_valid(buffers_1%trs_stackbuf)) THEN
-               CALL dbcsr_data_init(buffers_1%trs_stackbuf)
-               CALL dbcsr_data_new(buffers_1%trs_stackbuf, &
+            IF (.NOT. dbcsr_data_valid(buffers_1%right%trs_stackbuf)) THEN
+               CALL dbcsr_data_init(buffers_1%right%trs_stackbuf)
+               CALL dbcsr_data_new(buffers_1%right%trs_stackbuf, &
                                    data_type=dbcsr_type_int_4, data_size=1000, &
                                    memory_type=memtype_trsbuffer_1)
             ENDIF
@@ -2568,7 +2568,7 @@ CONTAINS
                   IF (has_acc) THEN
                      CALL acc_transpose_blocks_images(buffers_calc%right%buffer, &
                                                       buffers_calc%right%data(1), &
-                                                      buffers_calc%trs_stackbuf, &
+                                                      buffers_calc%right%trs_stackbuf, &
                                                       (/1/))
                   ENDIF
                ENDIF
@@ -3678,9 +3678,9 @@ CONTAINS
                                            buffers_1%left%data(1), &
                                            left_max_meta_size_images)
          !
-         IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_1%trs_stackbuf)) THEN
-            CALL dbcsr_data_init(buffers_1%trs_stackbuf)
-            CALL dbcsr_data_new(buffers_1%trs_stackbuf, &
+         IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_1%right%trs_stackbuf)) THEN
+            CALL dbcsr_data_init(buffers_1%right%trs_stackbuf)
+            CALL dbcsr_data_new(buffers_1%right%trs_stackbuf, &
                                 data_type=dbcsr_type_int_4, data_size=1000, &
                                 memory_type=memtype_trsbuffer_1)
          ENDIF
@@ -3710,9 +3710,9 @@ CONTAINS
                                         buffers_2%left%data(1), &
                                         left_max_meta_size_images)
       !
-      IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_2%trs_stackbuf)) THEN
-         CALL dbcsr_data_init(buffers_2%trs_stackbuf)
-         CALL dbcsr_data_new(buffers_2%trs_stackbuf, &
+      IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_2%right%trs_stackbuf)) THEN
+         CALL dbcsr_data_init(buffers_2%right%trs_stackbuf)
+         CALL dbcsr_data_new(buffers_2%right%trs_stackbuf, &
                              data_type=dbcsr_type_int_4, data_size=1000, &
                              memory_type=memtype_trsbuffer_2)
       ENDIF
@@ -3915,7 +3915,7 @@ CONTAINS
                                   left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                   right_norms, left_norms, &
                                   common_unmerged, indices_common_unmerged, &
-                                  has_acc, nthreads, buffers_calc%trs_stackbuf)
+                                  has_acc, nthreads, buffers_calc%right%trs_stackbuf)
                ENDIF
             ELSE
                !
@@ -5211,84 +5211,13 @@ CONTAINS
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE buffers_release()
-      CALL buffers_release_internal(buffers_1)
-      CALL buffers_release_internal(buffers_2)
-      CALL buffers_release_internal(buffers_orig)
-   END SUBROUTINE buffers_release
-
-! **************************************************************************************************
-!> \brief Release buffers
-!>
-!> \param buffers ...
-!> \author Alfio Lazzaro
-! **************************************************************************************************
-   SUBROUTINE buffers_release_internal(buffers)
-      TYPE(dbcsr_buffers), INTENT(INOUT)                 :: buffers
-
-      INTEGER                                            :: idata
-
-      IF (buffers%right%has_rma_win) THEN
-         CALL mp_win_free(buffers_orig%right%data_win)
-         CALL mp_win_free(buffers_orig%right%meta_win)
-         buffers%right%has_rma_win = .FALSE.
-         buffers%right%grp = mp_comm_null
-         IF (buffers%right%subgrp .NE. mp_comm_null .AND. buffers%right%num_layers_3D .GT. 1) &
-            CALL mp_comm_free(buffers%right%subgrp)
-         buffers%right%subgrp = mp_comm_null
-         buffers%right%num_layers_3D = 1
-      ENDIF
-      IF (buffers%left%has_rma_win) THEN
-         CALL mp_win_free(buffers_orig%left%data_win)
-         CALL mp_win_free(buffers_orig%left%meta_win)
-         buffers%left%has_rma_win = .FALSE.
-         buffers%left%grp = mp_comm_null
-         IF (buffers%left%subgrp .NE. mp_comm_null .AND. buffers%left%num_layers_3D .GT. 1) &
-            CALL mp_comm_free(buffers%left%subgrp)
-         buffers%left%subgrp = mp_comm_null
-         buffers%left%num_layers_3D = 1
-      ENDIF
+      CALL buffer_release(buffers_1%right)
+      CALL buffer_release(buffers_1%left)
+      CALL buffer_release(buffers_2%right)
+      CALL buffer_release(buffers_2%left)
+      CALL buffer_release(buffers_orig%right)
+      CALL buffer_release(buffers_orig%left)
       !
-      IF (buffers%left%is_valid) THEN
-         DO idata = 1, SIZE(buffers%left%data)
-            CALL dbcsr_data_release(buffers%left%data(idata))
-         ENDDO
-         DEALLOCATE (buffers%left%data)
-         IF (dbcsr_data_valid(buffers%left%data_diag)) &
-            CALL dbcsr_data_release(buffers%left%data_diag)
-         buffers%left%is_valid = .FALSE.
-      ENDIF
-      IF (ASSOCIATED(buffers%left%meta)) THEN
-         DEALLOCATE (buffers%left%meta)
-         NULLIFY (buffers%left%meta)
-      ENDIF
-      IF (ASSOCIATED(buffers%left%meta_diag)) THEN
-         DEALLOCATE (buffers%left%meta_diag)
-         NULLIFY (buffers%left%meta_diag)
-      ENDIF
-      IF (buffers%right%is_valid) THEN
-         DO idata = 1, SIZE(buffers%right%data)
-            CALL dbcsr_data_release(buffers%right%data(idata))
-         ENDDO
-         DEALLOCATE (buffers%right%data)
-         IF (dbcsr_data_valid(buffers%right%data_diag)) &
-            CALL dbcsr_data_release(buffers%right%data_diag)
-         buffers%right%is_valid = .FALSE.
-      ENDIF
-      IF (ASSOCIATED(buffers%right%meta)) THEN
-         DEALLOCATE (buffers%right%meta)
-         NULLIFY (buffers%right%meta)
-      ENDIF
-      IF (ASSOCIATED(buffers%right%meta_diag)) THEN
-         DEALLOCATE (buffers%right%meta_diag)
-         NULLIFY (buffers%right%meta_diag)
-      ENDIF
-      !
-      IF (ALLOCATED(buffers%left%offset)) DEALLOCATE (buffers%left%offset)
-      IF (ALLOCATED(buffers%right%offset)) DEALLOCATE (buffers%right%offset)
-      IF (ALLOCATED(buffers%left%get_requests)) DEALLOCATE (buffers%left%get_requests)
-      IF (ALLOCATED(buffers%right%get_requests)) DEALLOCATE (buffers%right%get_requests)
-      IF (ALLOCATED(buffers%left%get_requests_map)) DEALLOCATE (buffers%left%get_requests_map)
-      IF (ALLOCATED(buffers%right%get_requests_map)) DEALLOCATE (buffers%right%get_requests_map)
       IF (ASSOCIATED(meta_scatter)) THEN
          DEALLOCATE (meta_scatter)
          NULLIFY (meta_scatter)
@@ -5305,11 +5234,54 @@ CONTAINS
       IF (dbcsr_data_valid(local_data_product_scatter)) THEN
          CALL dbcsr_data_release(local_data_product_scatter)
       ENDIF
-      !
-      IF (dbcsr_data_valid(buffers%trs_stackbuf)) THEN
-         CALL dbcsr_data_release(buffers%trs_stackbuf)
+   END SUBROUTINE buffers_release
+
+! **************************************************************************************************
+!> \brief Release buffer
+!>
+!> \param buffer ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   SUBROUTINE buffer_release(buffer)
+      TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
+
+      INTEGER                                            :: idata
+
+      IF (buffer%has_rma_win) THEN
+         CALL mp_win_free(buffer%data_win)
+         CALL mp_win_free(buffer%meta_win)
+         buffer%has_rma_win = .FALSE.
+         buffer%grp = mp_comm_null
+         IF (buffer%subgrp .NE. mp_comm_null .AND. buffer%num_layers_3D .GT. 1) &
+            CALL mp_comm_free(buffer%subgrp)
+         buffer%subgrp = mp_comm_null
+         buffer%num_layers_3D = 1
       ENDIF
-   END SUBROUTINE buffers_release_internal
+      !
+      IF (buffer%is_valid) THEN
+         DO idata = 1, SIZE(buffer%data)
+            CALL dbcsr_data_release(buffer%data(idata))
+         ENDDO
+         DEALLOCATE (buffer%data)
+         IF (dbcsr_data_valid(buffer%data_diag)) &
+            CALL dbcsr_data_release(buffer%data_diag)
+         buffer%is_valid = .FALSE.
+      ENDIF
+      IF (ASSOCIATED(buffer%meta)) THEN
+         DEALLOCATE (buffer%meta)
+         NULLIFY (buffer%meta)
+      ENDIF
+      IF (ASSOCIATED(buffer%meta_diag)) THEN
+         DEALLOCATE (buffer%meta_diag)
+         NULLIFY (buffer%meta_diag)
+      ENDIF
+      IF (ALLOCATED(buffer%offset)) DEALLOCATE (buffer%offset)
+      IF (ALLOCATED(buffer%get_requests)) DEALLOCATE (buffer%get_requests)
+      IF (ALLOCATED(buffer%get_requests_map)) DEALLOCATE (buffer%get_requests_map)
+      IF (dbcsr_data_valid(buffer%trs_stackbuf)) THEN
+         CALL dbcsr_data_release(buffer%trs_stackbuf)
+      ENDIF
+   END SUBROUTINE buffer_release
 
 ! **************************************************************************************************
 !> \brief ...
