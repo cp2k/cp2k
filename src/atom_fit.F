@@ -605,7 +605,7 @@ CONTAINS
                               atom%orbitals%wrefchg(k, l, 1) = 0._dp
                               atom%orbitals%crefene(k, l, 1) = t_virt*10._dp
                               ntarget = ntarget+1
-                              wtot = wtot+atom%weight*w_virt
+                              wtot = wtot+atom%weight*w_virt/100._dp
                            END IF
                         ELSEIF (k < atom%state%maxn_occ(l)) THEN
                            atom%orbitals%wrefene(k, l, 1) = w_semi
@@ -614,8 +614,9 @@ CONTAINS
                            ntarget = ntarget+2
                            wtot = wtot+atom%weight*(w_semi+w_semi/100._dp)
                         ELSE
-                           IF (ABS(atom%state%occupation(l, k)-REAL(4*l+2, KIND=dp)) < 0.01_dp) THEN
-                              ! full shell
+                           IF (ABS(atom%state%occupation(l, k)-REAL(4*l+2, KIND=dp)) < 0.01_dp .AND. &
+                               ABS(atom%orbitals%refene(k, l, 1)*evolt) > 30._dp) THEN
+                              ! full shell semicore
                               atom%orbitals%wrefene(k, l, 1) = w_semi
                               atom%orbitals%wrefchg(k, l, 1) = w_semi/100._dp
                               atom%orbitals%crefene(k, l, 1) = t_semi
@@ -675,7 +676,7 @@ CONTAINS
                               atom%orbitals%wrefene(k, l, 1:2) = w_virt/100._dp
                               atom%orbitals%wrefchg(k, l, 1:2) = 0._dp
                               atom%orbitals%crefene(k, l, 1:2) = t_virt*10.0_dp
-                              wtot = wtot+atom%weight*2._dp*w_virt
+                              wtot = wtot+atom%weight*2._dp*w_virt/100._dp
                               ntarget = ntarget+2
                            END IF
                         ELSEIF (k < atom%state%maxn_occ(l)) THEN
@@ -685,7 +686,8 @@ CONTAINS
                            ntarget = ntarget+4
                            wtot = wtot+atom%weight*2._dp*(w_semi+w_semi/100._dp)
                         ELSE
-                           IF (ABS(atom%state%occupation(l, k)-REAL(2*l+1, KIND=dp)) < 0.01_dp) THEN
+                           IF (ABS(atom%state%occupation(l, k)-REAL(2*l+1, KIND=dp)) < 0.01_dp .AND. &
+                               ABS(atom%orbitals%refene(k, l, 1)*evolt) > 30._dp) THEN
                               atom%orbitals%wrefene(k, l, 1:2) = w_semi
                               atom%orbitals%wrefchg(k, l, 1:2) = w_semi/100._dp
                               atom%orbitals%crefene(k, l, 1:2) = t_semi
@@ -889,6 +891,8 @@ CONTAINS
                CALL put_pseudo_param(ostate%xopt, ppot%gth_pot)
                CALL atom_write_pseudo_param(ppot%gth_pot)
             END IF
+
+            IF (fopt < 1.e-12_dp) EXIT
 
             WRITE (iw, *) ostate%nf, ostate%f, x(1:ostate%nvar)
 
