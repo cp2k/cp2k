@@ -1068,28 +1068,28 @@ CONTAINS
       CALL keyword_create(keyword, name="TARGET_POT_VIRTUAL", &
                           description="Target accuracy for virtual state eigenvalues in pseudopotential optimization", &
                           usage="TARGET_POT_VIRTUAL 0.0001", &
-                          default_r_val=1.0e-3_dp)
+                          default_r_val=1.0e-3_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TARGET_POT_VALENCE", &
                           description="Target accuracy for valence state eigenvalues in pseudopotential optimization", &
                           usage="TARGET_POT_VALENCE 0.0001", &
-                          default_r_val=1.0e-5_dp)
+                          default_r_val=1.0e-5_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TARGET_POT_SEMICORE", &
                           description="Target accuracy for semicore state eigenvalues in pseudopotential optimization", &
                           usage="TARGET_POT_SEMICORE 0.01", &
-                          default_r_val=1.0e-3_dp)
+                          default_r_val=1.0e-3_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="TARGET_DELTA_ENERGY", &
                           description="Target accuracy for energy differences in pseudopotential optimization", &
                           usage="TARGET_DELTA_ENERGY 0.01", &
-                          default_r_val=1.0e-4_dp)
+                          default_r_val=1.0e-4_dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
