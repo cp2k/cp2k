@@ -17,14 +17,14 @@ PROGRAM dbcsr_unittest
 
    USE acc_device,                      ONLY: acc_get_ndevices,&
                                               acc_set_active_device
-   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
-   USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib
-   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_new,&
-                                              dbcsr_mp_release
+   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
+                                              dbcsr_init_lib,&
+                                              dbcsr_mp_new,&
+                                              dbcsr_mp_obj,&
+                                              dbcsr_mp_release,&
+                                              dbcsr_set_default_config
    USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
    USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
-   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
