@@ -1259,9 +1259,9 @@ CONTAINS
          NULLIFY (meta_recv)
          CALL ensure_array_size(meta_recv, ub=SUM(recv_size(imeta, :)), &
                                 nocopy=.TRUE., memory_type=memtype_mpi_buffer, zero_pad=.TRUE.)
+         CALL timeset(routineN//"_data", handle2)
          IF (do_virt) THEN
             ! Exchange data
-            CALL timeset(routineN//"_data", handle2)
             CALL hybrid_alltoall_any(data_send, send_size(idata, :), send_displ(idata, :), &
                                      data_recv, recv_size(idata, :), recv_displ(idata, :), &
                                      mp_obj, &
@@ -1270,12 +1270,12 @@ CONTAINS
                                     meta_recv, recv_size(imeta, :), recv_displ(imeta, :), &
                                     mp_obj, &
                                     most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.)
-            CALL timestop(handle2)
          ELSE
             ! Send/recv data to the symmetric proc
             CALL dbcsr_sendrecv_any(data_send, sym_p, data_recv, sym_p, grp)
             CALL mp_sendrecv(meta_send, sym_p, meta_recv, sym_p, grp)
          ENDIF
+         CALL timestop(handle2)
          ! Delete send data
          CALL dbcsr_data_release(data_send)
          DEALLOCATE (meta_send)
