@@ -55,7 +55,7 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&
                                               dbcsr_iterator_stop
-   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_ensure_capacity
+   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_limit_capacity
    USE dbcsr_methods,                   ONLY: &
         dbcsr_destroy_array, dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_index_memory_type, &
         dbcsr_has_symmetry, dbcsr_image_dist_hold, dbcsr_image_dist_init, &
@@ -1254,10 +1254,10 @@ CONTAINS
 
       ! update capacity of memory-pools
       IF (has_acc) THEN
-         CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
-                                            capacity=left_row_mult*left_col_nimages+right_row_nimages*right_col_mult)
-         CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
-                                            capacity=left_row_mult*left_col_nimages+right_row_nimages*right_col_mult)
+         CALL dbcsr_mempool_limit_capacity(memtype_abpanel_1%pool, &
+                                           capacity=left_row_mult*left_col_nimages+right_row_nimages*right_col_mult)
+         CALL dbcsr_mempool_limit_capacity(memtype_abpanel_2%pool, &
+                                           capacity=left_row_mult*left_col_nimages+right_row_nimages*right_col_mult)
       ENDIF
 
       !

@@ -51,7 +51,7 @@ MODULE dbcsr_mm_accdrv
                                               dbcsr_data_new,&
                                               dbcsr_data_release
    USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
-                                              dbcsr_mempool_ensure_capacity,&
+                                              dbcsr_mempool_limit_capacity,&
                                               dbcsr_memtype_setup
    USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
                                               stack_descriptor_type
@@ -209,7 +209,7 @@ CONTAINS
                                acc_devalloc=.TRUE., acc_stream=priority_streams(i))
       my_nlayers = 1
       IF (PRESENT(nlayers)) my_nlayers = nlayers
-      CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=my_nlayers)
+      CALL dbcsr_mempool_limit_capacity(thread_privates%memtype_cbuffer%pool, capacity=my_nlayers)
 
       ! Setup things for this particular multipcation
       !------------------------------------------------------------------------

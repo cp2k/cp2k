@@ -48,7 +48,7 @@ MODULE dbcsr_mm
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_clear,&
                                               dbcsr_mempool_destruct,&
-                                              dbcsr_mempool_ensure_capacity,&
+                                              dbcsr_mempool_limit_capacity,&
                                               dbcsr_memtype_setup
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
@@ -115,7 +115,7 @@ MODULE dbcsr_mm
 
    PUBLIC :: dbcsr_multiply_lib_init, dbcsr_multiply_lib_finalize
    PUBLIC :: dbcsr_multiply_clear_mempools
-   PUBLIC :: dbcsr_multiply_internal
+   PUBLIC :: dbcsr_multiply_generic
 
 CONTAINS
 
@@ -150,7 +150,7 @@ CONTAINS
       ! Each thread has its own working-matrix and its own mempool
       ALLOCATE (memtype_product_wm(ithread)%p)
       CALL dbcsr_memtype_setup(memtype_product_wm(ithread)%p, has_pool=.TRUE.)
-      CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=num_layers_3D/2+1)
+      CALL dbcsr_mempool_limit_capacity(memtype_product_wm(ithread)%p%pool, capacity=MAX(1, num_layers_3D))
    END SUBROUTINE dbcsr_multiply_lib_init
 
 ! **************************************************************************************************
@@ -364,11 +364,11 @@ CONTAINS
 !>      multiplies in each row.  In addition a final filtering is done
 !>      as well with the same epsilon value.
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_multiply_internal(transa, transb, &
-                                      alpha, matrix_a, matrix_b, beta, matrix_c, &
-                                      first_row, last_row, first_column, last_column, first_k, last_k, &
-                                      retain_sparsity, filter_eps, &
-                                      flop)
+   SUBROUTINE dbcsr_multiply_generic(transa, transb, &
+                                     alpha, matrix_a, matrix_b, beta, matrix_c, &
+                                     first_row, last_row, first_column, last_column, first_k, last_k, &
+                                     retain_sparsity, filter_eps, &
+                                     flop)
 
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha
@@ -381,7 +381,7 @@ CONTAINS
       REAL(KIND=real_8), INTENT(IN), OPTIONAL            :: filter_eps
       INTEGER(KIND=int_8), INTENT(OUT), OPTIONAL         :: flop
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_internal', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_generic', &
          routineP = moduleN//':'//routineN
       LOGICAL, PARAMETER                                 :: dbg = .FALSE.
       REAL(real_8), PARAMETER                            :: make_dense_occ_thresh = 1.0_dp
@@ -434,11 +434,11 @@ CONTAINS
          !TODO: ensure capacity 2/3?
          CALL dbcsr_memtype_setup(memtype_trsbuffer_1, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1)
-         CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=num_layers_3D/2+1)
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=num_layers_3D/2+1)
 
          CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2)
-         CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=num_layers_3D/2+1)
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=num_layers_3D/2+1)
       ELSE
          CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE.)
          CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE.)
@@ -990,6 +990,6 @@ CONTAINS
       output_unit = default_output_unit
       num_multiplications = num_multiplications+1
       CALL timestop(handle)
-   END SUBROUTINE dbcsr_multiply_internal
+   END SUBROUTINE dbcsr_multiply_generic
 
 END MODULE dbcsr_mm

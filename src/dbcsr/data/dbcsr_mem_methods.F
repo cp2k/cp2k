@@ -32,7 +32,7 @@ MODULE dbcsr_mem_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mem_methods'
 
-   PUBLIC :: dbcsr_mempool_get, dbcsr_mempool_add, dbcsr_mempool_ensure_capacity
+   PUBLIC :: dbcsr_mempool_get, dbcsr_mempool_add, dbcsr_mempool_limit_capacity
    PUBLIC :: dbcsr_mempool_destruct, dbcsr_mempool_clear
    PUBLIC :: dbcsr_memtype_setup, dbcsr_memtype_equal
 
@@ -63,11 +63,11 @@ CONTAINS
 !> \param capacity ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mempool_ensure_capacity(pool, capacity)
+   SUBROUTINE dbcsr_mempool_limit_capacity(pool, capacity)
       TYPE(dbcsr_mempool_type), POINTER                  :: pool
       INTEGER, INTENT(IN)                                :: capacity
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_ensure_capacity', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_limit_capacity', &
          routineP = moduleN//':'//routineN
 
       IF (.NOT. ASSOCIATED(pool)) CPABORT("pool not allocated")
@@ -75,7 +75,7 @@ CONTAINS
       pool%capacity = MAX(pool%capacity, capacity)
 !$    CALL OMP_UNSET_LOCK(pool%lock)
 
-   END SUBROUTINE dbcsr_mempool_ensure_capacity
+   END SUBROUTINE dbcsr_mempool_limit_capacity
 
 ! **************************************************************************************************
 !> \brief Picks a suitable data_area from mempool, returns Null() if none found.
