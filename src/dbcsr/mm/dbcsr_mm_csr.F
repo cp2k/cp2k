@@ -467,16 +467,19 @@ CONTAINS
 !> \param n_sizes ...
 !> \param block_estimate ...
 !> \param right_row_blk_size ...
+!> \param nlayers ...
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE dbcsr_mm_csr_init(this, left, right, product, &
-                                m_sizes, n_sizes, block_estimate, right_row_blk_size)
+                                m_sizes, n_sizes, block_estimate, right_row_blk_size, &
+                                nlayers)
       TYPE(dbcsr_mm_csr_type), INTENT(INOUT)             :: this
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: left, right
       TYPE(dbcsr_type), INTENT(INOUT)                    :: product
       INTEGER, DIMENSION(:), POINTER                     :: m_sizes, n_sizes
       INTEGER, INTENT(IN)                                :: block_estimate
       INTEGER, DIMENSION(:), INTENT(IN)                  :: right_row_blk_size
+      INTEGER, OPTIONAL                                  :: nlayers
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_init', &
          routineP = moduleN//':'//routineN
@@ -641,7 +644,8 @@ CONTAINS
 
       this%product_wm => product%wms(ithread+1)
       CALL dbcsr_mm_sched_init(this%sched, &
-                               product_wm=this%product_wm)
+                               product_wm=this%product_wm, &
+                               nlayers=nlayers)
 
       CALL timestop(handle)
 

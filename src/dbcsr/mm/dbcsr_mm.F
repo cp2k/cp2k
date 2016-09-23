@@ -150,7 +150,7 @@ CONTAINS
       ! Each thread has its own working-matrix and its own mempool
       ALLOCATE (memtype_product_wm(ithread)%p)
       CALL dbcsr_memtype_setup(memtype_product_wm(ithread)%p, has_pool=.TRUE.)
-      CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=1)
+      CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=num_layers_3D/2+1)
    END SUBROUTINE dbcsr_multiply_lib_init
 
 ! **************************************************************************************************
@@ -434,11 +434,11 @@ CONTAINS
          !TODO: ensure capacity 2/3?
          CALL dbcsr_memtype_setup(memtype_trsbuffer_1, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1)
-         CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=1)
+         CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=num_layers_3D/2+1)
 
          CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2)
-         CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=1)
+         CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=num_layers_3D/2+1)
       ELSE
          CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE.)
          CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE.)

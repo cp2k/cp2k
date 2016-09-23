@@ -177,16 +177,18 @@ CONTAINS
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \param this ...
 !> \param product_wm ...
+!> \param nlayers ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_accdrv_init(this, product_wm)
+   SUBROUTINE dbcsr_mm_accdrv_init(this, product_wm, nlayers)
       TYPE(dbcsr_mm_accdrv_type), INTENT(INOUT)          :: this
       TYPE(dbcsr_work_type), POINTER                     :: product_wm
+      INTEGER, OPTIONAL                                  :: nlayers
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_accdrv_init', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ithread, nthreads
+      INTEGER                                            :: handle, i, ithread, my_nlayers, nthreads
       TYPE(dbcsr_data_obj)                               :: c_area
       TYPE(thread_private_type), POINTER                 :: thread_privates
 
@@ -205,7 +207,9 @@ CONTAINS
       i = MOD(ithread, SIZE(priority_streams))+1
       CALL dbcsr_memtype_setup(thread_privates%memtype_cbuffer, has_pool=.TRUE., acc_hostalloc=.TRUE., &
                                acc_devalloc=.TRUE., acc_stream=priority_streams(i))
-      CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=1)
+      my_nlayers = 1
+      IF (PRESENT(nlayers)) my_nlayers = nlayers
+      CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=my_nlayers)
 
       ! Setup things for this particular multipcation
       !------------------------------------------------------------------------

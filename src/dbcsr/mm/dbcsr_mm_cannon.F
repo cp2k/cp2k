@@ -64,7 +64,7 @@ MODULE dbcsr_mm_cannon
    USE dbcsr_mm_common,                 ONLY: &
         acc_transpose_blocks, count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, &
         max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_trsbuffer_1, &
-        memtype_trsbuffer_2, rec_sort_index, setup_buffer_matrix
+        memtype_trsbuffer_2, product_matrix_size_guess, rec_sort_index, setup_buffer_matrix
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                               dbcsr_mm_multrec_init,&
                                               dbcsr_mm_multrec_multiply,&
@@ -912,7 +912,7 @@ CONTAINS
          right_row_image, right_row_mult, right_row_nimages, right_send_icol, right_send_irow, &
          right_send_p, right_send_pcol, right_send_prow, right_send_vcol, right_send_vrow, &
          right_src_icol, right_src_irow, right_src_p, right_src_pcol, right_src_prow, &
-         right_src_vcol, right_src_vrow, row, size_guess, stat, threads_finished, &
+         right_src_vcol, right_src_vrow, row, size_guess, size_guess_init, stat, threads_finished, &
          threads_finished_read, v_k, v_ki
       INTEGER(KIND=int_8)                                :: flop_single, flop_total, mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_counts, total_row_counts
@@ -1218,6 +1218,13 @@ CONTAINS
       right_max_nze = MAXVAL(all_sizes(idata+iright, :, :, :))
       right_max_nblks = MAXVAL(all_sizes(imeta+iright, :, :, :))
       !!
+      ! Evaluate sizes for workspaces
+      IF (.NOT. keep_sparsity) THEN
+         size_guess_init = product_matrix_size_guess(left_set%mats(1, 1), right_set%mats(1, 1), product_matrix, &
+                                                     left_max_nze, right_max_nze, &
+                                                     left_col_nimages, right_row_nimages, &
+                                                     nthreads)
+      ENDIF
       ithread = 0
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP          PRIVATE (i, size_guess, &
@@ -1225,12 +1232,15 @@ CONTAINS
 !$OMP          SHARED (product_matrix, left_max_nze, right_max_nze) &
 !$OMP          SHARED (left_set, right_set, &
 !$OMP                 left_col_nimages, right_row_nimages) &
-!$OMP          SHARED (nthreads, keep_sparsity, mynode)
+!$OMP          SHARED (nthreads, keep_sparsity, mynode, size_guess_init)
       !
 !$    ithread = OMP_GET_THREAD_NUM()
       ! The work arrays have to be setup (actually, not quite sure).
       i = ithread+1
       size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
+      IF (.NOT. keep_sparsity) THEN
+         size_guess = MAX(size_guess, size_guess_init)
+      ENDIF
       CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area, &
                                   size_guess)
       CALL dbcsr_data_set_size_referenced(product_matrix%m%wms(i)%data_area, &

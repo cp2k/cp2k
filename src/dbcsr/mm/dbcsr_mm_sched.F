@@ -194,11 +194,13 @@ CONTAINS
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \param this ...
 !> \param product_wm ...
+!> \param nlayers ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_sched_init(this, product_wm)
+   SUBROUTINE dbcsr_mm_sched_init(this, product_wm, nlayers)
       TYPE(dbcsr_mm_sched_type), INTENT(INOUT)           :: this
       TYPE(dbcsr_work_type), POINTER                     :: product_wm
+      INTEGER, OPTIONAL                                  :: nlayers
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_sched_init', &
          routineP = moduleN//':'//routineN
@@ -217,7 +219,7 @@ CONTAINS
       CALL dbcsr_mm_hostdrv_init(this%hostdrv, product_wm)
 
       IF (has_acc) &
-         CALL dbcsr_mm_accdrv_init(this%accdrv, product_wm)
+         CALL dbcsr_mm_accdrv_init(this%accdrv, product_wm, nlayers)
 
       CALL timestop(handle)
 

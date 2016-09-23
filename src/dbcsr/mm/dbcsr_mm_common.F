@@ -22,7 +22,9 @@ MODULE dbcsr_mm_common
    USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                               dbcsr_data_host2dev
    USE dbcsr_methods,                   ONLY: dbcsr_get_index_memory_type,&
-                                              dbcsr_init
+                                              dbcsr_init,&
+                                              dbcsr_nfullcols_local,&
+                                              dbcsr_nfullrows_local
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
    USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
@@ -33,7 +35,8 @@ MODULE dbcsr_mm_common
                                               dbcsr_type_int_4
    USE dbcsr_work_operations,           ONLY: dbcsr_create
    USE kinds,                           ONLY: int_4,&
-                                              int_8
+                                              int_8,&
+                                              real_8
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,6 +84,8 @@ MODULE dbcsr_mm_common
    PUBLIC :: setup_buffer_matrix
    PUBLIC :: rec_sort_index
    PUBLIC :: acc_transpose_blocks, enumerate_blk_sizes
+
+   PUBLIC :: product_matrix_size_guess
 
 CONTAINS
 
@@ -435,7 +440,7 @@ CONTAINS
 !> \param blk_sizes ...
 !> \param enum ...
 !> \param rev_enum ...
-!>  \author Ole Schuett
+!> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE enumerate_blk_sizes(blk_sizes, enum, rev_enum)
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes, enum, rev_enum
@@ -462,5 +467,53 @@ CONTAINS
          END IF
       ENDDO
    END SUBROUTINE enumerate_blk_sizes
+
+! **************************************************************************************************
+!> \brief Guess the size of the product matrix from the A and B sparsities
+!> \param matrix_left ...
+!> \param matrix_right ...
+!> \param product_matrix ...
+!> \param left_data_size ...
+!> \param right_data_size ...
+!> \param left_col_nimages ...
+!> \param right_row_nimages ...
+!> \param nthreads ...
+!> \retval size_guess ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   FUNCTION product_matrix_size_guess(matrix_left, matrix_right, product_matrix, &
+                                      left_data_size, right_data_size, &
+                                      left_col_nimages, right_row_nimages, &
+                                      nthreads) RESULT(size_guess)
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_left, matrix_right, product_matrix
+      INTEGER, INTENT(IN)                                :: left_data_size, right_data_size, &
+                                                            left_col_nimages, right_row_nimages, &
+                                                            nthreads
+      INTEGER                                            :: size_guess
+
+      INTEGER(KIND=int_8)                                :: size8
+      REAL(kind=real_8)                                  :: factor, fill_guess, left_fill, right_fill
+
+      ! First we calculate the sparsities
+      size8 = INT(dbcsr_nfullrows_local(matrix_left), KIND=int_8)* &
+              INT(dbcsr_nfullcols_local(matrix_left), KIND=int_8)
+      size8 = MAX(1_int_8, size8)
+      left_fill = (REAL(left_data_size, KIND=real_8)*REAL(left_col_nimages, KIND=real_8))/REAL(size8, KIND=real_8)
+      size8 = INT(dbcsr_nfullrows_local(matrix_right), KIND=int_8)* &
+              INT(dbcsr_nfullcols_local(matrix_right), KIND=int_8)
+      size8 = MAX(1_int_8, size8)
+      right_fill = (REAL(right_data_size, KIND=real_8)*REAL(right_row_nimages, KIND=real_8))/REAL(size8, KIND=real_8)
+      size8 = INT(dbcsr_nfullrows_local(product_matrix), KIND=int_8)* &
+              INT(dbcsr_nfullcols_local(product_matrix), KIND=int_8)
+      size8 = MAX(1_int_8, size8)
+!     factor = 7.0 ! Old guess
+      factor = 2.4 ! New guess
+      fill_guess = factor*MAX(left_fill, right_fill)
+      fill_guess = MIN(1.0_real_8, MAX(0.0_real_8, fill_guess))
+      IF (nthreads .GT. 1) THEN
+         fill_guess = fill_guess*3.0_real_8/REAL(2*nthreads, KIND=real_8)
+      ENDIF
+      size_guess = INT(REAL(size8, KIND=real_8)*fill_guess, KIND=int_4)
+   END FUNCTION product_matrix_size_guess
 
 END MODULE dbcsr_mm_common

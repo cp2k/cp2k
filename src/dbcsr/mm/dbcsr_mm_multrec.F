@@ -171,9 +171,11 @@ CONTAINS
 !> \param row_max_epss ...
 !> \param block_estimate ...
 !> \param right_row_blk_size ...
+!> \param nlayers ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_mm_multrec_init(this, left, right, product, &
-                                    keep_sparsity, eps, row_max_epss, block_estimate, right_row_blk_size)
+                                    keep_sparsity, eps, row_max_epss, block_estimate, right_row_blk_size, &
+                                    nlayers)
       TYPE(dbcsr_mm_multrec_type), INTENT(out)           :: this
       TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: left, right
       TYPE(dbcsr_type), INTENT(INOUT)                    :: product
@@ -182,6 +184,7 @@ CONTAINS
       REAL(kind=sp), DIMENSION(:), INTENT(IN), TARGET    :: row_max_epss
       INTEGER, INTENT(IN)                                :: block_estimate
       INTEGER, DIMENSION(:), INTENT(IN)                  :: right_row_blk_size
+      INTEGER, OPTIONAL                                  :: nlayers
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_init', &
          routineP = moduleN//':'//routineN
@@ -306,7 +309,8 @@ CONTAINS
                              left=left, right=right, product=product, &
                              m_sizes=this%m_sizes, n_sizes=this%n_sizes, &
                              block_estimate=block_estimate, &
-                             right_row_blk_size=right_row_blk_size)
+                             right_row_blk_size=right_row_blk_size, &
+                             nlayers=nlayers)
 
       this%initialized = .TRUE.
       CALL timestop(handle)
