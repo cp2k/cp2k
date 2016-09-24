@@ -1,0 +1,250 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    BASIS_SET_FILE_NAME BASIS_BENCH_ONLY
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    PLUS_U_METHOD MULLIKEN_CHARGES
+    &MGRID
+      CUTOFF 400
+      NGRIDS 5
+      &RS_GRID
+           DISTRIBUTION_TYPE DISTRIBUTED
+           MAX_DISTRIBUTED_LEVEL 4
+      &END
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-10
+      LS_SCF
+    &END QS
+    &LS_SCF
+      EPS_SCF  1E-9
+      EPS_FILTER 1E-7
+      MAX_SCF 50
+      PURIFICATION_METHOD TRS4
+      MIXING_FRACTION 0.20
+      REPORT_ALL_SPARSITIES .FALSE.
+      MATRIX_CLUSTER_TYPE MOLECULAR
+      S_PRECONDITIONER NONE
+      &CURVY_STEPS
+      &END
+      &PAO
+         EPS_PAO 2.0E-7
+         MAX_CYCLES 4000
+         PARAMETERIZATION ROTINV
+         MIXING 0.5
+         MAX_PAO 0
+         PENALTY_STRENGTH 0.0
+         &MACHINE_LEARNING
+          &TRAINING_SET
+            ./test-1_0.pao
+            ./test2-1_0.pao
+          &END TRAINING_SET
+          METHOD GAUSSIAN_PROCESS
+          DESCRIPTOR OVERLAP
+          TOLERANCE 1000.0
+          GP_SCALE 0.15
+          GP_NOISE_VAR 0.0001
+          PRIOR MEAN
+         &END
+         !
+         !          learning settings 
+         !
+         !          MIXING 0.3
+         !          MAX_PAO 200000
+         !          RESTART_FILE test2-1_0.pao
+         !          REGULARIZATION 1.0E-3
+         !          PRECONDITION YES
+         !          ! PREOPT_DM_FILE test_LS_DM_SPIN_1_RESTART.dm
+         !          LINPOT_PRECONDITION_DELTA 0.01
+         !          LINPOT_INITGUESS_DELTA 1E+10 ! use zero as initial guess
+         !          LINPOT_REGULARIZATION_DELTA 1E-6
+         !          LINPOT_REGULARIZATION_STRENGTH 1E-3
+         &LINE_SEARCH
+              METHOD ADAPT
+         &END LINE_SEARCH
+         &PRINT
+           &RESTART
+             BACKUP_COPIES 10
+           &END RESTART
+           &ML_VARIANCE
+             FILENAME variance_md
+           &END
+           &FOCK_GAP
+             FILENAME gap_md
+           &END
+         &END PRINT
+      &END
+    &END
+    &XC
+      &XC_FUNCTIONAL
+        &PBE
+        &END
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+   &SUBSYS
+    &CELL
+      A     1.6435080453012679E+02    0.0000000000000000E+00    0.0000000000000000E+00
+      B     0.0000000000000000E+00    9.1184805784152502E+01    0.0000000000000000E+00
+      C     0.0000000000000000E+00    0.0000000000000000E+00    8.0351424919394375E+01
+      MULTIPLE_UNIT_CELL  1 1 1
+    &END CELL
+    &COORD
+@INCLUDE 'tio2_in_acn.xyz'
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY USER
+      PARA_RES .FALSE.
+    &END TOPOLOGY
+    &KIND HC
+      ELEMENT H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q1
+      PAO_BASIS_SIZE 1
+      &PAO_POTENTIAL
+        MAXL 4
+        BETA 3.04
+        WEIGHT 2.76
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+         BETA   0.16
+         WEIGHT 2.20
+         SCREENING 0.66
+      &END PAO_DESCRIPTOR
+    &END KIND
+    &KIND CT
+      ELEMENT C
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q4
+      PAO_BASIS_SIZE 4
+      &PAO_POTENTIAL
+        MAXL 4
+        BETA 1.91
+        WEIGHT 4.96
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+         BETA   0.08
+         WEIGHT 2.55
+         SCREENING 0.66
+      &END PAO_DESCRIPTOR
+    &END KIND
+    &KIND YC
+      ELEMENT C
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q4
+      PAO_BASIS_SIZE 4
+      &PAO_POTENTIAL
+        MAXL 4
+        BETA 1.91
+        WEIGHT 4.96
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+         BETA   0.08
+         WEIGHT 2.55
+         SCREENING 0.66
+      &END PAO_DESCRIPTOR
+    &END KIND
+    &KIND YN
+      ELEMENT N
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q5
+      PAO_BASIS_SIZE 4
+      &PAO_POTENTIAL
+        MAXL 4
+        BETA 1.91
+        WEIGHT 4.96
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+         BETA   0.095
+         WEIGHT 3.04
+         SCREENING 0.66
+      &END PAO_DESCRIPTOR
+    &END KIND
+    &KIND Ti
+        POTENTIAL GTH-PBE-q12
+        BASIS_SET TIO2-BASIS
+        &DFT_PLUS_U
+           L 2
+           U_MINUS_J [eV] 6.5
+        &END
+      PAO_BASIS_SIZE 10
+      &PAO_POTENTIAL
+        MAXL 4
+        BETA 1.91
+        WEIGHT 4.96
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+         BETA   0.086
+         WEIGHT 1.54
+         SCREENING 0.66
+      &END PAO_DESCRIPTOR
+    &END KIND
+    &KIND O
+        POTENTIAL GTH-PBE-q6
+        BASIS_SET TIO2-BASIS
+      PAO_BASIS_SIZE 4
+      &PAO_POTENTIAL
+        MAXL 4
+        BETA 1.91
+        WEIGHT 4.96
+      &END PAO_POTENTIAL
+      &PAO_DESCRIPTOR
+         BETA   0.099
+         WEIGHT 3.44
+         SCREENING 0.66
+      &END PAO_DESCRIPTOR
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&MOTION
+   &GEO_OPT
+      &LBFGS
+        TRUST_RADIUS 0.025
+      &END
+      OPTIMIZER LBFGS
+      MAX_ITER  100
+   &END
+   &MD
+      TEMPERATURE 300
+      TIMESTEP 0.5
+      STEPS 20
+      ENSEMBLE NVE
+   &END MD
+   &PRINT
+    &TRAJECTORY
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+    &VELOCITIES 
+      &EACH
+        MD 1
+      &END EACH
+    &END VELOCITIES
+    &FORCES 
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+    &RESTART_HISTORY
+      &EACH
+        MD 10
+      &END EACH
+    &END RESTART_HISTORY
+    &RESTART
+      BACKUP_COPIES 3
+      &EACH
+        MD 1
+      &END EACH
+    &END RESTART
+   &END PRINT
+&END
+&GLOBAL
+  PROJECT pao_ml_md
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+  EXTENDED_FFT_LENGTHS
+  CALLGRAPH
+  WALLTIME 84600
+&END GLOBAL
