@@ -610,7 +610,7 @@ CONTAINS
 
       CALL keyword_create(keyword, name="ZERO_INITIAL_GUESS", &
                           description="Whether or not to use zero potential as initial guess.", &
-                          usage="ZERO_INITIAL_GUESS <logical>", default_l_val=.FALSE.)
+                          usage="ZERO_INITIAL_GUESS <logical>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -673,7 +673,7 @@ CONTAINS
                           description="Avoid spurious values of the dielectric constant at the ionic core for pseudopotentials "// &
                           "where the electron density goes to zero at the core (e.g. GTH). "// &
                           "The correction is based on rho_core.", &
-                          usage="DIELECTRIC_CORE_CORRECTION <logical>", default_l_val=.TRUE.)
+                          usage="DIELECTRIC_CORE_CORRECTION <logical>", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -870,7 +870,7 @@ CONTAINS
                           description="Print out the coordinates of the vertices defining Dirichlet regions and their "// &
                           "tessellations (in Angstrom), the values of the electrostatic potential at the regions (in a.u.), "// &
                           "and their corresponding evaluated Lagrange multipliers.", &
-                          usage="VERBOSE_OUTPUT <logical>", default_l_val=.FALSE.)
+                          usage="VERBOSE_OUTPUT <logical>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
