@@ -169,7 +169,7 @@ dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "make_den
 dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "make_index_canonical"
 dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "make_index_triangular"
 dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "merge_index_arrays"
-dbcsr_mm.F: Found WRITE statement with hardcoded unit in "dbcsr_multiply_internal"
+dbcsr_mm.F: Found WRITE statement with hardcoded unit in "dbcsr_multiply_generic"
 dbcsr_mm_common.F: Found WRITE statement with hardcoded unit in "rec_sort_index"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "call_rec_sort_index"
 dbcsr_mm_cannon.F: Found WRITE statement with hardcoded unit in "multiply_cannon"
