@@ -81,7 +81,8 @@ MODULE dbcsr_mm_3d
         hybrid_alltoall_i1
    USE dbcsr_operations,                ONLY: dbcsr_add
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
-                                              memory_copy
+                                              memory_copy,&
+                                              memory_deallocate
    USE dbcsr_toollib,                   ONLY: ordered_search
    USE dbcsr_types,                     ONLY: &
         dbcsr_1d_array_type, dbcsr_2d_array_obj, dbcsr_data_obj, dbcsr_distribution_obj, &
@@ -1278,7 +1279,7 @@ CONTAINS
          CALL timestop(handle2)
          ! Delete send data
          CALL dbcsr_data_release(data_send)
-         DEALLOCATE (meta_send)
+         CALL memory_deallocate(meta_send, memtype_mpi_buffer)
 !$OMP END MASTER
       ENDIF
 !$OMP BARRIER
@@ -1474,7 +1475,8 @@ CONTAINS
       !
       IF (do_virt .OR. ((do_symmetry .OR. transpose) .AND. .NOT. is_diagonal)) THEN
          CALL dbcsr_data_release(data_recv)
-         DEALLOCATE (meta_recv, recv_refs)
+         CALL memory_deallocate(meta_recv, memtype_mpi_buffer)
+         DEALLOCATE (recv_refs)
       ENDIF
       IF (is_left) THEN
          NULLIFY (local_g2l_map_rows)
@@ -5262,16 +5264,16 @@ CONTAINS
       CALL buffer_release(buffers_orig%left)
       !
       IF (ASSOCIATED(meta_scatter)) THEN
-         DEALLOCATE (meta_scatter)
+         CALL memory_deallocate(meta_scatter, memtype_mpi_buffer)
          NULLIFY (meta_scatter)
       ENDIF
       IF (ASSOCIATED(local_meta_scatter)) THEN
-         DEALLOCATE (local_meta_scatter)
+         CALL memory_deallocate(local_meta_scatter, memtype_mpi_buffer)
          NULLIFY (local_meta_scatter)
          CALL dbcsr_data_release(local_data_scatter)
       ENDIF
       IF (ASSOCIATED(local_meta_product_scatter)) THEN
-         DEALLOCATE (local_meta_product_scatter)
+         CALL memory_deallocate(local_meta_product_scatter, memtype_mpi_buffer)
          NULLIFY (local_meta_product_scatter)
       ENDIF
       IF (dbcsr_data_valid(local_data_product_scatter)) THEN
@@ -5311,11 +5313,11 @@ CONTAINS
          buffer%is_valid = .FALSE.
       ENDIF
       IF (ASSOCIATED(buffer%meta)) THEN
-         DEALLOCATE (buffer%meta)
+         CALL memory_deallocate(buffer%meta, memtype_mpi_buffer)
          NULLIFY (buffer%meta)
       ENDIF
       IF (ASSOCIATED(buffer%meta_diag)) THEN
-         DEALLOCATE (buffer%meta_diag)
+         CALL memory_deallocate(buffer%meta_diag, memtype_mpi_buffer)
          NULLIFY (buffer%meta_diag)
       ENDIF
       IF (ALLOCATED(buffer%offset)) DEALLOCATE (buffer%offset)
