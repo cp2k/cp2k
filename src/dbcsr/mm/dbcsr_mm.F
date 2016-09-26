@@ -230,6 +230,7 @@ CONTAINS
 
          IF (dbcsr_mpi_statistics%nimages .GT. 0) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("-", 79)
+            WRITE (output_unit, '(A,T30,I20)') " # multiplications", num_multiplications
             WRITE (output_unit, '(A,T30,EN20.6)') " max memory usage/rank", total_max_memory
             WRITE (output_unit, '(A,T30,I20)') " # max total images/rank", dbcsr_mpi_statistics%nimages
             WRITE (output_unit, '(A,T30,I20)') " # MPI messages exchanged", total_nexchanged
@@ -434,11 +435,11 @@ CONTAINS
          !TODO: ensure capacity 2/3?
          CALL dbcsr_memtype_setup(memtype_trsbuffer_1, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1)
-         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=num_layers_3D/2+1)
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
 
          CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2)
-         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=num_layers_3D/2+1)
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
       ELSE
          CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE.)
          CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE.)
