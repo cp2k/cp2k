@@ -20,6 +20,7 @@ MODULE dbcsr_mm_multrec
 
    USE array_types,                     ONLY: array_data,&
                                               array_equality
+   USE dbcsr_block_operations,          ONLY: dbcsr_data_set
    USE dbcsr_config,                    ONLY: multrec_limit
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                               dbcsr_distribution_has_threads,&
@@ -133,6 +134,7 @@ MODULE dbcsr_mm_multrec
    PUBLIC :: dbcsr_mm_multrec_init, dbcsr_mm_multrec_finalize
    PUBLIC :: dbcsr_mm_multrec_multiply
    PUBLIC :: dbcsr_mm_multrec_red3D_init, dbcsr_mm_multrec_red3D
+   PUBLIC :: dbcsr_mm_multrec_get_nblks, dbcsr_mm_multrec_get_nze
 
 CONTAINS
 
@@ -437,14 +439,17 @@ CONTAINS
 !>
 !>
 !> \param this ...
+!> \param matrix ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_multrec_finalize(this)
+   SUBROUTINE dbcsr_mm_multrec_finalize(this, matrix)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
+      TYPE(dbcsr_obj), INTENT(INOUT), OPTIONAL           :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_finalize', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: data_size, handle, ithread, lb_data, &
+                                                            lb_meta, nblocks, nthreads, ub_meta
 
 !   ---------------------------------------------------------------------------
 
@@ -459,10 +464,30 @@ CONTAINS
       DEALLOCATE (this%n_sizes)
       IF (this%new_row_max_epss) DEALLOCATE (this%row_max_epss)
 
-      CALL remap_local2global(this%product_wm%row_i, &
-                              this%product_wm%col_i, &
-                              this%c_local_rows, this%c_local_cols, &
-                              this%original_lastblk+1, this%product_wm%lastblk)
+      IF (PRESENT(matrix)) THEN
+         ithread = 0; nthreads = 1
+!$       ithread = OMP_GET_THREAD_NUM(); nthreads = OMP_GET_NUM_THREADS()
+         ! Copy wms data into matrix
+         lb_meta = matrix%m%index(ithread+1)
+         nblocks = (matrix%m%index(ithread+2)-lb_meta)/3
+         ub_meta = lb_meta+nblocks
+         matrix%m%index(lb_meta+1:ub_meta) = this%product_wm%row_i(1:nblocks)
+         lb_meta = ub_meta
+         ub_meta = lb_meta+nblocks
+         matrix%m%index(lb_meta+1:ub_meta) = this%product_wm%col_i(1:nblocks)
+         lb_meta = ub_meta
+         ub_meta = lb_meta+nblocks
+         matrix%m%index(lb_meta+1:ub_meta) = this%product_wm%blk_p(1:nblocks)
+         lb_data = matrix%m%index(ithread+nthreads+2)
+         data_size = matrix%m%index(ithread+nthreads+3)-lb_data
+         CALL dbcsr_data_set(matrix%m%data_area, lb_data+1, data_size, &
+                             this%product_wm%data_area, source_lb=1)
+      ELSE
+         CALL remap_local2global(this%product_wm%row_i, &
+                                 this%product_wm%col_i, &
+                                 this%c_local_rows, this%c_local_cols, &
+                                 this%original_lastblk+1, this%product_wm%lastblk)
+      ENDIF
 
       this%initialized = .FALSE.
       CALL timestop(handle)
@@ -481,7 +506,7 @@ CONTAINS
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
       INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: g2l_map_rows, g2l_map_cols
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: g2l_map_rows, g2l_map_cols
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_red3D', &
          routineP = moduleN//':'//routineN
@@ -492,9 +517,41 @@ CONTAINS
       IF (.NOT. this%initialized) &
          CPABORT("multrec not initialized.")
       CALL dbcsr_mm_csr_red3D(this%csr, matrix_other, flop, &
-                              g2l_map_rows, g2l_map_cols)
+                              m_sizes=this%m_sizes, n_sizes=this%n_sizes, &
+                              g2l_map_rows=g2l_map_rows, &
+                              g2l_map_cols=g2l_map_cols, &
+                              original_lastblk=this%original_lastblk, &
+                              keep_sparsity=this%keep_sparsity)
       CALL timestop(handle)
    END SUBROUTINE dbcsr_mm_multrec_red3D
+
+! **************************************************************************************************
+!> \brief Return number of blocks
+!> \param this ...
+!> \retval nblks ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   FUNCTION dbcsr_mm_multrec_get_nblks(this) RESULT(nblks)
+      TYPE(dbcsr_mm_multrec_type), INTENT(IN)            :: this
+      INTEGER                                            :: nblks
+
+      nblks = this%product_wm%lastblk
+
+   END FUNCTION dbcsr_mm_multrec_get_nblks
+
+! **************************************************************************************************
+!> \brief Return data size
+!> \param this ...
+!> \retval nze ...
+!> \author Alfio Lazzaro
+! **************************************************************************************************
+   FUNCTION dbcsr_mm_multrec_get_nze(this) RESULT(nze)
+      TYPE(dbcsr_mm_multrec_type), INTENT(IN)            :: this
+      INTEGER                                            :: nze
+
+      nze = this%product_wm%datasize
+
+   END FUNCTION dbcsr_mm_multrec_get_nze
 
 ! **************************************************************************************************
 !> \brief Performs recursive multiplication
