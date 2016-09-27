@@ -101,6 +101,7 @@ CONTAINS
 !>      07.2006 created [MI]
 !>      02.2009 using new setup of projector-basis overlap [jgh]
 !>      08.2016 add OpenMP [EPCC]
+!>      09.2016 use automatic arrays [M Tucker]
 ! **************************************************************************************************
    SUBROUTINE calculate_jrho_atom_coeff(qs_env, current_env, mat_d0, mat_jp, mat_jp_rii, &
                                         mat_jp_riii, iB, idir)
@@ -113,9 +114,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: bo(2), handle, iac, iat, iatom, ibc, idir2, ii, iii, ikind, ispin, jatom, jkind, &
-         kac, katom, kbc, kkind, max_gau, max_nsgf, mepos, n_cont_a, n_cont_b, nat, natom, nkind, &
-         nsatbas, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe, output_unit
+      INTEGER :: bo(2), handle, iac, iat, iatom, ibc, idir2, ii, iii, ikind, ispin, istat, jatom, &
+         jkind, kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, mepos, n_cont_a, &
+         n_cont_b, nat, natom, nkind, nsatbas, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe, &
+         output_unit
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, list_a, list_b
       LOGICAL                                            :: den_found, dista, distab, distb, &
@@ -124,7 +126,6 @@ CONTAINS
       REAL(dp)                                           :: eps_cpc, hard_radius_c, jmax, nbr_dbl, &
                                                             rab(3), rbc(3)
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, b_matrix, c_matrix, d_matrix
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: CPC, PC1
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b, r_coef_h, &
                                                             r_coef_s, tmp_coeff, zero_coeff
@@ -229,12 +230,16 @@ CONTAINS
          END IF
       END DO
 
+      len_PC1 = max_nsgf*max_gau
+      len_CPC = max_gau*max_gau
+
       num_pe = 1
 !$    num_pe = omp_get_max_threads()
       CALL neighbor_list_iterator_create(nl_iterator, sab_all, nthread=num_pe)
 
 !$OMP PARALLEL DEFAULT( NONE )                                  &
 !$OMP           SHARED( nspins, max_nsgf, max_gau               &
+!$OMP                 , len_PC1, len_CPC                        &
 !$OMP                 , nl_iterator, basis_set_list             &
 !$OMP                 , mat_a, mat_b, mat_c, mat_d              &
 !$OMP                 , nkind, qs_kind_set, eps_cpc, oce        &
@@ -243,8 +248,7 @@ CONTAINS
 !$OMP                 )                                         &
 !$OMP          PRIVATE( a_block, b_block, c_block, d_block                      &
 !$OMP                 , jp_RARnu, jp2_RARnu                                     &
-!$OMP                 , a_matrix, b_matrix, c_matrix, d_matrix                  &
-!$OMP                 , PC1, CPC                                                &
+!$OMP                 , a_matrix, b_matrix, c_matrix, d_matrix, istat           &
 !$OMP                 , mepos                                                   &
 !$OMP                 , ikind, jkind, kkind, iatom, jatom, katom                &
 !$OMP                 , cell_b, rab, rbc                                        &
@@ -265,11 +269,14 @@ CONTAINS
       NULLIFY (orb_basis_set, jp_RARnu, jp2_RARnu)
 
       ALLOCATE (a_block(nspins), b_block(nspins), c_block(nspins), d_block(nspins), &
-                jp_RARnu(nspins), jp2_RARnu(nspins))
+                jp_RARnu(nspins), jp2_RARnu(nspins), &
+                STAT=istat)
+      CPASSERT(istat == 0)
 
       ALLOCATE (a_matrix(max_nsgf, max_nsgf), b_matrix(max_nsgf, max_nsgf), &
                 c_matrix(max_nsgf, max_nsgf), d_matrix(max_nsgf, max_nsgf), &
-                PC1(max_nsgf*max_gau), CPC(max_gau*max_gau))
+                STAT=istat)
+      CPASSERT(istat == 0)
 
 !$OMP SINGLE
 !$    ALLOCATE (alloc_lock(natom))
@@ -451,7 +458,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       a_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      PC1, CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab)
                         !------------------------------------------------------------------
                         ! mQai_\alpha\alpha'
                         r_coef_h => jrho1_atom_set(katom)%cjc_h(ispin)%r_coef
@@ -459,7 +466,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       b_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      PC1, CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab)
                         !------------------------------------------------------------------
                         ! Qci_\alpha\alpha'
                         r_coef_h => jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef
@@ -467,7 +474,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       c_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      PC1, CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab)
                         !------------------------------------------------------------------
                         ! Qbi_\alpha\alpha'
                         r_coef_h => jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef
@@ -475,7 +482,7 @@ CONTAINS
                         CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                       C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                       d_matrix, max_nsgf, r_coef_h, r_coef_s, nso, &
-                                      PC1, CPC, 1.0_dp, distab)
+                                      len_PC1, len_CPC, 1.0_dp, distab)
                         !------------------------------------------------------------------
 !$                      CALL omp_unset_lock(proj_blk_lock((katom-1)*nspins+ispin))
 
@@ -512,7 +519,6 @@ CONTAINS
 !$OMP END SINGLE NOWAIT
 
       DEALLOCATE (a_matrix, b_matrix, c_matrix, d_matrix, &
-                  PC1, CPC, &
                   a_block, b_block, c_block, d_block, &
                   jp_RARnu, jp2_RARnu &
                   )

@@ -586,15 +586,15 @@ CONTAINS
 !> \param proj_h ...
 !> \param proj_s ...
 !> \param nso ...
-!> \param buf1 ...
-!> \param buf2 ...
+!> \param len1 ...
+!> \param len2 ...
 !> \param fac ...
 !> \param distab ...
 !> \par History
 !>      02.2009 created
-!> \author vw
+!>      09.2016 use automatic arrays [M Tucker]
 ! **************************************************************************************************
-   SUBROUTINE proj_blk(h_a, s_a, na, h_b, s_b, nb, blk, ldb, proj_h, proj_s, nso, buf1, buf2, fac, distab)
+   SUBROUTINE proj_blk(h_a, s_a, na, h_b, s_b, nb, blk, ldb, proj_h, proj_s, nso, len1, len2, fac, distab)
 
       INTEGER, INTENT(IN)                                :: na
       REAL(dp), INTENT(IN)                               :: s_a(na, *), h_a(na, *)
@@ -603,45 +603,39 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldb
       REAL(dp), INTENT(IN)                               :: blk(ldb, *)
       INTEGER, INTENT(IN)                                :: nso
-      REAL(dp), INTENT(INOUT)                            :: proj_s(nso, *), proj_h(nso, *), buf1(*), &
-                                                            buf2(*)
+      REAL(dp), INTENT(INOUT)                            :: proj_s(nso, *), proj_h(nso, *)
+      INTEGER, INTENT(IN)                                :: len1, len2
       REAL(dp), INTENT(IN)                               :: fac
       LOGICAL, INTENT(IN)                                :: distab
 
-!
+      REAL(dp)                                           :: buf1(len1), buf2(len2)
 
       IF (na .EQ. 0 .OR. nb .EQ. 0 .OR. nso .EQ. 0) RETURN
-      !
+
       ! handle special cases
       IF (na .EQ. 1 .AND. nb .EQ. 1) THEN
-         !
          ! hard
          CALL dger(nso, nso, fac*blk(1, 1), h_a(1, 1), 1, h_b(1, 1), 1, proj_h(1, 1), nso)
-         !
          ! soft
          CALL dger(nso, nso, fac*blk(1, 1), s_a(1, 1), 1, s_b(1, 1), 1, proj_s(1, 1), nso)
       ELSE
          IF (distab) THEN
-            !
             ! hard
             CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, h_b(1, 1), nb, 0.0_dp, buf1(1), na)
             CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, h_a(1, 1), na, buf1(1), na, 0.0_dp, buf2(1), nso)
             CALL daxpy(nso*nso, 1.0_dp, buf2(1), 1, proj_h(1, 1), 1)
-            !
             ! soft
             CALL daxpy(nso*nso, 1.0_dp, buf2(1), 1, proj_s(1, 1), 1)
          ELSE
-            !
             ! hard
             CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, h_b(1, 1), nb, 0.0_dp, buf1(1), na)
             CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, h_a(1, 1), na, buf1(1), na, 1.0_dp, proj_h(1, 1), nso)
-            !
             ! soft
             CALL dgemm('N', 'N', na, nso, nb, fac, blk(1, 1), ldb, s_b(1, 1), nb, 0.0_dp, buf1(1), na)
             CALL dgemm('T', 'N', nso, nso, na, 1.0_dp, s_a(1, 1), na, buf1(1), na, 1.0_dp, proj_s(1, 1), nso)
          ENDIF
       ENDIF
-      !
+
    END SUBROUTINE proj_blk
 
 ! **************************************************************************************************

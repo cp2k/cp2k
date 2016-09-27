@@ -465,6 +465,7 @@ CONTAINS
 !> \param rho_atom_set ...
 !> \par History
 !>      Add OpenMP [Apr 2016, EPCC]
+!>      Use automatic arrays [Sep 2016, M Tucker]
 ! **************************************************************************************************
    SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set)
 
@@ -477,8 +478,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, img, irow, ispin, istat, jatom, &
-         jkind, kac, katom, kbc, kkind, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, n_cont_b, &
-         nat_kind, natom, nimages, nkind, nsatbas, nsetc, nsoctot, nspins, num_pe
+         jkind, kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, maxsoc, mepos, &
+         n_cont_a, n_cont_b, nat_kind, natom, nimages, nkind, nsatbas, nsetc, nsoctot, nspins, &
+         num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: a_list, list_a, list_b
@@ -486,7 +488,6 @@ CONTAINS
       LOGICAL                                            :: dista, distab, distb, found, paw_atom
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: p_matrix
       REAL(KIND=dp)                                      :: eps_cpc, factor, pmax
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: CPC, PC1
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: C_coeff_hh_a, C_coeff_hh_b, &
                                                             C_coeff_ss_a, C_coeff_ss_b, r_coef_h, &
@@ -581,12 +582,16 @@ CONTAINS
          END IF
       END DO
 
+      len_PC1 = max_nsgf*max_gau
+      len_CPC = max_gau*max_gau
+
       num_pe = 1
 !$    num_pe = omp_get_max_threads()
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb, nthread=num_pe)
 
 !$OMP PARALLEL DEFAULT( NONE )                            &
 !$OMP           SHARED( max_nsgf, max_gau                 &
+!$OMP                 , len_PC1, len_CPC                  &
 !$OMP                 , nl_iterator, basis_set_list       &
 !$OMP                 , nimages, cell_to_index            &
 !$OMP                 , nspins, rho_ao                    &
@@ -596,7 +601,7 @@ CONTAINS
 !$OMP                 , natom, locks, number_of_locks     &
 !$OMP                 )                                   &
 !$OMP          PRIVATE( p_block_spin, ispin               &
-!$OMP                 , PC1, CPC, p_matrix, istat         &
+!$OMP                 , p_matrix, istat                   &
 !$OMP                 , mepos                             &
 !$OMP                 , ikind, jkind, iatom, jatom        &
 !$OMP                 , cell_b, rab                       &
@@ -619,7 +624,7 @@ CONTAINS
          NULLIFY (p_block_spin(ispin)%r_coef)
       END DO
 
-      ALLOCATE (PC1(max_nsgf*max_gau), CPC(max_gau*max_gau), p_matrix(max_nsgf, max_nsgf), STAT=istat)
+      ALLOCATE (p_matrix(max_nsgf, max_nsgf), STAT=istat)
       CPASSERT(istat == 0)
 
 !$    number_of_locks = nspins*natom
@@ -752,12 +757,12 @@ CONTAINS
                            CALL proj_blk(C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
-                                         PC1, CPC, factor, distab)
+                                         len_PC1, len_CPC, factor, distab)
                         ELSE
                            CALL proj_blk(C_coeff_hh_b, C_coeff_ss_b, n_cont_b, &
                                          C_coeff_hh_a, C_coeff_ss_a, n_cont_a, &
                                          p_matrix, max_nsgf, r_coef_h, r_coef_s, nsoctot, &
-                                         PC1, CPC, factor, distab)
+                                         len_PC1, len_CPC, factor, distab)
                         ENDIF
 !$                      CALL omp_unset_lock(locks((katom-1)*nspins+ispin))
 
@@ -780,7 +785,7 @@ CONTAINS
 !$    DEALLOCATE (locks)
 !$OMP END SINGLE NOWAIT
 
-      DEALLOCATE (PC1, CPC, p_block_spin, p_matrix)
+      DEALLOCATE (p_block_spin, p_matrix)
 !$OMP END PARALLEL
 
       CALL neighbor_list_iterator_release(nl_iterator)
