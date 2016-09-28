@@ -68,14 +68,14 @@ MODULE dbcsr_mm_3d
         max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_mpi_product, &
         memtype_product_wm, memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, &
         rec_sort_index, setup_buffer_matrix
-   USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
+   USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_dev2host_init,&
+                                              dbcsr_mm_multrec_finalize,&
                                               dbcsr_mm_multrec_get_nblks,&
                                               dbcsr_mm_multrec_get_nze,&
                                               dbcsr_mm_multrec_init,&
                                               dbcsr_mm_multrec_multiply,&
                                               dbcsr_mm_multrec_phaseout,&
-                                              dbcsr_mm_multrec_red3D,&
-                                              dbcsr_mm_multrec_red3D_init
+                                              dbcsr_mm_multrec_red3D
    USE dbcsr_mp_methods,                ONLY: &
         dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
         dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
@@ -2483,6 +2483,7 @@ CONTAINS
                   CALL dbcsr_work_create(product_matrix3D%mats(irow3D, icol3D)%matrix, &
                                          work_mutable=.FALSE., memory_type=memtype_product_wm(ithread)%p)
                ENDIF
+!$OMP BARRIER
             ENDIF
             ! The work arrays have to be setup
             size_guess = product_matrix3D%mats(irow3D, icol3D)% &
@@ -2636,6 +2637,9 @@ CONTAINS
 !$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
+               CALL dbcsr_mm_multrec_dev2host_init(multrec(ithread, &
+                                                           left_buffers(ileft_buffer_calc)%coord3D, &
+                                                           right_buffers(iright_buffer_calc)%coord3D)%p)
 !$OMP ATOMIC
                product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
                                      right_buffers(iright_buffer_calc)%coord3D)%matrix%m%nblks = &
@@ -2689,7 +2693,8 @@ CONTAINS
                      left_buffers(ileft_buffer_calc)%coord3D, &
                      right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index(myt+nthreads+2) = &
                      product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                           right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index(myt+nthreads+1)+ &
+                                           right_buffers(iright_buffer_calc)%coord3D)% &
+                     matrix%m%index(myt+nthreads+1)+ &
                      dbcsr_mm_multrec_get_nze(multrec(myt-1, &
                                                       left_buffers(ileft_buffer_calc)%coord3D, &
                                                       right_buffers(iright_buffer_calc)%coord3D)%p)
@@ -2771,7 +2776,7 @@ CONTAINS
 !$OMP PRIVATE (ithread)
          ithread = 0
 !$       ithread = omp_get_thread_num()
-         CALL dbcsr_mm_multrec_red3D_init(multrec(ithread, myrow3D, mycol3D)%p)
+         CALL dbcsr_mm_multrec_dev2host_init(multrec(ithread, myrow3D, mycol3D)%p)
 !$OMP END PARALLEL
          !
          CALL dbcsr_data_init(data_send)
@@ -4876,7 +4881,6 @@ CONTAINS
 !$          t_l = meta_buffer(refs_displ(in)+ithread+1)
 !$       ENDIF
          t_size = t_l-t_f+1
-!$OMP    BARRIER
          IF (t_size .GT. 0) THEN
             CALL rec_sort_index(1, nblkrows_local, &
                                 1, nblkcols_local, &

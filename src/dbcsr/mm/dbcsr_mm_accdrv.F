@@ -94,7 +94,7 @@ MODULE dbcsr_mm_accdrv
    PUBLIC :: dbcsr_mm_accdrv_phaseout, dbcsr_mm_accdrv_barrier
    PUBLIC :: dbcsr_mm_accdrv_init, dbcsr_mm_accdrv_finalize
    PUBLIC :: dbcsr_mm_accdrv_process
-   PUBLIC :: dbcsr_mm_accdrv_red3D_init
+   PUBLIC :: dbcsr_mm_accdrv_dev2host_init
 
    ! ===== Global Accelerator Memory =====
    ! Allocating memory on the device and host-pinned is slow.
@@ -392,7 +392,7 @@ CONTAINS
 !> \param this ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_accdrv_red3D_init(this)
+   SUBROUTINE dbcsr_mm_accdrv_dev2host_init(this)
       TYPE(dbcsr_mm_accdrv_type), INTENT(INOUT)          :: this
 
 ! Transfer C-data from device to host and adding it to host's result
@@ -401,7 +401,7 @@ CONTAINS
          CALL dbcsr_data_dev2host(this%c_buffer)
          this%c_area_copy = .FALSE.
       ENDIF
-   END SUBROUTINE dbcsr_mm_accdrv_red3D_init
+   END SUBROUTINE dbcsr_mm_accdrv_dev2host_init
 
 ! **************************************************************************************************
 !> \brief Finalizes a multiplication cycle for a set of C-blocks.

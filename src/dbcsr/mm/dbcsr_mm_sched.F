@@ -26,9 +26,9 @@ MODULE dbcsr_mm_sched
    USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                               dbcsr_data_get_size
    USE dbcsr_mm_accdrv,                 ONLY: &
-        dbcsr_mm_accdrv_barrier, dbcsr_mm_accdrv_finalize, dbcsr_mm_accdrv_init, &
-        dbcsr_mm_accdrv_lib_finalize, dbcsr_mm_accdrv_lib_init, dbcsr_mm_accdrv_phaseout, &
-        dbcsr_mm_accdrv_process, dbcsr_mm_accdrv_red3D_init, dbcsr_mm_accdrv_type
+        dbcsr_mm_accdrv_barrier, dbcsr_mm_accdrv_dev2host_init, dbcsr_mm_accdrv_finalize, &
+        dbcsr_mm_accdrv_init, dbcsr_mm_accdrv_lib_finalize, dbcsr_mm_accdrv_lib_init, &
+        dbcsr_mm_accdrv_phaseout, dbcsr_mm_accdrv_process, dbcsr_mm_accdrv_type
    USE dbcsr_mm_hostdrv,                ONLY: dbcsr_mm_hostdrv_init,&
                                               dbcsr_mm_hostdrv_lib_finalize,&
                                               dbcsr_mm_hostdrv_lib_init,&
@@ -69,7 +69,7 @@ MODULE dbcsr_mm_sched
    PUBLIC :: dbcsr_mm_sched_begin_burst, dbcsr_mm_sched_end_burst
    PUBLIC :: dbcsr_mm_sched_barrier
    PUBLIC :: dbcsr_mm_sched_set_orig_datasize
-   PUBLIC :: dbcsr_mm_sched_red3D_init
+   PUBLIC :: dbcsr_mm_sched_dev2host_init
 
    ! **************************************************************************************************
    TYPE dbcsr_mm_sched_type
@@ -270,10 +270,10 @@ CONTAINS
 !> \param this ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_sched_red3D_init(this)
+   SUBROUTINE dbcsr_mm_sched_dev2host_init(this)
       TYPE(dbcsr_mm_sched_type), INTENT(INOUT)           :: this
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_sched_red3D_init', &
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_sched_dev2host_init', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
@@ -281,11 +281,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (has_acc) &
-         CALL dbcsr_mm_accdrv_red3D_init(this%accdrv)
+         CALL dbcsr_mm_accdrv_dev2host_init(this%accdrv)
 
       CALL timestop(handle)
 
-   END SUBROUTINE dbcsr_mm_sched_red3D_init
+   END SUBROUTINE dbcsr_mm_sched_dev2host_init
 
 ! **************************************************************************************************
 !> \brief Signal begin of a burst of calls to dbcsr_mm_sched_process.

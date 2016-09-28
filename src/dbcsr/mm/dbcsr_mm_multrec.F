@@ -35,9 +35,9 @@ MODULE dbcsr_mm_multrec
                                               dbcsr_internal_error,&
                                               dbcsr_wrong_args_error
    USE dbcsr_mm_csr,                    ONLY: &
-        dbcsr_mm_csr_finalize, dbcsr_mm_csr_init, dbcsr_mm_csr_lib_finalize, &
-        dbcsr_mm_csr_lib_init, dbcsr_mm_csr_multiply, dbcsr_mm_csr_phaseout, &
-        dbcsr_mm_csr_purge_stacks, dbcsr_mm_csr_red3D, dbcsr_mm_csr_red3D_init, dbcsr_mm_csr_type
+        dbcsr_mm_csr_dev2host_init, dbcsr_mm_csr_finalize, dbcsr_mm_csr_init, &
+        dbcsr_mm_csr_lib_finalize, dbcsr_mm_csr_lib_init, dbcsr_mm_csr_multiply, &
+        dbcsr_mm_csr_phaseout, dbcsr_mm_csr_purge_stacks, dbcsr_mm_csr_red3D, dbcsr_mm_csr_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
    USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                               dbcsr_obj,&
@@ -134,7 +134,7 @@ MODULE dbcsr_mm_multrec
    PUBLIC :: dbcsr_mm_multrec_phaseout
    PUBLIC :: dbcsr_mm_multrec_init, dbcsr_mm_multrec_finalize
    PUBLIC :: dbcsr_mm_multrec_multiply
-   PUBLIC :: dbcsr_mm_multrec_red3D_init, dbcsr_mm_multrec_red3D
+   PUBLIC :: dbcsr_mm_multrec_dev2host_init, dbcsr_mm_multrec_red3D
    PUBLIC :: dbcsr_mm_multrec_get_nblks, dbcsr_mm_multrec_get_nze
 
 CONTAINS
@@ -418,22 +418,15 @@ CONTAINS
 !>
 !> \param this ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_multrec_red3D_init(this)
+   SUBROUTINE dbcsr_mm_multrec_dev2host_init(this)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_red3D_init', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle
 
 !   ---------------------------------------------------------------------------
 
-      CALL timeset(routineN, handle)
       IF (.NOT. this%initialized) &
          CPABORT("multrec not initialized.")
-      CALL dbcsr_mm_csr_red3D_init(this%csr)
-      CALL timestop(handle)
-   END SUBROUTINE dbcsr_mm_multrec_red3D_init
+      CALL dbcsr_mm_csr_dev2host_init(this%csr)
+   END SUBROUTINE dbcsr_mm_multrec_dev2host_init
 
 ! **************************************************************************************************
 !> \brief Sets up recursive multiplication
