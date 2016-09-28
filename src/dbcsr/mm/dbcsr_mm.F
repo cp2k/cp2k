@@ -64,7 +64,7 @@ MODULE dbcsr_mm
    USE dbcsr_mm_cannon,                 ONLY: make_m2s,&
                                               multiply_cannon
    USE dbcsr_mm_common,                 ONLY: &
-        dbcsr_mpi_statistics, max_memory, max_nblocks, memtype_abpanel_1, memtype_abpanel_2, &
+        dbcsr_mpi_statistics, max_memory, memtype_abpanel_1, memtype_abpanel_2, &
         memtype_mpi_buffer, memtype_mpi_product, memtype_product_wm, memtype_trsbuffer_1, &
         memtype_trsbuffer_2, num_multiplications, stream_1, stream_2
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_lib_finalize,&
@@ -822,8 +822,6 @@ CONTAINS
       ENDIF
       !
       IF (use_mpi_exp) THEN
-         !
-         max_nblocks = product_matrix%m%nblks
          !
          ! Left buffer images
          CALL dbcsr_make_buffers(matrix_left, rdist_left, .TRUE., &

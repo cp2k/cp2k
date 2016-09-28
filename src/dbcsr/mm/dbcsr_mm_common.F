@@ -54,7 +54,6 @@ MODULE dbcsr_mm_common
    TYPE(dbcsr_memtype_type_p), DIMENSION(:), POINTER, SAVE :: memtype_product_wm => Null()
 
    TYPE(dbcsr_mpi_statistics_type), SAVE :: dbcsr_mpi_statistics
-   INTEGER, SAVE :: max_nblocks = 0
    INTEGER, SAVE :: num_multiplications = 0
    REAL, SAVE :: max_memory = 0
 
@@ -72,7 +71,7 @@ MODULE dbcsr_mm_common
 
    PUBLIC :: memtype_product_wm
    PUBLIC :: dbcsr_mpi_statistics, num_multiplications
-   PUBLIC :: max_nblocks, max_memory
+   PUBLIC :: max_memory
 
    PUBLIC :: memtype_abpanel_1, memtype_abpanel_2, &
              memtype_trsbuffer_1, memtype_trsbuffer_2, &

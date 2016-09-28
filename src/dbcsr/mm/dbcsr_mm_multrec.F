@@ -39,7 +39,8 @@ MODULE dbcsr_mm_multrec
         dbcsr_mm_csr_lib_init, dbcsr_mm_csr_multiply, dbcsr_mm_csr_phaseout, &
         dbcsr_mm_csr_purge_stacks, dbcsr_mm_csr_red3D, dbcsr_mm_csr_red3D_init, dbcsr_mm_csr_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
-   USE dbcsr_types,                     ONLY: dbcsr_obj,&
+   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                              dbcsr_obj,&
                                               dbcsr_type,&
                                               dbcsr_work_type
    USE kinds,                           ONLY: int_8,&
@@ -497,14 +498,16 @@ CONTAINS
 !> \brief Make the reduction of the 3D layers in the local multrec object
 !>
 !> \param this ...
-!> \param matrix_other ...
+!> \param meta_buffer ...
+!> \param data_buffer ...
 !> \param flop ...
 !> \param g2l_map_rows ...
 !> \param g2l_map_cols ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_mm_multrec_red3D(this, matrix_other, flop, g2l_map_rows, g2l_map_cols)
+   SUBROUTINE dbcsr_mm_multrec_red3D(this, meta_buffer, data_buffer, flop, g2l_map_rows, g2l_map_cols)
       TYPE(dbcsr_mm_multrec_type), INTENT(inout)         :: this
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_other
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: meta_buffer
+      TYPE(dbcsr_data_obj), INTENT(IN)                   :: data_buffer
       INTEGER(KIND=int_8), INTENT(INOUT)                 :: flop
       INTEGER, DIMENSION(:), INTENT(IN)                  :: g2l_map_rows, g2l_map_cols
 
@@ -516,7 +519,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (.NOT. this%initialized) &
          CPABORT("multrec not initialized.")
-      CALL dbcsr_mm_csr_red3D(this%csr, matrix_other, flop, &
+      CALL dbcsr_mm_csr_red3D(this%csr, meta_buffer, data_buffer, flop, &
                               m_sizes=this%m_sizes, n_sizes=this%n_sizes, &
                               g2l_map_rows=g2l_map_rows, &
                               g2l_map_cols=g2l_map_cols, &
