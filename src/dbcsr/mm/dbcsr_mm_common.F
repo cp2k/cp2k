@@ -60,7 +60,7 @@ MODULE dbcsr_mm_common
 
    TYPE(dbcsr_memtype_type), SAVE  :: memtype_abpanel_1, memtype_abpanel_2, &
                                       memtype_trsbuffer_1, memtype_trsbuffer_2, &
-                                      memtype_mpi_buffer
+                                      memtype_mpi_buffer, memtype_mpi_product
    TYPE(acc_stream_type), SAVE     :: stream_1, stream_2
    ! ab-panels and streams are shared between all threads
 
@@ -76,7 +76,7 @@ MODULE dbcsr_mm_common
 
    PUBLIC :: memtype_abpanel_1, memtype_abpanel_2, &
              memtype_trsbuffer_1, memtype_trsbuffer_2, &
-             memtype_mpi_buffer
+             memtype_mpi_buffer, memtype_mpi_product
    PUBLIC :: stream_1, stream_2
 
    PUBLIC :: dbcsr_mm_multrec_type_p

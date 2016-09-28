@@ -65,8 +65,8 @@ MODULE dbcsr_mm
                                               multiply_cannon
    USE dbcsr_mm_common,                 ONLY: &
         dbcsr_mpi_statistics, max_memory, max_nblocks, memtype_abpanel_1, memtype_abpanel_2, &
-        memtype_mpi_buffer, memtype_product_wm, memtype_trsbuffer_1, memtype_trsbuffer_2, &
-        num_multiplications, stream_1, stream_2
+        memtype_mpi_buffer, memtype_mpi_product, memtype_product_wm, memtype_trsbuffer_1, &
+        memtype_trsbuffer_2, num_multiplications, stream_1, stream_2
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_lib_finalize,&
                                               dbcsr_mm_multrec_lib_init
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
@@ -277,6 +277,8 @@ CONTAINS
          CALL dbcsr_mempool_destruct(memtype_abpanel_1%pool)
       IF (ASSOCIATED(memtype_abpanel_2%pool)) &
          CALL dbcsr_mempool_destruct(memtype_abpanel_2%pool)
+      IF (ASSOCIATED(memtype_mpi_product%pool)) &
+         CALL dbcsr_mempool_destruct(memtype_mpi_product%pool)
       IF (acc_stream_associated(stream_1)) &
          CALL acc_stream_destroy(stream_1)
       IF (acc_stream_associated(stream_2)) &
@@ -435,17 +437,19 @@ CONTAINS
          !TODO: ensure capacity 2/3?
          CALL dbcsr_memtype_setup(memtype_trsbuffer_1, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1)
-         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
-
          CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE., &
                                   acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2)
-         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
+         IF (.NOT. use_mpi_exp) THEN
+            CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
+            CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
+         ENDIF
       ELSE
          CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE.)
          CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE.)
       ENDIF
 
       CALL dbcsr_memtype_setup(memtype_mpi_buffer, mpi=.TRUE.)
+      CALL dbcsr_memtype_setup(memtype_mpi_product, mpi=.TRUE., has_pool=.TRUE.)
 
       ! check parameters ---------------------------------------------------------
       transa_l = transa

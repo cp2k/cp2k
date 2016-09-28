@@ -63,8 +63,8 @@ MODULE dbcsr_mm_3d
    USE dbcsr_mm_common,                 ONLY: &
         count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, enumerate_blk_sizes, &
         max_memory, max_nblocks, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, &
-        memtype_product_wm, memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, &
-        rec_sort_index, setup_buffer_matrix
+        memtype_mpi_product, memtype_product_wm, memtype_trsbuffer_1, memtype_trsbuffer_2, &
+        product_matrix_size_guess, rec_sort_index, setup_buffer_matrix
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                               dbcsr_mm_multrec_get_nblks,&
                                               dbcsr_mm_multrec_get_nze,&
@@ -2170,6 +2170,10 @@ CONTAINS
          CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, &
                                            capacity=nbuffers/2+MOD(nbuffers, 2))
       ENDIF
+      IF (nranks3D .GT. 1) THEN
+         CALL dbcsr_mempool_limit_capacity(memtype_mpi_product%pool, &
+                                           capacity=nranks3D-1)
+      ENDIF
       !
       ! Prepare buffers for computation
       IF (nvirt_k .GT. 1) THEN
@@ -2434,7 +2438,7 @@ CONTAINS
                   CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
                                            product_matrix, product_matrix_meta_size(irow3D, icol3D), &
                                            data_size=size_guess, &
-                                           data_memory_type=memtype_mpi_buffer)
+                                           data_memory_type=memtype_mpi_product)
                   product_matrix3D%mats(irow3D, icol3D)% &
                      matrix%m%index(1:product_matrix_meta_size(irow3D, icol3D)) = &
                      product_matrix_meta(product_matrix_meta_displ(irow3D, icol3D)+1: &
@@ -2444,7 +2448,7 @@ CONTAINS
                                         ub=size_guess)
                ELSE
                   CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
-                                           product_matrix, data_memory_type=memtype_mpi_buffer)
+                                           product_matrix, data_memory_type=memtype_mpi_product)
                ENDIF
                product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_prow) = &
                   (irow3D-1)*layers_3D_C_reduction%side3D+myprow
@@ -2694,7 +2698,8 @@ CONTAINS
                                    left_buffers(ileft_buffer_calc)%coord3D, &
                                    right_buffers(iright_buffer_calc)%coord3D)%p)
                CALL dbcsr_work_destroy(product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                                             right_buffers(iright_buffer_calc)%coord3D)%matrix%m%wms(ithread+1))
+                                                             right_buffers(iright_buffer_calc)%coord3D)% &
+                                       matrix%m%wms(ithread+1))
 !$OMP END PARALLEL
                DEALLOCATE (product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
                                                  right_buffers(iright_buffer_calc)%coord3D)%matrix%m%wms)
@@ -3534,6 +3539,8 @@ CONTAINS
                                            capacity=left_col_nimages+right_row_nimages)
          CALL dbcsr_mempool_limit_capacity(memtype_abpanel_2%pool, &
                                            capacity=left_col_nimages+right_row_nimages)
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
+         CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
       ENDIF
       !
       ! Wait refs and max norms (sent in make_buffers)
