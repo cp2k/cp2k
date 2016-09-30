@@ -132,6 +132,7 @@ MODULE input_cp2k_dft
    PUBLIC :: create_bsse_section, create_qs_section
    PUBLIC :: create_scf_section
    PUBLIC :: create_interp_section, create_localize_section
+   PUBLIC :: create_mgrid_section
 
 CONTAINS
 
@@ -323,7 +324,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_mgrid_section(subsection)
+      CALL create_mgrid_section(subsection, create_subsections=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -5185,11 +5186,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief creates the multigrid
-!> \param section ...
+!> \param section             input section to create
+!> \param create_subsections  indicates whether or not subsections INTERPOLATOR and RS_GRID
+!>                            should be created
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE create_mgrid_section(section)
+   SUBROUTINE create_mgrid_section(section, create_subsections)
       TYPE(section_type), POINTER                        :: section
+      LOGICAL, INTENT(in)                                :: create_subsections
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_mgrid_section', &
          routineP = moduleN//':'//routineN
@@ -5280,15 +5284,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      NULLIFY (subsection)
-      CALL create_rsgrid_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+      IF (create_subsections) THEN
+         NULLIFY (subsection)
+         CALL create_rsgrid_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
 
-      NULLIFY (subsection)
-      CALL create_interp_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
+         NULLIFY (subsection)
+         CALL create_interp_section(subsection)
+         CALL section_add_subsection(section, subsection)
+         CALL section_release(subsection)
+      END IF
    END SUBROUTINE create_mgrid_section
 
 ! **************************************************************************************************

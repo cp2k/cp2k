@@ -70,6 +70,7 @@ CONTAINS
 !> \param rebuild_grids if it in necessary to rebuild rho_r and rho_g.
 !>        Defaults to false.
 !> \param admm (use aux_fit basis)
+!> \param pw_env_external external plane wave environment
 !> \par History
 !>      11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
 !> \author Fawzi Mohamed
@@ -80,10 +81,11 @@ CONTAINS
 !>      Change so that it does not allocate a subcomponent if it is not
 !>      associated and not requested?
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, admm)
+   SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, admm, pw_env_external)
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in), OPTIONAL                      :: rebuild_ao, rebuild_grids, admm
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_rebuild', routineP = moduleN//':'//routineN
 
@@ -123,6 +125,8 @@ CONTAINS
                       do_kpoints=do_kpoints, &
                       pw_env=pw_env, &
                       dft_control=dft_control)
+      IF (PRESENT(pw_env_external)) &
+         pw_env => pw_env_external
 
       nimg = dft_control%nimages
 
@@ -316,15 +320,17 @@ CONTAINS
 !> \param qs_env the qs_env rho_struct refers to
 !>        the integrated charge in r space
 !> \param local_rho_set ...
-!> \param task_list_external ...
+!> \param pw_env_external    external plane wave environment
+!> \param task_list_external external task list
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_external)
+   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, pw_env_external, task_list_external)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
@@ -341,6 +347,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_xc_g, rho_g, rho_r, &
                                                             rho_xc_g, rho_xc_r, tau_g, tau_r, &
                                                             tau_xc_g, tau_xc_r
@@ -353,7 +360,7 @@ CONTAINS
 
       NULLIFY (dft_control, rho_xc, ks_env, rho_ao, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g)
       NULLIFY (rho_xc_ao, rho_xc_g, rho_xc_r, drho_xc_g, tau_xc_r, tau_xc_g, tot_rho_r, tot_rho_r_xc)
-      NULLIFY (lri_env, lri_density, para_env, atomic_kind_set)
+      NULLIFY (lri_env, lri_density, para_env, pw_env, atomic_kind_set)
 
       CPASSERT(ASSOCIATED(rho_struct))
 
@@ -364,7 +371,8 @@ CONTAINS
                       lri_density=lri_density, &
                       lri_env=lri_env, &
                       atomic_kind_set=atomic_kind_set, &
-                      para_env=para_env)
+                      para_env=para_env, &
+                      pw_env=pw_env)
 
       CALL qs_rho_get(rho_struct, &
                       rho_r=rho_r, &
@@ -376,6 +384,7 @@ CONTAINS
                       tau_g=tau_g, &
                       rho_r_sccs=rho_r_sccs)
 
+      IF (PRESENT(pw_env_external)) pw_env => pw_env_external
       IF (PRESENT(task_list_external)) task_list => task_list_external
 
       nspins = dft_control%nspins
@@ -408,7 +417,8 @@ CONTAINS
                                     rho_gspace=rho_g(ispin), &
                                     total_rho=tot_rho_r(ispin), &
                                     ks_env=ks_env, soft_valid=gapw, &
-                                    task_list_external=task_list)
+                                    task_list_external=task_list, &
+                                    pw_env_external=pw_env)
          END DO
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
       END IF
@@ -416,8 +426,9 @@ CONTAINS
       ! if needed compute also the gradient of the density
       IF (dft_control%drho_by_collocation) THEN
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+         CPASSERT(.NOT. PRESENT(task_list_external))
+         CPASSERT(.NOT. PRESENT(pw_env_external))
          DO ispin = 1, nspins
-            CPASSERT(.NOT. PRESENT(task_list_external))
             rho_ao => rho_ao_kp(ispin, :)
             CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
                                      drho=drho_r(3*(ispin-1)+1:3*ispin), &
@@ -434,14 +445,15 @@ CONTAINS
          ENDIF
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
          DO ispin = 1, nspins
-            CPASSERT(.NOT. PRESENT(task_list_external))
             rho_ao => rho_ao_kp(ispin, :)
             CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                     rho=tau_r(ispin), &
                                     rho_gspace=tau_g(ispin), &
                                     total_rho=dum, & ! presumably not meaningful
                                     ks_env=ks_env, soft_valid=gapw, &
-                                    compute_tau=.TRUE.)
+                                    compute_tau=.TRUE., &
+                                    task_list_external=task_list, &
+                                    pw_env_external=pw_env)
          END DO
          CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
       ENDIF
@@ -449,6 +461,7 @@ CONTAINS
       ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF (gapw) THEN
          CPASSERT(.NOT. PRESENT(task_list_external))
+         CPASSERT(.NOT. PRESENT(pw_env_external))
          CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
          IF (PRESENT(local_rho_set)) THEN
             CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, local_rho_set%rho_atom_set)
@@ -458,6 +471,7 @@ CONTAINS
       ENDIF
       IF (gapw_xc) THEN
          CPASSERT(.NOT. PRESENT(task_list_external))
+         CPASSERT(.NOT. PRESENT(pw_env_external))
          CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
          CALL qs_rho_get(rho_xc, &
                          rho_ao_kp=rho_xc_ao, &

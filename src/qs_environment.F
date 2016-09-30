@@ -501,9 +501,6 @@ CONTAINS
       !   *** Read the input section with the DFT control parameters ***
       CALL read_dft_control(dft_control, dft_section)
 
-      ! reimplemented TDDFPT
-      CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section)
-
       ! original implementation of TDDFPT
       IF (dft_control%do_tddfpt_calculation) THEN
          CALL read_tddfpt_control(dft_control%tddfpt_control, &
@@ -548,6 +545,9 @@ CONTAINS
          CALL read_becke_section(dft_control%qs_control, et_becke_section)
       END IF
       CALL read_mgrid_section(dft_control%qs_control, dft_section)
+
+      ! reimplemented TDDFPT
+      CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section, dft_control%qs_control)
 
       !   Create relativistic control section
       CALL rel_c_create(rel_control)

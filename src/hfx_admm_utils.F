@@ -944,55 +944,50 @@ CONTAINS
 
    END SUBROUTINE create_admm_xc_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Add the hfx contributions to the Hamiltonian
 !>
-!> \param qs_env ...
-!> \param rho ...
-!> \param K_ia_munu ...
+!> \param matrix_ks Kohn-Sham matrix (updated on exit)
+!> \param rho_ao    electron density expressed in terms of atomic orbitals
+!> \param qs_env    Quickstep environment
 !> \note
 !>     Simplified version of subroutine hfx_ks_matrix()
 ! **************************************************************************************************
-
-   SUBROUTINE tddft_hfx_matrix(qs_env, rho, K_ia_munu)
+   SUBROUTINE tddft_hfx_matrix(matrix_ks, rho_ao, qs_env)
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, rho_ao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: K_ia_munu
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddft_hfx_matrix', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, irep, ispin, mspin, n_rep_hf, &
-                                                            nimages, nspins
+                                                            nspins
       LOGICAL                                            :: distribute_fock_matrix, do_hfx, &
                                                             hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_v_hfx_2d, rho_ao_orb
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks_kp, rho_ao_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, hfx_sections, input, para_env, pw_env, &
-               rho_ao_orb, matrix_v_hfx_2d)
+      NULLIFY (dft_control, hfx_sections, input, para_env, matrix_ks_kp, rho_ao_kp)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       energy=energy, &
                       input=input, &
                       para_env=para_env, &
-                      pw_env=pw_env, &
                       s_mstruct_changed=s_mstruct_changed)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
 
       IF (do_hfx) THEN
+         CPASSERT(dft_control%nimages == 1)
          nspins = dft_control%nspins
-         nimages = dft_control%nimages
 
          CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
          CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core, &
@@ -1004,17 +999,15 @@ CONTAINS
          mspin = 1
          IF (hfx_treat_lsd_in_core) mspin = nspins
 
-         matrix_v_hfx_2d(1:nspins, 1:1) => K_ia_munu(1:nspins)
+         matrix_ks_kp(1:nspins, 1:1) => matrix_ks(1:nspins)
+         rho_ao_kp(1:nspins, 1:1) => rho_ao(1:nspins)
 
          DO irep = 1, n_rep_hf
-            CALL qs_rho_get(rho_struct=rho, rho_ao_kp=rho_ao_orb)
-
             ! the real hfx calulation
             DO ispin = 1, mspin
                energy%ex = 0.0
-               CALL integrate_four_center(qs_env, matrix_v_hfx_2d, energy, rho_ao_orb, hfx_sections, &
-                                          para_env, s_mstruct_changed, irep, distribute_fock_matrix, &
-                                          ispin=ispin)
+               CALL integrate_four_center(qs_env, matrix_ks_kp, energy, rho_ao_kp, hfx_sections, para_env, &
+                                          s_mstruct_changed, irep, distribute_fock_matrix, ispin=ispin)
             END DO
          END DO
       END IF

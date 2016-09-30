@@ -84,6 +84,7 @@ CONTAINS
 !> \param edisp ...
 !> \param dispersion_env ...
 !> \param adiabatic_rescale_factor ...
+!> \param pw_env_external    external plane wave environment
 !> \par History
 !>      - 05.2002 modified to use the mp_allgather function each pe
 !>        computes only part of the grid and this is broadcasted to all
@@ -95,7 +96,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE qs_vxc_create(ks_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc, &
-                            just_energy, edisp, dispersion_env, adiabatic_rescale_factor)
+                            just_energy, edisp, dispersion_env, adiabatic_rescale_factor, &
+                            pw_env_external)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -106,6 +108,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(out), OPTIONAL               :: edisp
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: adiabatic_rescale_factor
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', routineP = moduleN//':'//routineN
 
@@ -213,6 +216,8 @@ CONTAINS
             sic_scaling_b_zero = .FALSE.
          ENDIF
 
+         IF (PRESENT(pw_env_external)) &
+            pw_env => pw_env_external
          CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool, auxbas_pw_pool=auxbas_pw_pool)
          uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid, xc_pw_pool%pw_grid)
 

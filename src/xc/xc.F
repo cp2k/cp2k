@@ -2890,15 +2890,17 @@ CONTAINS
 !> \param rho_r the place where you evaluate the derivative
 !> \param pw_pool the pool for the grids
 !> \param xc_section which functional should be used and how to calculate it
+!> \param tau_r kinetic energy density in real space
 ! **************************************************************************************************
    SUBROUTINE xc_prep_2nd_deriv(deriv_set, &
-                                rho_set, rho_r, pw_pool, xc_section)
+                                rho_set, rho_r, pw_pool, xc_section, tau_r)
 
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: tau_r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
          routineP = moduleN//':'//routineN
@@ -2922,6 +2924,9 @@ CONTAINS
       END DO
 
       NULLIFY (rho_g, tau)
+      IF (PRESENT(tau_r)) &
+         tau => tau_r
+
       CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 2, &
                                       rho_r_pw, rho_g, tau, xc_section, pw_pool, &
                                       needs_basic_components=.TRUE.)

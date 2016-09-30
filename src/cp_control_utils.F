@@ -51,6 +51,7 @@ MODULE cp_control_utils
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE util,                            ONLY: sort
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_input_constants,              ONLY: xc_deriv_collocate
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -1065,18 +1066,23 @@ CONTAINS
    END SUBROUTINE read_tddfpt_control
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param t_control ...
-!> \param t_section ...
+!> \brief Read TDDFPT-related input parameters
+!> \param t_control  TDDFPT control parameters
+!> \param t_section  TDDFPT input section
+!> \param qs_control Quickstep control parameters
 ! **************************************************************************************************
-   SUBROUTINE read_tddfpt2_control(t_control, t_section)
+   SUBROUTINE read_tddfpt2_control(t_control, t_section, qs_control)
       TYPE(tddfpt2_control_type), POINTER                :: t_control
       TYPE(section_vals_type), POINTER                   :: t_section
+      TYPE(qs_control_type), POINTER                     :: qs_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt2_control', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
+      LOGICAL                                            :: explicit, multigrid_set
+      TYPE(section_vals_type), POINTER                   :: mgrid_section
 
       CALL timeset(routineN, handle)
 
@@ -1102,6 +1108,68 @@ CONTAINS
 
       IF (t_control%degenerate_eps < 0) &
          t_control%degenerate_eps = ABS(t_control%degenerate_eps)
+
+      ! MGRID subsection
+      mgrid_section => section_vals_get_subs_vals(t_section, "MGRID")
+      CALL section_vals_get(mgrid_section, explicit=t_control%mgrid_is_explicit)
+
+      IF (t_control%mgrid_is_explicit) THEN
+         CALL section_vals_val_get(mgrid_section, "NGRIDS", i_val=t_control%mgrid_ngrids, explicit=explicit)
+         IF (.NOT. explicit) t_control%mgrid_ngrids = SIZE(qs_control%e_cutoff)
+
+         CALL section_vals_val_get(mgrid_section, "CUTOFF", r_val=t_control%mgrid_cutoff, explicit=explicit)
+         IF (.NOT. explicit) t_control%mgrid_cutoff = qs_control%cutoff
+
+         CALL section_vals_val_get(mgrid_section, "PROGRESSION_FACTOR", &
+                                   r_val=t_control%mgrid_progression_factor, explicit=explicit)
+         IF (explicit) THEN
+            IF (t_control%mgrid_progression_factor <= 1.0_dp) &
+               CALL cp_abort(__LOCATION__, &
+                             "Progression factor should be greater then 1.0 to ensure multi-grid ordering")
+         ELSE
+            t_control%mgrid_progression_factor = qs_control%progression_factor
+         END IF
+
+         CALL section_vals_val_get(mgrid_section, "COMMENSURATE", l_val=t_control%mgrid_commensurate_mgrids, explicit=explicit)
+         IF (.NOT. explicit) t_control%mgrid_commensurate_mgrids = qs_control%commensurate_mgrids
+         IF (t_control%mgrid_commensurate_mgrids) THEN
+            IF (explicit) THEN
+               t_control%mgrid_progression_factor = 4.0_dp
+            ELSE
+               t_control%mgrid_progression_factor = qs_control%progression_factor
+            END IF
+         END IF
+
+         CALL section_vals_val_get(mgrid_section, "REL_CUTOFF", r_val=t_control%mgrid_relative_cutoff, explicit=explicit)
+         IF (.NOT. explicit) t_control%mgrid_relative_cutoff = qs_control%relative_cutoff
+
+         CALL section_vals_val_get(mgrid_section, "MULTIGRID_SET", l_val=multigrid_set, explicit=explicit)
+         IF (.NOT. explicit) multigrid_set = .FALSE.
+         IF (multigrid_set) THEN
+            CALL section_vals_val_get(mgrid_section, "MULTIGRID_CUTOFF", r_vals=t_control%mgrid_e_cutoff)
+         ELSE
+            NULLIFY (t_control%mgrid_e_cutoff)
+         END IF
+
+         CALL section_vals_val_get(mgrid_section, "REALSPACE", l_val=t_control%mgrid_realspace_mgrids, explicit=explicit)
+         IF (.NOT. explicit) t_control%mgrid_realspace_mgrids = qs_control%realspace_mgrids
+
+         CALL section_vals_val_get(mgrid_section, "SKIP_LOAD_BALANCE_DISTRIBUTED", &
+                                   l_val=t_control%mgrid_skip_load_balance, explicit=explicit)
+         IF (.NOT. explicit) t_control%mgrid_skip_load_balance = qs_control%skip_load_balance_distributed
+
+         IF (ASSOCIATED(t_control%mgrid_e_cutoff)) THEN
+            IF (SIZE(t_control%mgrid_e_cutoff) /= t_control%mgrid_ngrids) &
+               CPABORT("Inconsistent values for number of multi-grids")
+
+            ! sort multi-grids in descending order according to their cutoff values
+            t_control%mgrid_e_cutoff = -t_control%mgrid_e_cutoff
+            ALLOCATE (inds(t_control%mgrid_ngrids))
+            CALL sort(t_control%mgrid_e_cutoff, t_control%mgrid_ngrids, inds)
+            DEALLOCATE (inds)
+            t_control%mgrid_e_cutoff = -t_control%mgrid_e_cutoff
+         END IF
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE read_tddfpt2_control

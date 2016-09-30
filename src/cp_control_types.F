@@ -402,6 +402,31 @@ MODULE cp_control_types
       LOGICAL                                   :: is_restart
       !> compute triplet excited states using spin-unpolarised molecular orbitals
       LOGICAL                                   :: rks_triplets
+      !
+      ! MGRID subsection
+      !
+      !> number of plain-wave grids
+      INTEGER                                   :: mgrid_ngrids
+      !> create commensurate grids (progression factor and cutoff values of sub-grids will be ignored)
+      LOGICAL                                   :: mgrid_commensurate_mgrids
+      !> signals that MGRID section has been explicitly given. Other mgrid_* variables
+      !> are not initialised when it is equal to .FALSE. as in this case the default
+      !> set of plain-wave grids will be used
+      LOGICAL                                   :: mgrid_is_explicit
+      !> same as qs_control%realspace_mgrids
+      LOGICAL                                   :: mgrid_realspace_mgrids
+      !> do not perform load balancing
+      LOGICAL                                   :: mgrid_skip_load_balance
+      !> cutoff value at the finest grid level
+      REAL(kind=dp)                             :: mgrid_cutoff
+      !> cutoff at the next grid level will be smaller then the cutoff
+      !> at the current grid by this number of times
+      REAL(kind=dp)                             :: mgrid_progression_factor
+      !> cutoff that determines to which grid a particular Gaussian function will be mapped
+      REAL(kind=dp)                             :: mgrid_relative_cutoff
+      !> manually provided the list of cutoff values for each grid level
+      !> (when it is null(), the cutoff values will be assigned automatically)
+      REAL(kind=dp), DIMENSION(:), POINTER      :: mgrid_e_cutoff
    END TYPE tddfpt2_control_type
 
 ! **************************************************************************************************

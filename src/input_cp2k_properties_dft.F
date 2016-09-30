@@ -32,7 +32,8 @@ MODULE input_cp2k_properties_dft
         ot_precond_none, ot_precond_s_inverse
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_interp_section,&
-                                              create_localize_section
+                                              create_localize_section,&
+                                              create_mgrid_section
    USE input_cp2k_resp,                 ONLY: create_resp_section
    USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1064,7 +1065,7 @@ CONTAINS
                           description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
-                          n_keywords=14, n_subsections=1, repeats=.FALSE., &
+                          n_keywords=15, n_subsections=2, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
 
       NULLIFY (keyword, print_key, subsection)
@@ -1179,6 +1180,11 @@ CONTAINS
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      ! MGRID subsection
+      CALL create_mgrid_section(subsection, create_subsections=.FALSE.)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       ! PRINT subsection
       CALL section_create(subsection, "PRINT", "Printing of information during the TDDFT run.", &

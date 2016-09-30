@@ -4,10 +4,16 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE qs_tddfpt2_methods
    USE admm_types,                      ONLY: admm_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_type
    USE bibliography,                    ONLY: Iannuzzi2005,&
                                               cite_reference
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cell_types,                      ONLY: cell_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
+                                              get_blacs_info
    USE cp_control_types,                ONLY: dft_control_type,&
+                                              qs_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
                                               cp_dbcsr_copy,&
@@ -53,6 +59,10 @@ MODULE qs_tddfpt2_methods
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                              distribution_2d_type
+   USE distribution_methods,            ONLY: distribute_molecules_2d
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&
@@ -72,8 +82,14 @@ MODULE qs_tddfpt2_methods
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_min,&
                                               mp_sum
+   USE molecule_kind_types,             ONLY: molecule_kind_type
+   USE molecule_types_new,              ONLY: molecule_type
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
+   USE pw_env_methods,                  ONLY: pw_env_create,&
+                                              pw_env_rebuild
    USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_release,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_scale,&
                                               pw_transfer,&
@@ -92,6 +108,8 @@ MODULE qs_tddfpt2_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
@@ -99,6 +117,13 @@ MODULE qs_tddfpt2_methods
                                               init_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type
+   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
+                                              neighbor_list_set_p_type
+   USE qs_neighbor_lists,               ONLY: atom2d_build,&
+                                              atom2d_cleanup,&
+                                              build_neighbor_lists,&
+                                              local_atoms_type,&
+                                              pair_radius_setup
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                               qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_create,&
@@ -109,6 +134,10 @@ MODULE qs_tddfpt2_methods
    USE qs_scf_methods,                  ONLY: eigensolver
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE string_utilities,                ONLY: integer_to_string
+   USE task_list_methods,               ONLY: generate_qs_task_list
+   USE task_list_types,                 ONLY: allocate_task_list,&
+                                              deallocate_task_list,&
+                                              task_list_type
    USE util,                            ONLY: sort
    USE xc,                              ONLY: xc_calc_2nd_deriv,&
                                               xc_prep_2nd_deriv
@@ -188,6 +217,27 @@ MODULE qs_tddfpt2_methods
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :) :: matrix
    END TYPE tddfpt_allocatable_matrix
 
+! **************************************************************************************************
+!> \brief structure to save global multi-grid related parameters
+!> \par History
+!>   * 09.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   TYPE mgrid_saved_parameters
+      !> create commensurate grids
+      LOGICAL                                     :: commensurate_mgrids
+      !> create real-space grids
+      LOGICAL                                     :: realspace_mgrids
+      !> do not perform load balancing
+      LOGICAL                                     :: skip_load_balance
+      !> cutoff value at the finest grid level
+      REAL(KIND=dp)                               :: cutoff
+      !> inverse scale factor
+      REAL(KIND=dp)                               :: progression_factor
+      !> relative cutoff
+      REAL(KIND=dp)                               :: relative_cutoff
+      !> list of explicitly given cutoff values
+      REAL(KIND=dp), DIMENSION(:), POINTER        :: e_cutoff
+   END TYPE mgrid_saved_parameters
 CONTAINS
 
 ! **************************************************************************************************
@@ -221,14 +271,17 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mgrid_saved_parameters)                       :: mgrid_saved
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ij_r, rho_ij_r2
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ij_r, rho_ij_r2, tau_ij_r, tau_ij_r2
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_control_type), POINTER                     :: qs_control
       TYPE(qs_rho_type), POINTER                         :: rho_ij_struct
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, &
                                                             tddfpt_print_section, tddfpt_section, &
                                                             xc_section
+      TYPE(task_list_type), POINTER                      :: task_list, task_list_aux
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), ALLOCATABLE, &
          DIMENSION(:)                                    :: gs_mos
@@ -241,11 +294,12 @@ CONTAINS
 
       CALL cite_reference(Iannuzzi2005)
 
-      NULLIFY (blacs_env, dft_control, input, matrix_ks, matrix_s, mos, para_env, pw_env)
+      NULLIFY (blacs_env, dft_control, input, matrix_ks, matrix_s, mos, para_env)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, dft_control=dft_control, &
                       input=input, matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, &
-                      para_env=para_env, pw_env=pw_env)
+                      para_env=para_env)
       tddfpt_control => dft_control%tddfpt2_control
+      qs_control => dft_control%qs_control
 
       CPASSERT(dft_control%nimages <= 1)
 
@@ -255,6 +309,27 @@ CONTAINS
                       TRIM(nstates_str)//" excited states: nothing to do.")
          CALL timestop(handle)
          RETURN
+      END IF
+
+      ! initialise plain wave environment
+      NULLIFY (pw_env, task_list, task_list_aux)
+      IF (tddfpt_control%mgrid_is_explicit) THEN
+         CALL init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
+
+         CALL pw_env_create(pw_env)
+         CALL pw_env_rebuild(pw_env, qs_env, para_env)
+
+         CALL tddfpt_build_tasklist(task_list, basis_type="ORB", blacs_env=blacs_env, pw_env=pw_env, &
+                                    qs_env=qs_env, skip_load_balance=tddfpt_control%mgrid_skip_load_balance, &
+                                    reorder_grid_ranks=.TRUE.)
+
+         IF (dft_control%do_admm) THEN
+            CALL tddfpt_build_tasklist(task_list_aux, basis_type="AUX_FIT", blacs_env=blacs_env, pw_env=pw_env, &
+                                       qs_env=qs_env, skip_load_balance=tddfpt_control%mgrid_skip_load_balance, &
+                                       reorder_grid_ranks=.FALSE.)
+         END IF
+      ELSE
+         CALL get_qs_env(qs_env, pw_env=pw_env, task_list=task_list, task_list_aux_fit=task_list_aux)
       END IF
 
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
@@ -274,7 +349,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL tddfpt_init_ground_state_mos(gs_mos=gs_mos(ispin), mo_set=mos(ispin)%mo_set, &
                                            matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
-                                           cholesky_method=cholesky_restore, blacs_env=blacs_env, para_env=para_env)
+                                           cholesky_method=cholesky_restore, blacs_env=blacs_env)
       END DO
 
       ! check we have enough molecular orbitals to construct the requested number of excited states
@@ -370,7 +445,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       NULLIFY (fm_struct, rho_ij_fm)
-      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, para_env=para_env, context=blacs_env)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       CALL cp_fm_create(rho_ij_fm, fm_struct)
 
       ! ++ S * P_{0, sigma}
@@ -388,11 +463,11 @@ CONTAINS
          CALL cp_dbcsr_copy(rho_ij_ao(ispin)%matrix, matrix_s(1)%matrix)
       END DO
 
-      NULLIFY (rho_ij_struct, rho_ij_r)
+      NULLIFY (rho_ij_struct)
       CALL qs_rho_create(rho_ij_struct)
       CALL qs_rho_set(rho_ij_struct, rho_ao=rho_ij_ao)
-      CALL qs_rho_rebuild(rho_ij_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
-      CALL qs_rho_get(rho_ij_struct, rho_r=rho_ij_r)
+      CALL qs_rho_rebuild(rho_ij_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE., pw_env_external=pw_env)
+      CALL qs_rho_get(rho_ij_struct, rho_r=rho_ij_r, tau_r=tau_ij_r)
 
       DO ispin = 1, nspins
          CALL cp_gemm('N', 'T', nao, nao, SIZE(gs_mos(ispin)%evals_occ), 1.0_dp, &
@@ -407,7 +482,7 @@ CONTAINS
 
          CALL copy_fm_to_dbcsr(rho_ij_fm, rho_ij_ao(ispin)%matrix, keep_sparsity=.TRUE.)
       END DO
-      CALL qs_rho_update_rho(rho_ij_struct, qs_env)
+      CALL qs_rho_update_rho(rho_ij_struct, qs_env, pw_env_external=pw_env, task_list_external=task_list)
 
       NULLIFY (xc_rho_set, xc_deriv_set)
 
@@ -417,12 +492,22 @@ CONTAINS
          ALLOCATE (rho_ij_r2(2))
          rho_ij_r2(1)%pw => rho_ij_r(1)%pw
          rho_ij_r2(2)%pw => rho_ij_r(1)%pw
+         IF (ASSOCIATED(tau_ij_r)) THEN
+            ALLOCATE (tau_ij_r2(2))
+            tau_ij_r2(1)%pw => tau_ij_r(1)%pw
+            tau_ij_r2(2)%pw => tau_ij_r(1)%pw
+         ELSE
+            NULLIFY (tau_ij_r2)
+         END IF
 
-         CALL xc_prep_2nd_deriv(xc_deriv_set, xc_rho_set, rho_ij_r2, auxbas_pw_pool, xc_section=xc_section)
+         CALL xc_prep_2nd_deriv(xc_deriv_set, xc_rho_set, rho_ij_r2, auxbas_pw_pool, xc_section=xc_section, tau_r=tau_ij_r2)
+
+         IF (ASSOCIATED(tau_ij_r2)) &
+            DEALLOCATE (tau_ij_r2)
 
          DEALLOCATE (rho_ij_r2)
       ELSE
-         CALL xc_prep_2nd_deriv(xc_deriv_set, xc_rho_set, rho_ij_r, auxbas_pw_pool, xc_section=xc_section)
+         CALL xc_prep_2nd_deriv(xc_deriv_set, xc_rho_set, rho_ij_r, auxbas_pw_pool, xc_section=xc_section, tau_r=tau_ij_r)
       END IF
 
       CALL qs_rho_release(rho_ij_struct)
@@ -494,9 +579,11 @@ CONTAINS
 
          CALL tddfpt_compute_Aop_evects(Aop_evects=Aop_evects(:, nvects_exists+1:nvects_exists+nvects_new), &
                                         evects=evects(:, nvects_exists+1:nvects_exists+nvects_new), &
-                                        is_rks_triplets=tddfpt_control%rks_triplets, do_hfx=do_hfx, do_admm=dft_control%do_admm, &
-                                        gs_mos=gs_mos, qs_env=qs_env, matrix_ks=matrix_ks, matrix_s=matrix_s(1)%matrix, &
-                                        xc_rho_set=xc_rho_set, xc_deriv_set=xc_deriv_set, xc_section=xc_section)
+                                        is_rks_triplets=tddfpt_control%rks_triplets, do_hfx=do_hfx, &
+                                        do_admm=dft_control%do_admm, gs_mos=gs_mos, pw_env=pw_env, &
+                                        task_list=task_list, task_list_aux=task_list_aux, qs_env=qs_env, &
+                                        matrix_ks=matrix_ks, matrix_s=matrix_s(1)%matrix, xc_rho_set=xc_rho_set, &
+                                        xc_deriv_set=xc_deriv_set, xc_section=xc_section)
 
          CALL tddfpt_compute_ritz_vects(ritz_vects=ritz_vects(:, 1:nstates), Aop_ritz=Aop_ritz(:, 1:nstates), &
                                         evals=evals_last(1:nvects_exists+nvects_new), &
@@ -666,8 +753,212 @@ CONTAINS
       END DO
       DEALLOCATE (gs_mos)
 
+      IF (tddfpt_control%mgrid_is_explicit) THEN
+         IF (ASSOCIATED(task_list_aux)) &
+            CALL deallocate_task_list(task_list_aux)
+         CALL deallocate_task_list(task_list)
+         CALL pw_env_release(pw_env)
+         CALL restore_qs_mgrid(qs_control, mgrid_saved)
+      END IF
+
       CALL timestop(handle)
    END SUBROUTINE tddfpt
+
+! **************************************************************************************************
+!> \brief Replace the global multi-grid related parameters in qs_control by the ones given in the
+!>        TDDFPT/MGRID subsection. The original parameters are stored into the 'mgrid_saved'
+!>        variable.
+!> \param qs_control     Quickstep control parameters (modified on exit)
+!> \param tddfpt_control TDDFPT control parameters
+!> \param mgrid_saved    structure to hold global MGRID-related parameters (initialised on exit)
+!> \par History
+!>   * 09.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE init_tddfpt_mgrid(qs_control, tddfpt_control, mgrid_saved)
+      TYPE(qs_control_type), POINTER                     :: qs_control
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(mgrid_saved_parameters), INTENT(out)          :: mgrid_saved
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_tddfpt_mgrid', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, igrid, ngrids
+
+      CALL timeset(routineN, handle)
+
+      mgrid_saved%commensurate_mgrids = qs_control%commensurate_mgrids
+      mgrid_saved%realspace_mgrids = qs_control%realspace_mgrids
+      mgrid_saved%skip_load_balance = qs_control%skip_load_balance_distributed
+      mgrid_saved%cutoff = qs_control%cutoff
+      mgrid_saved%progression_factor = qs_control%progression_factor
+      mgrid_saved%relative_cutoff = qs_control%relative_cutoff
+      mgrid_saved%e_cutoff => qs_control%e_cutoff
+
+      qs_control%commensurate_mgrids = tddfpt_control%mgrid_commensurate_mgrids
+      qs_control%realspace_mgrids = tddfpt_control%mgrid_realspace_mgrids
+      qs_control%skip_load_balance_distributed = tddfpt_control%mgrid_skip_load_balance
+      qs_control%cutoff = tddfpt_control%mgrid_cutoff
+      qs_control%progression_factor = tddfpt_control%mgrid_progression_factor
+      qs_control%relative_cutoff = tddfpt_control%mgrid_relative_cutoff
+
+      ALLOCATE (qs_control%e_cutoff(tddfpt_control%mgrid_ngrids))
+      ngrids = tddfpt_control%mgrid_ngrids
+      IF (ASSOCIATED(tddfpt_control%mgrid_e_cutoff)) THEN
+         ! following read_mgrid_section() there is a magic scale factor there (0.5_dp)
+         DO igrid = 1, ngrids
+            qs_control%e_cutoff(igrid) = tddfpt_control%mgrid_e_cutoff(igrid)*0.5_dp
+         END DO
+      ELSE
+         qs_control%e_cutoff(1) = qs_control%cutoff
+         DO igrid = 2, ngrids
+            qs_control%e_cutoff(igrid) = qs_control%e_cutoff(igrid-1)/qs_control%progression_factor
+         END DO
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE init_tddfpt_mgrid
+
+! **************************************************************************************************
+!> \brief Restore the global multi-grid related parameters stored in the 'mgrid_saved' variable.
+!> \param qs_control  Quickstep control parameters (modified on exit)
+!> \param mgrid_saved structure that holds global MGRID-related parameters
+!> \par History
+!>   * 09.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE restore_qs_mgrid(qs_control, mgrid_saved)
+      TYPE(qs_control_type), POINTER                     :: qs_control
+      TYPE(mgrid_saved_parameters), INTENT(in)           :: mgrid_saved
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'restore_qs_mgrid', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (ASSOCIATED(qs_control%e_cutoff)) &
+         DEALLOCATE (qs_control%e_cutoff)
+
+      qs_control%commensurate_mgrids = mgrid_saved%commensurate_mgrids
+      qs_control%realspace_mgrids = mgrid_saved%realspace_mgrids
+      qs_control%skip_load_balance_distributed = mgrid_saved%skip_load_balance
+      qs_control%cutoff = mgrid_saved%cutoff
+      qs_control%progression_factor = mgrid_saved%progression_factor
+      qs_control%relative_cutoff = mgrid_saved%relative_cutoff
+      qs_control%e_cutoff => mgrid_saved%e_cutoff
+
+      CALL timestop(handle)
+   END SUBROUTINE restore_qs_mgrid
+
+! **************************************************************************************************
+!> \brief Build a task list for the given plane wave environment and basis set.
+!> \param task_list           new task list (allocated and initialised on exit)
+!> \param basis_type          type of the basis set
+!> \param blacs_env           BLACS parallel environment
+!> \param pw_env              plane wave environment
+!> \param qs_env              Quickstep environment
+!> \param skip_load_balance   do not perform load balancing
+!> \param reorder_grid_ranks  re-optimise grid ranks and re-create the real-space grid descriptor
+!>                            as well as grids.
+!> \par History
+!>   * 09.2016 created [Sergey Chulkov]
+! **************************************************************************************************
+   SUBROUTINE tddfpt_build_tasklist(task_list, basis_type, blacs_env, pw_env, qs_env, &
+                                    skip_load_balance, reorder_grid_ranks)
+      TYPE(task_list_type), POINTER                      :: task_list
+      CHARACTER(len=*), INTENT(in)                       :: basis_type
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(in)                                :: skip_load_balance, reorder_grid_ranks
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_build_tasklist', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ikind, nkinds
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: orb_present
+      REAL(kind=dp)                                      :: subcells
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: orb_radius
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: pair_radius
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(distribution_2d_type), POINTER                :: distribution_2d
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, cell=cell, input=input, &
+                      ks_env=ks_env, molecule_kind_set=molecule_kind_set, &
+                      molecule_set=molecule_set, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      local_particles=local_particles, local_molecules=local_molecules)
+
+      NULLIFY (distribution_2d)
+      CALL distribute_molecules_2d(cell=cell, &
+                                   atomic_kind_set=atomic_kind_set, &
+                                   qs_kind_set=qs_kind_set, &
+                                   particle_set=particle_set, &
+                                   molecule_kind_set=molecule_kind_set, &
+                                   molecule_set=molecule_set, &
+                                   distribution_2d=distribution_2d, &
+                                   blacs_env=blacs_env, &
+                                   force_env_section=input)
+
+      nkinds = SIZE(atomic_kind_set)
+
+      ALLOCATE (atom2d(nkinds))
+      CALL atom2d_build(atom2d, local_particles, distribution_2d, atomic_kind_set, &
+                        molecule_set, molecule_only=.FALSE., particle_set=particle_set)
+
+      CALL distribution_2d_release(distribution_2d)
+
+      ALLOCATE (orb_present(nkinds))
+      ALLOCATE (orb_radius(nkinds))
+      ALLOCATE (pair_radius(nkinds, nkinds))
+
+      DO ikind = 1, nkinds
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=basis_type)
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            orb_present(ikind) = .TRUE.
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
+         ELSE
+            orb_present(ikind) = .FALSE.
+            orb_radius(ikind) = 0.0_dp
+         ENDIF
+      END DO
+
+      CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
+
+      NULLIFY (sab_orb)
+      CALL section_vals_val_get(input, "DFT%SUBCELLS", r_val=subcells)
+      CALL build_neighbor_lists(sab_orb, particle_set, atom2d, cell, pair_radius, &
+                                mic=.FALSE., subcells=subcells, molecular=.FALSE., name="sab_orb")
+
+      CALL atom2d_cleanup(atom2d)
+      DEALLOCATE (atom2d, orb_present, orb_radius, pair_radius)
+
+      CALL allocate_task_list(task_list)
+      CALL generate_qs_task_list(ks_env, task_list, &
+                                 reorder_rs_grid_ranks=reorder_grid_ranks, soft_valid=.FALSE., &
+                                 basis_type=basis_type, skip_load_balance_distributed=skip_load_balance, &
+                                 pw_env_external=pw_env, sab_orb_external=sab_orb)
+
+      DO ikind = SIZE(sab_orb), 1, -1
+         CALL deallocate_neighbor_list_set(sab_orb(ikind)%neighbor_list_set)
+      END DO
+      DEALLOCATE (sab_orb)
+
+      CALL timestop(handle)
+   END SUBROUTINE tddfpt_build_tasklist
 
 ! **************************************************************************************************
 !> \brief Generate all virtual molecular orbitals for a given spin by diagonalising
@@ -679,18 +970,16 @@ CONTAINS
 !> \param matrix_s        overlap matrix
 !> \param cholesky_method Cholesky method to compute the inverse overlap matrix
 !> \param blacs_env       BLACS environment for newly allocated distributed matrices
-!> \param para_env        parallel environment for newly allocated distributed matrices
 !> \par History
 !>    * 05.2016 created as tddfpt_lumos() [Sergey Chulkov]
 !>    * 06.2016 renamed, altered prototype [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, matrix_ks, matrix_s, cholesky_method, blacs_env, para_env)
+   SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, matrix_ks, matrix_s, cholesky_method, blacs_env)
       TYPE(tddfpt_ground_state_mos), INTENT(out)         :: gs_mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_ks, matrix_s
       INTEGER, INTENT(in)                                :: cholesky_method
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos', &
          routineP = moduleN//':'//routineN
@@ -709,11 +998,12 @@ CONTAINS
                                                             ao_mo_virt_fm_struct, ao_vect_fm_struct
       TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm, mo_coeff_extended, &
                                                             ortho_fm, work_fm
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), POINTER                         :: mos_extended
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (mo_occ_scf)
+      CALL get_blacs_info(blacs_env, para_env=para_env)
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo_scf, homo=nmo_occ, maxocc=maxocc, &
                       nelectron=nelectrons, occupation_numbers=mo_occ_scf)
 
@@ -725,12 +1015,9 @@ CONTAINS
 
       ! ++ allocate storage space for gs_mos
       NULLIFY (ao_mo_occ_fm_struct, ao_mo_virt_fm_struct, ao_vect_fm_struct)
-      CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_fm_struct_create(ao_mo_virt_fm_struct, nrow_global=nao, ncol_global=nmo_virt, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_fm_struct_create(ao_vect_fm_struct, nrow_global=nao, ncol_global=1, &
-                               para_env=para_env, context=blacs_env)
+      CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=blacs_env)
+      CALL cp_fm_struct_create(ao_mo_virt_fm_struct, nrow_global=nao, ncol_global=nmo_virt, context=blacs_env)
+      CALL cp_fm_struct_create(ao_vect_fm_struct, nrow_global=nao, ncol_global=1, context=blacs_env)
 
       NULLIFY (gs_mos%matrix_mos_occ, gs_mos%matrix_mos_virt)
       CALL cp_fm_create(gs_mos%matrix_mos_occ, ao_mo_occ_fm_struct)
@@ -758,8 +1045,7 @@ CONTAINS
 
       ! ++ set of molecular orbitals
       NULLIFY (ao_ao_fm_struct, ao_ao_fm_pool)
-      CALL cp_fm_struct_create(ao_ao_fm_struct, nrow_global=nao, ncol_global=nao, &
-                               para_env=para_env, context=blacs_env)
+      CALL cp_fm_struct_create(ao_ao_fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       CALL fm_pool_create(ao_ao_fm_pool, ao_ao_fm_struct)
 
       NULLIFY (mos_extended, mo_coeff_extended, mo_evals_extended, mo_occ_extended)
@@ -1294,7 +1580,6 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: C0T_S_C1
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -1302,8 +1587,7 @@ CONTAINS
       nvects = SIZE(evects, 2)
 
       ALLOCATE (nmo_occ(nspins))
-      CALL cp_fm_get_info(matrix=S_C0(1)%matrix, nrow_global=nao, ncol_global=nmo_occ(1), &
-                          context=blacs_env, para_env=para_env)
+      CALL cp_fm_get_info(matrix=S_C0(1)%matrix, nrow_global=nao, ncol_global=nmo_occ(1), context=blacs_env)
 
       DO ispin = 2, nspins
          CALL cp_fm_get_info(matrix=S_C0(ispin)%matrix, ncol_global=nmo_occ(ispin))
@@ -1313,8 +1597,7 @@ CONTAINS
       ALLOCATE (C0T_S_C1(nspins))
       DO ispin = 1, nspins
          NULLIFY (C0T_S_C1(ispin)%matrix)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), &
-                                  para_env=para_env, context=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_occ(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
          CALL cp_fm_create(C0T_S_C1(ispin)%matrix, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
       END DO
@@ -1499,6 +1782,8 @@ CONTAINS
 !> \param evects      trial vectors C_{1,i}
 !> \param gs_mos      molecular orbitals optimised for the ground state (only occupied molecular
 !>                    orbitals [field %matrix_mos_occ] are needed)
+!> \param pw_env      plain wave environment
+!> \param task_list   task list
 !> \param qs_env      Quickstep environment
 !> \param matrix_s    overlap matrix
 !> \par History
@@ -1506,10 +1791,12 @@ CONTAINS
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_coulomb(Aop_evects, evects, gs_mos, qs_env, matrix_s)
+   SUBROUTINE tddfpt_apply_coulomb(Aop_evects, evects, gs_mos, pw_env, task_list, qs_env, matrix_s)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(task_list_type), POINTER                      :: task_list
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
 
@@ -1524,9 +1811,7 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ia_ao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: rho_ia_fm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_gspace, v_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -1539,8 +1824,8 @@ CONTAINS
       nvects = SIZE(evects, 2)
 
       ! *** initialize variables ***
-      NULLIFY (blacs_env, dft_control, para_env, pw_env)
-      CALL get_qs_env(qs_env, dft_control=dft_control, blacs_env=blacs_env, para_env=para_env, pw_env=pw_env)
+      NULLIFY (blacs_env, dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, blacs_env=blacs_env)
 
       CPASSERT(dft_control%nspins == nspins)
       ! a sum J_i{alpha}a{alpha}_munu + J_i{beta}a{beta}_munu can be computed by solving
@@ -1563,11 +1848,11 @@ CONTAINS
       CALL cp_dbcsr_init_p(rho_ia_ao(1)%matrix)
       CALL cp_dbcsr_copy(rho_ia_ao(1)%matrix, matrix_s)
 
-      NULLIFY (rho_ia_struct, rho_ia_g)
+      NULLIFY (rho_ia_struct)
       CALL qs_rho_create(rho_ia_struct)
       CALL qs_rho_set(rho_ia_struct, rho_ao=rho_ia_ao)
 
-      CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
+      CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE., pw_env_external=pw_env)
       CALL qs_rho_get(rho_ia_struct, rho_g=rho_ia_g)
 
       NULLIFY (J_ia_munu%matrix)
@@ -1579,7 +1864,7 @@ CONTAINS
       CALL cp_dbcsr_copy(J_ia_munu%matrix, matrix_s)
 
       NULLIFY (fm_struct, rho_ia_fm)
-      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       CALL cp_fm_create(rho_ia_fm, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
@@ -1610,14 +1895,17 @@ CONTAINS
          END DO
 
          CALL copy_fm_to_dbcsr(rho_ia_fm, rho_ia_ao(1)%matrix, keep_sparsity=.TRUE.)
-         CALL qs_rho_update_rho(rho_ia_struct, qs_env)
+         CALL qs_rho_update_rho(rho_ia_struct, qs_env, pw_env_external=pw_env, task_list_external=task_list)
+
+         CALL cp_dbcsr_set(J_ia_munu%matrix, 0.0_dp)
 
          CALL pw_poisson_solve(poisson_env, rho_ia_g(1)%pw, pair_energy, v_gspace%pw)
          CALL pw_transfer(v_gspace%pw, v_rspace%pw)
          CALL pw_scale(v_rspace%pw, v_rspace%pw%pw_grid%dvol)
 
-         CALL cp_dbcsr_set(J_ia_munu%matrix, 0.0_dp)
-         CALL integrate_v_rspace(v_rspace=v_rspace, hmat=J_ia_munu, qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE.)
+         CALL integrate_v_rspace(v_rspace=v_rspace, hmat=J_ia_munu, qs_env=qs_env, &
+                                 calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
+                                 pw_env_external=pw_env, task_list_external=task_list)
 
          ! (i a || j b) = ( i_alpha a_alpha + i_beta a_beta || j_alpha b_alpha + j_beta b_beta) =
          !                tr (Cj_alpha^T * [J_i{alpha}a{alpha}_munu + J_i{beta}a{beta}_munu] * Cb_alpha) +
@@ -1654,6 +1942,8 @@ CONTAINS
 !>                        spin-unpolarised molecular orbitals has been requested
 !> \param xc_rho_set      a variable to compute the 2nd derivative of XC-functional
 !> \param xc_deriv_set    a variable to compute the 2nd derivative of XC-functional
+!> \param pw_env          plain wave environment
+!> \param task_list       task list
 !> \param qs_env          Quickstep environment
 !> \param matrix_s        overlap matrix
 !> \param xc_section      XC input section
@@ -1663,13 +1953,16 @@ CONTAINS
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_kernel(Aop_evects, evects, gs_mos, is_rks_triplets, &
-                                  xc_rho_set, xc_deriv_set, qs_env, matrix_s, xc_section)
+                                  xc_rho_set, xc_deriv_set, pw_env, task_list, &
+                                  qs_env, matrix_s, xc_section)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set
       TYPE(xc_derivative_set_type), POINTER              :: xc_deriv_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(task_list_type), POINTER                      :: task_list
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
       TYPE(section_vals_type), POINTER                   :: xc_section
@@ -1688,10 +1981,8 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ia_ao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: rho_ia_fm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g2, rho_ia_r, &
-                                                            rho_ia_r2, v_xc
+                                                            rho_ia_r2, tau_ia_r, tau_ia_r2, v_xc
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
@@ -1705,8 +1996,8 @@ CONTAINS
       lsd = (nspins > 1) .OR. is_rks_triplets
 
       ! *** initialize variables ***
-      NULLIFY (blacs_env, para_env, pw_env)
-      CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env, pw_env=pw_env)
+      NULLIFY (blacs_env)
+      CALL get_qs_env(qs_env, blacs_env=blacs_env)
 
       NULLIFY (auxbas_pw_pool)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -1727,15 +2018,15 @@ CONTAINS
       CALL qs_rho_create(rho_ia_struct)
       CALL qs_rho_set(rho_ia_struct, rho_ao=rho_ia_ao)
 
-      CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
-      CALL qs_rho_get(rho_ia_struct, rho_r=rho_ia_r, rho_g=rho_ia_g)
+      CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE., pw_env_external=pw_env)
+      CALL qs_rho_get(rho_ia_struct, rho_r=rho_ia_r, rho_g=rho_ia_g, tau_r=tau_ia_r)
 
       NULLIFY (F_ia_munu%matrix)
       CALL cp_dbcsr_init_p(F_ia_munu%matrix)
       CALL cp_dbcsr_copy(F_ia_munu%matrix, matrix_s)
 
       NULLIFY (fm_struct, rho_ia_fm)
-      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       CALL cp_fm_create(rho_ia_fm, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
@@ -1746,6 +2037,14 @@ CONTAINS
          rho_ia_r2(2)%pw => rho_ia_r(1)%pw
          rho_ia_g2(1)%pw => rho_ia_g(1)%pw
          rho_ia_g2(2)%pw => rho_ia_g(1)%pw
+
+         IF (ASSOCIATED(tau_ia_r)) THEN
+            ALLOCATE (tau_ia_r2(2))
+            tau_ia_r2(1)%pw => tau_ia_r(1)%pw
+            tau_ia_r2(2)%pw => tau_ia_r(1)%pw
+         ELSE
+            NULLIFY (tau_ia_r2)
+         END IF
       ELSE
          ALLOCATE (rho_ia_r2(nspins))
          ALLOCATE (rho_ia_g2(nspins))
@@ -1753,6 +2052,15 @@ CONTAINS
             rho_ia_r2(ispin)%pw => rho_ia_r(ispin)%pw
             rho_ia_g2(ispin)%pw => rho_ia_g(ispin)%pw
          END DO
+
+         IF (ASSOCIATED(tau_ia_r)) THEN
+            ALLOCATE (tau_ia_r2(nspins))
+            DO ispin = 1, nspins
+               tau_ia_r2(ispin)%pw => tau_ia_r(ispin)%pw
+            END DO
+         ELSE
+            NULLIFY (tau_ia_r2)
+         END IF
       END IF
 
       ALLOCATE (v_xc(nspins))
@@ -1799,10 +2107,10 @@ CONTAINS
 
             CALL copy_fm_to_dbcsr(rho_ia_fm, rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
          END DO
-         CALL qs_rho_update_rho(rho_ia_struct, qs_env)
+         CALL qs_rho_update_rho(rho_ia_struct, qs_env, pw_env_external=pw_env, task_list_external=task_list)
 
          CALL xc_rho_set_update(rho_set=xc_rho1_set, rho_r=rho_ia_r2, rho_g=rho_ia_g2, &
-                                tau=null(), needs=needs, xc_deriv_method_id=xc_deriv_method_id, &
+                                tau=tau_ia_r2, needs=needs, xc_deriv_method_id=xc_deriv_method_id, &
                                 xc_rho_smooth_id=xc_rho_smooth_id, pw_pool=auxbas_pw_pool)
 
          DO ispin = 1, SIZE(v_xc)
@@ -1817,7 +2125,9 @@ CONTAINS
             CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
 
             CALL cp_dbcsr_set(F_ia_munu%matrix, 0.0_dp)
-            CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=F_ia_munu, qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE.)
+            CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=F_ia_munu, qs_env=qs_env, &
+                                    calculate_forces=.FALSE., gapw=.FALSE., &
+                                    pw_env_external=pw_env, task_list_external=task_list)
 
             CALL cp_dbcsr_sm_fm_multiply(F_ia_munu%matrix, gs_mos(ispin)%matrix_mos_occ, Aop_evects(ispin, ivect)%matrix, &
                                          ncol=nmo_occ(ispin), alpha=alpha, beta=1.0_dp)
@@ -1831,8 +2141,10 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (v_xc)
-      DEALLOCATE (rho_ia_g2)
-      DEALLOCATE (rho_ia_r2)
+
+      IF (ASSOCIATED(tau_ia_r2)) &
+         DEALLOCATE (tau_ia_r2)
+      DEALLOCATE (rho_ia_r2, rho_ia_g2)
 
       CALL cp_fm_release(rho_ia_fm)
 
@@ -1846,23 +2158,28 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Update action matrix-vector products by adding exact-exchange terms.
-!> \param Aop_evects hat{A} C_{1,i} (updated on exit)
-!> \param evects     trial vectors C_{1,i}
-!> \param gs_mos     molecular orbitals optimised for the ground state (only occupied molecular
-!>                   orbitals [field %matrix_mos_occ] are needed)
-!> \param do_admm    perform auxiliary density matrix method calculations
-!> \param qs_env     Quickstep environment
-!> \param matrix_s   overlap matrix
+!> \param Aop_evects    hat{A} C_{1,i} (updated on exit)
+!> \param evects        trial vectors C_{1,i}
+!> \param gs_mos        molecular orbitals optimised for the ground state (only occupied molecular
+!>                      orbitals [field %matrix_mos_occ] are needed)
+!> \param do_admm       perform auxiliary density matrix method calculations
+!> \param pw_env        plain wave environment
+!> \param task_list     task list for the primary basis set
+!> \param task_list_aux task list for the auxiliary basis set (or null() if it is not needed)
+!> \param qs_env        Quickstep environment
+!> \param matrix_s      overlap matrix
 !> \par History
-!>    * 05.2016 compute all coulomb terms in one go [Sergey Chulkov]
+!>    * 05.2016 compute all exact-exchange terms in one go [Sergey Chulkov]
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, qs_env, matrix_s)
+   SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, pw_env, task_list, task_list_aux, qs_env, matrix_s)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(task_list_type), POINTER                      :: task_list, task_list_aux
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
 
@@ -1880,12 +2197,9 @@ CONTAINS
                                                             rho_aux_ia_ao, rho_ia_ao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: rho_aux_ia_fm, rho_ia_fm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_aux_g, rho_aux_r, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_ia_struct, rho_ia_struct
@@ -1902,16 +2216,16 @@ CONTAINS
       END IF
 
       ! *** initialize variables ***
-      NULLIFY (admm_env, blacs_env, para_env, pw_env, matrix_s_aux_fit, ks_env)
-      CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env, pw_env=pw_env)
+      NULLIFY (admm_env, blacs_env, matrix_s_aux_fit, ks_env)
+      CALL get_qs_env(qs_env, blacs_env=blacs_env)
 
       IF (do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env, ks_env=ks_env, matrix_s_aux_fit=matrix_s_aux_fit)
          CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
       END IF
 
-      NULLIFY (auxbas_pw_pool, poisson_env)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
+      NULLIFY (auxbas_pw_pool)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       ALLOCATE (nmo_occ(nspins))
       DO ispin = 1, nspins
@@ -1936,7 +2250,7 @@ CONTAINS
       CALL qs_rho_create(rho_ia_struct)
       CALL qs_rho_set(rho_ia_struct, rho_ao=rho_ia_ao)
 
-      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       CALL cp_fm_create(rho_ia_fm, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
@@ -1957,11 +2271,11 @@ CONTAINS
          CALL qs_rho_set(rho_aux_ia_struct, rho_ao=rho_aux_ia_ao)
 
          ! grid representation of the electron density is needed to compute ADMM correction
-         CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
-         CALL qs_rho_rebuild(rho_aux_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)
+         CALL qs_rho_rebuild(rho_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE., pw_env_external=pw_env)
+         CALL qs_rho_rebuild(rho_aux_ia_struct, qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE., pw_env_external=pw_env)
          CALL qs_rho_get(rho_aux_ia_struct, rho_g=rho_aux_g, rho_r=rho_aux_r, tot_rho_r=tot_rho_aux_r)
 
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao_aux, context=blacs_env, para_env=para_env)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao_aux, context=blacs_env)
          CALL cp_fm_create(rho_aux_ia_fm, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
       END IF
@@ -1985,12 +2299,13 @@ CONTAINS
          END DO
 
          IF (do_admm) THEN
-            CALL qs_rho_update_rho(rho_ia_struct, qs_env)
+            CALL qs_rho_update_rho(rho_ia_struct, qs_env, pw_env_external=pw_env, task_list_external=task_list)
             DO ispin = 1, nspins
                CALL calculate_rho_elec(matrix_p=rho_aux_ia_ao(ispin)%matrix, &
                                        rho=rho_aux_r(ispin), rho_gspace=rho_aux_g(ispin), &
                                        total_rho=tot_rho_aux_r(ispin), ks_env=ks_env, &
-                                       soft_valid=.FALSE., basis_type="AUX_FIT")
+                                       soft_valid=.FALSE., basis_type="AUX_FIT", &
+                                       pw_env_external=pw_env, task_list_external=task_list_aux)
             END DO
 
             ! E_{x}^{HFX}[\hat{\rho}]
@@ -1998,7 +2313,7 @@ CONTAINS
                CALL cp_dbcsr_set(hmat_aux(ispin)%matrix, 0.0_dp)
             END DO
 
-            CALL tddft_hfx_matrix(qs_env, rho_aux_ia_struct, hmat_aux)
+            CALL tddft_hfx_matrix(hmat_aux, rho_aux_ia_ao, qs_env)
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(hmat_aux(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
                                             ncol=nao, alpha=1.0_dp, beta=0.0_dp)
@@ -2014,7 +2329,8 @@ CONTAINS
             ! E_{x}^{DFT}[\rho]
             NULLIFY (v_rspace_new, v_tau_rspace)
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_ia_struct, xc_section=admm_env%xc_section_aux, &
-                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc_aux_fit, just_energy=.FALSE.)
+                               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc_aux_fit, &
+                               just_energy=.FALSE., pw_env_external=pw_env)
 
             IF (ASSOCIATED(v_rspace_new)) THEN
                DO ispin = 1, nspins
@@ -2022,7 +2338,8 @@ CONTAINS
 
                   CALL cp_dbcsr_set(hmat(ispin)%matrix, 0.0_dp)
                   CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), pmat=rho_ia_ao(ispin), hmat=hmat(ispin), &
-                                          qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE.)
+                                          qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
+                                          pw_env_external=pw_env, task_list_external=task_list)
 
                   CALL cp_dbcsr_sm_fm_multiply(hmat(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ, &
                                                Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), &
@@ -2038,7 +2355,8 @@ CONTAINS
 
                   CALL cp_dbcsr_set(hmat(ispin)%matrix, 0.0_dp)
                   CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin), pmat=rho_ia_ao(ispin), hmat=hmat(ispin), &
-                                          qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.TRUE., gapw=.FALSE.)
+                                          qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.TRUE., gapw=.FALSE., &
+                                          pw_env_external=pw_env, task_list_external=task_list)
 
                   CALL cp_dbcsr_sm_fm_multiply(hmat(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ, &
                                                Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), &
@@ -2052,16 +2370,17 @@ CONTAINS
             NULLIFY (v_rspace_new_aux_fit, v_tau_rspace_aux_fit)
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_aux_ia_struct, xc_section=admm_env%xc_section_aux, &
                                vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=exc_aux_fit, &
-                               just_energy=.FALSE.)
+                               just_energy=.FALSE., pw_env_external=pw_env)
 
             IF (ASSOCIATED(v_rspace_new_aux_fit)) THEN
                DO ispin = 1, nspins
                   CALL pw_scale(v_rspace_new_aux_fit(ispin)%pw, v_rspace_new_aux_fit(ispin)%pw%pw_grid%dvol)
 
                   CALL cp_dbcsr_set(hmat_aux(ispin)%matrix, 0.0_dp)
-                  CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), pmat=rho_aux_ia_ao(ispin), hmat=hmat_aux(ispin), &
-                                          qs_env=qs_env, calculate_forces=.FALSE., force_adm=.TRUE., ispin=ispin, &
-                                          gapw=.FALSE., basis_type="AUX_FIT")
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), pmat=rho_aux_ia_ao(ispin), &
+                                          hmat=hmat_aux(ispin), qs_env=qs_env, calculate_forces=.FALSE., &
+                                          force_adm=.TRUE., ispin=ispin, gapw=.FALSE., basis_type="AUX_FIT", &
+                                          pw_env_external=pw_env, task_list_external=task_list_aux)
 
                   CALL cp_dbcsr_sm_fm_multiply(hmat_aux(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
                                                ncol=nao, alpha=1.0_dp, beta=0.0_dp)
@@ -2079,9 +2398,10 @@ CONTAINS
                   CALL pw_scale(v_tau_rspace_aux_fit(ispin)%pw, v_tau_rspace_aux_fit(ispin)%pw%pw_grid%dvol)
 
                   CALL cp_dbcsr_set(hmat_aux(ispin)%matrix, 0.0_dp)
-                  CALL integrate_v_rspace(v_rspace=v_tau_rspace_aux_fit(ispin), pmat=rho_aux_ia_ao(ispin), hmat=hmat_aux(ispin), &
-                                          qs_env=qs_env, calculate_forces=.FALSE., force_adm=.TRUE., ispin=ispin, &
-                                          compute_tau=.TRUE., gapw=.FALSE., basis_type="AUX_FIT")
+                  CALL integrate_v_rspace(v_rspace=v_tau_rspace_aux_fit(ispin), pmat=rho_aux_ia_ao(ispin), &
+                                          hmat=hmat_aux(ispin), qs_env=qs_env, calculate_forces=.FALSE., &
+                                          force_adm=.TRUE., ispin=ispin, compute_tau=.TRUE., gapw=.FALSE., &
+                                          basis_type="AUX_FIT", pw_env_external=pw_env, task_list_external=task_list_aux)
 
                   CALL cp_dbcsr_sm_fm_multiply(hmat_aux(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
                                                ncol=nao, alpha=1.0_dp, beta=0.0_dp)
@@ -2098,7 +2418,7 @@ CONTAINS
                CALL cp_dbcsr_set(hmat(ispin)%matrix, 0.0_dp)
             END DO
 
-            CALL tddft_hfx_matrix(qs_env, rho_ia_struct, hmat)
+            CALL tddft_hfx_matrix(hmat, rho_ia_ao, qs_env)
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(hmat(ispin)%matrix, gs_mos(ispin)%matrix_mos_occ, &
                                             Aop_evects(ispin, ivect)%matrix, ncol=nmo_occ(ispin), alpha=alpha, beta=1.0_dp)
@@ -2131,6 +2451,9 @@ CONTAINS
 !>                        spin-unpolarised molecular orbitals has been requested
 !> \param do_hfx          flag that activates computation of exact-exchange terms
 !> \param do_admm         perform auxiliary density matrix method calculations
+!> \param pw_env          plain wave environment
+!> \param task_list       task list for the primary basis set
+!> \param task_list_aux   task list for the auxiliary basis set (or null() if it is not needed)
 !> \param qs_env          Quickstep environment
 !> \param matrix_ks       Kohn-Sham matrix
 !> \param matrix_s        overlap matrix
@@ -2141,11 +2464,14 @@ CONTAINS
 !>    * 06.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_compute_Aop_evects(Aop_evects, evects, gs_mos, is_rks_triplets, do_hfx, do_admm, &
-                                        qs_env, matrix_ks, matrix_s, xc_rho_set, xc_deriv_set, xc_section)
+                                        pw_env, task_list, task_list_aux, qs_env, matrix_ks, matrix_s, &
+                                        xc_rho_set, xc_deriv_set, xc_section)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(task_list_type), POINTER                      :: task_list, task_list_aux
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), INTENT(in)    :: matrix_ks
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
@@ -2183,18 +2509,21 @@ CONTAINS
          ! add contributions from coulomb terms
          IF (.NOT. is_rks_triplets) &
             CALL tddfpt_apply_coulomb(Aop_evects=Aop_evects, evects=evects, &
-                                      gs_mos=gs_mos, qs_env=qs_env, matrix_s=matrix_s)
+                                      gs_mos=gs_mos, pw_env=pw_env, task_list=task_list, &
+                                      qs_env=qs_env, matrix_s=matrix_s)
 
          ! add contributions from the adiabatic TDDFT kernel
          CALL tddfpt_apply_kernel(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, &
                                   is_rks_triplets=is_rks_triplets, &
                                   xc_rho_set=xc_rho_set, xc_deriv_set=xc_deriv_set, &
-                                  qs_env=qs_env, matrix_s=matrix_s, xc_section=xc_section)
+                                  pw_env=pw_env, task_list=task_list, qs_env=qs_env, &
+                                  matrix_s=matrix_s, xc_section=xc_section)
 
          ! add contributions from exact-exchange terms
          IF (do_hfx) &
             CALL tddfpt_apply_hfx(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, &
-                                  do_admm=do_admm, qs_env=qs_env, matrix_s=matrix_s)
+                                  do_admm=do_admm, pw_env=pw_env, task_list=task_list, &
+                                  task_list_aux=task_list_aux, qs_env=qs_env, matrix_s=matrix_s)
       END IF
 
       CALL timestop(handle)
@@ -2229,7 +2558,6 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: Atilde_fm, evects_Atilde_fm
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -2237,8 +2565,8 @@ CONTAINS
       nkvs = SIZE(evects, 2)
       nrvs = SIZE(ritz_vects, 2)
 
-      NULLIFY (blacs_env, para_env)
-      CALL cp_fm_get_info(gs_mos(1)%matrix_mos_occ, context=blacs_env, para_env=para_env)
+      NULLIFY (blacs_env)
+      CALL cp_fm_get_info(gs_mos(1)%matrix_mos_occ, context=blacs_env)
 
       ! *** compute upper-diagonal reduced action matrix ***
       ALLOCATE (Atilde(nkvs, nkvs))
@@ -2256,7 +2584,7 @@ CONTAINS
 
       ! *** solve eigenproblem for reduced matrices ***
       NULLIFY (fm_struct, Atilde_fm, evects_Atilde_fm)
-      CALL cp_fm_struct_create(fm_struct, nrow_global=nkvs, ncol_global=nkvs, context=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nkvs, ncol_global=nkvs, context=blacs_env)
       CALL cp_fm_create(Atilde_fm, fm_struct)
       CALL cp_fm_create(evects_Atilde_fm, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
@@ -2475,7 +2803,6 @@ CONTAINS
                                                             S_mos_virt, scaled_evect, weights_fm
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: dS_mos_occ
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(tddfpt_allocatable_matrix), ALLOCATABLE, &
          DIMENSION(:)                                    :: weights_2d
 
@@ -2485,7 +2812,7 @@ CONTAINS
 
       nspins = SIZE(evects, 1)
       nstates = SIZE(evects, 2)
-      CALL cp_fm_get_info(evects(1, 1)%matrix, nrow_global=nao, context=blacs_env, para_env=para_env)
+      CALL cp_fm_get_info(evects(1, 1)%matrix, nrow_global=nao, context=blacs_env)
 
       IF (nspins > 1) THEN
          lsd_str = 'U'
@@ -2515,8 +2842,7 @@ CONTAINS
       NULLIFY (fm_struct)
       ALLOCATE (weights_fm(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), &
-                                  para_env=para_env, context=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), context=blacs_env)
          NULLIFY (weights_fm(ispin)%matrix)
          CALL cp_fm_create(weights_fm(ispin)%matrix, fm_struct)
          CALL cp_fm_struct_release(fm_struct)

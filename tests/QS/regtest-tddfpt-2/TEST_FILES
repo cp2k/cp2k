@@ -18,6 +18,7 @@ ch2o_pbe0_rks_t_tddfpt.inp                            68    1.0E-03             
 # using the auxiliary density matrix method with aug-cFIT3 auxiliary basis set.
 # Reference TDDFT singlet excitation energies (in eV): 3.87, 6.70, 7.51
 ch2o_pbe0_rks_s_tddfpt_admm.inp                       68    1.0E-03             3.86575
+ch2o_pbe0_rks_s_tddfpt_admm2.inp                      68    1.0E-03             3.86575
 # Compute the lowest 3 doublet excited states of a nitrogen monooxyde molecule at PBE / aug-TZV2P-GTH level of theory.
 # Reference excitation energies (in eV): 0.13, 5.44, 6.14
 no_pbe_uks_d_tddfpt.inp                               68    1.0E-02             0.12284
