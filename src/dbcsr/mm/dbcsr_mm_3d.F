@@ -1829,7 +1829,8 @@ CONTAINS
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
       INTEGER, DIMENSION(idata:imeta+1, 2), TARGET       :: product_matrix_size_1, &
                                                             product_matrix_size_2
-      LOGICAL                                            :: do_comm, do_layers3D, keep_sparsity, &
+      LOGICAL                                            :: do_comm, do_layers3D, &
+                                                            do_square_layers3D, keep_sparsity, &
                                                             otf_filtering
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_comm_left, do_comm_right
       REAL(kind=sp)                                      :: filter_eps_sp
@@ -2151,13 +2152,15 @@ CONTAINS
       left_meta_size = left_meta_size+dbcsr_num_slots-dbcsr_slot_nblks
       right_meta_size = right_meta_size+dbcsr_num_slots-dbcsr_slot_nblks
       !
+      do_square_layers3D = .FALSE.
       IF (nvirt_k .EQ. 1) THEN
          nbuffers = 1
       ELSEIF (nrows3D .NE. ncols3D .OR. nranks3D .EQ. 1) THEN
          nbuffers = 2
       ELSE
-         ! nrows3D==ncols3D
+         ! Note that nrows3D==ncols3D >= 2
          nbuffers = nrows3D
+         do_square_layers3D = .TRUE.
       ENDIF
       !
       ! update capacity of memory-pools
@@ -2313,7 +2316,7 @@ CONTAINS
          irow3D = MOD(istep_k, nrows3D)+1
          !
          ! Reset communication flags at the first layer
-         IF ((irow3D .EQ. 1 .AND. icol3D .EQ. 1) .OR. istep_k .EQ. shift_k) THEN
+         IF (MOD(istep_k, nranks3D) .EQ. 0 .OR. istep_k .EQ. shift_k) THEN
             do_comm_right(:) = .TRUE.
             do_comm_left(:) = .TRUE.
          ENDIF
@@ -2342,14 +2345,19 @@ CONTAINS
             ENDIF
             !
             ! Set coordinates
-            IF (do_comm_right(icol3D)) THEN
-               iright_buffer_comm = MOD(iright_buffer_comm, nbuffers)+1
+            IF (do_square_layers3D) THEN
+               iright_buffer_comm = icol3D
+               ileft_buffer_comm = irow3D
+            ELSE
+               IF (do_comm_right(icol3D)) THEN
+                  iright_buffer_comm = MOD(iright_buffer_comm, nbuffers)+1
+                  right_buffers(iright_buffer_comm)%coord3D = icol3D
+               ENDIF
+               IF (do_comm_left(irow3D)) THEN
+                  ileft_buffer_comm = MOD(ileft_buffer_comm, nbuffers)+1
+                  left_buffers(ileft_buffer_comm)%coord3D = irow3D
+               ENDIF
             ENDIF
-            right_buffers(iright_buffer_comm)%coord3D = icol3D
-            IF (do_comm_left(irow3D) .OR. nrows3D .GT. 1) THEN
-               ileft_buffer_comm = MOD(ileft_buffer_comm, nbuffers)+1
-            ENDIF
-            left_buffers(ileft_buffer_comm)%coord3D = irow3D
             !
             ! First row, communicate right matrix
             IF (do_comm_right(icol3D)) THEN
@@ -2530,16 +2538,15 @@ CONTAINS
          wait_calc: IF (istep_k .GT. shift_k) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
+            irow3D = left_buffers(ileft_buffer_calc)%coord3D
+            icol3D = right_buffers(iright_buffer_calc)%coord3D
             IF (istep_k .GT. final_step_k) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (multrec, left_buffers, ileft_buffer_calc, &
-!$OMP         right_buffers, iright_buffer_calc) &
+!$OMP SHARED (multrec, irow3D, icol3D) &
 !$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
-               CALL dbcsr_mm_multrec_phaseout(multrec(ithread, &
-                                                      left_buffers(ileft_buffer_calc)%coord3D, &
-                                                      right_buffers(iright_buffer_calc)%coord3D)%p)
+               CALL dbcsr_mm_multrec_phaseout(multrec(ithread, irow3D, icol3D)%p)
 !$OMP END PARALLEL
             ENDIF
             !
@@ -2609,14 +2616,12 @@ CONTAINS
 !$OMP SHARED (left_buffers, ileft_buffer_calc, &
 !$OMP         right_buffers, iright_buffer_calc, &
 !$OMP         left_norms,right_norms, &
-!$OMP         multrec) &
+!$OMP         multrec, irow3D, icol3D) &
 !$OMP PRIVATE (ithread) &
 !$OMP REDUCTION (+: flop)
                ithread = 0
 !$             ithread = omp_get_thread_num()
-               CALL dbcsr_mm_multrec_multiply(multrec(ithread, &
-                                                      left_buffers(ileft_buffer_calc)%coord3D, &
-                                                      right_buffers(iright_buffer_calc)%coord3D)%p, &
+               CALL dbcsr_mm_multrec_multiply(multrec(ithread, irow3D, icol3D)%p, &
                                               left=left_buffers(ileft_buffer_calc)%buffer%mats(1)%m, &
                                               right=right_buffers(iright_buffer_calc)%buffer%mats(1)%m, &
                                               flop=flop, &
@@ -2628,96 +2633,57 @@ CONTAINS
             ENDIF
             ! Finalize all layers, but the local one
             IF (istep_k .GT. final_step_k .AND. &
-                (left_buffers(ileft_buffer_calc)%coord3D .NE. myrow3D .OR. &
-                 right_buffers(iright_buffer_calc)%coord3D .NE. mycol3D)) THEN
+                (irow3D .NE. myrow3D .OR. &
+                 icol3D .NE. mycol3D)) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (multrec, left_buffers, ileft_buffer_calc, &
-!$OMP         product_matrix3D, right_buffers, iright_buffer_calc, &
+!$OMP SHARED (multrec, irow3D, icol3D, product_matrix3D, &
 !$OMP         memtype_mpi_buffer, nthreads, myt) &
 !$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
-               CALL dbcsr_mm_multrec_dev2host_init(multrec(ithread, &
-                                                           left_buffers(ileft_buffer_calc)%coord3D, &
-                                                           right_buffers(iright_buffer_calc)%coord3D)%p)
+               CALL dbcsr_mm_multrec_dev2host_init(multrec(ithread, irow3D, icol3D)%p)
 !$OMP ATOMIC
-               product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                     right_buffers(iright_buffer_calc)%coord3D)%matrix%m%nblks = &
-                  product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                        right_buffers(iright_buffer_calc)%coord3D)%matrix%m%nblks+ &
-                  dbcsr_mm_multrec_get_nblks(multrec(ithread, &
-                                                     left_buffers(ileft_buffer_calc)%coord3D, &
-                                                     right_buffers(iright_buffer_calc)%coord3D)%p)
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = &
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks+ &
+                  dbcsr_mm_multrec_get_nblks(multrec(ithread, irow3D, icol3D)%p)
 !$OMP ATOMIC
-               product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                     right_buffers(iright_buffer_calc)%coord3D)%matrix%m%nze = &
-                  product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                        right_buffers(iright_buffer_calc)%coord3D)%matrix%m%nze+ &
-                  dbcsr_mm_multrec_get_nze(multrec(ithread, &
-                                                   left_buffers(ileft_buffer_calc)%coord3D, &
-                                                   right_buffers(iright_buffer_calc)%coord3D)%p)
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = &
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze+ &
+                  dbcsr_mm_multrec_get_nze(multrec(ithread, irow3D, icol3D)%p)
 !$OMP BARRIER
 !$OMP MASTER
                ! First (nthreads+1)*2 positions are reserved for the offset sizes of each thread for meta and data
                CALL ensure_array_size( &
-                  product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                        right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index, &
-                  ub=product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                           right_buffers(iright_buffer_calc)%coord3D)% &
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index, &
+                  ub=product_matrix3D%mats(irow3D, icol3D)% &
                   matrix%m%nblks*3+(nthreads+1)*2, &
                   nocopy=.TRUE., memory_type=memtype_mpi_buffer)
                CALL dbcsr_data_ensure_size( &
-                  product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                        right_buffers(iright_buffer_calc)%coord3D)% &
-                  matrix%m%data_area, &
-                  product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                        right_buffers(iright_buffer_calc)%coord3D)%matrix%m%nze, &
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze, &
                   nocopy=.TRUE.)
                ! Set the offsets
-               product_matrix3D%mats( &
-                  left_buffers(ileft_buffer_calc)%coord3D, &
-                  right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index(1) = (nthreads+1)*2
-               product_matrix3D%mats( &
-                  left_buffers(ileft_buffer_calc)%coord3D, &
-                  right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index(nthreads+2) = 0
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(1) = (nthreads+1)*2
+               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(nthreads+2) = 0
                DO myt = 1, nthreads
-                  product_matrix3D%mats( &
-                     left_buffers(ileft_buffer_calc)%coord3D, &
-                     right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index(myt+1) = &
-                     product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                           right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index(myt)+ &
-                     dbcsr_mm_multrec_get_nblks(multrec(myt-1, &
-                                                        left_buffers(ileft_buffer_calc)%coord3D, &
-                                                        right_buffers(iright_buffer_calc)%coord3D)%p)*3
-                  product_matrix3D%mats( &
-                     left_buffers(ileft_buffer_calc)%coord3D, &
-                     right_buffers(iright_buffer_calc)%coord3D)%matrix%m%index(myt+nthreads+2) = &
-                     product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                           right_buffers(iright_buffer_calc)%coord3D)% &
-                     matrix%m%index(myt+nthreads+1)+ &
-                     dbcsr_mm_multrec_get_nze(multrec(myt-1, &
-                                                      left_buffers(ileft_buffer_calc)%coord3D, &
-                                                      right_buffers(iright_buffer_calc)%coord3D)%p)
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+1) = &
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt)+ &
+                     dbcsr_mm_multrec_get_nblks(multrec(myt-1, irow3D, icol3D)%p)*3
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+nthreads+2) = &
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+nthreads+1)+ &
+                     dbcsr_mm_multrec_get_nze(multrec(myt-1, irow3D, icol3D)%p)
                ENDDO
 !$OMP END MASTER
 !$OMP BARRIER
                ! Collect data to send
                CALL dbcsr_mm_multrec_finalize( &
-                  multrec(ithread, &
-                          left_buffers(ileft_buffer_calc)%coord3D, &
-                          right_buffers(iright_buffer_calc)%coord3D)%p, &
-                  product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                        right_buffers(iright_buffer_calc)%coord3D)%matrix)
-               DEALLOCATE (multrec(ithread, &
-                                   left_buffers(ileft_buffer_calc)%coord3D, &
-                                   right_buffers(iright_buffer_calc)%coord3D)%p)
+                  multrec(ithread, irow3D, icol3D)%p, &
+                  product_matrix3D%mats(irow3D, icol3D)%matrix)
+               DEALLOCATE (multrec(ithread, irow3D, icol3D)%p)
                CALL dbcsr_work_destroy( &
-                  product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                        right_buffers(iright_buffer_calc)%coord3D)% &
-                  matrix%m%wms(ithread+1))
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%wms(ithread+1))
 !$OMP END PARALLEL
-               DEALLOCATE (product_matrix3D%mats(left_buffers(ileft_buffer_calc)%coord3D, &
-                                                 right_buffers(iright_buffer_calc)%coord3D)%matrix%m%wms)
+               DEALLOCATE (product_matrix3D%mats(irow3D, icol3D)%matrix%m%wms)
             ENDIF
          ENDIF wait_calc
          !
