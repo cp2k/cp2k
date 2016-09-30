@@ -1807,8 +1807,8 @@ CONTAINS
          recv_vrow, request_epss, request_keep_sparsity, right_col_mult, right_col_nimages, &
          right_data_size, right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, &
          right_myprow, right_npcols, right_nprows, right_nrequests, right_row_mult, &
-         right_row_nimages, right_row_total_nimages, row, shift_k, size_guess, size_guess_init, &
-         start_k, v_ki
+         right_row_nimages, right_row_total_nimages, row, shift3D, shift_k, size_guess, &
+         size_guess_init, start_k, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: left_vrow, product_matrix_epss_displ, &
                                                             product_matrix_epss_size, &
@@ -2282,6 +2282,9 @@ CONTAINS
       shift_k = MOD(nvirt_k, nranks3D)*myrank3D
       start_k = (nvirt_k/nranks3D)*myrank3D
       final_step_k = nvirt_k+shift_k-nranks3D
+      ! Shift layer to keep local layer as the last one in computation
+      shift3D = MOD(myrank3D-MOD(shift_k/nrows3D, ncols3D)*nrows3D-MOD(shift_k, nrows3D)+1, nranks3D)+ &
+                shift_k+MOD(nvirt_k, nranks3D)
       iright_buffer_comm = 0
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_right(ncols3D), do_comm_left(nrows3D))
@@ -2312,8 +2315,9 @@ CONTAINS
       grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
          ivirt_k = istep_k/nranks3D
          v_ki = MOD(ivirt_k, min_nimages)
-         icol3D = MOD(istep_k/nrows3D, ncols3D)+1
-         irow3D = MOD(istep_k, nrows3D)+1
+         icol3D = MOD(shift3D/nrows3D, ncols3D)+1
+         irow3D = MOD(shift3D, nrows3D)+1
+         shift3D = shift3D+1
          !
          ! Reset communication flags at the first layer
          IF (MOD(istep_k, nranks3D) .EQ. 0 .OR. istep_k .EQ. shift_k) THEN
@@ -2351,13 +2355,13 @@ CONTAINS
             ELSE
                IF (do_comm_right(icol3D)) THEN
                   iright_buffer_comm = MOD(iright_buffer_comm, nbuffers)+1
-                  right_buffers(iright_buffer_comm)%coord3D = icol3D
                ENDIF
                IF (do_comm_left(irow3D)) THEN
                   ileft_buffer_comm = MOD(ileft_buffer_comm, nbuffers)+1
-                  left_buffers(ileft_buffer_comm)%coord3D = irow3D
                ENDIF
             ENDIF
+            right_buffers(iright_buffer_comm)%coord3D = icol3D
+            left_buffers(ileft_buffer_comm)%coord3D = irow3D
             !
             ! First row, communicate right matrix
             IF (do_comm_right(icol3D)) THEN
