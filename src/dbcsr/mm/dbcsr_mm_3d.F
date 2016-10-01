@@ -2290,9 +2290,12 @@ CONTAINS
       shift_k = MOD(nvirt_k, nranks3D)*myrank3D
       start_k = (nvirt_k/nranks3D)*myrank3D
       final_step_k = nvirt_k+shift_k-nranks3D
-      ! Shift layer to keep local layer as the last one in computation
-      shift3D = MOD(myrank3D-MOD(shift_k/nrows3D, ncols3D)*nrows3D-MOD(shift_k, nrows3D)+1, nranks3D)+ &
-                shift_k+MOD(nvirt_k, nranks3D)
+      ! Shift layers to keep local layer as the last one in computation
+      ! Apply reflected order, i.e. row increasing value for odd col value,
+      !                             row decreasing value for even col value
+      shift3D = (mycol3D-1)*nrows3D+ &
+                (nrows3D-myrow3D+1)*(1-MOD(mycol3D, 2))+myrow3D*MOD(mycol3D, 2)+ &
+                MOD(nvirt_k, nranks3D)
       iright_buffer_comm = 0
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_right(ncols3D), do_comm_left(nrows3D))
@@ -2324,7 +2327,8 @@ CONTAINS
          ivirt_k = istep_k/nranks3D
          v_ki = MOD(ivirt_k, min_nimages)
          icol3D = MOD(shift3D/nrows3D, ncols3D)+1
-         irow3D = MOD(shift3D, nrows3D)+1
+         irow3D = MOD(shift3D, nrows3D)
+         irow3D = ((nrows3D-irow3D)*(1-MOD(icol3D, 2)))+(irow3D+1)*MOD(icol3D, 2)
          shift3D = shift3D+1
          !
          ! Reset communication flags at the first layer
