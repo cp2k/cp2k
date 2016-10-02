@@ -1800,19 +1800,19 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'multiply_3D', routineP = moduleN//':'//routineN
 
       INTEGER :: blk, data_type, data_type_byte, final_step_k, grp_left, grp_right, handle, &
-         handle2, handle3, icol3D, ileft_buffer_calc, ileft_buffer_comm, index_row_max_epss, &
-         iproc, irecv3D, iright_buffer_calc, iright_buffer_comm, irow3D, isend3D, istep_k, &
-         ithread, ivirt_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
-         left_data_size, left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
-         left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, &
-         max_nblocks, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, myrow3D, myt, &
-         nblkrows_local
-      INTEGER :: nbuffers, nbuffers_norms, ncols3D, nranks3D, nrows3D, nthreads, numnodes, &
-         nvirt_k, recv_vcol, recv_vrow, request_epss, request_keep_sparsity, right_col_mult, &
-         right_col_nimages, right_data_size, right_meta_size, right_myfirstvcol, &
-         right_myfirstvrow, right_mypcol, right_myprow, right_npcols, right_nprows, &
-         right_nrequests, right_row_mult, right_row_nimages, right_row_total_nimages, row, &
-         shift3D, shift_k, size_guess, size_guess_init, start_k, v_ki
+         handle2, handle3, icol3D, icol3D_send, ileft_buffer_calc, ileft_buffer_comm, &
+         index_row_max_epss, iproc, irecv3D, iright_buffer_calc, iright_buffer_comm, irow3D, &
+         irow3D_send, isend3D, istep_k, ithread, ivirt_k, left_col_mult, left_col_nimages, &
+         left_col_total_nimages, left_data_size, left_meta_size, left_myfirstvcol, &
+         left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
+         left_row_mult, left_row_nimages, max_nblocks, min_nimages, mycol3D, mynode, mypcol, &
+         myprow, myrank3D
+      INTEGER :: myrow3D, myt, nblkrows_local, nbuffers, nbuffers_norms, ncols3D, nranks3D, &
+         nrows3D, nthreads, numnodes, nvirt_k, recv_vcol, recv_vrow, request_epss, &
+         request_keep_sparsity, right_col_mult, right_col_nimages, right_data_size, &
+         right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, &
+         right_npcols, right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
+         right_row_total_nimages, row, shift3D, shift_k, size_guess, size_guess_init, start_k, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: left_vrow, product_matrix_epss_displ, &
                                                             product_matrix_epss_size, &
@@ -2323,6 +2323,8 @@ CONTAINS
                                   shifting='L')
          ENDDO
       ENDIF
+      irow3D_send = 0
+      icol3D_send = 0
       grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
          ivirt_k = istep_k/nranks3D
          v_ki = MOD(ivirt_k, min_nimages)
@@ -2568,11 +2570,25 @@ CONTAINS
             icol3D = right_buffer_p%coord3D
             IF (istep_k .GT. final_step_k) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (multrec, irow3D, icol3D) &
+!$OMP SHARED (multrec, irow3D, icol3D, irow3D_send, icol3D_send, &
+!$OMP         istep_k, final_step_k, product_matrix3D) &
 !$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
                CALL dbcsr_mm_multrec_phaseout(multrec(ithread, irow3D, icol3D)%p)
+               ! Prepare data to send for 3D layer
+               IF (istep_k .GT. final_step_k+1) THEN
+                  CALL dbcsr_mm_multrec_finalize( &
+                     multrec(ithread, irow3D_send, icol3D_send)%p, &
+                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix)
+                  DEALLOCATE (multrec(ithread, irow3D_send, icol3D_send)%p)
+                  CALL dbcsr_work_destroy( &
+                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%wms(ithread+1))
+!$OMP BARRIER
+!$OMP MASTER
+                  DEALLOCATE (product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%wms)
+!$OMP END MASTER
+               ENDIF
 !$OMP END PARALLEL
             ENDIF
             !
@@ -2661,59 +2677,60 @@ CONTAINS
                !
                CALL timestop(handle3)
             ENDIF
-            ! Finalize all layers, but the local one
-            IF (istep_k .GT. final_step_k .AND. &
-                (irow3D .NE. myrow3D .OR. &
-                 icol3D .NE. mycol3D)) THEN
+            ! Reduce 3D layers and finalize the local layer
+            IF (istep_k .GT. final_step_k) THEN
 !$OMP PARALLEL DEFAULT (NONE) &
 !$OMP SHARED (multrec, irow3D, icol3D, product_matrix3D, &
-!$OMP         memtype_mpi_buffer, nthreads, myt) &
+!$OMP         memtype_mpi_buffer, nthreads, myt, istep_k, &
+!$OMP         irow3D_send, icol3D_send, myrow3D, mycol3D, &
+!$OMP         nvirt_k, shift_k) &
 !$OMP PRIVATE (ithread)
                ithread = 0
 !$             ithread = omp_get_thread_num()
                CALL dbcsr_mm_multrec_dev2host_init(multrec(ithread, irow3D, icol3D)%p)
+               !
+               ! Evaluate the size of layers to send and set the buffers
+               IF (irow3D .NE. myrow3D .OR. &
+                   icol3D .NE. mycol3D) THEN
 !$OMP ATOMIC
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = &
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks+ &
-                  dbcsr_mm_multrec_get_nblks(multrec(ithread, irow3D, icol3D)%p)
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = &
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks+ &
+                     dbcsr_mm_multrec_get_nblks(multrec(ithread, irow3D, icol3D)%p)
 !$OMP ATOMIC
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = &
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze+ &
-                  dbcsr_mm_multrec_get_nze(multrec(ithread, irow3D, icol3D)%p)
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = &
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze+ &
+                     dbcsr_mm_multrec_get_nze(multrec(ithread, irow3D, icol3D)%p)
 !$OMP BARRIER
 !$OMP MASTER
-               ! First (nthreads+1)*2 positions are reserved for the offset sizes of each thread for meta and data
-               CALL ensure_array_size( &
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index, &
-                  ub=product_matrix3D%mats(irow3D, icol3D)% &
-                  matrix%m%nblks*3+(nthreads+1)*2, &
-                  nocopy=.TRUE., memory_type=memtype_mpi_buffer)
-               CALL dbcsr_data_ensure_size( &
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze, &
-                  nocopy=.TRUE.)
-               ! Set the offsets
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(1) = (nthreads+1)*2
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(nthreads+2) = 0
-               DO myt = 1, nthreads
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+1) = &
-                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt)+ &
-                     dbcsr_mm_multrec_get_nblks(multrec(myt-1, irow3D, icol3D)%p)*3
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+nthreads+2) = &
-                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+nthreads+1)+ &
-                     dbcsr_mm_multrec_get_nze(multrec(myt-1, irow3D, icol3D)%p)
-               ENDDO
+                  ! First (nthreads+1)*2 positions are reserved for the offset sizes of each thread for meta and data
+                  CALL ensure_array_size( &
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index, &
+                     ub=product_matrix3D%mats(irow3D, icol3D)% &
+                     matrix%m%nblks*3+(nthreads+1)*2, &
+                     nocopy=.TRUE., memory_type=memtype_mpi_buffer)
+                  CALL dbcsr_data_ensure_size( &
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze, &
+                     nocopy=.TRUE.)
+                  ! Set the offsets
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(1) = (nthreads+1)*2
+                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(nthreads+2) = 0
+                  DO myt = 1, nthreads
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+1) = &
+                        product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt)+ &
+                        dbcsr_mm_multrec_get_nblks(multrec(myt-1, irow3D, icol3D)%p)*3
+                     product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+nthreads+2) = &
+                        product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(myt+nthreads+1)+ &
+                        dbcsr_mm_multrec_get_nze(multrec(myt-1, irow3D, icol3D)%p)
+                  ENDDO
+                  irow3D_send = irow3D
+                  icol3D_send = icol3D
 !$OMP END MASTER
-!$OMP BARRIER
-               ! Collect data to send
-               CALL dbcsr_mm_multrec_finalize( &
-                  multrec(ithread, irow3D, icol3D)%p, &
-                  product_matrix3D%mats(irow3D, icol3D)%matrix)
-               DEALLOCATE (multrec(ithread, irow3D, icol3D)%p)
-               CALL dbcsr_work_destroy( &
-                  product_matrix3D%mats(irow3D, icol3D)%matrix%m%wms(ithread+1))
+               ELSE
+                  IF (istep_k .NE. nvirt_k+shift_k) &
+                     CPABORT("Last tick does not correspond to last layer")
+               ENDIF
 !$OMP END PARALLEL
-               DEALLOCATE (product_matrix3D%mats(irow3D, icol3D)%matrix%m%wms)
             ENDIF
          ENDIF wait_calc
          !
@@ -2774,15 +2791,6 @@ CONTAINS
          ! Use orig buffers
          buffer_red3D_comm => buffers_orig%right
          buffer_red3D_calc => buffers_orig%left
-         !
-         ! Start multrec finalization
-!$OMP PARALLEL DEFAULT (NONE) &
-!$OMP SHARED (multrec, myrow3D, mycol3D) &
-!$OMP PRIVATE (ithread)
-         ithread = 0
-!$       ithread = omp_get_thread_num()
-         CALL dbcsr_mm_multrec_dev2host_init(multrec(ithread, myrow3D, mycol3D)%p)
-!$OMP END PARALLEL
          !
          CALL dbcsr_data_init(data_send)
          CALL dbcsr_data_new(data_send, data_type)
