@@ -1166,8 +1166,8 @@ CONTAINS
          cluster_count(atom_to_cluster(i)) = cluster_count(atom_to_cluster(i))+1
          cluster_center(:, atom_to_cluster(i)) = coords(:, i)
       ENDDO
-      cluster_low = HUGE(0.0_dp)
-      cluster_high = -HUGE(0.0_dp)
+      cluster_low = HUGE(0.0_dp)/2
+      cluster_high = -HUGE(0.0_dp)/2
       DO i = 1, natom
          fold = pbc(coords(:, i)-cluster_center(:, atom_to_cluster(i)), cell)+cluster_center(:, atom_to_cluster(i))
          cluster_low(:, atom_to_cluster(i)) = MIN(cluster_low(:, atom_to_cluster(i)), fold(:))
@@ -1181,11 +1181,14 @@ CONTAINS
          WRITE (output_unit, '(T2,A,T48,I8)') "Largest cluster in atoms", MAXVAL(cluster_count)
          WRITE (output_unit, '(T2,A,T48,I8)') "Smallest cluster in atoms", MINVAL(cluster_count)
          WRITE (output_unit, '(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster x=", &
-            MAXVAL(cluster_high(1, :)-cluster_low(1, :)), MAXLOC(cluster_high(1, :)-cluster_low(1, :))
+            MAXVAL(cluster_high(1, :)-cluster_low(1, :), MASK=(cluster_count > 0)), &
+            MAXLOC(cluster_high(1, :)-cluster_low(1, :), MASK=(cluster_count > 0))
          WRITE (output_unit, '(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster y=", &
-            MAXVAL(cluster_high(2, :)-cluster_low(2, :)), MAXLOC(cluster_high(2, :)-cluster_low(2, :))
+            MAXVAL(cluster_high(2, :)-cluster_low(2, :), MASK=(cluster_count > 0)), &
+            MAXLOC(cluster_high(2, :)-cluster_low(2, :), MASK=(cluster_count > 0))
          WRITE (output_unit, '(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster z=", &
-            MAXVAL(cluster_high(3, :)-cluster_low(3, :)), MAXLOC(cluster_high(3, :)-cluster_low(3, :))
+            MAXVAL(cluster_high(3, :)-cluster_low(3, :), MASK=(cluster_count > 0)), &
+            MAXLOC(cluster_high(3, :)-cluster_low(3, :), MASK=(cluster_count > 0))
       ENDIF
 
       DEALLOCATE (atom_to_cluster, cluster_cost, cluster_to_row, cluster_to_col, sorted_cost, piv_cost, proc_cost)
