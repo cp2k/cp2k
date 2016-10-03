@@ -15,8 +15,6 @@ MODULE qs_core_energies
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              get_cell
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                               cp_dbcsr_trace,&
                                               cp_dbcsr_type
@@ -209,7 +207,6 @@ CONTAINS
       INTEGER                                            :: atom_a, atom_b, group, handle, iatom, &
                                                             ikind, jatom, jkind, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
-      INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: atenergy, only_molecule, use_virial
       REAL(KIND=dp)                                      :: aab, dab, eab, ecore_overlap, f, fab, &
                                                             rab2, rootaab, zab
@@ -217,7 +214,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: deab, rab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -232,7 +228,6 @@ CONTAINS
 
       NULLIFY (atomic_kind_set)
       NULLIFY (qs_kind_set)
-      NULLIFY (cell)
       NULLIFY (energy)
       NULLIFY (atprop)
       NULLIFY (force)
@@ -246,15 +241,12 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
-                      cell=cell, &
                       particle_set=particle_set, &
                       energy=energy, &
                       force=force, &
                       sab_core=sab_core, &
                       atprop=atprop, &
                       virial=virial)
-
-      CALL get_cell(cell=cell, periodic=periodic)
 
       ! Allocate work storage
       nkind = SIZE(atomic_kind_set)
