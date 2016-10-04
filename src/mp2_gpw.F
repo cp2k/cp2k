@@ -616,7 +616,7 @@ CONTAINS
 
          ! RI-RPA
          IF (nspins == 2) THEN
-            CALL rpa_ri_compute_en(Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
+            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                    starts_array, starts_B_virtual, starts_B_all, mo_coeff, fm_matrix_L_RI_metric, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -626,7 +626,7 @@ CONTAINS
                                    ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
                                    mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
          ELSE
-            CALL rpa_ri_compute_en(Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
+            CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub_RPA, color_sub, &
                                    ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                    starts_array, starts_B_virtual, starts_B_all, mo_coeff, fm_matrix_L_RI_metric, &
                                    Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &

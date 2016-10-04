@@ -24,7 +24,7 @@ MODULE rpa_ri_gpw
         cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
         cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
         cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, &
-        cp_dbcsr_type, dbcsr_type_no_symmetry
+        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -47,11 +47,16 @@ MODULE rpa_ri_gpw
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE hfx_energy_potential,            ONLY: integrate_four_center
+   USE hfx_types,                       ONLY: hfx_release,&
+                                              hfx_type
    USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_newton,&
                                               ri_rpa_g0w0_crossing_none,&
                                               ri_rpa_g0w0_crossing_z_shot,&
                                               wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
+   USE input_section_types,             ONLY: section_vals_type
+   ! section_vals_get,&
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
@@ -68,6 +73,10 @@ MODULE rpa_ri_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type,&
                                               two_dim_int_array
+   USE qs_energy_types,                 ONLY: qs_energy_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE rpa_axk_util,                    ONLY: hfx_create_subgroup
    USE rpa_communication,               ONLY: fm_redistribute,&
                                               gamma_fm_to_dbcsr,&
                                               initialize_buffer,&
@@ -89,6 +98,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param Erpa ...
 !> \param mp2_env ...
 !> \param BIb_C ...
@@ -135,7 +145,7 @@ CONTAINS
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_ri_compute_en(Erpa, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub, color_sub, &
+   SUBROUTINE rpa_ri_compute_en(qs_env, Erpa, mp2_env, BIb_C, BIb_C_gw, para_env, para_env_sub, color_sub, &
                                 ends_array, ends_B_virtual, ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, &
                                 starts_array, starts_B_virtual, starts_B_all, mo_coeff, fm_matrix_L_RI_metric, &
                                 Eigenval, nmo, homo, dimen_RI, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -144,6 +154,7 @@ CONTAINS
                                 BIb_C_beta, homo_beta, Eigenval_beta, &
                                 ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
                                 mo_coeff_beta, BIb_C_gw_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp)                                      :: Erpa
       TYPE(mp2_type), POINTER                            :: mp2_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_C_gw
@@ -213,6 +224,7 @@ CONTAINS
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
          CALL cite_reference(Bates2013)
+
       ENDIF
 
       my_open_shell = .FALSE.
@@ -599,7 +611,7 @@ CONTAINS
                                         fm_mat_Q_gemm_beta, fm_mat_Q_beta)
          ELSE
             ! go with clenshaw-curtius/minimax quadrature
-            CALL rpa_num_int(Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
+            CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                              homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
                              Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
@@ -626,7 +638,7 @@ CONTAINS
          ELSE
             ! go with clenshaw-curtius/minimax quadrature
             ! here, we also do the quasi-particle-energy correction for G0W0
-            CALL rpa_num_int(Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
+            CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                              homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
                              Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                              fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
@@ -1652,6 +1664,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param Erpa ...
 !> \param mp2_env ...
 !> \param para_env ...
@@ -1712,7 +1725,7 @@ CONTAINS
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_num_int(Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
+   SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_ia, dimen_nm_gw, &
                           Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
@@ -1726,7 +1739,7 @@ CONTAINS
                           homo_beta, virtual_beta, dimen_ia_beta, Eigenval_beta, fm_mat_S_beta, &
                           fm_mat_Q_gemm_beta, fm_mat_Q_beta, fm_mat_S_gw_beta, &
                           gw_corr_lev_occ_beta, gw_corr_lev_virt_beta)
-
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp)                                      :: Erpa
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA, para_env_sub
@@ -1797,10 +1810,10 @@ CONTAINS
                                                             my_open_shell, remove_neg_virt_energies
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: multiply_needed_occ, multiply_needed_virt
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm
-      REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, e_fermi, &
-         e_fermi_beta, E_Range, eigen_diff, Emax, Emax_beta, Emin, Emin_beta, eps_filter_im_time, &
-         FComega, frac_rix, max_error_min, my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, &
-         t_end, t_start, tau, tau_old
+      REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, e_axk, e_axk_corr, &
+         e_fermi, e_fermi_beta, E_Range, eigen_diff, Emax, Emax_beta, Emin, Emin_beta, &
+         eps_filter_im_time, FComega, frac_rix, max_error_min, my_flop_rate, omega, omega_i, &
+         omega_old, sign_occ_virt, t_end, t_start, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, Eigenval_last_beta, Eigenval_scf, &
          Eigenval_scf_beta, Lambda_Im, Lambda_Re, m_value, m_value_beta, Q_log, real_freq, tau_tj, &
          tau_wj, tj, trace_Qomega, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
@@ -2538,6 +2551,7 @@ CONTAINS
       END IF
 
       Erpa = 0.0_dp
+      IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
       first_cycle = .TRUE.
       omega_old = 0.0_dp
       my_num_dgemm_call = 0
@@ -3133,13 +3147,16 @@ CONTAINS
             ! Calculate R^(1/2) in case of AXK
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
                IF (jquad <= num_integ_points) THEN
-                  CALL compute_R_half(fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
-                                      para_env_sub, &
-                                      para_env_RPA, RPA_proc_map, eigenval, fm_mat_S, homo, virtual, omega, &
-                                      buffer_send_axk, buffer_rec_axk, &
-                                      number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
-                                      local_size_source_axk, mat_munu, mp2_env)
+                  CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
+                                        para_env_sub, &
+                                        para_env_RPA, RPA_proc_map, eigenval, fm_mat_S, homo, virtual, omega, &
+                                        buffer_send_axk, buffer_rec_axk, &
+                                        number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
+                                        local_size_source_axk, mp2_env, mat_munu, unit_nr, e_axk_corr)
                ENDIF
+
+               ! Evaluate the final AXK energy correction
+               e_axk = e_axk+e_axk_corr*wj(jquad)
             ENDIF
 
             ! the actual G0W0 calculation
@@ -3334,6 +3351,12 @@ CONTAINS
          CALL mp_sum(Erpa, para_env%group)
          Erpa = Erpa/(pi*2.0_dp)
          IF (do_minimax_quad) Erpa = Erpa/2.0_dp
+
+         IF (mp2_env%ri_rpa%do_ri_axk) THEN
+            CALL mp_sum(e_axk, para_env_RPA%group)
+            IF (do_minimax_quad) E_axk = E_axk/2.0_dp
+            WRITE (*, *) 'E_AXK_final=', e_axk, erpa
+         ENDIF
 
          IF (.NOT. do_im_time) THEN
 
@@ -5779,7 +5802,8 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Main driver for RPA-AXK energies
+!> \param qs_env ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
 !> \param dimen_RI ...
@@ -5798,15 +5822,19 @@ CONTAINS
 !> \param map_send_size_axk ...
 !> \param map_rec_size_axk ...
 !> \param local_size_source_axk ...
-!> \param mat_munu ...
 !> \param mp2_env ...
+!> \param mat_munu ...
+!> \param unit_nr ...
+!> \param e_axk_corr ...
+!> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
-   SUBROUTINE compute_R_half(fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
-                             para_env_sub, para_env_RPA, &
-                             RPA_proc_map, eig, fm_mat_S, homo, virtual, omega, &
-                             buffer_send_axk, buffer_rec_axk, &
-                             number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
-                             local_size_source_axk, mat_munu, mp2_env)
+   SUBROUTINE compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
+                               para_env_sub, para_env_RPA, &
+                               RPA_proc_map, eig, fm_mat_S, homo, virtual, omega, &
+                               buffer_send_axk, buffer_rec_axk, &
+                               number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
+                               local_size_source_axk, mp2_env, mat_munu, unit_nr, e_axk_corr)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER                                            :: dimen_RI, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
@@ -5820,12 +5848,15 @@ CONTAINS
       INTEGER                                            :: number_of_send_axk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map_send_size_axk, map_rec_size_axk
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_size_source_axk
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu
       TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(cp_dbcsr_p_type)                              :: mat_munu
+      INTEGER                                            :: unit_nr
+      REAL(KIND=dp)                                      :: e_axk_corr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_R_half', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_axk_ener', &
+         routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: avirt, handle5, i_global, iib, iocc, &
+      INTEGER                                            :: avirt, handle, i_global, iib, iocc, &
                                                             j_global, jjb, kkb, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -5839,7 +5870,7 @@ CONTAINS
                                                             fm_mat_R_half, fm_mat_R_half_gemm, &
                                                             fm_mat_U
 
-      CALL timeset(routineN, handle5)
+      CALL timeset(routineN, handle)
 
       ! Eigenvalues
       ALLOCATE (eigenval(dimen_RI))
@@ -5939,6 +5970,13 @@ CONTAINS
                    matrix_a=fm_mat_S, matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
                    matrix_c=fm_mat_Gamma_3)
 
+      ! Release full matrix stuff
+      CALL cp_fm_release(fm_mat_Q_tmp)
+      CALL cp_fm_release(fm_mat_U)
+      CALL cp_fm_release(fm_mat_R_half)
+      CALL cp_fm_release(fm_mat_R_half_gemm)
+      DEALLOCATE (eigenval)
+
       !CALL mp_sum(fm_mat_Gamma_3%local_data, para_env%group)
 
       ! Remove extra factor from S after the multiplication
@@ -5959,7 +5997,7 @@ CONTAINS
          END DO
       END DO
 
-      ! Reveal mo coefficients in dbcsr format
+      ! Retrieve mo coefficients in dbcsr format
       NULLIFY (mo_coeff_o, mo_coeff_v)
       mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
       mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
@@ -5967,6 +6005,10 @@ CONTAINS
       ! Copy Gamma_ia_P^3 to dbcsr matrix set
       CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_sub, &
                              homo, virtual, mo_coeff_o)
+
+      ! Release Gamma_3
+      CALL cp_fm_release(fm_mat_Gamma_3)
+
       ! Create more dbcsr matrices
       CALL cp_fm_get_info(matrix=fm_mat_S, &
                           ncol_local=ncol_local)
@@ -5978,46 +6020,154 @@ CONTAINS
       eps_filter = mp2_env%mp2_gpw%eps_filter
 
       DO kkb = 1, ncol_local
-         NULLIFY (dbcsr_Gamma_inu_P(kkb)%matrix)
+         ALLOCATE (dbcsr_Gamma_inu_P(kkb)%matrix)
          CALL cp_dbcsr_init_p(dbcsr_Gamma_inu_P(kkb)%matrix)
          CALL cp_dbcsr_create(dbcsr_Gamma_inu_P(kkb)%matrix, template=mo_coeff_o)
+         CALL cp_dbcsr_copy(dbcsr_Gamma_inu_P(kkb)%matrix, mo_coeff_o)
          CALL cp_dbcsr_set(dbcsr_Gamma_inu_P(kkb)%matrix, 0.0_dp)
          ! Do dbcsr multiplication: transform the virtual index
          CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(kkb)%matrix, &
                                 0.0_dp, dbcsr_Gamma_inu_P(kkb)%matrix, filter_eps=eps_filter)
-         NULLIFY (dbcsr_Gamma_munu_P(kkb)%matrix)
+
+         ! Gamma_3 not needed anymore
+         CALL cp_dbcsr_release(dbcsr_Gamma_3(kkb)%matrix)
+         ALLOCATE (dbcsr_Gamma_munu_P(kkb)%matrix)
+         DEALLOCATE (dbcsr_Gamma_3(kkb)%matrix)
+
+         ! Init Gamma_3 in AO basis
          CALL cp_dbcsr_init_p(dbcsr_Gamma_munu_P(kkb)%matrix)
          CALL cp_dbcsr_create(dbcsr_Gamma_munu_P(kkb)%matrix, template=mat_munu%matrix, &
                               matrix_type=dbcsr_type_no_symmetry)
+         CALL cp_dbcsr_copy(dbcsr_Gamma_munu_P(kkb)%matrix, mat_munu%matrix)
          CALL cp_dbcsr_set(dbcsr_Gamma_munu_P(kkb)%matrix, 0.0_dp)
          !Do dbcsr multiplication: transform the occupied index
          CALL cp_dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(kkb)%matrix, mo_coeff_o, &
                                 0.0_dp, dbcsr_Gamma_munu_P(kkb)%matrix, filter_eps=eps_filter)
       ENDDO
 
+      DEALLOCATE (dbcsr_Gamma_3)
+
+      ! Contract DM with exchange integrals
+      CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, ncol_local, eps_filter, e_axk_corr)
+
+      ! Print AXK correlation energy to the file
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy:', &
+         e_axk_corr, ' a.u.'
+
       DO kkb = 1, ncol_local
-         CALL cp_dbcsr_release(dbcsr_Gamma_3(kkb)%matrix)
          CALL cp_dbcsr_release(dbcsr_Gamma_inu_P(kkb)%matrix)
          CALL cp_dbcsr_release(dbcsr_Gamma_munu_P(kkb)%matrix)
-         DEALLOCATE (dbcsr_Gamma_3(kkb)%matrix)
          DEALLOCATE (dbcsr_Gamma_inu_P(kkb)%matrix)
          DEALLOCATE (dbcsr_Gamma_munu_P(kkb)%matrix)
       ENDDO
-      DEALLOCATE (dbcsr_Gamma_3)
       DEALLOCATE (dbcsr_Gamma_inu_P)
       DEALLOCATE (dbcsr_Gamma_munu_P)
 
-      ! Release stuff
-      CALL cp_fm_release(fm_mat_Q_tmp)
-      CALL cp_fm_release(fm_mat_U)
-      CALL cp_fm_release(fm_mat_R_half)
-      CALL cp_fm_release(fm_mat_R_half_gemm)
-      CALL cp_fm_release(fm_mat_Gamma_3)
-      DEALLOCATE (eigenval)
+      CALL timestop(handle)
 
-      CALL timestop(handle5)
+   END SUBROUTINE compute_axk_ener
 
-   END SUBROUTINE compute_R_half
+! **************************************************************************************************
+!> \brief Contract RPA-AXK density matrix with HF exchange integrals
+!> \param qs_env ...
+!> \param dbcsr_Gamma_munu_P ...
+!> \param mat_munu ...
+!> \param para_env_sub ...
+!> \param P_stack_size ...
+!> \param eps_filter ...
+!> \param axk_corr ...
+!> \author Vladimir Rybkin, 08/2016
+! **************************************************************************************************
+   SUBROUTINE integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, P_stack_size, &
+                                 eps_filter, axk_corr)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dbcsr_Gamma_munu_P
+      TYPE(cp_dbcsr_p_type)                              :: mat_munu
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      INTEGER                                            :: P_stack_size
+      REAL(KIND=dp)                                      :: eps_filter, axk_corr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_exchange', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: aux, handle, irep, n_rep_hf, ns
+      LOGICAL                                            :: my_recalc_hfx_integrals
+      REAL(KIND=dp)                                      :: e_axk_P, ex_energy
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_work_ao
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_2d, rho_ao_2d
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(section_vals_type), POINTER                   :: hfx_sections
+
+      CALL timeset(routineN, handle)
+
+      ! Get qs environment
+      NULLIFY (energy)
+      CALL get_qs_env(qs_env, &
+                      energy=energy)
+
+      ! hfx section
+      CALL hfx_create_subgroup(qs_env, para_env_sub, hfx_sections, x_data, n_rep_hf)
+
+      ! create a working rho environment
+      NULLIFY (rho_work_ao)
+      CALL cp_dbcsr_allocate_matrix_set(rho_work_ao, 1)
+      ALLOCATE (rho_work_ao(1)%matrix)
+      CALL cp_dbcsr_init_p(rho_work_ao(1)%matrix)
+      CALL cp_dbcsr_create(rho_work_ao(1)%matrix, template=mat_munu%matrix)
+
+      ! For the first aux function in the group we recalculate integrals, but only for the first
+      my_recalc_hfx_integrals = .TRUE.
+
+      NULLIFY (mat_2d)
+      CALL cp_dbcsr_allocate_matrix_set(mat_2d, 1, 1)
+      ALLOCATE (mat_2d(1, 1)%matrix)
+      CALL cp_dbcsr_init_p(mat_2d(1, 1)%matrix)
+      CALL cp_dbcsr_create(mat_2d(1, 1)%matrix, template=mat_munu%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
+      CALL cp_dbcsr_copy(mat_2d(1, 1)%matrix, mat_munu%matrix)
+
+      ! The loop over auxiliary basis functions
+      axk_corr = 0.0_dp
+      DO aux = 1, P_stack_size
+
+         CALL cp_dbcsr_copy(rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
+         ! save old EX energy
+         ex_energy = energy%ex
+
+         DO irep = 1, n_rep_hf
+            ns = SIZE(rho_work_ao)
+            rho_ao_2d(1:ns, 1:1) => rho_work_ao(1:ns)
+
+            CALL cp_dbcsr_set(mat_2d(1, 1)%matrix, 0.0_dp)
+            CALL integrate_four_center(qs_env, mat_2d, energy, rho_ao_2d, hfx_sections, &
+                                       para_env_sub, my_recalc_hfx_integrals, irep, .TRUE., &
+                                       ispin=1, axk_x_data=x_data)
+         END DO
+         ! restore original EX energy
+         !write(*,*) 'ex_energy', energy%ex, ex_energy
+         energy%ex = ex_energy
+         my_recalc_hfx_integrals = .FALSE.
+         ! One more dbcsr multiplication and trace
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mat_munu%matrix, dbcsr_Gamma_munu_P(aux)%matrix, &
+                                0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=eps_filter)
+         CALL cp_dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
+         axk_corr = axk_corr+e_axk_P
+      ENDDO
+
+      CALL cp_dbcsr_release(mat_2d(1, 1)%matrix)
+      ! release rho stuff
+      CALL cp_dbcsr_release(mat_2d(1, 1)%matrix)
+      DEALLOCATE (mat_2d(1, 1)%matrix)
+      DEALLOCATE (mat_2d)
+      CALL cp_dbcsr_release(rho_work_ao(1)%matrix)
+      DEALLOCATE (rho_work_ao(1)%matrix)
+      DEALLOCATE (rho_work_ao)
+      CALL hfx_release(x_data)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief test the singular value decomposition for the computation of integration weights for the

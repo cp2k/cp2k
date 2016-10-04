@@ -121,6 +121,7 @@ CONTAINS
 !>        new fock matrix or not
 !> \param ispin ...
 !> \param do_exx ...
+!> \param axk_x_data ...
 !> \par History
 !>      06.2007 created [Manuel Guidon]
 !>      08.2007 optimized load balance [Manuel Guidon]
@@ -130,7 +131,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_four_center(qs_env, ks_matrix, energy, rho_ao, hfx_section, para_env, &
                                     geometry_did_change, irep, distribute_fock_matrix, &
-                                    ispin, do_exx)
+                                    ispin, do_exx, axk_x_data)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix
@@ -143,6 +144,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: distribute_fock_matrix
       INTEGER, INTENT(IN)                                :: ispin
       LOGICAL, OPTIONAL                                  :: do_exx
+      TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, POINTER :: axk_x_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
          routineP = moduleN//':'//routineN
@@ -286,11 +288,15 @@ CONTAINS
       my_do_exx = .FALSE.
       IF (PRESENT(do_exx)) my_do_exx = do_exx
       NULLIFY (x_data)
-      IF (my_do_exx) THEN
-         x_data => qs_env%mp2_env%ri_rpa%x_data
+      IF (PRESENT(axk_x_data)) THEN ! In case of AXK, x_data is a subroutine argument
+         x_data => axk_x_data
       ELSE
-         x_data => qs_env%x_data
-      END IF
+         IF (my_do_exx) THEN
+            x_data => qs_env%mp2_env%ri_rpa%x_data
+         ELSE
+            x_data => qs_env%x_data
+         END IF ! my_do_exx
+      END IF ! AXK_x_data
 
       !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
       nkind = SIZE(atomic_kind_set, 1)
