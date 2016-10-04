@@ -3355,7 +3355,6 @@ CONTAINS
          IF (mp2_env%ri_rpa%do_ri_axk) THEN
             CALL mp_sum(e_axk, para_env_RPA%group)
             IF (do_minimax_quad) E_axk = E_axk/2.0_dp
-            WRITE (*, *) 'E_AXK_final=', e_axk, erpa
          ENDIF
 
          IF (.NOT. do_im_time) THEN
