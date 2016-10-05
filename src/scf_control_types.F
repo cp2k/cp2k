@@ -644,7 +644,7 @@ CONTAINS
 
             IF (scf_control%diagonalization%mom) THEN
                ! TODO extend the output with further parameters
-               WRITE(UNIT=output_unit,FMT="(T25,A)") "MOM enabled"
+               WRITE (UNIT=output_unit, FMT="(T25,A)") "MOM enabled"
             ENDIF
 
             IF (scf_control%mixing_method > 0 .AND. .NOT. scf_control%use_ot) THEN
