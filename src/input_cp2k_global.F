@@ -293,7 +293,8 @@ CONTAINS
          enum_desc=s2a("Perform no tasks", "Computes energy", "Computes energy and forces", &
                        "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", "Computes absorption Spectra", &
                        "Performs a Debug analysis", "Basis set superposition error", "Linear Response", &
-                       "Path integral", "Vibrational analysis", "Band methods", "Cell optimization", &
+                       "Path integral", "Vibrational analysis", "Band methods", &
+                       "Cell optimization. Both cell vectors and atomic positions are optimised.", &
                        "Alias for ENERGY", "Alias for ENERGY", "Alias for MD", "Alias for GEO_OPT", &
                        "Alias for MC", "Alias for SPECTRA", "Alias for LR", "Alias for VIBRATIONAL_ANALYSIS", &
                        "Real Time propagation run (fixed ionic positions)", &

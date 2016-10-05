@@ -911,7 +911,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="SCALED", &
-                          description='Specify if the coordinateds in input are scaled.', &
+                          description='Specify if the coordinates in input are scaled. '// &
+                          'When true, the coordinates are given in multiples of the lattice vectors.', &
                           usage="SCALED F", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -955,7 +956,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="SCALED", &
-                          description='Specify if the coordinateds in input are scaled.', &
+                          description='Specify if the coordinates in input are scaled. '// &
+                          'When true, the coordinates are given in multiples of the lattice vectors.', &
                           usage="SCALED F", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -999,7 +1001,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="SCALED", &
-                          description='Specify if the coordinateds in input are scaled.', &
+                          description='Specify if the coordinates in input are scaled. '// &
+                          'When true, the coordinates are given in multiples of the lattice vectors.', &
                           usage="SCALED F", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
