@@ -418,7 +418,6 @@ CONTAINS
       IF (this%c_area_copy) THEN
          CALL dbcsr_data_dev2host(this%c_buffer)
       ENDIF
-      !TODO: not async, yet
       CALL acc_stream_synchronize(this%c_buffer%d%memory_type%acc_stream)
 
       c_area = this%product_wm%data_area
