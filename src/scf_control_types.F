@@ -642,6 +642,11 @@ CONTAINS
                   "added MOs          ", scf_control%added_mos
             END IF
 
+            IF (scf_control%diagonalization%mom) THEN
+               ! TODO extend the output with further parameters
+               WRITE(UNIT=output_unit,FMT="(T25,A)") "MOM enabled"
+            ENDIF
+
             IF (scf_control%mixing_method > 0 .AND. .NOT. scf_control%use_ot) THEN
                keyword => section_get_keyword(section, "MIXING%METHOD")
                CALL keyword_get(keyword, enum=enum)
