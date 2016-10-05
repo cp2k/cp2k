@@ -188,12 +188,6 @@ MODULE dbcsr_operations
       MODULE PROCEDURE dbcsr_norm_r4_scal
       MODULE PROCEDURE dbcsr_norm_r4_vec, dbcsr_norm_r8_vec
    END INTERFACE
-   INTERFACE dbcsr_gershgorin_norm
-      MODULE PROCEDURE dbcsr_gershgorin_norm_r8
-   END INTERFACE
-   INTERFACE dbcsr_maxabs
-      MODULE PROCEDURE dbcsr_maxabs_r8
-   END INTERFACE
 
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
@@ -843,7 +837,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes varios functions (defined by func) of matrix elements
-!>        NOTE: sign(A,B) returns the value of A with the sign of B
+!> \param[in] matrix_a        DBCSR matrix
+!> \param func ...
+!> \param a0 ...
+!> \param a1 ...
+!> \param a2 ...
+!> \note  sign(A,B) returns the value of A with the sign of B
 !>        dbcsr_func_inverse:   1/(a1*x+a0)
 !>           fails if the inversion produces infinite numbers
 !>        dbcsr_func_inverse_special: 1/(x+sign(a0,x))
@@ -861,11 +860,6 @@ CONTAINS
 !>        dbcsr_func_ddsin:   d2(sin(a1*x+a0)) / dx2 = -a1*a1*sin(a1*x+a0)
 !>        dbcsr_func_asin:    asin(a1*x+a0)
 !>           fails if |a1*x+a0| > 1
-!> \param[in] matrix_a        DBCSR matrix
-!> \param func ...
-!> \param a0 ...
-!> \param a1 ...
-!> \param a2 ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_function_of_elements(matrix_a, func, a0, a1, a2)
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
@@ -2521,13 +2515,12 @@ CONTAINS
 !> \param[in] matrix  the matrix
 !> \retval norm ...
 ! **************************************************************************************************
-   FUNCTION dbcsr_gershgorin_norm_r8(matrix) RESULT(norm)
+   FUNCTION dbcsr_gershgorin_norm(matrix) RESULT(norm)
 
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
       REAL(KIND=real_8)                                  :: norm
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_gershgorin_norm_r8', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_gershgorin_norm'
 
       COMPLEX(KIND=real_4), DIMENSION(:, :), POINTER     :: data_c
       COMPLEX(KIND=real_8), DIMENSION(:, :), POINTER     :: data_z
@@ -2607,19 +2600,16 @@ CONTAINS
       norm = MAXVAL(buff_d)
       DEALLOCATE (buff_d)
 
-   END FUNCTION dbcsr_gershgorin_norm_r8
+   END FUNCTION dbcsr_gershgorin_norm
 
 ! **************************************************************************************************
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
 !> \retval norm ...
 ! **************************************************************************************************
-   FUNCTION dbcsr_maxabs_r8(matrix) RESULT(norm)
+   FUNCTION dbcsr_maxabs(matrix) RESULT(norm)
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
       REAL(real_8)                                       :: norm
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_maxabs_r8', &
-         routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=real_4), DIMENSION(:, :), POINTER     :: data_c
       COMPLEX(KIND=real_8), DIMENSION(:, :), POINTER     :: data_z
@@ -2655,7 +2645,7 @@ CONTAINS
 
       CALL mp_max(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
 
-   END FUNCTION dbcsr_maxabs_r8
+   END FUNCTION dbcsr_maxabs
 
 ! **************************************************************************************************
 !> \brief compute a norm of a dbcsr matrix
