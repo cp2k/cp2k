@@ -817,7 +817,8 @@ CONTAINS
       ENDDO
       ! Resize buffers
       CALL dbcsr_data_ensure_size(this%product_wm%data_area, &
-                                  nze_max, factor=default_resize_factor, nocopy=.FALSE.)
+                                  nze_max, factor=default_resize_factor, nocopy=.FALSE., &
+                                  zero_pad=.TRUE.)
       CALL ensure_array_size(this%product_wm%row_i, ub=nblks_max, &
                              factor=default_resize_factor, nocopy=.FALSE.)
       CALL ensure_array_size(this%product_wm%col_i, ub=nblks_max, &

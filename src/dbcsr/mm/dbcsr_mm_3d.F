@@ -1806,9 +1806,9 @@ CONTAINS
          istep_k, ithread, ivirt_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
          left_data_size, left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
          left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, &
-         max_nblocks, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, myrow3D, myt
-      INTEGER :: nblkrows_local, nbuffers, nbuffers_norms, ncols3D, nranks3D, nrows3D, nthreads, &
-         numnodes, nvirt_k, proc3D_recv, proc3D_send, recv_vcol, recv_vrow, request_epss, &
+         min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, myrow3D, myt, nblkrows_local
+      INTEGER :: nbuffers, nbuffers_norms, ncols3D, nranks3D, nrows3D, nthreads, numnodes, &
+         nvirt_k, proc3D_recv, proc3D_send, recv_vcol, recv_vrow, request_epss, &
          request_keep_sparsity, right_col_mult, right_col_nimages, right_data_size, &
          right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, &
          right_npcols, right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
@@ -1897,7 +1897,6 @@ CONTAINS
       !
       ! Set up variables
       flop = 0
-      max_nblocks = 1
       data_type = dbcsr_get_data_type(product_matrix)
       data_type_byte = dbcsr_datatype_sizeof(data_type)
       left_row_nimages = imgdist_left%i%row_decimation
@@ -2493,7 +2492,7 @@ CONTAINS
 !$OMP          PRIVATE (size_guess, ithread) &
 !$OMP          SHARED (product_matrix3D, multrec, &
 !$OMP                  keep_sparsity, filter_eps, &
-!$OMP                  product_matrix_epss, max_nblocks, &
+!$OMP                  product_matrix_epss, &
 !$OMP                  matrix_right, nthreads, &
 !$OMP                  irow3D, icol3D, myrow3D, mycol3D, keep_product_data, &
 !$OMP                  product_matrix_epss_displ, product_matrix_epss_size, &
@@ -2507,7 +2506,6 @@ CONTAINS
             IF (irow3D .NE. myrow3D .OR. icol3D .NE. mycol3D) THEN
                IF (keep_product_data) THEN
                   CALL dbcsr_add_wm_from_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix)
-                  max_nblocks = product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks
                ELSE
                   CALL dbcsr_work_create(product_matrix3D%mats(irow3D, icol3D)%matrix, &
                                          work_mutable=.FALSE., memory_type=memtype_product_wm(ithread)%p)
@@ -2541,8 +2539,7 @@ CONTAINS
                                        row_max_epss=product_matrix_epss(product_matrix_epss_displ(irow3D)+1: &
                                                                         product_matrix_epss_displ(irow3D)+ &
                                                                         product_matrix_epss_size(irow3D)-1), &
-                                       block_estimate=max_nblocks/nthreads, &
-                                       !                                       block_estimate=0, &
+                                       block_estimate=1, &
                                        right_row_blk_size=dbcsr_row_block_sizes(matrix_right), &
                                        nlayers=nranks3D)
 !$OMP END PARALLEL
