@@ -2524,15 +2524,15 @@ CONTAINS
 
       COMPLEX(KIND=real_4), DIMENSION(:, :), POINTER     :: data_c
       COMPLEX(KIND=real_8), DIMENSION(:, :), POINTER     :: data_z
-      INTEGER                                            :: blk, col, col_offset, i, j, nc, nr, row, &
-                                                            row_offset
+      INTEGER                                            :: blk, col, col_offset, handle, i, j, nc, &
+                                                            nr, row, row_offset
       LOGICAL                                            :: any_sym, tr
       REAL(KIND=real_4), DIMENSION(:, :), POINTER        :: data_r
       REAL(KIND=real_8), DIMENSION(:, :), POINTER        :: data_d
       REAL(real_8), ALLOCATABLE, DIMENSION(:)            :: buff_d
       TYPE(dbcsr_iterator)                               :: iter
 
-!   ---------------------------------------------------------------------------
+      CALL timeset(routineN, handle)
 
       nr = dbcsr_nfullrows_total(matrix)
       nc = dbcsr_nfullcols_total(matrix)
@@ -2599,6 +2599,8 @@ CONTAINS
       CALL mp_sum(buff_d, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
       norm = MAXVAL(buff_d)
       DEALLOCATE (buff_d)
+
+      CALL timestop(handle)
 
    END FUNCTION dbcsr_gershgorin_norm
 
