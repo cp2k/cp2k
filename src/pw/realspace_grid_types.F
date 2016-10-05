@@ -2183,12 +2183,18 @@ CONTAINS
       TYPE(realspace_grid_desc_type), POINTER            :: desc
       INTEGER                                            :: max_ngpts
 
-      INTEGER                                            :: i
+      CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_max_ngpts', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i
       INTEGER, DIMENSION(3)                              :: lb, ub
+
+      CALL timeset(routineN, handle)
 
       max_ngpts = 0
       IF ((desc%pw%para%mode == PW_MODE_LOCAL) .OR. &
           (ALL(desc%group_dim == 1))) THEN
+         CPASSERT(PRODUCT(INT(desc%npts, KIND=int_8)) < HUGE(1))
          max_ngpts = PRODUCT(desc%npts)
       ELSE
          DO i = 0, desc%group_size-1
@@ -2196,9 +2202,12 @@ CONTAINS
             ub = desc%ub_global(:, i)
             lb = lb-desc%border*(1-desc%perd)
             ub = ub+desc%border*(1-desc%perd)
+            CPASSERT(PRODUCT(INT(ub-lb+1, KIND=int_8)) < HUGE(1))
             max_ngpts = MAX(max_ngpts, PRODUCT(ub-lb+1))
          END DO
       END IF
+
+      CALL timestop(handle)
 
    END FUNCTION rs_grid_max_ngpts
 
