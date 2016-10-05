@@ -14,7 +14,8 @@
 
 MODULE lgrid_types
 
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               rs_grid_max_ngpts
 #include "../base/base_uses.f90"
@@ -107,9 +108,17 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'lgrid_allocate_grid', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
       CPASSERT(ASSOCIATED(lgrid))
       CPASSERT(.NOT. ASSOCIATED(lgrid%r))
+      ! larger than int_4 will overflow elsewhere
+      CPASSERT(INT(lgrid%ldim, int_8)*INT(nthreads, int_8) < HUGE(1))
       ALLOCATE (lgrid%r(lgrid%ldim*nthreads))
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 END MODULE
