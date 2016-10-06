@@ -141,7 +141,7 @@ MODULE dbcsr_mm_3d
       INTEGER, DIMENSION(:, :), ALLOCATABLE           :: get_requests, &
                                                          get_requests_map, &
                                                          offset
-      TYPE(dbcsr_data_obj)               :: trs_stackbuf
+      TYPE(dbcsr_data_obj), DIMENSION(:), ALLOCATABLE :: trs_stackbuf
       INTEGER                            :: nrequests = 0
       INTEGER                            :: num_layers_3D = 1
       INTEGER                            :: coord3D = 1
@@ -2190,7 +2190,8 @@ CONTAINS
                           right_data_size, &
                           right_meta_size, &
                           num_data=(nbuffers/2), &
-                          data_memory_type=memtype_abpanel_2)
+                          data_memory_type=memtype_abpanel_2, &
+                          trs_memory_type=memtype_trsbuffer_2)
          ! Left
          CALL buffer_init(buffers_2%left, data_type, &
                           left_data_size, &
@@ -2205,7 +2206,8 @@ CONTAINS
                        right_data_size, &
                        right_meta_size, &
                        num_data=(nbuffers-nbuffers/2), &
-                       data_memory_type=memtype_abpanel_1)
+                       data_memory_type=memtype_abpanel_1, &
+                       trs_memory_type=memtype_trsbuffer_1)
       ! Left
       CALL buffer_init(buffers_1%left, data_type, &
                        left_data_size, &
@@ -2650,21 +2652,9 @@ CONTAINS
                                                 uf=1, ul=1)
                   ENDIF
                   IF (has_acc) THEN
-                     IF (.NOT. dbcsr_data_valid(right_buffer_p%trs_stackbuf)) THEN
-                        CALL dbcsr_data_init(right_buffer_p%trs_stackbuf)
-                        IF (MOD(iright_buffer_calc, 2) .EQ. 1) THEN
-                           CALL dbcsr_data_new(right_buffer_p%trs_stackbuf, &
-                                               data_type=dbcsr_type_int_4, data_size=1000, &
-                                               memory_type=memtype_trsbuffer_1)
-                        ELSE
-                           CALL dbcsr_data_new(right_buffer_p%trs_stackbuf, &
-                                               data_type=dbcsr_type_int_4, data_size=1000, &
-                                               memory_type=memtype_trsbuffer_2)
-                        ENDIF
-                     ENDIF
                      CALL acc_transpose_blocks_images(right_buffer_p%buffer, &
                                                       right_buffer_p%data(1), &
-                                                      right_buffer_p%trs_stackbuf, &
+                                                      right_buffer_p%trs_stackbuf(1), &
                                                       (/1/))
                   ENDIF
                ENDIF
@@ -2898,6 +2888,9 @@ CONTAINS
       DO iright_buffer_comm = 1, nbuffers
          DEALLOCATE (right_buffers(iright_buffer_comm)%b%data)
          CALL dbcsr_destroy_array(right_buffers(iright_buffer_comm)%b%buffer)
+         IF (has_acc) THEN
+            DEALLOCATE (right_buffers(iright_buffer_comm)%b%trs_stackbuf)
+         ENDIF
          DEALLOCATE (right_buffers(iright_buffer_comm)%b%offset)
          DEALLOCATE (right_buffers(iright_buffer_comm)%b%get_requests)
          DEALLOCATE (right_buffers(iright_buffer_comm)%b)
@@ -2952,29 +2945,41 @@ CONTAINS
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE setup_buffers(buffer_1, buffer_2, buffers, nbuffers, meta_size, matrix, imgdist)
-      TYPE(dbcsr_buffer), INTENT(INOUT), TARGET          :: buffer_1, buffer_2
+      TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer_1, buffer_2
       TYPE(dbcsr_buffer_p), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: buffers
       INTEGER, INTENT(IN)                                :: nbuffers, meta_size
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
 
-      INTEGER                                            :: ibuffer
+      INTEGER                                            :: ibuffer, jbuffer
+      LOGICAL                                            :: has_trs_stackbuff
 
       ALLOCATE (buffers(nbuffers))
+      has_trs_stackbuff = ALLOCATED(buffer_1%trs_stackbuf) .OR. ALLOCATED(buffer_2%trs_stackbuf)
       DO ibuffer = 1, nbuffers
          ALLOCATE (buffers(ibuffer)%b)
          ALLOCATE (buffers(ibuffer)%b%data(1))
+         IF (has_trs_stackbuff) THEN
+            ALLOCATE (buffers(ibuffer)%b%trs_stackbuf(1))
+         ENDIF
+         jbuffer = (ibuffer-1)/2
          IF (MOD(ibuffer, 2) .EQ. 1) THEN
-            buffers(ibuffer)%b%data(1) = buffer_1%data((ibuffer-1)/2+1)
+            buffers(ibuffer)%b%data(1) = buffer_1%data(jbuffer+1)
             buffers(ibuffer)%b%meta => &
-               buffer_1%meta(meta_size*((ibuffer-1)/2)+1: &
-                             meta_size*((ibuffer-1)/2+1))
+               buffer_1%meta(meta_size*jbuffer+1: &
+                             meta_size*(jbuffer+1))
+            IF (has_trs_stackbuff) THEN
+               buffers(ibuffer)%b%trs_stackbuf(1) = buffer_1%trs_stackbuf(jbuffer+1)
+            ENDIF
          ELSE
-            buffers(ibuffer)%b%data(1) = buffer_2%data((ibuffer-1)/2+1)
+            buffers(ibuffer)%b%data(1) = buffer_2%data(jbuffer+1)
             buffers(ibuffer)%b%meta => &
-               buffer_2%meta(meta_size*((ibuffer-1)/2)+1: &
-                             meta_size*((ibuffer-1)/2+1))
+               buffer_2%meta(meta_size*jbuffer+1: &
+                             meta_size*(jbuffer+1))
+            IF (has_trs_stackbuff) THEN
+               buffers(ibuffer)%b%trs_stackbuf(1) = buffer_2%trs_stackbuf(jbuffer+1)
+            ENDIF
          ENDIF
          ALLOCATE (buffers(ibuffer)%b%offset(2, 2))
          buffers(ibuffer)%b%offset(:, 1) = 0
@@ -3753,7 +3758,8 @@ CONTAINS
                           right_max_data_size, &
                           right_max_meta_size, &
                           requests_size=(min_nimages*right_col_nimages), &
-                          data_memory_type=memtype_abpanel_1)
+                          data_memory_type=memtype_abpanel_1, &
+                          trs_memory_type=memtype_trsbuffer_1)
          CALL setup_buffer_matrices_images(buffers_1%right%buffer, min_nimages, &
                                            imgdist_right, matrix_right, &
                                            buffers_1%right%data(1), &
@@ -3769,13 +3775,6 @@ CONTAINS
                                            buffers_1%left%data(1), &
                                            left_max_meta_size_images)
          !
-         IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_1%right%trs_stackbuf)) THEN
-            CALL dbcsr_data_init(buffers_1%right%trs_stackbuf)
-            CALL dbcsr_data_new(buffers_1%right%trs_stackbuf, &
-                                data_type=dbcsr_type_int_4, data_size=1000, &
-                                memory_type=memtype_trsbuffer_1)
-         ENDIF
-         !
          buffers_calc => buffers_1
       ENDIF
       !
@@ -3785,7 +3784,8 @@ CONTAINS
                        right_max_data_size, &
                        right_max_meta_size, &
                        requests_size=(min_nimages*right_col_nimages), &
-                       data_memory_type=memtype_abpanel_2)
+                       data_memory_type=memtype_abpanel_2, &
+                       trs_memory_type=memtype_trsbuffer_2)
       CALL setup_buffer_matrices_images(buffers_2%right%buffer, min_nimages, &
                                         imgdist_right, matrix_right, &
                                         buffers_2%right%data(1), &
@@ -3800,13 +3800,6 @@ CONTAINS
                                         imgdist_left, matrix_left, &
                                         buffers_2%left%data(1), &
                                         left_max_meta_size_images)
-      !
-      IF (has_acc .AND. .NOT. dbcsr_data_valid(buffers_2%right%trs_stackbuf)) THEN
-         CALL dbcsr_data_init(buffers_2%right%trs_stackbuf)
-         CALL dbcsr_data_new(buffers_2%right%trs_stackbuf, &
-                             data_type=dbcsr_type_int_4, data_size=1000, &
-                             memory_type=memtype_trsbuffer_2)
-      ENDIF
       !
       buffers_comm => buffers_2
       !
@@ -4006,7 +3999,7 @@ CONTAINS
                                   left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                   right_norms, left_norms, &
                                   common_unmerged, indices_common_unmerged, &
-                                  has_acc, nthreads, buffers_calc%right%trs_stackbuf)
+                                  has_acc, nthreads, buffers_calc%right%trs_stackbuf(1))
                ENDIF
             ELSE
                !
@@ -5200,34 +5193,45 @@ CONTAINS
 !> \param num_data ...
 !> \param requests_size ...
 !> \param data_memory_type ...
+!> \param trs_memory_type ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
    SUBROUTINE buffer_init(buffer, data_type, &
                           data_size, meta_size, &
                           num_data, requests_size, &
-                          data_memory_type)
+                          data_memory_type, trs_memory_type)
       TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
       INTEGER, INTENT(IN)                                :: data_type, data_size, meta_size
       INTEGER, INTENT(IN), OPTIONAL                      :: num_data, requests_size
       TYPE(dbcsr_memtype_type), INTENT(IN)               :: data_memory_type
+      TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL     :: trs_memory_type
 
       INTEGER                                            :: idata, my_num_data
+      LOGICAL                                            :: new_trs_stackbuf
 
       my_num_data = 1
       IF (PRESENT(num_data)) THEN
          my_num_data = num_data
       ENDIF
+      new_trs_stackbuf = PRESENT(trs_memory_type) .AND. has_acc
 
       IF (buffer%is_valid) THEN
          ! Invalid buffers if data_type is different
          IF (dbcsr_data_get_type(buffer%data(1)) .NE. data_type .OR. &
-             SIZE(buffer%data) .LT. my_num_data) THEN
+             SIZE(buffer%data) .LT. my_num_data .OR. &
+             (new_trs_stackbuf .AND. SIZE(buffer%trs_stackbuf) .LT. my_num_data)) THEN
             DO idata = 1, SIZE(buffer%data)
                CALL dbcsr_data_release(buffer%data(idata))
             ENDDO
             DEALLOCATE (buffer%data)
             CALL dbcsr_data_release(buffer%data_diag)
             CALL dbcsr_data_release(buffer%data_red3D)
+            IF (new_trs_stackbuf) THEN
+               DO idata = 1, SIZE(buffer%trs_stackbuf)
+                  CALL dbcsr_data_release(buffer%trs_stackbuf(idata))
+               ENDDO
+               DEALLOCATE (buffer%trs_stackbuf)
+            ENDIF
             buffer%is_valid = .FALSE.
          ENDIF
       ENDIF
@@ -5235,11 +5239,18 @@ CONTAINS
       IF (.NOT. buffer%is_valid) THEN
          ! First initialization
          ALLOCATE (buffer%data(my_num_data))
+         IF (new_trs_stackbuf) ALLOCATE (buffer%trs_stackbuf(my_num_data))
          DO idata = 1, my_num_data
             CALL dbcsr_data_init(buffer%data(idata))
             CALL dbcsr_data_new(buffer%data(idata), data_type=data_type, &
                                 data_size=data_size, memory_type=data_memory_type)
             CALL dbcsr_data_set_size_referenced(buffer%data(idata), data_size)
+            IF (new_trs_stackbuf) THEN
+               CALL dbcsr_data_init(buffer%trs_stackbuf(idata))
+               CALL dbcsr_data_new(buffer%trs_stackbuf(idata), &
+                                   data_type=dbcsr_type_int_4, data_size=1000, &
+                                   memory_type=trs_memory_type)
+            ENDIF
          ENDDO
          CALL dbcsr_data_init(buffer%data_diag)
          CALL dbcsr_data_new(buffer%data_diag, data_type=data_type, &
@@ -5355,8 +5366,14 @@ CONTAINS
       IF (buffer%is_valid) THEN
          DO idata = 1, SIZE(buffer%data)
             CALL dbcsr_data_release(buffer%data(idata))
+            IF (ALLOCATED(buffer%trs_stackbuf)) THEN
+               CALL dbcsr_data_release(buffer%trs_stackbuf(idata))
+            ENDIF
          ENDDO
          DEALLOCATE (buffer%data)
+         IF (ALLOCATED(buffer%trs_stackbuf)) THEN
+            DEALLOCATE (buffer%trs_stackbuf)
+         ENDIF
          IF (dbcsr_data_valid(buffer%data_diag)) &
             CALL dbcsr_data_release(buffer%data_diag)
          IF (dbcsr_data_valid(buffer%data_red3D)) &
@@ -5378,9 +5395,6 @@ CONTAINS
       IF (ALLOCATED(buffer%offset)) DEALLOCATE (buffer%offset)
       IF (ALLOCATED(buffer%get_requests)) DEALLOCATE (buffer%get_requests)
       IF (ALLOCATED(buffer%get_requests_map)) DEALLOCATE (buffer%get_requests_map)
-      IF (dbcsr_data_valid(buffer%trs_stackbuf)) THEN
-         CALL dbcsr_data_release(buffer%trs_stackbuf)
-      ENDIF
    END SUBROUTINE buffer_release
 
 ! **************************************************************************************************
