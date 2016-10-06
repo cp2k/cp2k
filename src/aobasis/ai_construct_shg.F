@@ -502,7 +502,7 @@ CONTAINS
 !> \param nshellb number of shells for b
 !> \param swork_cont contracted and normalized [s|s] integrals
 !> \param Waux_mat precomputed angular-dependent part
-!> \param sab contracted overlap of spherical harmonic Gaussianslm
+!> \param sab contracted integral of spherical harmonic Gaussianslm
 ! **************************************************************************************************
    SUBROUTINE construct_int_shg_ab(la, first_sgfa, nshella, lb, first_sgfb, nshellb, &
                                    swork_cont, Waux_mat, sab)
@@ -566,7 +566,7 @@ CONTAINS
 !> \param swork_cont contracted and normalized [s|s] integrals
 !> \param Waux_mat precomputed angular-dependent part
 !> \param dWaux_mat ...
-!> \param dsab derivative of contracted overlap of spherical harmonic Gaussians
+!> \param dsab derivative of contracted integral of spherical harmonic Gaussians
 ! **************************************************************************************************
    SUBROUTINE construct_dev_shg_ab(la, first_sgfa, nshella, lb, first_sgfb, nshellb, rab, &
                                    swork_cont, Waux_mat, dWaux_mat, dsab)

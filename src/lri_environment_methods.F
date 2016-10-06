@@ -33,7 +33,8 @@ MODULE lri_environment_methods
                                               int_overlap_ab_os,&
                                               int_overlap_aba_os,&
                                               int_overlap_abb_os
-   USE generic_shg_integrals,           ONLY: int_overlap_ab_shg_low,&
+   USE generic_shg_integrals,           ONLY: get_abb_same_kind,&
+                                              int_overlap_ab_shg_low,&
                                               int_overlap_aba_shg_low,&
                                               int_overlap_abb_shg_low,&
                                               lri_precalc_angular_shg_part
@@ -787,11 +788,17 @@ CONTAINS
                                       lri_env%cg_shg%ncg_none0, &
                                       Waux_mat, dWaux_mat, lrii%calc_force_pair)
          !*** (a,b,fb)
-         CALL int_overlap_abb_shg_low(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
-                                      scon_oba, sconb_mix, obb_index, fbb_index, &
-                                      lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
-                                      lri_env%cg_shg%ncg_none0, &
-                                      Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         IF (ikind == jkind) THEN
+            CALL get_abb_same_kind(lrii%abbint, lrii%dabbint, lrii%abaint, lrii%dabdaint, &
+                                   rab, obasa, fbasa, lrii%calc_force_pair)
+         ELSE
+            CALL int_overlap_abb_shg_low(lrii%abbint, lrii%dabbint, rab, obasa, obasb, fbasb, &
+                                         scon_oba, sconb_mix, obb_index, fbb_index, &
+                                         lri_env%cg_shg%cg_coeff, lri_env%cg_shg%cg_none0_list, &
+                                         lri_env%cg_shg%ncg_none0, &
+                                         Waux_mat, dWaux_mat, lrii%calc_force_pair)
+         ENDIF
+
          DEALLOCATE (Waux_mat, dWaux_mat)
       ENDIF
 

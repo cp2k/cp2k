@@ -43,7 +43,7 @@ MODULE generic_shg_integrals
 
    PUBLIC :: int_operators_r12_ab_shg, int_overlap_ab_shg, &
              int_ra2m_ab_shg, int_overlap_aba_shg, int_overlap_abb_shg, &
-             lri_precalc_angular_shg_part, &
+             get_abb_same_kind, lri_precalc_angular_shg_part, &
              int_overlap_ab_shg_low, int_ra2m_ab_shg_low, int_overlap_aba_shg_low, &
              int_overlap_abb_shg_low
 
@@ -950,6 +950,140 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE int_overlap_abb_shg_low
+! **************************************************************************************************
+!> \brief obtain integrals (a,b,fb) by symmetry relations from (a,b,fa) if basis sets at a and
+!>        b are of the same kind, i.e. a and b are same atom type
+!> \param abbint integral (a,b,fb)
+!> \param dabbint derivative of abbint
+!> \param abaint integral (a,b,fa)
+!> \param dabdaint derivative of abaint
+!> \param rab distance vector between A and B
+!> \param oba orbital basis at center A
+!> \param fba auxiliary basis set at center A
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE get_abb_same_kind(abbint, dabbint, abaint, dabdaint, rab, oba, fba, &
+                                calculate_forces)
+
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abbint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: dabbint
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: abaint
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: dabdaint
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      TYPE(gto_basis_set_type), POINTER                  :: oba, fba
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_abb_same_kind', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: handle, i, iend, iset, isgfa, ishella, istart, jend, jset, jsgfa, jshella, &
+         jstart, kend, kset, ksgfa, kshella, kstart, lai, laj, lak, nseta, nsetca, nsgfa, nsgfca, &
+         sgfa_end, sgfa_start
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lai_set, laj_set, lak_set
+      INTEGER, DIMENSION(:), POINTER                     :: nsgfa_set, nsgfca_set, nshella, nshellca
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfca, la, lca
+      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_ca
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (nshellca, first_sgfa, first_sgfca, lca, set_radius_a, &
+               set_radius_ca)
+
+      ! basis ikind
+      first_sgfa => oba%first_sgf
+      set_radius_a => oba%set_radius
+      nseta = oba%nset
+      nsgfa = oba%nsgf
+      nsgfa_set => oba%nsgf_set
+      nshella => oba%nshell
+      la => oba%l
+
+      ! basis RI
+      first_sgfca => fba%first_sgf
+      set_radius_ca => fba%set_radius
+      nsetca = fba%nset
+      nshellca => fba%nshell
+      nsgfca = fba%nsgf
+      nsgfca_set => fba%nsgf_set
+      lca => fba%l
+
+      ALLOCATE (lai_set(nsgfa))
+      ALLOCATE (laj_set(nsgfa))
+      ALLOCATE (lak_set(nsgfca))
+
+      dab = SQRT(SUM(rab**2))
+      DO iset = 1, nseta
+
+         DO ishella = 1, nshella(iset)
+            sgfa_start = first_sgfa(ishella, iset)
+            sgfa_end = sgfa_start+2*la(ishella, iset)
+            lai_set(sgfa_start:sgfa_end) = la(ishella, iset)
+         ENDDO
+         istart = first_sgfa(1, iset)
+         iend = istart+nsgfa_set(iset)-1
+
+         DO jset = 1, nseta
+
+            IF (set_radius_a(iset)+set_radius_a(jset) < dab) CYCLE
+            DO jshella = 1, nshella(jset)
+               sgfa_start = first_sgfa(jshella, jset)
+               sgfa_end = sgfa_start+2*la(jshella, jset)
+               laj_set(sgfa_start:sgfa_end) = la(jshella, jset)
+            ENDDO
+            jstart = first_sgfa(1, jset)
+            jend = jstart+nsgfa_set(jset)-1
+
+            DO kset = 1, nsetca
+
+               IF (set_radius_a(iset)+set_radius_ca(kset) < dab) CYCLE
+
+               DO kshella = 1, nshellca(kset)
+                  sgfa_start = first_sgfca(kshella, kset)
+                  sgfa_end = sgfa_start+2*lca(kshella, kset)
+                  lak_set(sgfa_start:sgfa_end) = lca(kshella, kset)
+               ENDDO
+               kstart = first_sgfca(1, kset)
+               kend = kstart+nsgfca_set(kset)-1
+               DO ksgfa = kstart, kend
+                  lak = lak_set(ksgfa)
+                  DO jsgfa = jstart, jend
+                     laj = laj_set(jsgfa)
+                     DO isgfa = istart, iend
+                        lai = lai_set(isgfa)
+                        IF (MODULO((lai+laj+lak), 2) /= 0) THEN
+                           abbint(isgfa, jsgfa, ksgfa) = &
+                              -abaint(jsgfa, isgfa, ksgfa)
+                           IF (calculate_forces) THEN
+                              DO i = 1, 3
+                                 dabbint(isgfa, jsgfa, ksgfa, i) = &
+                                    -dabdaint(jsgfa, isgfa, ksgfa, i)
+                              ENDDO
+                           ENDIF
+                        ELSE
+                           abbint(isgfa, jsgfa, ksgfa) = &
+                              abaint(jsgfa, isgfa, ksgfa)
+                           IF (calculate_forces) THEN
+                              DO i = 1, 3
+                                 dabbint(isgfa, jsgfa, ksgfa, i) = &
+                                    dabdaint(jsgfa, isgfa, ksgfa, i)
+                              ENDDO
+                           ENDIF
+                        ENDIF
+                     ENDDO
+                  ENDDO
+               ENDDO
+            ENDDO
+         ENDDO
+      ENDDO
+
+      DEALLOCATE (lai_set, laj_set, lak_set)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_abb_same_kind
 
 ! **************************************************************************************************
 !> \brief calculate integrals (a,b,fa);  requires angular-dependent part as input
