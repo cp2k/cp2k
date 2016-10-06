@@ -2782,7 +2782,7 @@ CONTAINS
 !$OMP END MASTER
                ELSE
                   IF (istep_k .NE. nvirt_k+shift_k) &
-                     CPABORT("Last tick does not correspond to last layer")
+                     CPABORT("Last layer does not correspond to local layer")
                ENDIF
                ! Reduce to the local layer
                IF (istep_k .GT. final_step_k+1) THEN
@@ -3999,7 +3999,7 @@ CONTAINS
                                   left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                   right_norms, left_norms, &
                                   common_unmerged, indices_common_unmerged, &
-                                  has_acc, nthreads, buffers_calc%right%trs_stackbuf(1))
+                                  has_acc, nthreads, buffers_calc%right%trs_stackbuf)
                ENDIF
             ELSE
                !
@@ -4699,7 +4699,8 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: indices_common_unmerged
       LOGICAL, INTENT(IN)                                :: has_acc
       INTEGER, INTENT(IN), OPTIONAL                      :: nthreads
-      TYPE(dbcsr_data_obj), INTENT(INOUT), OPTIONAL      :: trs_stackbuf
+      TYPE(dbcsr_data_obj), DIMENSION(:), &
+         INTENT(INOUT), OPTIONAL                         :: trs_stackbuf
 
       INTEGER                                            :: handle, ithread, ncommons_unmerged, ui
       REAL(kind=sp), DIMENSION(:, :), POINTER            :: norms
@@ -4738,7 +4739,7 @@ CONTAINS
          IF (has_acc .AND. PRESENT(trs_stackbuf)) THEN
             CALL acc_transpose_blocks_images(right_buffer%buffer, &
                                              right_buffer%data(1), &
-                                             trs_stackbuf, &
+                                             trs_stackbuf(1), &
                                              indices_common_unmerged(1:ncommons_unmerged))
          ENDIF
          !
