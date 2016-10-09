@@ -257,7 +257,7 @@ CONTAINS
       WRITE (UNIT=iw, FMT="(T2,A,T80,A)") "-", "-"
       WRITE (UNIT=iw, FMT="(T2,A)") REPEAT("-", 79)
       IF (report_maxloc) THEN
-         WRITE (UNIT=iw, FMT="(T2,A,T35,A,T41,A,T45,2A18,A7)") &
+         WRITE (UNIT=iw, FMT="(T2,A,T35,A,T41,A,T45,2A18,A8)") &
             "SUBROUTINE", "CALLS", " ASD", "SELF "//label, "TOTAL "//label, "MAXRANK"
       ELSE
          WRITE (UNIT=iw, FMT="(T2,A,T35,A,T41,A,T45,2A18)") &
@@ -292,7 +292,7 @@ CONTAINS
       IF (maxcost >= 1000000) decimals = 0
       IF (report_maxloc) THEN
          WRITE (UNIT=fmt, FMT="(A,I0,A)") &
-            "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.", decimals, "),I7)"
+            "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.", decimals, "),I8)"
       ELSE
          WRITE (UNIT=fmt, FMT="(A,I0,A)") &
             "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.", decimals, "))"
