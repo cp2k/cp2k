@@ -34,6 +34,7 @@ MODULE timings_report
    USE list_routinereport,              ONLY: list_routinereport_type
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_max,&
+                                              mp_maxloc,&
                                               mp_sum
    USE timings,                         ONLY: get_timer_env
    USE timings_base_type,               ONLY: call_stat_type,&
@@ -58,16 +59,18 @@ CONTAINS
 !> \param r_timings ...
 !> \param sort_by_self_time ...
 !> \param cost_type ...
+!> \param report_maxloc ...
 !> \param para_env is needed to collect statistics from other nodes.
 !> \par History
 !>      none
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE timings_report_print(iw, r_timings, sort_by_self_time, cost_type, para_env)
+   SUBROUTINE timings_report_print(iw, r_timings, sort_by_self_time, cost_type, report_maxloc, para_env)
       INTEGER, INTENT(IN)                                :: iw
       REAL(KIND=dp), INTENT(IN)                          :: r_timings
       LOGICAL, INTENT(IN)                                :: sort_by_self_time
       INTEGER, INTENT(IN)                                :: cost_type
+      LOGICAL, INTENT(IN)                                :: report_maxloc
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       TYPE(list_routinereport_type)                      :: reports
@@ -77,7 +80,7 @@ CONTAINS
       CALL collect_reports_from_ranks(reports, cost_type, para_env)
 
       IF (list_size(reports) > 0 .AND. iw > 0) &
-         CALL print_reports(reports, iw, r_timings, sort_by_self_time, cost_type, para_env)
+         CALL print_reports(reports, iw, r_timings, sort_by_self_time, cost_type, report_maxloc, para_env)
 
       ! deallocate reports
       DO WHILE (list_size(reports) > 0)
@@ -104,6 +107,7 @@ CONTAINS
       INTEGER                                            :: local_routine_id, sending_rank
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: collected
       REAL(KIND=dp)                                      :: foobar
+      REAL(KIND=dp), DIMENSION(2)                        :: dbuf
       TYPE(routine_report_type), POINTER                 :: r_report
       TYPE(routine_stat_type), POINTER                   :: r_stat
       TYPE(timer_env_type), POINTER                      :: timer_env
@@ -124,6 +128,8 @@ CONTAINS
       CALL mp_sum(sending_rank, para_env%group)
       foobar = 0.0_dp
       CALL mp_max(foobar, para_env%group)
+      dbuf = 0.0_dp
+      CALL mp_maxloc(dbuf, para_env%group)
       CALL mp_sum(foobar, para_env%group)
       ! end hack
 
@@ -178,9 +184,21 @@ CONTAINS
          CALL mp_max(r_report%max_total_calls, para_env%group)
          CALL mp_sum(r_report%sum_total_calls, para_env%group)
          CALL mp_sum(r_report%sum_stackdepth, para_env%group)
-         CALL mp_max(r_report%max_icost, para_env%group)
+
+         ! get value and rank of the maximum inclusive cost
+         dbuf = (/r_report%max_icost, REAL(para_env%mepos, KIND=dp)/)
+         CALL mp_maxloc(dbuf, para_env%group)
+         r_report%max_icost = dbuf(1)
+         r_report%max_irank = INT(dbuf(2))
+
          CALL mp_sum(r_report%sum_icost, para_env%group)
-         CALL mp_max(r_report%max_ecost, para_env%group)
+
+         ! get value and rank of the maximum exclusive cost
+         dbuf = (/r_report%max_ecost, REAL(para_env%mepos, KIND=dp)/)
+         CALL mp_maxloc(dbuf, para_env%group)
+         r_report%max_ecost = dbuf(1)
+         r_report%max_erank = INT(dbuf(2))
+
          CALL mp_sum(r_report%sum_ecost, para_env%group)
       ENDDO
 
@@ -193,17 +211,19 @@ CONTAINS
 !> \param threshold ...
 !> \param sort_by_exclusiv_cost ...
 !> \param cost_type ...
+!> \param report_maxloc ...
 !> \param para_env ...
 !> \par History
 !>      01.2014 Refactored (Ole Schuett)
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE print_reports(reports, iw, threshold, sort_by_exclusiv_cost, cost_type, para_env)
+   SUBROUTINE print_reports(reports, iw, threshold, sort_by_exclusiv_cost, cost_type, report_maxloc, para_env)
       TYPE(list_routinereport_type), INTENT(IN)          :: reports
       INTEGER, INTENT(IN)                                :: iw
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL, INTENT(IN)                                :: sort_by_exclusiv_cost
       INTEGER, INTENT(IN)                                :: cost_type
+      LOGICAL, INTENT(IN)                                :: report_maxloc
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=4)                                   :: label
@@ -236,8 +256,14 @@ CONTAINS
       WRITE (UNIT=iw, FMT="(T2,A,T35,A,T80,A)") "-", TRIM(title), "-"
       WRITE (UNIT=iw, FMT="(T2,A,T80,A)") "-", "-"
       WRITE (UNIT=iw, FMT="(T2,A)") REPEAT("-", 79)
-      WRITE (UNIT=iw, FMT="(T2,A,T35,A,T41,A,T45,2A18)") &
-         "SUBROUTINE", "CALLS", " ASD", "SELF "//label, "TOTAL "//label
+      IF (report_maxloc) THEN
+         WRITE (UNIT=iw, FMT="(T2,A,T35,A,T41,A,T45,2A18,A7)") &
+            "SUBROUTINE", "CALLS", " ASD", "SELF "//label, "TOTAL "//label, "MAXRANK"
+      ELSE
+         WRITE (UNIT=iw, FMT="(T2,A,T35,A,T41,A,T45,2A18)") &
+            "SUBROUTINE", "CALLS", " ASD", "SELF "//label, "TOTAL "//label
+      ENDIF
+
       WRITE (UNIT=iw, FMT="(T33,A)") &
          "MAXIMUM       AVERAGE  MAXIMUM  AVERAGE  MAXIMUM"
 
@@ -264,8 +290,13 @@ CONTAINS
       IF (maxcost >= 10000) decimals = 2
       IF (maxcost >= 100000) decimals = 1
       IF (maxcost >= 1000000) decimals = 0
-      WRITE (UNIT=fmt, FMT="(A,I0,A)") &
-         "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.", decimals, "))"
+      IF (report_maxloc) THEN
+         WRITE (UNIT=fmt, FMT="(A,I0,A)") &
+            "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.", decimals, "),I7)"
+      ELSE
+         WRITE (UNIT=fmt, FMT="(A,I0,A)") &
+            "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.", decimals, "))"
+      ENDIF
 
       !write output
       DO i = num_routines, 1, -1
@@ -275,14 +306,26 @@ CONTAINS
             ! average stack depth
             asd = REAL(r_report_j%sum_stackdepth, KIND=dp)/ &
                   REAL(MAX(1_int_8, r_report_j%sum_total_calls), KIND=dp)
-            WRITE (UNIT=iw, FMT=fmt) &
-               ADJUSTL(r_report_j%routineN(1:31)), &
-               r_report_j%max_total_calls, &
-               asd, &
-               r_report_j%sum_ecost/para_env%num_pe, &
-               r_report_j%max_ecost, &
-               r_report_j%sum_icost/para_env%num_pe, &
-               r_report_j%max_icost
+            IF (report_maxloc) THEN
+               WRITE (UNIT=iw, FMT=fmt) &
+                  ADJUSTL(r_report_j%routineN(1:31)), &
+                  r_report_j%max_total_calls, &
+                  asd, &
+                  r_report_j%sum_ecost/para_env%num_pe, &
+                  r_report_j%max_ecost, &
+                  r_report_j%sum_icost/para_env%num_pe, &
+                  r_report_j%max_icost, &
+                  r_report_j%max_erank
+            ELSE
+               WRITE (UNIT=iw, FMT=fmt) &
+                  ADJUSTL(r_report_j%routineN(1:31)), &
+                  r_report_j%max_total_calls, &
+                  asd, &
+                  r_report_j%sum_ecost/para_env%num_pe, &
+                  r_report_j%max_ecost, &
+                  r_report_j%sum_icost/para_env%num_pe, &
+                  r_report_j%max_icost
+            ENDIF
          END IF
       END DO
       WRITE (UNIT=iw, FMT="(T2,A,/)") REPEAT("-", 79)

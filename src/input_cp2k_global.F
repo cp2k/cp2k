@@ -419,6 +419,15 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="REPORT_MAXLOC", &
+                          description="Report the rank with the slowest maximum self timing."// &
+                          " Can be used to debug hard- or software."// &
+                          " Also enables ECHO_ALL_HOSTS to link rank to hostname.", &
+                          usage="REPORT_MAXLOC on", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="TIME_MPI", &
                           description="Include message_passing calls in the timing report (useful with CALLGRAPH).", &
                           usage="TIME_MPI .FALSE.", &

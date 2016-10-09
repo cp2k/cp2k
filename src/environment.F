@@ -251,7 +251,7 @@ CONTAINS
             CALL ascii_to_string(all_host(:, ipe), string)
             WRITE (UNIT=output_unit, FMT="(T2,A,T63,I8,T71,I10)") &
                TRIM(r_user_name)//"@"//TRIM(string)// &
-               " has created process number", ipe-1, all_pid(ipe)
+               " has created rank and process ", ipe-1, all_pid(ipe)
          END DO
          WRITE (UNIT=output_unit, FMT="(T2,A)") ""
       END IF
@@ -485,7 +485,7 @@ CONTAINS
          SReclaimable_avr, SReclaimable_max, SReclaimable_min
       INTEGER, DIMENSION(:), POINTER                     :: i_force_eval
       LOGICAL                                            :: ata, do_echo_all_hosts, efl, explicit, &
-                                                            trace, trace_master
+                                                            report_maxloc, trace, trace_master
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(enumeration_type), POINTER                    :: enum1, enum2
       TYPE(keyword_type), POINTER                        :: keyword
@@ -523,6 +523,8 @@ CONTAINS
       ENDIF
       CALL section_vals_val_get(global_section, "FLUSH_SHOULD_FLUSH", l_val=flush_should_flush)
       CALL section_vals_val_get(global_section, "ECHO_ALL_HOSTS", l_val=do_echo_all_hosts)
+      report_maxloc = section_get_lval(global_section, "TIMINGS%REPORT_MAXLOC")
+      do_echo_all_hosts = do_echo_all_hosts .OR. report_maxloc
       force_env_sections => section_vals_get_subs_vals(root_section, "FORCE_EVAL")
       CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)
       logger => cp_get_default_logger()
@@ -1038,7 +1040,8 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: cg_filename
       CHARACTER(LEN=default_string_length)               :: dev_flag
       INTEGER                                            :: cg_mode, iw, unit_exit
-      LOGICAL                                            :: delete_it, sort_by_self_time
+      LOGICAL                                            :: delete_it, report_maxloc, &
+                                                            sort_by_self_time
       REAL(KIND=dp)                                      :: r_timings
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -1093,10 +1096,11 @@ CONTAINS
                                 extension=".Log")
       r_timings = section_get_rval(root_section, "GLOBAL%TIMINGS%THRESHOLD")
       sort_by_self_time = section_get_lval(root_section, "GLOBAL%TIMINGS%SORT_BY_SELF_TIME")
+      report_maxloc = section_get_lval(root_section, "GLOBAL%TIMINGS%REPORT_MAXLOC")
       IF (m_energy() .NE. 0.0_dp) THEN
-         CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_energy, para_env)
+         CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_energy, report_maxloc, para_env)
       ENDIF
-      CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_time, para_env)
+      CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_time, report_maxloc, para_env)
 
       !Write the callgraph, if desired by user
       CALL section_vals_val_get(root_section, "GLOBAL%CALLGRAPH", i_val=cg_mode)

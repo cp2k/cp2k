@@ -52,6 +52,8 @@ MODULE timings_base_type
       REAL(KIND=dp)                        :: sum_icost = 0.0_dp
       REAL(KIND=dp)                        :: max_ecost = 0.0_dp
       REAL(KIND=dp)                        :: sum_ecost = 0.0_dp
+      INTEGER                              :: max_irank = 0
+      INTEGER                              :: max_erank = 0
       INTEGER(kind=int_8)                  :: max_total_calls = 0
       INTEGER(kind=int_8)                  :: sum_total_calls = 0
       INTEGER(kind=int_8)                  :: sum_stackdepth = 0
