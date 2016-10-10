@@ -274,9 +274,8 @@ CONTAINS
       !    IF(current_size==acc_devmem_size(area%d%acc_devmem)) &
       !      WRITE (*,*) "dbcsr_data_ensure_size: Host and device buffer differ in size."
       !END IF
-      !   CALL dbcsr_assert(current_size==acc_devmem_size(area%d%acc_devmem),&
-      !          dbcsr_fatal_level, dbcsr_caller_error,&
-      !          routineN, "Host and device buffer differ in size.",__LINE__)
+      !IF(current_size/=acc_devmem_size(area%d%acc_devmem)) &
+      !   CPABORT("Host and device buffer differ in size.")
 
       CALL dbcsr_data_set_size_referenced(area, data_size)
       IF (current_size .GT. 1 .AND. current_size .GE. wanted_size) THEN

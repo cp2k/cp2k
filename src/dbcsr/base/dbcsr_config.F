@@ -13,9 +13,6 @@
 !> - Created 2011-04-05
 ! **************************************************************************************************
 MODULE dbcsr_config
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_wrong_args_error
    USE kinds,                           ONLY: dp
 #include "../../base/base_uses.f90"
 
@@ -423,9 +420,8 @@ CONTAINS
       INTEGER                                            :: error_handle
 
       CALL timeset(routineN, error_handle)
-      CALL dbcsr_assert(SIZE(nstacks), "EQ", 3, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "ntacks size must be 3", __LINE__)
+      IF (SIZE(nstacks) /= 3) &
+         CPABORT("ntacks size must be 3")
       nm_stacks = nstacks(1)
       nn_stacks = nstacks(2)
       nk_stacks = nstacks(3)
@@ -445,9 +441,8 @@ CONTAINS
       INTEGER                                            :: error_handle
 
       CALL timeset(routineN, error_handle)
-      CALL dbcsr_assert(SIZE(nstacks), "EQ", 3, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "ntacks size must be 3", __LINE__)
+      IF (SIZE(nstacks) /= 3) &
+         CPABORT("ntacks size must be 3")
       nstacks(1) = nm_stacks
       nstacks(2) = nn_stacks
       nstacks(3) = nk_stacks

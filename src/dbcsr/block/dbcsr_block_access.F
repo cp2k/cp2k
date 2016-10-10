@@ -42,12 +42,6 @@ MODULE dbcsr_block_access
    USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
                                               dbcsr_get_stored_block_info,&
                                               dbcsr_get_stored_coordinates
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_caller_error,&
-                                              dbcsr_failure_level,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                               dbcsr_clearfrom_index_array,&
                                               dbcsr_expand_row_index,&
@@ -185,8 +179,7 @@ CONTAINS
          ! update nze accordingly
          matrix%m%nze = matrix%m%nze-block_nze
          IF (debug_mod) THEN
-            CALL dbcsr_assert(matrix%m%nze, "GE", 0, dbcsr_failure_level, &
-                              dbcsr_caller_error, routineN, "nze < 0!", __LINE__)
+            IF (matrix%m%nze < 0) CPABORT("nze < 0!")
          ENDIF
       ELSE
          IF (debug_mod) THEN
@@ -334,9 +327,8 @@ CONTAINS
       data_type_m = dbcsr_get_data_type(matrix)
       do_scale = PRESENT(scale)
       IF (do_scale) THEN
-         !CALL dbcsr_assert (data_type_m .EQ. scale%data_type, dbcsr_fatal_level,&
-         !     dbcsr_wrong_args_error, routineN, "Incompatible data types matrix="//&
-         !     data_type_m//" scale="//scale%data_type)
+         !IF(data_type_m /= scale%data_type) &
+         !   CPABORT("Incompatible data types matrix="//data_type_m//" scale="//scale%data_type)
       ENDIF
       IF (.NOT. ASSOCIATED(block%d)) &
          CPABORT("Can only add valid data block!")
@@ -563,14 +555,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-      CALL dbcsr_assert(SIZE(rows), "EQ", SIZE(columns), dbcsr_fatal_level, &
-                        dbcsr_wrong_args_error, routineN, &
-                        "Size of rows and columns array must match.", __LINE__)
+      IF (SIZE(rows) /= SIZE(columns)) &
+         CPABORT("Size of rows and columns array must match.")
       IF (PRESENT(blk_pointers)) THEN
-         CALL dbcsr_assert(SIZE(rows), "EQ", SIZE(blk_pointers), &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Size of rows and block pointecs arrays must match.", &
-                           __LINE__)
+         IF (SIZE(rows) /= SIZE(blk_pointers)) &
+            CPABORT("Size of rows and block pointecs arrays must match.")
          data_size_old = 0
       ELSE
          ! Get current data size
@@ -592,10 +581,8 @@ CONTAINS
       ENDIF
       nblks_old = dbcsr_get_num_blocks(matrix)
       nblkrows = dbcsr_nblkrows_total(matrix)
-      CALL dbcsr_assert(SIZE(rows) .GT. 0, "IMP", &
-                        nblkrows .GT. 0, dbcsr_fatal_level, &
-                        dbcsr_internal_error, routineN, &
-                        "Can not add blocks to matrix with no rows.", __LINE__)
+      IF (SIZE(rows) .GT. 0 .AND. nblkrows .LE. 0) &
+         CPABORT("Can not add blocks to matrix with no rows.")
       ! Adjust the index.
       ! Get the old row indices
       ALLOCATE (old_row_i(nblks_old))

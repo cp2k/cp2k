@@ -23,11 +23,6 @@ MODULE dbcsr_data_operations
                                               dbcsr_data_release,&
                                               dbcsr_data_set_size_referenced,&
                                               dbcsr_get_data
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_failure_level,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                               dbcsr_obj,&
                                               dbcsr_type_complex_4,&
@@ -343,8 +338,8 @@ CONTAINS
       !
       nblks = SIZE(old_blk_p)
       nrows = SIZE(row_p)-1
-      CALL dbcsr_assert(SIZE(blk_p), 'GE', nblks, dbcsr_failure_level, &
-                        dbcsr_wrong_args_error, routineN, 'Destination blk_p too small.', __LINE__)
+      IF (SIZE(blk_p) < nblks) &
+         CPABORT('Destination blk_p too small.')
       IF (nblks .GE. 1) &
          blk_p(1) = SGN(1, old_blk_p(1), mark)
       nze_prev = 0
@@ -358,10 +353,8 @@ CONTAINS
                   blk_p(blk) = SGN(ABS(blk_p(blk-1))+nze_prev, old_blk_p(blk), &
                                    mark)
                ENDIF
-               CALL dbcsr_assert( &
-                  ABS(blk_p(blk))+nze-1, 'LE', dbcsr_data_get_size(dst), &
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                  'Destination data space is too small.', __LINE__)
+               IF (ABS(blk_p(blk))+nze-1 > dbcsr_data_get_size(dst)) &
+                  CPABORT('Destination data space is too small.')
                IF (.NOT. trb) THEN
                   CALL dbcsr_data_copy(dst=dst, dst_lb=(/ABS(blk_p(blk))/), &
                                        dst_sizes=(/nze/), &

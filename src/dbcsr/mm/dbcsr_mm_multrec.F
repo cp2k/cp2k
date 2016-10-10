@@ -30,10 +30,6 @@ MODULE dbcsr_mm_multrec
                                               dbcsr_distribution_local_rows_obj,&
                                               dbcsr_distribution_row_dist,&
                                               dbcsr_distribution_thread_dist
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_mm_csr,                    ONLY: &
         dbcsr_mm_csr_dev2host_init, dbcsr_mm_csr_finalize, dbcsr_mm_csr_init, &
         dbcsr_mm_csr_lib_finalize, dbcsr_mm_csr_lib_init, dbcsr_mm_csr_multiply, &
@@ -220,12 +216,10 @@ CONTAINS
 
          IF (right%bcsc) &
             CPABORT("Wrong routine for BCSC matrices.")
-         CALL dbcsr_assert(right%local_indexing, "EQV", .TRUE., &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Matrices must have local indexing.", __LINE__)
-         CALL dbcsr_assert(left%local_indexing, "EQV", .TRUE., &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Matrices must have local indexing.", __LINE__)
+         IF (.NOT. right%local_indexing) &
+            CPABORT("Matrices must have local indexing.")
+         IF (.NOT. left%local_indexing) &
+            CPABORT("Matrices must have local indexing.")
       ENDIF
       !
       ! Fill result data structure.
@@ -272,12 +266,10 @@ CONTAINS
             WRITE (*, *) " mat local cols", array_data(product%local_cols)
             CPABORT("Array mismatch.")
          ENDIF
-         CALL dbcsr_assert(SIZE(c_local_rows), "EQ", c_nblkrows_local, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Row count mismatch.", __LINE__)
-         CALL dbcsr_assert(SIZE(c_local_cols), "EQ", c_nblkcols_local, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Column count mismatch.", __LINE__)
+         IF (SIZE(c_local_rows) /= c_nblkrows_local) &
+            CPABORT("Row count mismatch.")
+         IF (SIZE(c_local_cols) /= c_nblkcols_local) &
+            CPABORT("Column count mismatch.")
       ENDIF
       !
       ! And the k epsilons

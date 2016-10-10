@@ -70,9 +70,8 @@
     IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
-       CALL dbcsr_assert (lb_new, "EQ", 1, &
-            dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Arrays must start at 1", __LINE__)
+       IF(lb_new /= 1) &
+          CPABORT("Arrays must start at 1")
        CALL mem_alloc_s (array, ub, mem_type=mem_type)
        IF (pad .AND. ub .GT. 0) CALL mem_zero_s (array, ub)
        !CALL timestop(error_handler)
@@ -120,9 +119,8 @@
     ENDIF
     !
     ! Allocates the new array
-    CALL dbcsr_assert (lb_new, "EQ", 1, &
-         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Arrays must start at 1", __LINE__)
+    IF(lb_new /= 1) &
+       CPABORT("Arrays must start at 1")
     CALL mem_alloc_s (newarray, ub_new-lb_new+1, mem_type)
     !
     ! Now copy and/or zero pad.

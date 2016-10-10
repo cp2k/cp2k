@@ -25,13 +25,6 @@ MODULE dbcsr_index_operations
                                               dbcsr_distribution_nrows,&
                                               dbcsr_distribution_thread_dist
    USE dbcsr_dist_operations,           ONLY: get_stored_canonical
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_caller_error,&
-                                              dbcsr_failure_level,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_unimplemented_error_nr,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                               dbcsr_get_index_memory_type
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
@@ -406,12 +399,10 @@ CONTAINS
       IF (debug_mod) THEN
          IF (.NOT. ASSOCIATED(matrix%index)) &
             CPABORT("Index must be preallocated.")
-         CALL dbcsr_assert(UBOUND(matrix%index, 1), 'GE', dbcsr_num_slots, &
-                           dbcsr_failure_level, dbcsr_internal_error, routineP, &
-                           "Actual index size less than declared size", __LINE__)
-         CALL dbcsr_assert(PRESENT(DATA), 'OR', PRESENT(reservation), dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineP, &
-                           'Either an array or its size must be specified.', __LINE__)
+         IF (UBOUND(matrix%index, 1) < dbcsr_num_slots) &
+            CPABORT("Actual index size less than declared size")
+         IF (.NOT. PRESENT(DATA) .AND. .NOT. PRESENT(reservation)) &
+            CPABORT('Either an array or its size must be specified.')
          WRITE (*, *) routineP//' index', matrix%index(:dbcsr_num_slots)
       ENDIF
       IF (PRESENT(reservation)) THEN
@@ -478,9 +469,8 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(matrix%index)) &
          CPABORT("Index must be preallocated.")
-      CALL dbcsr_assert(UBOUND(matrix%index, 1), 'GE', dbcsr_num_slots, &
-                        dbcsr_failure_level, dbcsr_internal_error, routineP, &
-                        "Actual index size less than declared size", __LINE__)
+      IF (UBOUND(matrix%index, 1) < dbcsr_num_slots) &
+         CPABORT("Actual index size less than declared size")
       IF (debug_mod) WRITE (*, *) routineP//' index', &
          matrix%index(:dbcsr_num_slots)
       ! Clear index entry pointer
@@ -636,7 +626,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
       INTEGER(KIND=int_8), PARAMETER                     :: lmask8 = 4294967295_int_8
 
-      INTEGER                                            :: error_handle, i, stat
+      INTEGER                                            :: error_handle, i
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: sort_keys
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: buf, buf_d
 
@@ -646,28 +636,21 @@ CONTAINS
 
       CALL timeset(routineN, error_handle)
 
-      CALL dbcsr_assert(SIZE(row_i), 'GE', n, dbcsr_failure_level, &
-                        dbcsr_caller_error, routineP, 'row_i too small', __LINE__)
-      CALL dbcsr_assert(SIZE(col_i), 'GE', n, dbcsr_failure_level, &
-                        dbcsr_caller_error, routineP, 'col_i too small', __LINE__)
-      IF (PRESENT(blk_p)) CALL dbcsr_assert(SIZE(blk_p), 'GE', n, dbcsr_failure_level, &
-                                            dbcsr_caller_error, routineP, 'blk_p too small', __LINE__)
+      IF (SIZE(row_i) < n) CPABORT('row_i too small')
+      IF (SIZE(col_i) < n) CPABORT('col_i too small')
       IF (PRESENT(blk_p)) THEN
-         ALLOCATE (buf(n), stat=stat)
-         IF (stat /= 0) CPABORT('buf')
+         IF (SIZE(blk_p) < n) CPABORT('blk_p too small')
+         ALLOCATE (buf(n))
          buf(1:n) = blk_p(1:n)
       ENDIF
       IF (PRESENT(blk_d)) THEN
-         ALLOCATE (buf_d(n), stat=stat)
-         IF (stat /= 0) CPABORT('buf_d')
+         ALLOCATE (buf_d(n))
          buf_d(1:n) = blk_d(1:n)
       ENDIF
       !> Create an ordering for both rows and columns. If the blk_p must
       !> be rearranged, then the col_i array will be used as a
       !> permutation vector.
-      ALLOCATE (sort_keys(n), stat=stat)
-      CALL dbcsr_assert(stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, &
-                        routineN, "Could not allocate memory for sorting buffer.", __LINE__)
+      ALLOCATE (sort_keys(n))
       sort_keys(:) = IOR(ISHFT(INT(row_i(1:n), int_8), 32), INT(col_i(1:n), int_8))
       IF (PRESENT(blk_p)) col_i(1:n) = (/(i, i=1, n)/)
       !> Now do a nice quicksort.
@@ -709,7 +692,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: error_handle, nblks_max, new_blk, nrows, &
-                                                            old_blk, row, stat
+                                                            old_blk, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: new_blk_p, new_col_i, new_row_count
       INTEGER, DIMENSION(:), POINTER                     :: old_blk_p, old_col_i, old_row_p
 
@@ -723,15 +706,9 @@ CONTAINS
       !
       nrows = matrix%m%nblkrows_total
       nblks_max = old_row_p(nrows+1)
-      ALLOCATE (new_row_count(nrows), stat=stat)
-      CALL dbcsr_assert(stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, &
-                        routineN, "Can not allocate memory.", __LINE__)
-      ALLOCATE (new_col_i(nblks_max), stat=stat)
-      CALL dbcsr_assert(stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, &
-                        routineN, "Can not allocate memory.", __LINE__)
-      ALLOCATE (new_blk_p(nblks_max), stat=stat)
-      CALL dbcsr_assert(stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error, &
-                        routineN, "Can not allocate memory.", __LINE__)
+      ALLOCATE (new_row_count(nrows))
+      ALLOCATE (new_col_i(nblks_max))
+      ALLOCATE (new_blk_p(nblks_max))
       !
       ! Build up the new index from all non-deleted blocks in the
       ! existing index.
@@ -920,8 +897,7 @@ CONTAINS
             prev_row = row
             blk = blk+mynblkcols
          END DO
-         CALL dbcsr_assert(blk, "EQ", nblks, dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "Block mismatch", __LINE__)
+         IF (blk /= nblks) CPABORT("Block mismatch")
          row_p(prev_row+1:nblkrows_total+1) = nblks
       ENDIF
       IF (debug_mod) THEN
@@ -1058,12 +1034,10 @@ CONTAINS
       multidata = PRESENT(old_blk_d) .AND. PRESENT(new_blk_d)
       IF (old_size+add_size .NE. new_size) &
          CPWARN("Mismatch of new and old size")
-      CALL dbcsr_assert(PRESENT(added_size_offset), "EQV", &
-                        PRESENT(added_sizes), dbcsr_fatal_level, dbcsr_wrong_args_error, &
-                        routineN, "Must specify a set of arguments", __LINE__)
-      CALL dbcsr_assert(PRESENT(added_sizes), "EQV", PRESENT(added_size), &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, &
-                        routineN, "Must specify a set of arguments", __LINE__)
+      IF (PRESENT(added_size_offset) .NEQV. PRESENT(added_sizes)) &
+         CPABORT("Must specify a set of arguments")
+      IF (PRESENT(added_sizes) .NEQV. PRESENT(added_size)) &
+         CPABORT("Must specify a set of arguments")
       IF (debug_mod) THEN
          WRITE (*, *) " Old array", old_size
          DO i = 1, old_size
@@ -1188,7 +1162,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: error_handle, lrow, nlocal_rows, &
-                                                            ntotal_rows, prow, stat
+                                                            ntotal_rows, prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_row_p
       INTEGER, DIMENSION(:), POINTER                     :: local_rows
 
@@ -1197,19 +1171,15 @@ CONTAINS
       CALL timeset(routineN, error_handle)
       IF (.NOT. ASSOCIATED(matrix%m%row_p)) &
          CPABORT("The row index must be initialized.")
-      CALL dbcsr_assert("NOT", matrix%m%bcsc, &
-                        dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN, &
-                        "Not support for BCSC yet.", __LINE__)
+      IF (matrix%m%bcsc) &
+         CPABORT("Not support for BCSC yet.")
       !
       prow = matrix%m%index(dbcsr_slot_home_vprow)
       IF (prow .LT. 0) THEN
          prow = matrix%m%index(dbcsr_slot_home_prow)
       ENDIF
       nlocal_rows = matrix%m%nblkrows_local
-      ALLOCATE (local_row_p(nlocal_rows+1), stat=stat)
-      CALL dbcsr_assert(stat, "EQ", 0, &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Could not allocate memory.", __LINE__)
+      ALLOCATE (local_row_p(nlocal_rows+1))
       !> The existing row_p is converted from an indexing array into a
       !> counting array.  Because it is later discarded, the counting is
       !> done in-place.
@@ -1217,18 +1187,14 @@ CONTAINS
       CALL dbcsr_count_row_index(matrix%m%row_p, ntotal_rows)
       ! We first have to find the local rows for the given prow.
       local_rows => array_data(matrix%m%local_rows)
-      CALL dbcsr_assert(SIZE(local_rows), "EQ", nlocal_rows, &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Mismatch in the number of local rows.", __LINE__)
+      IF (SIZE(local_rows) /= nlocal_rows) &
+         CPABORT("Mismatch in the number of local rows.")
       !> The counts are mapped to local rows,
       DO lrow = 1, nlocal_rows
          local_row_p(lrow) = matrix%m%row_p(local_rows(lrow))
       ENDDO
-      CALL dbcsr_assert(SUM(matrix%m%row_p(1:ntotal_rows)), "EQ", &
-                        SUM(local_row_p(1:nlocal_rows)), &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Inconsistent row counts. Perhaps non-local rows contain data?.", &
-                        __LINE__)
+      IF (SUM(matrix%m%row_p(1:ntotal_rows)) /= SUM(local_row_p(1:nlocal_rows))) &
+         CPABORT("Inconsistent row counts. Perhaps non-local rows contain data?.")
       !> then converted into an index.
       CALL dbcsr_build_row_index(local_row_p, nlocal_rows)
       !> The local row index replaces the global one.
@@ -1237,19 +1203,13 @@ CONTAINS
       !> Finally the matrix is designated as having a local-based index.
       matrix%m%local_indexing = .TRUE.
       IF (careful_mod) THEN
-         CALL dbcsr_assert(array_size(matrix%m%local_rows), "EQ", nlocal_rows, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Inconsistent local row counts.", &
-                           __LINE__)
-         CALL dbcsr_assert(array_size(matrix%m%global_rows), "EQ", ntotal_rows, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Inconsistent global row counts.", &
-                           __LINE__)
+         IF (array_size(matrix%m%local_rows) /= nlocal_rows) &
+            CPABORT("Inconsistent local row counts.")
+         IF (array_size(matrix%m%global_rows) /= ntotal_rows) &
+            CPABORT("Inconsistent global row counts.")
          IF (array_size(matrix%m%global_rows) .EQ. 0) THEN
-            CALL dbcsr_assert(nlocal_rows, "EQ", 0, &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Invalid number of local or global rows.", &
-                              __LINE__)
+            IF (nlocal_rows /= 0) &
+               CPABORT("Invalid number of local or global rows.")
          ENDIF
       ENDIF
       DEALLOCATE (local_row_p)
@@ -1281,27 +1241,21 @@ CONTAINS
       CALL timeset(routineN, error_handle)
       IF (.NOT. ASSOCIATED(matrix%m%row_p)) &
          CPABORT("The row index must be initialized.")
-      CALL dbcsr_assert("NOT", matrix%m%list_indexing, &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "List index already exists?", __LINE__)
-      CALL dbcsr_assert("NOT", matrix%m%bcsc, &
-                        dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN, &
-                        "Not support for BCSC yet.", __LINE__)
-      CALL dbcsr_assert(matrix%m%nblks, "EQ", SIZE(matrix%m%col_i), &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Block count mismatch.", __LINE__)
-      CALL dbcsr_assert(matrix%m%nblks, "EQ", SIZE(matrix%m%blk_p), &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Block count mismatch", __LINE__)
+      IF (matrix%m%list_indexing) &
+         CPABORT("List index already exists?")
+      IF (matrix%m%bcsc) &
+         CPABORT("Not support for BCSC yet.")
+      IF (matrix%m%nblks /= SIZE(matrix%m%col_i)) &
+         CPABORT("Block count mismatch.")
+      IF (matrix%m%nblks /= SIZE(matrix%m%blk_p)) &
+         CPABORT("Block count mismatch")
       !
       IF (matrix%m%local_indexing) THEN
-         CALL dbcsr_assert(SIZE(matrix%m%row_p)-1, "EQ", matrix%m%nblkrows_local, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Local row index incorrectly sized.", __LINE__)
+         IF (SIZE(matrix%m%row_p)-1 /= matrix%m%nblkrows_local) &
+            CPABORT("Local row index incorrectly sized.")
       ELSE
-         CALL dbcsr_assert(SIZE(matrix%m%row_p)-1, "EQ", matrix%m%nblkrows_total, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Global row index incorrectly sized", __LINE__)
+         IF (SIZE(matrix%m%row_p)-1 /= matrix%m%nblkrows_total) &
+            CPABORT("Global row index incorrectly sized")
       ENDIF
       !
       matrix%m%list_indexing = .TRUE.
@@ -1398,13 +1352,11 @@ CONTAINS
       ELSE
          ! Small price to pay for avoiding infinite recursions.
          DO blk = 2, nblks
-            IF (blki(1, blk) .EQ. blki(1, blk-1) &
-                .AND. blki(2, blk) .EQ. blki(2, blk-1)) &
+            IF (blki(1, blk) .EQ. blki(1, blk-1) .AND. blki(2, blk) .EQ. blki(2, blk-1)) THEN
                ! Weird assertion to give some idea of the two blocks.
-               CALL dbcsr_assert(-blki(1, blk), "EQ", blki(2, blk), &
-                                 dbcsr_fatal_level, dbcsr_caller_error, routineN, &
-                                 "Should not have duplicate matrix blocks. (-row, col) is duplicated.", &
-                                 __LINE__)
+               IF (-blki(1, blk) /= blki(2, blk)) CALL cp_abort(__LOCATION__, &
+                                                              "Should not have duplicate matrix blocks. (-row, col) is duplicated.")
+            ENDIF
          ENDDO
          !
          IF (nblks > 0) THEN
@@ -1537,12 +1489,10 @@ CONTAINS
          DEALLOCATE (meta)
          IF (careful_mod) THEN
             ! This is pretty strong but it should be true.
-            CALL dbcsr_assert(matrix%m%index(dbcsr_slot_size), "EQ", new_size, &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Unexpected index size.", __LINE__)
-            CALL dbcsr_assert(SIZE(matrix%m%index), "EQ", new_size, &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Unexpected index size.", __LINE__)
+            IF (matrix%m%index(dbcsr_slot_size) /= new_size) &
+               CPABORT("Unexpected index size.")
+            IF (SIZE(matrix%m%index) /= new_size) &
+               CPABORT("Unexpected index size.")
          ENDIF
          CALL dbcsr_repoint_index(matrix%m)
       ENDIF

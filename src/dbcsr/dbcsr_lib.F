@@ -11,9 +11,6 @@
 
 MODULE dbcsr_lib
    USE dbcsr_config,                    ONLY: is_initialized
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_clear_mempools,&
                                               dbcsr_multiply_lib_finalize,&
                                               dbcsr_multiply_lib_init
@@ -53,22 +50,14 @@ CONTAINS
       IF (is_initialized) RETURN
       CALL timeset(routineN, error_handle)
       !
-      CALL dbcsr_assert(int_1_size, "EQ", 1, &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Incorrect assumption of an 8-bit integer size!", &
-                        __LINE__)
-      CALL dbcsr_assert(int_2_size, "EQ", 2, &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Incorrect assumption of a 16-bit integer size!", &
-                        __LINE__)
-      CALL dbcsr_assert(int_4_size, "EQ", 4, &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Incorrect assumption of a 32-bit integer size!", &
-                        __LINE__)
-      CALL dbcsr_assert(int_8_size, "EQ", 8, &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Incorrect assumption of a 64-bit integer size!", &
-                        __LINE__)
+      IF (int_1_size /= 1) &
+         CPABORT("Incorrect assumption of an 8-bit integer size!")
+      IF (int_2_size /= 2) &
+         CPABORT("Incorrect assumption of a 16-bit integer size!")
+      IF (int_4_size /= 4) &
+         CPABORT("Incorrect assumption of a 32-bit integer size!")
+      IF (int_8_size /= 8) &
+         CPABORT("Incorrect assumption of a 64-bit integer size!")
 
 !$OMP     PARALLEL DEFAULT(NONE)
       CALL dbcsr_multiply_lib_init()

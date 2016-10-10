@@ -24,11 +24,6 @@ MODULE dbcsr_data_methods_low
         dbcsr_scalar_type, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
         dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, dbcsr_type_real_4, &
         dbcsr_type_real_4_2d, dbcsr_type_real_8, dbcsr_type_real_8_2d
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_caller_error,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                               memory_deallocate,&
                                               memory_zero,&
@@ -178,13 +173,11 @@ CONTAINS
       IF (debug_mod) &
          WRITE (*, *) routineN//" Setting to sizes", sizes
       IF (dbcsr_type_is_2d(area%data_type)) THEN
-         CALL dbcsr_assert(SIZE(sizes), "EQ", 2, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Sizes must have 2 elements for 2-D data", __LINE__)
+         IF (SIZE(sizes) /= 2) &
+            CPABORT("Sizes must have 2 elements for 2-D data")
       ELSE
-         CALL dbcsr_assert(SIZE(sizes), "EQ", 1, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Sizes must have 1 elements for 1-D data", __LINE__)
+         IF (SIZE(sizes) /= 1) &
+            CPABORT("Sizes must have 1 elements for 1-D data")
       ENDIF
 
       SELECT CASE (area%data_type)
@@ -416,10 +409,8 @@ CONTAINS
       IF (careful_mod) THEN
          IF (.NOT. ASSOCIATED(area%d)) &
             CPABORT("Can't hold an empty data area.")
-         CALL dbcsr_assert(area%d%refcount, "GT", 0, &
-                           dbcsr_caller_error, dbcsr_fatal_level, &
-                           routineN, "Should not hold an area with zero references.", &
-                           __LINE__)
+         IF (area%d%refcount <= 0) &
+            CPABORT("Should not hold an area with zero references.")
       ENDIF
       IF (.NOT. ASSOCIATED(area%d)) THEN
          RETURN
@@ -472,12 +463,10 @@ CONTAINS
          IF (PRESENT(source_lb) .AND. pointee_is_2d) &
             CPABORT("Lower bound specification not possible with 2-d data")
          ! Check if size is OK.
-         CALL dbcsr_assert(bp, "GE", 1, &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Attempt to point out of bounds", __LINE__)
-         CALL dbcsr_assert(bp+nze-1, "LE", dbcsr_data_get_size(pointee), &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Attempt to point out of bounds", __LINE__)
+         IF (bp < 1) &
+            CPABORT("Attempt to point out of bounds")
+         IF (bp+nze-1 > dbcsr_data_get_size(pointee)) &
+            CPABORT("Attempt to point out of bounds")
       ENDIF
       ! There's a remap if the ranks are compatible but not equal.
       rmp = dt1 .NE. dt2
@@ -527,9 +516,8 @@ CONTAINS
       END SELECT
       CALL dbcsr_data_set_size_referenced(area, rsize*csize)
       IF (debug_mod) THEN
-         CALL dbcsr_assert(dbcsr_data_get_size_referenced(area), "EQ", &
-                           dbcsr_data_get_size(area), dbcsr_fatal_level, dbcsr_internal_error, &
-                           routineN, "Size mismatch", __LINE__)
+         IF (dbcsr_data_get_size_referenced(area) /= dbcsr_data_get_size(area)) &
+            CPABORT("Size mismatch")
       ENDIF
    END SUBROUTINE set_data_area_area
 
@@ -607,101 +595,49 @@ CONTAINS
       CALL timeset(routineN, handle)
       data_type = dbcsr_data_get_type(area)
       IF (dbcsr_type_is_2d(data_type)) THEN
-         CALL dbcsr_assert(SIZE(lb), "EQ", 2, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "size must be 2 for 2-d lb", __LINE__)
-         CALL dbcsr_assert(SIZE(ub), "EQ", 2, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "size must be 2 for 2-d ub", __LINE__)
+         IF (SIZE(lb) /= 2) &
+            CPABORT("size must be 2 for 2-d lb")
+         IF (SIZE(ub) /= 2) &
+            CPABORT("size must be 2 for 2-d ub")
       ELSE
-         CALL dbcsr_assert(SIZE(lb), "EQ", 1, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "size must be 1 for 1-d lb", __LINE__)
-         CALL dbcsr_assert(SIZE(ub), "EQ", 1, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "size must be 1 for 1-d ub", __LINE__)
+         IF (SIZE(lb) /= 1) &
+            CPABORT("size must be 1 for 1-d lb")
+         IF (SIZE(ub) /= 1) &
+            CPABORT("size must be 1 for 1-d ub")
       ENDIF
       SELECT CASE (data_type)
       CASE (dbcsr_type_real_4)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb r_sp", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub r_sp", __LINE__)
+         IF (lb(1) < LBOUND(area%d%r_sp, 1)) CPABORT("lb r_sp")
+         IF (ub(1) > UBOUND(area%d%r_sp, 1)) CPABORT("ub r_sp")
       CASE (dbcsr_type_real_4_2d)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r2_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb r_sp 2d", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r2_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub r_sp 2d", __LINE__)
-         CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%r2_sp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb r_sp 2d", __LINE__)
-         CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%r2_sp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub r_sp 2d", __LINE__)
+         IF (lb(1) < LBOUND(area%d%r2_sp, 1)) CPABORT("lb r_sp 2d")
+         IF (ub(1) > UBOUND(area%d%r2_sp, 1)) CPABORT("ub r_sp 2d")
+         IF (lb(2) < LBOUND(area%d%r2_sp, 2)) CPABORT("lb r_sp 2d")
+         IF (ub(2) > UBOUND(area%d%r2_sp, 2)) CPABORT("ub r_sp 2d")
       CASE (dbcsr_type_real_8)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb r_dp", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub r_dp", __LINE__)
+         IF (lb(1) < LBOUND(area%d%r_dp, 1)) CPABORT("lb r_dp")
+         IF (ub(1) > UBOUND(area%d%r_dp, 1)) CPABORT("ub r_dp")
       CASE (dbcsr_type_real_8_2d)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%r2_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb r_dp 2d", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%r2_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub r_dp 2d", __LINE__)
-         CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%r2_dp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb r_dp 2d", __LINE__)
-         CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%r2_dp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub r_dp 2d", __LINE__)
+         IF (lb(1) < LBOUND(area%d%r2_dp, 1)) CPABORT("lb r_dp 2d")
+         IF (ub(1) > UBOUND(area%d%r2_dp, 1)) CPABORT("ub r_dp 2d")
+         IF (lb(2) < LBOUND(area%d%r2_dp, 2)) CPABORT("lb r_dp 2d")
+         IF (ub(2) > UBOUND(area%d%r2_dp, 2)) CPABORT("ub r_dp 2d")
       CASE (dbcsr_type_complex_4)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb c_sp", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub c_sp", __LINE__)
+         IF (lb(1) < LBOUND(area%d%c_sp, 1)) CPABORT("lb c_sp")
+         IF (ub(1) > UBOUND(area%d%c_sp, 1)) CPABORT("ub c_sp")
       CASE (dbcsr_type_complex_4_2d)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c2_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb c_sp 2d", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c2_sp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub c_sp 2d", __LINE__)
-         CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%c2_sp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb c_sp 2d", __LINE__)
-         CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%c2_sp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub c_sp 2d", __LINE__)
+         IF (lb(1) < LBOUND(area%d%c2_sp, 1)) CPABORT("lb c_sp 2d")
+         IF (ub(1) > UBOUND(area%d%c2_sp, 1)) CPABORT("ub c_sp 2d")
+         IF (lb(2) < LBOUND(area%d%c2_sp, 2)) CPABORT("lb c_sp 2d")
+         IF (ub(2) > UBOUND(area%d%c2_sp, 2)) CPABORT("ub c_sp 2d")
       CASE (dbcsr_type_complex_8)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb c_dp", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub c_dp", __LINE__)
+         IF (lb(1) < LBOUND(area%d%c_dp, 1)) CPABORT("lb c_dp")
+         IF (ub(1) > UBOUND(area%d%c_dp, 1)) CPABORT("ub c_dp")
       CASE (dbcsr_type_complex_8_2d)
-         CALL dbcsr_assert(lb(1), "GE", LBOUND(area%d%c2_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb c_dp 2d", __LINE__)
-         CALL dbcsr_assert(ub(1), "LE", UBOUND(area%d%c2_dp, 1), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub c_dp 2d", __LINE__)
-         CALL dbcsr_assert(lb(2), "GE", LBOUND(area%d%c2_dp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_internal_error, routineN, "lb c_dp 2d", __LINE__)
-         CALL dbcsr_assert(ub(2), "LE", UBOUND(area%d%c2_dp, 2), &
-                           dbcsr_fatal_level, &
-                           dbcsr_caller_error, routineN, "ub c_dp 2d", __LINE__)
+         IF (lb(1) < LBOUND(area%d%c2_dp, 1)) CPABORT("lb c_dp 2d")
+         IF (ub(1) > UBOUND(area%d%c2_dp, 1)) CPABORT("ub c_dp 2d")
+         IF (lb(2) < LBOUND(area%d%c2_dp, 2)) CPABORT("lb c_dp 2d")
+         IF (ub(2) > UBOUND(area%d%c2_dp, 2)) CPABORT("ub c_dp 2d")
       CASE default
          CPABORT("Invalid data type")
       END SELECT
@@ -785,13 +721,11 @@ CONTAINS
       IF (ASSOCIATED(area%d)) THEN
          IF (careful_mod) THEN
             IF (dbcsr_type_is_2d(area%d%data_type)) THEN
-               CALL dbcsr_assert(SIZE(sizes), "EQ", 2, dbcsr_fatal_level, &
-                                 dbcsr_wrong_args_error, routineN, &
-                                 "Sizes must have 2 elements for 2-D data", __LINE__)
+               IF (SIZE(sizes) /= 2) &
+                  CPABORT("Sizes must have 2 elements for 2-D data")
             ELSE
-               CALL dbcsr_assert(SIZE(sizes), "EQ", 1, dbcsr_fatal_level, &
-                                 dbcsr_wrong_args_error, routineN, &
-                                 "Sizes must have 1 elements for 1-D data", __LINE__)
+               IF (SIZE(sizes) /= 1) &
+                  CPABORT("Sizes must have 1 elements for 1-D data")
             ENDIF
          ENDIF
          valid = dbcsr_data_exists(area)
@@ -885,11 +819,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (ASSOCIATED(area%d)) THEN
-         IF (careful_mod) &
-            CALL dbcsr_assert("NOT", dbcsr_type_is_2d(area%d%data_type), &
-                              dbcsr_fatal_level, &
-                              dbcsr_wrong_args_error, routineN, &
-                              "Should not use 2-D data", __LINE__)
+         IF (careful_mod .AND. dbcsr_type_is_2d(area%d%data_type)) &
+            CPABORT("Should not use 2-D data")
          CALL dbcsr_data_get_sizes_any(area, s, valid)
          total_size = s(1)
       ELSE

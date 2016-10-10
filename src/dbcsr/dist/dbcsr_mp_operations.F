@@ -16,10 +16,6 @@ MODULE dbcsr_mp_operations
 
    USE dbcsr_config,                    ONLY: has_MPI
    USE dbcsr_data_methods,              ONLY: dbcsr_data_get_type
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_caller_error,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_mp_methods,                ONLY: &
         dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
         dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
@@ -530,9 +526,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_rget_any', routineP = moduleN//':'//routineN
 
-      CALL dbcsr_assert(dbcsr_data_get_type(base), "EQ", dbcsr_data_get_type(win_data), &
-                        dbcsr_fatal_level, dbcsr_caller_error, &
-                        routineN, "Mismatch data type between buffer and window", __LINE__)
+      IF (dbcsr_data_get_type(base) /= dbcsr_data_get_type(win_data)) &
+         CPABORT("Mismatch data type between buffer and window")
 
       SELECT CASE (dbcsr_data_get_type (base))
       CASE (dbcsr_type_real_4)
@@ -754,9 +749,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_allgatherv', &
          routineP = moduleN//':'//routineN
 
-      CALL dbcsr_assert(dbcsr_data_get_type(send_data), "EQ", &
-                        dbcsr_data_get_type(recv_data), dbcsr_fatal_level, &
-                        dbcsr_wrong_args_error, routineN, "Data type mismatch", __LINE__)
+      IF (dbcsr_data_get_type(send_data) /= dbcsr_data_get_type(recv_data)) &
+         CPABORT("Data type mismatch")
       SELECT CASE (dbcsr_data_get_type (send_data))
       CASE (dbcsr_type_real_4)
          CALL mp_allgather(send_data%d%r_sp(1:scount), recv_data%d%r_sp, &

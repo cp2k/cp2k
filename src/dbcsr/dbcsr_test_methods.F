@@ -32,9 +32,6 @@ MODULE dbcsr_test_methods
                                               dbcsr_distribution_new,&
                                               dbcsr_distribution_release
    USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error
    USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&
@@ -576,8 +573,8 @@ CONTAINS
       ALLOCATE (block_sizes(nblocks))
       block_sizes = sizes(1:nblocks)
       current_sum = SUM(block_sizes)
-      CALL dbcsr_assert(current_sum, "EQ", size_sum, dbcsr_fatal_level, &
-                        dbcsr_internal_error, routineN, "Incorrect block sizes", __LINE__)
+      IF (current_sum /= size_sum) &
+         CPABORT("Incorrect block sizes")
       DEALLOCATE (mixer, sizes)
 
    END SUBROUTINE dbcsr_make_random_block_sizes

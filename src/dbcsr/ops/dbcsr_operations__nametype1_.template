@@ -30,9 +30,8 @@
 
     row_blk_size => array_data (matrix_a%m%row_blk_size)
     col_blk_size => array_data (matrix_a%m%col_blk_size)
-    CALL dbcsr_assert (dbcsr_get_data_type (matrix_a), "EQ", [dkind1],&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Incompatible data types", __LINE__)
+    IF(dbcsr_get_data_type (matrix_a) /=  [dkind1]) &
+       CPABORT("Incompatible data types")
     CALL dbcsr_get_data (matrix_a%m%data_area, data_p)
     dist = dbcsr_distribution (matrix_a)
     mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))

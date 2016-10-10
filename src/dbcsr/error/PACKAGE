@@ -1,5 +1,0 @@
-{
-"description": "DBCSR error handling",
-"archive": "libdbcsrerr",
-"requires": ["../../mpiwrap", "../../base"],
-}

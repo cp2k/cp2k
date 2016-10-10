@@ -23,10 +23,6 @@ MODULE dbcsr_ptr_util
                                               dbcsr_type_complex_8,&
                                               dbcsr_type_real_4,&
                                               dbcsr_type_real_8
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_unimplemented_error_nr,&
-                                              dbcsr_wrong_args_error
    USE kinds,                           ONLY: dp,&
                                               int_4,&
                                               int_8,&
@@ -112,9 +108,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pointer_view_a', routineP = moduleN//':'//routineN
 
-      CALL dbcsr_assert(area%d%data_type, "EQ", new_area%d%data_type, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Incompatible data types.", __LINE__)
+      IF (area%d%data_type /= new_area%d%data_type) &
+         CPABORT("Incompatible data types.")
       IF (PRESENT(len)) THEN
          SELECT CASE (area%d%data_type)
          CASE (dbcsr_type_real_4)

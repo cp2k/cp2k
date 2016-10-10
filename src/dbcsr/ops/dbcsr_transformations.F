@@ -44,12 +44,6 @@ MODULE dbcsr_transformations
                                               dbcsr_reblocking_targets,&
                                               dbcsr_transpose_dims,&
                                               dbcsr_transpose_distribution
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_failure_level,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_unimplemented_error_nr,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                               dbcsr_clearfrom_index_array,&
                                               dbcsr_repoint_index,&
@@ -180,16 +174,10 @@ CONTAINS
     IF (PRESENT (transpose_index)) tr_index = transpose_index
     ! Prepare the distribution for the transposed matrix
     IF (PRESENT (use_distribution)) THEN
-       CALL dbcsr_assert (dbcsr_distribution_nrows (use_distribution),&
-            "EQ", dbcsr_distribution_ncols (normal%m%dist), dbcsr_fatal_level,&
-            dbcsr_wrong_args_error, routineN,&
-            "Given distribution must be compatible"&
-            //" with the current distribution",__LINE__)
-       CALL dbcsr_assert (dbcsr_distribution_ncols (use_distribution),&
-            "EQ", dbcsr_distribution_nrows (normal%m%dist), dbcsr_fatal_level,&
-            dbcsr_wrong_args_error, routineN,&
-            "Given distribution must be compatible"&
-            //" with the current distribution",__LINE__)
+       IF(dbcsr_distribution_nrows (use_distribution) /= dbcsr_distribution_ncols (normal%m%dist)) &
+          CPABORT("Given distribution must be compatible with the current distribution")
+       IF(dbcsr_distribution_ncols (use_distribution) /= dbcsr_distribution_nrows (normal%m%dist)) &
+          CPABORT("Given distribution must be compatible with the current distribution")
        new_dist = use_distribution
        CALL dbcsr_distribution_hold (new_dist)
     ELSE
@@ -511,9 +499,8 @@ CONTAINS
     ! WRITE(*,*)recv_count
     DO src_p = 0, numproc-1
        IF (careful_mod) THEN
-          CALL dbcsr_assert ((blks-1)*3, "EQ", rm_disp(src_p)-1,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Count mismatch", __LINE__)
+          IF((blks-1)*3 /= rm_disp(src_p)-1) &
+             CPABORT("Count mismatch")
        ENDIF
        blks = (rm_disp(src_p)-1)/metalen+1
        DO blk_l = 1, recv_count(imeta, src_p)
@@ -1153,10 +1140,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, error_handle)
-    CALL dbcsr_assert (dbcsr_data_get_size (dense_data), 'GE',&
-         nfullrows*nfullcols,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Dense data too small",__LINE__)
+    IF(dbcsr_data_get_size (dense_data) < nfullrows*nfullcols) &
+       CPABORT("Dense data too small")
     IF(.NOT.join_cols.AND..NOT.join_rows)&
        CPWARN("Joining neither rows nor columns is untested")
     !
@@ -1265,9 +1250,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (dbcsr_data_get_size (dense_data), 'GE', nfullrows*nfullcols,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Dense data too small",__LINE__)
+    IF(dbcsr_data_get_size (dense_data) < nfullrows*nfullcols) &
+       CPABORT("Dense data too small")
     IF (dbcsr_data_get_size(matrix%m%data_area) .GT. 0) THEN
        CALL dbcsr_data_clear (matrix%m%data_area)
 !$OMP PARALLEL DEFAULT(NONE) &
@@ -1380,9 +1364,8 @@ CONTAINS
     CALL timeset(routineN, handle)
     IF(.NOT.dbcsr_valid_index(matrix%m))&
        CPABORT("Matrix not initialized.")
-    !CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
-    !     dbcsr_warning_level, dbcsr_caller_error, routineN,&
-    !     "Replicating a non-distributed matrix makes no sense.",__LINE__)
+    !IF(matrix%m%replication_type /= dbcsr_repl_none) &
+    !   CPWARN("Replicating a non-distributed matrix makes no sense.")
     IF (replicate_rows .AND. replicate_columns) THEN
        rep_type = dbcsr_repl_full
     ELSEIF (replicate_rows .AND. .NOT. replicate_columns) THEN
@@ -1391,9 +1374,8 @@ CONTAINS
        rep_type = dbcsr_repl_col
     ELSE
        rep_type = dbcsr_repl_none
-       CALL dbcsr_assert(replicate_rows, "OR", replicate_columns, &
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Some replication must be specified", __LINE__)
+       IF(.NOT.replicate_rows .AND. .NOT.replicate_columns) &
+          CPABORT("Some replication must be specified")
     ENDIF
     data_type = dbcsr_get_data_type (matrix)
     row_blk_size => array_data (matrix%m%row_blk_size)
@@ -1442,12 +1424,8 @@ CONTAINS
        mp_group = dbcsr_mp_group (mp_obj)
        mynode = 0
     END SELECT
-    CALL dbcsr_assert (rep_type.EQ.dbcsr_repl_row &
-         .OR. rep_type.EQ.dbcsr_repl_col,&
-         "IMP", dbcsr_mp_has_subgroups (mp_obj), dbcsr_fatal_level,&
-         dbcsr_unimplemented_error_nr, routineN,&
-         "Only full replication supported when subcommunicators are turned off.",&
-         __LINE__)
+    IF((rep_type==dbcsr_repl_row .OR. rep_type==dbcsr_repl_col) .AND. .NOT.dbcsr_mp_has_subgroups(mp_obj))&
+       CPABORT("Only full replication supported when subcommunicators are turned off.")
     !
     IF (PRESENT (restrict_source)) THEN
        rest_src = .TRUE.
@@ -1476,10 +1454,8 @@ CONTAINS
                row_size=row_size, col_size=col_size, blk=blk)
           !tr = .FALSE.
           !CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, dst_p)
-          !CALL dbcsr_assert (dst_p, "EQ", mynode, dbcsr_fatal_level,&
-          !     dbcsr_wrong_args_error, routineN, &
-          !     "Matrix is not correctly distributed. Call dbcsr_redistribute.",&
-          !     __LINE__)
+          !IF(dst_p /= mynode) &
+          !   CPABORT("Matrix is not correctly distributed. Call dbcsr_redistribute.")
           nze = row_size * col_size
           send_count(1) = send_count(1) + 1
           send_count(2) = send_count(2) + nze
@@ -1716,16 +1692,14 @@ CONTAINS
     numnodes = dbcsr_mp_numnodes (mp_obj_new)
     mp_group = dbcsr_mp_group (mp_obj_new)
     !
-    CALL dbcsr_assert(MAXVAL(row_dist_new),"LE",UBOUND(pgrid,1), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows',__LINE__)
+    IF(MAXVAL(row_dist_new) > UBOUND(pgrid,1)) &
+       CPABORT('Row distribution references unexistent processor rows')
     IF (dbg) THEN
        IF(MAXVAL(row_dist_new).NE.UBOUND(pgrid,1))&
           CPWARN('Range of row distribution not equal to processor rows')
     ENDIF
-    CALL dbcsr_assert(MAXVAL(col_dist_new),"LE",UBOUND(pgrid,2), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols',__LINE__)
+    IF(MAXVAL(col_dist_new) >  UBOUND(pgrid,2)) &
+       CPABORT('Col distribution references unexistent processor cols')
     IF (dbg) THEN
        IF(MAXVAL(col_dist_new).NE.UBOUND(pgrid,2))&
           CPWARN('Range of col distribution not equal to processor cols')
@@ -2012,8 +1986,7 @@ CONTAINS
        cs2 = dbcsr_checksum (redist)
        WRITE(*,*)routineN//" Checksums=",cs1, cs2, cs1-cs2
     ENDIF
-    !CALL dbcsr_assert (cs1-cs2 .LT. 0.00001, dbcsr_fatal_level, dbcsr_internal_error,&
-    !     routineN, "Mangled data!")
+    !IF(cs1-cs2 > 0.00001) CPABORT("Mangled data!")
     CALL timestop(handle)
   END SUBROUTINE dbcsr_complete_redistribute
 

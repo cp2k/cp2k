@@ -47,12 +47,6 @@ MODULE dbcsr_work_operations
                                               dbcsr_distribution_ncols,&
                                               dbcsr_distribution_nrows,&
                                               dbcsr_distribution_release
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_caller_error,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_unimplemented_error_nr,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                               dbcsr_build_row_index,&
                                               dbcsr_clearfrom_index_array,&
@@ -284,11 +278,8 @@ CONTAINS
          IF (PRESENT(data_buffer)) THEN
             IF (.NOT. dbcsr_data_valid(data_buffer)) &
                CPABORT("Input data buffer not valid.")
-            CALL dbcsr_assert(matrix%m%data_type, "EQ", &
-                              data_buffer%d%data_type, &
-                              dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                              "Input buffer data type different by matrix data type.", &
-                              __LINE__)
+            IF (matrix%m%data_type /= data_buffer%d%data_type) &
+               CPABORT("Input buffer data type different by matrix data type.")
             matrix%m%data_memory_type = data_buffer%d%memory_type
             matrix%m%data_area = data_buffer
             CALL dbcsr_data_hold(matrix%m%data_area)
@@ -327,23 +318,15 @@ CONTAINS
          matrix%m%max_cbs = 0
       ENDIF
       !
-      CALL dbcsr_assert(array_size(matrix%m%row_blk_size), "EQ", &
-                        dbcsr_distribution_nrows(dist), &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Number of blocked rows does match blocked row distribution.", &
-                        __LINE__)
-      CALL dbcsr_assert(array_size(matrix%m%col_blk_size), "EQ", &
-                        dbcsr_distribution_ncols(dist), &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Number of blocked columns does match blocked column distribution.", &
-                        __LINE__)
+      IF (array_size(matrix%m%row_blk_size) /= dbcsr_distribution_nrows(dist)) &
+         CPABORT("Number of blocked rows does match blocked row distribution.")
+      IF (array_size(matrix%m%col_blk_size) /= dbcsr_distribution_ncols(dist)) &
+         CPABORT("Number of blocked columns does match blocked column distribution.")
       ! initialize row/col offsets
       IF (PRESENT(row_blk_offset)) THEN
-         CALL dbcsr_assert(dbcsr_distribution_nrows(dist)+1, "EQ", &
-                           array_size(row_blk_offset), &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Number of blocked offset rows does match blocked row distribution.", &
-                           __LINE__)
+         IF (dbcsr_distribution_nrows(dist)+1 /= array_size(row_blk_offset)) &
+            CALL cp_abort(__LOCATION__, &
+                          "Number of blocked offset rows does match blocked row distribution.")
          matrix%m%row_blk_offset = row_blk_offset
          CALL array_hold(matrix%m%row_blk_offset)
       ELSE
@@ -353,11 +336,9 @@ CONTAINS
       ENDIF
 
       IF (PRESENT(col_blk_offset)) THEN
-         CALL dbcsr_assert(dbcsr_distribution_ncols(dist)+1, "EQ", &
-                           array_size(col_blk_offset), &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Number of blocked offset columns does match blocked colum distribution.", &
-                           __LINE__)
+         IF (dbcsr_distribution_ncols(dist)+1 /= array_size(col_blk_offset)) &
+            CALL cp_abort(__LOCATION__, &
+                          "Number of blocked offset columns does match blocked colum distribution.")
          matrix%m%col_blk_offset = col_blk_offset
          CALL array_hold(matrix%m%col_blk_offset)
       ELSE
@@ -694,9 +675,8 @@ CONTAINS
       ! Index
       IF (PRESENT(nblks_guess)) THEN
          nblks = nblks_guess
-         CALL dbcsr_assert(nblks_guess, "GE", 0, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Can not have negative block count.", __LINE__)
+         IF (nblks_guess < 0) &
+            CPABORT("Can not have negative block count.")
          ALLOCATE (wm%row_i(nblks), stat=stat)
          IF (stat /= 0) CPABORT("wm%row_i")
          ALLOCATE (wm%col_i(nblks), stat=stat)
@@ -711,9 +691,8 @@ CONTAINS
       ! Data
       CALL dbcsr_data_init(wm%data_area)
       IF (PRESENT(sizedata_guess)) THEN
-         CALL dbcsr_assert(sizedata_guess, "GE", 0, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Can not have negative data size.", __LINE__)
+         IF (sizedata_guess < 0) &
+            CPABORT("Can not have negative data size.")
          CALL dbcsr_data_new(wm%data_area, data_type, &
                              data_size=sizedata_guess, memory_type=memory_type)
       ELSE
@@ -1215,10 +1194,8 @@ CONTAINS
       nthreads = 1; ithread = 0
 !$    nthreads = OMP_GET_NUM_THREADS(); ithread = OMP_GET_THREAD_NUM()
       IF (nthreads .GT. 1) THEN
-         CALL dbcsr_assert(old_nwms .EQ. nthreads, "OR", old_nwms .EQ. 0, &
-                           dbcsr_fatal_level, dbcsr_caller_error, routineN, &
-                           "Number of work matrices and threads do not match", &
-                           __LINE__)
+         IF (old_nwms /= nthreads .AND. old_nwms /= 0) &
+            CPABORT("Number of work matrices and threads do not match")
       ENDIF
       nwms = MAX(1, old_nwms)
 !$    nwms = MAX(nwms, nthreads)
@@ -1297,9 +1274,8 @@ CONTAINS
 !$OMP     END MASTER
 !$OMP     BARRIER
       DO which_wm = wm_first, wm_last
-         CALL dbcsr_assert("NOT", dbcsr_wm_use_mutable(wm(which_wm)), &
-                           dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN, &
-                           "Adding main matrix into mutable not supported.", __LINE__)
+         IF (dbcsr_wm_use_mutable(wm(which_wm))) &
+            CPABORT("Adding main matrix into mutable not supported.")
          IF (mutable) THEN
             IF (.NOT. dbcsr_mutable_instantiated(wm(which_wm)%mutable)) THEN
                CALL dbcsr_mutable_new(wm(which_wm)%mutable, matrix%m%data_type)
@@ -1530,10 +1506,8 @@ CONTAINS
 !$OMP     BARRIER
       nrows = matrix%nblkrows_total
       nwms = SIZE(matrix%wms)
-!$    call dbcsr_assert(nwms, "EQ", OMP_GET_NUM_THREADS(), &
-!$                      dbcsr_fatal_level, dbcsr_caller_error, routineN, &
-!$                      "Number of threads does not match number of work matrices.", &
-!$                      __LINE__)
+!$    IF (nwms /= OMP_GET_NUM_THREADS()) &
+!$       CPABORT("Number of threads does not match number of work matrices.")
       which_wm = 1
 !$    which_wm = OMP_GET_THREAD_NUM()+1
       wm => matrix%wms(which_wm)
@@ -1618,9 +1592,8 @@ CONTAINS
          all_data_sizes(which_wm) = wm%datasize
       ELSE
          all_data_sizes(which_wm) = wm%datasize
-         CALL dbcsr_assert(wm%datasize, "LE", dbcsr_data_get_size_referenced(wm%data_area), &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Data size mismatch.", __LINE__)
+         IF (wm%datasize > dbcsr_data_get_size_referenced(wm%data_area)) &
+            CPABORT("Data size mismatch.")
       ENDIF
       all_col_i(which_wm)%p => wm%col_i
       all_blk_p(which_wm)%p => wm%blk_p

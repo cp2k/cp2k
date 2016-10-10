@@ -20,9 +20,6 @@ MODULE dbcsr_mm_hostdrv
                                               mm_driver_smm,&
                                               mm_driver_xsmm
    USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error
    USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
                                               p_a_first,&
                                               p_b_first,&
@@ -165,21 +162,12 @@ CONTAINS
       ! Verify stack consistency.  Only the upper bound is verified.
       IF (careful) THEN
          DO sp = 1, stack_size
-            CALL dbcsr_assert(params(p_a_first, sp) &
-                              +params(p_m, sp)*params(p_k, sp)-1, &
-                              "LE", dbcsr_data_get_size(left%data_area), &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "A data out of bounds.", __LINE__)
-            CALL dbcsr_assert(params(p_b_first, sp) &
-                              +params(p_k, sp)*params(p_n, sp)-1, &
-                              "LE", dbcsr_data_get_size(right%data_area), &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "B data out of bounds.", __LINE__)
-            CALL dbcsr_assert(params(p_c_first, sp) &
-                              +params(p_m, sp)*params(p_n, sp)-1, &
-                              "LE", dbcsr_data_get_size(this%data_area), &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "C data out of bounds.", __LINE__)
+            IF (params(p_a_first, sp)+params(p_m, sp)*params(p_k, sp)-1 > dbcsr_data_get_size(left%data_area)) &
+               CPABORT("A data out of bounds.")
+            IF (params(p_b_first, sp)+params(p_k, sp)*params(p_n, sp)-1 > dbcsr_data_get_size(right%data_area)) &
+               CPABORT("B data out of bounds.")
+            IF (params(p_c_first, sp)+params(p_m, sp)*params(p_n, sp)-1 > dbcsr_data_get_size(this%data_area)) &
+               CPABORT("C data out of bounds.")
          ENDDO
       ENDIF
 

@@ -28,10 +28,6 @@ MODULE dbcsr_dist_operations
         dbcsr_distribution_num_local_col_clusters, dbcsr_distribution_num_local_row_clusters, &
         dbcsr_distribution_processor, dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
         dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                               dbcsr_is_initialized,&
                                               dbcsr_release_locals
@@ -1183,9 +1179,8 @@ CONTAINS
     END DO
     current_int = current_int + 1
     DO WHILE (current_src .LE. n_src .AND. current_dst .LE. n_dst)
-       CALL dbcsr_assert (current_int, "LE", numints, &
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Ran out of space.", __LINE__)
+       IF(current_int > numints) &
+          CPABORT("Ran out of space.")
        ! Calculate how many elements do the current blocks have in
        ! common and record these as going to the current target block.
        common_extent = MIN (s_src, s_dst)
@@ -2333,16 +2328,10 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) THEN
-       CALL dbcsr_assert (.not.PRESENT (myvprow), "IMP",&
-            PRESENT(mycoli),&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Must specify either (process row and row image) or (virtual process row)",&
-            __LINE__)
-       CALL dbcsr_assert (.not.PRESENT (myvpcol), "IMP",&
-            PRESENT(mycoli),&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Must specify either (process col and col image) or (virtual process col)",&
-            __LINE__)
+       IF(.NOT.PRESENT (myvprow) .AND. .NOT.PRESENT(mycoli)) CALL cp_abort(__LOCATION__, &
+          "Must specify either (process row and row image) or (virtual process row)")
+       IF(.NOT.PRESENT (myvpcol) .AND. .NOT.PRESENT(mycoli)) CALL cp_abort(__LOCATION__, &
+          "Must specify either (process col and col image) or (virtual process col)")
     ENDIF
     !
     mp = image_dist%i%main%d%mp_env
@@ -2425,10 +2414,8 @@ CONTAINS
     CALL timeset (routineN, error_handle)
     ALLOCATE (bin_dist (nelements))
     IF (PRESENT (element_sizes)) THEN
-       CALL dbcsr_assert (SIZE(element_sizes), "EQ", nelements,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Array of element sizes does not match the number of elements.",&
-            __LINE__)
+       IF(SIZE(element_sizes) /= nelements) &
+          CPABORT("Array of element sizes does not match the number of elements.")
        CALL heap_new (bin_heap, nbins)
        CALL heap_fill (bin_heap, (/ (bin, bin = 0, nbins-1) /),&
                                  (/ (0,   bin = 0, nbins-1) /), heap_error)

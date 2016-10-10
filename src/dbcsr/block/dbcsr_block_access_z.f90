@@ -38,9 +38,8 @@
 !   ---------------------------------------------------------------------------
     IF (careful_mod) CALL timeset (routineN, error_handle)
     IF (debug_mod) THEN
-       CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_8,&
-            dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Data type mismatch for requested block.",__LINE__)
+       IF(matrix%m%data_type /= dbcsr_type_complex_8) &
+          CPABORT("Data type mismatch for requested block.")
     ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
@@ -66,9 +65,8 @@
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        nwms = SIZE(matrix%m%wms)
        iw = 1
-!$     CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
-!$        dbcsr_fatal_level, dbcsr_internal_error,&
-!$        routineN, "Number of work matrices not equal to number of threads", __LINE__)
+!$     IF(nwms < omp_get_num_threads()) &
+!$        CPABORT("Number of work matrices not equal to number of threads")
 !$     iw = omp_get_thread_num () + 1
        IF(.NOT.dbcsr_use_mutable (matrix%m))&
           CPABORT("Can not retrieve blocks from non-mutable work matrices.")
@@ -122,9 +120,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (debug_mod) THEN
-       CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_8,&
-            dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Data type mismatch for requested block.",__LINE__)
+       IF(matrix%m%data_type /= dbcsr_type_complex_8) &
+          CPABORT("Data type mismatch for requested block.")
     ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
@@ -220,10 +217,8 @@
 
     nwms = SIZE(matrix%m%wms)
     iw = 1
-!$  CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
-!$     dbcsr_fatal_level, dbcsr_internal_error,&
-!$     routineN, "Number of work matrices not equal to number of threads", &
-!$     __LINE__)
+!$  IF(nwms < omp_get_num_threads()) &
+!$     CPABORT("Number of work matrices not equal to number of threads")
 !$  iw = omp_get_thread_num () + 1
     CALL btree_add_z (matrix%m%wms(iw)%mutable%m%btree_z,&
          make_coordinate_tuple(stored_row, stored_col),&
@@ -348,10 +343,8 @@
     CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col)
     nze = row_size*col_size
     !
-    IF (debug_mod) THEN
-       CALL dbcsr_assert (SIZE(block), "GE", nze, dbcsr_fatal_level,&
-            dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__)
-    ENDIF
+    IF (debug_mod .AND. SIZE(block) < nze) &
+       CPABORT("Invalid block dimensions")
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, lb_row_col, offset)
     IF(found) THEN
@@ -398,11 +391,8 @@
        ENDIF
        nwms = SIZE(matrix%m%wms)
        iw = 1
-!$     IF (debug_mod) THEN
-!$     CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
-!$        dbcsr_fatal_level, dbcsr_internal_error,&
-!$        routineN, "Number of work matrices not equal to number of threads", __LINE__)
-!$     ENDIF
+!$     IF(debug_mod .AND. nwms < omp_get_num_threads()) &
+!$        CPABORT("Number of work matrices not equal to number of threads")
 !$     iw = omp_get_thread_num () + 1
        blk_p = matrix%m%wms(iw)%datasize + 1
        IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(iw))) THEN

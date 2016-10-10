@@ -21,9 +21,6 @@ MODULE dbcsr_performance_multiply
                                               dbcsr_distribution_release,&
                                               dbcsr_distribution_row_dist
    USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
@@ -88,7 +85,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER                                          :: symmetries(3), trans(2)
-      INTEGER                                            :: i, iblk, istat, kblk_to_read, limits(6), &
+      INTEGER                                            :: i, iblk, kblk_to_read, limits(6), &
                                                             matrix_sizes(3), mblk_to_read, &
                                                             nblk_to_read, nrep, TYPE
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bs_k, bs_m, bs_n
@@ -111,9 +108,8 @@ CONTAINS
          WRITE (*, *) "      retain_sparsity nrep \\"
          WRITE (*, *) "      nmblksizes nnblksizes nkblksizes \\"
          WRITE (*, *) "      [mblksizes] [nblksizes] [kblksizes]"
+         CPABORT("narg not correct")
       ENDIF
-      CALL dbcsr_assert(narg, "GE", 28, dbcsr_fatal_level, dbcsr_wrong_args_error, &
-                        routineN, "narg not correct", __LINE__)
 
       matrix_sizes(1) = atoi(args(2))
       matrix_sizes(2) = atoi(args(3))
@@ -143,13 +139,10 @@ CONTAINS
       nblk_to_read = atoi(args(27))
       kblk_to_read = atoi(args(28))
 
-      CALL dbcsr_assert(narg, "GE", 28+2*(mblk_to_read+nblk_to_read+kblk_to_read), &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "narg not correct", &
-                        __LINE__)
+      IF (narg < 28+2*(mblk_to_read+nblk_to_read+kblk_to_read)) &
+         CPABORT("narg not correct")
 
-      ALLOCATE (bs_m(2*mblk_to_read), bs_n(2*nblk_to_read), bs_k(2*kblk_to_read), STAT=istat)
-      IF (istat /= 0) &
-         CPABORT("allocattion problem")
+      ALLOCATE (bs_m(2*mblk_to_read), bs_n(2*nblk_to_read), bs_k(2*kblk_to_read))
 
       i = 28
       DO iblk = 1, mblk_to_read
@@ -475,9 +468,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'perf_multiply', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: c_a, c_b, c_c, handle, irep, istat, &
-                                                            mynode, nthreads, numnodes, r_a, r_b, &
-                                                            r_c
+      INTEGER                                            :: c_a, c_b, c_c, handle, irep, mynode, &
+                                                            nthreads, numnodes, r_a, r_b, r_c
       INTEGER(int_8)                                     :: flop
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: flop_sum
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:, :)       :: flops
@@ -503,9 +495,7 @@ CONTAINS
 
       ALLOCATE (times(0:numnodes-1, nrep), flops(0:numnodes-1, nrep), t_max(nrep), &
                 flops_node(nrep), flops_thread(nrep), flops_all(nrep), flop_sum(nrep), &
-                t_min(nrep), t(nrep), load_imb(nrep), STAT=istat)
-      IF (istat /= 0) &
-         CPABORT("allocattion problem")
+                t_min(nrep), t(nrep), load_imb(nrep))
       times(:, :) = 0.0_real_8
       t_max(:) = 0.0_real_8
       t_min(:) = 0.0_real_8

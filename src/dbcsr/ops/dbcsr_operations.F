@@ -47,10 +47,6 @@ MODULE dbcsr_operations
                                               checker_tr,&
                                               dbcsr_find_column,&
                                               dbcsr_get_stored_coordinates
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_index_operations,          ONLY: dbcsr_index_checksum,&
                                               dbcsr_index_compact,&
                                               dbcsr_repoint_index
@@ -324,39 +320,23 @@ CONTAINS
       my_limits(last_col_i) = dbcsr_nfullcols_total(matrix_a)
       IF (has_limits) THEN
          IF (limits(last_col_i) .NE. 0) THEN
-            IF (debug_mod) THEN
-               CALL dbcsr_assert(limits(last_col_i) .GE. 0, "AND", &
-                                 limits(last_col_i) .LE. dbcsr_nfullcols_total(matrix_a), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Specified last column is out of bounds.", __LINE__)
-            ENDIF
+            IF (debug_mod .AND. (limits(last_col_i) < 0 .OR. limits(last_col_i) > dbcsr_nfullcols_total(matrix_a))) &
+               CPABORT("Specified last column is out of bounds.")
             my_limits(last_col_i) = limits(last_col_i)
          ENDIF
          IF (limits(first_col_i) .NE. 0) THEN
-            IF (debug_mod) THEN
-               CALL dbcsr_assert(limits(first_col_i) .GE. 0, "AND", &
-                                 limits(first_col_i) .LE. dbcsr_nfullcols_total(matrix_a), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Specified first column is out of bounds.", __LINE__)
-            ENDIF
+            IF (debug_mod .AND. (limits(first_col_i) < 0 .OR. limits(first_col_i) > dbcsr_nfullcols_total(matrix_a))) &
+               CPABORT("Specified first column is out of bounds.")
             my_limits(first_col_i) = limits(first_col_i)
          ENDIF
          IF (limits(last_row_i) .NE. 0) THEN
-            IF (debug_mod) THEN
-               CALL dbcsr_assert(limits(last_row_i) .GE. 0, "AND", &
-                                 limits(last_row_i) .LE. dbcsr_nfullrows_total(matrix_a), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Specified last row is out of bounds.", __LINE__)
-            ENDIF
+            IF (debug_mod .AND. (limits(last_row_i) < 0 .OR. limits(last_row_i) > dbcsr_nfullrows_total(matrix_a))) &
+               CPABORT("Specified last row is out of bounds.")
             my_limits(last_row_i) = limits(last_row_i)
          ENDIF
          IF (limits(first_row_i) .NE. 0) THEN
-            IF (debug_mod) THEN
-               CALL dbcsr_assert(limits(first_row_i) .GE. 0, "AND", &
-                                 limits(first_row_i) .LE. dbcsr_nfullrows_total(matrix_a), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Specified first row is out of bounds.", __LINE__)
-            ENDIF
+            IF (debug_mod .AND. (limits(first_row_i) < 0 .OR. limits(first_row_i) > dbcsr_nfullrows_total(matrix_a))) &
+               CPABORT("Specified first row is out of bounds.")
             my_limits(first_row_i) = limits(first_row_i)
          ENDIF
       ENDIF
@@ -907,9 +887,8 @@ CONTAINS
          SELECT CASE (data_type)
             !CASE (dbcsr_type_real_4)
             !   a_data%d%r_sp(1:nze) = 1.0_real_4/a_data%d%r_sp(1:nze)
-            !   CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_sp)).LT.HUGE(0.0_real_4),&
-            !           dbcsr_fatal_level,dbcsr_internal_error, routineN,&
-            !           "Division by zero", __LINE__)
+            !   IF(MAXVAL(ABS(a_data%d%r_sp)).GE.HUGE(0.0_real_4))&
+            !      CPABORT("Division by zero")
          CASE (dbcsr_type_real_8)
             SELECT CASE (func)
             CASE (dbcsr_func_spread_from_zero)
@@ -1325,9 +1304,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_assert(dbcsr_nfullrows_total(matrix), "LE", dbcsr_data_get_size(diag), &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Diagonal is too small", __LINE__)
+      IF (dbcsr_nfullrows_total(matrix) > dbcsr_data_get_size(diag)) &
+         CPABORT("Diagonal is too small")
 
       CALL dbcsr_data_clear(diag)
       data_type = dbcsr_get_data_type(matrix)
@@ -1380,9 +1358,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_assert(dbcsr_nfullrows_total(matrix), "LE", dbcsr_data_get_size(diag), &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Diagonal too small", __LINE__)
+      IF (dbcsr_nfullrows_total(matrix) > dbcsr_data_get_size(diag)) &
+         CPABORT("Diagonal too small")
 
       dt = dbcsr_get_data_type(matrix)
       CALL dbcsr_data_init(data_a)
@@ -1560,9 +1537,8 @@ CONTAINS
          ! copy index and data
          matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
          IF (.NOT. shallow) THEN
-            CALL dbcsr_assert(matrix_a%m%nze, "LE", dbcsr_get_data_size(matrix_a), &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Source matrix sizes not consistent!", __LINE__)
+            IF (matrix_a%m%nze > dbcsr_get_data_size(matrix_a)) &
+               CPABORT("Source matrix sizes not consistent!")
             CALL dbcsr_data_ensure_size(matrix_b%m%data_area, &
                                         dbcsr_data_get_size_referenced(matrix_a%m%data_area))
             IF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_get_data_type(matrix_b)) &
@@ -1841,15 +1817,12 @@ CONTAINS
       ENDIF
       ! Verify assumptions.
       IF (PRESENT(block_row_bounds)) THEN
-         CALL dbcsr_assert(SIZE(block_row_bounds), "EQ", 2, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Size of bounds specifier must be 2", __LINE__)
+         IF (SIZE(block_row_bounds) /= 2) &
+            CPABORT("Size of bounds specifier must be 2")
       ENDIF
       IF (PRESENT(block_column_bounds)) THEN
-         CALL dbcsr_assert(SIZE(block_column_bounds), "EQ", 2, &
-                           dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Size of bounds specifier must be 2", __LINE__)
+         IF (SIZE(block_column_bounds) /= 2) &
+            CPABORT("Size of bounds specifier must be 2")
       ENDIF
       ! Setup target matrix
       CALL dbcsr_create(matrix_b, name=name, template=matrix_a)
@@ -1971,15 +1944,12 @@ CONTAINS
       ! If row bounds are present, they must be converted to block
       ! addressing.
       IF (PRESENT(full_row_bounds)) THEN
-         CALL dbcsr_assert(SIZE(full_row_bounds), "EQ", 2, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Size of bounds specifier must be 2", __LINE__)
-         CALL dbcsr_assert(full_row_bounds(1), "GE", 0, &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Invalid first row bound.", __LINE__)
-         CALL dbcsr_assert(full_row_bounds(2), "LE", dbcsr_nfullrows_total(matrix_a), &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Invalid last row bound.", __LINE__)
+         IF (SIZE(full_row_bounds) /= 2) &
+            CPABORT("Size of bounds specifier must be 2")
+         IF (full_row_bounds(1) < 0) &
+            CPABORT("Invalid first row bound.")
+         IF (full_row_bounds(2) > dbcsr_nfullrows_total(matrix_a)) &
+            CPABORT("Invalid last row bound.")
          part_f_row = .FALSE.
          IF (full_row_bounds(1) .EQ. 0) THEN
             block_row_bounds(1) = 1
@@ -2020,16 +1990,12 @@ CONTAINS
       ! If column bounds are present, they must be converted to block
       ! addressing.
       IF (PRESENT(full_column_bounds)) THEN
-         CALL dbcsr_assert(SIZE(full_column_bounds), "EQ", 2, &
-                           dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Size of bounds specifier must be 2", __LINE__)
-         CALL dbcsr_assert(full_column_bounds(1), "GE", 0, &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Invalid first column bound.", __LINE__)
-         CALL dbcsr_assert(full_column_bounds(2), "LE", dbcsr_nfullcols_total(matrix_a), &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Invalid last column bound.", __LINE__)
+         IF (SIZE(full_column_bounds) /= 2) &
+            CPABORT("Size of bounds specifier must be 2")
+         IF (full_column_bounds(1) < 0) &
+            CPABORT("Invalid first column bound.")
+         IF (full_column_bounds(2) > dbcsr_nfullcols_total(matrix_a)) &
+            CPABORT("Invalid last column bound.")
          part_f_col = .FALSE.
          IF (full_column_bounds(1) .EQ. 0) THEN
             block_col_bounds(1) = 1
@@ -2352,20 +2318,14 @@ CONTAINS
       CASE (dbcsr_norm_column)
 
          IF (PRESENT(norm_vector)) THEN
-            CALL dbcsr_assert(dbcsr_data_get_type(norm_vector), "EQ", &
-                              dbcsr_get_data_type(matrix), dbcsr_fatal_level, &
-                              dbcsr_wrong_args_error, routineN, &
-                              "Mismatched vector/matrix data types", __LINE__)
+            IF (dbcsr_data_get_type(norm_vector) /= dbcsr_get_data_type(matrix)) &
+               CPABORT("Mismatched vector/matrix data types")
             IF (dbcsr_has_symmetry(matrix)) THEN
-               CALL dbcsr_assert(dbcsr_data_get_size(norm_vector), "GE", &
-                                 dbcsr_nfullrows_total(matrix), dbcsr_fatal_level, &
-                                 dbcsr_wrong_args_error, routineN, "Passed vector too small", &
-                                 __LINE__)
+               IF (dbcsr_data_get_size(norm_vector) < dbcsr_nfullrows_total(matrix)) &
+                  CPABORT("Passed vector too small")
             END IF
-            CALL dbcsr_assert(dbcsr_data_get_size(norm_vector), "GE", &
-                              dbcsr_nfullcols_total(matrix), dbcsr_fatal_level, &
-                              dbcsr_wrong_args_error, routineN, "Passed vector too small", &
-                              __LINE__)
+            IF (dbcsr_data_get_size(norm_vector) < dbcsr_nfullcols_total(matrix)) &
+               CPABORT("Passed vector too small")
             CALL dbcsr_data_init(data_a)
             CALL dbcsr_data_new(data_a, dbcsr_type_1d_to_2d(dbcsr_get_data_type(matrix)))
             CALL dbcsr_data_clear(norm_vector)

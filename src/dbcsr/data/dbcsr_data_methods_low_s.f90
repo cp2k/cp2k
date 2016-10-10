@@ -210,12 +210,10 @@
           u = UBOUND (area%d%r_sp, 1)
           IF (PRESENT (ub)) u = ub
           IF (debug_mod) THEN
-             CALL dbcsr_assert (l, "GE", LBOUND (area%d%r_sp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (u, "LE", UBOUND (area%d%r_sp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
+             IF(l < LBOUND (area%d%r_sp, 1)) &
+                CPABORT("Out of bounds")
+             IF(u > UBOUND (area%d%r_sp, 1)) &
+                CPABORT("Out of bounds")
           ENDIF
           DATA => area%d%r_sp(l:u)
        ELSE
@@ -252,18 +250,14 @@
           u = UBOUND (area%d%r2_sp)
           IF (PRESENT (ub)) u = ub
           IF (debug_mod) THEN
-             CALL dbcsr_assert (l(1), "GE", LBOUND (area%d%r2_sp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (l(2), "GE", LBOUND (area%d%r2_sp, 2),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (u(1), "LE", UBOUND (area%d%r2_sp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (u(2), "LE", UBOUND (area%d%r2_sp, 2),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
+             IF(l(1) < LBOUND (area%d%r2_sp, 1)) &
+                CPABORT("Out of bounds")
+             IF(l(2) < LBOUND (area%d%r2_sp, 2)) &
+                CPABORT("Out of bounds")
+             IF(u(1) > UBOUND (area%d%r2_sp, 1)) &
+                CPABORT("Out of bounds")
+             IF(u(2) > UBOUND (area%d%r2_sp, 2)) &
+                CPABORT("Out of bounds")
           ENDIF
           DATA => area%d%r2_sp(l(1):u(1), l(2):u(2))
        ELSE

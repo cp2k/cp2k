@@ -1,5 +1,5 @@
 {
-"description": "DBCSR data error handling",
+"description": "DBCSR data handling",
 "archive": "libdbcsrdata",
-"requires": ["../../acc", "../../mpiwrap", "../../base", "../error"],
+"requires": ["../../acc", "../../mpiwrap", "../../base"],
 }

@@ -27,10 +27,6 @@ MODULE dbcsr_mm_csr
                                               default_resize_factor,&
                                               mm_stack_size
    USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_mm_sched,                  ONLY: &
         dbcsr_mm_sched_barrier, dbcsr_mm_sched_begin_burst, dbcsr_mm_sched_dev2host_init, &
         dbcsr_mm_sched_end_burst, dbcsr_mm_sched_finalize, dbcsr_mm_sched_init, &
@@ -498,12 +494,10 @@ CONTAINS
 
       IF (PRESENT(left) .AND. PRESENT(right)) THEN
          ! find out if we have local_indexin
-         CALL dbcsr_assert(right%local_indexing, "EQV", .TRUE., &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Matrices must have local indexing.", __LINE__)
-         CALL dbcsr_assert(left%local_indexing, "EQV", .TRUE., &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Matrices must have local indexing.", __LINE__)
+         IF (.NOT. right%local_indexing) &
+            CPABORT("Matrices must have local indexing.")
+         IF (.NOT. left%local_indexing) &
+            CPABORT("Matrices must have local indexing.")
       ENDIF
       ! Setup the hash tables if needed
       ALLOCATE (this%c_hashes(product%nblkrows_local))
@@ -517,10 +511,8 @@ CONTAINS
       this%nn_stacks = nxstacks(2)
       this%nk_stacks = nxstacks(3)
       nstacks = nxstacks(1)*nxstacks(2)*nxstacks(3)+1
-      CALL dbcsr_assert(nstacks, "LE", INT(HUGE(this%stack_map)), &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Too many stacks requested (global/dbcsr/n_size_*_stacks in input)", &
-                        __LINE__)
+      IF (nstacks > INT(HUGE(this%stack_map))) &
+         CPABORT("Too many stacks requested (global/dbcsr/n_size_*_stacks in input)")
 
       ALLOCATE (this%stacks_descr(nstacks))
       ALLOCATE (this%stacks_data(dbcsr_ps_width, mm_stack_size, nstacks))
@@ -672,14 +664,12 @@ CONTAINS
 !$    imat = OMP_GET_THREAD_NUM()+1
       IF (PRESENT(row_map)) THEN
          n_rows = matrix%nblkrows_local
-         CALL dbcsr_assert(SIZE(hashes), "EQ", n_rows, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Local row count mismatch", __LINE__)
+         IF (SIZE(hashes) /= n_rows) &
+            CPABORT("Local row count mismatch")
       ELSE
          n_rows = matrix%nblkrows_total
-         CALL dbcsr_assert(SIZE(hashes), "EQ", n_rows, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "Global row count mismatch", __LINE__)
+         IF (SIZE(hashes) /= n_rows) &
+            CPABORT("Global row count mismatch")
       ENDIF
       DO row = 1, n_rows
          ! create the hash table row with a reasonable initial size
@@ -957,12 +947,8 @@ CONTAINS
       counts(:) = 0
       DO i = ai, af
          IF (careful) THEN
-            CALL dbcsr_assert(list_index(1, i), "GE", mi, &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Out of range", __LINE__)
-            CALL dbcsr_assert(list_index(1, i), "LE", mf, &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Out of range", __LINE__)
+            IF (list_index(1, i) < mi) CPABORT("Out of range")
+            IF (list_index(1, i) > mf) CPABORT("Out of range")
          ENDIF
          counts(list_index(1, i)) = counts(list_index(1, i))+1
       ENDDO
@@ -976,12 +962,8 @@ CONTAINS
          row = list_index(1, i)
          counts(row) = counts(row)+1
          IF (careful) THEN
-            CALL dbcsr_assert(row_p(row)+counts(row), "LE", af-ai+1, &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Out of range", __LINE__)
-            CALL dbcsr_assert(row_p(row)+counts(row), "GE", 1, &
-                              dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                              "Out of range", __LINE__)
+            IF (row_p(row)+counts(row) > af-ai+1) CPABORT("Out of range")
+            IF (row_p(row)+counts(row) < 1) CPABORT("Out of range")
          ENDIF
          blk_info(1, row_p(row)+counts(row)) = list_index(2, i)
          blk_info(2, row_p(row)+counts(row)) = list_index(3, i)

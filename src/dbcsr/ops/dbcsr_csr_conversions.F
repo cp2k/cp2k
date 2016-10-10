@@ -27,10 +27,6 @@ MODULE dbcsr_csr_conversions
                                               dbcsr_distribution_mp,&
                                               dbcsr_distribution_new,&
                                               dbcsr_distribution_release
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&
@@ -219,10 +215,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_assert(nrows_total, "GE", nrows_local, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "local number of rows must not exceed total number of rows", &
-                        __LINE__)
+      IF (nrows_total .LT. nrows_local) &
+         CPABORT("local number of rows must not exceed total number of rows")
 
       IF (nze_total .LT. nze_local) CALL cp_abort(__LOCATION__, "local number of non-zero "// &
                                                   "elements must not exceed total number of non-zero elements")
@@ -230,10 +224,8 @@ CONTAINS
       IF (INT(nrows_total, kind=int_8)*INT(ncols_total, kind=int_8) .LT. nze_total) &
          CPABORT("Total number of non-zero elements must not exceed total matrix size")
 
-      CALL dbcsr_assert(nrows_local*ncols_total, "GE", nze_local, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Local number of non-zero elements must not exceed local matrix size", &
-                        __LINE__)
+      IF (nrows_local*ncols_total .LT. nze_local) &
+         CPABORT("Local number of non-zero elements must not exceed local matrix size")
 
       csr_mat%ncols_total = ncols_total
       csr_mat%nrows_total = nrows_total
@@ -369,17 +361,14 @@ CONTAINS
          CALL csr_create(matrix_b, matrix_a)
       ENDIF
 
-      CALL dbcsr_assert(matrix_b%nzval_local%data_type, "EQ", &
-                        matrix_a%nzval_local%data_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
-                        routineN, "Matrices don't have the same datatype.", __LINE__)
+      IF (matrix_b%nzval_local%data_type /= matrix_a%nzval_local%data_type) &
+         CPABORT("Matrices don't have the same datatype.")
 
-      CALL dbcsr_assert(matrix_b%nze_local, "EQ", &
-                        matrix_a%nze_local, dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Matrices don't have the same number of local non-zero elements.", __LINE__)
+      IF (matrix_b%nze_local /= matrix_a%nze_local) &
+         CPABORT("Matrices don't have the same number of local non-zero elements.")
 
-      CALL dbcsr_assert(matrix_b%nrows_local, "EQ", matrix_a%nrows_local, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Matrices don't have the same number of local rows.", __LINE__)
+      IF (matrix_b%nrows_local /= matrix_a%nrows_local) &
+         CPABORT("Matrices don't have the same number of local rows.")
 
       IF (.NOT. matrix_b%has_indices) THEN
          matrix_b%rowptr_local = matrix_a%rowptr_local
@@ -605,10 +594,8 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, blkrow, blkcol, blk, transposed=tr, &
                                         col_size=col_blk_size)
 
-         CALL dbcsr_assert(blk, "EQ", prev_blk+1, &
-                           dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                           "iterator is required to traverse the blocks in a row-wise fashion", &
-                           __LINE__)
+         IF (blk /= prev_blk+1) &
+            CPABORT("iterator is required to traverse the blocks in a row-wise fashion")
 
          prev_blk = blk
 
@@ -1125,9 +1112,8 @@ CONTAINS
 
       IF (.NOT. dbcsr_valid_index(dbcsr_mat)) &
          CPABORT("Invalid DBCSR matrix")
-      CALL dbcsr_assert(dbcsr_get_data_type(dbcsr_mat), "EQ", &
-                        csr_mat%nzval_local%data_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
-                        routineN, "DBCSR and CSR matrix must have same type", __LINE__)
+      IF (dbcsr_get_data_type(dbcsr_mat) /= csr_mat%nzval_local%data_type) &
+         CPABORT("DBCSR and CSR matrix must have same type")
 
       IF (.NOT. csr_mat%has_mapping) &
          CPABORT("CSR_mat must contain mapping to DBCSR format")
@@ -1175,10 +1161,8 @@ CONTAINS
       IF (.NOT. dbcsr_valid_index(dbcsr_mat)) &
          CPABORT("Invalid DBCSR matrix")
 
-      CALL dbcsr_assert(dbcsr_get_data_type(dbcsr_mat), "EQ", &
-                        csr_mat%nzval_local%data_type, dbcsr_fatal_level, &
-                        dbcsr_wrong_args_error, routineN, "DBCSR and CSR matrix must have same type", &
-                        __LINE__)
+      IF (dbcsr_get_data_type(dbcsr_mat) /= csr_mat%nzval_local%data_type) &
+         CPABORT("DBCSR and CSR matrix must have same type")
 
       IF (.NOT. csr_mat%has_mapping) &
          CPABORT("CSR_mat must contain mapping to DBCSR format")

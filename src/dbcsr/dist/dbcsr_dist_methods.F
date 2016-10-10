@@ -19,10 +19,6 @@ MODULE dbcsr_dist_methods
    USE dbcsr_config,                    ONLY: avg_elements_images,&
                                               comm_thread_load,&
                                               num_mult_images
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_methods,                   ONLY: dbcsr_distribution_init,&
                                               dbcsr_distribution_release
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_hold,&
@@ -123,10 +119,8 @@ CONTAINS
             IF (SIZE(row_dist_cluster) .GE. lcmv) THEN
                row_dist_tmp => row_dist_cluster
                CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
-               CALL dbcsr_assert(SIZE(row_dist_cluster), "EQ", SIZE(row_dist_block), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Blocks and clusters size are different for row grid", &
-                                 __LINE__)
+               IF (SIZE(row_dist_cluster) /= SIZE(row_dist_block)) &
+                  CPABORT("Blocks and clusters size are different for row grid")
                nclusters = MAXVAL(row_dist_cluster)
             ENDIF
          ENDIF
@@ -138,10 +132,8 @@ CONTAINS
             IF (SIZE(col_dist_cluster) .GE. lcmv) THEN
                col_dist_tmp => col_dist_cluster
                CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
-               CALL dbcsr_assert(SIZE(col_dist_cluster), "EQ", SIZE(col_dist_block), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Blocks and clusters size are different for column grid", &
-                                 __LINE__)
+               IF (SIZE(col_dist_cluster) /= SIZE(col_dist_block)) &
+                  CPABORT("Blocks and clusters size are different for column grid")
                nclusters = MAX(nclusters, MAXVAL(col_dist_cluster))
             ENDIF
          ENDIF
@@ -153,15 +145,11 @@ CONTAINS
       dist%d%mp_env = mp_env
       CALL dbcsr_mp_hold(dist%d%mp_env)
       ! Verify given process row distribution.
-      CALL dbcsr_assert(MAXVAL(row_dist_block), "LT", nprows, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "A process row is too big for process grid", &
-                        __LINE__)
+      IF (MAXVAL(row_dist_block) .GE. nprows) &
+         CPABORT("A process row is too big for process grid")
       ! Verify given process column distribution.
-      CALL dbcsr_assert(MAXVAL(col_dist_block), "LT", npcols, &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "A process column is too big for process grid", &
-                        __LINE__)
+      IF (MAXVAL(col_dist_block) .GE. npcols) &
+         CPABORT("A process column is too big for process grid")
       IF (PRESENT(local_rows)) THEN
          CALL array_new(dist%d%local_rows, local_rows, gift=reuse_arrays)
       ELSE
@@ -208,16 +196,12 @@ CONTAINS
                cluster_dist(row_dist_cluster(i)) = row_dist_block(i)
                IF (row_dist_block(i) .EQ. mypcoor) seq = seq+1
             ELSE
-               CALL dbcsr_assert(cluster_dist(row_dist_cluster(i)), "EQ", row_dist_block(i), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Wrong cluster distribution", &
-                                 __LINE__)
+               IF (cluster_dist(row_dist_cluster(i)) /= row_dist_block(i)) &
+                  CPABORT("Wrong cluster distribution")
             END IF
          END DO
-         CALL dbcsr_assert(seq*nprows, "EQ", nclusters, &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Clusters distribution is not uniform across processors", &
-                           __LINE__)
+         IF (seq*nprows /= nclusters) &
+            CPABORT("Clusters distribution is not uniform across processors")
          dist%d%num_local_row_clusters = seq
          DEALLOCATE (cluster_dist)
       END IF
@@ -237,16 +221,12 @@ CONTAINS
                cluster_dist(col_dist_cluster(i)) = col_dist_block(i)
                IF (col_dist_block(i) .EQ. mypcoor) seq = seq+1
             ELSE
-               CALL dbcsr_assert(cluster_dist(col_dist_cluster(i)), "EQ", col_dist_block(i), &
-                                 dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                                 "Wrong cluster distribution", &
-                                 __LINE__)
+               IF (cluster_dist(col_dist_cluster(i)) /= col_dist_block(i)) &
+                  CPABORT("Wrong cluster distribution")
             END IF
          END DO
-         CALL dbcsr_assert(seq*npcols, "EQ", nclusters, &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Clusters distribution is not uniform across processors", &
-                           __LINE__)
+         IF (seq*npcols /= nclusters) &
+            CPABORT("Clusters distribution is not uniform across processors")
          dist%d%num_local_col_clusters = seq
          DEALLOCATE (cluster_dist)
       END IF
@@ -647,9 +627,8 @@ CONTAINS
 
       nthreads = 1
 !$    nthreads = OMP_GET_NUM_THREADS(); 
-!$    CALL dbcsr_assert(dist%d%num_threads, "EQ", nthreads, &
-!$                      dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-!$                      "Thread number has changed", __LINE__)
+!$    IF (dist%d%num_threads /= nthreads) &
+!$       CPABORT("Thread number has changed")
       nrows = dbcsr_distribution_nrows(dist)
       nlrows = dbcsr_distribution_nlocal_rows(dist)
       lrows => dbcsr_distribution_local_rows(dist)

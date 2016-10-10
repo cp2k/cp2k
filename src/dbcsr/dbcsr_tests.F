@@ -23,9 +23,6 @@ MODULE dbcsr_tests
                                               dbcsr_distribution_new,&
                                               dbcsr_distribution_release
    USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                               dbcsr_binary_write
    USE dbcsr_methods,                   ONLY: &
@@ -399,9 +396,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, error_handle)
-      CALL dbcsr_assert(SIZE(group_sizes, 2), "EQ", 2, dbcsr_fatal_level, &
-                        dbcsr_wrong_args_error, routineN, &
-                        "second dimension of group_sizes must be 2", __LINE__)
+      IF (SIZE(group_sizes, 2) /= 2) &
+         CPABORT("second dimension of group_sizes must be 2")
       CALL dbcsr_init(m_a)
       CALL dbcsr_init(m_b)
       CALL dbcsr_init(m_c)
@@ -417,9 +413,8 @@ CONTAINS
          ELSE
             CALL dbcsr_mp_make_env(mp_env, cart_group, group, pgrid_dims=npdims)
          ENDIF
-         CALL dbcsr_assert(numnodes, "GE", 0, dbcsr_fatal_level, &
-                           dbcsr_wrong_args_error, routineN, &
-                           "Cartesian sides must be greater or equal to 0", __LINE__)
+         IF (numnodes < 0) &
+            CPABORT("Cartesian sides must be greater or equal to 0")
          i_am_alive = dbcsr_mp_active(mp_env)
          alive: IF (i_am_alive) THEN
             npdims(1) = dbcsr_mp_nprows(mp_env)
@@ -583,9 +578,8 @@ CONTAINS
       CALL timeset(routineN, error_handle)
       CALL mp_environ(numnodes, mynode, mp_group)
       IF (PRESENT(nprocs)) THEN
-         CALL dbcsr_assert(nprocs, "LE", numnodes, &
-                           dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                           "Can not grow processes.", __LINE__)
+         IF (nprocs > numnodes) &
+            CPABORT("Can not grow processes.")
          numnodes = nprocs
       ENDIF
       !

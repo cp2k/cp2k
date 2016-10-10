@@ -22,10 +22,6 @@ MODULE dbcsr_iterator_operations
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_has_threads,&
                                               dbcsr_distribution_num_threads,&
                                               dbcsr_distribution_thread_dist
-   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                              dbcsr_fatal_level,&
-                                              dbcsr_internal_error,&
-                                              dbcsr_wrong_args_error
    USE dbcsr_methods,                   ONLY: dbcsr_distribution
    USE dbcsr_ptr_util,                  ONLY: pointer_rank_remap2
    USE dbcsr_toollib,                   ONLY: swap
@@ -186,16 +182,10 @@ CONTAINS
       dist = dbcsr_distribution(matrix)
 !$    IF (.NOT. dbcsr_distribution_has_threads(dist)) &
 !$       CPWARN("Thread distribution should be defined for OpenMP.")
-      CALL dbcsr_assert(.NOT. iterator%dynamic, "IMP", &
-                        dbcsr_distribution_has_threads(dist), &
-                        dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                        "Thread distribution must be defined for non-dynamic iterator.", &
-                        __LINE__)
-!$    IF (omp_in_parallel()) &
-!$       CALL dbcsr_assert(omp_get_num_threads(), "EQ", &
-!$                         dbcsr_distribution_num_threads(dist), &
-!$                         dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-!$                         "Number of threads has changed!", __LINE__)
+      IF (.NOT. iterator%dynamic .AND. .NOT. dbcsr_distribution_has_threads(dist)) &
+         CPABORT("Thread distribution must be defined for non-dynamic iterator.")
+!$    IF (omp_in_parallel() .AND. omp_get_num_threads() /= dbcsr_distribution_num_threads(dist)) &
+!$       CPABORT("Number of threads has changed!")
       !Synchronize the positions
       NULLIFY (iterator%common_pos)
       IF (iterator%dynamic) THEN
@@ -236,21 +226,14 @@ CONTAINS
       iterator%coff => array_data(matrix%m%col_blk_offset)
 
       iterator%local_indexing = matrix%m%local_indexing
-      !CALL dbcsr_assert (iterator%local_indexing, "IMP",&
-      !     iterator%dynamic,&
-      !     dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-      !     "Locally-indexed matrices can only have a dynamic iterator.",&
-      !     __LINE__)
-      CALL dbcsr_assert(iterator%local_indexing, "IMP", &
-                        array_exists(matrix%m%local_rows), &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Local rows mapping array should exist when local indexing is used.", &
-                        __LINE__)
-      CALL dbcsr_assert(iterator%local_indexing, "IMP", &
-                        array_exists(matrix%m%global_rows), &
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN, &
-                        "Global rows mapping array should exist when local indexing is used.", &
-                        __LINE__)
+      !IF(iterator%local_indexing .AND. .NOT. iterator%dynamic) &
+      !   CPABORT("Locally-indexed matrices can only have a dynamic iterator.")
+      IF (iterator%local_indexing .AND. .NOT. array_exists(matrix%m%local_rows)) &
+         CALL cp_abort(__LOCATION__, &
+                       "Local rows mapping array should exist when local indexing is used.")
+      IF (iterator%local_indexing .AND. .NOT. array_exists(matrix%m%global_rows)) &
+         CALL cp_abort(__LOCATION__, &
+                       "Global rows mapping array should exist when local indexing is used.")
       iterator%global_rows => array_data(matrix%m%global_rows)
       iterator%local_rows => array_data(matrix%m%local_rows)
 
