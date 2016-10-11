@@ -10,7 +10,7 @@ from os import path
 from datetime import datetime
 
 flag_exceptions_re = re.compile("__COMPILE_.*|__SHORT_FILE__|__INTEL_COMPILER|"
-                          +"__cplusplus|_OPENMP|_GNU_SOURCE|__CUDA_ARCH__|"
+                          +"__cplusplus|_OPENMP|_GNU_SOURCE|__CUDA_ARCH__|__CUDACC_VER_MAJOR__|"
                           +"cl_.*|CL_VERSION_.*|__OPENCL_VERSION__|__OPENCL")
 
 year = datetime.utcnow().year
