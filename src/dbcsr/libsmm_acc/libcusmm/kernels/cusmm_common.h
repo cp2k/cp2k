@@ -12,7 +12,7 @@
  * There is no nativ support for atomicAdd on doubles in Cuda 5.0. However the*
  * following implementation is provided in the CUDA C Programing guide.       *
  ******************************************************************************/
-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+#if (__CUDACC_VER_MAJOR__<8) || ( defined(__CUDA_ARCH__) && (__CUDA_ARCH__<600) )
 static __device__ double atomicAdd(double *address, double val) {
     unsigned long long int *address_as_ull =
         (unsigned long long int *) address;
