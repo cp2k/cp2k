@@ -1803,13 +1803,14 @@ CONTAINS
       INTEGER :: blk, data_type, data_type_byte, final_step_k, grp_left, grp_right, handle, &
          handle2, handle3, icol3D, icol3D_send, ileft_buffer_calc, ileft_buffer_comm, &
          index_row_max_epss, iproc, iright_buffer_calc, iright_buffer_comm, irow3D, irow3D_send, &
-         istep_k, ithread, ivirt_k, left_col_mult, left_col_nimages, left_col_total_nimages, &
-         left_data_size, left_meta_size, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
-         left_myprow, left_npcols, left_nprows, left_nrequests, left_row_mult, left_row_nimages, &
-         min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, myrow3D, myt, nblkrows_local
-      INTEGER :: nbuffers, nbuffers_norms, ncols3D, nranks3D, nrows3D, nthreads, numnodes, &
-         nvirt_k, proc3D_recv, proc3D_send, recv_vcol, recv_vrow, request_epss, &
-         request_keep_sparsity, right_col_mult, right_col_nimages, right_data_size, &
+         istep_k, istep_k_ordered, ithread, ivirt_k, left_col_mult, left_col_nimages, &
+         left_col_total_nimages, left_data_size, left_meta_size, left_myfirstvcol, &
+         left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
+         left_row_mult, left_row_nimages, leftovers_k, min_nimages, mycol3D, mynode, mypcol, &
+         myprow, myrank3D
+      INTEGER :: myrow3D, myt, nblkrows_local, nbuffers, nbuffers_norms, ncols3D, nranks3D, &
+         nrows3D, nthreads, numnodes, nvirt_k, proc3D_recv, proc3D_send, recv_vcol, recv_vrow, &
+         request_epss, request_keep_sparsity, right_col_mult, right_col_nimages, right_data_size, &
          right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, &
          right_npcols, right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
          right_row_total_nimages, row, shift3D, shift3D_recv, shift_k, size_guess, &
@@ -1835,8 +1836,8 @@ CONTAINS
       INTEGER, DIMENSION(idata:imeta)                    :: product_matrix_size_recv, &
                                                             product_matrix_size_send
       LOGICAL                                            :: do_comm, do_layers3D, &
-                                                            do_square_layers3D, keep_sparsity, &
-                                                            otf_filtering
+                                                            do_square_layers3D, first_k, &
+                                                            keep_sparsity, otf_filtering
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_comm_left, do_comm_right
       REAL(kind=sp)                                      :: filter_eps_sp
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET   :: row_max_epss
@@ -2289,7 +2290,8 @@ CONTAINS
       !
       CALL timeset(routineN//"_loop", handle2)
       ! Take into account when ticks are not multiple of 3D layers
-      shift_k = MOD(nvirt_k, nranks3D)*myrank3D
+      leftovers_k = MOD(nvirt_k, nranks3D)
+      shift_k = leftovers_k*myrank3D
       start_k = (nvirt_k/nranks3D)*myrank3D
       final_step_k = nvirt_k+shift_k-nranks3D
       ! Shift layers to keep local layer as the last one in computation
@@ -2324,17 +2326,33 @@ CONTAINS
       ENDIF
       irow3D_send = 0
       icol3D_send = 0
+      first_k = .TRUE.
       grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
          !
          ! Matrix transfer. Transfer in all but the last loop
          ! iteration.
          xfer: IF (istep_k .LT. (nvirt_k+shift_k)) THEN
-            ivirt_k = istep_k/nranks3D
+            istep_k_ordered = istep_k
+            ! Put leftovers ticks always first
+            IF (leftovers_k .NE. 0 .AND. MOD(shift_k, nranks3D) .EQ. 0) THEN
+               IF (istep_k .LT. shift_k+leftovers_k) THEN
+                  istep_k_ordered = nvirt_k+istep_k-leftovers_k
+               ELSE
+                  istep_k_ordered = istep_k-leftovers_k
+               ENDIF
+            ENDIF
+            first_k = MOD(istep_k_ordered, nranks3D) .EQ. 0
+            ivirt_k = istep_k_ordered/nranks3D
+            IF (istep_k .LT. shift_k+leftovers_k) THEN
+               CALL row_col_3D_reflected(irow3D, icol3D, nrows3D, ncols3D, istep_k_ordered)
+            ELSE
+               CALL row_col_3D_reflected(irow3D, icol3D, nrows3D, ncols3D, shift3D)
+               shift3D = shift3D+1
+            ENDIF
+            !
             v_ki = MOD(ivirt_k, min_nimages)
-            CALL row_col_3D_reflected(irow3D, icol3D, nrows3D, ncols3D, shift3D)
-            shift3D = shift3D+1
             ! Reset communication flags at the first layer
-            IF (MOD(istep_k, nranks3D) .EQ. 0 .OR. istep_k .EQ. shift_k) THEN
+            IF (first_k .OR. istep_k .EQ. shift_k) THEN
                do_comm_right(:) = .TRUE.
                do_comm_left(:) = .TRUE.
             ENDIF
@@ -2361,7 +2379,7 @@ CONTAINS
             ! Set coordinates
             IF (do_square_layers3D) THEN
                ! Use the temporary buffers for the communication of the first tick
-               IF (MOD(istep_k, nranks3D) .EQ. 0) THEN
+               IF (first_k) THEN
                   iright_buffer_comm = nbuffers
                   ileft_buffer_comm = nbuffers
                ELSE
@@ -2800,7 +2818,7 @@ CONTAINS
          ENDIF wait_calc
          !
          ! Swap temporary buffers for the first tick
-         IF (do_square_layers3D .AND. MOD(istep_k, nranks3D) .EQ. 0 .AND. &
+         IF (do_square_layers3D .AND. first_k .AND. &
              istep_k .LT. (nvirt_k+shift_k)) THEN
             iright_buffer_comm = right_buffers(iright_buffer_comm)%b%coord3D
             ileft_buffer_comm = left_buffers(ileft_buffer_comm)%b%coord3D
