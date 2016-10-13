@@ -1803,18 +1803,18 @@ CONTAINS
       INTEGER :: blk, data_type, data_type_byte, final_step_k, grp_left, grp_right, handle, &
          handle2, handle3, icol3D, icol3D_send, ileft_buffer_calc, ileft_buffer_comm, &
          index_row_max_epss, iproc, iright_buffer_calc, iright_buffer_comm, irow3D, irow3D_send, &
-         istep_k, istep_k_ordered, ithread, ivirt_k, left_col_mult, left_col_nimages, &
+         istep_k, istep_k_ordered, ithread, ivirt_k, last_step_k, left_col_mult, left_col_nimages, &
          left_col_total_nimages, left_data_size, left_meta_size, left_myfirstvcol, &
          left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
-         left_row_mult, left_row_nimages, leftovers_k, min_nimages, mycol3D, mynode, mypcol, &
-         myprow, myrank3D
-      INTEGER :: myrow3D, myt, nblkrows_local, nbuffers, nbuffers_norms, ncols3D, nranks3D, &
-         nrows3D, nthreads, numnodes, nvirt_k, proc3D_recv, proc3D_send, recv_vcol, recv_vrow, &
+         left_row_mult, left_row_nimages, leftovers_first_k, leftovers_k, leftovers_shift_k
+      INTEGER :: leftovers_start_k, min_nimages, mycol3D, mynode, mypcol, myprow, myrank3D, &
+         myrow3D, myt, nblkrows_local, nbuffers, nbuffers_norms, ncols3D, nranks3D, nrows3D, &
+         nthreads, numnodes, nvirt_k, proc3D_recv, proc3D_send, recv_vcol, recv_vrow, &
          request_epss, request_keep_sparsity, right_col_mult, right_col_nimages, right_data_size, &
          right_meta_size, right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, &
          right_npcols, right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
-         right_row_total_nimages, row, shift3D, shift3D_recv, shift_k, size_guess, &
-         size_guess_init, start_k, v_ki
+         right_row_total_nimages, row, shift3D, shift3D_recv, size_guess, size_guess_init, start_k
+      INTEGER :: start_k_ordered, v_ki
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: left_vrow, product_matrix_epss_displ, &
                                                             product_matrix_epss_size, &
@@ -2291,9 +2291,15 @@ CONTAINS
       CALL timeset(routineN//"_loop", handle2)
       ! Take into account when ticks are not multiple of 3D layers
       leftovers_k = MOD(nvirt_k, nranks3D)
-      shift_k = leftovers_k*myrank3D
+      leftovers_first_k = leftovers_k*myrank3D
+      IF (leftovers_k .GT. 0) THEN
+         leftovers_start_k = (nvirt_k/nranks3D)*(myrank3D/leftovers_k)*leftovers_k
+      ENDIF
+      leftovers_shift_k = nranks3D-leftovers_k*(MOD(myrank3D, leftovers_k)+1)
+      ! Ticks bounds
       start_k = (nvirt_k/nranks3D)*myrank3D
-      final_step_k = nvirt_k+shift_k-nranks3D
+      last_step_k = nvirt_k+leftovers_first_k
+      final_step_k = last_step_k-nranks3D
       ! Shift layers to keep local layer as the last one in computation
       shift3D = (mycol3D-1)*nrows3D+ &
                 (nrows3D-myrow3D+1)*(1-MOD(mycol3D, 2))+myrow3D*MOD(mycol3D, 2)
@@ -2302,7 +2308,7 @@ CONTAINS
       ALLOCATE (do_comm_right(ncols3D), do_comm_left(nrows3D))
       ALLOCATE (right_vcol(ncols3D), left_vrow(nrows3D))
       ! Pre-set image coordinates
-      IF (min_nimages .GT. 1 .AND. shift_k .GT. 0) THEN
+      IF (min_nimages .GT. 1 .AND. leftovers_k .GT. 0) THEN
          DO icol3D = 1, ncols3D
             CALL image_calculator(imgdist_right, &
                                   vprow=recv_vrow, &
@@ -2310,7 +2316,7 @@ CONTAINS
                                   mypcol=mypcol, &
                                   myvprow=right_myfirstvrow, &
                                   myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
-                                  vprow_shift=start_k, &
+                                  vprow_shift=leftovers_start_k, &
                                   shifting='R')
          ENDDO
          DO irow3D = 1, nrows3D
@@ -2320,30 +2326,31 @@ CONTAINS
                                   myprow=myprow, &
                                   myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
                                   myvpcol=left_myfirstvcol, &
-                                  vpcol_shift=start_k, &
+                                  vpcol_shift=leftovers_start_k, &
                                   shifting='L')
          ENDDO
       ENDIF
       irow3D_send = 0
       icol3D_send = 0
       first_k = .TRUE.
-      grouped_steps_index: DO istep_k = shift_k, nvirt_k+shift_k
+      grouped_steps_index: DO istep_k = leftovers_first_k, last_step_k
          !
          ! Matrix transfer. Transfer in all but the last loop
          ! iteration.
-         xfer: IF (istep_k .LT. (nvirt_k+shift_k)) THEN
+         xfer: IF (istep_k .LT. last_step_k) THEN
+            start_k_ordered = start_k
             istep_k_ordered = istep_k
             ! Put leftovers ticks always first
-            IF (leftovers_k .NE. 0 .AND. MOD(shift_k, nranks3D) .EQ. 0) THEN
-               IF (istep_k .LT. shift_k+leftovers_k) THEN
-                  istep_k_ordered = nvirt_k+istep_k-leftovers_k
+            IF (leftovers_k .GT. 0) THEN
+               IF (istep_k .LT. leftovers_first_k+leftovers_k) THEN
+                  start_k_ordered = leftovers_start_k
                ELSE
-                  istep_k_ordered = istep_k-leftovers_k
+                  istep_k_ordered = istep_k+leftovers_shift_k
                ENDIF
             ENDIF
             first_k = MOD(istep_k_ordered, nranks3D) .EQ. 0
             ivirt_k = istep_k_ordered/nranks3D
-            IF (istep_k .LT. shift_k+leftovers_k) THEN
+            IF (istep_k .LT. leftovers_first_k+leftovers_k) THEN
                CALL row_col_3D_reflected(irow3D, icol3D, nrows3D, ncols3D, istep_k_ordered)
             ELSE
                CALL row_col_3D_reflected(irow3D, icol3D, nrows3D, ncols3D, shift3D)
@@ -2352,7 +2359,7 @@ CONTAINS
             !
             v_ki = MOD(ivirt_k, min_nimages)
             ! Reset communication flags at the first layer
-            IF (first_k .OR. istep_k .EQ. shift_k) THEN
+            IF (first_k .OR. istep_k .EQ. leftovers_first_k) THEN
                do_comm_right(:) = .TRUE.
                do_comm_left(:) = .TRUE.
             ENDIF
@@ -2364,7 +2371,7 @@ CONTAINS
                                      mypcol=mypcol, &
                                      myvprow=right_myfirstvrow, &
                                      myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
-                                     vprow_shift=ivirt_k+start_k, &
+                                     vprow_shift=ivirt_k+start_k_ordered, &
                                      shifting='R')
                CALL image_calculator(imgdist_left, &
                                      vprow=left_vrow(irow3D), &
@@ -2372,7 +2379,7 @@ CONTAINS
                                      myprow=myprow, &
                                      myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
                                      myvpcol=left_myfirstvcol, &
-                                     vpcol_shift=ivirt_k+start_k, &
+                                     vpcol_shift=ivirt_k+start_k_ordered, &
                                      shifting='L')
             ENDIF
             !
@@ -2573,7 +2580,7 @@ CONTAINS
          !
          ! Wait data and do the multiplications.
          ! Exclude the first interation
-         wait_calc: IF (istep_k .GT. shift_k) THEN
+         wait_calc: IF (istep_k .GT. leftovers_first_k) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
             right_buffer_p => right_buffers(iright_buffer_calc)%b
@@ -2738,7 +2745,7 @@ CONTAINS
 !$OMP SHARED (multrec, irow3D, icol3D, product_matrix3D, &
 !$OMP         memtype_mpi_buffer, nthreads, myt, istep_k, &
 !$OMP         irow3D_send, icol3D_send, myrow3D, mycol3D, &
-!$OMP         nvirt_k, shift_k, proc3D_send, proc3D_recv, &
+!$OMP         last_step_k, proc3D_send, proc3D_recv, &
 !$OMP         product_matrix_size_send, product_matrix_size_recv, &
 !$OMP         nrows3D, ncols3D, shift3D_recv, myrank3D, &
 !$OMP         layers_3D_C_reduction, requests_reduction_size, &
@@ -2799,7 +2806,7 @@ CONTAINS
                                     requests_reduction_size(2))
 !$OMP END MASTER
                ELSE
-                  IF (istep_k .NE. nvirt_k+shift_k) &
+                  IF (istep_k .NE. last_step_k) &
                      CPABORT("Last layer does not correspond to local layer")
                ENDIF
                ! Reduce to the local layer
@@ -2819,7 +2826,7 @@ CONTAINS
          !
          ! Swap temporary buffers for the first tick
          IF (do_square_layers3D .AND. first_k .AND. &
-             istep_k .LT. (nvirt_k+shift_k)) THEN
+             istep_k .LT. last_step_k) THEN
             iright_buffer_comm = right_buffers(iright_buffer_comm)%b%coord3D
             ileft_buffer_comm = left_buffers(ileft_buffer_comm)%b%coord3D
             CALL swap_buffers(right_buffers(iright_buffer_comm), right_buffers(nbuffers))
