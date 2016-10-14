@@ -9,9 +9,11 @@
 
   &PROPERTIES
     &TDDFPT
-       NSTATES      3
+       NSTATES      2
        MAX_ITER    10
        CONVERGENCE [eV] 1.0e-3
+
+       NPROC_STATE   1
     &END TDDFPT
   &END PROPERTIES
 

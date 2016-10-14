@@ -1117,6 +1117,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="NPROC_STATE", &
+                          description="Number of MPI processes to be used per excited state. "// &
+                          " Default is to use all processors (0).", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Real
       CALL keyword_create(keyword, name="CONVERGENCE", &
                           description="Target accuracy for excited state energies.", &

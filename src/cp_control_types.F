@@ -385,6 +385,8 @@ MODULE cp_control_types
       INTEGER                                   :: niters
       !> maximal number of Krylov space vectors
       INTEGER                                   :: nkvs
+      !> minimal number of MPI processes to be used per excited state
+      INTEGER                                   :: nprocs
       !> maximal number of orthogonalisation iterations
       INTEGER                                   :: nreortho
       !> target accuracy
