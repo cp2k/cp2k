@@ -170,6 +170,22 @@ MODULE qs_tddfpt2_methods
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_methods'
 
+   INTERFACE
+      ! explicit interface to comply with coding conventions
+      SUBROUTINE pdgemr2d(m, n, a, ia, ja, desca, b, ib, jb, descb, ictxt)
+      USE kinds, ONLY : dp
+      INTEGER, INTENT(in)                                :: m, n
+      REAL(kind=dp)                                      :: a
+      INTEGER, INTENT(in)                                :: ia, ja
+      INTEGER, DIMENSION(9), INTENT(in)                  :: desca
+      REAL(kind=dp)                                      :: b
+      INTEGER, INTENT(in)                                :: ib, jb
+      INTEGER, DIMENSION(9), INTENT(in)                  :: descb
+      INTEGER, INTENT(in)                                :: ictxt
+
+      END SUBROUTINE pdgemr2d
+   END INTERFACE
+
 ! **************************************************************************************************
 !> \brief Ground state molecular orbitals
 !> \par History
@@ -1375,8 +1391,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dest, fm_struct_src
       TYPE(cp_para_env_type), POINTER                    :: para_env_src
 
-      EXTERNAL :: pdgemr2d
-
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(fm_src, nrow_global=nrows_global_src, ncol_global=ncols_global_src, &
@@ -1447,8 +1461,6 @@ CONTAINS
       INTEGER, DIMENSION(9)                             :: desc_dest, desc_src
       REAL(kind=dp), DIMENSION(:, :), POINTER           :: local_data
       TYPE(cp_para_env_type), POINTER                   :: para_env_global, para_env_sub
-
-      EXTERNAL :: pdgemr2d
 
       CALL timeset(routineN, handle)
 
@@ -3277,7 +3289,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_compute_ritz_vects', &
          routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: mepos_master = 0
 
       INTEGER :: handle, icol_global, icol_local, iproc, irow_global, irow_local, ispin, &
          mepos_global, mepos_local, ncols_local, nkvs, nprocs_local, nrows_local, nrvs, nspins
