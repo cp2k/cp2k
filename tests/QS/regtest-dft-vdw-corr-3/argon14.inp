@@ -1,0 +1,61 @@
+&GLOBAL
+  PROJECT argon
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD QS
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 180
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 2
+      EPS_SCF 1.0e-4
+    &END SCF
+    &XC
+      &XC_GRID
+         USE_FINER_GRID
+      &END XC_GRID
+      &XC_FUNCTIONAL
+        &LIBXC
+          FUNCTIONAL XC_GGA_X_RPW86 XC_GGA_C_PBE
+        &END LIBXC
+      &END XC_FUNCTIONAL
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL NON_LOCAL
+         &NON_LOCAL
+           TYPE RVV10
+           PARAMETERS 6.3 0.0093
+           VERBOSE_OUTPUT
+           KERNEL_FILE_NAME rVV10_kernel_table.dat
+           CUTOFF  80
+         &END NON_LOCAL
+      &END vdW_POTENTIAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.31 5.31 5.31
+      ALPHA_BETA_GAMMA 90 90 90
+    &END CELL
+    &COORD
+      SCALED .TRUE.
+      Ar 0.1 0.0 0.0
+      Ar 0.5 0.5 0.0
+      Ar 0.5 0.0 0.5
+      Ar 0.0 0.5 0.5
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q8
+      POTENTIAL GTH-PADE-q8
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
