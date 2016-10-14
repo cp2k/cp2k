@@ -2294,8 +2294,8 @@ CONTAINS
       leftovers_first_k = leftovers_k*myrank3D
       IF (leftovers_k .GT. 0) THEN
          leftovers_start_k = (nvirt_k/nranks3D)*(myrank3D/leftovers_k)*leftovers_k
+         leftovers_shift_k = nranks3D-leftovers_k*(MOD(myrank3D, leftovers_k)+1)
       ENDIF
-      leftovers_shift_k = nranks3D-leftovers_k*(MOD(myrank3D, leftovers_k)+1)
       ! Ticks bounds
       start_k = (nvirt_k/nranks3D)*myrank3D
       last_step_k = nvirt_k+leftovers_first_k
