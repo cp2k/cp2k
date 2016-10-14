@@ -70,7 +70,6 @@ CONTAINS
                                                             iparticle_local, nparticle, &
                                                             nparticle_kind, nparticle_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: seed
-      REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -90,10 +89,6 @@ CONTAINS
       ![NB] shouldn't the calling process know if it's needed
       IF (need_per_atom_wiener_process(md_env)) THEN
 
-         ! Load initial seed (not needed for a restart)
-
-         initial_seed = next_rng_seed()
-
          CALL force_env_get(force_env, force_env_section=force_env_section, &
                             subsys=subsys)
 
@@ -106,7 +101,6 @@ CONTAINS
          nparticle = particles%n_els
 
          ! Allocate the (local) data structures for the Wiener process
-
          ALLOCATE (local_particles%local_particle_set(nparticle_kind))
 
          DO iparticle_kind = 1, nparticle_kind
@@ -119,20 +113,19 @@ CONTAINS
 
          ! Each process generates all seeds. The seed generation should be
          ! quite fast and in this way a broadcast is avoided.
-
          ALLOCATE (seed(3, 2, nparticle))
 
-         seed(:, :, 1) = initial_seed
+         ! Load initial seed (not needed for a restart)
+         seed(:, :, 1) = subsys%seed(:, :)
+
          DO iparticle = 2, nparticle
             seed(:, :, iparticle) = next_rng_seed(seed(:, :, iparticle-1))
          END DO
 
          ! Update initial seed
-
-         initial_seed = next_rng_seed(seed(:, :, nparticle))
+         subsys%seed(:, :) = next_rng_seed(seed(:, :, nparticle))
 
          ! Create a random number stream (Wiener process) for each particle
-
          DO iparticle_kind = 1, nparticle_kind
             nparticle_local = local_particles%n_el(iparticle_kind)
             DO iparticle_local = 1, nparticle_local

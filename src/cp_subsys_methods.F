@@ -106,6 +106,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: stress_tensor
+      INTEGER, DIMENSION(:), POINTER                     :: seed_vals
       LOGICAL                                            :: atomic_energy, atomic_stress, &
                                                             my_use_motion_section, &
                                                             pv_availability, pv_diagonal, &
@@ -138,6 +139,15 @@ CONTAINS
       my_subsys_section => section_vals_get_subs_vals(my_force_env_section, "SUBSYS")
       IF (PRESENT(subsys_section)) &
          my_subsys_section => subsys_section
+
+      CALL section_vals_val_get(my_subsys_section, "SEED", i_vals=seed_vals)
+      IF (SIZE(seed_vals) == 1) THEN
+         subsys%seed(:, :) = REAL(seed_vals(1), KIND=dp)
+      ELSE IF (SIZE(seed_vals) == 6) THEN
+         subsys%seed(1:3, 1:2) = RESHAPE(REAL(seed_vals(:), KIND=dp), (/3, 2/))
+      ELSE
+         CPABORT("Supply exactly 1 or 6 arguments for SEED in &SUBSYS only!")
+      END IF
 
       colvar_section => section_vals_get_subs_vals(my_subsys_section, "COLVAR")
 

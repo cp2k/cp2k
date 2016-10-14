@@ -88,7 +88,8 @@ MODULE cp_subsys_types
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    TYPE cp_subsys_type
-      INTEGER :: ref_count = 1
+      INTEGER                                    :: ref_count = 1
+      REAL(KIND=dp), DIMENSION(3, 2)             :: seed
       TYPE(atomic_kind_list_type), POINTER       :: atomic_kinds => Null()
       TYPE(particle_list_type), POINTER          :: particles => Null()
       TYPE(particle_list_type), POINTER          :: shell_particles => Null()
@@ -108,7 +109,7 @@ MODULE cp_subsys_types
       TYPE(atprop_type), POINTER                 :: atprop => Null()
       TYPE(virial_type), POINTER                 :: virial => Null()
       TYPE(cp_result_type), POINTER              :: results => Null()
-      TYPE(cell_type), POINTER                    :: cell => Null()
+      TYPE(cell_type), POINTER                   :: cell => Null()
    END TYPE cp_subsys_type
 
 ! **************************************************************************************************

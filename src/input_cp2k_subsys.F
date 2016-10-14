@@ -258,12 +258,24 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'create_subsys_section', &
          routineP = moduleN//':'//routineN
 
+      TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, name="subsys", &
                           description="a subsystem: coordinates, topology, molecules and cell", &
-                          n_keywords=0, n_subsections=9, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=9, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="SEED", &
+                          description="Initial seed for the (pseudo)random number generator for the "// &
+                          "Wiener process employed by the Langevin dynamics. Exactly 1 or 6 integer values are expected.", &
+                          n_var=-1, &
+                          type_of_var=integer_t, &
+                          usage="SEED {INTEGER} [or 5 more {INTEGER}]", &
+                          default_i_vals=(/12345/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       NULLIFY (subsection)
 
