@@ -312,7 +312,7 @@ CONTAINS
                                 qs_env%input, ncommensurate, uf_grid=uf_grid, &
                                 print_section=print_section)
       old_pw_grid => super_ref_grid
-      IF(.NOT.ASSOCIATED(mt_super_ref_grid)) vdw_ref_grid => super_ref_grid
+      IF (.NOT. ASSOCIATED(mt_super_ref_grid)) vdw_ref_grid => super_ref_grid
       !
       ! Setup of the multi-grid pw_grid and pw_pools
       !
