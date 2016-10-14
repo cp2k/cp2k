@@ -172,9 +172,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_grid_type), POINTER                        :: dct_pw_grid, mt_super_ref_grid, &
-                                                            old_pw_grid, pw_grid, super_ref_grid, &
-                                                            vdw_grid, xc_super_ref_grid
+      TYPE(pw_grid_type), POINTER :: dct_pw_grid, mt_super_ref_grid, old_pw_grid, pw_grid, &
+         super_ref_grid, vdw_grid, vdw_ref_grid, xc_super_ref_grid
       TYPE(pw_poisson_parameter_type)                    :: poisson_params
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
@@ -188,21 +187,21 @@ CONTAINS
                                                             poisson_section, print_section, &
                                                             rs_grid_section, xc_section
 
-! a very small safety factor might be needed for roundoff issues
-! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
-! te latter can happen due to the lower precision in the computation of the radius in collocate
-! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
-! Edit: Safety Factor was unused
+      ! a very small safety factor might be needed for roundoff issues
+      ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
+      ! the latter can happen due to the lower precision in the computation of the radius in collocate
+      ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
+      ! Edit: Safety Factor was unused
 
       CALL timeset(routineN, handle)
 
-!
-!
-! Part one, deallocate old data if needed
-!
-!
+      !
+      !
+      ! Part one, deallocate old data if needed
+      !
+      !
       NULLIFY (cutoff, cell, pw_grid, old_pw_grid, dft_control, qs_kind_set, &
-               pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
+               pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, vdw_ref_grid, &
                mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
                dct_pw_grid, vdw_grid, super_ref_grid, my_cell, rs_grids, dispersion_env)
 
@@ -253,11 +252,11 @@ CONTAINS
       END IF
       NULLIFY (pw_env%pw_pools, pw_env%cube_info)
 
-!
-!
-! Part two, setup the pw_grids
-!
-!
+      !
+      !
+      ! Part two, setup the pw_grids
+      !
+      !
 
       IF (PRESENT(external_para_env)) THEN
          para_env => external_para_env
@@ -274,8 +273,7 @@ CONTAINS
       END IF
       rel_cutoff = dft_control%qs_control%relative_cutoff
       cutoff => dft_control%qs_control%e_cutoff
-      CALL section_vals_val_get(input, "DFT%XC%XC_GRID%USE_FINER_GRID", &
-                                l_val=uf_grid)
+      CALL section_vals_val_get(input, "DFT%XC%XC_GRID%USE_FINER_GRID", l_val=uf_grid)
       ngrid_level = SIZE(cutoff)
 
       ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
@@ -314,12 +312,12 @@ CONTAINS
                                 qs_env%input, ncommensurate, uf_grid=uf_grid, &
                                 print_section=print_section)
       old_pw_grid => super_ref_grid
+      IF(.NOT.ASSOCIATED(mt_super_ref_grid)) vdw_ref_grid => super_ref_grid
       !
       ! Setup of the multi-grid pw_grid and pw_pools
       !
       logger => cp_get_default_logger()
-      iounit = cp_print_key_unit_nr(logger, print_section, '', &
-                                    extension='.Log')
+      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.Log')
 
       IF (dft_control%qs_control%pw_grid_opt%spherical) THEN
          grid_span = HALFSPACE
@@ -469,14 +467,14 @@ CONTAINS
       END IF
       IF (set_vdw_pool) THEN
          CPASSERT(ASSOCIATED(old_pw_grid))
+         IF (.NOT. ASSOCIATED(vdw_ref_grid)) vdw_ref_grid => old_pw_grid
          CALL pw_grid_create(vdw_grid, para_env%group)
          CALL pw_grid_setup(my_cell%hmat, vdw_grid, grid_span=grid_span, &
                             cutoff=dispersion_env%pw_cutoff, &
                             spherical=spherical, odd=odd, fft_usage=.TRUE., &
-                            !deb                        ncommensurate=ncommensurate, icommensurate=0, &
                             ncommensurate=0, icommensurate=0, &
                             blocked=do_pw_grid_blocked_false, &
-                            ref_grid=old_pw_grid, &
+                            ref_grid=vdw_ref_grid, &
                             rs_dims=distribution_layout, &
                             iounit=iounit)
          CALL pw_pool_create(pw_env%vdw_pw_pool, pw_grid=vdw_grid)
