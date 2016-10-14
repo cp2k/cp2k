@@ -1837,7 +1837,7 @@ CONTAINS
                                                             product_matrix_size_send
       LOGICAL                                            :: do_comm, do_layers3D, &
                                                             do_square_layers3D, first_k, &
-                                                            keep_sparsity, otf_filtering
+                                                            first_v_k, keep_sparsity, otf_filtering
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_comm_left, do_comm_right
       REAL(kind=sp)                                      :: filter_eps_sp
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET   :: row_max_epss
@@ -2307,32 +2307,10 @@ CONTAINS
       ileft_buffer_comm = 0
       ALLOCATE (do_comm_right(ncols3D), do_comm_left(nrows3D))
       ALLOCATE (right_vcol(ncols3D), left_vrow(nrows3D))
-      ! Pre-set image coordinates
-      IF (min_nimages .GT. 1 .AND. leftovers_k .GT. 0) THEN
-         DO icol3D = 1, ncols3D
-            CALL image_calculator(imgdist_right, &
-                                  vprow=recv_vrow, &
-                                  vpcol=right_vcol(icol3D), &
-                                  mypcol=mypcol, &
-                                  myvprow=right_myfirstvrow, &
-                                  myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
-                                  vprow_shift=leftovers_start_k, &
-                                  shifting='R')
-         ENDDO
-         DO irow3D = 1, nrows3D
-            CALL image_calculator(imgdist_left, &
-                                  vprow=left_vrow(irow3D), &
-                                  vpcol=recv_vcol, &
-                                  myprow=myprow, &
-                                  myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
-                                  myvpcol=left_myfirstvcol, &
-                                  vpcol_shift=leftovers_start_k, &
-                                  shifting='L')
-         ENDDO
-      ENDIF
       irow3D_send = 0
       icol3D_send = 0
       first_k = .TRUE.
+      first_v_k = .TRUE.
       grouped_steps_index: DO istep_k = leftovers_first_k, last_step_k
          !
          ! Matrix transfer. Transfer in all but the last loop
@@ -2365,13 +2343,17 @@ CONTAINS
             ENDIF
             ! Take first image global virtual coordinates
             IF (v_ki .EQ. 0) THEN
+               IF (istep_k .GE. leftovers_first_k+leftovers_k) first_v_k = .FALSE.
+               start_k_ordered = start_k_ordered+ivirt_k
+            ENDIF
+            IF (v_ki .EQ. 0 .OR. (first_v_k .AND. min_nimages .GT. 1)) THEN
                CALL image_calculator(imgdist_right, &
                                      vprow=recv_vrow, &
                                      vpcol=right_vcol(icol3D), &
                                      mypcol=mypcol, &
                                      myvprow=right_myfirstvrow, &
                                      myvpcol=right_myfirstvcol+(icol3D-1)*layers_3D_C_reduction%side3D, &
-                                     vprow_shift=ivirt_k+start_k_ordered, &
+                                     vprow_shift=start_k_ordered, &
                                      shifting='R')
                CALL image_calculator(imgdist_left, &
                                      vprow=left_vrow(irow3D), &
@@ -2379,7 +2361,7 @@ CONTAINS
                                      myprow=myprow, &
                                      myvprow=left_myfirstvrow+(irow3D-1)*layers_3D_C_reduction%side3D, &
                                      myvpcol=left_myfirstvcol, &
-                                     vpcol_shift=ivirt_k+start_k_ordered, &
+                                     vpcol_shift=start_k_ordered, &
                                      shifting='L')
             ENDIF
             !
