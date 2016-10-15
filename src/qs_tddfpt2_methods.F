@@ -170,22 +170,6 @@ MODULE qs_tddfpt2_methods
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_methods'
 
-   INTERFACE
-      ! explicit interface to comply with coding conventions
-      SUBROUTINE pdgemr2d(m, n, a, ia, ja, desca, b, ib, jb, descb, ictxt)
-      USE kinds, ONLY : dp
-      INTEGER, INTENT(in)                                :: m, n
-      REAL(kind=dp)                                      :: a
-      INTEGER, INTENT(in)                                :: ia, ja
-      INTEGER, DIMENSION(9), INTENT(in)                  :: desca
-      REAL(kind=dp)                                      :: b
-      INTEGER, INTENT(in)                                :: ib, jb
-      INTEGER, DIMENSION(9), INTENT(in)                  :: descb
-      INTEGER, INTENT(in)                                :: ictxt
-
-      END SUBROUTINE pdgemr2d
-   END INTERFACE
-
 ! **************************************************************************************************
 !> \brief Ground state molecular orbitals
 !> \par History
@@ -392,8 +376,7 @@ CONTAINS
       ! proc_membership(iproc) stores the index of the mpi subgroup to which the given process belongs
       ALLOCATE (subgroup(0:para_env_global%num_pe-1))
 
-      ! assign all of the available processors to a single subgroup if this splitting
-      ! has not been explicitly requested via the input fila
+      ! default: assign all available processors to a single subgroup
       IF (tddfpt_control%nprocs == 0) &
          tddfpt_control%nprocs = para_env_global%num_pe
 
@@ -1380,49 +1363,36 @@ CONTAINS
       INTEGER, DIMENSION(0:), INTENT(in)                 :: subgroup
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_fm_replicate_across_subgroups', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-#if defined(__SCALAPACK)
-      INTEGER :: context_global, handle, igroup, mepos_global, ncols_global_dest, &
-                 ncols_global_src, nrows_global_dest, nrows_global_src
-      INTEGER, DIMENSION(9)                              :: desc
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: local_data_src, local_data_dest
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_src
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dest, fm_struct_src
-      TYPE(cp_para_env_type), POINTER                    :: para_env_src
+      INTEGER :: context_global, handle, igroup, igroup_local, ncols_global_dest, &
+         ncols_global_src, nrows_global_dest, nrows_global_src
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
+      TYPE(cp_fm_type), POINTER                          :: fm_null
+      TYPE(cp_para_env_type), POINTER                    :: para_env_global
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(fm_src, nrow_global=nrows_global_src, ncol_global=ncols_global_src, &
-                          context=blacs_env_src, para_env=para_env_src, &
-                          local_data=local_data_src, matrix_struct=fm_struct_src)
-
-      CALL cp_fm_get_info(fm_dest_sub, nrow_global=nrows_global_dest, ncol_global=ncols_global_dest, &
-                          local_data=local_data_dest, matrix_struct=fm_struct_dest)
+                          context=blacs_env_global, para_env=para_env_global)
+      CALL cp_fm_get_info(fm_dest_sub, nrow_global=nrows_global_dest, ncol_global=ncols_global_dest)
 
       CPASSERT(nrows_global_src == nrows_global_dest)
       CPASSERT(ncols_global_src == ncols_global_dest)
 
-      mepos_global = para_env_src%mepos
-      context_global = blacs_env_src%group
+      NULLIFY (fm_null)
+      context_global = blacs_env_global%group
+      igroup_local = subgroup(para_env_global%mepos)
 
       DO igroup = 0, nsubgroups-1
-         IF (subgroup(mepos_global) == igroup) THEN
-            desc = fm_struct_dest%descriptor
+         IF (igroup == igroup_local) THEN
+            CALL cp_fm_copy_general(source=fm_src, destination=fm_dest_sub, global_context=context_global)
          ELSE
-            desc(:) = -1
+            CALL cp_fm_copy_general(source=fm_src, destination=fm_null, global_context=context_global)
          END IF
-
-         CALL pdgemr2d(nrows_global_src, ncols_global_src, local_data_src(1, 1), 1, 1, fm_struct_src%descriptor, &
-                       local_data_dest(1, 1), 1, 1, desc, context_global)
       END DO
 
       CALL timestop(handle)
-#else
-      CALL cp_fm_to_fm(source=fm_src, destination=fm_dest_sub)
-      MARK_USED(nsubgroups)
-      MARK_USED(subgroup)
-#endif
    END SUBROUTINE tddfpt_fm_replicate_across_subgroups
 
 ! **************************************************************************************************
@@ -1453,72 +1423,47 @@ CONTAINS
       INTEGER, DIMENSION(0:), INTENT(in)                 :: subgroup
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_fm_broadcast_to_all_subgroups', &
-                                     routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-#if defined(__SCALAPACK)
-      INTEGER :: context_global, handle, igroup, igroup_src, igroup_dest, mepos_global, &
-                 ninstances, ncols_global, nrows_global
-      INTEGER, DIMENSION(9)                             :: desc_dest, desc_src
-      REAL(kind=dp), DIMENSION(:, :), POINTER           :: local_data
-      TYPE(cp_para_env_type), POINTER                   :: para_env_global, para_env_sub
+      INTEGER                                            :: context_global, handle, igroup, &
+                                                            igroup_local, igroup_root
+      TYPE(cp_fm_type), POINTER                          :: fm_null
+      TYPE(cp_para_env_type), POINTER                    :: para_env_global, para_env_sub
 
       CALL timeset(routineN, handle)
 
-      mepos_global = blacs_env_global%para_env%mepos
-      igroup_dest = subgroup(mepos_global)
-      context_global = blacs_env_global%group
-
-      CALL cp_fm_struct_get(fm_struct_sub, nrow_global=nrows_global, ncol_global=ncols_global, para_env=para_env_sub)
+      CALL cp_fm_struct_get(fm_struct_sub, para_env=para_env_sub)
       CALL get_blacs_info(blacs_env_global, para_env=para_env_global)
 
-      igroup_src = 0
-      IF (debug_this_module) &
-         ninstances = 0
+      context_global = blacs_env_global%group
+      igroup_local = subgroup(para_env_global%mepos)
+      igroup_root = 0
 
       IF (ASSOCIATED(fm_sub)) THEN
-         CALL cp_fm_struct_get(fm_struct_sub, descriptor=desc_src)
-         IF (para_env_sub%mepos == para_env_sub%source) THEN
-            igroup_src = igroup_dest
-
-            IF (debug_this_module) &
-               ninstances = 1
-         END IF
+         IF (para_env_sub%mepos == para_env_sub%source) &
+            igroup_root = igroup_local
       ELSE
-         desc_src(:) = -1
          CALL cp_fm_create(fm_sub, fm_struct_sub)
       END IF
 
-      CALL cp_fm_get_info(fm_sub, local_data=local_data)
+      CALL mp_max(igroup_root, para_env_global%group)
 
-      IF (debug_this_module) THEN
-         ! ensure that one and only one sub-group actually holds the given matrix
-         CALL mp_sum(ninstances, para_env_global%group)
-         CPASSERT(ninstances == 1)
-      END IF
-      ! only the source-node of the given
-      CALL mp_max(igroup_src, para_env_global%group)
-
+      NULLIFY (fm_null)
       DO igroup = 0, nsubgroups-1
-         IF (igroup /= igroup_src) THEN
-            IF (igroup_dest == igroup) THEN
-               CALL cp_fm_struct_get(fm_struct_sub, descriptor=desc_dest)
+         IF (igroup /= igroup_root) THEN
+            IF (igroup_local == igroup_root) THEN
+               CALL cp_fm_copy_general(source=fm_sub, destination=fm_null, global_context=context_global)
             ELSE
-               desc_dest(:) = -1
+               IF (igroup_local == igroup) THEN
+                  CALL cp_fm_copy_general(source=fm_null, destination=fm_sub, global_context=context_global)
+               ELSE
+                  CALL cp_fm_copy_general(source=fm_null, destination=fm_null, global_context=context_global)
+               END IF
             END IF
-
-            CALL pdgemr2d(nrows_global, ncols_global, local_data(1, 1), 1, 1, desc_src, &
-                          local_data(1, 1), 1, 1, desc_dest, context_global)
          END IF
       END DO
 
       CALL timestop(handle)
-#else
-      CPASSERT(ASSOCIATED(fm_sub))
-      MARK_USED(fm_struct_sub)
-      MARK_USED(blacs_env_global)
-      MARK_USED(nsubgroups)
-      MARK_USED(subgroup)
-#endif
    END SUBROUTINE tddfpt_fm_broadcast_to_all_subgroups
 
 ! **************************************************************************************************
