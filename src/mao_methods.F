@@ -1020,10 +1020,11 @@ CONTAINS
 !> \param molecular ...
 !> \param max_iter ...
 !> \param eps_grad ...
+!> \param nmao_external ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE mao_basis_simple(qs_env, mao_coef, ref_basis_set, pmat_external, smat_external, &
-                               molecular, max_iter, eps_grad, unit_nr)
+                               molecular, max_iter, eps_grad, nmao_external, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef
       CHARACTER(len=*), OPTIONAL                         :: ref_basis_set
@@ -1032,17 +1033,18 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
       INTEGER, INTENT(IN), OPTIONAL                      :: max_iter
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_grad
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: nmao_external
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_basis_simple', &
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=10)                                  :: mao_basis_set
-      INTEGER                                            :: handle, iab, ikind, ispin, iter, iw, &
-                                                            mao_max_iter, natom, nbas, nimages, &
-                                                            nkind, nmao, nspin
+      INTEGER                                            :: handle, iab, iatom, ikind, ispin, iter, &
+                                                            iw, mao_max_iter, natom, nbas, &
+                                                            nimages, nkind, nmao, nspin
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      LOGICAL                                            :: molecule
+      LOGICAL                                            :: do_nmao_external, molecule
       REAL(KIND=dp)                                      :: a1, a2, alpha, an, beta, electra(2), &
                                                             eps_filter, eps_fun, fa1, fa2, fnnew, &
                                                             fnold, fval, grad_norm, mao_eps_grad
@@ -1098,6 +1100,12 @@ CONTAINS
       END IF
       eps_fun = 10._dp*mao_eps_grad
 
+      do_nmao_external = .FALSE.
+      ! external number of MAOs per atom
+      IF (PRESENT(nmao_external)) THEN
+         do_nmao_external = .TRUE.
+      END IF
+
       IF (iw > 0) THEN
          WRITE (iw, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
          WRITE (UNIT=iw, FMT="(T37,A)") "MAO BASIS"
@@ -1129,7 +1137,11 @@ CONTAINS
                WRITE (UNIT=iw, FMT="(T2,A,I4)") &
                   "WARNING: No MAO basis set associated with Kind ", ikind
             ELSE
-               CALL get_qs_kind(qs_kind_set(ikind), mao=nmao)
+               IF (do_nmao_external) THEN
+                  nmao = nmao_external(ikind)
+               ELSE
+                  CALL get_qs_kind(qs_kind_set(ikind), mao=nmao)
+               END IF
                nbas = mao_basis_set_list(ikind)%gto_basis_set%nsgf
                WRITE (UNIT=iw, FMT="(T2,A,I4,T30,A,I2,T56,A,I10)") &
                   "MAO basis set Kind ", ikind, " Number of MAO:", nmao, " Number of BSF:", nbas
@@ -1177,14 +1189,23 @@ CONTAINS
       ALLOCATE (row_blk_sizes(natom), col_blk_sizes(natom))
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
                             basis=mao_basis_set_list)
-      CALL get_particle_set(particle_set, qs_kind_set, nmao=col_blk_sizes)
+      IF (do_nmao_external) THEN
+         DO iatom = 1, natom
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                                 kind_number=ikind)
+            col_blk_sizes(iatom) = nmao_external(ikind)
+         END DO
+      ELSE
+         CALL get_particle_set(particle_set, qs_kind_set, nmao=col_blk_sizes)
+      END IF
+
       ! check if MAOs have been specified
       DO iab = 1, natom
          IF (col_blk_sizes(iab) < 0) &
             CPABORT("Number of MAOs has to be specified in KIND section for all elements")
       END DO
       DO ispin = 1, nspin
-         ! coeficients
+         ! coefficients
          ALLOCATE (mao_coef(ispin)%matrix)
          CALL cp_dbcsr_init(mao_coef(ispin)%matrix)
          CALL cp_dbcsr_create(matrix=mao_coef(ispin)%matrix, &
@@ -1210,8 +1231,8 @@ CONTAINS
             CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
                               matrix_smm(1)%matrix, tmat, .FALSE.)
             IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(T2,A,T31,A,I2,T57,A,F12.8)") &
-                  "MAO Projection", "Spin:", ispin, "Completness:", fval/electra(ispin)
+               WRITE (UNIT=iw, FMT="(T2,A,T31,A,I2,T56,A,F12.8)") &
+                  "MAO Projection", "Spin:", ispin, "Completeness:", fval/electra(ispin)
             END IF
          END DO
          CALL cp_dbcsr_release(tmat)

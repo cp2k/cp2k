@@ -42,7 +42,8 @@ MODULE rpa_im_time
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_im_time'
 
    PUBLIC :: compute_mat_P_omega, &
-             setup_mat_for_mem_cut_3c
+             setup_mat_for_mem_cut_3c, &
+             communicate_buffer
 
 CONTAINS
 
@@ -60,9 +61,14 @@ CONTAINS
 !> \param mat_M_mu_Pnu_occ ...
 !> \param mat_M_mu_Pnu_virt ...
 !> \param matrix_s ...
+!> \param mao_coeff_occ ...
+!> \param mao_coeff_virt ...
+!> \param ispin ...
 !> \param mat_M_P_munu_occ ...
 !> \param mat_M_P_munu_virt ...
 !> \param mat_3c_overl_int_cut ...
+!> \param mat_3c_overl_int_mao_for_occ_cut ...
+!> \param mat_3c_overl_int_mao_for_virt_cut ...
 !> \param mat_dm_loc_occ_cut ...
 !> \param mat_dm_loc_virt_cut ...
 !> \param tau_wj_2d ...
@@ -95,8 +101,10 @@ CONTAINS
 !> \param my_group_L_starts_im_time ...
 !> \param my_group_L_sizes_im_time ...
 !> \param offset_combi_block ...
-!> \param starts_array_cm ...
-!> \param ends_array_cm ...
+!> \param starts_array_cm_mao_occ ...
+!> \param starts_array_cm_mao_virt ...
+!> \param ends_array_cm_mao_occ ...
+!> \param ends_array_cm_mao_virt ...
 !> \param mepos_P_from_RI_row ...
 !> \param row_from_LLL ...
 !> \param cycle_due_to_sparse_dm ...
@@ -105,12 +113,15 @@ CONTAINS
 !> \param non_zero_blocks_3c ...
 !> \param non_zero_blocks_3c_cut_col ...
 !> \param buffer_mat_M ...
+!> \param do_mao ...
 ! **************************************************************************************************
    SUBROUTINE compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
                                   fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                   mat_P_local, mat_P_global, mat_P_global_copy, mat_M_mu_Pnu_occ, &
-                                  mat_M_mu_Pnu_virt, matrix_s, mat_M_P_munu_occ, &
-                                  mat_M_P_munu_virt, mat_3c_overl_int_cut, mat_dm_loc_occ_cut, &
+                                  mat_M_mu_Pnu_virt, matrix_s, mao_coeff_occ, &
+                                  mao_coeff_virt, ispin, mat_M_P_munu_occ, &
+                                  mat_M_P_munu_virt, mat_3c_overl_int_cut, mat_3c_overl_int_mao_for_occ_cut, &
+                                  mat_3c_overl_int_mao_for_virt_cut, mat_dm_loc_occ_cut, &
                                   mat_dm_loc_virt_cut, tau_wj_2d, tj, tau_tj, e_fermi, eps_filter, &
                                   alpha, eps_filter_im_time, Eigenval, nmo, n_group_col, &
                                   group_size_P, num_integ_points, jquad, cut_memory, cut_RI, unit_nr, &
@@ -120,10 +131,11 @@ CONTAINS
                                   starts_array_prim_fullcol, ends_array_prim_fullcol, &
                                   starts_array_prim_fullrow, ends_array_prim_fullrow, &
                                   my_group_L_starts_im_time, my_group_L_sizes_im_time, &
-                                  offset_combi_block, starts_array_cm, &
-                                  ends_array_cm, mepos_P_from_RI_row, row_from_LLL, &
+                                  offset_combi_block, starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+                                  ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
+                                  mepos_P_from_RI_row, row_from_LLL, &
                                   cycle_due_to_sparse_dm, multiply_needed_occ, multiply_needed_virt, &
-                                  non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M)
+                                  non_zero_blocks_3c, non_zero_blocks_3c_cut_col, buffer_mat_M, do_mao)
 
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_P_omega
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_scaled_dm_occ_tau, &
@@ -132,10 +144,12 @@ CONTAINS
       TYPE(cp_dbcsr_p_type)                              :: mat_P_local, mat_P_global, &
                                                             mat_P_global_copy
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_M_mu_Pnu_occ, mat_M_mu_Pnu_virt, &
-                                                            matrix_s
+                                                            matrix_s, mao_coeff_occ, mao_coeff_virt
+      INTEGER                                            :: ispin
       TYPE(cp_dbcsr_p_type)                              :: mat_M_P_munu_occ, mat_M_P_munu_virt
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut, &
-                                                            mat_dm_loc_occ_cut, mat_dm_loc_virt_cut
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_3c_overl_int_cut, &
+         mat_3c_overl_int_mao_for_occ_cut, mat_3c_overl_int_mao_for_virt_cut, mat_dm_loc_occ_cut, &
+         mat_dm_loc_virt_cut
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tau_wj_2d
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tj, tau_tj
       REAL(KIND=dp)                                      :: e_fermi, eps_filter, alpha, &
@@ -153,13 +167,17 @@ CONTAINS
                                                             my_group_L_sizes_im_time
       TYPE(two_dim_int_array), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: offset_combi_block
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm, &
-                                                            mepos_P_from_RI_row, row_from_LLL
+      INTEGER, DIMENSION(:)                              :: starts_array_cm_mao_occ, &
+                                                            starts_array_cm_mao_virt, &
+                                                            ends_array_cm_mao_occ, &
+                                                            ends_array_cm_mao_virt
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: mepos_P_from_RI_row, row_from_LLL
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: multiply_needed_occ, multiply_needed_virt
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut_col
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_mat_M
+      LOGICAL                                            :: do_mao
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_P_omega', &
          routineP = moduleN//':'//routineN
@@ -182,10 +200,11 @@ CONTAINS
 
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
                                     fm_mo_coeff_occ, fm_mo_coeff_virt, mat_dm_occ_global, mat_dm_virt_global, &
-                                    matrix_s, mat_3c_overl_int_cut, Eigenval, e_fermi, eps_filter, memory_info, &
+                                    matrix_s, mao_coeff_occ, mao_coeff_virt, ispin, &
+                                    mat_3c_overl_int_cut, Eigenval, e_fermi, eps_filter, memory_info, &
                                     first_cycle_im_time, unit_nr, para_env, cycle_due_to_sparse_dm, &
-                                    starts_array_cm, ends_array_cm, my_group_L_sizes_im_time, cut_memory, &
-                                    cut_RI, jquad)
+                                    starts_array_cm_mao_occ, starts_array_cm_mao_virt, ends_array_cm_mao_occ, &
+                                    ends_array_cm_mao_virt, my_group_L_sizes_im_time, cut_memory, cut_RI, jquad, do_mao)
 
          CALL timeset(routineN//"_im_time_repl_subgr", handle4)
 
@@ -196,7 +215,7 @@ CONTAINS
          DO j_mem = 1, cut_memory
 
             CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_virt_global(jquad)%matrix, nmo, &
-                                          mat_dm_loc_virt_cut, starts_array_cm, ends_array_cm, &
+                                          mat_dm_loc_virt_cut, starts_array_cm_mao_virt, ends_array_cm_mao_virt, &
                                           j_mem, cut_memory, cut_RI, non_zero_blocks_3c, &
                                           non_zero_blocks_3c_cut_col, multiply_needed_virt)
 
@@ -205,7 +224,7 @@ CONTAINS
                IF (cycle_due_to_sparse_dm(i_mem, j_mem, jquad)) CYCLE
 
                CALL replicate_dm_to_subgroup(para_env, para_env_sub, mat_dm_occ_global(jquad)%matrix, nmo, &
-                                             mat_dm_loc_occ_cut, starts_array_cm, ends_array_cm, &
+                                             mat_dm_loc_occ_cut, starts_array_cm_mao_occ, ends_array_cm_mao_occ, &
                                              i_mem, cut_memory, cut_RI, non_zero_blocks_3c, &
                                              non_zero_blocks_3c_cut_col, multiply_needed_occ)
 
@@ -220,7 +239,7 @@ CONTAINS
 
                      ! D^occ*(munuP)
                      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix, &
-                                            mat_3c_overl_int_cut(i_cut_RI, j_mem)%matrix, &
+                                            mat_3c_overl_int_mao_for_occ_cut(i_cut_RI, j_mem)%matrix, &
                                             0.0_dp, mat_M_mu_Pnu_occ(i_cut_RI)%matrix, &
                                             ! first_row=starts_array_cm(i_mem), &
                                             ! last_row=ends_array_cm(i_mem), &
@@ -235,7 +254,7 @@ CONTAINS
 
                      ! D^virt*(munuP)
                      CALL cp_dbcsr_multiply("N", "N", alpha/2.0_dp, mat_dm_loc_virt_cut(i_cut_RI, j_mem)%matrix, &
-                                            mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix, &
+                                            mat_3c_overl_int_mao_for_virt_cut(i_cut_RI, i_mem)%matrix, &
                                             0.0_dp, mat_M_mu_Pnu_virt(i_cut_RI)%matrix, &
                                             ! first_row=starts_array_cm(j_mem), &
                                             ! last_row=ends_array_cm(j_mem), &
@@ -398,7 +417,7 @@ CONTAINS
       TYPE(cp_dbcsr_type), POINTER                       :: mat_dm_global
       INTEGER                                            :: nmo
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_dm_loc_cut
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm
+      INTEGER, DIMENSION(:)                              :: starts_array_cm, ends_array_cm
       INTEGER                                            :: i_mem, cut_memory, cut_RI
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: non_zero_blocks_3c_cut
@@ -1231,6 +1250,9 @@ CONTAINS
 !> \param mat_dm_occ_global ...
 !> \param mat_dm_virt_global ...
 !> \param matrix_s ...
+!> \param mao_coeff_occ ...
+!> \param mao_coeff_virt ...
+!> \param ispin ...
 !> \param mat_3c_overl_int_cut ...
 !> \param Eigenval ...
 !> \param e_fermi ...
@@ -1240,19 +1262,24 @@ CONTAINS
 !> \param unit_nr ...
 !> \param para_env ...
 !> \param cycle_due_to_sparse_dm ...
-!> \param starts_array_cm ...
-!> \param ends_array_cm ...
+!> \param starts_array_cm_mao_occ ...
+!> \param starts_array_cm_mao_virt ...
+!> \param ends_array_cm_mao_occ ...
+!> \param ends_array_cm_mao_virt ...
 !> \param my_group_L_sizes_im_time ...
 !> \param cut_memory ...
 !> \param cut_RI ...
 !> \param jquad ...
+!> \param do_mao ...
 ! **************************************************************************************************
    SUBROUTINE compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
                                     fm_mo_coeff_occ, fm_mo_coeff_virt, mat_dm_occ_global, mat_dm_virt_global, &
-                                    matrix_s, mat_3c_overl_int_cut, Eigenval, e_fermi, eps_filter, memory_info, &
+                                    matrix_s, mao_coeff_occ, mao_coeff_virt, ispin, &
+                                    mat_3c_overl_int_cut, Eigenval, e_fermi, eps_filter, memory_info, &
                                     first_cycle_im_time, unit_nr, para_env, cycle_due_to_sparse_dm, &
-                                    starts_array_cm, ends_array_cm, my_group_L_sizes_im_time, cut_memory, &
-                                    cut_RI, jquad)
+                                    starts_array_cm_mao_occ, starts_array_cm_mao_virt, ends_array_cm_mao_occ, &
+                                    ends_array_cm_mao_virt, my_group_L_sizes_im_time, cut_memory, &
+                                    cut_RI, jquad, do_mao)
 
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
@@ -1260,7 +1287,8 @@ CONTAINS
       INTEGER                                            :: num_integ_points, nmo
       TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_dm_occ_global, mat_dm_virt_global, &
-                                                            matrix_s
+                                                            matrix_s, mao_coeff_occ, mao_coeff_virt
+      INTEGER                                            :: ispin
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       REAL(KIND=dp)                                      :: e_fermi, eps_filter
@@ -1268,16 +1296,19 @@ CONTAINS
       INTEGER                                            :: unit_nr
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm, &
-                                                            my_group_L_sizes_im_time
+      INTEGER, DIMENSION(:) :: starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+         ends_array_cm_mao_occ, ends_array_cm_mao_virt, my_group_L_sizes_im_time
       INTEGER                                            :: cut_memory, cut_RI, jquad
+      LOGICAL                                            :: do_mao
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i_global, iiB, iquad, jjB, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+                                                            ncol_local, nmao_occ, nmao_virt, &
+                                                            nrow_local, size_dm_occ, size_dm_virt
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_mao_occ, col_indices, &
+                                                            row_indices
       REAL(KIND=dp)                                      :: tau, tau_old
 
       CALL timeset(routineN, handle)
@@ -1359,11 +1390,27 @@ CONTAINS
 
       END IF
 
-      CALL cp_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+      size_dm_occ = nmo
+      size_dm_virt = nmo
+
+      ! per default, dont do MAOs
+      IF (do_mao) THEN
+
+         CALL cp_dbcsr_get_info(mao_coeff_occ(ispin)%matrix, &
+                                nfullcols_total=nmao_occ)
+         size_dm_occ = nmao_occ
+
+         CALL cp_dbcsr_get_info(mao_coeff_virt(ispin)%matrix, &
+                                nfullcols_total=nmao_virt)
+         size_dm_virt = nmao_virt
+
+      END IF
+
+      CALL cp_gemm(transa="N", transb="T", m=size_dm_occ, n=size_dm_occ, k=nmo, alpha=1.0_dp, &
                    matrix_a=fm_mo_coeff_occ, matrix_b=fm_mo_coeff_occ, beta=0.0_dp, &
                    matrix_c=fm_scaled_dm_occ_tau(jquad)%matrix)
 
-      CALL cp_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+      CALL cp_gemm(transa="N", transb="T", m=size_dm_virt, n=size_dm_virt, k=nmo, alpha=1.0_dp, &
                    matrix_a=fm_mo_coeff_virt, matrix_b=fm_mo_coeff_virt, beta=0.0_dp, &
                    matrix_c=fm_scaled_dm_virt_tau(jquad)%matrix)
 
@@ -1377,9 +1424,20 @@ CONTAINS
 
             ALLOCATE (mat_dm_occ_global(iquad)%matrix)
             CALL cp_dbcsr_init(mat_dm_occ_global(iquad)%matrix)
-            CALL cp_dbcsr_create(matrix=mat_dm_occ_global(iquad)%matrix, &
-                                 template=matrix_s(1)%matrix, &
-                                 matrix_type=dbcsr_type_no_symmetry)
+            ! per default, dont do MAOs
+            IF (do_mao) THEN
+               CALL cp_dbcsr_get_info(mao_coeff_occ(ispin)%matrix, &
+                                      col_blk_size=blk_sizes_mao_occ)
+               CALL cp_dbcsr_create(matrix=mat_dm_occ_global(iquad)%matrix, &
+                                    template=matrix_s(1)%matrix, &
+                                    row_blk_size=blk_sizes_mao_occ, &
+                                    col_blk_size=blk_sizes_mao_occ, nze=0, &
+                                    matrix_type=dbcsr_type_no_symmetry)
+            ELSE
+               CALL cp_dbcsr_create(matrix=mat_dm_occ_global(iquad)%matrix, &
+                                    template=matrix_s(1)%matrix, &
+                                    matrix_type=dbcsr_type_no_symmetry)
+            END IF
 
          END DO
 
@@ -1411,8 +1469,9 @@ CONTAINS
 
       CALL get_cycle_due_to_sparse_dm(cycle_due_to_sparse_dm, mat_dm_occ_global, mat_dm_virt_global, &
                                       mat_3c_overl_int_cut, num_integ_points, cut_memory, cut_RI, &
-                                      starts_array_cm, ends_array_cm, my_group_L_sizes_im_time, &
-                                      para_env, jquad)
+                                      starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+                                      ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
+                                      my_group_L_sizes_im_time, para_env, jquad)
 
       IF (memory_info) THEN
          CALL print_occupation_2c(mat_dm_occ_global(jquad)%matrix, unit_nr, "D_occ(it)", para_env, one_number=.TRUE.)
@@ -1432,23 +1491,26 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param cut_memory ...
 !> \param cut_RI ...
-!> \param starts_array_cm ...
-!> \param ends_array_cm ...
+!> \param starts_array_cm_mao_occ ...
+!> \param starts_array_cm_mao_virt ...
+!> \param ends_array_cm_mao_occ ...
+!> \param ends_array_cm_mao_virt ...
 !> \param my_group_L_sizes_im_time ...
 !> \param para_env ...
 !> \param jquad ...
 ! **************************************************************************************************
    SUBROUTINE get_cycle_due_to_sparse_dm(cycle_due_to_sparse_dm, mat_dm_occ_global, mat_dm_virt_global, &
                                          mat_3c_overl_int_cut, num_integ_points, cut_memory, cut_RI, &
-                                         starts_array_cm, ends_array_cm, my_group_L_sizes_im_time, &
-                                         para_env, jquad)
+                                         starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+                                         ends_array_cm_mao_occ, ends_array_cm_mao_virt, &
+                                         my_group_L_sizes_im_time, para_env, jquad)
 
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: cycle_due_to_sparse_dm
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_dm_occ_global, mat_dm_virt_global
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut
       INTEGER                                            :: num_integ_points, cut_memory, cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm, &
-                                                            my_group_L_sizes_im_time
+      INTEGER, DIMENSION(:) :: starts_array_cm_mao_occ, starts_array_cm_mao_virt, &
+         ends_array_cm_mao_occ, ends_array_cm_mao_virt, my_group_L_sizes_im_time
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: jquad
 
@@ -1478,12 +1540,12 @@ CONTAINS
       ! for occ
       CALL get_non_zero_blocks_dm(mat_dm_occ_global, non_zero_blocks_in_dm_occ, &
                                   cut_memory, natom, jquad, &
-                                  starts_array_cm, ends_array_cm, para_env)
+                                  starts_array_cm_mao_occ, ends_array_cm_mao_occ, para_env)
 
       ! for virt
       CALL get_non_zero_blocks_dm(mat_dm_virt_global, non_zero_blocks_in_dm_virt, &
                                   cut_memory, natom, jquad, &
-                                  starts_array_cm, ends_array_cm, para_env)
+                                  starts_array_cm_mao_virt, ends_array_cm_mao_virt, para_env)
 
       ALLOCATE (cycle_due_to_sparse_dm_occ_tmp(cut_memory, cut_memory, num_integ_points))
       ALLOCATE (cycle_due_to_sparse_dm_virt_tmp(cut_memory, cut_memory, num_integ_points))
@@ -1506,7 +1568,8 @@ CONTAINS
                DO j_mem = 1, cut_memory
 
                   ! check whether row index is restricted due to mem_cut and col index due to sparse virt dm
-                  IF (row_offset+row_size-1 >= starts_array_cm(i_mem) .AND. row_offset < ends_array_cm(i_mem) .AND. &
+                  IF (row_offset+row_size-1 >= starts_array_cm_mao_virt(i_mem) .AND. &
+                      row_offset < ends_array_cm_mao_virt(i_mem) .AND. &
                       ANY(non_zero_blocks_in_dm_virt(jquad, j_mem, :) == col)) THEN
 
                      cycle_due_to_sparse_dm_virt_tmp(j_mem, i_mem, jquad) = 1
@@ -1515,7 +1578,8 @@ CONTAINS
 
                   ! check whether row index is restricted due to sparse occ dm and col index due to j_mem
                   ! use the fact that mat_3c_overl_int_cut is symmetric (neglecting the combined col index)
-                  IF (row_offset+row_size-1 >= starts_array_cm(i_mem) .AND. row_offset < ends_array_cm(i_mem) .AND. &
+                  IF (row_offset+row_size-1 >= starts_array_cm_mao_occ(i_mem) .AND. &
+                      row_offset < ends_array_cm_mao_occ(i_mem) .AND. &
                       ANY(non_zero_blocks_in_dm_occ(jquad, j_mem, :) == col)) THEN
 
                      cycle_due_to_sparse_dm_occ_tmp(i_mem, j_mem, jquad) = 1
@@ -1593,7 +1657,7 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_dm_global
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: non_zero_blocks_in_dm
       INTEGER                                            :: cut_memory, natom, jquad
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm
+      INTEGER, DIMENSION(:)                              :: starts_array_cm, ends_array_cm
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_non_zero_blocks_dm', &
@@ -2402,9 +2466,6 @@ CONTAINS
 
                   col_offset_data_block = offset_combi_block(row_rec_prim, col_rec_prim)
 
-!                 data_block(row_offset_data_block+1,col_offset_data_block+1:col_offset_data_block+block_size) = &
-!                   buffer_rec(imepos)%msg(offset_rec+1:offset_rec+block_size)
-
                   buffer_mat_M(row_offset_data_block+1, col_offset_data_block+1:col_offset_data_block+block_size) = &
                      buffer_rec(imepos)%msg(offset_rec+1:offset_rec+block_size)
 
@@ -2457,7 +2518,7 @@ CONTAINS
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_3c_overl_int_cut
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
       INTEGER                                            :: cut_memory, cut_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_array_cm, ends_array_cm, &
+      INTEGER, DIMENSION(:)                              :: starts_array_cm, ends_array_cm, &
                                                             my_group_L_sizes_im_time
       REAL(KIND=dp)                                      :: eps_filter
 
@@ -2540,21 +2601,31 @@ CONTAINS
 !> \param buffer_rec ...
 !> \param buffer_send ...
 !> \param req_array ...
+!> \param do_indx ...
+!> \param do_msg ...
 ! **************************************************************************************************
-   SUBROUTINE communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send, req_array)
+   SUBROUTINE communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send, &
+                                 req_array, do_indx, do_msg)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_entries_rec, num_entries_send
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       INTEGER, DIMENSION(:, :), POINTER                  :: req_array
+      LOGICAL, OPTIONAL                                  :: do_indx, do_msg
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'communicate_buffer', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, imepos, rec_counter, send_counter
+      LOGICAL                                            :: my_do_indx, my_do_msg
 
       CALL timeset(routineN, handle)
+
+      my_do_indx = .TRUE.
+      IF (PRESENT(do_indx)) my_do_indx = do_indx
+      my_do_msg = .TRUE.
+      IF (PRESENT(do_msg)) my_do_msg = do_msg
 
       IF (para_env%num_pe > 1) THEN
 
@@ -2564,25 +2635,36 @@ CONTAINS
          DO imepos = 0, para_env%num_pe-1
             IF (num_entries_rec(imepos) > 0) THEN
                rec_counter = rec_counter+1
-               CALL mp_irecv(buffer_rec(imepos)%indx, imepos, para_env%group, req_array(rec_counter, 3), tag=4)
-            END IF
-            IF (num_entries_rec(imepos) > 0) THEN
-               CALL mp_irecv(buffer_rec(imepos)%msg, imepos, para_env%group, req_array(rec_counter, 4), tag=7)
+               IF (my_do_indx) THEN
+                  CALL mp_irecv(buffer_rec(imepos)%indx, imepos, para_env%group, req_array(rec_counter, 3), tag=4)
+               END IF
+               IF (my_do_msg) THEN
+                  CALL mp_irecv(buffer_rec(imepos)%msg, imepos, para_env%group, req_array(rec_counter, 4), tag=7)
+               END IF
             END IF
          END DO
 
          DO imepos = 0, para_env%num_pe-1
             IF (num_entries_send(imepos) > 0) THEN
                send_counter = send_counter+1
-               CALL mp_isend(buffer_send(imepos)%indx, imepos, para_env%group, req_array(send_counter, 1), tag=4)
-            END IF
-            IF (num_entries_send(imepos) > 0) THEN
-               CALL mp_isend(buffer_send(imepos)%msg, imepos, para_env%group, req_array(send_counter, 2), tag=7)
+               IF (my_do_indx) THEN
+                  CALL mp_isend(buffer_send(imepos)%indx, imepos, para_env%group, req_array(send_counter, 1), tag=4)
+               END IF
+               IF (my_do_msg) THEN
+                  CALL mp_isend(buffer_send(imepos)%msg, imepos, para_env%group, req_array(send_counter, 2), tag=7)
+               END IF
             END IF
          END DO
 
-         CALL mp_waitall(req_array(1:send_counter, 1:2))
-         CALL mp_waitall(req_array(1:rec_counter, 3:4))
+         IF (my_do_indx) THEN
+            CALL mp_waitall(req_array(1:send_counter, 1))
+            CALL mp_waitall(req_array(1:rec_counter, 3))
+         END IF
+
+         IF (my_do_msg) THEN
+            CALL mp_waitall(req_array(1:send_counter, 2))
+            CALL mp_waitall(req_array(1:rec_counter, 4))
+         END IF
 
       ELSE
 

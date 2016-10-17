@@ -47,7 +47,8 @@ MODULE mp2_types
    PUBLIC :: mp2_env_create, mp2_env_release, mp2_biel_type, &
              pair_list_type_mp2, &
              one_dim_int_array, &
-             two_dim_int_array
+             two_dim_int_array, &
+             two_dim_real_array
 
    INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
@@ -133,11 +134,16 @@ MODULE mp2_types
 
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info, do_mao
-      REAL(KIND=dp)            :: eps_filter_im_time
-      INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude
+      LOGICAL                  :: memory_info, do_mao, opt_sc_dm_occ, opt_sc_dm_virt
+      REAL(KIND=dp)            :: eps_filter_im_time, eps_grad_occ, eps_grad_virt
+      INTEGER                  :: group_size_P, group_size_3c, num_points_per_magnitude, &
+                                  max_iter_occ, max_iter_virt
       INTEGER, ALLOCATABLE, DIMENSION(:) :: sizes_array_cm, starts_array_cm, &
-                                            ends_array_cm
+                                            ends_array_cm, sizes_array_cm_mao_occ, &
+                                            starts_array_cm_mao_occ, ends_array_cm_mao_occ, &
+                                            sizes_array_cm_mao_virt, starts_array_cm_mao_virt, &
+                                            ends_array_cm_mao_virt
+      INTEGER, DIMENSION(:), POINTER     :: nmao_occ, nmao_virt
    END TYPE
 
    TYPE ri_g0w0_type
@@ -255,6 +261,10 @@ MODULE mp2_types
 
    TYPE two_dim_int_array
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: array
+   END TYPE
+
+   TYPE two_dim_real_array
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: array
    END TYPE
 
    TYPE offset_row_col_from_LLL

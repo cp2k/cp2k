@@ -615,8 +615,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "RI_G0W0", &
                           description="Parameters influencing the RI-G0W0 method", &
-                          n_keywords=12, n_subsections=0, repeats=.FALSE., &
-                          citations=(/DelBen2013/))
+                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -862,14 +861,14 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "IM_TIME", &
                           description="Parameters influencing the RI-G0W0 method", &
-                          n_keywords=12, n_subsections=0, repeats=.FALSE., &
-                          citations=(/DelBen2013/))
+                          n_keywords=12, n_subsections=1, repeats=.FALSE.)
 
-      NULLIFY (keyword)
+      NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, name="MEMORY_CUT", &
                           description="Cuts the memory of the M_munu_P^occ/virt matrix by the factor given. "// &
@@ -892,7 +891,7 @@ CONTAINS
                           description="Decide whether to use modified atomic orbitals to reduce the "// &
                           "prefactor of the quadratic-scaling step in im. time RPA. The number of MAOs"// &
                           "per atom have to be specified in the KIND section for all elements.", &
-                          usage="MEMORY_INFO", &
+                          usage="MAO TRUE", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -932,6 +931,91 @@ CONTAINS
          "for Mocc/virt(it)=(abP)*D_ad^occ/virt(it) is determined by EPS_FILTER in WFC_GPW. Default should be kept.", &
          usage="EPS_FILTER_IM_TIME 1.0E-10 ", type_of_var=real_t, &
          default_r_val=1.0E-08_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! here we generate a RPA imag. time subsection to use
+      CALL create_mao_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_mao_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_mao_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, "MAO", &
+                          description="Parameters influencing the modified atomic orbitals for cubic RPA. "// &
+                          "Is only turned on if DO_MAO TRUE in IM_TIME section.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="MAO_OCC", &
+                          description="Specifies the number of MAOs per atom kind for the scaled occupied "// &
+                          "density matrix. The first MAO number corresponds to the first atom kind. If MAO_OCC "// &
+                          "is not specified, no MAOs are done for the occupied density matrix.", &
+                          usage="MAO_OCC 10 14 6", type_of_var=integer_t, n_var=-1, default_i_vals=(/-1/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MAO_VIRT", &
+                          description="Specifies the number of MAOs per atom kind for the scaled virtual "// &
+                          "density matrix. The first MAO number corresponds to the first atom kind. If MAO_OCC "// &
+                          "is not specified, no MAOs are done for the virtual density matrix.", &
+                          usage="MAO_VIRT 10 14 6", type_of_var=integer_t, n_var=-1, default_i_vals=(/-1/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="MAX_ITER_OCC", &
+                          description="Number of MAO iterations for the MAO basis for the occupied density matrix.", &
+                          usage="MAX_ITER_OCC 1000", default_i_val=200)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="MAX_ITER_VIRT", &
+                          description="Number of MAO iterations for the MAO basis for the virtual density matrix.", &
+                          usage="MAX_ITER_VIRT 1000", default_i_val=200)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="EPS_GRAD_OCC", &
+                          description="Convergence criterion for creating the MAO basis for the occupied density matrix.", &
+                          usage="EPS_GRAD_OCC 1.0E-8", type_of_var=real_t, default_r_val=1.0E-07_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="EPS_GRAD_VIRT", &
+                          description="Convergence criterion for creating the MAO basis for the occupied density matrix.", &
+                          usage="EPS_GRAD_VIRT 1.0E-8", type_of_var=real_t, default_r_val=1.0E-07_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="OPTIMIZE_SCALED_OCC_DM", &
+                          variants=(/"OPT_SC_DM_OCC"/), &
+                          description="If switched on, the MAOs are optimized to a scaled occupied density matrix.", &
+                          usage="OPT_SC_DM_OCC TRUE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="OPTIMIZE_SCALED_VIRT_DM", &
+                          variants=(/"OPT_SC_DM_VIRT"/), &
+                          description="If switched on, the MAOs are optimized to a scaled virtual density matrix.", &
+                          usage="OPT_SC_DM_VIRT TRUE", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

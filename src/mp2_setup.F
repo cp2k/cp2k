@@ -169,6 +169,24 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%memory_info)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO", &
                                 l_val=mp2_env%ri_rpa_im_time%do_mao)
+
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%MAO_OCC", &
+                                i_vals=mp2_env%ri_rpa_im_time%nmao_occ)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%MAO_VIRT", &
+                                i_vals=mp2_env%ri_rpa_im_time%nmao_virt)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%MAX_ITER_OCC", &
+                                i_val=mp2_env%ri_rpa_im_time%max_iter_occ)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%MAX_ITER_VIRT", &
+                                i_val=mp2_env%ri_rpa_im_time%max_iter_virt)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%EPS_GRAD_OCC", &
+                                r_val=mp2_env%ri_rpa_im_time%eps_grad_occ)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%EPS_GRAD_VIRT", &
+                                r_val=mp2_env%ri_rpa_im_time%eps_grad_virt)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%OPTIMIZE_SCALED_OCC_DM", &
+                                l_val=mp2_env%ri_rpa_im_time%opt_sc_dm_occ)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%MAO%OPTIMIZE_SCALED_VIRT_DM", &
+                                l_val=mp2_env%ri_rpa_im_time%opt_sc_dm_virt)
+
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%GROUP_SIZE_3c", &
                                 i_val=mp2_env%ri_rpa_im_time%group_size_3c)
       CALL section_vals_val_get(mp2_section, "RI_RPA%IM_TIME%GROUP_SIZE_P", &
