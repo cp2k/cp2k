@@ -1341,6 +1341,8 @@ CONTAINS
 
       energy_dummy%ex = 0.0_dp
 
+      do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
+
       ! in most cases, we calculate the exchange self-energy here. But if we do only RI for
       ! the exchange self-energy, we do not calculate exchange here
       IF (.NOT. do_ri_Sigma_x .OR. do_mix_exchange) THEN
@@ -1368,8 +1370,6 @@ CONTAINS
       IF (do_admm_rpa) THEN
          CALL admm_mo_merge_ks_matrix(qs_env)
       END IF
-
-      do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
 
       IF (do_mix_exchange) THEN
          frac_exx = mp2_env%ri_g0w0%frac_exx
