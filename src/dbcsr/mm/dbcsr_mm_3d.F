@@ -2292,9 +2292,13 @@ CONTAINS
       ! Take into account when ticks are not multiple of 3D layers
       leftovers_k = MOD(nvirt_k, nranks3D)
       leftovers_first_k = leftovers_k*myrank3D
+      leftovers_start_k = 0
+      leftovers_shift_k = 0
       IF (leftovers_k .GT. 0) THEN
-         leftovers_start_k = (nvirt_k/nranks3D)*(myrank3D/leftovers_k)*leftovers_k
-         leftovers_shift_k = nranks3D-leftovers_k*(MOD(myrank3D, leftovers_k)+1)
+         ! This is only for nrows3D==ncols3D
+         leftovers_start_k = (nvirt_k/nrows3D-1)*(myrank3D/nrows3D)- &
+                             (leftovers_k/nrows3D-1)*(myrank3D/nrows3D)
+         leftovers_shift_k = nranks3D*(leftovers_k/nrows3D)-leftovers_k*(MOD(myrank3D, nrows3D)+1)
       ENDIF
       ! Ticks bounds
       start_k = (nvirt_k/nranks3D)*myrank3D
