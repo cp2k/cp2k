@@ -59,7 +59,7 @@ MODULE dbcsr_data_methods
              dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
              dbcsr_scalar_get_type, dbcsr_scalar_set_type, &
              dbcsr_scalar_fill_all, dbcsr_scalar_get_value, &
-             dbcsr_data_valid
+             dbcsr_data_valid, dbcsr_data_exists
    PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_hold, &
              dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type
    PUBLIC :: dbcsr_get_data, &
@@ -242,12 +242,15 @@ CONTAINS
 !>                            default is to keep it
 !> \param[in] zero_pad        (optional) pad new data with zeros
 !> \param[in] factor          (optional) increase size by this factor
+!> \param area_resize ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_data_ensure_size(area, data_size, nocopy, zero_pad, factor)
+   SUBROUTINE dbcsr_data_ensure_size(area, data_size, nocopy, zero_pad, factor, &
+                                     area_resize)
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: area
       INTEGER, INTENT(IN)                                :: data_size
       LOGICAL, INTENT(IN), OPTIONAL                      :: nocopy, zero_pad
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: factor
+      TYPE(dbcsr_data_obj), INTENT(INOUT), OPTIONAL      :: area_resize
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
          routineP = moduleN//':'//routineN
@@ -262,6 +265,18 @@ CONTAINS
       IF (.NOT. ASSOCIATED(area%d)) &
          CPABORT("Data area must be setup.")
       current_size = dbcsr_data_get_size(area)
+
+      IF (PRESENT(area_resize)) THEN
+         ! Sanity check
+         IF (.NOT. dbcsr_data_valid(area_resize)) &
+            CPABORT("Previous data area must be setup.")
+         IF (dbcsr_data_exists(area_resize)) &
+            CPABORT("Previous data area must be not associated.")
+         IF (area%d%memory_type%acc_devalloc) &
+            CPABORT("Cannot use dev memory with previous data area.")
+         IF (ASSOCIATED(area%d%memory_type%pool)) &
+            CPABORT("Cannot use memory pool with previous data area.")
+      ENDIF
 
       ! allocate some more as padding for libsmm kernels which read over the end.
       IF (data_size .GT. 0) THEN
@@ -289,8 +304,15 @@ CONTAINS
       IF (PRESENT(zero_pad)) pad = zero_pad
 
       IF (dbcsr_data_exists(area)) THEN
-         IF (nocp .AND. dbcsr_data_get_size(area) <= 1) &
-            CALL internal_data_deallocate(area%d)
+         IF (nocp .AND. dbcsr_data_get_size(area) <= 1) THEN
+            IF (PRESENT(area_resize)) THEN
+               CALL dbcsr_data_set_pointer(area_resize, &
+                                           dbcsr_data_get_size(area), 1, area)
+               CALL dbcsr_data_clear_pointer(area)
+            ELSE
+               CALL internal_data_deallocate(area%d)
+            ENDIF
+         ENDIF
       END IF
 
       IF (.NOT. dbcsr_data_exists(area)) THEN
@@ -311,35 +333,89 @@ CONTAINS
       ELSE
          SELECT CASE (area%d%data_type)
          CASE (dbcsr_type_int_8)
-            CALL ensure_array_size(area%d%i8, ub=wanted_size, &
-                                   memory_type=area%d%memory_type, &
-                                   nocopy=nocp, zero_pad=zero_pad, &
-                                   factor=factor)
+            IF (PRESENT(area_resize)) THEN
+               CALL ensure_array_size(area%d%i8, &
+                                      array_resize=area_resize%d%i8, &
+                                      ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ELSE
+               CALL ensure_array_size(area%d%i8, ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ENDIF
          CASE (dbcsr_type_int_4)
-            CALL ensure_array_size(area%d%i4, ub=wanted_size, &
-                                   memory_type=area%d%memory_type, &
-                                   nocopy=nocp, zero_pad=zero_pad, &
-                                   factor=factor)
+            IF (PRESENT(area_resize)) THEN
+               CALL ensure_array_size(area%d%i4, &
+                                      array_resize=area_resize%d%i4, &
+                                      ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ELSE
+               CALL ensure_array_size(area%d%i4, ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ENDIF
          CASE (dbcsr_type_real_8)
-            CALL ensure_array_size(area%d%r_dp, ub=wanted_size, &
-                                   memory_type=area%d%memory_type, &
-                                   nocopy=nocp, zero_pad=zero_pad, &
-                                   factor=factor)
+            IF (PRESENT(area_resize)) THEN
+               CALL ensure_array_size(area%d%r_dp, &
+                                      array_resize=area_resize%d%r_dp, &
+                                      ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ELSE
+               CALL ensure_array_size(area%d%r_dp, ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ENDIF
          CASE (dbcsr_type_real_4)
-            CALL ensure_array_size(area%d%r_sp, ub=wanted_size, &
-                                   memory_type=area%d%memory_type, &
-                                   nocopy=nocp, zero_pad=zero_pad, &
-                                   factor=factor)
+            IF (PRESENT(area_resize)) THEN
+               CALL ensure_array_size(area%d%r_sp, &
+                                      array_resize=area_resize%d%r_sp, &
+                                      ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ELSE
+               CALL ensure_array_size(area%d%r_sp, ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ENDIF
          CASE (dbcsr_type_complex_8)
-            CALL ensure_array_size(area%d%c_dp, ub=wanted_size, &
-                                   memory_type=area%d%memory_type, &
-                                   nocopy=nocp, zero_pad=zero_pad, &
-                                   factor=factor)
+            IF (PRESENT(area_resize)) THEN
+               CALL ensure_array_size(area%d%c_dp, &
+                                      array_resize=area_resize%d%c_dp, &
+                                      ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ELSE
+               CALL ensure_array_size(area%d%c_dp, ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ENDIF
          CASE (dbcsr_type_complex_4)
-            CALL ensure_array_size(area%d%c_sp, ub=wanted_size, &
-                                   memory_type=area%d%memory_type, &
-                                   nocopy=nocp, zero_pad=zero_pad, &
-                                   factor=factor)
+            IF (PRESENT(area_resize)) THEN
+               CALL ensure_array_size(area%d%c_sp, &
+                                      array_resize=area_resize%d%c_sp, &
+                                      ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ELSE
+               CALL ensure_array_size(area%d%c_sp, ub=wanted_size, &
+                                      memory_type=area%d%memory_type, &
+                                      nocopy=nocp, zero_pad=zero_pad, &
+                                      factor=factor)
+            ENDIF
          CASE default
             CPABORT("Invalid data type are supported")
          END SELECT

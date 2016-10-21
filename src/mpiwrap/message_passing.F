@@ -266,6 +266,7 @@ MODULE message_passing
          mp_isum_dv, &
          mp_isum_cv, &
          mp_isum_zv
+      MODULE PROCEDURE mp_isum_bv
    END INTERFACE
 
    INTERFACE mp_sum_partial
@@ -2662,24 +2663,19 @@ CONTAINS
 !>      mpi_allreduce
 ! **************************************************************************************************
    SUBROUTINE mp_sum_b(msg, gid)
-      LOGICAL, INTENT(INOUT)                   :: msg
-      INTEGER, INTENT(IN)                      :: gid
+      LOGICAL, INTENT(INOUT)                             :: msg
+      INTEGER, INTENT(IN)                                :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_b', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_b', routineP = moduleN//':'//routineN
 
-      INTEGER                                  :: handle, ierr, msglen
-#if defined(__parallel)
-      LOGICAL                                  :: res
-#endif
+      INTEGER                                            :: handle, ierr, msglen
 
       CALL mp_timeset(routineN, handle)
       ierr = 0
       msglen = 1
 #if defined(__parallel)
-      CALL mpi_allreduce(msg, res, msglen, MPI_LOGICAL, MPI_LOR, gid, ierr)
+      CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
-      msg = res
 #else
       MARK_USED(msg)
       MARK_USED(gid)
@@ -2696,32 +2692,70 @@ CONTAINS
 !>      mpi_allreduce
 ! **************************************************************************************************
    SUBROUTINE mp_sum_bv(msg, gid)
-      LOGICAL, DIMENSION(:), INTENT(INOUT)     :: msg
-      INTEGER, INTENT(IN)                      :: gid
+      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: msg
+      INTEGER, INTENT(IN)                                :: gid
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_bv', &
-                                     routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_bv', routineP = moduleN//':'//routineN
 
-      INTEGER                                  :: handle, ierr, msglen
-#if defined(__parallel)
-      LOGICAL, DIMENSION(:), ALLOCATABLE       :: res
-#endif
+      INTEGER                                            :: handle, ierr, msglen
 
       CALL mp_timeset(routineN, handle)
       ierr = 0
       msglen = SIZE(msg)
 #if defined(__parallel)
-      ALLOCATE (res(msglen))
-      CALL mpi_allreduce(msg, res, msglen, MPI_LOGICAL, MPI_LOR, gid, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
-      msg = res
-      DEALLOCATE (res)
+      IF (msglen .GT. 0) THEN
+         CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
+      ENDIF
 #else
       MARK_USED(msg)
       MARK_USED(gid)
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_sum_bv
+
+! **************************************************************************************************
+!> \brief Logical OR reduction
+!> \param[in,out] msg         Datum to perform inclusive disjunction (input)
+!>                            and resultant inclusive disjunction (output)
+!> \param[in] gid             Message passing environment identifier
+!> \param request ...
+!> \par MPI mapping
+!>      mpi_allreduce
+! **************************************************************************************************
+   SUBROUTINE mp_isum_bv(msg, gid, request)
+      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: msg
+      INTEGER, INTENT(IN)                                :: gid
+      INTEGER, INTENT(INOUT)                             :: request
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isum_bv', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ierr, msglen
+
+      CALL mp_timeset(routineN, handle)
+      ierr = 0
+      msglen = SIZE(msg)
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+      IF (msglen .GT. 0) THEN
+         CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, gid, request, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
+      ELSE
+         request = mp_request_null
+      ENDIF
+#else
+      MARK_USED(msg)
+      MARK_USED(gid)
+      MARK_USED(request)
+      CPABORT("mp_isum requires MPI-3 standard")
+#endif
+#else
+      MARK_USED(msg)
+      MARK_USED(gid)
+      MARK_USED(request)
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_isum_bv
 
 ! **************************************************************************************************
 !> \brief Opens a file

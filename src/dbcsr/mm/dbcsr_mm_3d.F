@@ -32,7 +32,7 @@ MODULE dbcsr_mm_3d
                                               use_mpi_exp,&
                                               use_mpi_filtering
    USE dbcsr_data_methods,              ONLY: &
-        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
+        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_exists, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_host2dev, dbcsr_data_init, &
         dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
         dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
@@ -113,8 +113,8 @@ MODULE dbcsr_mm_3d
    USE message_passing,                 ONLY: &
         mp_allgather, mp_alltoall, mp_bcast, mp_comm_free, mp_comm_null, mp_comm_split_direct, &
         mp_gather, mp_gatherv, mp_iallgather, mp_ibcast, mp_iscatter, mp_isendrecv, mp_isum, &
-        mp_request_null, mp_rget, mp_sendrecv, mp_sum, mp_testall, mp_wait, mp_waitall, &
-        mp_win_create, mp_win_flush_all, mp_win_free, mp_win_lock_all, mp_win_unlock_all
+        mp_request_null, mp_rget, mp_sendrecv, mp_testall, mp_wait, mp_waitall, mp_win_create, &
+        mp_win_flush_all, mp_win_free, mp_win_lock_all, mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
@@ -130,12 +130,13 @@ MODULE dbcsr_mm_3d
 
    TYPE dbcsr_buffer
       TYPE(dbcsr_data_obj), DIMENSION(:), ALLOCATABLE :: DATA
-      TYPE(dbcsr_data_obj)                            :: data_diag, data_red3D
+      TYPE(dbcsr_data_obj)                            :: data_diag, data_red3D, data_resize
       INTEGER                                         :: vprow, vpcol
       INTEGER                                         :: grp = mp_comm_null, & ! Global communicator
                                                          subgrp = mp_comm_null ! Communicator for A and B
       INTEGER                                         :: data_win, meta_win
       INTEGER, DIMENSION(:), POINTER                  :: meta => Null(), &
+                                                         meta_resize => Null(), &
                                                          meta_diag => Null(), &
                                                          meta_red3D => Null()
       INTEGER, DIMENSION(:, :), ALLOCATABLE           :: get_requests, &
@@ -177,6 +178,9 @@ MODULE dbcsr_mm_3d
 
    TYPE(dbcsr_layers_3D_C_reduction), SAVE :: layers_3D_C_reduction
 
+   LOGICAL, DIMENSION(2), TARGET, SAVE, PRIVATE       :: do_win_create_left, &
+                                                         do_win_create_right
+
    TYPE(dbcsr_data_obj), SAVE, PRIVATE :: local_data_scatter, local_data_product_scatter
    INTEGER, DIMENSION(idata:imeta), PRIVATE      :: local_size_scatter
    INTEGER, DIMENSION(:), SAVE, PRIVATE, POINTER :: meta_scatter => Null(), local_meta_scatter => Null(), &
@@ -207,6 +211,7 @@ MODULE dbcsr_mm_3d
    INTEGER, DIMENSION(8), PRIVATE  :: requests
    INTEGER, DIMENSION(4), PRIVATE  :: requests_diag
    INTEGER, DIMENSION(2), PRIVATE  :: requests_scatter
+   INTEGER, DIMENSION(2), PRIVATE  :: request_win_create
 
    PUBLIC :: multiply_3D, multiply_clusters
    PUBLIC :: release_layers_3d_C_reduction, buffers_release
@@ -321,7 +326,7 @@ CONTAINS
       LOGICAL :: do_bcast, do_crop, do_part_crop_col, do_part_crop_f_col, do_part_crop_f_row, &
          do_part_crop_l_col, do_part_crop_l_row, do_part_crop_row, do_scatter, do_symmetry, &
          do_virt, is_diagonal, tr
-      LOGICAL, DIMENSION(2)                              :: do_win_create
+      LOGICAL, DIMENSION(:), POINTER                     :: do_win_create
       REAL(kind=sp), DIMENSION(:), POINTER               :: local_max_norms, max_norms
       TYPE(dbcsr_buffer), POINTER                        :: buffer
       TYPE(dbcsr_data_obj)                               :: data_block
@@ -528,6 +533,7 @@ CONTAINS
          ALLOCATE (left_no_empty_images_displ(UBOUND(left_refs_meta_size, 2), nprocs))
          no_empty_images_displ => left_no_empty_images_displ
          do_scatter = .FALSE.
+         do_win_create => do_win_create_left
       ELSE
          ! merging over cols
          nimages_merged = ncols_images
@@ -574,6 +580,7 @@ CONTAINS
             meta_displ_cluster_scatter(1) = 0
          ENDIF
          local_size_scatter(:) = 0
+         do_win_create => do_win_create_right
       ENDIF
       !
       ! 3D communicator
@@ -722,7 +729,7 @@ CONTAINS
 !$OMP         meta_displ_cluster_scatter,meta_size_cluster_scatter,global_indices,&
 !$OMP         do_crop,do_part_crop_row,do_part_crop_col,block_row_bounds,block_col_bounds,&
 !$OMP         do_part_crop_f_row,do_part_crop_l_row,do_part_crop_f_col,do_part_crop_l_col,&
-!$OMP         f_row_f,l_row_l,f_col_f,l_col_l,nblocks)
+!$OMP         f_row_f,l_row_l,f_col_f,l_col_l,nblocks,request_win_create)
       ithread = 0
 !$    ithread = omp_get_thread_num()
       myt = ithread
@@ -983,25 +990,20 @@ CONTAINS
       CALL mp_iallgather(local_no_empty_images, no_empty_images, buffer%subgrp, request_no_empty_images)
       !
       ! Allocate data and meta buffers
-      do_win_create(:) = .TRUE.
+      do_win_create(:) = .NOT. buffer%has_rma_win
       IF (buffer%has_rma_win) THEN
-         IF (buffer%grp .EQ. grp .AND. dbcsr_data_get_type(buffer%data(1)) .EQ. data_type) THEN
-            do_win_create(1) = dbcsr_data_get_size(buffer%data(1)) .LT. (local_size(idata)+10)
-            do_win_create(2) = SIZE(buffer%meta) .LT. local_size(imeta)
+         IF (buffer%grp .NE. grp .OR. dbcsr_data_get_type(buffer%data(1)) .NE. data_type) THEN
+            do_win_create(:) = .TRUE.
          ENDIF
-         CALL timeset(routineN//"_win_check", handle2)
-         CALL mp_sum(do_win_create, buffer%subgrp)
-         CALL timestop(handle2)
-         IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
-         IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
-      ELSE
-         buffer%has_rma_win = .TRUE.
       ENDIF
       CALL buffer_init(buffer, data_type, &
                        local_size(idata), local_size(imeta), &
                        data_memory_type=memtype_mpi_buffer)
-      IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data(1), buffer%subgrp, buffer%data_win)
-      IF (do_win_create(2)) CALL mp_win_create(buffer%meta, buffer%subgrp, buffer%meta_win)
+      IF (buffer%has_rma_win) THEN
+         do_win_create(1) = do_win_create(1) .OR. dbcsr_data_exists(buffer%data_resize)
+         do_win_create(2) = do_win_create(2) .OR. ASSOCIATED(buffer%meta_resize)
+         CALL mp_isum(do_win_create, buffer%subgrp, request_win_create(irequests))
+      ENDIF
       buffer%grp = grp
       !
       IF (is_diagonal .AND. do_bcast) THEN
@@ -1978,7 +1980,11 @@ CONTAINS
       min_nimages = MIN(left_col_nimages, right_row_nimages)
       nvirt_k = left_npcols*left_col_nimages
       !
-      ! Set RMA windows for the original data
+      ! Check RMA windows creation for original data
+      CALL win_setup(buffers_orig%left, do_win_create_left, request_win_create(1))
+      CALL win_setup(buffers_orig%right, do_win_create_right, request_win_create(2))
+      !
+      ! Lock RMA windows
       CALL mp_win_lock_all(buffers_orig%left%data_win)
       CALL mp_win_lock_all(buffers_orig%left%meta_win)
       CALL mp_win_lock_all(buffers_orig%right%data_win)
@@ -2924,6 +2930,40 @@ CONTAINS
    END SUBROUTINE multiply_3D
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param buffer ...
+!> \param do_win_create ...
+!> \param request ...
+! **************************************************************************************************
+   SUBROUTINE win_setup(buffer, do_win_create, request)
+      TYPE(dbcsr_buffer), INTENT(INOUT)                  :: buffer
+      LOGICAL, DIMENSION(:), INTENT(INOUT)               :: do_win_create
+      INTEGER, INTENT(INOUT)                             :: request
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'win_setup', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      IF (buffer%has_rma_win) THEN
+         CALL timeset(routineN//"_win_check", handle)
+         CALL mp_wait(request)
+         CALL timestop(handle)
+         IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
+         IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
+      ENDIF
+      CALL dbcsr_data_release(buffer%data_resize)
+      IF (ASSOCIATED(buffer%meta_resize)) THEN
+         CALL memory_deallocate(buffer%meta_resize, memtype_mpi_buffer)
+         NULLIFY (buffer%meta_resize)
+      ENDIF
+      !
+      IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data(1), buffer%subgrp, buffer%data_win)
+      IF (do_win_create(2)) CALL mp_win_create(buffer%meta, buffer%subgrp, buffer%meta_win)
+      !
+      buffer%has_rma_win = .TRUE.
+   END SUBROUTINE win_setup
+
+! **************************************************************************************************
 !> \brief Apply reflected order, i.e. row increasing value for odd col value,
 !>                                    row decreasing value for even col value
 !> \param irow3D ...
@@ -3492,7 +3532,11 @@ CONTAINS
       ENDIF
       CALL timestop(handle2)
       !
-      ! Set RMA windows for the original data
+      ! Check RMA windows creation for original data
+      CALL win_setup(buffers_orig%left, do_win_create_left, request_win_create(1))
+      CALL win_setup(buffers_orig%right, do_win_create_right, request_win_create(2))
+      !
+      ! Lock RMA windows
       CALL mp_win_lock_all(buffers_orig%left%data_win)
       CALL mp_win_lock_all(buffers_orig%left%meta_win)
       CALL mp_win_lock_all(buffers_orig%right%data_win)
@@ -3768,6 +3812,7 @@ CONTAINS
          CALL buffer_init(buffers_1%right, data_type, &
                           right_max_data_size, &
                           right_max_meta_size, &
+                          num_data=1, &
                           requests_size=(min_nimages*right_col_nimages), &
                           data_memory_type=memtype_abpanel_1, &
                           trs_memory_type=memtype_trsbuffer_1)
@@ -3779,6 +3824,7 @@ CONTAINS
          CALL buffer_init(buffers_1%left, data_type, &
                           left_max_data_size, &
                           left_max_meta_size, &
+                          num_data=1, &
                           requests_size=(left_row_nimages*min_nimages), &
                           data_memory_type=memtype_abpanel_1)
          CALL setup_buffer_matrices_images(buffers_1%left%buffer, min_nimages, &
@@ -3794,6 +3840,7 @@ CONTAINS
       CALL buffer_init(buffers_2%right, data_type, &
                        right_max_data_size, &
                        right_max_meta_size, &
+                       num_data=1, &
                        requests_size=(min_nimages*right_col_nimages), &
                        data_memory_type=memtype_abpanel_2, &
                        trs_memory_type=memtype_trsbuffer_2)
@@ -3805,6 +3852,7 @@ CONTAINS
       CALL buffer_init(buffers_2%left, data_type, &
                        left_max_data_size, &
                        left_max_meta_size, &
+                       num_data=1, &
                        requests_size=(left_row_nimages*min_nimages), &
                        data_memory_type=memtype_abpanel_2)
       CALL setup_buffer_matrices_images(buffers_2%left%buffer, min_nimages, &
@@ -5224,9 +5272,14 @@ CONTAINS
       my_num_data = 1
       IF (PRESENT(num_data)) THEN
          my_num_data = num_data
+      ELSE
+         IF (dbcsr_data_valid(buffer%data_resize) .OR. ASSOCIATED(buffer%meta_resize)) &
+            CPABORT("Previous data area already initialized.")
+         CALL dbcsr_data_init(buffer%data_resize)
+         CALL dbcsr_data_new(buffer%data_resize, data_type, memory_type=data_memory_type)
       ENDIF
       new_trs_stackbuf = PRESENT(trs_memory_type) .AND. has_acc
-
+      !
       IF (buffer%is_valid) THEN
          ! Invalid buffers if data_type is different
          IF (dbcsr_data_get_type(buffer%data(1)) .NE. data_type .OR. &
@@ -5272,13 +5325,24 @@ CONTAINS
                              data_size=1, memory_type=memtype_mpi_buffer)
          buffer%is_valid = .TRUE.
       ELSE
-         DO idata = 1, my_num_data
-            CALL dbcsr_data_ensure_size(buffer%data(idata), data_size, nocopy=.TRUE.)
-         ENDDO
+         IF (PRESENT(num_data)) THEN
+            DO idata = 1, my_num_data
+               CALL dbcsr_data_ensure_size(buffer%data(idata), data_size, nocopy=.TRUE.)
+            ENDDO
+         ELSE
+            CALL dbcsr_data_ensure_size(buffer%data(1), data_size, nocopy=.TRUE., &
+                                        area_resize=buffer%data_resize)
+         ENDIF
       ENDIF
       !
-      CALL ensure_array_size(buffer%meta, ub=meta_size*my_num_data, nocopy=.TRUE., &
-                             memory_type=memtype_mpi_buffer)
+      IF (PRESENT(num_data)) THEN
+         CALL ensure_array_size(buffer%meta, ub=meta_size*my_num_data, nocopy=.TRUE., &
+                                memory_type=memtype_mpi_buffer)
+      ELSE
+         CALL ensure_array_size(buffer%meta, array_resize=buffer%meta_resize, &
+                                ub=meta_size, nocopy=.TRUE., &
+                                memory_type=memtype_mpi_buffer)
+      ENDIF
       !
       IF (PRESENT(requests_size)) THEN
          IF (ALLOCATED(buffer%offset)) THEN
@@ -5383,6 +5447,9 @@ CONTAINS
             ENDIF
          ENDDO
          DEALLOCATE (buffer%data)
+         IF (dbcsr_data_valid(buffer%data_resize)) THEN
+            CALL dbcsr_data_release(buffer%data_resize)
+         ENDIF
          IF (ALLOCATED(buffer%trs_stackbuf)) THEN
             DEALLOCATE (buffer%trs_stackbuf)
          ENDIF
@@ -5395,6 +5462,10 @@ CONTAINS
       IF (ASSOCIATED(buffer%meta)) THEN
          CALL memory_deallocate(buffer%meta, memtype_mpi_buffer)
          NULLIFY (buffer%meta)
+      ENDIF
+      IF (ASSOCIATED(buffer%meta_resize)) THEN
+         CALL memory_deallocate(buffer%meta_resize, memtype_mpi_buffer)
+         NULLIFY (buffer%meta_resize)
       ENDIF
       IF (ASSOCIATED(buffer%meta_diag)) THEN
          CALL memory_deallocate(buffer%meta_diag, memtype_mpi_buffer)

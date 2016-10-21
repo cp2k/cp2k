@@ -896,14 +896,17 @@ CONTAINS
          CALL dbcsr_finalize(product_matrix)
       ENDIF
       !
-      IF (PRESENT(flop)) THEN
+      ! RMA implementation algorithm has to synchronize at the end of each multiplication
+      IF (PRESENT(flop) .OR. use_mpi_exp) THEN
          ! return the average number of flops per MPI rank.
          ! Variance (which is fairly large) could be computed as well.
          CALL timeset(routineN//"_mpsum_flop", handle2)
          comm = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(matrix_c)))
          numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(dbcsr_distribution(matrix_c)))
          CALL mp_sum(my_flop, comm)
-         flop = (my_flop+numnodes-1)/numnodes
+         IF (PRESENT(flop)) THEN
+            flop = (my_flop+numnodes-1)/numnodes
+         ENDIF
          CALL timestop(handle2)
       ENDIF
       !

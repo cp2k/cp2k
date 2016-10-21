@@ -30,9 +30,10 @@
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
 ! **************************************************************************************************
-  SUBROUTINE ensure_array_size_s(array, lb, ub, factor,&
+  SUBROUTINE ensure_array_size_s(array, array_resize, lb, ub, factor,&
        nocopy, memory_type, zero_pad)
     REAL(kind=real_4), DIMENSION(:), POINTER                 :: array
+    REAL(kind=real_4), DIMENSION(:), POINTER, OPTIONAL       :: array_resize
     INTEGER, INTENT(IN), OPTIONAL                  :: lb
     INTEGER, INTENT(IN)                            :: ub
     REAL(KIND=dp), INTENT(IN), OPTIONAL            :: factor
@@ -53,6 +54,8 @@
 !   ---------------------------------------------------------------------------
     !CALL timeset(routineN, error_handler)
     dbg = .FALSE.
+
+    IF (PRESENT(array_resize)) NULLIFY(array_resize)
 
     IF (PRESENT (nocopy)) THEN
        docopy = .NOT. nocopy
@@ -115,7 +118,12 @@
     !
     ! Deallocates the old array if it's not needed to copy the old data.
     IF(.NOT.docopy) THEN
-       CALL mem_dealloc_s (array, mem_type=mem_type)
+       IF (PRESENT(array_resize)) THEN
+          array_resize => array
+          NULLIFY(array)
+       ELSE
+          CALL mem_dealloc_s (array, mem_type=mem_type)
+       ENDIF
     ENDIF
     !
     ! Allocates the new array
@@ -138,7 +146,12 @@
           !newarray(ub_orig+1:ub_new) = 0
           CALL mem_zero_s (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
        ENDIF
-       CALL mem_dealloc_s (array, mem_type=mem_type)
+       IF (PRESENT(array_resize)) THEN
+          array_resize => array
+          NULLIFY(array)
+       ELSE
+          CALL mem_dealloc_s (array, mem_type=mem_type)
+       ENDIF
     ELSEIF (pad) THEN
        !newarray(:) = 0.0_real_4
        CALL mem_zero_s (newarray, SIZE(newarray))
