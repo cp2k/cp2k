@@ -745,7 +745,7 @@ CONTAINS
       LOGICAL                                            :: nperiodic, should_reject
       REAL(KIND=dp)                                      :: cell_size, ds, dtk, e1, e2, pds, &
                                                             prev_ds, r, rtmp, sigma, x
-      REAL(KIND=dp), DIMENSION(3)                        :: bis, rm1, rm2, tmp1, tmp2
+      REAL(KIND=dp), DIMENSION(3)                        :: bis, new_com, rm1, rm2, tmp1, tmp2
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pos, work
       TYPE(spline_data_p_type), DIMENSION(:, :), POINTER :: uij
 
@@ -1140,11 +1140,22 @@ CONTAINS
       ! rejection of the whole move if any of the new positions is farther away
       ! from the current center of gravity than HELIUM%DROPLET_RADIUS [lwalewski]
       IF (helium%droplet_radius .LT. HUGE(1.0_dp)) THEN
+         IF (helium%solute_present) THEN
+            new_com(:) = helium%center(:)
+         ELSE
+            new_com(:) = 0.0_dp
+            DO k = 1, helium%atoms
+               DO l = 1, helium%beads
+                  new_com(:) = new_com(:)+helium%work(:, k, l)
+               END DO
+            END DO
+            new_com(:) = new_com(:)/helium%atoms/helium%beads
+         END IF
          ! cycle through new positions
          should_reject = .FALSE.
          outer: DO c = ifix, helium%beads
             DO k = 1, cyclen
-               bis(:) = work(:, p(k), c)-helium%center(:)
+               bis(:) = work(:, p(k), c)-new_com(:)
                rtmp = SQRT(bis(1)*bis(1)+bis(2)*bis(2)+bis(3)*bis(3))
                IF (rtmp .GE. helium%droplet_radius) THEN
                   ! found - this one does not fit within R from the center
@@ -1169,9 +1180,6 @@ CONTAINS
             END IF
             RETURN
          END IF
-         ! Note: after CoM position gets updated according to the new positions
-         ! some beads may end up outside of the DROPLET_RADIUS range from the new
-         ! CoM, they should not be very far off, though.
       END IF
       ! accepted.
 

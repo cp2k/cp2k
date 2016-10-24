@@ -1782,7 +1782,16 @@ CONTAINS
             explicit=explicit)
          IF (explicit) THEN
             ! use the droplet radius
-            helium%rdf_maxr = helium%droplet_radius
+            IF (helium%solute_present .AND. .NOT. helium%periodic) THEN
+               ! COM of solute is used as center of the box.
+               ! Therfore distances became larger then droplet_radius
+               ! when parts of the solute are on opposite site of
+               ! COM and helium.
+               ! Use two times droplet_radius for security:
+               helium%rdf_maxr = helium%droplet_radius*2.0_dp
+            ELSE
+               helium%rdf_maxr = helium%droplet_radius
+            END IF
          ELSE
             ! use cell_size and cell_shape
             ! (they are set regardless of us being periodic or not)

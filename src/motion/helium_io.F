@@ -784,6 +784,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (logger, print_key)
+      NULLIFY (used_indices)
       logger => cp_get_default_logger()
 
       ! determine offset for arrays
@@ -810,7 +811,7 @@ CONTAINS
          helium_env(1)%helium%rtmp_3_atoms_beads_np_1d = 0.0_dp
          j = SIZE(helium_env(1)%helium%rtmp_3_atoms_beads_1d)
          DO i = 1, SIZE(helium_env)
-            helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(j*(offset+i-1):) = &
+            helium_env(1)%helium%rtmp_3_atoms_beads_np_1d(j*(offset+i-1)+1:j*(offset+i)) = &
                PACK(helium_env(i)%helium%pos(:, :, 1:helium_env(1)%helium%beads), .TRUE.)
          END DO
          CALL mp_sum(helium_env(1)%helium%rtmp_3_atoms_beads_np_1d, &
@@ -821,8 +822,9 @@ CONTAINS
 
       ! gather permutation state from all processors to logger%para_env%source
       helium_env(1)%helium%itmp_atoms_np_1d(:) = 0
+      msglen = SIZE(helium_env(1)%helium%permutation)
       DO i = 1, SIZE(helium_env)
-         helium_env(1)%helium%itmp_atoms_np_1d(offset+i:) = helium_env(i)%helium%permutation
+         helium_env(1)%helium%itmp_atoms_np_1d(msglen*(offset+i-1)+1:msglen*(offset+i)) = helium_env(i)%helium%permutation
       END DO
 
       CALL mp_sum(helium_env(1)%helium%itmp_atoms_np_1d, &
@@ -1157,8 +1159,9 @@ CONTAINS
 
       ! gather permutation state from all processors to logger%para_env%source
       helium_env(1)%helium%itmp_atoms_np_1d(:) = 0
+      j = SIZE(helium_env(1)%helium%permutation)
       DO i = 1, SIZE(helium_env)
-         helium_env(1)%helium%itmp_atoms_np_1d((offset+i-1):) = helium_env(i)%helium%permutation
+         helium_env(1)%helium%itmp_atoms_np_1d(j*(offset+i-1)+1:j*(offset+i)) = helium_env(i)%helium%permutation
       END DO
 
       CALL mp_sum(helium_env(1)%helium%itmp_atoms_np_1d, &
