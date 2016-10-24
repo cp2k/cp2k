@@ -33,6 +33,7 @@ MODULE cp_parser_methods
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
+                                              int_8,&
                                               max_line_length
    USE message_passing,                 ONLY: mp_bcast
    USE string_utilities,                ONLY: is_whitespace,&
@@ -1357,7 +1358,8 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(OUT)                      :: error_message
 
       CHARACTER(LEN=20)                                  :: fmtstr
-      INTEGER                                            :: i, iop, istat, iz, n
+      INTEGER                                            :: i, iop, istat, n
+      INTEGER(KIND=int_8)                                :: iz8, object8
       LOGICAL                                            :: parsing_done
 
       error_message = ""
@@ -1383,10 +1385,10 @@ CONTAINS
          END IF
          IF (iop-1 > 0) THEN
             ! need an explicit fmtstr here. With 'FMT=*' compilers from intel and pgi will also
-            ! read float numbers as integers, without setting istat non-zero, i.e. string="0.3", istat=0, iz=0
+            ! read float numbers as integers, without setting istat non-zero, i.e. string="0.3", istat=0, iz8=0
             ! this leads to wrong CP2K results (e.g. parsing force fields).
             WRITE (fmtstr, FMT='(A,I0,A)') '(I', iop-1, ')'
-            READ (UNIT=string(i:i+iop-2), FMT=fmtstr, IOSTAT=istat) iz
+            READ (UNIT=string(i:i+iop-2), FMT=fmtstr, IOSTAT=istat) iz8
          ELSE
             istat = 1
          ENDIF
@@ -1396,11 +1398,18 @@ CONTAINS
             RETURN
          END IF
          IF (i == 1) THEN
-            object = iz
+            object8 = iz8
          ELSE
-            object = object*iz
+            object8 = object8*iz8
+         END IF
+         IF (ABS(object8) > HUGE(0)) THEN
+            error_message = "The specified integer number <"//string(i:i+iop-2)// &
+                            "> exceeds the allowed range of a 32-bit integer number."
+            RETURN
          END IF
       END DO
+
+      object = INT(object8)
 
    END SUBROUTINE read_integer_object
 
