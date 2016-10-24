@@ -9,6 +9,7 @@
 !>      - Merged with Quickstep MODULE start_program_run (17.01.2002,MK)
 !>      - Compile information added (16.01.2002,MK)
 !>      - Merged with MODULE cp2k_input, some rearrangements (30.10.2002,MK)
+!>      - Update seed input (24.10.2016,MK)
 !> \author JGH,MK
 ! **************************************************************************************************
 MODULE environment
@@ -401,7 +402,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_setup', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: input_seed, iw
+      INTEGER                                            :: iw
+      INTEGER, DIMENSION(:), POINTER                     :: seed_vals
       REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -416,13 +418,21 @@ CONTAINS
       IF (iw > 0) THEN
          CALL write_rng_matrices(iw)
       END IF
+
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%PRINT/RNG_MATRICES")
 
       ! Initialize a global normally Gaussian distributed (pseudo)random number stream
 
-      CALL section_vals_val_get(root_section, "GLOBAL%SEED", i_val=input_seed)
-      initial_seed(:, :) = REAL(input_seed, KIND=dp)
+      CALL section_vals_val_get(root_section, "GLOBAL%SEED", i_vals=seed_vals)
+      IF (SIZE(seed_vals) == 1) THEN
+         initial_seed(:, :) = REAL(seed_vals(1), KIND=dp)
+      ELSE IF (SIZE(seed_vals) == 6) THEN
+         initial_seed(1:3, 1:2) = RESHAPE(REAL(seed_vals(:), KIND=dp), (/3, 2/))
+      ELSE
+         CPABORT("Supply exactly 1 or 6 arguments for SEED in &GLOBAL only!")
+      END IF
+
       CALL create_rng_stream(rng_stream=globenv%gaussian_rng_stream, &
                              name="Global Gaussian random numbers", &
                              distribution_type=GAUSSIAN, &
@@ -434,6 +444,7 @@ CONTAINS
       IF (iw > 0) THEN
          CALL check_rng(iw, para_env%ionode)
       END IF
+
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%PRINT/RNG_CHECK")
 

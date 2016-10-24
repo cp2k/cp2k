@@ -269,10 +269,12 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, name="SEED", &
                           description="Initial seed for the (pseudo)random number generator for the "// &
-                          "Wiener process employed by the Langevin dynamics. Exactly 1 or 6 integer values are expected.", &
+                          "Wiener process employed by the Langevin dynamics. Exactly 1 or 6 positive "// &
+                          "integer values are expected. A single value is replicated to fill up the "// &
+                          "full seed array with 6 numbers.", &
                           n_var=-1, &
                           type_of_var=integer_t, &
-                          usage="SEED {INTEGER} [or 5 more {INTEGER}]", &
+                          usage="SEED {INTEGER} .. {INTEGER}", &
                           default_i_vals=(/12345/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
