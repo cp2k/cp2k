@@ -12,8 +12,8 @@ AR       = ar -r
 CPPFLAGS =
 DFLAGS   =
 FCFLAGS  = -O0 -fstrict-aliasing -fbacktrace -g -fbounds-check -ffree-form -fdump-fortran-original -fopenmp $(DFLAGS) 
-LDFLAGS  = $(FCFLAGS) -L/data/vjoost/scalapack/scalapack_installer_1.0.2/install/lib/ 
-LIBS     = -lreflapack -lrefblas 
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -llapack -lblas 
 
 FCLOGPIPE =  > $(notdir $<).ast
 
