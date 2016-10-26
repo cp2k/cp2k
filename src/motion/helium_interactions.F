@@ -518,8 +518,8 @@ CONTAINS
                   wrapped = .FALSE.
                   DO ic = 1, 3
                      IF (ABS(pbc1(ic)-pbc2(ic)) .GT. 10.0_dp*EPSILON(0.0_dp)) THEN
+                        wrapped = .TRUE.
                      END IF
-                     wrapped = .TRUE.
                   END DO
 
                   ! set the interaction energy value

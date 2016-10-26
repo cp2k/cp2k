@@ -2235,10 +2235,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_total_pot_action', &
          routineP = moduleN//':'//routineN
 
+      REAL(KIND=dp)                                      :: tau
+
       CPASSERT(ASSOCIATED(pint_env))
       CPASSERT(pint_env%ref_count > 0)
 
-      pot_action = SUM(pint_env%e_pot_bead)
+      tau = pint_env%beta/REAL(pint_env%p, dp)
+      pot_action = tau*SUM(pint_env%e_pot_bead)
 
       RETURN
 
