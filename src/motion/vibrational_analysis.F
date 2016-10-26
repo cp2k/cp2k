@@ -451,13 +451,11 @@ CONTAINS
                IF (iw > 0) THEN
                   CALL vib_out(iw, nvib, D, konst, rmass, H_eigval2, particles, Mlist, intensities)
                END IF
-               IF (.NOT. something_frozen) THEN
-                  IF (calc_thchdata) THEN
-                     CALL get_thch_values(H_eigval2, iw, mass, nvib, inertia, 1, minimum_energy, tc_temp, tc_press)
-                  ENDIF
-                  CALL molden_out(input, particles, H_eigval2, D, intensities, calc_intens, &
-                                  dump_only_positive=.FALSE., logger=logger)
-               END IF
+               IF (.NOT. something_frozen .AND. calc_thchdata) THEN
+                  CALL get_thch_values(H_eigval2, iw, mass, nvib, inertia, 1, minimum_energy, tc_temp, tc_press)
+               ENDIF
+               CALL molden_out(input, particles, H_eigval2, D, intensities, calc_intens, &
+                               dump_only_positive=.FALSE., logger=logger, list=Mlist)
             ELSE
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(T2,"VIB| No further vibrational info. Detected a single atom")')

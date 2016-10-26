@@ -36,10 +36,11 @@ CONTAINS
 !> \param calc_intens ...
 !> \param dump_only_positive ...
 !> \param logger ...
+!> \param list array of mobile atom indices
 !> \author Florian Schiffmann 11.2007
 ! **************************************************************************************************
    SUBROUTINE molden_out(input, particles, freq, eigen_vec, intensities, calc_intens, &
-                         dump_only_positive, logger)
+                         dump_only_positive, logger, list)
 
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
@@ -48,19 +49,34 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: intensities
       LOGICAL                                            :: calc_intens, dump_only_positive
       TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: list
 
       CHARACTER(len=*), PARAMETER :: routineN = 'molden_out', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: i, iw, j, k, l
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_list
 
       iw = cp_print_key_unit_nr(logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB", &
                                 extension=".mol", file_status='REPLACE')
 
       IF (iw .GT. 0) THEN
          CPASSERT(MOD(SIZE(eigen_vec, 1), 3) == 0)
-         CPASSERT(SIZE(particles) == SIZE(eigen_vec, 1)/3)
          CPASSERT(SIZE(freq, 1) == SIZE(eigen_vec, 2))
+         ALLOCATE (my_list(SIZE(particles)))
+         ! Either we have a list of the subset of mobile atoms,
+         ! Or the eigenvectors must span the full space (all atoms)
+         IF (PRESENT(list)) THEN
+            my_list(:) = 0
+            DO i = 1, SIZE(list)
+               my_list(list(i)) = i
+            END DO
+         ELSE
+            CPASSERT(SIZE(particles) == SIZE(eigen_vec, 1)/3)
+            DO i = 1, SIZE(my_list)
+               my_list(i) = i
+            END DO
+         END IF
          WRITE (iw, '(T2,A)') "[Molden Format]"
          WRITE (iw, '(T2,A)') "[FREQ]"
          DO i = 1, SIZE(freq, 1)
@@ -79,9 +95,13 @@ CONTAINS
             IF ((.NOT. dump_only_positive) .OR. (freq(i) >= 0._dp)) THEN
                l = l+1
                WRITE (iw, '(T2,A,1X,I6)') "vibration", l
-               DO j = 1, SIZE(eigen_vec, 1)/3
-                  k = (j-1)*3
-                  WRITE (iw, '(T2,3(F12.6,3X))') eigen_vec(k+1, i), eigen_vec(k+2, i), eigen_vec(k+3, i)
+               DO j = 1, SIZE(particles)
+                  IF (my_list(j) .NE. 0) THEN
+                     k = (my_list(j)-1)*3
+                     WRITE (iw, '(T2,3(F12.6,3X))') eigen_vec(k+1, i), eigen_vec(k+2, i), eigen_vec(k+3, i)
+                  ELSE
+                     WRITE (iw, '(T2,3(F12.6,3X))') 0.0_dp, 0.0_dp, 0.0_dp
+                  END IF
                END DO
             END IF
          END DO
@@ -91,6 +111,7 @@ CONTAINS
                IF ((.NOT. dump_only_positive) .OR. (freq(i) >= 0._dp)) WRITE (iw, '(3X,F18.6)') intensities(i)
             END DO
          END IF
+         DEALLOCATE (my_list)
       END IF
       CALL cp_print_key_finished_output(iw, logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB")
    END SUBROUTINE molden_out
