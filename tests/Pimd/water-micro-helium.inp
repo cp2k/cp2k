@@ -1,0 +1,80 @@
+&GLOBAL
+  PROJECT_NAME               water-micro-helium
+  RUN_TYPE                   PINT
+  PRINT_LEVEL                MEDIUM
+&END GLOBAL
+
+&MOTION
+  &PINT
+    P                        4
+    PROC_PER_REPLICA         1
+    NUM_STEPS                5
+    DT                       0.5
+    NRESPA                   2
+    TEMP                     7.5
+    T_TOL                    0.0
+    TRANSFORMATION           NORMAL
+    &NOSE
+      NNOS                   3
+    &END NOSE
+    &HELIUM
+      PRESAMPLE              T
+      SOLUTE_INTERACTION     MWATER
+      POTENTIAL_FILE_NAME    lj-test-pot.dat
+      NATOMS                 2
+      NBEADS                16
+      NUM_ENV                7
+      INOROT               200
+      IROT                 100
+      BISECTION              8
+      MAX_PERM_CYCLE         1
+      PERIODIC               F
+      DROPLET_RADIUS        15
+      &PRINT
+        &COORDINATES ON
+          &EACH
+            MD               1
+          &END EACH
+        &END COORDINATES
+        &ACTION ON
+          &EACH
+            MD               1
+          &END EACH
+        &END ACTION
+      &END PRINT
+    &END HELIUM
+  &END PINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD  FIST
+  &MM
+    &POISSON
+      &EWALD
+        GMAX 25
+      &END EWALD
+    &END POISSON
+    &FORCEFIELD
+      PARM_FILE_NAME         ../Fist/sample_pot/water.pot
+      PARMTYPE               CHM
+      &CHARGE
+        ATOM    OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM    HT
+        CHARGE  0.4238
+      &END CHARGE
+    &END FORCEFIELD
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC  8.0 8.0 8.0
+      PERIODIC  NONE
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME        ../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_FORMAT      PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
