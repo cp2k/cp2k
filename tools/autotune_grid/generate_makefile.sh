@@ -11,12 +11,12 @@ source config.in
 
 
 
-FC_OPT_FLAGS="$FCFLAGS" 
-
 (
 echo FC_comp=$FC_comp
-echo FCFLAGS=$FCFLAGS
-echo FC_tune=\$\(FC_comp\) \$\(FCFLAGS\)
+echo FCFLAGS_OPT=$FCFLAGS_OPT
+echo FCFLAGS_NATIVE=$FCFLAGS_NATIVE
+echo FC_tune=\$\(FC_comp\) \$\(FCFLAGS_OPT\)
+echo FC_native=\$\(FC_comp\) \$\(FCFLAGS_NATIVE\)
 ) > config.mk
 
 # Write a makefile to generate all different combinations
@@ -146,7 +146,7 @@ done
 
 (
 echo -e "all: libgrid.a \n\n"
-echo -e "generate.x:\n\t$FC_comp -target=native -c options.f90 \n\t$FC_comp -target=native -c generate.f90  \n\t$FC_comp -target=native options.o generate.o -o generate.x"
+echo -e "generate.x:\n\t$FC_native -c options.f90 \n\t$FC_native -c generate.f90  \n\t$FC_native options.o generate.o -o generate.x"
 echo -e "all_gen: generate.x $TARGETS_EXE\n\n"
 echo -e "all_run: $TARGETS_RUN\n\n"
 echo -e "clean: \n\trm -Rf $DIRECTORIES *.exists generate.x *.o libtest.a out_best *.mod \n\n"

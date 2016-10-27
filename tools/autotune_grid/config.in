@@ -7,21 +7,24 @@ Nrun=3
 
 # #### Gfortran flags
 FC_comp="ftn -ffree-form -pipe"
-FCFLAGS=" -O3 -ffast-math -funroll-loops -ftree-vectorize -fno-omit-frame-pointer -g -march=ivybridge -fgcse-sm -fgcse-las -fmerge-all-constants "
+FCFLAGS_OPT=" -O3 -ffast-math -funroll-loops -ftree-vectorize -fno-omit-frame-pointer -g -march=ivybridge -fgcse-sm -fgcse-las -fmerge-all-constants "
+FCFLAGS_NATIVE="-march=native"
 
 # Cray flags
 #FC_comp="ftn -f free "
-# FCFLAGS=" -target=compute_node  -O3"
-#FCFLAGS=" -target=compute_node  -O2"
+#FCFLAGS_OPT="-target=compute_node  -O3"
+#FCFLAGS_OPT="-target=compute_node  -O2"
+#FCFLAGS_NATIVE="-target=native"
 
 # Intel Flags
 #FC_comp="ftn -free"
-#FCFLAGS="-O3"
+#FCFLAGS_OPT="-O3"
 # -openmp flag required for correct behaviour if building CP2K with OpenMP
-#FCFLAGS="-O3 -openmp"
+#FCFLAGS_OPT="-O3 -openmp"
 
 # PGI Flags
 #FC_comp="ftn -Mfree"
-#FCFLAGS="-fastsse"
+#FCFLAGS_OPT="-fastsse"
+
 
 makefile_name="Makefile"

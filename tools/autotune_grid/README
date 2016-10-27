@@ -16,7 +16,7 @@ All routines are glued together into a library (libgrid.a)
 SIMPLE USAGE
 =============================
 
-optimal routines change from compiler to compiler (brands, versions, and options) and computer architectures. I you don't want to
+optimal routines change from compiler to compiler (brands, versions, and options) and computer architectures. If you don't want to
 autogenerate these files now, just use the defaults, they will do reasonable (currently within about 20% of the the best variants)
 througout. The full process can take several hours depending on your hard- and software, and the selected options.
 
@@ -24,18 +24,19 @@ througout. The full process can take several hours depending on your hard- and s
 
 tar -xzvf data.tgz
 
-1) Make sure the machine you use for timing is idle (i.e. other running jobs perturbe the timings).
+1) Make sure the machine you use for timing is idle (i.e. other running jobs perturb the timings).
 
-2) Edit the config.in and specify 'FC_comp' and 'FCFLAGS', where FC_comp is the compiler together with any option required for parsing Fortran free form file, whereas FCFLAGS  is the set of optimisation flags.
+2) Edit the config.in and specify 'FC_comp', 'FCFLAGS_OPT' and 'FCFLAGS_NATIVE', where FC_comp is the compiler together with any option required for parsing Fortran free form file, FCFLAGS_OPT is the set of optimisation flags which will be used for building the optimised grid kernels, and FCFLAGS_NATIVE is the flags used to build helper/generator programs - if you are using a cross-compiler, these flags should be used to target the local 'native' architecture e.g.
 
 FC_comp="gfortran -ffree-form"
-FCFLAGS=" -O3 -ftree-vectorize"
+FCFLAGS_OPT=" -O3 -ftree-vectorize"
+FCFLAGS_NATIVE="-march=native"
 
-the highest optimization levels do not always give better results, use reasonable settings, and include the flags needed to
+The highest optimization levels do not always give better results, use reasonable settings, and include the flags needed to
 generate code for your target processor (e.g. -xT) especially if this can lead to vectorization (e.g. SSE). The compiler flags must 
 be such that the compiler preprocesses files and interpretes them as free form Fortran95)
 
-3) You can, optionally, edit the file config.in to specify the maximum l-quantum number for which to generate optimized routines (first line), 
+3) You can optionally edit the file config.in to specify the maximum l-quantum number for which to generate optimized routines (first line), 
 and the number of times a test is repeated in order to get accurate timings (second line).
 Recommended are 7 (for l, products of f functions and their derivative) and 3 (for the number of times to run the test).
 
