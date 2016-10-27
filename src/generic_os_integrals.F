@@ -31,14 +31,14 @@ MODULE generic_os_integrals
    USE ai_overlap_aabb,                 ONLY: overlap_aabb
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE debug_os_integrals,              ONLY: overlap_aabb_test,&
-                                              overlap_ab_test,&
-                                              overlap_abc_test
-   USE input_constants,                 ONLY: operator_coulomb,&
+   USE constants_operator,              ONLY: operator_coulomb,&
                                               operator_gauss,&
                                               operator_verf,&
                                               operator_verfc,&
                                               operator_vgauss
+   USE debug_os_integrals,              ONLY: overlap_aabb_test,&
+                                              overlap_ab_test,&
+                                              overlap_abc_test
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: ncoset
 #include "./base/base_uses.f90"

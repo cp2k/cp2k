@@ -14,7 +14,7 @@
 !>      created [04.2015]
 !> \author Dorothea Golze
 ! **************************************************************************************************
-MODULE ai_construct_shg
+MODULE construct_shg
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac
@@ -27,7 +27,7 @@ MODULE ai_construct_shg
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_construct_shg'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'construct_shg'
 
 ! *** Public subroutines ***
    PUBLIC :: get_real_scaled_solid_harmonic, get_W_matrix, get_dW_matrix, &
@@ -1013,5 +1013,5 @@ CONTAINS
 
    END SUBROUTINE dev_overlap_shg_abb
 
-END MODULE ai_construct_shg
+END MODULE construct_shg
 

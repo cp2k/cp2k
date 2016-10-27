@@ -1,0 +1,5 @@
+{
+"description": "2-c integral scheme using solid harmonic Gaussians (SHG)",
+"requires": ["../aobasis", "../common", "../base"],
+"public": ["generic_shg_integrals.F", "generic_shg_integrals_init.F", "constants_operator.F"]
+}

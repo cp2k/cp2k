@@ -17,7 +17,7 @@
 !>      created [05.2016]
 !> \author Dorothea Golze
 ! **************************************************************************************************
-MODULE ai_s_contract_shg
+MODULE s_contract_shg
    USE gamma,                           ONLY: fgamma=>fgamma_0
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
@@ -29,7 +29,7 @@ MODULE ai_s_contract_shg
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_s_contract_shg'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 's_contract_shg'
 
 ! *** Public subroutines ***
    PUBLIC :: s_overlap_ab, s_overlap_abb, s_coulomb_ab, s_verf_ab, s_verfc_ab, &
@@ -1288,4 +1288,4 @@ CONTAINS
 
    END SUBROUTINE contract_s_overlap_aba
 
-END MODULE ai_s_contract_shg
+END MODULE s_contract_shg

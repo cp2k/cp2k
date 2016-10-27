@@ -23,7 +23,7 @@ MODULE generic_shg_integrals_init
    USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                               clebsch_gordon_deallocate,&
                                               clebsch_gordon_init
-#include "base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 

@@ -15,6 +15,11 @@ MODULE shg_integrals_test
                                               gto_basis_set_type,&
                                               init_orb_basis_set,&
                                               read_gto_basis_set
+   USE constants_operator,              ONLY: operator_coulomb,&
+                                              operator_gauss,&
+                                              operator_verf,&
+                                              operator_verfc,&
+                                              operator_vgauss
    USE cp_log_handling,                 ONLY: cp_to_string
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os,&
                                               int_overlap_ab_os,&
@@ -30,11 +35,6 @@ MODULE shg_integrals_test
                                               contraction_matrix_shg_mix,&
                                               contraction_matrix_shg_rx2m,&
                                               get_clebsch_gordon_coefficients
-   USE input_constants,                 ONLY: operator_coulomb,&
-                                              operator_gauss,&
-                                              operator_verf,&
-                                              operator_verfc,&
-                                              operator_vgauss
    USE input_cp2k_subsys,               ONLY: create_basis_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&

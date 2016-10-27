@@ -17,23 +17,23 @@
 !> \author Dorothea Golze
 ! **************************************************************************************************
 MODULE generic_shg_integrals
-   USE ai_construct_shg,                ONLY: &
-        construct_dev_shg_ab, construct_int_shg_ab, construct_overlap_shg_aba, &
-        construct_overlap_shg_abb, dev_overlap_shg_aba, dev_overlap_shg_abb, get_W_matrix, &
-        get_dW_matrix, get_real_scaled_solid_harmonic
-   USE ai_s_contract_shg,               ONLY: &
-        contract_s_overlap_aba, contract_s_overlap_abb, contract_s_ra2m_ab, &
-        contract_sint_ab_chigh, contract_sint_ab_clow, s_coulomb_ab, s_gauss_ab, s_overlap_ab, &
-        s_overlap_abb, s_ra2m_ab, s_verf_ab, s_verfc_ab, s_vgauss_ab
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE input_constants,                 ONLY: operator_coulomb,&
+   USE constants_operator,              ONLY: operator_coulomb,&
                                               operator_gauss,&
                                               operator_verf,&
                                               operator_verfc,&
                                               operator_vgauss
+   USE construct_shg,                   ONLY: &
+        construct_dev_shg_ab, construct_int_shg_ab, construct_overlap_shg_aba, &
+        construct_overlap_shg_abb, dev_overlap_shg_aba, dev_overlap_shg_abb, get_W_matrix, &
+        get_dW_matrix, get_real_scaled_solid_harmonic
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: nsoset
-#include "base/base_uses.f90"
+   USE s_contract_shg,                  ONLY: &
+        contract_s_overlap_aba, contract_s_overlap_abb, contract_s_ra2m_ab, &
+        contract_sint_ab_chigh, contract_sint_ab_clow, s_coulomb_ab, s_gauss_ab, s_overlap_ab, &
+        s_overlap_abb, s_ra2m_ab, s_verf_ab, s_verfc_ab, s_vgauss_ab
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
