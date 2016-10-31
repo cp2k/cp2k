@@ -10,15 +10,19 @@ MODULE topology_xyz
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                              parser_get_object
+                                              parser_get_object,&
+                                              read_integer_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              dp,&
+                                              max_line_length
    USE memory_utilities,                ONLY: reallocate
+   USE periodic_table,                  ONLY: nelem,&
+                                              ptable
    USE string_table,                    ONLY: id2str,&
                                               s2s,&
                                               str2id
@@ -51,7 +55,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: my_default_index, strtmp
-      INTEGER                                            :: frame, handle, iw, j, natom
+      CHARACTER(LEN=max_line_length)                     :: error_message
+      INTEGER                                            :: frame, handle, ian, iw, j, natom
       LOGICAL                                            :: my_end
       TYPE(atom_info_type), POINTER                      :: atom_info
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -106,7 +111,19 @@ CONTAINS
                atom_info%r(1, j), &
                atom_info%r(2, j), &
                atom_info%r(3, j)
-            atom_info%id_atmname(j) = str2id(s2s(strtmp))
+            error_message = ""
+            CALL read_integer_object(strtmp, ian, error_message)
+            IF (LEN_TRIM(error_message) == 0) THEN
+               ! Integer value found: assume atomic number, check it, and load
+               ! the corresponding element symbol if valid
+               IF ((ian < 0) .OR. (ian > nelem)) THEN
+                  CPABORT("Invalid atomic number <"//TRIM(strtmp)//"> found in xyz file <"//TRIM(topology%coord_file_name)//">!")
+               ELSE
+                  atom_info%id_atmname(j) = str2id(s2s(ptable(ian)%symbol))
+               END IF
+            ELSE
+               atom_info%id_atmname(j) = str2id(s2s(strtmp))
+            END IF
             ! For default, set atom name to residue name to molecule name
             WRITE (my_default_index, '(I0)') j
             atom_info%id_molname(j) = str2id(s2s(TRIM(id2str(atom_info%id_atmname(j)))//TRIM(my_default_index)))

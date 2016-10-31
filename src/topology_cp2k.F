@@ -13,7 +13,8 @@ MODULE topology_cp2k
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_parser_methods,               ONLY: parser_get_object,&
-                                              parser_test_next_token
+                                              parser_test_next_token,&
+                                              read_integer_object
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
@@ -26,8 +27,11 @@ MODULE topology_cp2k
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
+                                              dp,&
+                                              max_line_lengTh
    USE memory_utilities,                ONLY: reallocate
+   USE periodic_table,                  ONLY: nelem,&
+                                              ptable
    USE string_table,                    ONLY: id2str,&
                                               s2s,&
                                               str2id
@@ -64,7 +68,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_string_length)               :: string
-      INTEGER                                            :: handle, i, iw, natom, newsize, &
+      CHARACTER(LEN=max_line_length)                     :: error_message
+      INTEGER                                            :: handle, i, ian, iw, natom, newsize, &
                                                             number_of_atoms
       LOGICAL                                            :: eof, explicit, scaled_coordinates
       REAL(KIND=dp)                                      :: pfactor, unit_conv
@@ -148,7 +153,20 @@ CONTAINS
             CALL reallocate(atom_info%beta, 1, newsize)
             CALL reallocate(atom_info%id_element, 1, newsize)
          END IF
-         atom_info%id_atmname(natom) = str2id(s2s(string))
+         error_message = ""
+         CALL read_integer_object(string, ian, error_message)
+         IF (LEN_TRIM(error_message) == 0) THEN
+            ! Integer value found: assume atomic number, check it, and load
+            ! the corresponding element symbol if valid
+            IF ((ian < 0) .OR. (ian > nelem)) THEN
+               CPABORT("Invalid atomic number <"//TRIM(string)//"> found in xyz file <"//TRIM(topology%coord_file_name)//">!")
+            ELSE
+               atom_info%id_atmname(natom) = str2id(s2s(ptable(ian)%symbol))
+            END IF
+         ELSE
+            atom_info%id_atmname(natom) = str2id(s2s(string))
+         END IF
+         ! Read x, y, and z coordinate of the current atom
          DO i = 1, 3
             CALL parser_get_object(parser, object=r(i))
          END DO

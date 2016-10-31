@@ -45,7 +45,7 @@ MODULE cp_parser_methods
 
    PUBLIC :: parser_test_next_token, parser_get_object, parser_location, &
              parser_search_string, parser_get_next_line, parser_skip_space, &
-             parser_read_line, read_float_object
+             parser_read_line, read_float_object, read_integer_object
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_methods'
 
