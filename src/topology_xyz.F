@@ -117,7 +117,9 @@ CONTAINS
                ! Integer value found: assume atomic number, check it, and load
                ! the corresponding element symbol if valid
                IF ((ian < 0) .OR. (ian > nelem)) THEN
-                  CPABORT("Invalid atomic number <"//TRIM(strtmp)//"> found in xyz file <"//TRIM(topology%coord_file_name)//">!")
+                  error_message = "Invalid atomic number <"//TRIM(strtmp)// &
+                                  "> found in the xyz file <"//TRIM(topology%coord_file_name)//">!"
+                  CPABORT(TRIM(error_message))
                ELSE
                   atom_info%id_atmname(j) = str2id(s2s(ptable(ian)%symbol))
                END IF
