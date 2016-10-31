@@ -1264,8 +1264,8 @@ CONTAINS
       ptable(113)%eht_param(0:3) = (/z, z, z, z/)
 
       ! Ununquadium
-      ptable(114)%symbol = 'Uuq'
-      ptable(114)%name = 'Ununquadium'
+      ptable(114)%symbol = 'Fl'
+      ptable(114)%name = 'Flerovium'
       ptable(114)%number = 114
       ptable(114)%amass = 289.189_dp ! (289)
       ptable(114)%covalent_radius = 1.50_dp
@@ -1284,8 +1284,8 @@ CONTAINS
       ptable(115)%eht_param(0:3) = (/z, z, z, z/)
 
       ! Ununhexium
-      ptable(116)%symbol = 'Uuh'
-      ptable(116)%name = 'Ununhexium'
+      ptable(116)%symbol = 'Lv'
+      ptable(116)%name = 'Livermorium'
       ptable(116)%number = 116
       ptable(116)%amass = 293.0_dp ! (293)
       ptable(116)%covalent_radius = 1.50_dp
