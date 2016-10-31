@@ -6941,7 +6941,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, "REAL_TIME_PROPAGATION", &
                           description="Parameters needed to set up the real time propagation"// &
-                          " for the electron dynamics", &
+                          " for the electron dynamics. This currently works only in the NVE ensemble.", &
                           n_keywords=4, n_subsections=4, repeats=.FALSE., &
                           citations=(/Kunert2003, Andermatt2016/))
 
@@ -6986,7 +6986,8 @@ CONTAINS
 
       CALL keyword_create(keyword, name="DENSITY_PROPAGATION", &
                           description="The density matrix is propagated instead of the molecular orbitals. "// &
-                          "This allows for a linear scaling simulation", &
+                          "This can allow a linear scaling simulation. The density matrix is filtered with "// &
+                          "the threshold based on the EPS_FILTER keyword from the LS_SCF section", &
                           usage="DENSITY_PROPAGATION .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
