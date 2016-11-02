@@ -1,0 +1,383 @@
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
+
+! **************************************************************************************************
+!> \brief DBCSR tensor framework for block-sparse tensor contraction: Types and create/destroy
+!>        routines.
+!> \author Patrick Seewald
+! **************************************************************************************************
+MODULE dbcsrt_types
+   USE array_list_methods,              ONLY: array_list,&
+                                              array_offsets,&
+                                              create_array_list,&
+                                              destroy_array_list,&
+                                              get_array_elements,&
+                                              sizes_of_arrays,&
+                                              sum_of_arrays
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
+        dbcsr_finalize, dbcsr_get_data_type, dbcsr_init, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_mp_release, dbcsr_obj, dbcsr_release
+   USE dbcsrt_index,                    ONLY: get_2d_indices,&
+                                              get_nd_indices
+   USE dbcsrt_index_types,              ONLY: create_nd_to_2d_mapping,&
+                                              destroy_nd_to_2d_mapping,&
+                                              get_mapping_info,&
+                                              nd_to_2d_mapping
+   USE kinds,                           ONLY: default_string_length
+   USE message_passing,                 ONLY: mp_cart_create,&
+                                              mp_cart_rank,&
+                                              mp_comm_free,&
+                                              mp_environ
+#include "../base/base_uses.f90"
+
+   IMPLICIT NONE
+   PRIVATE
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsrt_types'
+
+   PUBLIC  :: &
+      dbcsrt_blk_sizes, &
+      dbcsrt_blk_offsets, &
+      dbcsrt_create, &
+      dbcsrt_destroy, &
+      dbcsrt_distribution_destroy, &
+      dbcsrt_distribution_new, &
+      dbcsrt_distribution_type, &
+      dbcsrt_get_data_type, &
+      dbcsrt_type, &
+      dims_tensor, &
+      ndims_tensor
+
+   TYPE dbcsrt_type
+      TYPE(dbcsr_obj)                               :: matrix_rep
+      TYPE(nd_to_2d_mapping)                        :: nd_index_blk
+      TYPE(nd_to_2d_mapping)                        :: nd_index
+      TYPE(array_list)                              :: blk_sizes
+      TYPE(array_list)                              :: blk_offsets
+      LOGICAL                                       :: valid = .FALSE.
+      CHARACTER(LEN=default_string_length)          :: name
+   END TYPE dbcsrt_type
+
+   TYPE dbcsrt_distribution_type
+      TYPE(dbcsr_distribution_obj) :: dist
+      INTEGER                      :: comm_2d
+   END TYPE
+
+   INTERFACE dbcsrt_create
+      MODULE PROCEDURE dbcsrt_create_new
+      MODULE PROCEDURE dbcsrt_create_template
+   END INTERFACE
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Create a tensor distribution.
+!> \param dist ...
+!> \param comm communicator with n-dimensional Cartesian topology
+!> \param map1_2d which nd-indices map to first matrix index and in which order
+!> \param map2_2d which nd-indices map to second matrix index and in which order
+!> \param nd_dist_1 distribution vector for first dimension
+!> \param nd_dist_2 distribution vector for second dimension
+!> \param nd_dist_3 ...
+!> \param nd_dist_4 ...
+!> \param nd_dist_5 ...
+!> \param nd_dist_6 ...
+! **************************************************************************************************
+   SUBROUTINE dbcsrt_distribution_new(dist, comm, map1_2d, map2_2d, nd_dist_1, nd_dist_2, nd_dist_3, &
+                                      nd_dist_4, nd_dist_5, nd_dist_6)
+
+      TYPE(dbcsrt_distribution_type), INTENT(OUT)        :: dist
+      INTEGER, INTENT(IN)                                :: comm
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
+      INTEGER, ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT), OPTIONAL                         :: nd_dist_1, nd_dist_2, nd_dist_3, &
+                                                            nd_dist_4, nd_dist_5, nd_dist_6
+
+      INTEGER                                            :: bcol, brow, comm_2d, mynode, ndims, &
+                                                            numnodes, pcol, prow
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pgrid
+      INTEGER, DIMENSION(2)                              :: bdims_2d, coord, dist_2d, myploc, &
+                                                            pdims_2d
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, row_dist
+      INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: dims, ind, nblks_nd, task_coor
+      LOGICAL, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: periods
+      TYPE(array_list)                                   :: nd_dist
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      TYPE(nd_to_2d_mapping)                             :: map_blks, map_grid
+
+      ndims = SIZE(dims)
+      CPASSERT(ndims .GE. 3 .AND. ndims .LE. 6)
+
+      CALL create_array_list(nd_dist, nd_dist_1, nd_dist_2, nd_dist_3, nd_dist_4, nd_dist_5, nd_dist_6, ndims)
+
+      nblks_nd(:) = sizes_of_arrays(nd_dist)
+
+      CALL mp_environ(numnodes, mynode, comm)
+
+      ! create 2d topology from nd topology
+      CALL mp_environ(comm, ndims, dims, task_coor, periods)
+
+      ! process grid index mapping
+      CALL create_nd_to_2d_mapping(map_grid, dims, map1_2d, map2_2d, base=0, col_major=.FALSE.)
+
+      ! blk index mapping
+      CALL create_nd_to_2d_mapping(map_blks, nblks_nd, map1_2d, map2_2d)
+
+      CALL get_mapping_info(map_grid, dims_2d=pdims_2d)
+      CALL get_mapping_info(map_blks, dims_2d=bdims_2d)
+
+      ! Create new 2d topology
+      CALL mp_cart_create(comm, 2, pdims_2d, myploc, comm_2d)
+
+      ALLOCATE (pgrid(0:pdims_2d(1)-1, 0:pdims_2d(2)-1))
+      DO prow = 0, pdims_2d(1)-1
+         DO pcol = 0, pdims_2d(2)-1
+            coord = (/prow, pcol/)
+            CALL mp_cart_rank(comm_2d, coord, pgrid(prow, pcol))
+         ENDDO
+      ENDDO
+
+      CALL mp_environ(numnodes, mynode, comm_2d)
+
+      ! setup the mp enviroment
+      CALL dbcsr_mp_new(mp_env, pgrid, comm_2d, mynode, numnodes, &
+                        myprow=myploc(1), mypcol=myploc(2))
+
+      ! create 2d distribution from nd distribution
+      ALLOCATE (row_dist(bdims_2d(1)), col_dist(bdims_2d(2)))
+      row_dist(:) = -1
+      col_dist(:) = -1
+
+      DO brow = 1, bdims_2d(1) ! blk rows
+         DO bcol = 1, bdims_2d(2) ! blk cols
+
+            ! 2d blk index to nd blk index
+            ind(:) = get_nd_indices(map_blks, [brow, bcol])
+
+            ! nd distribution to 2d distribution, mapped using proc grid
+            dist_2d(:) = get_2d_indices(map_grid, get_array_elements(nd_dist, ind))
+
+            ! first index maps to columns, second index to rows (row-major)
+            IF (row_dist(brow) .LT. 0) row_dist(brow) = dist_2d(1)
+            IF (col_dist(bcol) .LT. 0) col_dist(bcol) = dist_2d(2)
+         ENDDO
+      ENDDO
+
+      CALL dbcsr_distribution_new(dist%dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
+      dist%comm_2d = comm_2d
+
+      CALL dbcsr_mp_release(mp_env)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Destroy tensor distribution
+!> \param dist ...
+! **************************************************************************************************
+   SUBROUTINE dbcsrt_distribution_destroy(dist)
+      TYPE(dbcsrt_distribution_type), INTENT(INOUT)      :: dist
+
+      CALL dbcsr_distribution_release(dist%dist)
+      CALL mp_comm_free(dist%comm_2d)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief create a tensor
+!> \param tensor ...
+!> \param name ...
+!> \param dist ...
+!> \param map1_2d which nd-indices to map to first 2d index and in which order
+!> \param map2_2d which nd-indices to map to first 2d index and in which order
+!> \param data_type ...
+!> \param blk_size_1 blk sizes in each dimension
+!> \param blk_size_2 ...
+!> \param blk_size_3 ...
+!> \param blk_size_4 ...
+!> \param blk_size_5 ...
+!> \param blk_size_6 ...
+! **************************************************************************************************
+   SUBROUTINE dbcsrt_create_new(tensor, name, dist, map1_2d, map2_2d, data_type, &
+                                blk_size_1, blk_size_2, blk_size_3, &
+                                blk_size_4, blk_size_5, blk_size_6)
+      TYPE(dbcsrt_type), INTENT(OUT)                     :: tensor
+      CHARACTER(len=*), INTENT(IN)                       :: name
+      TYPE(dbcsrt_distribution_type), INTENT(INOUT)      :: dist
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
+      INTEGER, INTENT(IN), OPTIONAL                      :: data_type
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN), &
+         OPTIONAL                                        :: blk_size_1, blk_size_2, blk_size_3, &
+                                                            blk_size_4, blk_size_5, blk_size_6
+
+      INTEGER                                            :: icol, imap, irow
+      INTEGER, DIMENSION(2)                              :: dims_2d
+      INTEGER, DIMENSION(3)                              :: blk_dims, dims, nd_ind
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      TYPE(array_list)                                   :: blk_size
+      TYPE(nd_to_2d_mapping)                             :: map
+
+      CALL create_array_list(blk_size, blk_size_1, blk_size_2, blk_size_3, blk_size_4, blk_size_5, blk_size_6, &
+                             SIZE(map1_2d)+SIZE(map2_2d))
+      dims = sizes_of_arrays(blk_size)
+
+      CALL create_nd_to_2d_mapping(map, dims, map1_2d, map2_2d)
+      CALL get_mapping_info(map, dims_2d=dims_2d)
+
+      ALLOCATE (row_blk_size(dims_2d(1)), col_blk_size(dims_2d(2)))
+      row_blk_size(:) = -1
+      col_blk_size(:) = -1
+
+      DO irow = 1, dims_2d(1)
+         DO icol = 1, dims_2d(2)
+            nd_ind(:) = get_nd_indices(map, [irow, icol])
+            blk_dims(:) = get_array_elements(blk_size, nd_ind)
+            IF (row_blk_size(irow) .LT. 0) THEN
+               row_blk_size(irow) = 1
+               DO imap = 1, SIZE(map1_2d)
+                  row_blk_size(irow) = row_blk_size(irow)*blk_dims(map1_2d(imap))
+               ENDDO
+            ENDIF
+            IF (col_blk_size(icol) .LT. 0) THEN
+               col_blk_size(icol) = 1
+               DO imap = 1, SIZE(map2_2d)
+                  col_blk_size(icol) = col_blk_size(icol)*blk_dims(map2_2d(imap))
+               ENDDO
+            ENDIF
+         ENDDO
+      ENDDO
+
+      CALL dbcsr_init(tensor%matrix_rep)
+      CALL dbcsr_create(matrix=tensor%matrix_rep, &
+                        name=name//"_matrix_rep", &
+                        dist=dist%dist, &
+                        matrix_type='N', &
+                        row_blk_size=row_blk_size, &
+                        col_blk_size=col_blk_size, &
+                        data_type=data_type, &
+                        reuse_arrays=.TRUE.)
+
+      tensor%nd_index_blk = map
+      tensor%name = name
+
+      CALL dbcsr_finalize(tensor%matrix_rep)
+      CALL destroy_nd_to_2d_mapping(map)
+
+      ! map element-wise tensor index
+      CALL create_nd_to_2d_mapping(map, sum_of_arrays(blk_size), map1_2d, map2_2d)
+      tensor%nd_index = map
+      tensor%blk_sizes = blk_size
+
+      CALL array_offsets(tensor%blk_sizes, tensor%blk_offsets)
+
+      tensor%valid = .TRUE.
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief create a tensor from template
+!> \param tensor_in ...
+!> \param tensor ...
+! **************************************************************************************************
+   SUBROUTINE dbcsrt_create_template(tensor_in, tensor)
+      TYPE(dbcsrt_type), INTENT(INOUT)                   :: tensor_in
+      TYPE(dbcsrt_type), INTENT(OUT)                     :: tensor
+
+      CALL dbcsr_init(tensor%matrix_rep)
+      CALL dbcsr_create(tensor%matrix_rep, tensor_in%matrix_rep)
+
+      tensor%nd_index_blk = tensor_in%nd_index_blk
+      tensor%nd_index = tensor_in%nd_index
+      tensor%blk_sizes = tensor_in%blk_sizes
+      tensor%blk_offsets = tensor_in%blk_offsets
+      tensor%valid = .TRUE.
+      tensor%name = tensor_in%name
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param tensor ...
+! **************************************************************************************************
+   SUBROUTINE dbcsrt_destroy(tensor)
+      TYPE(dbcsrt_type), INTENT(INOUT)                   :: tensor
+
+      CALL dbcsr_release(tensor%matrix_rep)
+      CALL destroy_nd_to_2d_mapping(tensor%nd_index)
+      CALL destroy_nd_to_2d_mapping(tensor%nd_index_blk)
+      CALL destroy_array_list(tensor%blk_sizes)
+      CALL destroy_array_list(tensor%blk_offsets)
+      tensor%valid = .FALSE.
+      tensor%name = ""
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief tensor rank
+!> \param tensor ...
+!> \retval ndims_tensor ...
+! **************************************************************************************************
+   PURE FUNCTION ndims_tensor(tensor)
+      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+      INTEGER                                            :: ndims_tensor
+
+      ndims_tensor = tensor%nd_index%ndim_nd
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief tensor dimensions
+!> \param tensor ...
+!> \param dims ...
+! **************************************************************************************************
+   SUBROUTINE dims_tensor(tensor, dims)
+      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(OUT)                                     :: dims
+
+      CPASSERT(tensor%valid)
+      dims(:) = tensor%nd_index%dims_nd(:)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief tensor data type
+!> \param tensor ...
+!> \retval dbcsrt_get_data_type ...
+! **************************************************************************************************
+   PURE FUNCTION dbcsrt_get_data_type(tensor)
+      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+      INTEGER                                            :: dbcsrt_get_data_type
+
+      dbcsrt_get_data_type = dbcsr_get_data_type(tensor%matrix_rep)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief Size of tensor block
+!> \param tensor ...
+!> \param ind block index
+!> \param blk_size block size
+! **************************************************************************************************
+   SUBROUTINE dbcsrt_blk_sizes(tensor, ind, blk_size)
+      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(IN)                                      :: ind
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(OUT)                                     :: blk_size
+
+      blk_size(:) = get_array_elements(tensor%blk_sizes, ind)
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief offset of tensor block
+!> \param tensor ...
+!> \param ind block index
+!> \param blk_offset block offset
+! **************************************************************************************************
+   SUBROUTINE dbcsrt_blk_offsets(tensor, ind, blk_offset)
+      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(IN)                                      :: ind
+      INTEGER, DIMENSION(ndims_tensor(tensor)), &
+         INTENT(OUT)                                     :: blk_offset
+
+      CPASSERT(tensor%valid)
+      blk_offset(:) = get_array_elements(tensor%blk_offsets, ind)
+   END SUBROUTINE
+
+END MODULE
