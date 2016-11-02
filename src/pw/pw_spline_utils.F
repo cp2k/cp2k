@@ -2918,9 +2918,11 @@ CONTAINS
       ELSE
          last_index = bo(2, 1)
       END IF
-      !#omp parallel do default(none) private(k,kw,myk,j,jw,myj,in_val_f,&
-      !#omp     in_val_l) shared(zderiv,yderiv,bo,in_val,out_val,s,l_boundary,&
-      !#omp     u_boundary,weights,is_split)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP PRIVATE(k, kw, myk, j, jw, myj, in_val_f, in_val_l, w_k, w_j, in_val_tmp, w) &
+!$OMP SHARED(bo, in_val, out_val, s, l_boundary, u_boundary, weights_1d, is_split, &
+!$OMP        my_transpose, gbo, my_smooth_boundary, has_l_boundary, has_u_boundary, &
+!$OMP        my_sharpen, last_index, first_index, my_normalize, n_els)
       DO k = bo(1, 3), bo(2, 3)
          DO kw = -1, 1
             myk = k+kw
