@@ -315,52 +315,70 @@ CONTAINS
 
       CALL mp_environ(numnodes, mynode, mp_comm)
 
-      send_counter = 0
-      rec_counter = 0
+      IF (numnodes > 1) THEN
 
-      DO iproc = 0, numnodes-1
-         IF (buffer_recv(iproc)%nblock > 0) THEN
-            rec_counter = rec_counter+1
-            CALL mp_irecv(buffer_recv(iproc)%indx, iproc, mp_comm, req_array(rec_counter, 3), tag=4)
-         END IF
-         IF (buffer_recv(iproc)%nblock > 0) THEN
-            SELECT CASE (buffer_recv (iproc)%data_type)
+         send_counter = 0
+         rec_counter = 0
+
+         DO iproc = 0, numnodes-1
+            IF (buffer_recv(iproc)%nblock > 0) THEN
+               rec_counter = rec_counter+1
+               CALL mp_irecv(buffer_recv(iproc)%indx, iproc, mp_comm, req_array(rec_counter, 3), tag=4)
+            END IF
+            IF (buffer_recv(iproc)%nblock > 0) THEN
+               SELECT CASE (buffer_recv (iproc)%data_type)
+               CASE (dbcsr_type_real_8)
+                  CALL mp_irecv(buffer_recv(iproc)%msg_r_dp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               CASE (dbcsr_type_real_4)
+                  CALL mp_irecv(buffer_recv(iproc)%msg_r_sp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               CASE (dbcsr_type_complex_8)
+                  CALL mp_irecv(buffer_recv(iproc)%msg_c_dp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               CASE (dbcsr_type_complex_4)
+                  CALL mp_irecv(buffer_recv(iproc)%msg_c_sp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               END SELECT
+            END IF
+         END DO
+
+         DO iproc = 0, numnodes-1
+            IF (buffer_send(iproc)%nblock > 0) THEN
+               send_counter = send_counter+1
+               CALL mp_isend(buffer_send(iproc)%indx, iproc, mp_comm, req_array(send_counter, 1), tag=4)
+            END IF
+            IF (buffer_send(iproc)%nblock > 0) THEN
+               SELECT CASE (buffer_recv (iproc)%data_type)
+               CASE (dbcsr_type_real_8)
+                  CALL mp_isend(buffer_send(iproc)%msg_r_dp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
+               CASE (dbcsr_type_real_4)
+                  CALL mp_isend(buffer_send(iproc)%msg_r_sp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
+               CASE (dbcsr_type_complex_8)
+                  CALL mp_isend(buffer_send(iproc)%msg_c_dp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
+               CASE (dbcsr_type_complex_4)
+                  CALL mp_isend(buffer_send(iproc)%msg_c_sp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
+               END SELECT
+            END IF
+         END DO
+
+         IF (send_counter > 0) THEN
+            CALL mp_waitall(req_array(1:send_counter, 1:2))
+         ENDIF
+         IF (rec_counter > 0) THEN
+            CALL mp_waitall(req_array(1:rec_counter, 3:4))
+         ENDIF
+
+      ELSE
+         IF (buffer_recv(0)%nblock > 0) THEN
+            buffer_recv(0)%indx(:, :) = buffer_send(0)%indx(:, :)
+            SELECT CASE (buffer_recv (0)%data_type)
             CASE (dbcsr_type_real_8)
-               CALL mp_irecv(buffer_recv(iproc)%msg_r_dp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               buffer_recv(0)%msg_r_dp(:) = buffer_send(0)%msg_r_dp(:)
             CASE (dbcsr_type_real_4)
-               CALL mp_irecv(buffer_recv(iproc)%msg_r_sp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               buffer_recv(0)%msg_r_sp(:) = buffer_send(0)%msg_r_sp(:)
             CASE (dbcsr_type_complex_8)
-               CALL mp_irecv(buffer_recv(iproc)%msg_c_dp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               buffer_recv(0)%msg_c_dp(:) = buffer_send(0)%msg_c_dp(:)
             CASE (dbcsr_type_complex_4)
-               CALL mp_irecv(buffer_recv(iproc)%msg_c_sp, iproc, mp_comm, req_array(rec_counter, 4), tag=7)
+               buffer_recv(0)%msg_c_sp(:) = buffer_send(0)%msg_c_sp(:)
             END SELECT
-         END IF
-      END DO
-
-      DO iproc = 0, numnodes-1
-         IF (buffer_send(iproc)%nblock > 0) THEN
-            send_counter = send_counter+1
-            CALL mp_isend(buffer_send(iproc)%indx, iproc, mp_comm, req_array(send_counter, 1), tag=4)
-         END IF
-         IF (buffer_send(iproc)%nblock > 0) THEN
-            SELECT CASE (buffer_recv (iproc)%data_type)
-            CASE (dbcsr_type_real_8)
-               CALL mp_isend(buffer_send(iproc)%msg_r_dp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
-            CASE (dbcsr_type_real_4)
-               CALL mp_isend(buffer_send(iproc)%msg_r_sp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
-            CASE (dbcsr_type_complex_8)
-               CALL mp_isend(buffer_send(iproc)%msg_c_dp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
-            CASE (dbcsr_type_complex_4)
-               CALL mp_isend(buffer_send(iproc)%msg_c_sp, iproc, mp_comm, req_array(send_counter, 2), tag=7)
-            END SELECT
-         END IF
-      END DO
-
-      IF (send_counter > 0) THEN
-         CALL mp_waitall(req_array(1:send_counter, 1:2))
-      ENDIF
-      IF (rec_counter > 0) THEN
-         CALL mp_waitall(req_array(1:rec_counter, 3:4))
+         ENDIF
       ENDIF
 
    END SUBROUTINE
