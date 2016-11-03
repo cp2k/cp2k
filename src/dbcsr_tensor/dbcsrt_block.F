@@ -73,14 +73,14 @@ MODULE dbcsrt_block
    END INTERFACE
 
    TYPE block_buffer_type
-      INTEGER                             :: ndim = -1
-      INTEGER :: nblock = -1
-      INTEGER, DIMENSION(:, :), ALLOCATABLE :: indx
-      REAL(kind=real_8), DIMENSION(:), ALLOCATABLE    :: msg_r_dp
-      REAL(kind=real_4), DIMENSION(:), ALLOCATABLE    :: msg_r_sp
-      COMPLEX(kind=real_8), DIMENSION(:), ALLOCATABLE    :: msg_c_dp
-      COMPLEX(kind=real_4), DIMENSION(:), ALLOCATABLE    :: msg_c_sp
-      INTEGER                                             :: data_type = -1
+      INTEGER                                          :: ndim = -1
+      INTEGER                                          :: nblock = -1
+      INTEGER, DIMENSION(:, :), ALLOCATABLE            :: indx
+      REAL(kind=real_8), DIMENSION(:), ALLOCATABLE     :: msg_r_dp
+      REAL(kind=real_4), DIMENSION(:), ALLOCATABLE     :: msg_r_sp
+      COMPLEX(kind=real_8), DIMENSION(:), ALLOCATABLE  :: msg_c_dp
+      COMPLEX(kind=real_4), DIMENSION(:), ALLOCATABLE  :: msg_c_sp
+      INTEGER                                          :: data_type = -1
       INTEGER                                          :: endpos = -1
    END TYPE
 
@@ -223,30 +223,27 @@ CONTAINS
       ndims_buffer = buffer%ndim
    END FUNCTION
 
-!TODO: ndata is not necessary
 ! **************************************************************************************************
 !> \brief insert a block into block buffer (at current iterator position)
 !> \param buffer ...
-!> \param ndata size of block
 !> \param index index of block
 !> \param block block
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_add_anyd_block(buffer, ndata, index, block)
+   SUBROUTINE block_buffer_add_anyd_block(buffer, index, block)
       TYPE(block_buffer_type), INTENT(INOUT)             :: buffer
-      INTEGER, INTENT(IN)                                :: ndata
       INTEGER, DIMENSION(ndims_buffer(buffer)), &
          INTENT(IN)                                      :: index
       TYPE(block_nd), INTENT(IN)                         :: block
 
       SELECT CASE (block%data_type)
       CASE (dbcsr_type_real_8)
-         CALL block_buffer_add_block_d(buffer, ndata, index, block%r_dp%blk)
+         CALL block_buffer_add_block_d(buffer, SIZE(block%r_dp%blk), index, block%r_dp%blk)
       CASE (dbcsr_type_real_4)
-         CALL block_buffer_add_block_s(buffer, ndata, index, block%r_sp%blk)
+         CALL block_buffer_add_block_s(buffer, SIZE(block%r_sp%blk), index, block%r_sp%blk)
       CASE (dbcsr_type_complex_8)
-         CALL block_buffer_add_block_z(buffer, ndata, index, block%c_dp%blk)
+         CALL block_buffer_add_block_z(buffer, SIZE(block%c_dp%blk), index, block%c_dp%blk)
       CASE (dbcsr_type_complex_4)
-         CALL block_buffer_add_block_c(buffer, ndata, index, block%c_sp%blk)
+         CALL block_buffer_add_block_c(buffer, SIZE(block%c_sp%blk), index, block%c_sp%blk)
       END SELECT
    END SUBROUTINE
 
@@ -256,23 +253,41 @@ CONTAINS
 !> \param ndata ...
 !> \param index ...
 !> \param block ...
+!> \param advance_iter ...
 ! **************************************************************************************************
-   SUBROUTINE block_buffer_get_next_anyd_block(buffer, ndata, index, block)
+   SUBROUTINE block_buffer_get_next_anyd_block(buffer, ndata, index, block, advance_iter)
       TYPE(block_buffer_type), INTENT(INOUT)             :: buffer
       INTEGER, INTENT(OUT)                               :: ndata
       INTEGER, DIMENSION(ndims_buffer(buffer)), &
          INTENT(OUT)                                     :: index
       TYPE(block_nd), INTENT(INOUT), OPTIONAL            :: block
+      LOGICAL, INTENT(IN), OPTIONAL                      :: advance_iter
 
       SELECT CASE (buffer%data_type)
       CASE (dbcsr_type_real_8)
-         CALL block_buffer_get_next_block_d(buffer, ndata, index, block%r_dp%blk)
+         IF (PRESENT(block)) THEN
+            CALL block_buffer_get_next_block_d(buffer, ndata, index, block%r_dp%blk, advance_iter=advance_iter)
+         ELSE
+            CALL block_buffer_get_next_block_d(buffer, ndata, index, advance_iter=advance_iter)
+         ENDIF
       CASE (dbcsr_type_real_4)
-         CALL block_buffer_get_next_block_s(buffer, ndata, index, block%r_sp%blk)
+         IF (PRESENT(block)) THEN
+            CALL block_buffer_get_next_block_s(buffer, ndata, index, block%r_sp%blk, advance_iter=advance_iter)
+         ELSE
+            CALL block_buffer_get_next_block_s(buffer, ndata, index, advance_iter=advance_iter)
+         ENDIF
       CASE (dbcsr_type_complex_8)
-         CALL block_buffer_get_next_block_z(buffer, ndata, index, block%c_dp%blk)
+         IF (PRESENT(block)) THEN
+            CALL block_buffer_get_next_block_z(buffer, ndata, index, block%c_dp%blk, advance_iter=advance_iter)
+         ELSE
+            CALL block_buffer_get_next_block_z(buffer, ndata, index, advance_iter=advance_iter)
+         ENDIF
       CASE (dbcsr_type_complex_4)
-         CALL block_buffer_get_next_block_c(buffer, ndata, index, block%c_sp%blk)
+         IF (PRESENT(block)) THEN
+            CALL block_buffer_get_next_block_c(buffer, ndata, index, block%c_sp%blk, advance_iter=advance_iter)
+         ELSE
+            CALL block_buffer_get_next_block_c(buffer, ndata, index, advance_iter=advance_iter)
+         ENDIF
       END SELECT
    END SUBROUTINE
 

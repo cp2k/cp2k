@@ -555,7 +555,7 @@ CONTAINS
             CALL dbcsrt_iterator_next_block(iter, ind_nd, blk, blk_size=blk_size)
             CALL dbcsrt_get_anyd_block(tensor_in, ind_nd, blk_data)
             CALL dbcsrt_get_stored_coordinates(tensor_out, ind_nd, iproc)
-            CALL block_buffer_add_anyd_block(buffer_send(iproc), PRODUCT(blk_size), ind_nd, blk_data)
+            CALL block_buffer_add_anyd_block(buffer_send(iproc), ind_nd, blk_data)
             CALL destroy_block(blk_data)
          ENDDO
          CALL dbcsrt_iterator_stop(iter)
