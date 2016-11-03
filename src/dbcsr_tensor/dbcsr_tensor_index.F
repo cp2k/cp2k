@@ -7,14 +7,14 @@
 !> \brief Methods for tensor index and mapping to DBCSR index.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-MODULE dbcsrt_index
-   USE dbcsrt_index_types,              ONLY: nd_to_2d_mapping,&
+MODULE dbcsr_tensor_index
+   USE dbcsr_tensor_index_types,        ONLY: nd_to_2d_mapping,&
                                               ndims_mapping
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsrt_index'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_index'
 
    PUBLIC :: &
       get_2d_indices, &
@@ -171,4 +171,4 @@ CONTAINS
       ENDDO
    END FUNCTION get_nd_indices
 
-END MODULE dbcsrt_index
+END MODULE

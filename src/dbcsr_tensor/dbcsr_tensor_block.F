@@ -7,23 +7,23 @@
 !> \brief Methods to operate on n-dimensional tensor blocks.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-MODULE dbcsrt_block
+MODULE dbcsr_tensor_block
 
    USE allocate_wrap,                   ONLY: allocate_any
    USE dbcsr_api,                       ONLY: dbcsr_type_complex_4,&
                                               dbcsr_type_complex_8,&
                                               dbcsr_type_real_4,&
                                               dbcsr_type_real_8
-   USE dbcsrt_block_c,                  ONLY: block_nd_c,&
+   USE dbcsr_tensor_block_c,            ONLY: block_nd_c,&
                                               reshape_2d_to_nd_block,&
                                               reshape_nd_to_2d_block
-   USE dbcsrt_block_d,                  ONLY: block_nd_d,&
+   USE dbcsr_tensor_block_d,            ONLY: block_nd_d,&
                                               reshape_2d_to_nd_block,&
                                               reshape_nd_to_2d_block
-   USE dbcsrt_block_s,                  ONLY: block_nd_s,&
+   USE dbcsr_tensor_block_s,            ONLY: block_nd_s,&
                                               reshape_2d_to_nd_block,&
                                               reshape_nd_to_2d_block
-   USE dbcsrt_block_z,                  ONLY: block_nd_z,&
+   USE dbcsr_tensor_block_z,            ONLY: block_nd_z,&
                                               reshape_2d_to_nd_block,&
                                               reshape_nd_to_2d_block
    USE kinds,                           ONLY: real_4,&
@@ -36,7 +36,7 @@ MODULE dbcsrt_block
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsrt_block'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_block'
 
    PUBLIC :: &
       block_buffer_add_anyd_block, &
@@ -398,8 +398,8 @@ CONTAINS
 
    END SUBROUTINE
 
-#include "dbcsrt_block_inc_c.f90"
-#include "dbcsrt_block_inc_d.f90"
-#include "dbcsrt_block_inc_s.f90"
-#include "dbcsrt_block_inc_z.f90"
-END MODULE dbcsrt_block
+#include "dbcsr_tensor_block_inc_c.f90"
+#include "dbcsr_tensor_block_inc_d.f90"
+#include "dbcsr_tensor_block_inc_s.f90"
+#include "dbcsr_tensor_block_inc_z.f90"
+END MODULE

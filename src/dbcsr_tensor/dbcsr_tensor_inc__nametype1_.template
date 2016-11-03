@@ -1,14 +1,14 @@
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_put_block for tensor rank 3.
+!> \brief Implementation of dbcsr_t_put_block for tensor rank 3.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to put
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_put_3d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: sizes
+   SUBROUTINE dbcsr_t_put_3d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: ind
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3)), &
          INTENT(IN)                                               :: block
 
@@ -31,17 +31,17 @@
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_put_block for tensor rank 4.
+!> \brief Implementation of dbcsr_t_put_block for tensor rank 4.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to put
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_put_4d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), &
+   SUBROUTINE dbcsr_t_put_4d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), &
          INTENT(IN)                                               :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: sizes
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3), sizes(4)), &
          INTENT(IN)                                               :: block
 
@@ -64,17 +64,17 @@
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_put_block for tensor rank 5.
+!> \brief Implementation of dbcsr_t_put_block for tensor rank 5.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to put
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_put_5d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), &
+   SUBROUTINE dbcsr_t_put_5d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), &
          INTENT(IN)                                               :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: sizes
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3), sizes(4), sizes(5)), &
          INTENT(IN)                                               :: block
 
@@ -97,17 +97,17 @@
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_put_block for tensor rank 6.
+!> \brief Implementation of dbcsr_t_put_block for tensor rank 6.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to put
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_put_6d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), &
+   SUBROUTINE dbcsr_t_put_6d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), &
          INTENT(IN)                                               :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: sizes
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3), sizes(4), sizes(5), sizes(6)), &
          INTENT(IN)                                               :: block
 
@@ -131,36 +131,36 @@
 
 
 ! **************************************************************************************************
-!> \brief Generic implementation of dbcsrt_put_block (arbitrary tensor rank)
+!> \brief Generic implementation of dbcsr_t_put_block (arbitrary tensor rank)
 !> \param tensor ...
 !> \param ind block index
 !> \param block block to put
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_put_anyd_block_[nametype1](tensor, ind, block)
+   SUBROUTINE dbcsr_t_put_anyd_block_[nametype1](tensor, ind, block)
       TYPE(block_nd_[nametype1]), INTENT(IN)                      :: block
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), &
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), &
          INTENT(IN)                                               :: ind
 
-      SELECT CASE(dbcsrt_ndims(tensor))
+      SELECT CASE(dbcsr_t_ndims(tensor))
       CASE(3)
-         CALL dbcsrt_put_3d_block_[nametype1](tensor, ind, block%sizes, block%blk)
+         CALL dbcsr_t_put_3d_block_[nametype1](tensor, ind, block%sizes, block%blk)
       CASE(4)
-         CALL dbcsrt_put_4d_block_[nametype1](tensor, ind, block%sizes, block%blk)
+         CALL dbcsr_t_put_4d_block_[nametype1](tensor, ind, block%sizes, block%blk)
       END SELECT
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_get_block for tensor rank 3.
+!> \brief Implementation of dbcsr_t_get_block for tensor rank 3.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to get
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_get_3d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: sizes
+   SUBROUTINE dbcsr_t_get_3d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: ind
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3)), &
          INTENT(OUT)                                              :: block
 
@@ -186,16 +186,16 @@
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_get_block for tensor rank 4.
+!> \brief Implementation of dbcsr_t_get_block for tensor rank 4.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to get
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_get_4d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: sizes
+   SUBROUTINE dbcsr_t_get_4d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: ind
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3), sizes(4)), &
          INTENT(OUT)                                              :: block
 
@@ -221,16 +221,16 @@
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_get_block for tensor rank 5.
+!> \brief Implementation of dbcsr_t_get_block for tensor rank 5.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to get
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_get_5d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                 :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)      :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)      :: sizes
+   SUBROUTINE dbcsr_t_get_5d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                 :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)      :: ind
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)      :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3), sizes(4), sizes(5)), &
          INTENT(OUT)                                            :: block
 
@@ -256,16 +256,16 @@
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Implementation of dbcsrt_get_block for tensor rank 5.
+!> \brief Implementation of dbcsr_t_get_block for tensor rank 5.
 !> \param tensor ...
 !> \param ind block index
 !> \param sizes block size
 !> \param block block to get
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_get_6d_block_[nametype1](tensor, ind, sizes, block)
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), INTENT(IN)        :: sizes
+   SUBROUTINE dbcsr_t_get_6d_block_[nametype1](tensor, ind, sizes, block)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: ind
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN)        :: sizes
       [type1], DIMENSION(sizes(1), sizes(2), sizes(3), sizes(4), sizes(5), sizes(6)), &
          INTENT(OUT)                                              :: block
 
@@ -291,27 +291,27 @@
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief Generic implementation of dbcsrt_get_block (arbitrary tensor rank)
+!> \brief Generic implementation of dbcsr_t_get_block (arbitrary tensor rank)
 !> \param tensor ...
 !> \param ind block index
 !> \param block block to get
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_get_anyd_block_[nametype1](tensor, ind, block)
+   SUBROUTINE dbcsr_t_get_anyd_block_[nametype1](tensor, ind, block)
       TYPE(block_nd), INTENT(OUT)                                 :: block
-      TYPE(dbcsrt_type), INTENT(INOUT)                            :: tensor
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor)), &
+      TYPE(dbcsr_t_type), INTENT(INOUT)                            :: tensor
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), &
          INTENT(IN)                                               :: ind
-      INTEGER, DIMENSION(dbcsrt_ndims(tensor))                    :: blk_size
+      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))                    :: blk_size
       [type1], DIMENSION(:), ALLOCATABLE                          :: block_arr
 
-      CALL dbcsrt_blk_sizes(tensor, ind, blk_size)
+      CALL dbcsr_t_blk_sizes(tensor, ind, blk_size)
       ALLOCATE(block_arr(PRODUCT(blk_size)))
 
-      SELECT CASE(dbcsrt_ndims(tensor))
+      SELECT CASE(dbcsr_t_ndims(tensor))
       CASE (3)
-        CALL dbcsrt_get_3d_block_[nametype1](tensor, ind, blk_size, block_arr)
+        CALL dbcsr_t_get_3d_block_[nametype1](tensor, ind, blk_size, block_arr)
       CASE (4)
-        CALL dbcsrt_get_4d_block_[nametype1](tensor, ind, blk_size, block_arr)
+        CALL dbcsr_t_get_4d_block_[nametype1](tensor, ind, blk_size, block_arr)
       END SELECT
       CALL create_block(block, blk_size, block_arr)
    END SUBROUTINE

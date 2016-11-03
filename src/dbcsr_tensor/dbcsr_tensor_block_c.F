@@ -7,9 +7,9 @@
 !> \brief Methods to operate on n-dimensional tensor blocks.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-MODULE dbcsrt_block_c
+MODULE dbcsr_tensor_block_c
    USE allocate_wrap,                   ONLY: allocate_any
-   USE dbcsrt_index_types,              ONLY: nd_to_2d_mapping,&
+   USE dbcsr_tensor_index_types,        ONLY: nd_to_2d_mapping,&
                                               ndims_mapping
    USE kinds,                           ONLY: real_4
 #include "../base/base_uses.f90"

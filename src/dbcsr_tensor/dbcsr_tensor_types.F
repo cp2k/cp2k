@@ -8,7 +8,7 @@
 !>        routines.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-MODULE dbcsrt_types
+MODULE dbcsr_tensor_types
    USE array_list_methods,              ONLY: array_list,&
                                               array_offsets,&
                                               create_array_list,&
@@ -20,9 +20,9 @@ MODULE dbcsrt_types
         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
         dbcsr_finalize, dbcsr_get_data_type, dbcsr_init, dbcsr_mp_new, dbcsr_mp_obj, &
         dbcsr_mp_release, dbcsr_obj, dbcsr_release
-   USE dbcsrt_index,                    ONLY: get_2d_indices,&
+   USE dbcsr_tensor_index,              ONLY: get_2d_indices,&
                                               get_nd_indices
-   USE dbcsrt_index_types,              ONLY: create_nd_to_2d_mapping,&
+   USE dbcsr_tensor_index_types,        ONLY: create_nd_to_2d_mapping,&
                                               destroy_nd_to_2d_mapping,&
                                               get_mapping_info,&
                                               nd_to_2d_mapping
@@ -35,22 +35,22 @@ MODULE dbcsrt_types
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsrt_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_types'
 
    PUBLIC  :: &
-      dbcsrt_blk_sizes, &
-      dbcsrt_blk_offsets, &
-      dbcsrt_create, &
-      dbcsrt_destroy, &
-      dbcsrt_distribution_destroy, &
-      dbcsrt_distribution_new, &
-      dbcsrt_distribution_type, &
-      dbcsrt_get_data_type, &
-      dbcsrt_type, &
+      dbcsr_t_blk_sizes, &
+      dbcsr_t_blk_offsets, &
+      dbcsr_t_create, &
+      dbcsr_t_destroy, &
+      dbcsr_t_distribution_destroy, &
+      dbcsr_t_distribution_new, &
+      dbcsr_t_distribution_type, &
+      dbcsr_t_get_data_type, &
+      dbcsr_t_type, &
       dims_tensor, &
       ndims_tensor
 
-   TYPE dbcsrt_type
+   TYPE dbcsr_t_type
       TYPE(dbcsr_obj)                               :: matrix_rep
       TYPE(nd_to_2d_mapping)                        :: nd_index_blk
       TYPE(nd_to_2d_mapping)                        :: nd_index
@@ -58,16 +58,16 @@ MODULE dbcsrt_types
       TYPE(array_list)                              :: blk_offsets
       LOGICAL                                       :: valid = .FALSE.
       CHARACTER(LEN=default_string_length)          :: name
-   END TYPE dbcsrt_type
+   END TYPE dbcsr_t_type
 
-   TYPE dbcsrt_distribution_type
+   TYPE dbcsr_t_distribution_type
       TYPE(dbcsr_distribution_obj) :: dist
       INTEGER                      :: comm_2d
    END TYPE
 
-   INTERFACE dbcsrt_create
-      MODULE PROCEDURE dbcsrt_create_new
-      MODULE PROCEDURE dbcsrt_create_template
+   INTERFACE dbcsr_t_create
+      MODULE PROCEDURE dbcsr_t_create_new
+      MODULE PROCEDURE dbcsr_t_create_template
    END INTERFACE
 
 CONTAINS
@@ -85,10 +85,10 @@ CONTAINS
 !> \param nd_dist_5 ...
 !> \param nd_dist_6 ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_distribution_new(dist, comm, map1_2d, map2_2d, nd_dist_1, nd_dist_2, nd_dist_3, &
-                                      nd_dist_4, nd_dist_5, nd_dist_6)
+   SUBROUTINE dbcsr_t_distribution_new(dist, comm, map1_2d, map2_2d, nd_dist_1, nd_dist_2, nd_dist_3, &
+                                       nd_dist_4, nd_dist_5, nd_dist_6)
 
-      TYPE(dbcsrt_distribution_type), INTENT(OUT)        :: dist
+      TYPE(dbcsr_t_distribution_type), INTENT(OUT)       :: dist
       INTEGER, INTENT(IN)                                :: comm
       INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
       INTEGER, ALLOCATABLE, DIMENSION(:), &
@@ -176,8 +176,8 @@ CONTAINS
 !> \brief Destroy tensor distribution
 !> \param dist ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_distribution_destroy(dist)
-      TYPE(dbcsrt_distribution_type), INTENT(INOUT)      :: dist
+   SUBROUTINE dbcsr_t_distribution_destroy(dist)
+      TYPE(dbcsr_t_distribution_type), INTENT(INOUT)     :: dist
 
       CALL dbcsr_distribution_release(dist%dist)
       CALL mp_comm_free(dist%comm_2d)
@@ -198,12 +198,12 @@ CONTAINS
 !> \param blk_size_5 ...
 !> \param blk_size_6 ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_create_new(tensor, name, dist, map1_2d, map2_2d, data_type, &
-                                blk_size_1, blk_size_2, blk_size_3, &
-                                blk_size_4, blk_size_5, blk_size_6)
-      TYPE(dbcsrt_type), INTENT(OUT)                     :: tensor
+   SUBROUTINE dbcsr_t_create_new(tensor, name, dist, map1_2d, map2_2d, data_type, &
+                                 blk_size_1, blk_size_2, blk_size_3, &
+                                 blk_size_4, blk_size_5, blk_size_6)
+      TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
       CHARACTER(len=*), INTENT(IN)                       :: name
-      TYPE(dbcsrt_distribution_type), INTENT(INOUT)      :: dist
+      TYPE(dbcsr_t_distribution_type), INTENT(INOUT)     :: dist
       INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
       INTEGER, INTENT(IN), OPTIONAL                      :: data_type
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN), &
@@ -278,9 +278,9 @@ CONTAINS
 !> \param tensor_in ...
 !> \param tensor ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_create_template(tensor_in, tensor)
-      TYPE(dbcsrt_type), INTENT(INOUT)                   :: tensor_in
-      TYPE(dbcsrt_type), INTENT(OUT)                     :: tensor
+   SUBROUTINE dbcsr_t_create_template(tensor_in, tensor)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor_in
+      TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
 
       CALL dbcsr_init(tensor%matrix_rep)
       CALL dbcsr_create(tensor%matrix_rep, tensor_in%matrix_rep)
@@ -297,8 +297,8 @@ CONTAINS
 !> \brief ...
 !> \param tensor ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_destroy(tensor)
-      TYPE(dbcsrt_type), INTENT(INOUT)                   :: tensor
+   SUBROUTINE dbcsr_t_destroy(tensor)
+      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
 
       CALL dbcsr_release(tensor%matrix_rep)
       CALL destroy_nd_to_2d_mapping(tensor%nd_index)
@@ -315,7 +315,7 @@ CONTAINS
 !> \retval ndims_tensor ...
 ! **************************************************************************************************
    PURE FUNCTION ndims_tensor(tensor)
-      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
       INTEGER                                            :: ndims_tensor
 
       ndims_tensor = tensor%nd_index%ndim_nd
@@ -327,7 +327,7 @@ CONTAINS
 !> \param dims ...
 ! **************************************************************************************************
    SUBROUTINE dims_tensor(tensor, dims)
-      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
          INTENT(OUT)                                     :: dims
 
@@ -338,13 +338,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief tensor data type
 !> \param tensor ...
-!> \retval dbcsrt_get_data_type ...
+!> \retval dbcsr_t_get_data_type ...
 ! **************************************************************************************************
-   PURE FUNCTION dbcsrt_get_data_type(tensor)
-      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
-      INTEGER                                            :: dbcsrt_get_data_type
+   PURE FUNCTION dbcsr_t_get_data_type(tensor)
+      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
+      INTEGER                                            :: dbcsr_t_get_data_type
 
-      dbcsrt_get_data_type = dbcsr_get_data_type(tensor%matrix_rep)
+      dbcsr_t_get_data_type = dbcsr_get_data_type(tensor%matrix_rep)
    END FUNCTION
 
 ! **************************************************************************************************
@@ -353,8 +353,8 @@ CONTAINS
 !> \param ind block index
 !> \param blk_size block size
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_blk_sizes(tensor, ind, blk_size)
-      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+   SUBROUTINE dbcsr_t_blk_sizes(tensor, ind, blk_size)
+      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
          INTENT(IN)                                      :: ind
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
@@ -369,8 +369,8 @@ CONTAINS
 !> \param ind block index
 !> \param blk_offset block offset
 ! **************************************************************************************************
-   SUBROUTINE dbcsrt_blk_offsets(tensor, ind, blk_offset)
-      TYPE(dbcsrt_type), INTENT(IN)                      :: tensor
+   SUBROUTINE dbcsr_t_blk_offsets(tensor, ind, blk_offset)
+      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
          INTENT(IN)                                      :: ind
       INTEGER, DIMENSION(ndims_tensor(tensor)), &

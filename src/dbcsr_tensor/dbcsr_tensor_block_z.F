@@ -7,38 +7,37 @@
 !> \brief Methods to operate on n-dimensional tensor blocks.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-MODULE dbcsrt_block_[nametype1]
-   USE kinds,                       ONLY: [kind1]
-   USE dbcsrt_index_types,          ONLY: nd_to_2d_mapping,&
-                                          ndims_mapping
-   USE allocate_wrap,               ONLY: allocate_any
+MODULE dbcsr_tensor_block_z
+   USE allocate_wrap,                   ONLY: allocate_any
+   USE dbcsr_tensor_index_types,        ONLY: nd_to_2d_mapping,&
+                                              ndims_mapping
+   USE kinds,                           ONLY: real_8
 #include "../base/base_uses.f90"
-
 
    IMPLICIT NONE
    PRIVATE
 
-   TYPE block_nd_[nametype1]
+   TYPE block_nd_z
       INTEGER, DIMENSION(:), ALLOCATABLE :: sizes
-      [type1], DIMENSION(:), ALLOCATABLE :: blk
+      COMPLEX(kind=real_8), DIMENSION(:), ALLOCATABLE :: blk
    END TYPE
 
    INTERFACE reshape_nd_to_2d_block
-      MODULE PROCEDURE reshape_3d_to_2d_block_[nametype1]
-      MODULE PROCEDURE reshape_4d_to_2d_block_[nametype1]
-      MODULE PROCEDURE reshape_5d_to_2d_block_[nametype1]
-      MODULE PROCEDURE reshape_6d_to_2d_block_[nametype1]
+      MODULE PROCEDURE reshape_3d_to_2d_block_z
+      MODULE PROCEDURE reshape_4d_to_2d_block_z
+      MODULE PROCEDURE reshape_5d_to_2d_block_z
+      MODULE PROCEDURE reshape_6d_to_2d_block_z
    END INTERFACE reshape_nd_to_2d_block
 
    INTERFACE reshape_2d_to_nd_block
-      MODULE PROCEDURE reshape_2d_to_3d_block_[nametype1]
-      MODULE PROCEDURE reshape_2d_to_4d_block_[nametype1]
-      MODULE PROCEDURE reshape_2d_to_5d_block_[nametype1]
-      MODULE PROCEDURE reshape_2d_to_6d_block_[nametype1]
+      MODULE PROCEDURE reshape_2d_to_3d_block_z
+      MODULE PROCEDURE reshape_2d_to_4d_block_z
+      MODULE PROCEDURE reshape_2d_to_5d_block_z
+      MODULE PROCEDURE reshape_2d_to_6d_block_z
    END INTERFACE reshape_2d_to_nd_block
 
    PUBLIC :: &
-      block_nd_[nametype1], &
+      block_nd_z, &
       reshape_2d_to_nd_block, &
       reshape_nd_to_2d_block
 
@@ -49,12 +48,12 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_2d_to_3d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_2d_to_3d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(:, :), INTENT(IN)               :: block_2d
-      [type1], &
-         DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3)), &
-         INTENT(OUT)                                     :: block
+      COMPLEX(kind=real_8), DIMENSION(:, :), INTENT(IN)  :: block_2d
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3)), INTENT(OUT)    :: block
+
       INTEGER, DIMENSION(ndims_mapping(map))             :: map_tmp
 
       map_tmp(:) = [map%map1_2d, map%map2_2d]
@@ -67,16 +66,18 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_3d_to_2d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_3d_to_2d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
+      COMPLEX(kind=real_8), &
+         DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
          INTENT(OUT)                                     :: block_2d
-      [type1], DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3)), &
-         INTENT(IN)                                      :: block
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3)), INTENT(IN)     :: block
 
-      INTEGER                                            :: i
+      COMPLEX(kind=real_8), ALLOCATABLE, &
+         DIMENSION(:, :, :)                              :: block_tmp
       INTEGER, DIMENSION(ndims_mapping(map))             :: shape_in, shape_reordered
-      [type1], ALLOCATABLE, DIMENSION(:, :, :)           :: block_tmp
+      INTEGER                                            :: i
 
       shape_in = SHAPE(block)
       DO i = 1, SIZE(shape_in)
@@ -93,12 +94,13 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_2d_to_4d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_2d_to_4d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(:, :), INTENT(IN)               :: block_2d
-      [type1], &
-         DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3), map%dims_nd(4)), &
-         INTENT(OUT)                                     :: block
+      COMPLEX(kind=real_8), DIMENSION(:, :), INTENT(IN)  :: block_2d
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3), map%dims_nd(4))&
+         , INTENT(OUT)                                   :: block
+
       INTEGER, DIMENSION(ndims_mapping(map))             :: map_tmp
 
       map_tmp(:) = [map%map1_2d, map%map2_2d]
@@ -111,17 +113,19 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_4d_to_2d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_4d_to_2d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
+      COMPLEX(kind=real_8), &
+         DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
          INTENT(OUT)                                     :: block_2d
-      [type1], DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3), map%dims_nd(4)), &
-         INTENT(IN)                                      :: block
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3), map%dims_nd(4))&
+         , INTENT(IN)                                    :: block
 
-      INTEGER                                            :: i
-      INTEGER, DIMENSION(ndims_mapping(map))             :: shape_in, shape_reordered
-      [type1], ALLOCATABLE, &
+      COMPLEX(kind=real_8), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: block_tmp
+      INTEGER, DIMENSION(ndims_mapping(map))             :: shape_in, shape_reordered
+      INTEGER                                            :: i
 
       shape_in = SHAPE(block)
       DO i = 1, SIZE(shape_in)
@@ -138,12 +142,13 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_2d_to_5d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_2d_to_5d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(:, :), INTENT(IN)               :: block_2d
-      [type1], &
-         DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3), map%dims_nd(4), map%dims_nd(5)), &
-         INTENT(OUT)                                     :: block
+      COMPLEX(kind=real_8), DIMENSION(:, :), INTENT(IN)  :: block_2d
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3), map%dims_nd(4),&
+         map%dims_nd(5)), INTENT(OUT)                    :: block
+
       INTEGER, DIMENSION(ndims_mapping(map))             :: map_tmp
 
       map_tmp(:) = [map%map1_2d, map%map2_2d]
@@ -156,17 +161,19 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_5d_to_2d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_5d_to_2d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
+      COMPLEX(kind=real_8), &
+         DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
          INTENT(OUT)                                     :: block_2d
-      [type1], DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3), map%dims_nd(4), map%dims_nd(5)), &
-         INTENT(IN)                                      :: block
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3), map%dims_nd(4),&
+         map%dims_nd(5)), INTENT(IN)                     :: block
 
-      INTEGER                                            :: i
-      INTEGER, DIMENSION(ndims_mapping(map))             :: shape_in, shape_reordered
-      [type1], ALLOCATABLE, &
+      COMPLEX(kind=real_8), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: block_tmp
+      INTEGER, DIMENSION(ndims_mapping(map))             :: shape_in, shape_reordered
+      INTEGER                                            :: i
 
       shape_in = SHAPE(block)
       DO i = 1, SIZE(shape_in)
@@ -183,13 +190,13 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_2d_to_6d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_2d_to_6d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(:, :), INTENT(IN)               :: block_2d
-      [type1], &
-         DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3), &
-                   map%dims_nd(4), map%dims_nd(5), map%dims_nd(6)), &
-         INTENT(OUT)                                     :: block
+      COMPLEX(kind=real_8), DIMENSION(:, :), INTENT(IN)  :: block_2d
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3), map%dims_nd(4),&
+         map%dims_nd(5), map%dims_nd(6)), INTENT(OUT)    :: block
+
       INTEGER, DIMENSION(ndims_mapping(map))             :: map_tmp
 
       map_tmp(:) = [map%map1_2d, map%map2_2d]
@@ -202,18 +209,19 @@ CONTAINS
 !> \param block_2d ...
 !> \param block ...
 ! **************************************************************************************************
-   SUBROUTINE reshape_6d_to_2d_block_[nametype1](map, block_2d, block)
+   SUBROUTINE reshape_6d_to_2d_block_z(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                 :: map
-      [type1], DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
+      COMPLEX(kind=real_8), &
+         DIMENSION(map%dims_2d(1), map%dims_2d(2)), &
          INTENT(OUT)                                     :: block_2d
-      [type1], DIMENSION(map%dims_nd(1), map%dims_nd(2), map%dims_nd(3), &
-                         map%dims_nd(4), map%dims_nd(5), map%dims_nd(6)), &
-         INTENT(IN)                                      :: block
+      COMPLEX(kind=real_8), DIMENSION(map%dims_nd(1), &
+         map%dims_nd(2), map%dims_nd(3), map%dims_nd(4),&
+         map%dims_nd(5), map%dims_nd(6)), INTENT(IN)     :: block
 
-      INTEGER                                            :: i
-      INTEGER, DIMENSION(ndims_mapping(map))             :: shape_in, shape_reordered
-      [type1], ALLOCATABLE, &
+      COMPLEX(kind=real_8), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :, :)                     :: block_tmp
+      INTEGER, DIMENSION(ndims_mapping(map))             :: shape_in, shape_reordered
+      INTEGER                                            :: i
 
       shape_in = SHAPE(block)
       DO i = 1, SIZE(shape_in)

@@ -7,13 +7,13 @@
 !> \brief Types for tensor index and mapping to DBCSR index.
 !> \author Patrick Seewald
 ! **************************************************************************************************
-MODULE dbcsrt_index_types
+MODULE dbcsr_tensor_index_types
 
    USE allocate_wrap,                   ONLY: allocate_any
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsrt_index_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_index_types'
 
    PUBLIC :: &
       create_nd_to_2d_mapping, &
@@ -189,4 +189,4 @@ CONTAINS
 
    END SUBROUTINE get_mapping_info
 
-END MODULE dbcsrt_index_types
+END MODULE
