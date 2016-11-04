@@ -630,14 +630,9 @@ CONTAINS
 
          ENDDO
 
-         ! obtain orbitals from density matrix (currently ALMO SCF needs orbitals)
-         ! RZK-warning currently the orbitals are generated
-         ! by diagonalizing p blocks and taking only the
-         ! eigenvectors with highest occupation
-         ! essentially producing the ionic orbitals
-         ! while it works for simple systems this guess
-         ! will lead to convergence problems with complex molecules
-         CALL almo_scf_p_blk_to_t_blk(almo_scf_env)
+         ! obtain orbitals from the density matrix
+         ! (the current version of ALMO SCF needs orbitals)
+         CALL almo_scf_p_blk_to_t_blk(almo_scf_env, ionic=.FALSE.)
 
       END SELECT
 
@@ -883,7 +878,6 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator2) == 0)
          CALL get_iterator_info(nl_iterator2, &
                                 iatom=iatom2, jatom=jatom2)
-!WRITE(*,*) "GET INFO: ",iatom2, jatom2
          local_list(2*local_list_length+1) = iatom2
          local_list(2*local_list_length+2) = jatom2
          local_list_length = local_list_length+1

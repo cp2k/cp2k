@@ -42,14 +42,14 @@ MODULE almo_scf_optimizer
         cp_dbcsr_print_block_sum, cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_scale, &
         cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_triu, cp_dbcsr_type, &
         cp_dbcsr_work_create, dbcsr_distribution_mp, dbcsr_func_artanh, dbcsr_func_dtanh, &
-        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_mp_mynode, dbcsr_mp_numnodes, &
-        dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry
+        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_mp_numnodes, dbcsr_norm_maxabsnorm, &
+        dbcsr_type_no_symmetry
    USE cp_external_control,             ONLY: external_control
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
    USE ct_methods,                      ONLY: analytic_line_search,&
                                               ct_step_execute,&
                                               diagonalize_diagonal_blocks
@@ -70,6 +70,8 @@ MODULE almo_scf_optimizer
         almo_scf_diag, almo_scf_dm_sign, cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, &
         cg_hager_zhang, cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, cg_zero, prec_zero, &
         virt_full, xalmo_case_block_diag, xalmo_case_fully_deloc, xalmo_case_normal
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
    USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
@@ -295,7 +297,7 @@ CONTAINS
                ENDDO
 
                ! obtain ALMOs from matrix_p_blk: T_new = P_blk S_blk T_old
-               CALL almo_scf_p_blk_to_t_blk(almo_scf_env)
+               CALL almo_scf_p_blk_to_t_blk(almo_scf_env, ionic=.FALSE.)
                CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env)
 
             END SELECT
@@ -327,10 +329,9 @@ CONTAINS
       ENDDO ! end scf cycle
 
       IF (.NOT. converged) THEN
-         IF (unit_nr > 0) WRITE (unit_nr, '(T2,A)') "SCF for block-diagonal ALMOs not converged! "
-         ! DANGER: handle non-convergent procedures outside since other outer
-         ! methods can be used
-         !CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+         IF (unit_nr > 0) THEN
+            CPABORT("SCF for block-diagonal ALMOs not converged!")
+         ENDIF
       ENDIF
 
       DO ispin = 1, nspin
@@ -751,10 +752,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_xalmo_pcg', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=100)                                 :: mylogfile, mynodestr
       CHARACTER(LEN=20)                                  :: iter_type
-      INTEGER :: cg_iteration, dim0, fixed_line_search_niter, handle, ispin, iteration, iunit, jj, &
-         line_search_iteration, max_iter, my_special_case, mynode, ncores, ndomains, occ1, &
+      INTEGER :: cg_iteration, dim0, eda_unit, fixed_line_search_niter, handle, ispin, iteration, &
+         jj, line_search_iteration, max_iter, my_special_case, ncores, ndomains, occ1, &
          outer_iteration, outer_max_iter, prec_type, precond_domain_projector, unit_nr, &
          zero_neg_eiv
       LOGICAL :: converged, do_md, first_md_iteration, just_started, line_search, &
@@ -773,6 +773,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: domain_r_down
+      TYPE(section_vals_type), POINTER                   :: almo_print_section, input
 
       CALL timeset(routineN, handle)
 
@@ -1337,8 +1338,7 @@ CONTAINS
                      ! it is equal to F_vo and necessary to compute
                      ! the correction to the energy
                      CALL cp_dbcsr_copy(fvo_0, m_tmp_no_2)
-                     CALL cp_dbcsr_scale(fvo_0, &
-                                         0.5_dp)
+                     CALL cp_dbcsr_scale(fvo_0, 0.5_dp/spin_factor)
                   ENDIF
 
                   ! a short print-out
@@ -2158,11 +2158,19 @@ CONTAINS
 
             IF (perturbation_only) THEN
 
-               CALL cp_dbcsr_add(matrix_t_0, matrix_t_out(ispin), &
+               ! step matrix will contain the difference (i.e. excitation amplitudes)
+               CALL cp_dbcsr_copy(step, matrix_t_0)
+               CALL cp_dbcsr_add(step, matrix_t_out(ispin), &
                                  -1.0_dp, 1.0_dp)
 
-               CALL cp_dbcsr_trace(matrix_t_0, &
-                                   fvo_0, energy_new, "T", "N")
+               CALL cp_dbcsr_scale(fvo_0, spin_factor)
+               CALL cp_dbcsr_trace(step, fvo_0, energy_new, "T", "N")
+
+               !CALL cp_dbcsr_add(matrix_t_0,matrix_t_out(ispin),&
+               !        -1.0_dp,1.0_dp)
+               !CALL cp_dbcsr_trace(matrix_t_0,&
+               !        fvo_0,energy_new,"T","N")
+
                ! print out the energy lowering
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, *)
@@ -2174,53 +2182,86 @@ CONTAINS
                      almo_scf_env%almo_scf_energy+energy_new
                   WRITE (unit_nr, *)
                ENDIF
-               !IF (unit_nr>0) THEN
-               !   WRITE(unit_nr,*) "_ENERGY-0: ", almo_scf_env%almo_scf_energy
-               !   WRITE(unit_nr,*) "_ENERGY-D: ", energy_new
-               !   WRITE(unit_nr,*) "_ENERGY-F: ", almo_scf_env%almo_scf_energy+energy_new
-               !ENDIF
                CALL almo_scf_update_ks_energy(qs_env, &
                                               almo_scf_env%almo_scf_energy+energy_new)
 
-               ! similar method to evaluate the energy correction
-               !CALL cp_dbcsr_add(matrix_p_0,&
-               !                 almo_scf_env%matrix_p(ispin),-1.0_dp,1.0_dp)
-               !CALL cp_dbcsr_trace(almo_scf_env%matrix_ks_almo_scf_converged(ispin),&
-               !                    matrix_p_0,&
-               !                    energy_new)
-               !IF (unit_nr>0) THEN
-               !   WRITE(unit_nr,*) "alt-ENERGY-D: ", energy_new
-               !ENDIF
-               !CALL almo_scf_update_ks_energy(qs_env,&
-               !        almo_scf_env%almo_scf_energy+energy_new)
+               IF (almo_scf_env%almo_analysis%do_analysis) THEN
 
-               IF (almo_scf_env%almo_eda .GT. 0) THEN
-
-                  ! print out the results of decomposition analysis
-                  CALL cp_dbcsr_hadamard_product(matrix_t_0, &
-                                                 fvo_0, m_tmp_no_1)
+                  ! energy decomposition analysis (EDA)
                   IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, *)
                      WRITE (unit_nr, '(T2,A)') "DECOMPOSITION OF THE DELOCALIZATION ENERGY"
                   ENDIF
+
+                  CALL cp_dbcsr_hadamard_product(step, &
+                                                 fvo_0, m_tmp_no_1)
+                  !CALL cp_dbcsr_hadamard_product(matrix_t_0,&
+                  !        fvo_0,m_tmp_no_1)
                   CALL cp_dbcsr_filter(m_tmp_no_1, almo_scf_env%eps_filter)
 
-                  mynode = dbcsr_mp_mynode(dbcsr_distribution_mp( &
-                                           cp_dbcsr_distribution(m_tmp_no_1)))
-                  WRITE (mynodestr, '(I6.6)') mynode
-                  mylogfile = 'EDA.'//TRIM(ADJUSTL(mynodestr))
-                  CALL open_file(file_name=mylogfile, file_status="REPLACE", unit_number=iunit)
+                  ! open the output file, print and close
+                  CALL get_qs_env(qs_env, input=input)
+                  almo_print_section => section_vals_get_subs_vals(input, "DFT%ALMO_SCF%ANALYSIS%PRINT")
+                  eda_unit = cp_print_key_unit_nr(logger, almo_print_section, &
+                                                  "ALMO_EDA_CT", extension=".dat", local=.TRUE.)
+                  CALL cp_dbcsr_print_block_sum(m_tmp_no_1, eda_unit)
+                  CALL cp_print_key_finished_output(eda_unit, logger, almo_print_section, &
+                                                    "ALMO_EDA_CT", local=.TRUE.)
 
-                  CALL cp_dbcsr_print_block_sum(m_tmp_no_1, iunit)
-                  CALL close_file(iunit)
+                  ! charge transfer analysis (CTA)
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, '(T2,A)') "DECOMPOSITION OF CHARGE TRANSFER TERMS"
+                  ENDIF
+                  ! first, compute [QR'R]_mu^i = [(S-SRS).X.siginv']_mu^i
+                  ! a. tmp1 = S.T0
+                  CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
+                                         almo_scf_env%matrix_s(1), &
+                                         matrix_t_0, &
+                                         0.0_dp, m_tmp_no_1, &
+                                         filter_eps=almo_scf_env%eps_filter)
+                  ! b. tmp3 = tmp1.siginv0 = S.T0.siginv0
+                  CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
+                                         m_tmp_no_1, &
+                                         matrix_sigma_inv_0, &
+                                         0.0_dp, m_tmp_no_3, &
+                                         filter_eps=almo_scf_env%eps_filter)
+                  ! c. tmp1 = S.X
+                  CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
+                                         almo_scf_env%matrix_s(1), &
+                                         step, &
+                                         0.0_dp, m_tmp_no_1, &
+                                         filter_eps=almo_scf_env%eps_filter)
+                  ! d. tmp2 = tr(T0).tmp1 = tr(T0).S.X
+                  CALL cp_dbcsr_multiply("T", "N", 1.0_dp, &
+                                         matrix_t_0, &
+                                         m_tmp_no_1, &
+                                         0.0_dp, m_tmp_oo_1, &
+                                         filter_eps=almo_scf_env%eps_filter)
+                  ! e. tmp1 = tmp1 - tmp3.tmp2 = S.X - S.T0.siginv0.tr(T0).S.X
+                  !         = (1-S.R0).S.X
+                  CALL cp_dbcsr_multiply("N", "N", -1.0_dp, &
+                                         m_tmp_no_3, &
+                                         m_tmp_oo_1, &
+                                         1.0_dp, m_tmp_no_1, &
+                                         filter_eps=almo_scf_env%eps_filter)
+                  ! f. tmp2 = tmp1.siginv
+                  CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
+                                         m_tmp_no_1, &
+                                         almo_scf_env%matrix_sigma_inv(ispin), &
+                                         0.0_dp, m_tmp_no_2, &
+                                         filter_eps=almo_scf_env%eps_filter)
+                  ! second, compute traces of blocks [RR'Q]^x_y * [X]^y_x
+                  CALL cp_dbcsr_hadamard_product(step, &
+                                                 m_tmp_no_2, m_tmp_no_1)
+                  CALL cp_dbcsr_scale(m_tmp_no_1, spin_factor)
+                  CALL cp_dbcsr_filter(m_tmp_no_1, almo_scf_env%eps_filter)
 
-                  !IF (unit_nr>0) THEN
-                  !   WRITE(unit_nr,*)
-                  !   WRITE(unit_nr,'(T2,A)') "CHARGE DECOMPOSITION"
-                  !ENDIF
-                  !CALL cp_dbcsr_print_block_sum(cta_matrix(ispin))
+                  eda_unit = cp_print_key_unit_nr(logger, almo_print_section, &
+                                                  "ALMO_CTA", extension=".dat", local=.TRUE.)
+                  CALL cp_dbcsr_print_block_sum(m_tmp_no_1, eda_unit)
+                  CALL cp_print_key_finished_output(eda_unit, logger, almo_print_section, &
+                                                    "ALMO_CTA", local=.TRUE.)
 
-               ENDIF ! do ALMO EDA
+               ENDIF ! do ALMO EDA/CTA
 
             ELSE
 

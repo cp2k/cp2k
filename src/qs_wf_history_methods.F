@@ -531,7 +531,11 @@ CONTAINS
          END IF
       CASE (wfi_linear_p_method_nr)
          IF (wf_history%snapshot_count < 2) THEN
-            actual_extrapolation_method_nr = wfi_use_prev_wf_method_nr
+            IF (do_kpoints) THEN
+               actual_extrapolation_method_nr = wfi_use_guess_method_nr
+            ELSE
+               actual_extrapolation_method_nr = wfi_use_prev_wf_method_nr
+            ENDIF
          END IF
       CASE (wfi_linear_ps_method_nr)
          IF (wf_history%snapshot_count < 2) THEN

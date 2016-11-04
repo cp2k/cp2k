@@ -1112,119 +1112,132 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief computes occupied ALMOs from the superimposed atomic density blocks
 !> \param almo_scf_env ...
+!> \param ionic ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
-   SUBROUTINE almo_scf_p_blk_to_t_blk(almo_scf_env)
+   SUBROUTINE almo_scf_p_blk_to_t_blk(almo_scf_env, ionic)
 
       TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
+      LOGICAL, INTENT(IN)                                :: ionic
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'almo_scf_p_blk_to_t_blk', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: handle, iblock_col, iblock_row, &
+                                                            iblock_size, info, ispin, lwork, &
+                                                            nocc_of_block
+      LOGICAL                                            :: block_needed
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, work
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
+      TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_dbcsr_type)                                :: matrix_t_blk_tmp
 
       CALL timeset(routineN, handle)
 
       DO ispin = 1, almo_scf_env%nspins
 
-         !! create a temporary matrix to keep the eigenvectors
-         !CALL cp_dbcsr_init(matrix_t_blk_tmp)
-         !CALL cp_dbcsr_create(matrix_t_blk_tmp,&
-         !                     template=almo_scf_env%matrix_t_blk(ispin))
-         !CALL cp_dbcsr_work_create(matrix_t_blk_tmp,&
-         !        work_mutable=.TRUE.)
+         IF (ionic) THEN
 
-         !CALL cp_dbcsr_iterator_start(iter,almo_scf_env%matrix_p_blk(ispin))
-         !DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         !   CALL cp_dbcsr_iterator_next_block(iter,iblock_row,iblock_col,data_p,row_size=iblock_size)
+            ! create a temporary matrix to keep the eigenvectors
+            CALL cp_dbcsr_init(matrix_t_blk_tmp)
+            CALL cp_dbcsr_create(matrix_t_blk_tmp, &
+                                 template=almo_scf_env%matrix_t_blk(ispin))
+            CALL cp_dbcsr_work_create(matrix_t_blk_tmp, &
+                                      work_mutable=.TRUE.)
 
-         !   block_needed=.FALSE.
-         !
-         !   IF (iblock_row==iblock_col) THEN
-         !       block_needed=.TRUE.
-         !   ENDIF
+            CALL cp_dbcsr_iterator_start(iter, almo_scf_env%matrix_p_blk(ispin))
+            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+               CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, data_p, row_size=iblock_size)
 
-         !   IF (.NOT.block_needed) THEN
-         !      CPErrorMessage(cp_failure_level,routineP,"off-diagonal block found")
-         !      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-         !   ENDIF
+               block_needed = .FALSE.
 
-         !   IF (block_needed) THEN
+               IF (iblock_row == iblock_col) THEN
+                  block_needed = .TRUE.
+               ENDIF
 
-         !      ! Prepare data
-         !      ALLOCATE(eigenvalues(iblock_size))
-         !      ALLOCATE(data_copy(iblock_size,iblock_size))
-         !      data_copy(:,:)=data_p(:,:)
+               IF (.NOT. block_needed) THEN
+                  CPABORT("off-diag block found")
+               ENDIF
 
-         !      ! Query the optimal workspace for dsyev
-         !      LWORK = -1
-         !      ALLOCATE(WORK(MAX(1,LWORK)))
-         !      CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
-         !      LWORK = INT(WORK( 1 ))
-         !      DEALLOCATE(WORK)
+               ! Prepare data
+               ALLOCATE (eigenvalues(iblock_size))
+               ALLOCATE (data_copy(iblock_size, iblock_size))
+               data_copy(:, :) = data_p(:, :)
 
-         !      ! Allocate the workspace and solve the eigenproblem
-         !      ALLOCATE(WORK(MAX(1,LWORK)))
-         !      CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
-         !      IF( INFO.NE.0 ) THEN
-         !         CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-         !         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
-         !      END IF
+               ! Query the optimal workspace for dsyev
+               LWORK = -1
+               ALLOCATE (WORK(MAX(1, LWORK)))
+               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, &
+                          WORK, LWORK, INFO)
+               LWORK = INT(WORK(1))
+               DEALLOCATE (WORK)
 
-         !      !!! IT IS EXTREMELY IMPORTANT THAT THE DIAGONAL BLOCKS OF THE !!!
-         !      !!! P AND T MATRICES ARE LOCATED ON THE SAME NODES            !!!
+               ! Allocate the workspace and solve the eigenproblem
+               ALLOCATE (WORK(MAX(1, LWORK)))
+               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               IF (INFO .NE. 0) THEN
+                  WRITE (*, *) 'BLOCK  = ', iblock_row
+                  WRITE (*, *) 'INFO   =', INFO
+                  WRITE (*, *) data_p(:, :)
+                  CPABORT("DSYEV failed")
+               END IF
 
-         !      ! copy eigenvectors into two cp_dbcsr matrices - occupied and virtuals
-         !      NULLIFY (p_new_block)
-         !      CALL cp_dbcsr_reserve_block2d(matrix_t_blk_tmp,&
-         !              iblock_row,iblock_col,p_new_block)
-         !      nocc_of_block=SIZE(p_new_block,2)
-         !      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
-         !      CPPrecondition(nocc_of_block.gt.0,cp_failure_level,routineP,failure)
-         !      p_new_block(:,:) = data_copy(:,iblock_size-nocc_of_block+1:)
+               !!! IT IS EXTREMELY IMPORTANT THAT THE DIAGONAL BLOCKS OF THE !!!
+               !!! P AND T MATRICES ARE LOCATED ON THE SAME NODES            !!!
 
-         !      DEALLOCATE(WORK)
-         !      DEALLOCATE(data_copy)
-         !      DEALLOCATE(eigenvalues)
+               ! copy eigenvectors into two cp_dbcsr matrices - occupied and virtuals
+               NULLIFY (p_new_block)
+               CALL cp_dbcsr_reserve_block2d(matrix_t_blk_tmp, &
+                                             iblock_row, iblock_col, p_new_block)
+               nocc_of_block = SIZE(p_new_block, 2)
+               CPASSERT(ASSOCIATED(p_new_block))
+               CPASSERT(nocc_of_block .GT. 0)
+               p_new_block(:, :) = data_copy(:, iblock_size-nocc_of_block+1:)
 
-         !   ENDIF
-         !
-         !ENDDO
-         !CALL cp_dbcsr_iterator_stop(iter)
+               DEALLOCATE (WORK)
+               DEALLOCATE (data_copy)
+               DEALLOCATE (eigenvalues)
 
-         !CALL cp_dbcsr_finalize(matrix_t_blk_tmp)
-         !CALL cp_dbcsr_filter(matrix_t_blk_tmp,&
-         !        almo_scf_env%eps_filter)
-         !CALL cp_dbcsr_copy(almo_scf_env%matrix_t_blk(ispin),&
-         !        matrix_t_blk_tmp)
-         !CALL cp_dbcsr_release(matrix_t_blk_tmp)
+            ENDDO
+            CALL cp_dbcsr_iterator_stop(iter)
 
-         !! generate a random set of ALMOs
-         !! matrix_t_blk should already be initiated to the proper domain structure
-         CALL cp_dbcsr_init_random(almo_scf_env%matrix_t_blk(ispin), &
-                                   keep_sparsity=.TRUE.)
+            CALL cp_dbcsr_finalize(matrix_t_blk_tmp)
+            CALL cp_dbcsr_filter(matrix_t_blk_tmp, &
+                                 almo_scf_env%eps_filter)
+            CALL cp_dbcsr_copy(almo_scf_env%matrix_t_blk(ispin), &
+                               matrix_t_blk_tmp)
+            CALL cp_dbcsr_release(matrix_t_blk_tmp)
 
-         CALL cp_dbcsr_init(matrix_t_blk_tmp)
-         CALL cp_dbcsr_create(matrix_t_blk_tmp, &
-                              template=almo_scf_env%matrix_t_blk(ispin), &
-                              matrix_type=dbcsr_type_no_symmetry)
+         ELSE
 
-         ! use current ALMOs in matrix_t_blk and project them onto the blocked dm
-         ! compute T_new = R_blk S_blk T_random
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s_blk(1), &
-                                almo_scf_env%matrix_t_blk(ispin), &
-                                0.0_dp, matrix_t_blk_tmp, &
-                                filter_eps=almo_scf_env%eps_filter)
+            !! generate a random set of ALMOs
+            !! matrix_t_blk should already be initiated to the proper domain structure
+            CALL cp_dbcsr_init_random(almo_scf_env%matrix_t_blk(ispin), &
+                                      keep_sparsity=.TRUE.)
 
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
-                                almo_scf_env%matrix_p_blk(ispin), matrix_t_blk_tmp, &
-                                0.0_dp, almo_scf_env%matrix_t_blk(ispin), &
-                                filter_eps=almo_scf_env%eps_filter)
+            CALL cp_dbcsr_init(matrix_t_blk_tmp)
+            CALL cp_dbcsr_create(matrix_t_blk_tmp, &
+                                 template=almo_scf_env%matrix_t_blk(ispin), &
+                                 matrix_type=dbcsr_type_no_symmetry)
 
-         CALL cp_dbcsr_release(matrix_t_blk_tmp)
+            ! use current ALMOs in matrix_t_blk and project them onto the blocked dm
+            ! compute T_new = R_blk S_blk T_random
+            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s_blk(1), &
+                                   almo_scf_env%matrix_t_blk(ispin), &
+                                   0.0_dp, matrix_t_blk_tmp, &
+                                   filter_eps=almo_scf_env%eps_filter)
+
+            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
+                                   almo_scf_env%matrix_p_blk(ispin), matrix_t_blk_tmp, &
+                                   0.0_dp, almo_scf_env%matrix_t_blk(ispin), &
+                                   filter_eps=almo_scf_env%eps_filter)
+
+            CALL cp_dbcsr_release(matrix_t_blk_tmp)
+
+         ENDIF
 
       ENDDO
 
