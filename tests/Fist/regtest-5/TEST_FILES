@@ -33,7 +33,7 @@ argon_GENPOT.inp                                       2    1.0E-14            -
 H2O-1-GENPOT.inp                                       2    1.0E-14            -0.170754712778E-03
 H2O-1-GENPOT-2.inp                                     2    1.0E-14            -0.170754712778E-03
 #test colvar qparm
-argon_GENPOT_fcc-ql.inp                                2    1.0E-14             0.738884293119E+00
+argon_GENPOT_fcc-ql.inp                                2    1.0E-14             0.737253314905E+00
 # mixing
 H2OFe-5_75.inp                                         2    1.0E-14            -0.464085736111E+01
 # test energy_force runtime
