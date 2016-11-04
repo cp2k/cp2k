@@ -1224,58 +1224,62 @@ CONTAINS
       iunit = default_output_unit
       IF (PRESENT(unit_nr)) iunit = unit_nr
 
-      SELECT CASE (matrix%m%data_type)
-      CASE (dbcsr_type_real_8)
-         CALL dbcsr_get_data(matrix%m%data_area, r_dp)
-      CASE (dbcsr_type_real_4)
-         CALL dbcsr_get_data(matrix%m%data_area, r_sp)
-      CASE (dbcsr_type_complex_8)
-         CALL dbcsr_get_data(matrix%m%data_area, c_dp)
-      CASE (dbcsr_type_complex_4)
-         CALL dbcsr_get_data(matrix%m%data_area, c_sp)
-      END SELECT
-      row_blk_size => array_data(matrix%m%row_blk_size)
-      col_blk_size => array_data(matrix%m%col_blk_size)
-      row_blk_offset => array_data(matrix%m%row_blk_offset)
-      col_blk_offset => array_data(matrix%m%col_blk_offset)
+      IF (iunit > 0) THEN
 
-      IF (matrix%m%nblks .GT. 0) THEN
-         DO br = 1, matrix%m%nblkrows_total
-            m = row_blk_size(br)
-            DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
-               bc = matrix%m%col_i(blk)
-               n = col_blk_size(bc)
-               mn = m*n
-               blk_p = ABS(matrix%m%blk_p(blk))
-               block_exists: IF (blk_p .NE. 0) THEN
-                  IF (mn .GT. 0) THEN
-                     SELECT CASE (matrix%m%data_type)
-                     CASE (dbcsr_type_real_8)
-                        blk_sum_r_dp = SUM(r_dp(blk_p:blk_p+mn-1))
-                        WRITE (iunit, '("Block (",I6,",",I6,") sum = ",ES18.9)') &
+         SELECT CASE (matrix%m%data_type)
+         CASE (dbcsr_type_real_8)
+            CALL dbcsr_get_data(matrix%m%data_area, r_dp)
+         CASE (dbcsr_type_real_4)
+            CALL dbcsr_get_data(matrix%m%data_area, r_sp)
+         CASE (dbcsr_type_complex_8)
+            CALL dbcsr_get_data(matrix%m%data_area, c_dp)
+         CASE (dbcsr_type_complex_4)
+            CALL dbcsr_get_data(matrix%m%data_area, c_sp)
+         END SELECT
+         row_blk_size => array_data(matrix%m%row_blk_size)
+         col_blk_size => array_data(matrix%m%col_blk_size)
+         row_blk_offset => array_data(matrix%m%row_blk_offset)
+         col_blk_offset => array_data(matrix%m%col_blk_offset)
+
+         IF (matrix%m%nblks .GT. 0) THEN
+            DO br = 1, matrix%m%nblkrows_total
+               m = row_blk_size(br)
+               DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
+                  bc = matrix%m%col_i(blk)
+                  n = col_blk_size(bc)
+                  mn = m*n
+                  blk_p = ABS(matrix%m%blk_p(blk))
+                  block_exists: IF (blk_p .NE. 0) THEN
+                     IF (mn .GT. 0) THEN
+                        SELECT CASE (matrix%m%data_type)
+                        CASE (dbcsr_type_real_8)
+                           blk_sum_r_dp = SUM(r_dp(blk_p:blk_p+mn-1))
+                           WRITE (iunit, '(I6,I6,ES18.9)') &
+                              br, bc, blk_sum_r_dp
+                        CASE (dbcsr_type_real_4)
+                           blk_sum_r_sp = SUM(r_sp(blk_p:blk_p+mn-1))
+                           WRITE (iunit, '(I6,I6,ES18.9)') &
+                              br, bc, blk_sum_r_sp
+                        CASE (dbcsr_type_complex_8)
+                           blk_sum_c_dp = SUM(c_dp(blk_p:blk_p+mn-1))
+                           WRITE (iunit, '(I6,I6,ES18.9," I*",ES18.9)') &
+                              br, bc, REAL(blk_sum_c_dp), AIMAG(blk_sum_c_dp)
+                        CASE (dbcsr_type_complex_4)
+                           blk_sum_c_sp = SUM(c_sp(blk_p:blk_p+mn-1))
+                           WRITE (iunit, '(I6,I6,ES18.9," I*",ES18.9)') &
+                              br, bc, REAL(blk_sum_c_sp), AIMAG(blk_sum_c_sp)
+                        END SELECT
+                     ELSE
+                        blk_sum_r_dp = 0.0_dp
+                        WRITE (iunit, '(I6,I6,ES18.9)') &
                            br, bc, blk_sum_r_dp
-                     CASE (dbcsr_type_real_4)
-                        blk_sum_r_sp = SUM(r_sp(blk_p:blk_p+mn-1))
-                        WRITE (iunit, '(" (",I6,",",I6,") sum = ",ES18.9)') &
-                           br, bc, blk_sum_r_sp
-                     CASE (dbcsr_type_complex_8)
-                        blk_sum_c_dp = SUM(c_dp(blk_p:blk_p+mn-1))
-                        WRITE (iunit, '(" (",I6,",",I6,") sum = ",ES18.9," I*",ES18.9)') &
-                           br, bc, REAL(blk_sum_c_dp), AIMAG(blk_sum_c_dp)
-                     CASE (dbcsr_type_complex_4)
-                        blk_sum_c_sp = SUM(c_sp(blk_p:blk_p+mn-1))
-                        WRITE (iunit, '(" (",I6,",",I6,") sum = ",ES18.9," I*",ES18.9)') &
-                           br, bc, REAL(blk_sum_c_sp), AIMAG(blk_sum_c_sp)
-                     END SELECT
-                  ELSE
-                     blk_sum_r_dp = 0.0_dp
-                     WRITE (iunit, '(" (",I6,",",I6,") sum = ",ES18.9)') &
-                        br, bc, blk_sum_r_dp
-                  ENDIF
-               ENDIF block_exists
+                     ENDIF
+                  ENDIF block_exists
+               ENDDO
             ENDDO
-         ENDDO
-      ENDIF
+         ENDIF
+
+      ENDIF ! unit > 0
 
       CALL timestop(handle)
 
