@@ -139,8 +139,9 @@ Ar        2.5394666990        5.0789333979        5.0789333979
     &END COORD
     &COLVAR
       &QPARM
-        RCUT 4.4
-        L    6
+        RSTART 4.3
+        RCUT   4.4
+        L      6
         ATOMS_FROM  1  2  3  4  5  6  7  8  9 10 
         ATOMS_FROM 11 12 13 14 15 16 17 18 19 20 
         ATOMS_FROM 21 22 23 24 25 26 27 28 29 30 

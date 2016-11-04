@@ -1269,8 +1269,24 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="RCUT", &
-                          description="Specifies the distance cutoff for neighbors.", &
+                          description="Specifies the distance cutoff for neighbors. "// &
+                          "Cutoff function is exactly zero for all neighbors beyond RCUT.", &
                           usage="RCUT {real}", &
+                          n_var=1, unit_str="angstrom", type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="INCLUDE_IMAGES", &
+                          description="Whether to include periodic images of ATOMS_TO into the neighbor list.", &
+                          usage="INCLUDE_IMAGES", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="RSTART", &
+                          description="Specifies the distance cutoff for neighbors. "// &
+                          "Cutoff function is exactly 1 for all neighbors closer than RSTART.", &
+                          usage="RSTART {real}", &
                           n_var=1, unit_str="angstrom", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1282,11 +1298,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ALPHA", &
-                          description="Specifies the width of the Fermi-Dirac style smearing around RCUT.", &
-                          usage="ALPHA {real}", unit_str="angstrom^-1", default_r_val=0.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+      !CALL keyword_create(keyword, name="ALPHA", &
+      !                    description="Specifies the width of the Fermi-Dirac style smearing around RCUT.", &
+      !                    usage="ALPHA {real}", unit_str="angstrom^-1", default_r_val=0.0_dp)
+      !CALL section_add_keyword(section, keyword)
+      !CALL keyword_release(keyword)
 
       ! Must be present in each colvar and handled properly
       CALL create_point_section(subsection)

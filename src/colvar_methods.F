@@ -420,7 +420,9 @@ CONTAINS
          CALL colvar_create(colvar, qparm_colvar_id)
          CALL colvar_check_points(colvar, qparm_section)
          CALL section_vals_val_get(qparm_section, "RCUT", r_val=colvar%qparm_param%rcut)
-         CALL section_vals_val_get(qparm_section, "ALPHA", r_val=colvar%qparm_param%alpha)
+         CALL section_vals_val_get(qparm_section, "RSTART", r_val=colvar%qparm_param%rstart)
+         CALL section_vals_val_get(qparm_section, "INCLUDE_IMAGES", l_val=colvar%qparm_param%include_images)
+         !CALL section_vals_val_get(qparm_section, "ALPHA", r_val=colvar%qparm_param%alpha)
          CALL section_vals_val_get(qparm_section, "L", i_val=colvar%qparm_param%l)
          NULLIFY (colvar%qparm_param%i_at_from)
          NULLIFY (colvar%qparm_param%i_at_to)
@@ -1191,7 +1193,9 @@ CONTAINS
                                         colvar%qparm_param%i_at_to(kk), &
                                         kk=1, SIZE(colvar%qparm_param%i_at_to))
             WRITE (iw, '( A,T71,F10.5)') ' COLVARS| RCUT', colvar%qparm_param%rcut
-            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ALPHA', colvar%qparm_param%alpha
+            WRITE (iw, '( A,T71,F10.5)') ' COLVARS| RSTART', colvar%qparm_param%rstart
+            WRITE (iw, '( A,T71,L10)') ' COLVARS| INCLUDE IMAGES', colvar%qparm_param%include_images
+            !WRITE (iw, '( A,T71,F10.5)') ' COLVARS| ALPHA', colvar%qparm_param%alpha
             WRITE (iw, '( A,T71,I10)') ' COLVARS| L', colvar%qparm_param%l
          CASE (combine_colvar_id)
             WRITE (iw, '( A)') ' COLVARS| COMBINING FUNCTION : '// &
@@ -3127,22 +3131,27 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qparm_colvar', routineP = moduleN//':'//routineN
 
-      COMPLEX(KIND=dp)                                   :: ylm, ylm_calc, ylm_calc2
-      INTEGER                                            :: i, ii, j, jj, l, m, n_atoms_from, &
-                                                            n_atoms_to
-      REAL(KIND=dp) :: alpha, bond, costheta, dplm, dylm, exp_fac, fact, fi, ftmp(3), &
-         inv_n_atoms_from, nbond, plm, pre_fac, qlm, qlm2, qparm, r12, r_tmp, rcut, ss(3), theta, &
-         x_tmp, xij(3), y_tmp, ymag, ymag1, z_tmp
-      REAL(KIND=dp), DIMENSION(3)                        :: grad, grad_nb, grad_nb_tot, grad_tot, &
-                                                            xpi, xpj
+      INTEGER                                            :: aa, bb, cc, i, idim, ii, j, jj, l, mm, &
+                                                            n_atoms_from, n_atoms_to, ncells(3)
+      LOGICAL                                            :: include_images
+      REAL(KIND=dp) :: denominator_tolerance, fact, ftmp(3), im_qlm, inv_n_atoms_from, nbond, &
+         pre_fac, ql, qparm, r1cut, rcut, re_qlm, rij, rij_shift, shift(3), ss(3), ss0(3), xij(3), &
+         xij_shift(3)
+      REAL(KIND=dp), DIMENSION(3)                        :: d_im_qlm_dxi, d_nbond_dxi, d_ql_dxi, &
+                                                            d_re_qlm_dxi, xpi, xpj
       TYPE(particle_list_type), POINTER                  :: particles_i
       TYPE(particle_type), DIMENSION(:), POINTER         :: my_particles
+
+      ! settings for numerical derivatives
+      !REAL(KIND=dp) :: ri_step, dx_bond_j, dy_bond_j, dz_bond_j
+      !INTEGER :: idel
 
       n_atoms_to = colvar%qparm_param%n_atoms_to
       n_atoms_from = colvar%qparm_param%n_atoms_from
       rcut = colvar%qparm_param%rcut
       l = colvar%qparm_param%l
-      alpha = colvar%qparm_param%alpha
+      r1cut = colvar%qparm_param%rstart
+      include_images = colvar%qparm_param%include_images
       NULLIFY (particles_i)
       CPASSERT(colvar%type_id == qparm_colvar_id)
       IF (PRESENT(particles)) THEN
@@ -3152,98 +3161,247 @@ CONTAINS
          CALL cp_subsys_get(subsys, particles=particles_i)
          my_particles => particles_i%els
       END IF
+      CPASSERT(r1cut .LT. rcut)
+      denominator_tolerance = 1.0E-8_dp
+
+      !ri_step=0.1
+      !DO idel=-50, 50
+      !ftmp(:) = 0.0_dp
 
       qparm = 0.0_dp
       inv_n_atoms_from = 1.0_dp/REAL(n_atoms_from)
       DO ii = 1, n_atoms_from
          i = colvar%qparm_param%i_at_from(ii)
          CALL get_coordinates(colvar, i, xpi, my_particles)
-         qlm = 0.0_dp
-         qlm2 = 0.0_dp
-         grad_tot(:) = 0.0_dp
-         grad_nb_tot(:) = 0.0_dp
-         DO m = 0, l
-            ylm = 0.0_dp
-            grad(:) = 0.0_dp
-            grad_nb(:) = 0.0_dp
-            nbond = 0
-            DO jj = 1, n_atoms_to
+         !xpi(1)=xpi(1)+idel*ri_step
+         ql = 0.0_dp
+         d_ql_dxi(:) = 0.0_dp
+
+         DO mm = -l, l
+            nbond = 0.0_dp
+            re_qlm = 0.0_dp
+            im_qlm = 0.0_dp
+            d_re_qlm_dxi(:) = 0.0_dp
+            d_im_qlm_dxi(:) = 0.0_dp
+            d_nbond_dxi(:) = 0.0_dp
+
+            jloop: DO jj = 1, n_atoms_to
+
                j = colvar%qparm_param%i_at_to(jj)
-               IF (i == j) CYCLE
                CALL get_coordinates(colvar, j, xpj, my_particles)
-               ss = MATMUL(cell%h_inv, xpj(:)-xpi(:))
-               ss = ss-NINT(ss)
-               xij = MATMUL(cell%hmat, ss)
-               r12 = SQRT(DOT_PRODUCT(xij, xij))
-               IF (r12 < rcut) nbond = nbond+1.0_dp
-               x_tmp = xij(1)
-               y_tmp = xij(2)
-               z_tmp = xij(3)
-               r_tmp = r12
-               IF (ABS(x_tmp) .GT. 1.0E-8_dp) THEN
-                  fi = ATAN(y_tmp/x_tmp)
+
+               IF (include_images) THEN
+
+                  CPASSERT(cell%orthorhombic)
+
+                  ! determine how many cells must be included in each direction
+                  ! based on rcut
+                  xij(:) = xpj(:)-xpi(:)
+                  ss = MATMUL(cell%h_inv, xij)
+                  ! these are fractional coordinates of the closest periodic image
+                  ! lie in the [-0.5,0.5] interval
+                  ss0 = ss-NINT(ss)
+                  DO idim = 1, 3
+                     shift(:) = 0.0_dp
+                     shift(idim) = 1.0_dp
+                     xij_shift = MATMUL(cell%hmat, shift)
+                     rij_shift = SQRT(DOT_PRODUCT(xij_shift, xij_shift))
+                     ncells(idim) = FLOOR(rcut/rij_shift-0.5)
+                  ENDDO !idim
+
+                  !IF (mm.eq.0) WRITE(*,'(A8,3I3,A3,I10)') "Ncells:", ncells, "J:", j
+                  shift(1:3) = 0.0_dp
+                  DO aa = -ncells(1), ncells(1)
+                     DO bb = -ncells(2), ncells(2)
+                        DO cc = -ncells(3), ncells(3)
+                           ! do not include the central atom
+                           IF (i == j .AND. aa .EQ. 0 .AND. bb .EQ. 0 .AND. cc .EQ. 0) CYCLE
+                           shift(1) = REAL(aa, KIND=dp)
+                           shift(2) = REAL(bb, KIND=dp)
+                           shift(3) = REAL(cc, KIND=dp)
+                           xij = MATMUL(cell%hmat, ss0(:)+shift(:))
+                           rij = SQRT(DOT_PRODUCT(xij, xij))
+                           !IF (rij > rcut) THEN
+                           !   IF (mm.EQ.0) WRITE(*,'(A8,4F10.5)') " --", shift, rij
+                           !ELSE
+                           !   IF (mm.EQ.0) WRITE(*,'(A8,4F10.5)') " ++", shift, rij
+                           !ENDIF
+                           IF (rij > rcut) CYCLE
+
+                           ! update qlm
+                           CALL accumulate_qlm_over_neigbors(xij, rij, rcut, r1cut, &
+                                                             denominator_tolerance, l, mm, nbond, re_qlm, im_qlm, &
+                                                             d_re_qlm_dxi, d_im_qlm_dxi, d_nbond_dxi)
+
+                        ENDDO
+                     ENDDO
+                  ENDDO
+
                ELSE
-                  fi = 0.5_dp*pi
-               ENDIF
-               costheta = z_tmp/r_tmp
-               IF (costheta > 1.0_dp) costheta = 1.0_dp
-               IF (costheta < -1.0_dp) costheta = -1.0_dp
-               theta = ACOS(costheta)
-               plm = legendre(costheta, l, m)
-               dplm = dlegendre(costheta, l, m)
-               IF ((l+m) > maxfac) THEN
-                  CPABORT("(l-m) > maxfac")
-               END IF
-               bond = 1.0_dp/(1.0_dp+EXP(alpha*(r_tmp-rcut)))
-               IF (bond > 1.0_dp) THEN
-                  CPABORT("bond > 1.0_dp")
-               END IF
-               pre_fac = bond*SQRT(((2*l+1)*fac(l-m))/(4*pi*fac(l+m)))
-               IF (plm < 0.0_dp) THEN
-                  dylm = -pre_fac*dplm
-               ELSE
-                  dylm = pre_fac*dplm
-               ENDIF
-               ylm_calc = pre_fac*plm*(CMPLX(COS(m*fi), SIN(m*fi), KIND=dp))
-               ylm = ylm+ylm_calc
-               ylm_calc2 = pre_fac/bond*plm*(CMPLX(COS(m*fi), SIN(m*fi), KIND=dp))
-               ymag = (SQRT(REAL(ylm_calc2*CONJG(ylm_calc2), KIND=dp)))
-               ! Fi = -dUi/dr, but r_tmp = rj - ri, so have double negative
-               grad(1) = grad(1)-dylm*(z_tmp*x_tmp)/(r_tmp*r_tmp*r_tmp)
-               grad(2) = grad(2)-dylm*(z_tmp*y_tmp)/(r_tmp*r_tmp*r_tmp)
-               grad(3) = grad(3)+dylm*((1.0_dp/r_tmp)-(z_tmp**2/r_tmp**3))
-               exp_fac = alpha*EXP(alpha*(r_tmp-rcut))/((1.0_dp+EXP(alpha*(r_tmp-rcut)))**2)
-               grad_nb(1) = grad_nb(1)-ymag*exp_fac*(x_tmp/r_tmp)
-               grad_nb(2) = grad_nb(2)-ymag*exp_fac*(y_tmp/r_tmp)
-               grad_nb(3) = grad_nb(3)-ymag*exp_fac*(z_tmp/r_tmp)
-            ENDDO
-            IF (m .GT. 0) THEN
-               fact = 2.0_dp
-            ELSE
-               fact = 1.0_dp
-            ENDIF
-            IF (nbond < 0.0001_dp) THEN
-               CPABORT("NBOND = 0.0")
+
+                  IF (i == j) CYCLE jloop
+                  xij(:) = xpj(:)-xpi(:)
+                  rij = SQRT(DOT_PRODUCT(xij, xij))
+                  IF (rij > rcut) CYCLE
+
+                  ! update qlm
+                  CALL accumulate_qlm_over_neigbors(xij, rij, rcut, r1cut, &
+                                                    denominator_tolerance, l, mm, nbond, re_qlm, im_qlm, &
+                                                    d_re_qlm_dxi, d_im_qlm_dxi, d_nbond_dxi)
+
+               ENDIF ! include images
+
+            ENDDO jloop
+
+            ! this factor is necessary if one whishes to sum over m=0,L
+            ! instead of m=-L,+L. This is off now because it is cheap and safe
+            fact = 1.0_dp
+            !IF (ABS(mm) .GT. 0) THEN
+            !   fact = 2.0_dp
+            !ELSE
+            !   fact = 1.0_dp
+            !ENDIF
+
+            IF (nbond .LT. denominator_tolerance) THEN
+               CPWARN("QPARM: number of neighbors is very close to zero!")
             END IF
-            ylm = ylm/nbond
-            grad(:) = grad(:)/nbond
-            grad_nb(:) = grad_nb(:)/nbond
-            ymag1 = REAL(ylm*CONJG(ylm), KIND=dp)
-            qlm = qlm+fact*ymag1
-            grad_tot(:) = grad_tot(:)+fact*grad(:)
-            grad_nb_tot(:) = grad_nb_tot(:)+fact*grad_nb(:)
-         ENDDO
+
+            d_nbond_dxi(:) = d_nbond_dxi(:)/nbond
+            re_qlm = re_qlm/nbond
+            d_re_qlm_dxi(:) = d_re_qlm_dxi(:)/nbond-d_nbond_dxi(:)*re_qlm
+            im_qlm = im_qlm/nbond
+            d_im_qlm_dxi(:) = d_im_qlm_dxi(:)/nbond-d_nbond_dxi(:)*im_qlm
+
+            ql = ql+fact*(re_qlm*re_qlm+im_qlm*im_qlm)
+            d_ql_dxi(:) = d_ql_dxi(:) &
+                          +fact*2.0_dp*(re_qlm*d_re_qlm_dxi(:)+im_qlm*d_im_qlm_dxi(:))
+
+         ENDDO ! loop over m
+
          pre_fac = (4.0_dp*pi)/(2.0_dp*l+1)
-         qlm = SQRT(pre_fac*qlm)
-         qlm2 = SQRT(pre_fac*qlm2)
-         qparm = qparm+qlm
-         ftmp(:) = SQRT(pre_fac)*(grad_tot(:)+grad_nb_tot(:))
+         !WRITE(*,'(A8,2F10.5)') "  si = ", SQRT(pre_fac*ql)
+         qparm = qparm+SQRT(pre_fac*ql)
+         ftmp(:) = 0.5_dp*SQRT(pre_fac/ql)*d_ql_dxi(:)
+         ! multiply by -1 because aparently we have to save the force, not the gradient
+         ftmp(:) = -1.0_dp*ftmp(:)
+
          CALL put_derivative(colvar, ii, ftmp)
-      ENDDO
+
+      ENDDO ! loop over i
+
       colvar%ss = qparm*inv_n_atoms_from
       colvar%dsdr(:, :) = colvar%dsdr(:, :)*inv_n_atoms_from
 
+      !WRITE(*,'(A15,3E20.10)') "COLVAR+DER = ", ri_step*idel, colvar%ss, -ftmp(1)
+
+      !ENDDO ! numercal derivative
+
    END SUBROUTINE qparm_colvar
+
+! **************************************************************************************************
+!> \brief ...
+!> \param xij ...
+!> \param rij ...
+!> \param rcut ...
+!> \param r1cut ...
+!> \param denominator_tolerance ...
+!> \param ll ...
+!> \param mm ...
+!> \param nbond ...
+!> \param re_qlm ...
+!> \param im_qlm ...
+!> \param d_re_qlm_dxi ...
+!> \param d_im_qlm_dxi ...
+!> \param d_nbond_dxi ...
+! **************************************************************************************************
+   SUBROUTINE accumulate_qlm_over_neigbors(xij, rij, rcut, r1cut, &
+                                           denominator_tolerance, ll, mm, nbond, re_qlm, im_qlm, &
+                                           d_re_qlm_dxi, d_im_qlm_dxi, d_nbond_dxi)
+
+      REAL(KIND=dp), INTENT(IN)                          :: xij(3), rij, rcut, r1cut, &
+                                                            denominator_tolerance
+      INTEGER, INTENT(IN)                                :: ll, mm
+      REAL(KIND=dp), INTENT(INOUT)                       :: nbond, re_qlm, im_qlm, d_re_qlm_dxi(3), &
+                                                            d_im_qlm_dxi(3), d_nbond_dxi(3)
+
+      REAL(KIND=dp)                                      :: bond, costheta, dplm, dylm, exp0, &
+                                                            exp_fac, fi, plm, pre_fac, sqrt_c1
+      REAL(KIND=dp), DIMENSION(3)                        :: dcosTheta, dfi
+
+      !bond = 1.0_dp/(1.0_dp+EXP(alpha*(rij-rcut)))
+      ! RZK: infinitely differentiable smooth cutoff function
+      ! that is precisely 1.0 below r1cut and precisely 0.0 above rcut
+      IF (rij .GT. rcut) THEN
+         !bond = 0.0_dp
+         !exp_fac = 0.0_dp
+         RETURN
+      ELSE
+         IF (rij .LT. r1cut) THEN
+            bond = 1.0_dp
+            exp_fac = 0.0_dp
+         ELSE
+            exp0 = EXP((r1cut-rcut)/(rij-rcut)-(r1cut-rcut)/(r1cut-rij))
+            bond = 1.0_dp/(1.0_dp+exp0)
+            exp_fac = ((rcut-r1cut)/(rij-rcut)**2+(rcut-r1cut)/(r1cut-rij)**2)*exp0/(1.0_dp+exp0)**2
+         ENDIF
+      ENDIF
+      IF (bond > 1.0_dp) THEN
+         CPABORT("bond > 1.0_dp")
+      END IF
+      ! compute continuous bond order
+      nbond = nbond+bond
+      IF (ABS(xij(1)) .LT. denominator_tolerance &
+          .AND. ABS(xij(2)) .LT. denominator_tolerance) THEN
+         fi = 0.0_dp
+      ELSE
+         fi = ATAN2(xij(2), xij(1))
+      ENDIF
+
+      costheta = xij(3)/rij
+      IF (costheta > 1.0_dp) costheta = 1.0_dp
+      IF (costheta < -1.0_dp) costheta = -1.0_dp
+
+      ! legendre works correctly only for positive m
+      plm = legendre(costheta, ll, mm)
+      dplm = dlegendre(costheta, ll, mm)
+      IF ((ll+ABS(mm)) > maxfac) THEN
+         CPABORT("(l+m) > maxfac")
+      END IF
+      ! use absolute m to compenstate for the defficiency of legendre
+      sqrt_c1 = SQRT(((2*ll+1)*fac(ll-ABS(mm)))/(4*pi*fac(ll+ABS(mm))))
+      pre_fac = bond*sqrt_c1
+      dylm = pre_fac*dplm
+      !WHY? IF (plm < 0.0_dp) THEN
+      !WHY?    dylm = -pre_fac*dplm
+      !WHY? ELSE
+      !WHY?    dylm = pre_fac*dplm
+      !WHY? ENDIF
+
+      re_qlm = re_qlm+pre_fac*plm*COS(mm*fi)
+      im_qlm = im_qlm+pre_fac*plm*SIN(mm*fi)
+
+      !WRITE(*,'(A8,2I4,F10.5)') "  Qlm = ", mm, j, bond
+      !WRITE(*,'(A8,2I4,2F10.5)') "  Qlm = ", mm, j, re_qlm, im_qlm
+
+      dcosTheta(:) = xij(:)*xij(3)/(rij**3)
+      dcosTheta(3) = dcosTheta(3)-1.0_dp/rij
+      ! use tangent half-angle formula to compute d_fi/d_xi
+      ! http://math.stackexchange.com/questions/989877/continuous-differentiability-of-atan2
+      ! +/- sign changed because xij = xj - xi
+      dfi(1) = xij(2)/(xij(1)**2+xij(2)**2)
+      dfi(2) = -xij(1)/(xij(1)**2+xij(2)**2)
+      dfi(3) = 0.0_dp
+      d_re_qlm_dxi(:) = d_re_qlm_dxi(:) &
+                        +exp_fac*sqrt_c1*plm*COS(mm*fi)*xij(:)/rij &
+                        +dylm*dcosTheta(:)*COS(mm*fi) &
+                        +pre_fac*plm*mm*(-1.0_dp)*SIN(mm*fi)*dfi(:)
+      d_im_qlm_dxi(:) = d_im_qlm_dxi(:) &
+                        +exp_fac*sqrt_c1*plm*SIN(mm*fi)*xij(:)/rij &
+                        +dylm*dcosTheta(:)*SIN(mm*fi) &
+                        +pre_fac*plm*mm*(+1.0_dp)*COS(mm*fi)*dfi(:)
+      d_nbond_dxi(:) = d_nbond_dxi(:)+exp_fac*xij(:)/rij
+
+   END SUBROUTINE accumulate_qlm_over_neigbors
 
 ! **************************************************************************************************
 !> \brief evaluates the force due (and on) the hydronium_shell collective variable

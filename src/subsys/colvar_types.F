@@ -183,7 +183,8 @@ MODULE colvar_types
                                          n_atoms_from
       INTEGER, POINTER, DIMENSION(:) :: i_at_from, &
                                         i_at_to
-      REAL(KIND=dp)                   :: rcut, alpha
+      REAL(KIND=dp)                   :: rcut, rstart
+      LOGICAL                         :: include_images
    END TYPE qparm_colvar_type
 
 ! **************************************************************************************************
@@ -1545,7 +1546,8 @@ CONTAINS
          colvar_out%qparm_param%n_atoms_from = colvar_in%qparm_param%n_atoms_from
          colvar_out%qparm_param%rcut = colvar_in%qparm_param%rcut
          colvar_out%qparm_param%l = colvar_in%qparm_param%l
-         colvar_out%qparm_param%alpha = colvar_in%qparm_param%alpha
+         colvar_out%qparm_param%rstart = colvar_in%qparm_param%rstart
+         colvar_out%qparm_param%include_images = colvar_in%qparm_param%include_images
          ndim = SIZE(colvar_in%qparm_param%i_at_from)
          ALLOCATE (colvar_out%qparm_param%i_at_from(ndim))
          ndim = SIZE(colvar_in%qparm_param%i_at_to)
