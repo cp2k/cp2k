@@ -148,7 +148,7 @@ printf "
 all: libgrid.a
 
 generate.x:
-\t$FC_native -c options.f90 \n\t$FC_native -c generate.f90  \n\t$FC_native options.o generate.o -o generate.x
+\t\$(FC_native) -c options.f90 \n\t\$(FC_native) -c generate.f90  \n\t\$(FC_native) options.o generate.o -o generate.x
 all_gen: generate.x $TARGETS_EXE
 
 all_run: $TARGETS_RUN
