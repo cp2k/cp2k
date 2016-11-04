@@ -245,14 +245,21 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_p, blk_size, blk_offset)
       TYPE(dbcsr_t_iterator), INTENT(INOUT)              :: iterator
-      INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
+      INTEGER, DIMENSION(iterator%nd_index%ndim_nd), &
          INTENT(OUT)                                     :: ind_nd
       INTEGER, INTENT(OUT)                               :: blk
       INTEGER, INTENT(OUT), OPTIONAL                     :: blk_p
-      INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
+      INTEGER, DIMENSION(iterator%nd_index%ndim_nd), &
          INTENT(OUT), OPTIONAL                           :: blk_size, blk_offset
 
       INTEGER, DIMENSION(2)                              :: ind_2d
+
+!     Note: specification function below not accepted by IBM XL compiler (compilation fails).
+!     TODO: Uncomment once this has been fixed
+!     INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
+!        INTENT(OUT)                                     :: ind_nd
+!     INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
+!        INTENT(OUT), OPTIONAL                           :: blk_size, blk_offset
 
       CALL dbcsr_iterator_next_block(iterator%iter, ind_2d(1), ind_2d(2), blk, blk_p=blk_p)
 
