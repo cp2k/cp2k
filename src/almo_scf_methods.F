@@ -1127,15 +1127,24 @@ CONTAINS
 
       INTEGER                                            :: handle, iblock_col, iblock_row, &
                                                             iblock_size, info, ispin, lwork, &
-                                                            nocc_of_block
+                                                            nocc_of_block, unit_nr
       LOGICAL                                            :: block_needed
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, work
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
       TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_dbcsr_type)                                :: matrix_t_blk_tmp
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      ! get a useful unit_nr
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      ENDIF
 
       DO ispin = 1, almo_scf_env%nspins
 
@@ -1179,9 +1188,9 @@ CONTAINS
                ALLOCATE (WORK(MAX(1, LWORK)))
                CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                IF (INFO .NE. 0) THEN
-                  WRITE (*, *) 'BLOCK  = ', iblock_row
-                  WRITE (*, *) 'INFO   =', INFO
-                  WRITE (*, *) data_p(:, :)
+                  WRITE (unit_nr, *) 'BLOCK  = ', iblock_row
+                  WRITE (unit_nr, *) 'INFO   =', INFO
+                  WRITE (unit_nr, *) data_p(:, :)
                   CPABORT("DSYEV failed")
                END IF
 
