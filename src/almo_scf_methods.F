@@ -1144,7 +1144,7 @@ CONTAINS
          unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
       ELSE
          unit_nr = -1
-      ENDIF
+      END IF
 
       DO ispin = 1, almo_scf_env%nspins
 
@@ -1188,9 +1188,11 @@ CONTAINS
                ALLOCATE (WORK(MAX(1, LWORK)))
                CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                IF (INFO .NE. 0) THEN
-                  WRITE (unit_nr, *) 'BLOCK  = ', iblock_row
-                  WRITE (unit_nr, *) 'INFO   =', INFO
-                  WRITE (unit_nr, *) data_p(:, :)
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, *) 'BLOCK  = ', iblock_row
+                     WRITE (unit_nr, *) 'INFO   =', INFO
+                     WRITE (unit_nr, *) data_p(:, :)
+                  END IF
                   CPABORT("DSYEV failed")
                END IF
 
@@ -1990,9 +1992,7 @@ CONTAINS
          frob_matrix_base = cp_dbcsr_frobenius_norm(tmp1)
          CALL cp_dbcsr_add_on_diag(tmp1, -1.0_dp)
          frob_matrix = cp_dbcsr_frobenius_norm(tmp1)
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) "Error for (inv(A)*A-I)", frob_matrix/frob_matrix_base
-         ENDIF
+         IF (unit_nr > 0) WRITE (unit_nr, *) "Error for (inv(A)*A-I)", frob_matrix/frob_matrix_base
          CALL cp_dbcsr_release(tmp1)
       ENDIF
 
@@ -2010,9 +2010,7 @@ CONTAINS
          frob_matrix_base = cp_dbcsr_frobenius_norm(tmp1)
          CALL cp_dbcsr_add_on_diag(tmp1, -1.0_dp)
          frob_matrix = cp_dbcsr_frobenius_norm(tmp1)
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *) "Error for (trn(U)*U-I)", frob_matrix/frob_matrix_base
-         ENDIF
+         IF (unit_nr > 0) WRITE (unit_nr, *) "Error for (trn(U)*U-I)", frob_matrix/frob_matrix_base
          CALL cp_dbcsr_release(tmp1)
       ENDIF
 
@@ -2573,14 +2571,23 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'matrix_sqrt', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, INFO, jj, LWORK
+      INTEGER                                            :: handle, INFO, jj, LWORK, unit_nr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, WORK
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: test, testN
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
       Asqrtinv = A
       INFO = 0
+
+      ! get a useful unit_nr
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      END IF
 
       !CALL DPOTRF('L', N, Ainv, N, INFO )
       !IF( INFO.NE.0 ) THEN
@@ -2612,7 +2619,7 @@ CONTAINS
       ALLOCATE (WORK(MAX(1, LWORK)))
       CALL DSYEV('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
       IF (INFO .NE. 0) THEN
-         WRITE (*, *) 'DSYEV ERROR MESSAGE: ', INFO
+         IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
          CPABORT("DSYEV failed")
       END IF
       DEALLOCATE (WORK)
@@ -2685,13 +2692,22 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ii, INFO, jj, LWORK, range1_eiv, &
-                                                            range2_eiv, range3_eiv
+                                                            range2_eiv, range3_eiv, unit_nr
       LOGICAL                                            :: use_ranges
       REAL(KIND=dp)                                      :: my_shift
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, WORK
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: test, testN
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      ! get a useful unit_nr
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      END IF
 
       IF (method .EQ. 1) THEN
          IF (PRESENT(range1)) THEN
@@ -2748,7 +2764,7 @@ CONTAINS
          ALLOCATE (WORK(MAX(1, LWORK)))
          CALL DSYEV('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
          IF (INFO .NE. 0) THEN
-            WRITE (*, *) 'DSYEV ERROR MESSAGE: ', INFO
+            IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
             CPABORT("DSYEV failed")
          END IF
          DEALLOCATE (WORK)
@@ -2848,13 +2864,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'newton_grad_to_step', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: res_norm
       TYPE(cp_dbcsr_type)                                :: m_tmp_no_1, m_tmp_no_3, m_tmp_oo_2, &
                                                             matrix_f_ao, matrix_f_mo, matrix_f_vo, &
                                                             matrix_s_ao, matrix_s_mo, matrix_s_vo
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      ! get a useful unit_nr
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      END IF
 
       CALL cp_dbcsr_init(matrix_s_ao)
       CALL cp_dbcsr_create(matrix_s_ao, &
@@ -3040,7 +3065,7 @@ CONTAINS
                         1.0_dp, 1.0_dp)
       CALL cp_dbcsr_norm(m_tmp_no_3, &
                          dbcsr_norm_maxabsnorm, norm_scalar=res_norm)
-      WRITE (*, *) "NEWTON step error: ", res_norm
+      IF (unit_nr > 0) WRITE (unit_nr, *) "NEWTON step error: ", res_norm
 
       CALL cp_dbcsr_release(m_tmp_no_3)
       CALL cp_dbcsr_release(m_tmp_no_1)
@@ -3083,7 +3108,7 @@ CONTAINS
 
       INTEGER :: ao_hori_offset, ao_vert_offset, block_col, block_row, col, copy, H_size, handle, &
          ii, INFO, jj, lev1_hori_offset, lev1_vert_offset, lev2_hori_offset, lev2_vert_offset, &
-         LWORK, nblkcols_tot, nblkrows_tot, orb_i, orb_j, row, zero_neg_eiv
+         LWORK, nblkcols_tot, nblkrows_tot, orb_i, orb_j, row, unit_nr, zero_neg_eiv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_block_sizes, ao_domain_sizes, &
                                                             mo_block_sizes
       INTEGER, DIMENSION(:), POINTER                     :: ao_blk_sizes, mo_blk_sizes
@@ -3096,8 +3121,17 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p, block_p2, p_new_block
       TYPE(cp_dbcsr_type)                                :: matrix_F_ao_sym, matrix_F_mo_sym, &
                                                             matrix_S_ao_sym, matrix_S_mo_sym
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      ! get a useful unit_nr
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      END IF
 
       nblkrows_tot = cp_dbcsr_nblkrows_total(quench_t)
       nblkcols_tot = cp_dbcsr_nblkcols_total(quench_t)
@@ -3459,7 +3493,7 @@ CONTAINS
       ALLOCATE (WORK(MAX(1, LWORK)))
       CALL DSYEV('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
       IF (INFO .NE. 0) THEN
-         WRITE (*, *) 'DSYEV ERROR MESSAGE: ', INFO
+         IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
          CPABORT("DSYEV failed")
       END IF
       DEALLOCATE (WORK)
@@ -3476,7 +3510,7 @@ CONTAINS
             zero_neg_eiv = zero_neg_eiv+1
          ENDIF
       ENDDO
-      WRITE (*, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
+      IF (unit_nr > 0) WRITE (unit_nr, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
       ALLOCATE (test2(H_size, H_size))
       test2(:, :) = MATMUL(Hinv, test)
       Hinv(:, :) = test2(:, :)
@@ -3541,7 +3575,7 @@ CONTAINS
             test_error = test_error+test(jj, ii)*test(jj, ii)
          ENDDO
       ENDDO
-      WRITE (*, *) "Hessian inversion error: ", SQRT(test_error)
+      IF (unit_nr > 0) WRITE (unit_nr, *) "Hessian inversion error: ", SQRT(test_error)
       DEALLOCATE (test)
 
       ! prepare the output vector
@@ -3554,7 +3588,7 @@ CONTAINS
       tmpr(:) = MATMUL(H, Step_vec)
       tmp(:) = tmpr(:)+Grad_vec(:)
       DEALLOCATE (tmpr)
-      WRITE (*, *) "NEWTOV step error: ", MAXVAL(ABS(tmp))
+      IF (unit_nr > 0) WRITE (unit_nr, *) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 
       DEALLOCATE (tmp)
 

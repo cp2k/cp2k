@@ -68,10 +68,6 @@ Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
-almo_scf_methods.F: Found WRITE statement with hardcoded unit in "hessian_diag_apply"
-almo_scf_methods.F: Found WRITE statement with hardcoded unit in "matrix_sqrt"
-almo_scf_methods.F: Found WRITE statement with hardcoded unit in "newton_grad_to_step"
-almo_scf_methods.F: Found WRITE statement with hardcoded unit in "pseudo_invert_matrix"
 almo_scf_optimizer.F: Found WRITE statement with hardcoded unit in "almo_scf_xalmo_pcg"
 base_hooks.F: Found CALL m_abort in procedure "cp_abort"
 base_hooks.F: Found STOP statement in procedure "cp__a"
