@@ -110,7 +110,6 @@ MODULE wannier90
 
   INTEGER, PARAMETER :: nsupcell=5
   INTEGER            :: lmn(3,(2*nsupcell+1)**3)
-  REAL(kind=dp)      :: bvec_inp(3,num_nnmax,max_shells)
 
   REAL(kind=dp), PARAMETER    :: eps5  = 1.0e-5_dp
   REAL(kind=dp), PARAMETER    :: eps6  = 1.0e-6_dp
