@@ -198,11 +198,6 @@ Note that the code can only be built for one of these libraries at a time.
 
 See https://cp2k.org/howto:install_with_plumed for full instructions.
 
-==== 2p. libwannier90 (optional, interface to Wannier90 code) ====
-  * Needs an experimental version of wannier90 (currently only available from
-    hutter@chem.uzh.ch)
-  * Add -D__WANNIER90 to DFLAGS, -L$(LIBWANNIER90_DIR)-lwannier90 to LIBS.
-
 ===== 3. Compile =====
 
 ==== 3a. ARCH files ====

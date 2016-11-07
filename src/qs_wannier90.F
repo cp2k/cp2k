@@ -71,6 +71,7 @@ MODULE qs_wannier90
    USE qs_scf_diagonalization,          ONLY: do_general_diag_kp
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
+   USE wannier90,                       ONLY: wannier_setup
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -265,7 +266,6 @@ CONTAINS
       CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao, nmo=num_bands_tot)
       num_bands_tot = MIN(nao, num_bands_tot+nadd)
       num_bands = num_wann
-      ! atoms
       num_atoms = SIZE(particle_set)
       ALLOCATE (atoms_cart(3, num_atoms))
       ALLOCATE (atom_symbols(num_atoms))
@@ -285,13 +285,8 @@ CONTAINS
 
       IF (iw > 0) THEN
          ! setup
-#if defined (__WANNIER90)
-         CALL wannier_setup_simple(seed_name, mp_grid, num_kpts, real_lattice, recip_lattice, &
-                                   kpt_latt, num_bands_tot, num_atoms, atom_symbols, atoms_cart, &
-                                   num_bands, num_wann, nntot, nnlist, nncell, iw)
-#else
-         CPABORT("Wannier90 library not available")
-#endif
+         CALL wannier_setup(mp_grid, num_kpts, real_lattice, recip_lattice, &
+                            kpt_latt, nntot, nnlist, nncell, iw)
       END IF
 
       CALL get_qs_env(qs_env, para_env=para_env)
