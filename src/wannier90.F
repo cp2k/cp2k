@@ -836,7 +836,8 @@ END SUBROUTINE wannier_setup
 
        IF(ANY(ABS(singv)<eps5)) THEN
          IF(num_shells==1)  THEN
-             CPABORT('kmesh_shell_automatic: Singular Value Decomposition has found a very small singular value')
+             CALL cp_abort(__LOCATION__,"kmesh_shell_automatic: "//&
+                 "Singular Value Decomposition has found a very small singular value.")
          ELSE
             WRITE(stdout,'(1x,a)') '| SVD found small singular value, Rejecting this shell and trying the next   |'
             b1sat=.FALSE.
