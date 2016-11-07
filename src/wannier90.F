@@ -81,18 +81,9 @@ MODULE wannier90
   REAL(kind=dp)      :: real_lattice(3,3)
   REAL(kind=dp)      :: recip_lattice(3,3)
   REAL(kind=dp)      :: cell_volume
-  REAL(kind=dp)      :: real_metric(3,3)
-  REAL(kind=dp)      :: recip_metric(3,3)
-  INTEGER            :: bands_num_spec_points
-  CHARACTER(len=1), ALLOCATABLE     ::bands_label(:)
-  REAL(kind=dp), ALLOCATABLE     ::bands_spec_points(:,:)
   REAL(kind=dp), ALLOCATABLE     ::kpt_cart(:,:) !kpoints in cartesians
-  LOGICAL            :: disentanglement
   REAL(kind=dp)      :: lenconfac
-  INTEGER            :: num_wannier_plot
-  INTEGER            :: num_bands_project
   INTEGER            :: num_exclude_bands
-  LOGICAL            :: lfixstep
 
   REAL(kind=dp)      :: kmesh_tol
   INTEGER            :: num_shells
