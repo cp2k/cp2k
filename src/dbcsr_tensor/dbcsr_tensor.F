@@ -234,6 +234,20 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
+!> \brief Number of dimensions.
+!> \param iterator ...
+!> \retval ndims_iterator ...
+!> \par Note: specification function below must be defined before it is used in
+!>      the source due to a bug in the IBM XL Fortran compiler (compilation fails)
+! **************************************************************************************************
+   PURE FUNCTION ndims_iterator(iterator)
+      TYPE(dbcsr_t_iterator), INTENT(IN)                 :: iterator
+      INTEGER                                            :: ndims_iterator
+
+      ndims_iterator = iterator%nd_index%ndim_nd
+   END FUNCTION
+
+! **************************************************************************************************
 !> \brief iterate over nd blocks of an nd rank tensor
 !>        index only
 !> \param iterator ...
@@ -245,21 +259,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_p, blk_size, blk_offset)
       TYPE(dbcsr_t_iterator), INTENT(INOUT)              :: iterator
-      INTEGER, DIMENSION(iterator%nd_index%ndim_nd), &
+      INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
          INTENT(OUT)                                     :: ind_nd
       INTEGER, INTENT(OUT)                               :: blk
       INTEGER, INTENT(OUT), OPTIONAL                     :: blk_p
-      INTEGER, DIMENSION(iterator%nd_index%ndim_nd), &
+      INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
          INTENT(OUT), OPTIONAL                           :: blk_size, blk_offset
 
       INTEGER, DIMENSION(2)                              :: ind_2d
-
-!     Note: specification function below not accepted by IBM XL compiler (compilation fails).
-!     TODO: Uncomment once this has been fixed
-!     INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
-!        INTENT(OUT)                                     :: ind_nd
-!     INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
-!        INTENT(OUT), OPTIONAL                           :: blk_size, blk_offset
 
       CALL dbcsr_iterator_next_block(iterator%iter, ind_2d(1), ind_2d(2), blk, blk_p=blk_p)
 
@@ -280,18 +287,6 @@ CONTAINS
       LOGICAL                                            :: dbcsr_t_iterator_blocks_left
 
       dbcsr_t_iterator_blocks_left = dbcsr_iterator_blocks_left(iterator%iter)
-   END FUNCTION
-
-! **************************************************************************************************
-!> \brief Number of dimensions.
-!> \param iterator ...
-!> \retval ndims_iterator ...
-! **************************************************************************************************
-   PURE FUNCTION ndims_iterator(iterator)
-      TYPE(dbcsr_t_iterator), INTENT(IN)                 :: iterator
-      INTEGER                                            :: ndims_iterator
-
-      ndims_iterator = iterator%nd_index%ndim_nd
    END FUNCTION
 
 ! **************************************************************************************************
