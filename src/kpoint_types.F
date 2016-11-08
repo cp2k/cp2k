@@ -509,6 +509,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: i, n_rep, nval, wfntype
       LOGICAL                                            :: available
+      REAL(KIND=dp)                                      :: ff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: reallist
 
       CPASSERT(ASSOCIATED(kpoint))
@@ -568,6 +569,8 @@ CONTAINS
                END SELECT
                kpoint%wkp(i) = reallist(4)
             END DO
+            ff = 1.0_dp/SUM(kpoint%wkp(:))
+            kpoint%wkp(:) = ff*kpoint%wkp(:)
          CASE DEFAULT
             CPABORT("")
          END SELECT
