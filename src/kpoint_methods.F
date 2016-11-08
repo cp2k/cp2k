@@ -228,14 +228,6 @@ CONTAINS
          CPASSERT(.FALSE.)
       END SELECT
 
-      ! scaled kpoint coordinates
-      IF (kpoint%nkp > 0) THEN
-         ALLOCATE (kpoint%skp(3, kpoint%nkp))
-         DO i = 1, kpoint%nkp
-            kpoint%skp(1:3, i) = MATMUL(TRANSPOSE(cell%hmat), kpoint%xkp(1:3, i))
-         END DO
-      END IF
-
       ! check for consistency of options
       SELECT CASE (kpoint%kp_scheme)
       CASE ("NONE")

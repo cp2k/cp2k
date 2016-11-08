@@ -30,6 +30,7 @@ MODULE kpoint_types
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE mathconstants,                   ONLY: twopi
    USE physcon,                         ONLY: angstrom
    USE qs_matrix_pools,                 ONLY: mpools_release,&
                                               qs_matrix_pools_type
@@ -57,8 +58,7 @@ MODULE kpoint_types
 !> \brief Keeps information about a specific k-point
 !> \param nkpoint   the kpoint index
 !> \param wkp       weight of this kpoint
-!> \param xkp       kpoint coordinates
-!> \param skp       scaled kpoint coordinates (reciprocal lattice vectors / 2pi)
+!> \param xkp       kpoint coordinates in units of b-vector
 !> \param is_local  if this kpoint is calculated on a single thread
 !> \param mos       associated MOs (r/i,spin)
 !> \param pmat      associated density matrix (r/i,spin)
@@ -69,7 +69,6 @@ MODULE kpoint_types
       INTEGER                                           :: nkpoint
       REAL(KIND=dp)                                     :: wkp
       REAL(KIND=dp), DIMENSION(3)                       :: xkp
-      REAL(KIND=dp), DIMENSION(3)                       :: skp
       LOGICAL                                           :: is_local
       TYPE(mo_set_p_type), DIMENSION(:, :), POINTER     :: mos
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER      :: pmat
@@ -116,7 +115,6 @@ MODULE kpoint_types
 !> \param parallel_group_size [input] kpoint group size
 !> \param nkp     number of kpoints
 !> \param xkp     kpoint coordinates
-!> \param skp     scaled kpoint coordinates (reciprocal lattice vectors / 2pi)
 !> \param wkp     kpoint weights
 !> \param para_env 'global' parallel environment
 !> \param cart 2d distribution of the processors for the kpoints,
@@ -147,7 +145,6 @@ MODULE kpoint_types
       INTEGER                                 :: parallel_group_size
       INTEGER                                 :: nkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: xkp => Null()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: skp => Null()
       REAL(KIND=dp), DIMENSION(:), POINTER    :: wkp => Null()
       ! parallel environment
       TYPE(cp_para_env_type), POINTER         :: para_env => Null()
@@ -202,7 +199,7 @@ CONTAINS
 
       kpoint%nkp = 0
 
-      NULLIFY (kpoint%xkp, kpoint%skp, kpoint%wkp)
+      NULLIFY (kpoint%xkp, kpoint%wkp)
       NULLIFY (kpoint%kp_dist)
 
       NULLIFY (kpoint%para_env)
@@ -237,9 +234,6 @@ CONTAINS
 
          IF (ASSOCIATED(kpoint%xkp)) THEN
             DEALLOCATE (kpoint%xkp)
-         END IF
-         IF (ASSOCIATED(kpoint%skp)) THEN
-            DEALLOCATE (kpoint%skp)
          END IF
          IF (ASSOCIATED(kpoint%wkp)) THEN
             DEALLOCATE (kpoint%wkp)
@@ -294,8 +288,7 @@ CONTAINS
 !> \param parallel_group_size kpoint group size
 !> \param kp_range      kpoints distribution for local processor
 !> \param nkp           number of kpoints
-!> \param xkp           kpoint coordinates
-!> \param skp           scaled kpoint coordinates
+!> \param xkp           kpoint coordinates in units of b-vector
 !> \param wkp           kpoint weights
 !> \param para_env      'global' parallel environment
 !> \param blacs_env_all BLACS env for the total environment
@@ -316,7 +309,7 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE get_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose, &
-                              full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, skp, wkp, &
+                              full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp, &
                               para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl)
       TYPE(kpoint_type), POINTER                         :: kpoint
@@ -329,7 +322,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: parallel_group_size
       INTEGER, DIMENSION(2), OPTIONAL                    :: kp_range
       INTEGER, OPTIONAL                                  :: nkp
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: xkp, skp
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: xkp
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: wkp
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_all
@@ -365,7 +358,6 @@ CONTAINS
       IF (PRESENT(nkp)) nkp = kpoint%nkp
       IF (PRESENT(wkp)) wkp => kpoint%wkp
       IF (PRESENT(xkp)) xkp => kpoint%xkp
-      IF (PRESENT(skp)) skp => kpoint%skp
 
       IF (PRESENT(para_env)) para_env => kpoint%para_env
       IF (PRESENT(cart)) cart => kpoint%cart
@@ -403,7 +395,6 @@ CONTAINS
 !> \param kp_range      kpoints distribution for local processor
 !> \param nkp           number of kpoints
 !> \param xkp           kpoint coordinates
-!> \param skp           scaled kpoint coordinates
 !> \param wkp           kpoint weights
 !> \param para_env      'global' parallel environment
 !> \param blacs_env_all BLACS env for the total environment
@@ -424,7 +415,7 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE set_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose, &
-                              full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, skp, wkp, &
+                              full_grid, use_real_wfn, eps_geo, parallel_group_size, kp_range, nkp, xkp, wkp, &
                               para_env, blacs_env_all, cart, para_env_full, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, sab_nl)
       TYPE(kpoint_type), POINTER                         :: kpoint
@@ -437,7 +428,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: parallel_group_size
       INTEGER, DIMENSION(2), OPTIONAL                    :: kp_range
       INTEGER, OPTIONAL                                  :: nkp
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: xkp, skp
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: xkp
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: wkp
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_all
@@ -473,7 +464,6 @@ CONTAINS
       IF (PRESENT(nkp)) kpoint%nkp = nkp
       IF (PRESENT(wkp)) kpoint%wkp => wkp
       IF (PRESENT(xkp)) kpoint%xkp => xkp
-      IF (PRESENT(skp)) kpoint%skp => skp
 
       IF (PRESENT(para_env)) kpoint%para_env => para_env
       IF (PRESENT(cart)) kpoint%cart => cart
@@ -503,13 +493,13 @@ CONTAINS
 !> \brief Read the kpoint input section
 !> \param kpoint  The kpoint environment
 !> \param kpoint_section The input section
-!> \param b_vec ...
+!> \param a_vec ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE read_kpoint_section(kpoint, kpoint_section, b_vec)
+   SUBROUTINE read_kpoint_section(kpoint, kpoint_section, a_vec)
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(section_vals_type), POINTER                   :: kpoint_section
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: b_vec
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a_vec
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_kpoint_section', &
          routineP = moduleN//':'//routineN
@@ -564,13 +554,15 @@ CONTAINS
                CPASSERT(nval >= 4)
                SELECT CASE (ustr)
                CASE ("B_VECTOR")
-                  kpoint%xkp(1:3, i) = reallist(1)*b_vec(1:3, 1)+ &
-                                       reallist(2)*b_vec(1:3, 2)+ &
-                                       reallist(3)*b_vec(1:3, 3)
-               CASE ("CART_ANGSTROM")
-                  kpoint%xkp(1:3, i) = reallist(1:3)*angstrom
-               CASE ("CART_BOHR")
                   kpoint%xkp(1:3, i) = reallist(1:3)
+               CASE ("CART_ANGSTROM")
+                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3)+ &
+                                        reallist(2)*a_vec(2, 1:3)+ &
+                                        reallist(3)*a_vec(3, 1:3))/twopi*angstrom
+               CASE ("CART_BOHR")
+                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3)+ &
+                                        reallist(2)*a_vec(2, 1:3)+ &
+                                        reallist(3)*a_vec(3, 1:3))/twopi
                CASE DEFAULT
                   CPABORT("Unknown Unit for kpoint definition")
                END SELECT
@@ -697,7 +689,6 @@ CONTAINS
       kp_env%nkpoint = 0
       kp_env%wkp = 0.0_dp
       kp_env%xkp = 0.0_dp
-      kp_env%skp = 0.0_dp
       kp_env%is_local = .FALSE.
 
       NULLIFY (kp_env%mos)
@@ -760,16 +751,15 @@ CONTAINS
 !> \param nkpoint    Index of kpoint
 !> \param wkp        Weight of kpoint
 !> \param xkp        Coordinates of kpoint
-!> \param skp        Coordinates of kpoint
 !> \param is_local   Is this kpoint local (single cpu group)
 !> \param mos        MOs of this kpoint
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE get_kpoint_env(kpoint_env, nkpoint, wkp, xkp, skp, is_local, mos)
+   SUBROUTINE get_kpoint_env(kpoint_env, nkpoint, wkp, xkp, is_local, mos)
       TYPE(kpoint_env_type), POINTER                     :: kpoint_env
       INTEGER, OPTIONAL                                  :: nkpoint
       REAL(KIND=dp), OPTIONAL                            :: wkp
-      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: xkp, skp
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: xkp
       LOGICAL, OPTIONAL                                  :: is_local
       TYPE(mo_set_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: mos
@@ -781,7 +771,6 @@ CONTAINS
       IF (PRESENT(nkpoint)) nkpoint = kpoint_env%nkpoint
       IF (PRESENT(wkp)) wkp = kpoint_env%wkp
       IF (PRESENT(xkp)) xkp = kpoint_env%xkp
-      IF (PRESENT(skp)) skp = kpoint_env%skp
       IF (PRESENT(is_local)) is_local = kpoint_env%is_local
       IF (PRESENT(mos)) mos => kpoint_env%mos
 

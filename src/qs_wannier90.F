@@ -258,10 +258,6 @@ CONTAINS
       DO i = 1, num_kpts
          kpoint%xkp(1:3, i) = (angstrom/twopi)*MATMUL(recip_lattice, kpt_latt(:, i))
       END DO
-      ALLOCATE (kpoint%skp(3, num_kpts))
-      DO i = 1, num_kpts
-         kpoint%skp(1:3, i) = MATMUL(TRANSPOSE(cell%hmat), kpoint%xkp(1:3, i))
-      END DO
       ! number of bands in calculation
       CALL get_qs_env(qs_env, mos=mos)
       CALL get_mo_set(mo_set=mos(1)%mo_set, nao=nao, nmo=num_bands_tot)

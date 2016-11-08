@@ -37,6 +37,7 @@ MODULE qs_band_structure
                                               kpoint_release,&
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
+   USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sum
    USE physcon,                         ONLY: angstrom,&
                                               evolt
@@ -143,13 +144,15 @@ CONTAINS
                CALL section_vals_val_get(kpset, "SPECIAL_POINT", i_rep_section=i_rep, i_rep_val=ip, r_vals=kpptr)
                SELECT CASE (ustr)
                CASE ("B_VECTOR")
-                  kspecial(1:3, ip) = kpptr(1)*cell%h_inv(1, 1:3)+ &
-                                      kpptr(2)*cell%h_inv(2, 1:3)+ &
-                                      kpptr(3)*cell%h_inv(3, 1:3)
-               CASE ("CART_ANGSTROM")
-                  kspecial(1:3, ip) = kpptr(1:3)*angstrom
-               CASE ("CART_BOHR")
                   kspecial(1:3, ip) = kpptr(1:3)
+               CASE ("CART_ANGSTROM")
+                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3)+ &
+                                       kpptr(2)*cell%hmat(2, 1:3)+ &
+                                       kpptr(3)*cell%hmat(3, 1:3))/twopi*angstrom
+               CASE ("CART_BOHR")
+                  kspecial(1:3, ip) = (kpptr(1)*cell%hmat(1, 1:3)+ &
+                                       kpptr(2)*cell%hmat(2, 1:3)+ &
+                                       kpptr(3)*cell%hmat(3, 1:3))/twopi
                CASE DEFAULT
                   CPABORT("Unknown Unit for kpoint definition")
                END SELECT
@@ -159,6 +162,7 @@ CONTAINS
             CPASSERT(npoints >= 1)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, "(T2,A,I4,T71,I10)") "KPOINTS| Number of K-Points in Set ", i_rep, npoints
+               WRITE (unit_nr, "(T2,A)") "KPOINTS| In units of b-vector [2pi/Bohr]"
                DO ip = 1, n_ptr
                   WRITE (unit_nr, "(T2,A,I4,T51,3F10.4)") "KPOINTS| Special K-Point ", ip, kspecial(1:3, ip)
                END DO
@@ -191,10 +195,6 @@ CONTAINS
                                          REAL(ip, KIND=dp)/REAL(npline, KIND=dp)* &
                                          (kspecial(1:3, ik)-kspecial(1:3, ik-1))
                END DO
-            END DO
-            ALLOCATE (kpoint%skp(3, npoints))
-            DO ik = 1, npoints
-               kpoint%skp(1:3, ik) = MATMUL(TRANSPOSE(cell%hmat), kpoint%xkp(1:3, ik))
             END DO
             kpoint%para_env => para_env
             CALL cp_para_env_retain(para_env)

@@ -306,7 +306,7 @@ CONTAINS
       ! kpoints
       CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
       kpoint_section => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS")
-      CALL read_kpoint_section(kpoints, kpoint_section, my_cell%h_inv)
+      CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat)
       CALL kpoint_initialize(kpoints, particle_set, my_cell)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       CALL write_kpoint_info(kpoints, dft_section)
