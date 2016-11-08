@@ -199,7 +199,7 @@ QS/regtest-linearscaling
 QS/regtest-fftw                                             fftw3 
 NEB/regtest-3
 SWARM/regtest-glbopt-1
-QS/regtest-elpa                                             elpa 
+QS/regtest-elpa                                             elpa mpiranks==1||mpiranks==2||mpiranks==4||mpiranks==6||mpiranks==8||mpiranks==16
 optimize_input/regtest-1
 FE/regtest-2
 Fist/regtest-quip                                           quip 

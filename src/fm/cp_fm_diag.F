@@ -53,8 +53,10 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
                                              ieee_all
 #endif
 
-#if defined (__ELPA) || defined(__ELPA2) || defined(__ELPA3)
+#if defined (__ELPA) || defined(__ELPA2)
   USE ELPA2, ONLY: solve_evp_real_2stage
+#elif defined (__ELPA3)
+  USE ELPA2, ONLY: elpa_solve_evp_real_2stage
 #endif
 
 #include "../base/base_uses.f90"
@@ -958,6 +960,11 @@ CONTAINS
                             nrow_block=nblk)
 
       neig = SIZE(eigenvalues, 1)
+
+      ! ELPA will fail in 'solve_tridi', with no useful error message
+      IF (n_cols == 0) &
+         CPABORT("ELPA [pre-fail]: Problem contains processor column with zero width.")
+
       ! the full eigenvalues vector is needed
       ALLOCATE (eval(n))
 
@@ -968,8 +975,9 @@ CONTAINS
       success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, comm_row, comm_col, group, &
                                       THIS_REAL_ELPA_KERNEL_API=kernel_type, useQR=.FALSE.)
 #else
-      success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, comm_row, comm_col, group, &
-                                      THIS_REAL_ELPA_KERNEL_API=kernel_type, useQR=.FALSE.)
+      success = elpa_solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
+                                           comm_row, comm_col, group, &
+                                           THIS_REAL_ELPA_KERNEL_API=kernel_type, useQR=.FALSE.)
 #endif
 
       IF (.NOT. success) &
