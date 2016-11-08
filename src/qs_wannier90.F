@@ -125,7 +125,7 @@ CONTAINS
                '!-----------------------------------------------------------------------------!'
          END IF
 
-         CALL wannier90(qs_env, w_input, iw)
+         CALL wannier90_files(qs_env, w_input, iw)
 
          IF (iw > 0) THEN
             WRITE (iw, '(/,T2,A)') &
@@ -142,12 +142,13 @@ CONTAINS
 !> \param input ...
 !> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE wannier90(qs_env, input, iw)
+   SUBROUTINE wannier90_files(qs_env, input, iw)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'wannier90', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'wannier90_files', &
+         routineP = moduleN//':'//routineN
       INTEGER, PARAMETER                                 :: num_nnmax = 12
 
       CHARACTER(len=2)                                   :: asym
@@ -611,6 +612,6 @@ CONTAINS
 
       CALL kpoint_release(kpoint)
 
-   END SUBROUTINE wannier90
+   END SUBROUTINE wannier90_files
 
 END MODULE qs_wannier90
