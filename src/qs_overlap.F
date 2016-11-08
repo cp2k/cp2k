@@ -28,10 +28,11 @@ MODULE qs_overlap
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_arnoldi_extremal, cp_dbcsr_create, cp_dbcsr_filter, &
-        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, &
+        cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
+        cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type, &
+        dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -85,7 +86,7 @@ MODULE qs_overlap
 ! *** Public subroutines ***
 
    PUBLIC :: build_overlap_matrix, build_overlap_matrix_simple, &
-             build_overlap_force, create_sab_matrix
+             build_overlap_force, create_sab_matrix, overlap_condnum
 
 CONTAINS
 
@@ -103,7 +104,6 @@ CONTAINS
 !> \param   calculate_forces (optional) ...
 !> \param   matrix_p density matrix for force calculation (optional)
 !> \param   matrixkp_p density matrix for force calculation with k_points (optional)
-!> \param   condition_number ...
 !> \date    11.03.2002
 !> \par     History
 !>          Enlarged functionality of this routine. Now overlap matrices based
@@ -118,7 +118,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_overlap_matrix(ks_env, matrix_s, matrixkp_s, matrix_name, &
                                    nderivative, basis_type_a, basis_type_b, sab_nl, calculate_forces, &
-                                   matrix_p, matrixkp_p, condition_number)
+                                   matrix_p, matrixkp_p)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -134,25 +134,22 @@ CONTAINS
       TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_p
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
-      LOGICAL, INTENT(IN), OPTIONAL                      :: condition_number
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
          routineP = moduleN//':'//routineN
 
       INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, irow, iset, jatom, jkind, &
-         jset, ldsab, maxder, maxiter, maxs, mepos, n1, n2, natom, ncoa, ncob, nder, nimg, nkind, &
-         nseta, nsetb, nthread, output_unit, sgfa, sgfb
+         jset, ldsab, maxder, maxs, mepos, n1, n2, natom, ncoa, ncob, nder, nimg, nkind, nseta, &
+         nsetb, nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: calculate_condition_number, converged, &
-                                                            do_forces, do_symmetric, dokp, found, &
+      LOGICAL                                            :: do_forces, do_symmetric, dokp, found, &
                                                             trans, use_cell_mapping, use_virial
-      REAL(KIND=dp)                                      :: dab, eps_ev, f, f0, ff, max_ev, min_ev, &
-                                                            rab2, threshold
+      REAL(KIND=dp)                                      :: dab, f, f0, ff, rab2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owork, pmat
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, rab
@@ -161,7 +158,6 @@ CONTAINS
                                                             zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: sint
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -172,7 +168,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (dft_control, logger)
+      NULLIFY (dft_control)
 
       CALL timeset(routineN, handle)
 
@@ -214,12 +210,6 @@ CONTAINS
          nder = 0
       END IF
       maxder = ncoset(nder)
-
-      IF (PRESENT(condition_number)) THEN
-         calculate_condition_number = condition_number
-      ELSE
-         calculate_condition_number = .FALSE.
-      END IF
 
       ! check for symmetry
       CPASSERT(SIZE(sab_nl) > 0)
@@ -451,61 +441,6 @@ CONTAINS
             CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
                                  dft_control%qs_control%eps_filter_matrix)
          ENDDO
-
-         IF (calculate_condition_number) THEN
-!        logger => cp_get_default_logger()
-!        output_unit = cp_print_key_unit_nr(logger, qs_input, "DFT%PRINT%OVERLAP_CONDITION", &
-!                                           extension=".Log")
-!        IF (cp_print_key_should_output(logger%iter_info, qs_input, &
-!                                       "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
-            logger => cp_get_default_logger()
-            IF (logger%para_env%mepos == logger%para_env%source) THEN
-               output_unit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-            ELSE
-               output_unit = -1
-            ENDIF
-
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
-            END IF
-
-            IF (cp_dbcsr_get_matrix_type(matrix_s(1)%matrix) .EQ. dbcsr_type_symmetric) THEN
-               ! parameters for matrix condition test
-               threshold = 1.0E-6_dp
-               maxiter = 1000
-               eps_ev = 1.0E8_dp
-
-               CALL cp_dbcsr_arnoldi_extremal(matrix_s(1)%matrix, max_ev, min_ev, &
-                                              threshold=threshold, max_iter=maxiter, &
-                                              converged=converged)
-               IF (output_unit > 0) THEN
-                  IF (min_ev .NE. 0) THEN
-                     WRITE (output_unit, &
-                            '(T4,ES11.3E3,T21,A,ES11.3E3,T43,A,ES11.3E3)') &
-                        max_ev/min_ev, &
-                        "max/min ev: ", max_ev, " / ", min_ev
-                  ELSE
-                     WRITE (output_unit, &
-                            '(T21,A,ES11.3E3,T43,A,ES11.3E3)') &
-                        "max/min ev: ", max_ev, " / ", min_ev
-                  ENDIF
-               ENDIF
-
-               IF (converged) THEN
-                  IF (min_ev .EQ. 0) THEN
-                     CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-                  ELSE IF ((max_ev/min_ev) .GT. eps_ev) THEN
-                     CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-                  END IF
-               END IF
-            ELSE
-               IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(T4,A)') &
-                     "S matrix is not symmetric - eigenvalues not available"
-               END IF
-            END IF
-!        CALL cp_print_key_finished_output(output_unit, logger, qs_input, "DFT%PRINT%OVERLAP_CONDITION")
-         END IF
       END IF
 
       ! *** Release work storage ***
@@ -1098,6 +1033,89 @@ CONTAINS
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
    END SUBROUTINE create_sab_matrix_2d
+
+! **************************************************************************************************
+!> \brief   Calculation of the overlap matrix Condition Number
+!> \param   matrixkp_s The overlap matrices to be calculated (kpoints, optional)
+!> \date    07.11.2016
+!> \par     History
+!> \author  JHU
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE overlap_condnum(matrixkp_s)
+
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrixkp_s
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_condnum', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, ic, iunit, maxiter
+      LOGICAL                                            :: converged
+      REAL(KIND=dp)                                      :: eps_ev, max_ev, min_ev, threshold
+      TYPE(cp_dbcsr_type), POINTER                       :: smat
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%mepos == logger%para_env%source) THEN
+         iunit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iunit = -1
+      ENDIF
+
+      NULLIFY (smat)
+      IF (SIZE(matrixkp_s, 2) == 1) THEN
+         IF (iunit > 0) WRITE (iunit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
+         smat => matrixkp_s(1, 1)%matrix
+      ELSE
+         IF (iunit > 0) WRITE (iunit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER AT GAMMA POINT"
+         ALLOCATE (smat)
+         CALL cp_dbcsr_init(smat)
+         CALL cp_dbcsr_create(smat, template=matrixkp_s(1, 1)%matrix)
+         CALL cp_dbcsr_copy(smat, matrixkp_s(1, 1)%matrix)
+         DO ic = 2, SIZE(matrixkp_s, 2)
+            CALL cp_dbcsr_add(smat, matrixkp_s(1, ic)%matrix, 1.0_dp, 1.0_dp)
+         END DO
+      END IF
+      IF (ASSOCIATED(smat)) THEN
+         CPASSERT(cp_dbcsr_get_matrix_type(smat) .EQ. dbcsr_type_symmetric)
+         ! parameters for matrix condition test
+         threshold = 1.0E-6_dp
+         maxiter = 1000
+         eps_ev = 1.0E8_dp
+
+         CALL cp_dbcsr_arnoldi_extremal(smat, max_ev, min_ev, &
+                                        threshold=threshold, max_iter=maxiter, converged=converged)
+         IF (iunit > 0) THEN
+            IF (min_ev .NE. 0) THEN
+               WRITE (iunit, '(T4,ES11.3E3,T21,A,ES11.3E3,T44,A,ES11.3E3,T63,A,F10.4)') &
+                  max_ev/min_ev, "max/min ev: ", max_ev, " / ", min_ev, "Log(CN):", LOG10(max_ev/min_ev)
+            ELSE
+               WRITE (iunit, '(T21,A,ES11.3E3,T44,A,ES11.3E3,T64,A)') &
+                  "max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
+            ENDIF
+         ENDIF
+
+         IF (converged) THEN
+            IF (min_ev == 0) THEN
+               CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
+            ELSE IF ((max_ev/min_ev) > eps_ev) THEN
+               CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
+            END IF
+         END IF
+      END IF
+      IF (SIZE(matrixkp_s, 2) == 1) THEN
+         NULLIFY (smat)
+      ELSE
+         CALL cp_dbcsr_release(smat)
+         DEALLOCATE (smat)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE overlap_condnum
 ! **************************************************************************************************
 
 END MODULE qs_overlap

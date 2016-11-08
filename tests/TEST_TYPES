@@ -1,4 +1,4 @@
-68
+69
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -67,6 +67,7 @@ Gibbs energy correction !6
 HF Etotal !3
 Energy Level: !9
 TDDFPT|[[:space:]]*1 !3
+Log(CN)!8
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value
