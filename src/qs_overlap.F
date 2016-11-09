@@ -1104,6 +1104,8 @@ CONTAINS
             ELSE IF ((max_ev/min_ev) > eps_ev) THEN
                CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
             END IF
+         ELSE
+            CPWARN("Condition number estimate of overlap matrix is not reliable (not converged).")
          END IF
       END IF
       IF (SIZE(matrixkp_s, 2) == 1) THEN
