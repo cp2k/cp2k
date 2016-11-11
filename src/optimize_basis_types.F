@@ -21,9 +21,9 @@ MODULE optimize_basis_types
    ! constraint information for a single constraing. boundary is translateed into a fermi function
    ! like setting as for variational limited case
    TYPE exp_constraint_type
-      INTEGER                                    :: const_type
-      REAL(KIND=dp)                              :: llim, ulim
-      REAL(KIND=dp)                              :: init, var_fac
+      INTEGER                                            :: const_type
+      REAL(KIND=dp)                                      :: llim, ulim
+      REAL(KIND=dp)                                      :: init, var_fac
    END TYPE
 
    ! Subset of a basis+ additional information on what to optimize.
@@ -31,40 +31,42 @@ MODULE optimize_basis_types
    !  opt_* logical whether quantity ahould be optimized
    !  *_const information for exponents used to constrain them
    TYPE subset_type
-      INTEGER                                    :: lmin, lmax, nexp
-      INTEGER                                    :: n, ncon_tot, nl
-      INTEGER, DIMENSION(:), ALLOCATABLE           :: l
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE   :: coeff
-      LOGICAL, DIMENSION(:, :), ALLOCATABLE         :: opt_coeff
-      INTEGER, DIMENSION(:, :), ALLOCATABLE         :: coeff_x_ind
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: exps
-      LOGICAL, DIMENSION(:), ALLOCATABLE           :: opt_exps
-      INTEGER, DIMENSION(:), ALLOCATABLE           :: exp_x_ind
-      LOGICAL, DIMENSION(:), ALLOCATABLE           :: exp_has_const
-      TYPE(exp_constraint_type), DIMENSION(:), ALLOCATABLE :: exp_const
+      INTEGER                                            :: lmin, lmax, nexp
+      INTEGER                                            :: n, ncon_tot, nl
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: l
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coeff
+      LOGICAL, DIMENSION(:, :), ALLOCATABLE              :: opt_coeff
+      INTEGER, DIMENSION(:, :), ALLOCATABLE              :: coeff_x_ind
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: exps
+      LOGICAL, DIMENSION(:), ALLOCATABLE                 :: opt_exps
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: exp_x_ind
+      LOGICAL, DIMENSION(:), ALLOCATABLE                 :: exp_has_const
+      TYPE(exp_constraint_type), DIMENSION(:), &
+         ALLOCATABLE                                      :: exp_const
    END TYPE
 
    ! Top level information for basis sets+ vector subset with the real information
    TYPE flex_basis_type
-      CHARACTER(LEN=default_string_length)       :: basis_name
-      INTEGER                                    :: nopt
-      INTEGER                                    :: nsets
-      TYPE(subset_type), DIMENSION(:), ALLOCATABLE :: subset
+      CHARACTER(LEN=default_string_length)               :: basis_name
+      INTEGER                                            :: nopt
+      INTEGER                                            :: nsets
+      TYPE(subset_type), DIMENSION(:), ALLOCATABLE       :: subset
    END TYPE
 
    ! information for optimization: whether coeff has to be optimized or not
    TYPE use_contr_type
-      LOGICAL, DIMENSION(:), ALLOCATABLE           :: in_use
+      LOGICAL, DIMENSION(:), ALLOCATABLE                 :: in_use
    END TYPE
 
    ! information about how to generate the derived basis sets
    TYPE derived_basis_info
-      INTEGER                                    :: reference_set
-      INTEGER, DIMENSION(:, :), ALLOCATABLE         :: remove_contr
-      INTEGER                                    :: nsets, ncontr
-      INTEGER, DIMENSION(:), ALLOCATABLE           :: remove_set
-      LOGICAL, DIMENSION(:), ALLOCATABLE           :: in_use_set
-      TYPE(use_contr_type), DIMENSION(:), ALLOCATABLE :: use_contr
+      CHARACTER(LEN=default_string_length)               :: basis_name
+      INTEGER                                            :: reference_set
+      INTEGER, DIMENSION(:, :), ALLOCATABLE              :: remove_contr
+      INTEGER                                            :: nsets, ncontr
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: remove_set
+      LOGICAL, DIMENSION(:), ALLOCATABLE                 :: in_use_set
+      TYPE(use_contr_type), DIMENSION(:), ALLOCATABLE    :: use_contr
    END TYPE
 
    ! some usual stuff for basis information and an info type containing the
@@ -73,16 +75,17 @@ MODULE optimize_basis_types
    ! ATTENTION: both vectors go from 0:nbasis_deriv. entry 0 is the one specified
    !            in the template basis file
    TYPE kind_basis_type
-      CHARACTER(LEN=default_string_length)       :: basis_name
-      CHARACTER(LEN=default_string_length)       :: element
-      INTEGER                                    :: nbasis_deriv
-      TYPE(derived_basis_info), DIMENSION(:), ALLOCATABLE :: deriv_info
-      TYPE(flex_basis_type), DIMENSION(:), ALLOCATABLE :: flex_basis
+      CHARACTER(LEN=default_string_length)               :: basis_name
+      CHARACTER(LEN=default_string_length)               :: element
+      INTEGER                                            :: nbasis_deriv
+      TYPE(derived_basis_info), DIMENSION(:), &
+         ALLOCATABLE                                      :: deriv_info
+      TYPE(flex_basis_type), DIMENSION(:), ALLOCATABLE   :: flex_basis
    END TYPE
 
    ! vector of length nparallel_groups containing the id's of the calculations in the group
    TYPE comp_group_type
-      INTEGER, DIMENSION(:), ALLOCATABLE           :: member_list
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: member_list
    END TYPE
 
 ! **************************************************************************************************

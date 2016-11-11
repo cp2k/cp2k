@@ -439,6 +439,7 @@ CONTAINS
 
       DO ikind = 1, opt_bas%nkind
          CALL init_deriv_info_ref(opt_bas%kind_basis(ikind)%deriv_info(0), opt_bas%kind_basis(ikind)%flex_basis(0))
+         opt_bas%kind_basis(ikind)%deriv_info(0)%basis_name = TRIM(ADJUSTL(opt_bas%kind_basis(ikind)%basis_name))
          ! initialize the reference set used as template for the rest
          DO ibasis = 1, opt_bas%kind_basis(ikind)%nbasis_deriv
             iref = opt_bas%kind_basis(ikind)%deriv_info(ibasis)%reference_set
@@ -459,8 +460,13 @@ CONTAINS
       END IF
       DO ikind = 1, opt_bas%nkind
          DO ibasis = 0, opt_bas%kind_basis(ikind)%nbasis_deriv
-            opt_bas%kind_basis(ikind)%flex_basis(ibasis)%basis_name = &
-               TRIM(ADJUSTL(opt_bas%kind_basis(ikind)%basis_name))//"-DERIVED_SET-"//ADJUSTL(cp_to_string(ibasis))
+            IF (LEN_TRIM(opt_bas%kind_basis(ikind)%deriv_info(ibasis)%basis_name) > 0) THEN
+               opt_bas%kind_basis(ikind)%flex_basis(ibasis)%basis_name = &
+                  TRIM(ADJUSTL(opt_bas%kind_basis(ikind)%deriv_info(ibasis)%basis_name))
+            ELSE
+               opt_bas%kind_basis(ikind)%flex_basis(ibasis)%basis_name = &
+                  TRIM(ADJUSTL(opt_bas%kind_basis(ikind)%basis_name))//"-DERIVED_SET-"//ADJUSTL(cp_to_string(ibasis))
+            END IF
             CALL write_basis(opt_bas%kind_basis(ikind)%flex_basis(ibasis), opt_bas%kind_basis(ikind)%element, &
                              unit_nr)
          END DO
@@ -631,6 +637,7 @@ CONTAINS
          ALLOCATE (info%use_contr(i)%in_use(basis%subset(i)%ncon_tot))
          info%use_contr(i)%in_use = .TRUE.
       END DO
+
    END SUBROUTINE init_deriv_info_ref
 
 ! **************************************************************************************************
@@ -719,6 +726,8 @@ CONTAINS
       DO jset = 1, nsets
          ! stracnge but as derive info is allcated from 0 to n the count over here has to be shifted
          iset = jset+1
+         CALL section_vals_val_get(set1_section, "BASIS_SET_NAME", c_val=deriv_info(iset)%basis_name, &
+                                   i_rep_section=jset)
          CALL section_vals_val_get(set1_section, "REFERENCE_SET", i_vals=i_vals, i_rep_section=jset)
          deriv_info(iset)%reference_set = i_vals(1)
          CALL section_vals_val_get(set1_section, "REMOVE_CONTRACTION", explicit=explicit, n_rep_val=n_rep, &

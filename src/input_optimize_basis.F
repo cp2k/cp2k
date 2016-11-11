@@ -261,6 +261,16 @@ CONTAINS
                           " bsis sets e.g. TZVP, DZVP, SZV should be fitted. ", &
                           repeats=.TRUE.)
 
+      CALL keyword_create(keyword, name="BASIS_SET_NAME", &
+                          description="Defines the name of the derived basis set, which will be "// &
+                          "automatically generated otherwise.", &
+                          usage="BASIS_SET_NAME {word}", &
+                          type_of_var=char_t, &
+                          repeats=.FALSE., &
+                          default_c_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="REFERENCE_SET", &
                           description="Specifies the reference basis ID which is used as template to create the new set. "// &
                           "The original basis has ID 0. All follwing sets are counted in order as specified in the Input."// &
