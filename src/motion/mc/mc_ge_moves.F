@@ -463,7 +463,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: eta_insert, eta_remove, pmswap_mol
       REAL(dp), DIMENSION(:, :), POINTER                 :: insert_coords, remove_coords
       REAL(KIND=dp) :: BETA, del_quickstep_energy, exp_max_val, exp_min_val, max_val, min_val, &
-         prefactor, rand, rdum, w, weight_new, weight_old
+         prefactor, rand, rdum, vol_insert, vol_remove, w, weight_new, weight_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cbmc_energies, r_cbmc, r_insert_mol
       REAL(KIND=dp), DIMENSION(1:2)                      :: bias_energy_new, new_energy
       REAL(KIND=dp), DIMENSION(1:3)                      :: abc_insert, abc_remove, center_of_mass, &
@@ -643,14 +643,14 @@ CONTAINS
          CALL force_env_get(force_env(remove_box)%force_env, &
                             cell=cell_remove)
       ENDIF
-      CALL get_cell(cell_remove, abc=abc_remove)
-      CALL get_cell(cell_insert, abc=abc_insert)
+      CALL get_cell(cell_remove, abc=abc_remove, deth=vol_remove)
+      CALL get_cell(cell_insert, abc=abc_insert, deth=vol_insert)
 
       IF (ionode) THEN
 ! choose an insertion point
          DO idim = 1, 3
             rand = next_random_number(rng_stream)
-            pos_insert(idim) = rand*abc_insert(1)
+            pos_insert(idim) = rand*abc_insert(idim)
          ENDDO
       ENDIF
       CALL mp_bcast(pos_insert, source, group)
@@ -1010,7 +1010,7 @@ CONTAINS
 
       prefactor = REAL(nchains(molecule_type, remove_box), dp)/ &
                   REAL(nchains(molecule_type, insert_box)+1, dp)* &
-                  abc_insert(1)**3/abc_remove(1)**3
+                  vol_insert/vol_remove
 
       IF (lbias) THEN
 

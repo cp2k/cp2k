@@ -1029,6 +1029,7 @@ CONTAINS
 !> \param para_env ...
 !> \param globenv ...
 !> \param wdir ...
+!> \param q_finalize ...
 !> \par History
 !>      none
 !> \author JGH,MK
@@ -1039,19 +1040,20 @@ CONTAINS
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
 ! **************************************************************************************************
-   SUBROUTINE cp2k_finalize(root_section, para_env, globenv, wdir)
+   SUBROUTINE cp2k_finalize(root_section, para_env, globenv, wdir, q_finalize)
 
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       CHARACTER(LEN=*), OPTIONAL                         :: wdir
+      LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_finalize', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_path_length)                 :: cg_filename
       CHARACTER(LEN=default_string_length)               :: dev_flag
       INTEGER                                            :: cg_mode, iw, unit_exit
-      LOGICAL                                            :: delete_it, report_maxloc, &
+      LOGICAL                                            :: delete_it, do_finalize, report_maxloc, &
                                                             sort_by_self_time
       REAL(KIND=dp)                                      :: r_timings
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1063,15 +1065,18 @@ CONTAINS
       dev_flag = ""
       IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
 
+      do_finalize = .TRUE.
+      IF (PRESENT(q_finalize)) do_finalize = q_finalize
       ! Clean up
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      CALL deallocate_spherical_harmonics()
-      CALL deallocate_orbital_pointers()
-      CALL deallocate_md_ftable()
-
-      ! finalize the fft (i.e. writes the wisdom if FFTW3 )
-      CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name)
+      IF (do_finalize) THEN
+         CALL deallocate_spherical_harmonics()
+         CALL deallocate_orbital_pointers()
+         CALL deallocate_md_ftable()
+         ! finalize the fft (i.e. writes the wisdom if FFTW3 )
+         CALL finalize_fft(para_env, globenv%fftw_wisdom_file_name)
+      ENDIF
 
       ! Write message passing performance info
 

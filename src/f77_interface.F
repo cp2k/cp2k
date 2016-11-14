@@ -866,6 +866,7 @@ CONTAINS
 !> \brief deallocates the force_env with the given id
 !> \param env_id the id of the force_env to remove
 !> \param ierr will contain a number different from 0 if
+!> \param q_finalize ...
 !> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
@@ -874,9 +875,10 @@ CONTAINS
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE destroy_force_env(env_id, ierr)
+   RECURSIVE SUBROUTINE destroy_force_env(env_id, ierr, q_finalize)
       INTEGER, INTENT(in)                                :: env_id
       INTEGER, INTENT(out)                               :: ierr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: q_finalize
 
       CHARACTER(len=*), PARAMETER :: routineN = 'destroy_force_env', &
          routineP = moduleN//':'//routineN
@@ -902,7 +904,11 @@ CONTAINS
       CPASSERT(ASSOCIATED(globenv))
       CALL globenv_retain(globenv)
       CALL f_env_dealloc(f_env)
-      CALL cp2k_finalize(root_section, para_env, globenv, f_env%old_path)
+      IF (PRESENT(q_finalize)) THEN
+         CALL cp2k_finalize(root_section, para_env, globenv, f_env%old_path, q_finalize)
+      ELSE
+         CALL cp2k_finalize(root_section, para_env, globenv, f_env%old_path)
+      END IF
       CALL section_vals_release(root_section)
       CALL globenv_release(globenv)
       DEALLOCATE (f_env)
