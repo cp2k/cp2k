@@ -87,7 +87,7 @@ EOF
         ;;
 esac
 if [ "$with_superlu" != "__DONTUSE__" ] ; then
-    # superlu (<4.2) includes old and buggy lapack routines that are not thread safe. 
+    # superlu (<4.2) includes old and buggy lapack routines that are not thread safe.
     # Make sure to put a copy of lapack before superlu so that the linker picks the bug free ones first
     # eventually this can be solved by an upgrade of pexsi to >=v0.9.2 which requires a later version of superlu.
     SUPERLU_LIBS="-lsuperlu_dist"

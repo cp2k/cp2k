@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !> \brief Interface to the PEXSI library, providing wrappers for all PEXSI
-!>        routines that are called inside CP2K. Requires PEXSI version 0.9.x.
+!>        routines that are called inside CP2K. Requires PEXSI version 0.10.x.
 !> \par History
 !>       2014.12 created [Patrick Seewald]
 !> \author Patrick Seewald
@@ -14,11 +14,11 @@ MODULE pexsi_interface
 
 #ifdef __LIBPEXSI
   USE f_ppexsi_interface,              ONLY: f_ppexsi_dft_driver,&
-                                             f_ppexsi_load_real_symmetric_hs_matrix,&
+                                             f_ppexsi_load_real_hs_matrix,&
                                              f_ppexsi_options,&
                                              f_ppexsi_plan_finalize,&
                                              f_ppexsi_plan_initialize,&
-                                             f_ppexsi_retrieve_real_symmetric_dft_matrix,&
+                                             f_ppexsi_retrieve_real_dft_matrix,&
                                              f_ppexsi_set_default_options
 #endif
   USE kinds,                           ONLY: int_8,&
@@ -32,8 +32,8 @@ MODULE pexsi_interface
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pexsi_interface'
 
    PUBLIC :: cp_pexsi_options, cp_pexsi_plan_initialize, &
-             cp_pexsi_load_real_symmetric_hs_matrix, cp_pexsi_dft_driver, &
-             cp_pexsi_retrieve_real_symmetric_dft_matrix, cp_pexsi_plan_finalize, &
+             cp_pexsi_load_real_hs_matrix, cp_pexsi_dft_driver, &
+             cp_pexsi_retrieve_real_dft_matrix, cp_pexsi_plan_finalize, &
              cp_pexsi_set_options, cp_pexsi_get_options, cp_pexsi_set_default_options
 
    TYPE cp_pexsi_options
@@ -308,10 +308,10 @@ CONTAINS
 !> \param isSIdentity ...
 !> \param SnzvalLocal ...
 ! **************************************************************************************************
-   SUBROUTINE cp_pexsi_load_real_symmetric_hs_matrix(plan, pexsi_options, nrows, nnz, &
-                                                     nnzLocal, numColLocal, colptrLocal, &
-                                                     rowindLocal, HnzvalLocal, isSIdentity, &
-                                                     SnzvalLocal)
+   SUBROUTINE cp_pexsi_load_real_hs_matrix(plan, pexsi_options, nrows, nnz, &
+                                           nnzLocal, numColLocal, colptrLocal, &
+                                           rowindLocal, HnzvalLocal, isSIdentity, &
+                                           SnzvalLocal)
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
       TYPE(cp_pexsi_options), INTENT(IN)       :: pexsi_options
       INTEGER, INTENT(IN)                      :: nrows, nnz, nnzLocal, &
@@ -329,9 +329,9 @@ CONTAINS
       INTEGER                                  :: handle, info
 
       CALL timeset(routineN, handle)
-      CALL f_ppexsi_load_real_symmetric_hs_matrix(plan, pexsi_options%options, nrows, nnz, nnzLocal, &
-                                                  numColLocal, colptrLocal, rowindLocal, &
-                                                  HnzvalLocal, isSIdentity, SnzvalLocal, info)
+      CALL f_ppexsi_load_real_hs_matrix(plan, pexsi_options%options, nrows, nnz, nnzLocal, &
+                                        numColLocal, colptrLocal, rowindLocal, &
+                                        HnzvalLocal, isSIdentity, SnzvalLocal, info)
       IF (info .NE. 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
@@ -350,7 +350,7 @@ CONTAINS
             IF (colptrLocal(1) > rowindLocal(1) .OR. HnzvalLocal(1) > SnzvalLocal(1)) EXIT
          ENDDO; ENDIF
 #endif
-   END SUBROUTINE cp_pexsi_load_real_symmetric_hs_matrix
+   END SUBROUTINE cp_pexsi_load_real_hs_matrix
 
 ! **************************************************************************************************
 !> \brief ...
@@ -413,9 +413,9 @@ CONTAINS
 !> \param totalEnergyS ...
 !> \param totalFreeEnergy ...
 ! **************************************************************************************************
-   SUBROUTINE cp_pexsi_retrieve_real_symmetric_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
-                                                          FDMnzvalLocal, totalEnergyH, &
-                                                          totalEnergyS, totalFreeEnergy)
+   SUBROUTINE cp_pexsi_retrieve_real_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
+                                                FDMnzvalLocal, totalEnergyH, &
+                                                totalEnergyS, totalFreeEnergy)
       INTEGER(KIND=int_8), INTENT(IN)          :: plan
       REAL(KIND=real_8), INTENT(out) :: DMnzvalLocal(*), EDMnzvalLocal(*), &
                                         FDMnzvalLocal(*), totalEnergyH, totalEnergyS, totalFreeEnergy
@@ -428,9 +428,9 @@ CONTAINS
       INTEGER                                  :: handle, info
 
       CALL timeset(routineN, handle)
-      CALL f_ppexsi_retrieve_real_symmetric_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
-                                                       FDMnzvalLocal, totalEnergyH, &
-                                                       totalEnergyS, totalFreeEnergy, info)
+      CALL f_ppexsi_retrieve_real_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
+                                             FDMnzvalLocal, totalEnergyH, &
+                                             totalEnergyS, totalFreeEnergy, info)
       IF (info .NE. 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
@@ -446,7 +446,7 @@ CONTAINS
 
       CPABORT("Requires linking to the PEXSI library.")
 #endif
-   END SUBROUTINE cp_pexsi_retrieve_real_symmetric_dft_matrix
+   END SUBROUTINE cp_pexsi_retrieve_real_dft_matrix
 
 ! **************************************************************************************************
 !> \brief ...

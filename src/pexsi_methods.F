@@ -36,8 +36,8 @@ MODULE pexsi_methods
    USE message_passing,                 ONLY: mp_bcast
    USE pexsi_interface,                 ONLY: cp_pexsi_dft_driver,&
                                               cp_pexsi_get_options,&
-                                              cp_pexsi_load_real_symmetric_hs_matrix,&
-                                              cp_pexsi_retrieve_real_symmetric_dft_matrix,&
+                                              cp_pexsi_load_real_hs_matrix,&
+                                              cp_pexsi_retrieve_real_dft_matrix,&
                                               cp_pexsi_set_default_options,&
                                               cp_pexsi_set_options
    USE pexsi_types,                     ONLY: convert_nspin_cp2k_pexsi,&
@@ -425,7 +425,7 @@ CONTAINS
          " PEXSI| Arnoldi est. spectral radius", delta_E
 
       ! Load data into PEXSI
-      CALL cp_pexsi_load_real_symmetric_hs_matrix( &
+      CALL cp_pexsi_load_real_hs_matrix( &
          pexsi_env%plan, &
          pexsi_env%options, &
          pexsi_env%csr_mat_ks%nrows_total, &
@@ -473,7 +473,7 @@ CONTAINS
 
       ! Retrieve results from PEXSI
       IF (mynode < pexsi_env%mp_dims(1)*pexsi_env%mp_dims(2)) THEN
-         CALL cp_pexsi_retrieve_real_symmetric_dft_matrix( &
+         CALL cp_pexsi_retrieve_real_dft_matrix( &
             pexsi_env%plan, &
             pexsi_env%csr_mat_p%nzval_local%r_dp, &
             pexsi_env%csr_mat_E%nzval_local%r_dp, &

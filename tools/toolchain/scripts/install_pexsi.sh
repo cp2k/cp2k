@@ -71,21 +71,6 @@ case "$with_pexsi" in
                     -e "s|\(LAPACK_DIR *=\).*|\1|g" \
                     -e "s|\(BLAS_DIR *=\).*|\1|g" \
                     -e "s|\(GFORTRAN_LIB *=\).*|\1 -lgfortran|g" > make.inc
-            # patch PEXSI makefile to enable proper fortran installation
-            cat <<EOF >> pexsi_make.patch
---- Makefile
-+++ Makefile
-@@ -22 +22 @@
--install:
-+install: pexsi_lib
-@@ -27 +27,4 @@
--	(cp include/c_pexsi_interface.h include/ppexsi.hpp fortran/f_interface.f90 \${PEXSI_BUILD_DIR}/include)
-+	(cp include/c_pexsi_interface.h include/ppexsi.hpp \${PEXSI_BUILD_DIR}/include)
-+
-+finstall: install fortran_examples
-+	(cp fortran/f_ppexsi_interface.mod \${PEXSI_BUILD_DIR}/include)
-EOF
-            patch -p0 < pexsi_make.patch >& patch.log
 
             make finstall > make.log 2>&1 # still issues with parallel make (fortran_examples target)
 
