@@ -8,8 +8,7 @@
 !> \author Teodoro Laino, 03.2009
 ! **************************************************************************************************
 MODULE molden_utils
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind
+   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
@@ -40,16 +39,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Write out the MOs in molden format for visualisation
 !> \param mos the set of MOs (both spins, if UKS)
-!> \param atomic_kind_set kind data structure
 !> \param qs_kind_set for basis set info
 !> \param particle_set particles data structure, for positions and kinds
 !> \param dft_section input section containing relevant print key
 !> \author MattW, IainB
 ! **************************************************************************************************
-   SUBROUTINE write_mos_molden(mos, atomic_kind_set, qs_kind_set, particle_set, dft_section)
+   SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, dft_section)
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: dft_section

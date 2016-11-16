@@ -2030,7 +2030,7 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
-            CALL write_mos_molden(mos, atomic_kind_set, qs_kind_set, particle_set, dft_section)
+            CALL write_mos_molden(mos, qs_kind_set, particle_set, dft_section)
          ELSE ! *** if we have k points, let's print the eigenvalues at each of them
             CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
 
