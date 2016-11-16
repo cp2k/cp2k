@@ -45,7 +45,7 @@ MODULE vibrational_analysis
    USE mathlib,                         ONLY: diamat_all
    USE mode_selective,                  ONLY: ms_vb_anal
    USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE molden_utils,                    ONLY: molden_out
+   USE molden_utils,                    ONLY: write_vibrations_molden
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
@@ -454,8 +454,8 @@ CONTAINS
                IF (.NOT. something_frozen .AND. calc_thchdata) THEN
                   CALL get_thch_values(H_eigval2, iw, mass, nvib, inertia, 1, minimum_energy, tc_temp, tc_press)
                ENDIF
-               CALL molden_out(input, particles, H_eigval2, D, intensities, calc_intens, &
-                               dump_only_positive=.FALSE., logger=logger, list=Mlist)
+               CALL write_vibrations_molden(input, particles, H_eigval2, D, intensities, calc_intens, &
+                                            dump_only_positive=.FALSE., logger=logger, list=Mlist)
             ELSE
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(T2,"VIB| No further vibrational info. Detected a single atom")')

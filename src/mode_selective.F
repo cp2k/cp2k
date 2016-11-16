@@ -41,7 +41,7 @@ MODULE mode_selective
                                               max_line_length
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_bcast
-   USE molden_utils,                    ONLY: molden_out
+   USE molden_utils,                    ONLY: write_vibrations_molden
    USE parallel_rng_types,              ONLY: next_random_number
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: massunit,&
@@ -959,8 +959,8 @@ CONTAINS
             CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
                         input, nrep, approx_H, eigenval, calc_intens, logger=logger)
          ENDIF
-         CALL molden_out(input, particles, eigenval, tmp_b, intensities, calc_intens, &
-                         dump_only_positive=.TRUE., logger=logger)
+         CALL write_vibrations_molden(input, particles, eigenval, tmp_b, intensities, calc_intens, &
+                                      dump_only_positive=.TRUE., logger=logger)
          IF (calc_intens) THEN
             DEALLOCATE (intensities)
          END IF
