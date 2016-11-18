@@ -12,16 +12,22 @@ MODULE molden_utils
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_fm_types,                     ONLY: cp_fm_get_element
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                              cp_fm_get_submatrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE orbital_pointers,                ONLY: nco,&
+                                              nso
+   USE orbital_symbols,                 ONLY: cgf_symbol
+   USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
                                               qs_kind_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
 #include "./base/base_uses.f90"
@@ -52,14 +58,20 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       CHARACTER(LEN=1)                                   :: angmom
+      CHARACTER(LEN=12), DIMENSION(15)                   :: shell_symbol
+      CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: i, iao, ikind, imo, ipgf, iset, ishell, &
-                                                            ispin, iw, nmo, nset, z
+      INTEGER :: i, iatom, icgf, ico, icol, ikind, ipgf, irow, irow_in, iset, isgf, ishell, ispin, &
+         iw, lshell, ncgf, ncol_global, nrow_global, nset, nsgf, shellgf, z
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
-      REAL(KIND=dp)                                      :: mo_coeff
+      REAL(KIND=dp), DIMENSION(15)                       :: mo_coeff
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cmatrix, smatrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+
+      NULLIFY (nshell)
+      NULLIFY (bcgf_symbol)
 
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, dft_section, "SCF%PRINT%MOS_MOLDEN", &
@@ -133,21 +145,138 @@ CONTAINS
       END IF
 
       DO ispin = 1, SIZE(mos)
-         nmo = mos(ispin)%mo_set%nmo
-         DO imo = 1, nmo
-            IF (iw > 0) WRITE (iw, *) 'Ene=', mos(ispin)%mo_set%eigenvalues(imo)
-            IF (ispin < 2) THEN
-               IF (iw > 0) WRITE (iw, *) 'Spin= Alpha'
-            ELSE
-               IF (iw > 0) WRITE (iw, *) 'Spin= Beta'
-            END IF
-            IF (iw > 0) WRITE (iw, *) 'Occup=', mos(ispin)%mo_set%occupation_numbers(imo)
-            DO iao = 1, mos(ispin)%mo_set%nao
-               CALL cp_fm_get_element(mos(ispin)%mo_set%mo_coeff, iao, imo, mo_coeff)
-               !Hardcoded threshold for compressing
-               IF (iw > 0 .AND. mo_coeff > 1.0E-6) WRITE (iw, '(I6, 2X, ES14.7)') iao, mo_coeff
+         CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, &
+                             nrow_global=nrow_global, &
+                             ncol_global=ncol_global)
+         ALLOCATE (smatrix(nrow_global, ncol_global))
+         CALL cp_fm_get_submatrix(mos(ispin)%mo_set%mo_coeff, smatrix)
+         IF (.NOT. iw > 0) THEN
+            DEALLOCATE (smatrix)
+         END IF
+
+         IF (iw > 0) THEN
+            CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
+
+            ALLOCATE (cmatrix(ncgf, ncgf))
+
+            cmatrix = 0.0_dp
+
+            ! Transform spherical MOs to Cartesian MOs
+
+            icgf = 1
+            isgf = 1
+            DO iatom = 1, SIZE(particle_set)
+               NULLIFY (orb_basis_set)
+               CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+               CALL get_qs_kind(qs_kind_set(ikind), &
+                                basis_set=orb_basis_set)
+               IF (ASSOCIATED(orb_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                         nset=nset, &
+                                         nshell=nshell, &
+                                         l=l)
+                  DO iset = 1, nset
+                     DO ishell = 1, nshell(iset)
+                        lshell = l(ishell, iset)
+                        CALL dgemm("T", "N", nco(lshell), nsgf, nso(lshell), 1.0_dp, &
+                                   orbtramat(lshell)%s2c, nso(lshell), &
+                                   smatrix(isgf, 1), nsgf, 0.0_dp, &
+                                   cmatrix(icgf, 1), ncgf)
+                        icgf = icgf+nco(lshell)
+                        isgf = isgf+nso(lshell)
+                     END DO
+                  END DO
+               END IF
+            END DO ! iatom
+
+            DO icol = 1, ncgf
+
+               irow = 1
+               IF (iw > 0) WRITE (iw, *) 'Ene=', mos(ispin)%mo_set%eigenvalues(icol)
+               IF (ispin < 2) THEN
+                  IF (iw > 0) WRITE (iw, *) 'Spin= Alpha'
+               ELSE
+                  IF (iw > 0) WRITE (iw, *) 'Spin= Beta'
+               END IF
+               IF (iw > 0) WRITE (iw, *) 'Occup=', mos(ispin)%mo_set%occupation_numbers(icol)
+
+               DO iatom = 1, SIZE(particle_set)
+                  NULLIFY (orb_basis_set)
+                  CALL get_atomic_kind(particle_set(iatom)%atomic_kind, &
+                                       element_symbol=element_symbol, kind_number=ikind)
+                  CALL get_qs_kind(qs_kind_set(ikind), &
+                                   basis_set=orb_basis_set)
+                  IF (ASSOCIATED(orb_basis_set)) THEN
+                     CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                            nset=nset, &
+                                            nshell=nshell, &
+                                            l=l, &
+                                            cgf_symbol=bcgf_symbol)
+                     icgf = 1
+                     DO iset = 1, nset
+                        DO ishell = 1, nshell(iset)
+                           lshell = l(ishell, iset)
+                           irow_in = irow
+                           shellgf = 1
+                           DO ico = 1, nco(lshell)
+                              mo_coeff(shellgf) = cmatrix(irow, icol)
+                              shell_symbol(shellgf) = bcgf_symbol(icgf)
+                              icgf = icgf+1
+                              shellgf = shellgf+1
+                              irow = irow+1
+                           END DO ! ico
+                           IF (lshell .EQ. 0) THEN
+                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
+                           ELSE IF (lshell .EQ. 1) THEN
+                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
+                              WRITE (iw, *) irow_in+1, mo_coeff(2) !, shell_symbol(2)
+                              WRITE (iw, *) irow_in+2, mo_coeff(3) !, shell_symbol(3)
+                           ELSE IF (lshell .EQ. 2) THEN
+                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
+                              WRITE (iw, *) irow_in+1, mo_coeff(4) !, shell_symbol(4)
+                              WRITE (iw, *) irow_in+2, mo_coeff(6) !, shell_symbol(6)
+                              WRITE (iw, *) irow_in+3, mo_coeff(2) !, shell_symbol(2)
+                              WRITE (iw, *) irow_in+4, mo_coeff(3) !, shell_symbol(3)
+                              WRITE (iw, *) irow_in+5, mo_coeff(5) !, shell_symbol(5)
+                           ELSE IF (lshell .EQ. 3) THEN
+                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
+                              WRITE (iw, *) irow_in+1, mo_coeff(7) !, shell_symbol(7)
+                              WRITE (iw, *) irow_in+2, mo_coeff(10) !, shell_symbol(10)
+                              WRITE (iw, *) irow_in+3, mo_coeff(4) !, shell_symbol(4)
+                              WRITE (iw, *) irow_in+4, mo_coeff(2) !, shell_symbol(2)
+                              WRITE (iw, *) irow_in+5, mo_coeff(3) !, shell_symbol(3)
+                              WRITE (iw, *) irow_in+6, mo_coeff(6) !, shell_symbol(6)
+                              WRITE (iw, *) irow_in+7, mo_coeff(9) !, shell_symbol(9)
+                              WRITE (iw, *) irow_in+8, mo_coeff(8) !, shell_symbol(8)
+                              WRITE (iw, *) irow_in+9, mo_coeff(5) !, shell_symbol(5)
+                           ELSE IF (lshell .EQ. 4) THEN
+                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
+                              WRITE (iw, *) irow_in+1, mo_coeff(11) !, shell_symbol(11)
+                              WRITE (iw, *) irow_in+2, mo_coeff(15) !, shell_symbol(15)
+                              WRITE (iw, *) irow_in+3, mo_coeff(2) !, shell_symbol(2)
+                              WRITE (iw, *) irow_in+4, mo_coeff(3) !, shell_symbol(3)
+                              WRITE (iw, *) irow_in+5, mo_coeff(7) !, shell_symbol(7)
+                              WRITE (iw, *) irow_in+6, mo_coeff(12) !, shell_symbol(12)
+                              WRITE (iw, *) irow_in+7, mo_coeff(10) !, shell_symbol(10)
+                              WRITE (iw, *) irow_in+8, mo_coeff(14) !, shell_symbol(14)
+                              WRITE (iw, *) irow_in+9, mo_coeff(4) !, shell_symbol(4)
+                              WRITE (iw, *) irow_in+10, mo_coeff(6) !, shell_symbol(6)
+                              WRITE (iw, *) irow_in+11, mo_coeff(13) !, shell_symbol(13)
+                              WRITE (iw, *) irow_in+12, mo_coeff(5) !, shell_symbol(5)
+                              WRITE (iw, *) irow_in+13, mo_coeff(8) !, shell_symbol(8)
+                              WRITE (iw, *) irow_in+14, mo_coeff(9) !, shell_symbol(9)
+                           ELSE
+                              ! ignore larger than g - VMD doesn't render anyway
+                              ! and MOLDEN format not defined
+                              CONTINUE
+                           END IF
+                        END DO ! ishell
+                     END DO
+                  END IF
+               END DO ! iatom
             END DO
-         END DO
+            DEALLOCATE (smatrix)
+         END IF
       END DO
 
    END SUBROUTINE
@@ -214,7 +343,7 @@ CONTAINS
             CALL get_atomic_kind(atomic_kind=particles(i)%atomic_kind, &
                                  element_symbol=element_symbol)
             WRITE (iw, '(T2,A2,3X,3(F12.6,3X))') &
-               element_symbol, particles((i))%r(:)
+               element_symbol, particles(i)%r(:)
          END DO
          WRITE (iw, '(T2,A)') "[FR-NORM-COORD]"
          l = 0
