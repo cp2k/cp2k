@@ -19,10 +19,6 @@
       MAX_SCF 20
        
       SCF_GUESS atomic
-      &PRINT
-        &MOS_MOLDEN ON
-        &END MOS_MOLDEN
-      &END PRINT
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
