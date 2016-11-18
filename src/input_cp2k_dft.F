@@ -4508,7 +4508,7 @@ CONTAINS
 
       CALL cp_print_key_section_create(print_key, "MOS_MOLDEN", &
                                        description="Write the molecular orbitals in Molden file format, for visualisation.", &
-                                       print_level=high_print_level, add_last=add_last_numeric, filename="MOS")
+                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MOS")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
