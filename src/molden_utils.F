@@ -16,7 +16,9 @@ MODULE molden_utils
                                               cp_fm_get_submatrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
@@ -65,6 +67,7 @@ CONTAINS
          iw, lshell, ncgf, ncol_global, nrow_global, nset, nsgf, shellgf, z
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
+      LOGICAL                                            :: should_output
       REAL(KIND=dp), DIMENSION(15)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cmatrix, smatrix
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -76,6 +79,11 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, dft_section, "SCF%PRINT%MOS_MOLDEN", &
                                 extension=".molden", file_status='REPLACE')
+
+      should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                       "SCF%PRINT%MOS_MOLDEN"), cp_p_file)
+
+      IF (.NOT. should_output) RETURN
 
       IF (mos(1)%mo_set%use_mo_coeff_b) THEN
          ! we are using the dbcsr mo_coeff
