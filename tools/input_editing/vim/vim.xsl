@@ -5,9 +5,10 @@
 " Language: CP2K input files
 " Maintainer: based on work by Alin M Elena available at https://gitorious.org/cp2k-vim
 " Revision: 13th of September 2010
-" History: 
+" History:
 " - XSLT dump and improved syntax highlighting (10.12.2013, Matthias Krack)
 " - Folding and automatic indentation added (13.12.2013, Matthias Krack)
+" - Remove folding since it overrides user's defaults (18.11.2016, Patrick Seewald)
 
 if exists("b:current_syntax")
    finish
@@ -104,8 +105,6 @@ syn region cp2kString matchgroup=cp2kStringDelimiter start=+`+ end=+`+
 
 setlocal autoindent
 setlocal expandtab
-setlocal foldlevel=99
-setlocal foldmethod=indent
 
 "----------------------------------------------------------------------------/
 " Indentation support for CP2K input syntax
