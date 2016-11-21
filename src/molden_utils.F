@@ -20,6 +20,7 @@ MODULE molden_utils
                                               cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco,&
                                               nso
    USE orbital_symbols,                 ONLY: cgf_symbol
@@ -65,6 +66,7 @@ CONTAINS
          iw, lshell, ncgf, ncol_global, nrow_global, nset, nsgf, shellgf, z
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
+      REAL(KIND=dp)                                      :: expzet, prefac
       REAL(KIND=dp), DIMENSION(15)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cmatrix, smatrix
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -126,10 +128,15 @@ CONTAINS
                             FMT="(T25,A2,4X,I4,4X,F4.2)") &
                         angmom, &
                         orb_basis_set%npgf(iset), 1.0
+                     ! MOLDEN expects the contaction coefficient of spherical NOT CARTESIAN NORMALISED
+                     ! functions. So we undo the normalisation factors included in the gccs
+                     ! Reverse engineered from basis_set_types, normalise_gcc_orb
+                     prefac = 2_dp**orb_basis_set%l(ishell, iset)*(2/pi)**0.75_dp
+                     expzet = 0.25_dp*(2*orb_basis_set%l(ishell, iset)+3.0_dp)
                      WRITE (UNIT=iw, &
                             FMT="((T51,2F15.6))") &
                         (orb_basis_set%zet(ipgf, iset), &
-                         orb_basis_set%gcc(ipgf, ishell, iset), &
+                         orb_basis_set%gcc(ipgf, ishell, iset)/(prefac*orb_basis_set%zet(ipgf, iset)**expzet), &
                          ipgf=1, orb_basis_set%npgf(iset))
                   END DO
                END DO
@@ -189,7 +196,7 @@ CONTAINS
                END IF
             END DO ! iatom
 
-            DO icol = 1, ncgf
+            DO icol = 1, mos(ispin)%mo_set%nmo
 
                irow = 1
                IF (iw > 0) WRITE (iw, *) 'Ene=', mos(ispin)%mo_set%eigenvalues(icol)
@@ -225,6 +232,27 @@ CONTAINS
                               shellgf = shellgf+1
                               irow = irow+1
                            END DO ! ico
+                           !------------------------------------------------------------------------
+                           ! convert from CP2K MOLDEN format ordering
+                           ! http://www.cmbi.ru.nl/molden/molden_format.html
+                           !"The following order of D, F and G functions is expected:
+                           !
+                           !   5D: D 0, D+1, D-1, D+2, D-2
+                           !   6D: xx, yy, zz, xy, xz, yz
+                           !
+                           !   7F: F 0, F+1, F-1, F+2, F-2, F+3, F-3
+                           !  10F: xxx, yyy, zzz, xyy, xxy, xxz, xzz, yzz, yyz, xyz
+                           !
+                           !   9G: G 0, G+1, G-1, G+2, G-2, G+3, G-3, G+4, G-4
+                           !  15G: xxxx yyyy zzzz xxxy xxxz yyyx yyyz zzzx zzzy,
+                           !       xxyy xxzz yyzz xxyz yyxz zzxy
+                           !"
+                           ! CP2K has x in the outer (slower loop), so
+                           ! xx, xy, xz, yy, yz,zz for l=2, for instance
+                           ! Always use cartesian (6D, 10F, 15G) as this is only format
+                           ! VMD can process anyway
+                           !XXX can't be bother making this more elegant with mask etc
+                           ! -----------------------------------------------------------------------
                            IF (lshell .EQ. 0) THEN
                               WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
                            ELSE IF (lshell .EQ. 1) THEN
