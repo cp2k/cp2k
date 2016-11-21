@@ -303,7 +303,7 @@ CONTAINS
                   END IF
                END DO ! iatom
             END DO
-            DEALLOCATE (smatrix)
+            DEALLOCATE (smatrix, cmatrix)
          END IF
       END DO
 
