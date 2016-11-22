@@ -78,6 +78,7 @@ MODULE qs_core_hamiltonian
    USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
@@ -107,6 +108,7 @@ MODULE qs_core_hamiltonian
                                               kpoint_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
+   USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -123,8 +125,7 @@ MODULE qs_core_hamiltonian
    USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                               create_oce_set,&
                                               oce_matrix_type
-   USE qs_overlap,                      ONLY: build_overlap_matrix,&
-                                              overlap_condnum
+   USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE virial_types,                    ONLY: virial_type
@@ -157,13 +158,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_hamiltonian_matrix', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, img, maxder, natom, nder, nders, &
-                                                            nimages, nkind
+      INTEGER                                            :: handle, img, iw, maxder, natom, nder, &
+                                                            nders, nimages, nkind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: all_potential_present, kgpot, ofdft, &
-                                                            ppl_present, use_virial
+      LOGICAL                                            :: all_potential_present, kgpot, norml1, &
+                                                            norml2, ofdft, ppl_present, &
+                                                            use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit, eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
       TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p, matrix_s, matrix_t, &
                                                             matrix_w
@@ -471,7 +474,13 @@ CONTAINS
       IF (.NOT. calculate_forces) THEN
          IF (cp_print_key_should_output(logger%iter_info, qs_env%input, &
                                         "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
-            CALL overlap_condnum(matrix_s)
+            iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%OVERLAP_CONDITION", &
+                                      extension=".Log")
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%1-NORM", l_val=norml1)
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%DIAGONALIZATION", l_val=norml2)
+            CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%ARNOLDI", l_val=use_arnoldi)
+            CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env)
+            CALL overlap_condnum(matrix_s, iw, norml1, norml2, use_arnoldi, blacs_env)
          END IF
       END IF
 

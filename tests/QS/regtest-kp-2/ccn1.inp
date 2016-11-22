@@ -20,7 +20,8 @@
           METHOD DIRECT_P_MIXING
           ALPHA   0.70
       &END
-      EPS_EIGVAL 1.e-5
+      EPS_EIGVAL 1.e-14
+      CHOLESKY OFF
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
@@ -28,6 +29,9 @@
     &END XC
     &PRINT
       &OVERLAP_CONDITION
+         1-NORM
+         DIAGONALIZATION
+         ARNOLDI
       &END 
     &END PRINT
   &END DFT

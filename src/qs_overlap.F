@@ -28,14 +28,10 @@ MODULE qs_overlap
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-        cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type, &
+        cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_finalize, &
+        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_type, &
         dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -86,7 +82,7 @@ MODULE qs_overlap
 ! *** Public subroutines ***
 
    PUBLIC :: build_overlap_matrix, build_overlap_matrix_simple, &
-             build_overlap_force, create_sab_matrix, overlap_condnum
+             build_overlap_force, create_sab_matrix
 
 CONTAINS
 
@@ -1034,90 +1030,6 @@ CONTAINS
 
    END SUBROUTINE create_sab_matrix_2d
 
-! **************************************************************************************************
-!> \brief   Calculation of the overlap matrix Condition Number
-!> \param   matrixkp_s The overlap matrices to be calculated (kpoints, optional)
-!> \date    07.11.2016
-!> \par     History
-!> \author  JHU
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE overlap_condnum(matrixkp_s)
-
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: matrixkp_s
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'overlap_condnum', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ic, iunit, maxiter
-      LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: eps_ev, max_ev, min_ev, threshold
-      TYPE(cp_dbcsr_type), POINTER                       :: smat
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      CALL timeset(routineN, handle)
-
-      logger => cp_get_default_logger()
-      IF (logger%para_env%mepos == logger%para_env%source) THEN
-         iunit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
-      ELSE
-         iunit = -1
-      ENDIF
-
-      NULLIFY (smat)
-      IF (SIZE(matrixkp_s, 2) == 1) THEN
-         IF (iunit > 0) WRITE (iunit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
-         smat => matrixkp_s(1, 1)%matrix
-      ELSE
-         IF (iunit > 0) WRITE (iunit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER AT GAMMA POINT"
-         ALLOCATE (smat)
-         CALL cp_dbcsr_init(smat)
-         CALL cp_dbcsr_create(smat, template=matrixkp_s(1, 1)%matrix)
-         CALL cp_dbcsr_copy(smat, matrixkp_s(1, 1)%matrix)
-         DO ic = 2, SIZE(matrixkp_s, 2)
-            CALL cp_dbcsr_add(smat, matrixkp_s(1, ic)%matrix, 1.0_dp, 1.0_dp)
-         END DO
-      END IF
-      IF (ASSOCIATED(smat)) THEN
-         CPASSERT(cp_dbcsr_get_matrix_type(smat) .EQ. dbcsr_type_symmetric)
-         ! parameters for matrix condition test
-         threshold = 1.0E-6_dp
-         maxiter = 1000
-         eps_ev = 1.0E8_dp
-
-         CALL cp_dbcsr_arnoldi_extremal(smat, max_ev, min_ev, &
-                                        threshold=threshold, max_iter=maxiter, converged=converged)
-         IF (iunit > 0) THEN
-            IF (min_ev .NE. 0) THEN
-               WRITE (iunit, '(T4,ES11.3E3,T21,A,ES11.3E3,T44,A,ES11.3E3,T63,A,F10.4)') &
-                  max_ev/min_ev, "max/min ev: ", max_ev, " / ", min_ev, "Log(CN):", LOG10(max_ev/min_ev)
-            ELSE
-               WRITE (iunit, '(T21,A,ES11.3E3,T44,A,ES11.3E3,T64,A)') &
-                  "max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
-            ENDIF
-         ENDIF
-
-         IF (converged) THEN
-            IF (min_ev == 0) THEN
-               CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-            ELSE IF ((max_ev/min_ev) > eps_ev) THEN
-               CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-            END IF
-         ELSE
-            CPWARN("Condition number estimate of overlap matrix is not reliable (not converged).")
-         END IF
-      END IF
-      IF (SIZE(matrixkp_s, 2) == 1) THEN
-         NULLIFY (smat)
-      ELSE
-         CALL cp_dbcsr_release(smat)
-         DEALLOCATE (smat)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE overlap_condnum
 ! **************************************************************************************************
 
 END MODULE qs_overlap

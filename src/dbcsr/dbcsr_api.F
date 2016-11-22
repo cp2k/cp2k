@@ -14,7 +14,8 @@
 ! **************************************************************************************************
 MODULE dbcsr_api
    USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev,&
-                                              dbcsr_arnoldi_extremal
+                                              dbcsr_arnoldi_extremal,&
+                                              dbcsr_conjugate_gradient
    USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
                                               deallocate_arnoldi_data,&
                                               get_selected_ritz_val,&
@@ -159,6 +160,7 @@ MODULE dbcsr_api
              deallocate_arnoldi_data, &
              dbcsr_arnoldi_ev, &
              dbcsr_arnoldi_extremal, &
+             dbcsr_conjugate_gradient, &
              get_selected_ritz_val, &
              get_selected_ritz_vector, &
              dbcsr_binary_read, &

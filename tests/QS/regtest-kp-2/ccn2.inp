@@ -37,7 +37,10 @@
     &END KPOINTS
     &PRINT
       &OVERLAP_CONDITION
-      &END 
+         1-NORM
+         DIAGONALIZATION
+         ARNOLDI
+      &END
     &END PRINT
   &END DFT
   &SUBSYS

@@ -1017,8 +1017,9 @@ CONTAINS
 !> \param threshold ...
 !> \param n_dependent ...
 !> \param verbose ...
+!> \param eigvals ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_power(matrix, work, exponent, threshold, n_dependent, verbose)
+   SUBROUTINE cp_fm_power(matrix, work, exponent, threshold, n_dependent, verbose, eigvals)
 
       ! Raise the real symmetric n by n matrix to the power given by
       ! the exponent. All eigenvectors with a corresponding eigenvalue lower
@@ -1028,9 +1029,11 @@ CONTAINS
       ! - Parallelised using BLACS and ScaLAPACK (06.06.2001,MK)
 
       TYPE(cp_fm_type), POINTER                 :: matrix, work
-      REAL(KIND=dp), INTENT(IN)               :: exponent, threshold
+      REAL(KIND=dp), INTENT(IN)                 :: exponent, threshold
       INTEGER, INTENT(OUT)                      :: n_dependent
       LOGICAL, INTENT(IN), OPTIONAL             :: verbose
+      REAL(KIND=dp), DIMENSION(2), INTENT(OUT), &
+         OPTIONAL                               :: eigvals
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &
                                      routineP = moduleN//':'//routineN
@@ -1074,6 +1077,11 @@ CONTAINS
       ! Compute the eigenvectors and eigenvalues
 
       CALL choose_eigv_solver(matrix, work, eigenvalues)
+
+      IF (PRESENT(eigvals)) THEN
+         eigvals(1) = eigenvalues(1)
+         eigvals(2) = eigenvalues(ncol_global)
+      END IF
 
 #if defined(__SCALAPACK)
       nrow_block = work%matrix_struct%nrow_block

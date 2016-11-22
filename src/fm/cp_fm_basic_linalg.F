@@ -34,6 +34,7 @@ MODULE cp_fm_basic_linalg
              cp_fm_scale_and_add, & ! scale and add two matrices
              cp_fm_column_scale, & ! scale colummns of a matrix
              cp_fm_trace, & ! trace of the transpose(A)*B
+             cp_fm_norm, & ! different norms of A
              cp_fm_schur_product, & ! schur product
              cp_fm_transpose, & ! transpose a matrix
              cp_fm_upper_to_full, & ! symmetrise an upper symmetric matrix

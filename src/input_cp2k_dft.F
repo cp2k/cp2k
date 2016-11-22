@@ -1266,6 +1266,21 @@ CONTAINS
                                        description="Controls the the checking and printing of and estimate "// &
                                        "of the overlap matrix condition number", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
+      CALL keyword_create(keyword, name="1-NORM", &
+                          description="Calculate an estimate of the 1-norm condition number", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="DIAGONALIZATION", &
+                          description="Calculate the 1- and 2-norm condition numbers using diagonalization", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="ARNOLDI", &
+                          description="Calculate the 2-norm condition number using the Arnoldi code (may not be reliable)", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
