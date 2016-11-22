@@ -26,6 +26,13 @@
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
     &END XC
+    &PRINT
+      &MO ON
+        EIGVECS
+        CARTESIAN
+        FILENAME cartesian-mos
+      &END MO
+    &END PRINT
   &END DFT
   &SUBSYS
     &CELL
