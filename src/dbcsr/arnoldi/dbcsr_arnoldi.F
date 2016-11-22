@@ -538,7 +538,9 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
          CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, av, tr)
          CALL dbcsr_get_block_p(bvec, i, j, bv, tr, found)
-         adotb = adotb+DOT_PRODUCT(av(:, 1), bv(:, 1))
+         IF(found.and.SIZE(bv)>0) THEN
+            adotb = adotb+DOT_PRODUCT(av(:, 1), bv(:, 1))
+         END IF
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
       CALL mp_sum(adotb, mpgrp)
