@@ -1,0 +1,75 @@
+&GLOBAL
+  PROJECT h2o_pbe0_admm-none_mom_s1
+  RUN_TYPE energy
+  PRINT_LEVEL low
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    WFN_RESTART_FILE_NAME h2o_pbe0_admm-none_gs-RESTART.wfn
+    MULTIPLICITY 1
+    UKS .true.
+
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+
+    &QS
+      METHOD gpw
+    &END QS
+
+    &SCF
+      MAX_SCF   40
+      EPS_SCF   1e-6
+      SCF_GUESS restart
+      ADDED_MOS 5
+
+      &MIXING
+         ALPHA 0.2
+      &END MIXING
+
+      &MOM on
+        DEOCC_ALPHA 4
+        OCC_ALPHA   5
+      &END MOM
+    &END SCF
+
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      METHOD basis_projection
+      ADMM_PURIFICATION_METHOD none
+    &END
+
+    &XC
+      &XC_FUNCTIONAL pbe0
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+    &END CELL
+
+    &COORD
+    O   0.000000    0.000000   -0.075833
+    H   0.000000   -0.765932    0.514713
+    H   0.000000    0.765932    0.514713
+    &END COORD
+
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET AUX_FIT SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET AUX_FIT SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

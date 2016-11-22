@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT H2O-mom-t-1
-  RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
+  PROJECT h2o_pbe_mom_s3
+  RUN_TYPE energy
+  PRINT_LEVEL low
 &END GLOBAL
 
 &FORCE_EVAL
@@ -10,7 +10,8 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
-    MULTIPLICITY 3
+    WFN_RESTART_FILE_NAME h2o_pbe_gs-RESTART.wfn
+    MULTIPLICITY 1
     UKS .true.
 
     &MGRID
@@ -22,22 +23,23 @@
 
     &SCF
       MAX_SCF   50
-      SCF_GUESS ATOMIC
+      SCF_GUESS restart
       ADDED_MOS 5
 
-      &MOM OFF
+      &MOM ON
+        DEOCC_ALPHA 4
+        OCC_ALPHA   6
       &END MOM
     &END SCF
 
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL pbe
       &END XC_FUNCTIONAL
 
       &XC_GRID
-        XC_DERIV SPLINE2_SMOOTH
+        XC_DERIV spline2_smooth
       &END XC_GRID
     &END XC
-
   &END DFT
 
   &SUBSYS
@@ -46,9 +48,9 @@
     &END CELL
 
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
     &END COORD
 
     &KIND H
@@ -61,5 +63,4 @@
       POTENTIAL GTH-PADE-q6
     &END KIND
   &END SUBSYS
-
 &END FORCE_EVAL

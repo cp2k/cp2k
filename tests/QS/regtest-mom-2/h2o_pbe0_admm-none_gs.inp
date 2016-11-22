@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT H2O-mom-s-3
-  RUN_TYPE ENERGY
-  PRINT_LEVEL MEDIUM
+  PROJECT h2o_pbe0_admm-none_gs
+  RUN_TYPE energy
+  PRINT_LEVEL low
 &END GLOBAL
 
 &FORCE_EVAL
@@ -10,58 +10,56 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
-    WFN_RESTART_FILE_NAME H2O-mom-s-0-RESTART.wfn
     MULTIPLICITY 1
     UKS .true.
 
     &MGRID
-      CUTOFF 100
+      CUTOFF 200
     &END MGRID
 
     &QS
+      METHOD gpw
     &END QS
 
     &SCF
-      MAX_SCF   50
-      SCF_GUESS RESTART
+      MAX_SCF   40
+      EPS_SCF   1e-6
+      SCF_GUESS atomic
       ADDED_MOS 5
-
-      &MOM ON
-        DEOCC_ALPHA 4
-        OCC_ALPHA   6
-      &END MOM
     &END SCF
 
-    &XC
-      &XC_FUNCTIONAL PBE
-      &END XC_FUNCTIONAL
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      METHOD basis_projection
+      ADMM_PURIFICATION_METHOD none
+    &END
 
-      &XC_GRID
-        XC_DERIV SPLINE2_SMOOTH
-      &END XC_GRID
+    &XC
+      &XC_FUNCTIONAL pbe0
+      &END XC_FUNCTIONAL
     &END XC
   &END DFT
 
   &SUBSYS
     &CELL
-      ABC 5.0 5.0 5.0
+      ABC 8.0 8.0 8.0
     &END CELL
 
     &COORD
-    O   0.000000    0.000000   -0.065587 H2O
-    H   0.000000   -0.757136    0.520545 H2O
-    H   0.000000    0.757136    0.520545 H2O
+    O   0.000000    0.000000   -0.075833
+    H   0.000000   -0.765932    0.514713
+    H   0.000000    0.765932    0.514713
     &END COORD
 
     &KIND H
       BASIS_SET DZVP-GTH-PADE
+      BASIS_SET AUX_FIT SZV-GTH-PADE
       POTENTIAL GTH-PADE-q1
     &END KIND
 
     &KIND O
       BASIS_SET DZVP-GTH-PADE
+      BASIS_SET AUX_FIT SZV-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
   &END SUBSYS
-
 &END FORCE_EVAL
