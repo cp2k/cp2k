@@ -27,11 +27,12 @@ MODULE cp_dbcsr_interface
         csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, csr_eqrow_floor_dist, csr_p_type, &
         csr_print_sparsity, csr_type, dbcsr_add, dbcsr_add_on_diag, dbcsr_arnoldi_data, &
         dbcsr_arnoldi_ev, dbcsr_arnoldi_extremal, dbcsr_binary_read, dbcsr_binary_write, &
-        dbcsr_checksum, dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_create_dist_block_cyclic, &
-        dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
-        dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, dbcsr_distribute, &
-        dbcsr_distribution, dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
+        dbcsr_checksum, dbcsr_clear_mempools, dbcsr_complete_redistribute, &
+        dbcsr_conjugate_gradient, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
+        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, &
+        dbcsr_data_init, dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
+        dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
+        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
         dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_init, &
         dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
@@ -223,7 +224,7 @@ MODULE cp_dbcsr_interface
    PUBLIC :: cp_dbcsr_maxabs
    PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data, &
              get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector, &
-             cp_dbcsr_arnoldi_extremal
+             cp_dbcsr_arnoldi_extremal, cp_dbcsr_conjugate_gradient
    PUBLIC :: csr_type, csr_p_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, &
              cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create, &
              csr_eqrow_floor_dist, csr_eqrow_ceil_dist, csr_dbcsr_blkrow_dist, &
@@ -2169,6 +2170,38 @@ CONTAINS
       DEALLOCATE (matrix)
 
    END SUBROUTINE cp_dbcsr_deallocate_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param vec_x ...
+!> \param matrix_p ...
+!> \param converged ...
+!> \param threshold ...
+!> \param max_iter ...
+!> \retval norm ...
+! **************************************************************************************************
+   SUBROUTINE cp_dbcsr_conjugate_gradient(matrix_a, vec_x, matrix_p, converged, threshold, max_iter)
+
+      TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix_a
+      REAL(KIND=real_8), DIMENSION(:), INTENT(INOUT)     :: vec_x
+      TYPE(cp_dbcsr_type), INTENT(IN), OPTIONAL          :: matrix_p
+      LOGICAL, INTENT(OUT)                               :: converged
+      REAL(KIND=real_8), INTENT(IN)                      :: threshold
+      INTEGER, INTENT(IN)                                :: max_iter
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_conjugate_gradient', &
+         routineP = moduleN//':'//routineN
+
+      IF (PRESENT(matrix_p)) THEN
+         CALL dbcsr_conjugate_gradient(matrix_a%matrix, vec_x, matrix_p%matrix, &
+                                       converged=converged, threshold=threshold, max_iter=max_iter)
+      ELSE
+         CALL dbcsr_conjugate_gradient(matrix_a%matrix, vec_x, &
+                                       converged=converged, threshold=threshold, max_iter=max_iter)
+      END IF
+
+   END SUBROUTINE cp_dbcsr_conjugate_gradient
 
 ! **************************************************************************************************
 ! CP2k-compatible matrix sets
