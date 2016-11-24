@@ -562,7 +562,7 @@ CONTAINS
                IF (.NOT. file_exists(char_val)) THEN
                   WRITE (error_msg, '(A,A,A)') "Truncated hfx calculation requested. The file containing "// &
                      "the data could not be found at ", TRIM(char_val), " Please check T_C_G_DATA "// &
-                     "in the INTERCATION_POTENTIAL section"
+                     "in the INTERACTION_POTENTIAL section"
                   CPABORT(error_msg)
                ELSE
                   actual_x_data%potential_parameter%filename = char_val
