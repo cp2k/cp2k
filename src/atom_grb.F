@@ -760,9 +760,9 @@ CONTAINS
       INTEGER, DIMENSION(0:)                             :: np, nb
 
       CHARACTER(len=*), PARAMETER :: routineN = 'basis_label', routineP = moduleN//':'//routineN
-
       INTEGER                                            :: i, l, lmax
-      CHARACTER(len=1), DIMENSION(0:7) :: lq = (/"s", "p", "d", "f", "g", "h", "i", "k"/)
+      CHARACTER(len=1), DIMENSION(0:7), PARAMETER :: &
+         lq = (/"s", "p", "d", "f", "g", "h", "i", "k"/)
 
       label = ""
       lmax = MIN(UBOUND(np, 1), UBOUND(nb, 1), 7)
