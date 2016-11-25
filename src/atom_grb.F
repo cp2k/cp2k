@@ -99,7 +99,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ebasis, pbasis, qbasis, rbasis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: wfn
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ovlp
-      TYPE(atom_basis_type), POINTER                     :: basis, basis_ref, basis_vrb
+      TYPE(atom_basis_type), POINTER                     :: basis, basis_ref, basis_vrb, basis_grb
       TYPE(atom_integrals), POINTER                      :: atint
       TYPE(atom_orbitals), POINTER                       :: orbitals
       TYPE(atom_state), POINTER                          :: state
@@ -109,8 +109,8 @@ CONTAINS
 
       IF (iw > 0) WRITE (iw, '(/," ",79("*"),/,T28,A,/," ",79("*"))') "GEOMETRICAL RESPONSE BASIS"
 
-      DO i = 1, SIZE(vbasis)
-         NULLIFY (vbasis(i-1)%basis)
+      DO i = 0, 10
+         NULLIFY (vbasis(i)%basis)
       END DO
       ! make some basic checks
       is = SIZE(atom_info)
@@ -259,6 +259,7 @@ CONTAINS
       END IF
       CALL set_atom(atom, integrals=atint)
 
+      CALL calculate_atom(atom, iw=0)
       DO ider = -nder, nder
          dene = REAL(ider, KIND=dp)*delta
          CPASSERT(fhomo > ABS(dene))
@@ -588,25 +589,25 @@ CONTAINS
          CALL create_atom_type(atom_test)
          CALL copy_atom_basics(atom_ref, atom_test, state=.TRUE., potential=.TRUE., &
                                optimization=.TRUE., xc=.TRUE.)
-         basis => vbasis(ider)%basis
+         basis_grb => vbasis(ider)%basis
          NULLIFY (orbitals)
          mo = MAXVAL(atom_test%state%maxn_calc)
-         mb = MAXVAL(basis%nbas)
+         mb = MAXVAL(basis_grb%nbas)
          CALL create_atom_orbs(orbitals, mb, mo)
-         CALL set_atom(atom_test, orbitals=orbitals, basis=basis)
+         CALL set_atom(atom_test, orbitals=orbitals, basis=basis_grb)
          ! calculate integrals
          ALLOCATE (atint)
-         CALL atom_int_setup(atint, basis, potential=atom_test%potential, eri_coulomb=.FALSE., eri_exchange=.FALSE.)
-         CALL atom_ppint_setup(atint, basis, potential=atom_test%potential)
+         CALL atom_int_setup(atint, basis_grb, potential=atom_test%potential, eri_coulomb=.FALSE., eri_exchange=.FALSE.)
+         CALL atom_ppint_setup(atint, basis_grb, potential=atom_test%potential)
          IF (atom_test%pp_calc) THEN
             NULLIFY (atint%tzora, atint%hdkh)
          ELSE
             ! relativistic correction terms
-            CALL atom_relint_setup(atint, basis, atom_test%relativistic, zcore=REAL(atom_test%z, dp))
+            CALL atom_relint_setup(atint, basis_grb, atom_test%relativistic, zcore=REAL(atom_test%z, dp))
          END IF
          CALL set_atom(atom_test, integrals=atint)
          !
-         CALL calculate_atom(atom_test, iw=0, noguess=.FALSE.)
+         CALL calculate_atom(atom_test, iw=0)
          IF (ider <= nder) THEN
             energy_vb(ider) = atom_test%energy%etot
             IF (iw > 0) WRITE (iw, '(T10,A,i1,A,T40,F13.9,T59,F22.9)') " GRB (VB)", ider, " Energy [a.u.]  ", &
@@ -617,6 +618,10 @@ CONTAINS
             IF (iw > 0) WRITE (iw, '(T10,A,i1,A,T40,F13.9,T59,F22.9)') " GRB (EX)", i, " Energy [a.u.]  ", &
                energy_ref-energy_ex(i), energy_ex(i)
          END IF
+         CALL atom_int_release(atint)
+         CALL atom_ppint_release(atint)
+         CALL atom_relint_release(atint)
+         DEALLOCATE(atom_test%state,atom_test%potential,atint)
          CALL release_atom_type(atom_test)
       END DO
 
@@ -679,13 +684,18 @@ CONTAINS
       ! clean up
       DEALLOCATE (wfn, rbasis, qbasis, ebasis, pbasis, ale, alp)
 
-      DO ider = 0, SIZE(vbasis)-1
+      DO ider = 0, 10
          IF (ASSOCIATED(vbasis(ider)%basis)) THEN
             CALL release_atom_basis(vbasis(ider)%basis)
             DEALLOCATE (vbasis(ider)%basis)
          END IF
       END DO
 
+      CALL atom_int_release(atom%integrals)
+      CALL atom_ppint_release(atom%integrals)
+      CALL atom_relint_release(atom%integrals)
+      CALL release_atom_basis(basis)
+      DEALLOCATE(atom%potential,atom%state,atom%integrals,basis)
       CALL release_atom_type(atom)
 
       IF (iw > 0) WRITE (iw, '(" ",79("*"))')
