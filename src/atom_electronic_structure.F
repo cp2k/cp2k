@@ -242,7 +242,6 @@ CONTAINS
       ! wavefunction history
       NULLIFY (history%dmat, history%hmat)
       CALL atom_history_init(history, atom%optimization, fmat%op)
-
       is_converged = .FALSE.
       iter = 0
       DO !SCF Loop

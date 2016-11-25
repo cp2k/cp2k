@@ -304,7 +304,7 @@ CONTAINS
 
             ! dump grid density and xcpot (xc energy?)
             IF (.FALSE.) THEN
-               CALL open_file(unit_number=unit_nr, file_name="atom.dat")
+               CALL open_file(unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE", file_name="atom.dat")
                DO i = 1, SIZE(xcpot(:, 1, 1))
                   WRITE (unit_nr, *) atom%basis%grid%rad(i), rho(i, 1), xcpot(i, 1, 1)
                ENDDO
@@ -315,12 +315,26 @@ CONTAINS
                deriv => xc_dset_get_derivative(deriv_set, "(rho)", allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmat%op, xcpot(:, 1, 1), atom%basis, 0)
+               IF (.FALSE.) THEN
+                  CALL open_file(unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE", file_name="atompot.dat")
+                  DO i = 1, SIZE(xcpot(:, 1, 1))
+                     WRITE (unit_nr, *) atom%basis%grid%rad(i), rho(i, 1), xcpot(i, 1, 1)
+                  ENDDO
+                  CALL close_file(unit_nr)
+               ENDIF
                DEALLOCATE (rho)
             END IF
             IF (needs%norm_drho) THEN
                deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmat%op, xcpot(:, 1, 1), atom%basis, 1)
+               IF (.FALSE.) THEN
+                  CALL open_file(unit_number=unit_nr, file_status="UNKNOWN", file_action="WRITE", file_name="atomdpot.dat")
+                  DO i = 1, SIZE(xcpot(:, 1, 1))
+                     WRITE (unit_nr, *) atom%basis%grid%rad(i), drho(i, 1), xcpot(i, 1, 1)
+                  ENDDO
+                  CALL close_file(unit_nr)
+               ENDIF
                DEALLOCATE (drho)
             END IF
             IF (needs%tau) THEN

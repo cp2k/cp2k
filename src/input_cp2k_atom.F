@@ -205,30 +205,35 @@ CONTAINS
 
       NULLIFY (print_key, keyword)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
                                        description="Controls the printing of the banner of the ATOM program", &
                                        print_level=silent_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "METHOD_INFO", &
                                        description="Controls the printing of method information", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "BASIS_SET", &
                                        description="Controls the printing of the basis sets", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "POTENTIAL", &
                                        description="Controls the printing of the potentials", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create( &
          print_key, "FIT_DENSITY", &
          description="Fit the total electronic density to a linear combination of Gaussian functions", &
@@ -242,8 +247,10 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "FIT_KGPOT", &
-                                       description="Fit an approximation to the non-additive kinetic energy potential used in KG", &
+                                       description="Fit an approximation to the non-additive"// &
+                                       " kinetic energy potential used in KG", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, name="NUM_GAUSSIAN", &
                           description="Number of Gaussian terms for the fit", &
@@ -257,10 +264,10 @@ CONTAINS
                           default_i_val=4)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "RESPONSE_BASIS", &
                                        description="Calculate a response basis set contraction scheme", &
                                        print_level=high_print_level, filename="__STD_OUT__")
@@ -279,18 +286,114 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
+      CALL cp_print_key_section_create(print_key, "GEOMETRICAL_RESPONSE_BASIS", &
+                                       description="Calculate a response basis set based on a set of geometrical exponents", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      !
+      CALL keyword_create(keyword, name="DELTA_CHARGE", &
+                          description="Variation of charge used in finite difference calculation", &
+                          usage="DELTA_CHARGE real ", type_of_var=real_t, &
+                          default_r_val=0.05_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="DERIVATIVES", &
+                          description="Number of wavefunction derivatives to calculate", &
+                          usage="DERIVATIVES integer ", type_of_var=integer_t, &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="QUADRATURE", &
+                          description="Algorithm to construct the atomic radial grids", &
+                          usage="QUADRATURE (GC_SIMPLE|GC_TRANSFORMED|GC_LOG)", &
+                          enum_c_vals=s2a("GC_SIMPLE", "GC_TRANSFORMED", "GC_LOG"), &
+                          enum_i_vals=(/do_gapw_gcs, do_gapw_gct, do_gapw_log/), &
+                          enum_desc=s2a("Gauss-Chebyshev quadrature", &
+                                        "Transformed Gauss-Chebyshev quadrature", &
+                                        "Logarithmic transformed Gauss-Chebyshev quadrature"), &
+                          default_i_val=do_gapw_log)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="GRID_POINTS", &
+                          description="Number of radial grid points", &
+                          usage="GRID_POINTS integer", &
+                          default_i_val=400)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL keyword_create(keyword, name="NUM_GTO_CORE", &
+                          description="Number of Gaussian type functions for s, p, d, ... "// &
+                          "for the main body of the basis", &
+                          usage="NUM_GTO 6 ", n_var=1, type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="NUM_GTO_EXTENDED", &
+                          description="Number of Gaussian type functions for s, p, d, ... "// &
+                          "for the extension set", &
+                          usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="NUM_GTO_POLARIZATION", &
+                          description="Number of Gaussian type functions for the polarization set", &
+                          usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="EXTENSION_BASIS", &
+                          description="Number of basis functions for s, p, d, ... "// &
+                          "for the extension set", &
+                          usage="EXTENSION_BASIS 4 3 2 1 ", n_var=-1, type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="GEOMETRICAL_FACTOR", &
+                          description="Geometrical basis: factor C in a*C^k (initial value for optimization)", &
+                          usage="GEOMETRICAL_FACTOR real", &
+                          default_r_val=2.3_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="GEO_START_VALUE", &
+                          description="Geometrical basis: starting value a in a*C^k (initial value for optimization)", &
+                          usage="GEO_START_VALUE real", &
+                          default_r_val=0.06_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="CONFINEMENT", &
+                          description="Onset value of barrier confinement potential [Bohr]", &
+                          usage="CONFINEMENT real", &
+                          default_r_val=8.00_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="NAME_BODY", &
+                          description="Specifies the body of the basis set name ", &
+                          usage="NAME_BODY <char>", &
+                          type_of_var=char_t, default_c_val="GRB", n_var=-1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      !
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "SCF_INFO", &
                                        description="Controls the printing of SCF information", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "ORBITALS", &
                                        description="Controls the printing of the optimized orbitals information", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "ANALYZE_BASIS", &
                                        description="Calculates some basis set analysis data", &
                                        print_level=high_print_level, filename="__STD_OUT__")
@@ -307,24 +410,28 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "FIT_PSEUDO", &
                                        description="Controls the printing of FIT PSEUDO task", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "FIT_BASIS", &
                                        description="Controls the printing of FIT BASIS task", &
                                        print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "UPF_FILE", &
                                        description="Write GTH pseudopotential in UPF format", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      ! Print key section
       CALL cp_print_key_section_create(print_key, "ENERGIES_MINUS_KINETIC", &
                                        description="Print out the total energy and orbital energies without "// &
                                        "the kinetic energy component. Useful for atomic calculations used"// &
@@ -333,7 +440,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      ! ADMM Analysis
+      ! Print key section: ADMM Analysis
       CALL cp_print_key_section_create(print_key, "ADMM", &
                                        description="Analysis of ADMM approximation to exact exchange", &
                                        print_level=high_print_level, filename="__STD_OUT__")
@@ -345,16 +452,6 @@ CONTAINS
       CALL atom_basis_section(subsection)
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)
-!     CALL keyword_create(keyword, name="OVERLAP_CONDITION_NUMBER", &
-!                         description="Condition number of the basis set overlap matrix calculated for a cubic crystal", &
-!                         usage="OVERLAP_CONDITION_NUMBER <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
-!     CALL section_add_keyword(print_key, keyword)
-!     CALL keyword_release(keyword)
-!     CALL keyword_create(keyword, name="COMPLETENESS", &
-!                         description="Calculate a completeness estimate for the basis set.", &
-!                         usage="COMPLETENESS <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
-!     CALL section_add_keyword(print_key, keyword)
-!     CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -1093,6 +1190,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="TARGET_PSIR0", &
+                          description="Minimum value for the wavefunctions at r=0 (only occupied states)"// &
+                          " Value=0 means keeping wfn(r=0)=0", &
+                          usage="TARGET_PSIR0 0.50", &
+                          default_r_val=0._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="WEIGHT_PSIR0", &
                           description="Weight for the wavefunctions at r=0 (only occupied states)", &
                           usage="WEIGHT_PSIR0 0.01", &
@@ -1104,6 +1209,13 @@ CONTAINS
                           description="Multiply Rcov integration limit for charge conservation", &
                           usage="RCOV_MULTIPLICATION  1.10", &
                           default_r_val=1._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="SEMICORE_LEVEL", &
+                          description="Energy at which to consider a full shell as semicore", &
+                          usage="SEMICORE_LEVEL 1.0", &
+                          default_r_val=1._dp, unit_str="hartree")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

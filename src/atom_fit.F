@@ -313,6 +313,7 @@ CONTAINS
                END IF
                basis%bf = 0._dp
                basis%dbf = 0._dp
+               basis%ddbf = 0._dp
                nr = basis%grid%nr
                DO l = 0, 3
                   DO i = 1, basis%nbas(l)
@@ -322,6 +323,8 @@ CONTAINS
                         ear = EXP(-al*basis%grid%rad(k)**2)
                         basis%bf(k, i, l) = rk**l*ear
                         basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l-1)-2._dp*al*rk**(l+1))*ear
+                        basis%ddbf(k, i, l) = (REAL(l*(l-1), dp)*rk**(l-2)- &
+                                               2._dp*al*REAL(2*l+1, dp)*rk**(l)+4._dp*al*rk**(l+2))*ear
                      END DO
                   END DO
                END DO
@@ -334,6 +337,7 @@ CONTAINS
                END DO
                basis%bf = 0._dp
                basis%dbf = 0._dp
+               basis%ddbf = 0._dp
                nr = basis%grid%nr
                DO l = 0, 3
                   DO i = 1, basis%nbas(l)
@@ -342,9 +346,11 @@ CONTAINS
                      pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
                      DO k = 1, nr
                         rk = basis%grid%rad(k)
-                        ear = EXP(-al*basis%grid%rad(k))
-                        basis%bf(k, i, l) = pf*rk**(nl-1)*ear
-                        basis%dbf(k, i, l) = pf*(REAL(nl-1, dp)/rk-al)*rk**(nl-1)*ear
+                        ear = rk**(nl-1)*EXP(-al*rk)
+                        basis%bf(k, i, l) = pf*ear
+                        basis%dbf(k, i, l) = pf*(REAL(nl-1, dp)/rk-al)*ear
+                        basis%ddbf(k, i, l) = pf*(REAL((nl-2)*(nl-1), dp)/rk/rk &
+                                                  -al*REAL(2*(nl-1), dp)/rk+al*al)*ear
                      END DO
                   END DO
                END DO
@@ -398,6 +404,7 @@ CONTAINS
             END IF
             basis%bf = 0._dp
             basis%dbf = 0._dp
+            basis%ddbf = 0._dp
             nr = basis%grid%nr
             DO l = 0, 3
                DO i = 1, basis%nbas(l)
@@ -407,6 +414,8 @@ CONTAINS
                      ear = EXP(-al*basis%grid%rad(k)**2)
                      basis%bf(k, i, l) = rk**l*ear
                      basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l-1)-2._dp*al*rk**(l+1))*ear
+                     basis%ddbf(k, i, l) = (REAL(l*(l-1), dp)*rk**(l-2)- &
+                                            2._dp*al*REAL(2*l+1, dp)*rk**(l)+4._dp*al*rk**(l+2))*ear
                   END DO
                END DO
             END DO
@@ -419,6 +428,7 @@ CONTAINS
             END DO
             basis%bf = 0._dp
             basis%dbf = 0._dp
+            basis%ddbf = 0._dp
             nr = basis%grid%nr
             DO l = 0, 3
                DO i = 1, basis%nbas(l)
@@ -427,9 +437,11 @@ CONTAINS
                   pf = (2._dp*al)**nl*SQRT(2._dp*al/fac(2*nl))
                   DO k = 1, nr
                      rk = basis%grid%rad(k)
-                     ear = EXP(-al*basis%grid%rad(k))
-                     basis%bf(k, i, l) = pf*rk**(nl-1)*ear
-                     basis%dbf(k, i, l) = pf*(REAL(nl-1, dp)/rk-al)*rk**(nl-1)*ear
+                     ear = rk**(nl-1)*EXP(-al*rk)
+                     basis%bf(k, i, l) = pf*ear
+                     basis%dbf(k, i, l) = pf*(REAL(nl-1, dp)/rk-al)*ear
+                     basis%ddbf(k, i, l) = pf*(REAL((nl-2)*(nl-1), dp)/rk/rk &
+                                               -al*REAL(2*(nl-1), dp)/rk+al*al)*ear
                   END DO
                END DO
             END DO
@@ -476,15 +488,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_pseudo', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(len=2)                                   :: pc1, pc2
+      CHARACTER(len=2)                                   :: pc1, pc2, pct
       INTEGER                                            :: i, i1, i2, iw, j, j1, j2, k, l, m, n, &
                                                             n10, np, nre, nreinit, ntarget
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: xtob
       INTEGER, DIMENSION(0:3)                            :: ncore
       LOGICAL                                            :: explicit
       REAL(KIND=dp) :: afun, charge, de, deig, drho, dx, eig, fopt, oc, pchg, peig, pv, rcm, rcov, &
-         rmax, t_ener, t_semi, t_valence, t_virt, w_ener, w_node, w_psir0, w_semi, w_valence, &
-         w_virt, wtot
+         rmax, semicore_level, t_ener, t_psir0, t_semi, t_valence, t_virt, w_ener, w_node, &
+         w_psir0, w_semi, w_valence, w_virt, wtot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: wem
       REAL(KIND=dp), ALLOCATABLE, &
@@ -506,6 +518,7 @@ CONTAINS
       CALL section_vals_val_get(powell_section, "WEIGHT_POT_NODE", r_val=w_node)
       CALL section_vals_val_get(powell_section, "WEIGHT_DELTA_ENERGY", r_val=w_ener)
 
+      CALL section_vals_val_get(powell_section, "TARGET_PSIR0", r_val=t_psir0)
       CALL section_vals_val_get(powell_section, "WEIGHT_PSIR0", r_val=w_psir0)
       CALL section_vals_val_get(powell_section, "RCOV_MULTIPLICATION", r_val=rcm)
 
@@ -513,6 +526,8 @@ CONTAINS
       CALL section_vals_val_get(powell_section, "TARGET_POT_VIRTUAL", r_val=t_virt)
       CALL section_vals_val_get(powell_section, "TARGET_POT_SEMICORE", r_val=t_semi)
       CALL section_vals_val_get(powell_section, "TARGET_DELTA_ENERGY", r_val=t_ener)
+
+      CALL section_vals_val_get(powell_section, "SEMICORE_LEVEL", r_val=semicore_level)
 
       n = SIZE(atom_info, 1)
       m = SIZE(atom_info, 2)
@@ -598,12 +613,14 @@ CONTAINS
                               atom%orbitals%wrefene(k, l, 1) = w_virt
                               atom%orbitals%wrefchg(k, l, 1) = w_virt/100._dp
                               atom%orbitals%crefene(k, l, 1) = t_virt
+                              atom%orbitals%reftype(k, l, 1) = "U1"
                               ntarget = ntarget+2
                               wtot = wtot+atom%weight*(w_virt+w_virt/100._dp)
                            ELSE
                               atom%orbitals%wrefene(k, l, 1) = w_virt/100._dp
                               atom%orbitals%wrefchg(k, l, 1) = 0._dp
                               atom%orbitals%crefene(k, l, 1) = t_virt*10._dp
+                              atom%orbitals%reftype(k, l, 1) = "U2"
                               ntarget = ntarget+1
                               wtot = wtot+atom%weight*w_virt/100._dp
                            END IF
@@ -611,23 +628,27 @@ CONTAINS
                            atom%orbitals%wrefene(k, l, 1) = w_semi
                            atom%orbitals%wrefchg(k, l, 1) = w_semi/100._dp
                            atom%orbitals%crefene(k, l, 1) = t_semi
+                           atom%orbitals%reftype(k, l, 1) = "SC"
                            ntarget = ntarget+2
                            wtot = wtot+atom%weight*(w_semi+w_semi/100._dp)
                         ELSE
                            IF (ABS(atom%state%occupation(l, k)-REAL(4*l+2, KIND=dp)) < 0.01_dp .AND. &
-                               ABS(atom%orbitals%refene(k, l, 1)*evolt) > 30._dp) THEN
+                               ABS(atom%orbitals%refene(k, l, 1)) > semicore_level) THEN
                               ! full shell semicore
                               atom%orbitals%wrefene(k, l, 1) = w_semi
                               atom%orbitals%wrefchg(k, l, 1) = w_semi/100._dp
                               atom%orbitals%crefene(k, l, 1) = t_semi
+                              atom%orbitals%reftype(k, l, 1) = "SC"
                               wtot = wtot+atom%weight*(w_semi+w_semi/100._dp)
                            ELSE
                               atom%orbitals%wrefene(k, l, 1) = w_valence
                               atom%orbitals%wrefchg(k, l, 1) = w_valence/100._dp
                               atom%orbitals%crefene(k, l, 1) = t_valence
+                              atom%orbitals%reftype(k, l, 1) = "VA"
                               wtot = wtot+atom%weight*(w_valence+w_valence/100._dp)
                            END IF
                            IF (l == 0) THEN
+                              atom%orbitals%tpsir0(k, 1) = t_psir0
                               atom%orbitals%wpsir0(k, 1) = w_psir0
                               wtot = wtot+atom%weight*w_psir0
                            END IF
@@ -670,12 +691,14 @@ CONTAINS
                               atom%orbitals%wrefene(k, l, 1:2) = w_virt
                               atom%orbitals%wrefchg(k, l, 1:2) = w_virt/100._dp
                               atom%orbitals%crefene(k, l, 1:2) = t_virt
+                              atom%orbitals%reftype(k, l, 1:2) = "U1"
                               ntarget = ntarget+4
                               wtot = wtot+atom%weight*2._dp*(w_virt+w_virt/100._dp)
                            ELSE
                               atom%orbitals%wrefene(k, l, 1:2) = w_virt/100._dp
                               atom%orbitals%wrefchg(k, l, 1:2) = 0._dp
                               atom%orbitals%crefene(k, l, 1:2) = t_virt*10.0_dp
+                              atom%orbitals%reftype(k, l, 1:2) = "U2"
                               wtot = wtot+atom%weight*2._dp*w_virt/100._dp
                               ntarget = ntarget+2
                            END IF
@@ -683,23 +706,27 @@ CONTAINS
                            atom%orbitals%wrefene(k, l, 1:2) = w_semi
                            atom%orbitals%wrefchg(k, l, 1:2) = w_semi/100._dp
                            atom%orbitals%crefene(k, l, 1:2) = t_semi
+                           atom%orbitals%reftype(k, l, 1:2) = "SC"
                            ntarget = ntarget+4
                            wtot = wtot+atom%weight*2._dp*(w_semi+w_semi/100._dp)
                         ELSE
                            IF (ABS(atom%state%occupation(l, k)-REAL(2*l+1, KIND=dp)) < 0.01_dp .AND. &
-                               ABS(atom%orbitals%refene(k, l, 1)*evolt) > 30._dp) THEN
+                               ABS(atom%orbitals%refene(k, l, 1)) > semicore_level) THEN
                               atom%orbitals%wrefene(k, l, 1:2) = w_semi
                               atom%orbitals%wrefchg(k, l, 1:2) = w_semi/100._dp
                               atom%orbitals%crefene(k, l, 1:2) = t_semi
+                              atom%orbitals%reftype(k, l, 1:2) = "SC"
                               wtot = wtot+atom%weight*2._dp*(w_semi+w_semi/100._dp)
                            ELSE
                               atom%orbitals%wrefene(k, l, 1:2) = w_valence
                               atom%orbitals%wrefchg(k, l, 1:2) = w_valence/100._dp
                               atom%orbitals%crefene(k, l, 1:2) = t_valence
+                              atom%orbitals%reftype(k, l, 1:2) = "VA"
                               wtot = wtot+atom%weight*2._dp*(w_valence+w_valence/100._dp)
                            END IF
                            ntarget = ntarget+4
                            IF (l == 0) THEN
+                              atom%orbitals%tpsir0(k, 1:2) = t_psir0
                               atom%orbitals%wpsir0(k, 1:2) = w_psir0
                               wtot = wtot+atom%weight*2._dp*w_psir0
                            END IF
@@ -779,8 +806,9 @@ CONTAINS
                                  ELSE
                                     WRITE (pc2, "(I2)") MIN(NINT(pchg), 99)
                                  END IF
-                                 WRITE (iunit, '(I5,I5,F14.2,F21.10,F14.6,"[",A2,"]",F13.6,"[",A2,"]")') &
-                                    l, k, oc, eig*evolt, deig*evolt, pc1, drho, pc2
+                                 pct = atom%orbitals%reftype(k, l, 1)
+                                 WRITE (iunit, '(I5,I5,F14.2,F21.10,A3,F11.6,"[",A2,"]",F13.6,"[",A2,"]")') &
+                                    l, k, oc, eig*evolt, pct, deig*evolt, pc1, drho, pc2
                               END DO
                            END IF
                         END DO
@@ -809,8 +837,9 @@ CONTAINS
                                  ELSE
                                     WRITE (pc2, "(I2)") MIN(NINT(pchg), 99)
                                  END IF
-                                 WRITE (iunit, '(I5,I5,2X,A5,F11.2,F19.10,F13.6,"[",A2,"]",F12.6,"[",A2,"]")') &
-                                    l, k, "alpha", oc, eig*evolt, deig*evolt, pc1, drho, pc2
+                                 pct = atom%orbitals%reftype(k, l, 1)
+                                 WRITE (iunit, '(I5,I5,2X,A5,F11.2,F19.10,A3,F10.6,"[",A2,"]",F12.6,"[",A2,"]")') &
+                                    l, k, "alpha", oc, eig*evolt, pct, deig*evolt, pc1, drho, pc2
                                  oc = atom%state%occb(l, k)
                                  eig = atom%orbitals%enerb(k, l)
                                  deig = eig-atom%orbitals%refene(k, l, 2)
@@ -829,8 +858,9 @@ CONTAINS
                                  ELSE
                                     WRITE (pc2, "(I2)") MIN(NINT(pchg), 99)
                                  END IF
-                                 WRITE (iunit, '(I5,I5,2X,A5,F11.2,F19.10,F13.6,"[",A2,"]",F12.6,"[",A2,"]")') &
-                                    l, k, " beta", oc, eig*evolt, deig*evolt, pc1, drho, pc2
+                                 pct = atom%orbitals%reftype(k, l, 2)
+                                 WRITE (iunit, '(I5,I5,2X,A5,F11.2,F19.10,A3,F10.6,"[",A2,"]",F12.6,"[",A2,"]")') &
+                                    l, k, " beta", oc, eig*evolt, pct, deig*evolt, pc1, drho, pc2
                               END DO
                            END IF
                         END DO
@@ -950,16 +980,27 @@ CONTAINS
                               ELSE
                                  WRITE (pc2, "(I2)") MIN(NINT(pchg), 99)
                               END IF
-                              WRITE (iunit, '(I5,I5,F14.2,F21.10,F14.6,"[",A2,"]",F13.6,"[",A2,"]")') &
-                                 l, k, oc, eig*evolt, deig*evolt, pc1, drho, pc2
+                              pct = atom%orbitals%reftype(k, l, 1)
+                              WRITE (iunit, '(I5,I5,F14.2,F21.10,A3,F11.6,"[",A2,"]",F13.6,"[",A2,"]")') &
+                                 l, k, oc, eig*evolt, pct, deig*evolt, pc1, drho, pc2
                            END DO
                         END IF
                      END DO
                      np = atom%state%maxn_calc(0)
                      DO k = 1, np
                         CALL atom_wfnr0(pv, atom%orbitals%wfn(:, k, 0), atom%basis)
-                        pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun*100._dp
-                        WRITE (iunit, '("    s-states"," N=",I5,T40,"Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k, pv, NINT(pchg)
+                        IF (ABS(atom%orbitals%tpsir0(k, 1)) > 1.e-14_dp) THEN
+                           IF (ABS(pv) > ABS(atom%orbitals%tpsir0(k, 1))) THEN
+                              pv = 0.0_dp
+                           ELSE
+                              pv = 10._dp*(ABS(pv)-ABS(atom%orbitals%tpsir0(k, 1)))
+                           END IF
+                           pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun
+                        ELSE
+                           pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun*100._dp
+                        END IF
+                        WRITE (iunit, '("    s-states"," N=",I5,T40,"Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') &
+                           k, pv, NINT(pchg)
                      END DO
                   ELSE
                      !spin polarization
@@ -986,8 +1027,9 @@ CONTAINS
                               ELSE
                                  WRITE (pc2, "(I2)") MIN(NINT(pchg), 99)
                               END IF
-                              WRITE (iunit, '(I5,I5,A,F11.2,F20.10,F13.6,"[",A2,"]",F11.6,"[",A2,"]")') &
-                                 l, k, "  alpha", oc, eig*evolt, deig*evolt, pc1, drho, pc2
+                              pct = atom%orbitals%reftype(k, l, 1)
+                              WRITE (iunit, '(I5,I5,A,F11.2,F20.10,A3,F10.6,"[",A2,"]",F11.6,"[",A2,"]")') &
+                                 l, k, "  alpha", oc, eig*evolt, pct, deig*evolt, pc1, drho, pc2
                               oc = atom%state%occb(l, k)
                               eig = atom%orbitals%enerb(k, l)
                               deig = eig-atom%orbitals%refene(k, l, 2)
@@ -1006,19 +1048,39 @@ CONTAINS
                               ELSE
                                  WRITE (pc2, "(I2)") MIN(NINT(pchg), 99)
                               END IF
-                              WRITE (iunit, '(I5,I5,A,F11.2,F20.10,F13.6,"[",A2,"]",F11.6,"[",A2,"]")') &
-                                 l, k, "   beta", oc, eig*evolt, deig*evolt, pc1, drho, pc2
+                              pct = atom%orbitals%reftype(k, l, 2)
+                              WRITE (iunit, '(I5,I5,A,F11.2,F20.10,A3,F10.6,"[",A2,"]",F11.6,"[",A2,"]")') &
+                                 l, k, "   beta", oc, eig*evolt, pct, deig*evolt, pc1, drho, pc2
                            END DO
                         END IF
                      END DO
                      np = atom%state%maxn_calc(0)
                      DO k = 1, np
                         CALL atom_wfnr0(pv, atom%orbitals%wfna(:, k, 0), atom%basis)
-                        pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun*100._dp
+                        IF (ABS(atom%orbitals%tpsir0(k, 1)) > 1.e-14_dp) THEN
+                           IF (ABS(pv) > ABS(atom%orbitals%tpsir0(k, 1))) THEN
+                              pv = 0.0_dp
+                           ELSE
+                              pv = 10._dp*(ABS(pv)-ABS(atom%orbitals%tpsir0(k, 1)))
+                           END IF
+                           pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun
+                        ELSE
+                           pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun*100._dp
+                        END IF
                         WRITE (iunit, '("    s-states"," N=",I5,T35,"Alpha Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') &
                            k, pv, NINT(pchg)
+                        !
                         CALL atom_wfnr0(pv, atom%orbitals%wfnb(:, k, 0), atom%basis)
-                        pchg = atom%weight*atom%orbitals%wpsir0(k, 2)*pv*pv/afun*100._dp
+                        IF (ABS(atom%orbitals%tpsir0(k, 2)) > 1.e-14_dp) THEN
+                           IF (ABS(pv) > ABS(atom%orbitals%tpsir0(k, 2))) THEN
+                              pv = 0.0_dp
+                           ELSE
+                              pv = 10._dp*(ABS(pv)-ABS(atom%orbitals%tpsir0(k, 2)))
+                           END IF
+                           pchg = atom%weight*atom%orbitals%wpsir0(k, 2)*pv*pv/afun
+                        ELSE
+                           pchg = atom%weight*atom%orbitals%wpsir0(k, 2)*pv*pv/afun*100._dp
+                        END IF
                         WRITE (iunit, '("    s-states"," N=",I5,T36,"Beta Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') &
                            k, pv, NINT(pchg)
                      END DO
@@ -1320,7 +1382,16 @@ CONTAINS
                         IF (l == 0) THEN
                            IF (atom%orbitals%wpsir0(k, 1) > 0._dp) THEN
                               CALL atom_wfnr0(pv, atom%orbitals%wfn(:, k, l), atom%basis)
-                              pv = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv
+                              IF (ABS(atom%orbitals%tpsir0(k, 1)) > 1.e-14_dp) THEN
+                                 IF (ABS(pv) > ABS(atom%orbitals%tpsir0(k, 1))) THEN
+                                    pv = 0.0_dp
+                                 ELSE
+                                    pv = 10._dp*(ABS(pv)-ABS(atom%orbitals%tpsir0(k, 1)))
+                                 END IF
+                                 pv = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv
+                              ELSE
+                                 pv = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv*100._dp
+                              END IF
                               afun = afun+pv
                            END IF
                         END IF
@@ -1373,12 +1444,30 @@ CONTAINS
                         IF (l == 0) THEN
                            IF (atom%orbitals%wpsir0(k, 1) > 0._dp) THEN
                               CALL atom_wfnr0(pv, atom%orbitals%wfna(:, k, l), atom%basis)
-                              pv = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv
+                              IF (ABS(atom%orbitals%tpsir0(k, 1)) > 1.e-14_dp) THEN
+                                 IF (ABS(pv) > ABS(atom%orbitals%tpsir0(k, 1))) THEN
+                                    pv = 0.0_dp
+                                 ELSE
+                                    pv = 10._dp*(ABS(pv)-ABS(atom%orbitals%tpsir0(k, 1)))
+                                 END IF
+                                 pv = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv
+                              ELSE
+                                 pv = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv*100._dp
+                              END IF
                               afun = afun+pv
                            END IF
                            IF (atom%orbitals%wpsir0(k, 2) > 0._dp) THEN
                               CALL atom_wfnr0(pv, atom%orbitals%wfnb(:, k, l), atom%basis)
-                              pv = atom%weight*atom%orbitals%wpsir0(k, 2)*pv*pv
+                              IF (ABS(atom%orbitals%tpsir0(k, 2)) > 1.e-14_dp) THEN
+                                 IF (ABS(pv) > ABS(atom%orbitals%tpsir0(k, 2))) THEN
+                                    pv = 0.0_dp
+                                 ELSE
+                                    pv = 10._dp*(ABS(pv)-ABS(atom%orbitals%tpsir0(k, 2)))
+                                 END IF
+                                 pv = atom%weight*atom%orbitals%wpsir0(k, 2)*pv*pv
+                              ELSE
+                                 pv = atom%weight*atom%orbitals%wpsir0(k, 2)*pv*pv*100._dp
+                              END IF
                               afun = afun+pv
                            END IF
                         END IF

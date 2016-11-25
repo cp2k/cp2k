@@ -189,8 +189,9 @@ MODULE atom_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: refene, refchg, refnod
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: wrefene, wrefchg, wrefnod
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: crefene, crefchg, crefnod
-      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: wpsir0
+      REAL(KIND=dp), DIMENSION(:, :), POINTER       :: wpsir0, tpsir0
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: rcmax
+      CHARACTER(LEN=2), DIMENSION(:, :, :), POINTER :: reftype
    END TYPE atom_orbitals
 
 !> \brief Operator matrices
@@ -1011,8 +1012,11 @@ CONTAINS
       orbs%crefnod = 0._dp
       ALLOCATE (orbs%rcmax(mo, 0:3, 2))
       orbs%rcmax = 0._dp
-      ALLOCATE (orbs%wpsir0(mo, 2))
+      ALLOCATE (orbs%wpsir0(mo, 2), orbs%tpsir0(mo, 2))
       orbs%wpsir0 = 0._dp
+      orbs%tpsir0 = 0._dp
+      ALLOCATE (orbs%reftype(mo, 0:3, 2))
+      orbs%reftype = "XX"
 
    END SUBROUTINE create_atom_orbs
 
@@ -1069,6 +1073,12 @@ CONTAINS
       END IF
       IF (ASSOCIATED(orbs%wpsir0)) THEN
          DEALLOCATE (orbs%wpsir0)
+      END IF
+      IF (ASSOCIATED(orbs%tpsir0)) THEN
+         DEALLOCATE (orbs%tpsir0)
+      END IF
+      IF (ASSOCIATED(orbs%reftype)) THEN
+         DEALLOCATE (orbs%reftype)
       END IF
 
       DEALLOCATE (orbs)

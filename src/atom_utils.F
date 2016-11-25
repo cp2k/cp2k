@@ -55,7 +55,7 @@ MODULE atom_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_utils'
 
-   PUBLIC :: atom_condnumber, atom_completeness
+   PUBLIC :: atom_condnumber, atom_completeness, atom_basis_condnum
    PUBLIC :: atom_set_occupation, get_maxl_occ, get_maxn_occ
    PUBLIC :: atom_denmat, atom_density, atom_core_density
    PUBLIC :: integrate_grid, atom_trace, atom_solve
@@ -2014,7 +2014,7 @@ CONTAINS
       CALL init_spherical_harmonics(3, 0)
       cnum = 0.0_dp
       DO i = 1, 9
-         ci = 2.0_dp*(0.8_dp+i*0.1_dp)
+         ci = 2.0_dp*(0.85_dp+i*0.05_dp)
          rad(i) = crad*ci
          CALL atom_basis_condnum(basis, rad(i), cnum(i))
          WRITE (iw, '(A,F15.3,T50,A,F14.4)') " Lattice constant:", &
@@ -2169,7 +2169,7 @@ CONTAINS
 !> \param cnum ...
 ! **************************************************************************************************
    SUBROUTINE atom_basis_condnum(basis, rad, cnum)
-      TYPE(atom_basis_type), POINTER                     :: basis
+      TYPE(atom_basis_type)                              :: basis
       REAL(KIND=dp), INTENT(IN)                          :: rad
       REAL(KIND=dp), INTENT(OUT)                         :: cnum
 

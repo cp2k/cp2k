@@ -9,6 +9,7 @@ MODULE atom_energy
    USE atom_electronic_structure,       ONLY: calculate_atom
    USE atom_fit,                        ONLY: atom_fit_density,&
                                               atom_fit_kgpot
+   USE atom_grb,                        ONLY: atom_grb_construction
    USE atom_operators,                  ONLY: atom_int_release,&
                                               atom_int_setup,&
                                               atom_ppint_release,&
@@ -433,6 +434,13 @@ CONTAINS
          END DO
       END DO
 
+      ! generate a geometrical response basis (GRB)
+      iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%GEOMETRICAL_RESPONSE_BASIS", extension=".log")
+      IF (iw > 0) THEN
+         CALL atom_grb_construction(atom_info, atom_section, iw)
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%GEOMETRICAL_RESPONSE_BASIS")
+
       ! Analyze basis sets
       iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%ANALYZE_BASIS", extension=".log")
       IF (iw > 0) THEN
@@ -590,7 +598,7 @@ CONTAINS
             amat(i, i) = amat(i, i)-1._dp
          END DO
          IF (MAXVAL(ABS(amat)) > 1.e-12) THEN
-            WRITE (iw, '(A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
+            WRITE (iw, '(/,A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
          END IF
          DEALLOCATE (amat)
 
