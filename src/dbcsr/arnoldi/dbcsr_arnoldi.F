@@ -462,12 +462,17 @@ CONTAINS
             CALL dbcsr_copy(apvec, vectors%result_vec)
 
             pap = vec_dot_vec(pvec, apvec, mpgrp)
-            alpha = rsold/pap
+            IF (ABS(pap) < 1.e-24_dp) THEN
+               alpha = 0.0_dp
+            ELSE
+               alpha = rsold/pap
+            END IF
 
             CALL dbcsr_add(xvec, pvec, 1.0_dp, alpha)
             CALL dbcsr_add(rvec, apvec, 1.0_dp, -alpha)
             rsnew = vec_dot_vec(rvec, rvec, mpgrp)
             IF (SQRT(rsnew) < control%threshold) EXIT
+            CPASSERT(alpha /= 0.0_dp)
 
             CALL dbcsr_copy(vectors%input_vec, rvec)
             CALL dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
@@ -499,11 +504,16 @@ CONTAINS
                                               0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
             CALL dbcsr_copy(apvec, vectors%result_vec)
             pap = vec_dot_vec(pvec, apvec, mpgrp)
-            alpha = rsold/pap
+            IF (ABS(pap) < 1.e-24_dp) THEN
+               alpha = 0.0_dp
+            ELSE
+               alpha = rsold/pap
+            END IF
             CALL dbcsr_add(xvec, pvec, 1.0_dp, alpha)
             CALL dbcsr_add(rvec, apvec, 1.0_dp, -alpha)
             rsnew = vec_dot_vec(rvec, rvec, mpgrp)
             IF (SQRT(rsnew) < control%threshold) EXIT
+            CPASSERT(alpha /= 0.0_dp)
             beta = rsnew/rsold
             CALL dbcsr_add(pvec, rvec, beta, 1.0_dp)
             rsold = rsnew
