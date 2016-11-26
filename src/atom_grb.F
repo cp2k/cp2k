@@ -99,7 +99,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ebasis, pbasis, qbasis, rbasis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: wfn
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: ovlp
-      TYPE(atom_basis_type), POINTER                     :: basis, basis_ref, basis_vrb, basis_grb
+      TYPE(atom_basis_type), POINTER                     :: basis, basis_grb, basis_ref, basis_vrb
       TYPE(atom_integrals), POINTER                      :: atint
       TYPE(atom_orbitals), POINTER                       :: orbitals
       TYPE(atom_state), POINTER                          :: state
@@ -621,7 +621,7 @@ CONTAINS
          CALL atom_int_release(atint)
          CALL atom_ppint_release(atint)
          CALL atom_relint_release(atint)
-         DEALLOCATE(atom_test%state,atom_test%potential,atint)
+         DEALLOCATE (atom_test%state, atom_test%potential, atint)
          CALL release_atom_type(atom_test)
       END DO
 
@@ -695,7 +695,7 @@ CONTAINS
       CALL atom_ppint_release(atom%integrals)
       CALL atom_relint_release(atom%integrals)
       CALL release_atom_basis(basis)
-      DEALLOCATE(atom%potential,atom%state,atom%integrals,basis)
+      DEALLOCATE (atom%potential, atom%state, atom%integrals, basis)
       CALL release_atom_type(atom)
 
       IF (iw > 0) WRITE (iw, '(" ",79("*"))')
