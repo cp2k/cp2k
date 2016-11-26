@@ -224,6 +224,9 @@ CONTAINS
          container(i-1)%basis_type = container(i)%basis_type
          container(i-1)%basis_set => container(i)%basis_set
          container(i-1)%basis_type_nr = container(i)%basis_type_nr
+         container(i)%basis_type = ""
+         container(i)%basis_type_nr = 0
+         NULLIFY (container(i)%basis_set)
       END DO
 
    END SUBROUTINE remove_basis_from_container

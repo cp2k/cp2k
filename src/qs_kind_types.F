@@ -1188,9 +1188,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(maxbas)                               :: basis_set_name, basis_set_type
       INTEGER                                            :: handle, i, i_rep, ipaodesc, ipaopot, &
-                                                            ipos, j, k_rep, l, m, n_rep, nb_rep, &
-                                                            nexp, ngauss, norbitals, npaodesc, &
-                                                            npaopot, z
+                                                            ipos, j, jj, k_rep, l, m, n_rep, &
+                                                            nb_rep, nexp, ngauss, norbitals, &
+                                                            npaodesc, npaopot, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled
@@ -1737,14 +1737,17 @@ CONTAINS
             CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis_set, &
                                           inumbas=i, basis_type=basis_type)
             IF (basis_type == "") CYCLE
+            jj = i
             DO j = i+1, SIZE(qs_kind%basis_sets)
+               jj = jj+1
                NULLIFY (sup_basis_set)
                CALL get_basis_from_container(qs_kind%basis_sets, basis_set=sup_basis_set, &
-                                             inumbas=j, basis_type=tmp)
+                                             inumbas=jj, basis_type=tmp)
                IF (basis_type == tmp) THEN
                   ! we found a match, combine the basis sets and delete the second
                   CALL combine_basis_sets(tmp_basis_set, sup_basis_set)
-                  CALL remove_basis_from_container(qs_kind%basis_sets, j)
+                  CALL remove_basis_from_container(qs_kind%basis_sets, jj)
+                  jj = jj-1
                END IF
             END DO
             NULLIFY (sup_basis_set)

@@ -562,13 +562,19 @@ CONTAINS
 
       maxpgf = MAXVAL(bout%npgf)
       CALL reallocate(bout%zet, 1, maxpgf, 1, nset)
-      bout%zet(:, nseto+1:nset) = bad%zet(:, 1:nsetn)
+      nc = SIZE(bad%zet, 1)
+      DO iset = 1, nsetn
+         bout%zet(1:nc, nseto+iset) = bad%zet(1:nc, iset)
+      END DO
 
       maxshell = MAXVAL(bout%nshell)
       CALL reallocate(bout%l, 1, maxshell, 1, nset)
       CALL reallocate(bout%n, 1, maxshell, 1, nset)
-      bout%l(:, nseto+1:nset) = bad%l(:, 1:nsetn)
-      bout%n(:, nseto+1:nset) = bad%n(:, 1:nsetn)
+      nc = SIZE(bad%l, 1)
+      DO iset = 1, nsetn
+         bout%l(1:nc, nseto+iset) = bad%l(1:nc, iset)
+         bout%n(1:nc, nseto+iset) = bad%n(1:nc, iset)
+      END DO
 
       CALL reallocate(bout%first_cgf, 1, maxshell, 1, nset)
       CALL reallocate(bout%first_sgf, 1, maxshell, 1, nset)
@@ -589,7 +595,11 @@ CONTAINS
       END DO
 
       CALL reallocate(bout%gcc, 1, maxpgf, 1, maxshell, 1, nset)
-      bout%gcc(:, :, nseto+1:nset) = bad%gcc(:, :, 1:nsetn)
+      nc = SIZE(bad%gcc, 1)
+      ns = SIZE(bad%gcc, 2)
+      DO iset = 1, nsetn
+         bout%gcc(1:nc, 1:ns, nseto+iset) = bad%gcc(1:nc, 1:ns, iset)
+      END DO
 
       ! these arrays are determined later using initialization calls
       CALL reallocate(bout%norm_cgf, 1, ncgf)
