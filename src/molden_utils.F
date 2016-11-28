@@ -306,8 +306,10 @@ CONTAINS
       INTEGER                                            :: orbital
 
       DO orbital = 1, 15
-         IF (mo_coeff(orbmap(orbital)) .GT. 10.0**(-digits)) THEN
-            WRITE (iw, fmtstr1) irow_in+orbital, mo_coeff(orbmap(orbital))
+         IF (orbmap(orbital) .NE. 0) THEN
+            IF (mo_coeff(orbmap(orbital)) .GT. 10.0**(-digits)) THEN
+               WRITE (iw, fmtstr1) irow_in+orbital, mo_coeff(orbmap(orbital))
+            END IF
          END IF
       END DO
 
