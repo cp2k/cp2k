@@ -18,7 +18,8 @@ MODULE molden_utils
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE input_section_types,             ONLY: section_vals_type
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: nco,&
@@ -61,9 +62,11 @@ CONTAINS
       CHARACTER(LEN=1)                                   :: angmom
       CHARACTER(LEN=12), DIMENSION(15)                   :: shell_symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
+      CHARACTER(LEN=15)                                  :: fmtstr1
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER :: i, iatom, icgf, ico, icol, ikind, ipgf, irow, irow_in, iset, isgf, ishell, ispin, &
-         iw, lshell, ncgf, ncol_global, nrow_global, nset, nsgf, shellgf, z
+      INTEGER :: digits, i, iatom, icgf, ico, icol, ikind, ipgf, irow, irow_in, iset, isgf, &
+         ishell, ispin, iw, lshell, ncgf, ncol_global, nrow_global, nset, nsgf, shellgf, z
+      INTEGER, DIMENSION(15)                             :: orbmap
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
       REAL(KIND=dp)                                      :: expzet, prefac
@@ -78,6 +81,11 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, dft_section, "SCF%PRINT%MOS_MOLDEN", &
                                 extension=".molden", file_status='REPLACE')
+
+      CALL section_vals_val_get(dft_section, "SCF%PRINT%MOS_MOLDEN%NDIGITS", i_val=digits)
+      fmtstr1 = "(I6,1X,ES  .  )"
+      WRITE (UNIT=fmtstr1(10:11), FMT="(I2)") digits+7
+      WRITE (UNIT=fmtstr1(13:14), FMT="(I2)") digits
 
       IF (mos(1)%mo_set%use_mo_coeff_b) THEN
          ! we are using the dbcsr mo_coeff
@@ -251,59 +259,55 @@ CONTAINS
                            ! xx, xy, xz, yy, yz,zz for l=2, for instance
                            ! Always use cartesian (6D, 10F, 15G) as this is only format
                            ! VMD can process anyway
-                           !XXX can't be bother making this more elegant with mask etc
                            ! -----------------------------------------------------------------------
                            IF (lshell .EQ. 0) THEN
-                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
+                              orbmap = (/1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
                            ELSE IF (lshell .EQ. 1) THEN
-                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
-                              WRITE (iw, *) irow_in+1, mo_coeff(2) !, shell_symbol(2)
-                              WRITE (iw, *) irow_in+2, mo_coeff(3) !, shell_symbol(3)
+                              orbmap = (/1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
                            ELSE IF (lshell .EQ. 2) THEN
-                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
-                              WRITE (iw, *) irow_in+1, mo_coeff(4) !, shell_symbol(4)
-                              WRITE (iw, *) irow_in+2, mo_coeff(6) !, shell_symbol(6)
-                              WRITE (iw, *) irow_in+3, mo_coeff(2) !, shell_symbol(2)
-                              WRITE (iw, *) irow_in+4, mo_coeff(3) !, shell_symbol(3)
-                              WRITE (iw, *) irow_in+5, mo_coeff(5) !, shell_symbol(5)
+                              orbmap = (/1, 4, 6, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
                            ELSE IF (lshell .EQ. 3) THEN
-                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
-                              WRITE (iw, *) irow_in+1, mo_coeff(7) !, shell_symbol(7)
-                              WRITE (iw, *) irow_in+2, mo_coeff(10) !, shell_symbol(10)
-                              WRITE (iw, *) irow_in+3, mo_coeff(4) !, shell_symbol(4)
-                              WRITE (iw, *) irow_in+4, mo_coeff(2) !, shell_symbol(2)
-                              WRITE (iw, *) irow_in+5, mo_coeff(3) !, shell_symbol(3)
-                              WRITE (iw, *) irow_in+6, mo_coeff(6) !, shell_symbol(6)
-                              WRITE (iw, *) irow_in+7, mo_coeff(9) !, shell_symbol(9)
-                              WRITE (iw, *) irow_in+8, mo_coeff(8) !, shell_symbol(8)
-                              WRITE (iw, *) irow_in+9, mo_coeff(5) !, shell_symbol(5)
+                              orbmap = (/1, 7, 10, 4, 2, 3, 6, 9, 8, 5, 0, 0, 0, 0, 0/)
                            ELSE IF (lshell .EQ. 4) THEN
-                              WRITE (iw, *) irow_in+0, mo_coeff(1) !, shell_symbol(1)
-                              WRITE (iw, *) irow_in+1, mo_coeff(11) !, shell_symbol(11)
-                              WRITE (iw, *) irow_in+2, mo_coeff(15) !, shell_symbol(15)
-                              WRITE (iw, *) irow_in+3, mo_coeff(2) !, shell_symbol(2)
-                              WRITE (iw, *) irow_in+4, mo_coeff(3) !, shell_symbol(3)
-                              WRITE (iw, *) irow_in+5, mo_coeff(7) !, shell_symbol(7)
-                              WRITE (iw, *) irow_in+6, mo_coeff(12) !, shell_symbol(12)
-                              WRITE (iw, *) irow_in+7, mo_coeff(10) !, shell_symbol(10)
-                              WRITE (iw, *) irow_in+8, mo_coeff(14) !, shell_symbol(14)
-                              WRITE (iw, *) irow_in+9, mo_coeff(4) !, shell_symbol(4)
-                              WRITE (iw, *) irow_in+10, mo_coeff(6) !, shell_symbol(6)
-                              WRITE (iw, *) irow_in+11, mo_coeff(13) !, shell_symbol(13)
-                              WRITE (iw, *) irow_in+12, mo_coeff(5) !, shell_symbol(5)
-                              WRITE (iw, *) irow_in+13, mo_coeff(8) !, shell_symbol(8)
-                              WRITE (iw, *) irow_in+14, mo_coeff(9) !, shell_symbol(9)
+                              orbmap = (/1, 11, 15, 2, 3, 7, 12, 10, 14, 4, 6, 13, 5, 8, 9/)
                            ELSE
-                              ! ignore larger than g - VMD doesn't render anyway
-                              ! and MOLDEN format not defined
-                              CONTINUE
+                              orbmap = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
                            END IF
+
+                           CALL print_coeffs(iw, fmtstr1, digits, irow_in, orbmap, mo_coeff)
+
                         END DO ! ishell
                      END DO
                   END IF
                END DO ! iatom
             END DO
             DEALLOCATE (smatrix, cmatrix)
+         END IF
+      END DO
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Output MO coefficients formatted correctly for MOLDEN, omitting those <= 1E(-digits)
+!> \param iw ...
+!> \param fmtstr1 ...
+!> \param digits ...
+!> \param irow_in ...
+!> \param orbmap ...
+!> \param mo_coeff ...
+! **************************************************************************************************
+   SUBROUTINE print_coeffs(iw, fmtstr1, digits, irow_in, orbmap, mo_coeff)
+      INTEGER                                            :: iw
+      CHARACTER(LEN=15)                                  :: fmtstr1
+      INTEGER                                            :: digits, irow_in
+      INTEGER, DIMENSION(15)                             :: orbmap
+      REAL(KIND=dp), DIMENSION(15)                       :: mo_coeff
+
+      INTEGER                                            :: orbital
+
+      DO orbital = 1, 15
+         IF (mo_coeff(orbmap(orbital)) .GT. 10.0**(-digits)) THEN
+            WRITE (iw, fmtstr1) irow_in+orbital, mo_coeff(orbmap(orbital))
          END IF
       END DO
 

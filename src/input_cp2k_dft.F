@@ -4524,6 +4524,12 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "MOS_MOLDEN", &
                                        description="Write the molecular orbitals in Molden file format, for visualisation.", &
                                        print_level=debug_print_level+1, add_last=add_last_numeric, filename="MOS")
+      CALL keyword_create(keyword, name="NDIGITS", &
+                          description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
