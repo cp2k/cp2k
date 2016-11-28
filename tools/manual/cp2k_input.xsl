@@ -714,7 +714,7 @@
       structure in the same directory.
      </li>
      <li>
-      Copy the XSLT file <big class="tt">cp2k_input.xsl</big> from <big class="tt">cp2k/web/manual/</big> to
+      Copy the XSLT file <big class="tt">cp2k_input.xsl</big> from <big class="tt">cp2k/tools/manual/</big> to
       your working directory, if needed.
      </li>
      <li>
