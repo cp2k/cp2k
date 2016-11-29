@@ -73,7 +73,7 @@ MODULE qs_tddfpt2_methods
                                               cholesky_inverse,&
                                               cholesky_off,&
                                               cholesky_restore,&
-                                              xas_dip_len2,&
+                                              xas_dip_len,&
                                               xas_dip_vel
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_rval,&
@@ -372,7 +372,7 @@ CONTAINS
       END IF
 
       ! compute components of the dipole operator in the length form
-      IF (tddfpt_control%dipole_form == xas_dip_len2) THEN
+      IF (tddfpt_control%dipole_form == xas_dip_len) THEN
          NULLIFY (rRc_xyz)
          CALL cp_dbcsr_allocate_matrix_set(rRc_xyz, nderivs)
 
@@ -556,7 +556,7 @@ CONTAINS
       CALL cp_dbcsr_allocate_matrix_set(dipole_op_xyz_sub, nderivs)
       DO istate = 1, nderivs
          SELECT CASE (tddfpt_control%dipole_form)
-         CASE (xas_dip_len2)
+         CASE (xas_dip_len)
             CALL tddfpt_dbcsr_create_by_dist(dipole_op_xyz_sub(istate)%matrix, &
                                              template=rRc_xyz(istate)%matrix, &
                                              dbcsr_dist=dbcsr_dist_sub, &
@@ -580,7 +580,7 @@ CONTAINS
       END DO
 
       CALL cp_fm_release(work_fm_global)
-      IF (tddfpt_control%dipole_form == xas_dip_len2) &
+      IF (tddfpt_control%dipole_form == xas_dip_len) &
          CALL cp_dbcsr_deallocate_matrix_set(rRc_xyz)
 
       NULLIFY (matrix_s_aux_fit_sub)
@@ -3741,7 +3741,7 @@ CONTAINS
 
                DO ideriv = 1, nderivs
                   SELECT CASE (dipole_form)
-                  CASE (xas_dip_len2)
+                  CASE (xas_dip_len)
                      CALL cp_fm_trace(dS_mos_occ(ideriv, ispin)%matrix, evects(ispin, istate)%matrix, trans_dipole)
 
                   CASE (xas_dip_vel)

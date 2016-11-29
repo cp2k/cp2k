@@ -30,7 +30,7 @@ MODULE input_cp2k_properties_dft
         do_et_ddapc, do_full_density, do_no_et, do_spin_density, ot_precond_full_all, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, use_mom_ref_coac, use_mom_ref_com, &
-        use_mom_ref_user, use_mom_ref_zero, xas_dip_len2, xas_dip_vel
+        use_mom_ref_user, use_mom_ref_zero, xas_dip_len, xas_dip_vel
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_interp_section,&
                                               create_localize_section,&
@@ -1201,7 +1201,7 @@ CONTAINS
                           enum_c_vals=s2a("LENGTH", "VELOCITY"), &
                           enum_desc=s2a("Length form &lang; i | r | j &rang;", &
                                         "Velocity form &lang; i | d/dr | j &rang;"), &
-                          enum_i_vals=(/xas_dip_len2, xas_dip_vel/))
+                          enum_i_vals=(/xas_dip_len, xas_dip_vel/))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 

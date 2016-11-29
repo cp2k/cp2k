@@ -57,7 +57,7 @@ MODULE xas_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE input_constants,                 ONLY: &
         do_loc_none, state_loc_list, state_loc_range, xas_1s_type, xas_2p_type, xas_2s_type, &
-        xas_dip_len2, xas_dip_vel, xas_dscf, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
+        xas_dip_len, xas_dip_vel, xas_dscf, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
         xas_tp_xhh, xes_tp_val
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get_subs_vals,&
@@ -835,7 +835,7 @@ CONTAINS
       ! Array to store all the energies needed  for the spectrum
       ALLOCATE (xas_env%all_evals(nvirtual))
 
-      IF (xas_control%dipole_form == xas_dip_len2) THEN
+      IF (xas_control%dipole_form == xas_dip_len) THEN
          CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm, 3)
          DO i = 1, 3
             ALLOCATE (xas_env%ostrength_sm(i)%matrix)
@@ -1055,7 +1055,7 @@ CONTAINS
 
       IF (.NOT. xas_control%xas_method == xas_dscf) THEN
          ! Calculate the spectrum
-         IF (xas_control%dipole_form == xas_dip_len2) THEN
+         IF (xas_control%dipole_form == xas_dip_len) THEN
             rc(1:3) = particle_set(iatom)%r(1:3)
             DO i = 1, 3
                NULLIFY (op_sm(i)%matrix)

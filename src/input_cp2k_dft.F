@@ -79,7 +79,7 @@ MODULE input_cp2k_dft
         weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
         wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
         wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
-        wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, &
+        wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len, &
         xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
         xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
@@ -6661,7 +6661,7 @@ CONTAINS
                           enum_c_vals=s2a("LENGTH", "VELOCITY"), &
                           enum_desc=s2a("Length form &lang; i | e r | j &rang;", &
                                         "Velocity form &lang; i | d/dr | j &rang;"), &
-                          enum_i_vals=(/xas_dip_len2, xas_dip_vel/))
+                          enum_i_vals=(/xas_dip_len, xas_dip_vel/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -609,8 +609,7 @@ MODULE input_constants
                                                xas_4d_type = 9, &
                                                xas_4f_type = 10
    INTEGER, PARAMETER, PUBLIC               :: xas_dip_len = 1, &
-                                               xas_dip_vel = 2, &
-                                               xas_dip_len2 = 3
+                                               xas_dip_vel = 2
    INTEGER, PARAMETER, PUBLIC               :: xas_scf_default = 0, &
                                                xas_scf_general = 1
 
