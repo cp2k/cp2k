@@ -405,6 +405,15 @@ MODULE cp_control_types
       !> compute triplet excited states using spin-unpolarised molecular orbitals
       LOGICAL                                   :: rks_triplets
       !
+      ! DIPOLE_MOMENTS subsection
+      !
+      ! form of the dipole operator used to compute oscillator strengths
+      INTEGER                                   :: dipole_form
+      !> type of the reference point used for calculation of electrostatic dipole moments
+      INTEGER                                   :: dipole_reference
+      !> user-defined reference point
+      REAL(kind=dp), DIMENSION(:), POINTER      :: dipole_ref_point
+      !
       ! MGRID subsection
       !
       !> number of plain-wave grids

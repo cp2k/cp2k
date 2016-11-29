@@ -29,7 +29,8 @@ MODULE input_cp2k_properties_dft
         current_orb_center_wannier, do_ddapc_constraint, do_ddapc_restraint, do_et_becke, &
         do_et_ddapc, do_full_density, do_no_et, do_spin_density, ot_precond_full_all, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse
+        ot_precond_none, ot_precond_s_inverse, use_mom_ref_coac, use_mom_ref_com, &
+        use_mom_ref_user, use_mom_ref_zero, xas_dip_len2, xas_dip_vel
    USE input_cp2k_atprop,               ONLY: create_atprop_section
    USE input_cp2k_dft,                  ONLY: create_interp_section,&
                                               create_localize_section,&
@@ -1065,7 +1066,7 @@ CONTAINS
                           description="Parameters needed to set up the Time-Dependent Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
-                          n_keywords=15, n_subsections=2, repeats=.FALSE., &
+                          n_keywords=15, n_subsections=3, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
 
       NULLIFY (keyword, print_key, subsection)
@@ -1188,6 +1189,47 @@ CONTAINS
                           type_of_var=lchar_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      ! DIPOLE subsection
+      CALL section_create(subsection, "DIPOLE_MOMENTS", &
+                          description="Parameters to compute oscillator strengths in the dipole approximation.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, name="DIPOLE_FORM", &
+                          description="Form of dipole transition integrals.", &
+                          default_i_val=xas_dip_vel, &
+                          enum_c_vals=s2a("LENGTH", "VELOCITY"), &
+                          enum_desc=s2a("Length form &lang; i | r | j &rang;", &
+                                        "Velocity form &lang; i | d/dr | j &rang;"), &
+                          enum_i_vals=(/xas_dip_len2, xas_dip_vel/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="REFERENCE", &
+                          description="Reference point to calculate electric "// &
+                          "dipole moments using the dipole integrals in the length form.", &
+                          enum_c_vals=s2a("COM", "COAC", "USER_DEFINED", "ZERO"), &
+                          enum_desc=s2a("Use Center of Mass", &
+                                        "Use Center of Atomic Charges", &
+                                        "Use User-defined Point", &
+                                        "Use Origin of Coordinate System"), &
+                          enum_i_vals=(/use_mom_ref_com, &
+                                        use_mom_ref_coac, &
+                                        use_mom_ref_user, &
+                                        use_mom_ref_zero/), &
+                          default_i_val=use_mom_ref_com)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword=keyword, name="REFERENCE_POINT", &
+                          description="User-defined reference point.", &
+                          usage="REFERENCE_POINT x y z", &
+                          repeats=.FALSE., n_var=3, type_of_var=real_t, unit_str='bohr')
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       ! MGRID subsection
       CALL create_mgrid_section(subsection, create_subsections=.FALSE.)

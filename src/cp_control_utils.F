@@ -38,7 +38,7 @@ MODULE cp_control_utils
         gaussian_env, numerical, ramp_env, real_time_propagation, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_excitations
+        sic_mauri_us, sic_none, slater, tddfpt_excitations, use_mom_ref_user, xas_dip_len2
    USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                               create_qs_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -1082,7 +1082,7 @@ CONTAINS
       INTEGER                                            :: handle
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       LOGICAL                                            :: explicit, multigrid_set
-      TYPE(section_vals_type), POINTER                   :: mgrid_section
+      TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section
 
       CALL timeset(routineN, handle)
 
@@ -1109,6 +1109,20 @@ CONTAINS
 
       IF (t_control%degenerate_eps < 0) &
          t_control%degenerate_eps = ABS(t_control%degenerate_eps)
+
+      ! DIPOLE_MOMENTS subsection
+      dipole_section => section_vals_get_subs_vals(t_section, "DIPOLE_MOMENTS")
+      CALL section_vals_val_get(dipole_section, "DIPOLE_FORM", i_val=t_control%dipole_form)
+      CALL section_vals_val_get(dipole_section, "REFERENCE", i_val=t_control%dipole_reference)
+      CALL section_vals_val_get(dipole_section, "REFERENCE_POINT", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(dipole_section, "REFERENCE_POINT", r_vals=t_control%dipole_ref_point)
+      ELSE
+         NULLIFY (t_control%dipole_ref_point)
+         IF (t_control%dipole_form == xas_dip_len2 .AND. t_control%dipole_reference == use_mom_ref_user) THEN
+            CPABORT("User-defined reference point should be given explicitly")
+         END IF
+      END IF
 
       ! MGRID subsection
       mgrid_section => section_vals_get_subs_vals(t_section, "MGRID")

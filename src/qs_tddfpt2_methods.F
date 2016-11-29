@@ -72,7 +72,9 @@ MODULE qs_tddfpt2_methods
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&
                                               cholesky_off,&
-                                              cholesky_restore
+                                              cholesky_restore,&
+                                              xas_dip_len2,&
+                                              xas_dip_vel
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_rval,&
                                               section_vals_get,&
@@ -95,6 +97,7 @@ MODULE qs_tddfpt2_methods
                                               mp_wait
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types_new,              ONLY: molecule_type
+   USE moments_utils,                   ONLY: get_reference_point
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE pw_env_methods,                  ONLY: pw_env_create,&
@@ -135,6 +138,7 @@ MODULE qs_tddfpt2_methods
                                               build_neighbor_lists,&
                                               local_atoms_type,&
                                               pair_radius_setup
+   USE qs_operators_ao,                 ONLY: rRc_xyz_ao
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                               qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_create,&
@@ -167,8 +171,10 @@ MODULE qs_tddfpt2_methods
    PRIVATE
 
    PUBLIC :: tddfpt
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_methods'
+   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
+   ! number of first derivative components (3: d/dx, d/dy, d/dz)
+   INTEGER, PARAMETER, PRIVATE          :: nderivs = 3
 
 ! **************************************************************************************************
 !> \brief Ground state molecular orbitals
@@ -290,12 +296,11 @@ CONTAINS
       LOGICAL                                            :: do_hfx, is_nonortho, is_restarted
       REAL(kind=dp)                                      :: C_hf, conv, t1, t2
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last, evals_prev
+      REAL(kind=dp), DIMENSION(3)                        :: reference_point
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global, blacs_env_sub
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_global, matrix_ks_sub, &
-                                                            matrix_s_aux_fit_global, &
-                                                            matrix_s_global, matrix_s_sub, &
-                                                            rho_ij_ao
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_aux_fit_sub
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: dipole_op_xyz_sub, matrix_ks_global, &
+         matrix_ks_sub, matrix_s_aux_fit_global, matrix_s_global, rho_ij_ao, rRc_xyz
+      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_aux_fit_sub, matrix_s_sub
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_C0_C0T_sub, S_C0_sub
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_evects, Aop_ritz, evects, ritz_vects
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
@@ -364,6 +369,24 @@ CONTAINS
       IF (do_hfx) THEN
          CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
          do_hfx = (C_hf /= 0.0_dp)
+      END IF
+
+      ! compute components of the dipole operator in the length form
+      IF (tddfpt_control%dipole_form == xas_dip_len2) THEN
+         NULLIFY (rRc_xyz)
+         CALL cp_dbcsr_allocate_matrix_set(rRc_xyz, nderivs)
+
+         DO ispin = 1, nderivs
+            CALL cp_dbcsr_init_p(rRc_xyz(ispin)%matrix)
+            CALL cp_dbcsr_copy(rRc_xyz(ispin)%matrix, matrix_s_global(1)%matrix)
+         END DO
+
+         ! get the reference point
+         CALL get_reference_point(reference_point, qs_env=qs_env, &
+                                  reference=tddfpt_control%dipole_reference, &
+                                  ref_point=tddfpt_control%dipole_ref_point)
+
+         CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, minimum_image=.FALSE., soft=.FALSE.)
       END IF
 
       ! ++ split mpi communicator
@@ -515,21 +538,50 @@ CONTAINS
          CALL copy_fm_to_dbcsr(work_fm_sub, matrix_ks_sub(ispin)%matrix, keep_sparsity=.TRUE.)
       END DO
 
+      ! overlap matrix
       NULLIFY (matrix_s_sub)
-      nvects_exists = SIZE(matrix_s_global)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_s_sub, nvects_exists)
-      DO istate = 1, nvects_exists
-         CALL tddfpt_dbcsr_create_by_dist(matrix_s_sub(istate)%matrix, &
-                                          template=matrix_s_global(istate)%matrix, &
-                                          dbcsr_dist=dbcsr_dist_sub, &
-                                          sab=sab_orb_sub)
+      CALL cp_dbcsr_init_p(matrix_s_sub)
 
-         CALL copy_dbcsr_to_fm(matrix_s_global(istate)%matrix, work_fm_global)
+      CALL tddfpt_dbcsr_create_by_dist(matrix_s_sub, &
+                                       template=matrix_s_global(1)%matrix, &
+                                       dbcsr_dist=dbcsr_dist_sub, &
+                                       sab=sab_orb_sub)
+      CALL copy_dbcsr_to_fm(matrix_s_global(1)%matrix, work_fm_global)
+      CALL tddfpt_fm_replicate_across_subgroups(fm_src=work_fm_global, fm_dest_sub=work_fm_sub, &
+                                                nsubgroups=nsubgroups, subgroup=subgroup)
+      CALL copy_fm_to_dbcsr(work_fm_sub, matrix_s_sub, keep_sparsity=.TRUE.)
+
+      ! components of the dipole operator
+      NULLIFY (dipole_op_xyz_sub)
+      CALL cp_dbcsr_allocate_matrix_set(dipole_op_xyz_sub, nderivs)
+      DO istate = 1, nderivs
+         SELECT CASE (tddfpt_control%dipole_form)
+         CASE (xas_dip_len2)
+            CALL tddfpt_dbcsr_create_by_dist(dipole_op_xyz_sub(istate)%matrix, &
+                                             template=rRc_xyz(istate)%matrix, &
+                                             dbcsr_dist=dbcsr_dist_sub, &
+                                             sab=sab_orb_sub)
+            CALL copy_dbcsr_to_fm(rRc_xyz(istate)%matrix, work_fm_global)
+
+         CASE (xas_dip_vel)
+            CALL tddfpt_dbcsr_create_by_dist(dipole_op_xyz_sub(istate)%matrix, &
+                                             template=matrix_s_global(istate+1)%matrix, &
+                                             dbcsr_dist=dbcsr_dist_sub, &
+                                             sab=sab_orb_sub)
+            CALL copy_dbcsr_to_fm(matrix_s_global(istate+1)%matrix, work_fm_global)
+
+         CASE DEFAULT
+            CPABORT("Unimplemented form of the dipole operator")
+         END SELECT
+
          CALL tddfpt_fm_replicate_across_subgroups(fm_src=work_fm_global, fm_dest_sub=work_fm_sub, &
                                                    nsubgroups=nsubgroups, subgroup=subgroup)
-         CALL copy_fm_to_dbcsr(work_fm_sub, matrix_s_sub(istate)%matrix, keep_sparsity=.TRUE.)
+         CALL copy_fm_to_dbcsr(work_fm_sub, dipole_op_xyz_sub(istate)%matrix, keep_sparsity=.TRUE.)
       END DO
+
       CALL cp_fm_release(work_fm_global)
+      IF (tddfpt_control%dipole_form == xas_dip_len2) &
+         CALL cp_dbcsr_deallocate_matrix_set(rRc_xyz)
 
       NULLIFY (matrix_s_aux_fit_sub)
       IF (dft_control%do_admm) THEN
@@ -566,7 +618,7 @@ CONTAINS
       DO ispin = 1, nspins
          NULLIFY (S_C0_sub(ispin)%matrix)
          CALL cp_fm_create(S_C0_sub(ispin)%matrix, fm_struct_evects(ispin)%struct)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s_sub(1)%matrix, gs_mos(ispin)%matrix_mos_occ, S_C0_sub(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s_sub, gs_mos(ispin)%matrix_mos_occ, S_C0_sub(ispin)%matrix, &
                                       ncol=SIZE(gs_mos(ispin)%evals_occ), alpha=1.0_dp, beta=0.0_dp)
       END DO
 
@@ -583,7 +635,7 @@ CONTAINS
       CALL cp_dbcsr_allocate_matrix_set(rho_ij_ao, nspins)
       DO ispin = 1, nspins
          CALL cp_dbcsr_init_p(rho_ij_ao(ispin)%matrix)
-         CALL cp_dbcsr_copy(rho_ij_ao(ispin)%matrix, matrix_s_sub(1)%matrix)
+         CALL cp_dbcsr_copy(rho_ij_ao(ispin)%matrix, matrix_s_sub)
       END DO
 
       NULLIFY (rho_ij_struct)
@@ -596,7 +648,7 @@ CONTAINS
          CALL cp_gemm('N', 'T', nao, nao, SIZE(gs_mos(ispin)%evals_occ), 1.0_dp, &
                       gs_mos(ispin)%matrix_mos_occ, gs_mos(ispin)%matrix_mos_occ, 0.0_dp, work_fm_sub)
 
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s_sub(1)%matrix, work_fm_sub, S_C0_C0T_sub(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s_sub, work_fm_sub, S_C0_C0T_sub(ispin)%matrix, &
                                       ncol=nao, alpha=1.0_dp, beta=0.0_dp)
 
          ! take into account that all MOs are doubly occupied in spin-restricted case
@@ -718,7 +770,7 @@ CONTAINS
          DO istate = tddfpt_control%nreortho, 1, -1
             CALL tddfpt_orthogonalize_psi1_psi0(evects=evects(:, 1:nstates), S_C0_C0T=S_C0_C0T_sub)
             CALL tddfpt_orthonormalize_psi1_psi1(evects=evects(:, 1:nstates), nvects_new=nstates, &
-                                                 matrix_s=matrix_s_sub(1)%matrix)
+                                                 matrix_s=matrix_s_sub)
             is_nonortho = tddfpt_is_nonorthogonal_psi1_psi0(evects=evects(:, 1:nstates), S_C0=S_C0_sub, &
                                                             max_norm=tddfpt_control%orthogonal_eps)
             IF (.NOT. is_nonortho) EXIT
@@ -757,7 +809,7 @@ CONTAINS
                                         evects=evects(:, nvects_exists+1:nvects_exists+nvects_new), &
                                         fm_struct_evects=fm_struct_evects, gs_mos=gs_mos, &
                                         is_rks_triplets=tddfpt_control%rks_triplets, &
-                                        matrix_ks_sub=matrix_ks_sub, matrix_s_sub=matrix_s_sub(1)%matrix, &
+                                        matrix_ks_sub=matrix_ks_sub, matrix_s_sub=matrix_s_sub, &
                                         qs_env=qs_env, xc_rho_set=xc_rho_set, xc_deriv_set=xc_deriv_set, &
                                         xc_section=xc_section, do_hfx=do_hfx, do_admm=dft_control%do_admm, &
                                         matrix_s_aux_fit_sub=matrix_s_aux_fit_sub, blacs_env_sub=blacs_env_sub, &
@@ -795,7 +847,7 @@ CONTAINS
                CALL tddfpt_compute_residual_vects(residual_vects=evects(:, nvects_exists+1:nvects_exists+nvects_new), &
                                                   evals=evals_last(1:nvects_new), Aop_ritz=Aop_ritz(:, 1:nvects_new), &
                                                   ritz_vects=ritz_vects(:, 1:nvects_new), fm_struct_evects=fm_struct_evects, &
-                                                  gs_mos=gs_mos, guess_vectors=guess_vectors, matrix_s=matrix_s_sub(1)%matrix)
+                                                  gs_mos=gs_mos, guess_vectors=guess_vectors, matrix_s=matrix_s_sub)
 
                DO istate = nvects_exists+1, nvects_exists+nvects_new
                   DO ispin = 1, nspins
@@ -809,8 +861,8 @@ CONTAINS
                DO istate = tddfpt_control%nreortho, 1, -1
                   CALL tddfpt_orthogonalize_psi1_psi0(evects=evects(:, nvects_exists+1:nvects_exists+nvects_new), &
                                                       S_C0_C0T=S_C0_C0T_sub)
-                  CALL tddfpt_orthonormalize_psi1_psi1(evects=evects(:, 1:nvects_exists+nvects_new), nvects_new=nvects_new, &
-                                                       matrix_s=matrix_s_sub(1)%matrix)
+                  CALL tddfpt_orthonormalize_psi1_psi1(evects=evects(:, 1:nvects_exists+nvects_new), &
+                                                       nvects_new=nvects_new, matrix_s=matrix_s_sub)
                   is_nonortho = tddfpt_is_nonorthogonal_psi1_psi0(evects=evects(:, nvects_exists+1:nvects_exists+nvects_new), &
                                                                   S_C0=S_C0_sub, max_norm=tddfpt_control%orthogonal_eps)
                   IF (.NOT. is_nonortho) EXIT
@@ -856,7 +908,7 @@ CONTAINS
                DO istate = 1, max_reortho
                   CALL tddfpt_orthogonalize_psi1_psi0(evects=evects(:, 1:nstates), S_C0_C0T=S_C0_C0T_sub)
                   CALL tddfpt_orthonormalize_psi1_psi1(evects=evects(:, 1:nstates), nvects_new=nstates, &
-                                                       matrix_s=matrix_s_sub(1)%matrix)
+                                                       matrix_s=matrix_s_sub)
                   is_nonortho = tddfpt_is_nonorthogonal_psi1_psi0(evects=evects(:, 1:nstates), &
                                                                   S_C0=S_C0_sub, max_norm=tddfpt_control%orthogonal_eps)
                   IF (.NOT. is_nonortho) EXIT
@@ -953,7 +1005,7 @@ CONTAINS
       END DO
       CALL tddfpt_orthogonalize_psi1_psi0(evects=ritz_vects(:, 1:nstates), S_C0_C0T=S_C0_C0T_sub)
       CALL tddfpt_orthonormalize_psi1_psi1(evects=ritz_vects(:, 1:nstates), nvects_new=nstates, &
-                                           matrix_s=matrix_s_sub(1)%matrix)
+                                           matrix_s=matrix_s_sub)
       DO istate = 1, nstates
          DO ispin = 1, nspins
             IF (.NOT. ASSOCIATED(Aop_ritz(ispin, istate)%matrix)) &
@@ -963,7 +1015,9 @@ CONTAINS
 
       CALL tddfpt_print_summary(log_unit=log_unit, evects=ritz_vects(:, 1:nstates), evals=evals_last(1:nstates), &
                                 mult=mult, fm_struct_evects=fm_struct_evects, gs_mos=gs_mos, matrix_s=matrix_s_sub, &
-                                min_amplitude=tddfpt_control%min_excitation_amplitude, blacs_env_global=blacs_env_global)
+                                dipole_op_xyz=dipole_op_xyz_sub, dipole_form=tddfpt_control%dipole_form, &
+                                min_amplitude=tddfpt_control%min_excitation_amplitude, &
+                                blacs_env_global=blacs_env_global)
 
       ! -- clean up all useless stuff
       DEALLOCATE (evals_last, evals_prev)
@@ -997,7 +1051,8 @@ CONTAINS
       END DO
       DEALLOCATE (S_C0_C0T_sub, S_C0_sub)
 
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_s_sub)
+      CALL cp_dbcsr_deallocate_matrix_set(dipole_op_xyz_sub)
+      CALL cp_dbcsr_deallocate_matrix(matrix_s_sub)
       CALL cp_dbcsr_deallocate_matrix_set(matrix_ks_sub)
 
       DEALLOCATE (fm_struct_evects)
@@ -3511,7 +3566,9 @@ CONTAINS
 !> \param mult             multiplicity
 !> \param fm_struct_evects structures of newly allocated dense matrices
 !> \param gs_mos           molecular orbitals optimised for the ground state
-!> \param matrix_s overlap matrix and their firts derivatives over x, y, and z directions
+!> \param matrix_s         overlap matrix
+!> \param dipole_op_xyz    components of the dipole operator in terms of contracted basis functions
+!> \param dipole_form      form of the dipole operator (length / vector)
 !> \param min_amplitude    the smallest excitation amplitude to print
 !> \param blacs_env_global BLACS parallel environment involving all the processors
 !> \par History
@@ -3522,17 +3579,15 @@ CONTAINS
 !>       Adapted version of the subroutine find_contributions() which was originally created
 !>       by Thomas Chassaing on 02.2005.
 !>
-!>       To compute transition dipole integrals we use the fact that the ground state wave function
-!>       and all response functions (which are in fact a linear combination of virtual molecular
-!>       orbitals) are eigenfunctions of the Hamiltonian operator. Using the identity:
-!>       \f[\vec{r}\hat{H} - \hat{H}\vec{r} = [\vec{r},\hat{H}] = [\vec{r},-1/2 \nabla^2] = \nabla\f]
-!>       we can derive a relationship between transition dipole integrals and momentum integrals:
-!>       \f[<\psi_i|\nabla|\psi_a> = <\psi_i|\vec{r}|\hat{H}\psi_a> - <\hat{H}\psi_i|\vec{r}|\psi_a>=
-!>       (\epsilon_a - \epsilon_i) <\psi_i|\vec{r}|\psi_a> .\f]
+!>       The relation between dipole integrals in velocity and length forms are the following:
+!>       \f[<\psi_i|\nabla|\psi_a> = <\psi_i|\vec{r}|\hat{H}\psi_a> - <\hat{H}\psi_i|\vec{r}|\psi_a>
+!>                                 = (\epsilon_a - \epsilon_i) <\psi_i|\vec{r}|\psi_a> .\f],
+!>       due to the commutation identity:
+!>       \f[\vec{r}\hat{H} - \hat{H}\vec{r} = [\vec{r},\hat{H}] = [\vec{r},-1/2 \nabla^2] = \nabla\f] .
 !>       \endparblock
 ! **************************************************************************************************
    SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, mult, fm_struct_evects, gs_mos, &
-                                   matrix_s, min_amplitude, blacs_env_global)
+                                   matrix_s, dipole_op_xyz, dipole_form, min_amplitude, blacs_env_global)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
@@ -3541,13 +3596,14 @@ CONTAINS
          INTENT(in)                                      :: fm_struct_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dipole_op_xyz
+      INTEGER, INTENT(in)                                :: dipole_form
       REAL(kind=dp), INTENT(in)                          :: min_amplitude
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_print_summary', &
          routineP = moduleN//':'//routineN
-      INTEGER, PARAMETER                                 :: nderivs = 3
 
       CHARACTER(len=1)                                   :: lsd_str
       CHARACTER(len=20)                                  :: mult_str
@@ -3646,10 +3702,10 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%matrix_mos_virt, S_mos_virt(ispin)%matrix, &
+         CALL cp_dbcsr_sm_fm_multiply(matrix_s, gs_mos(ispin)%matrix_mos_virt, S_mos_virt(ispin)%matrix, &
                                       ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
          DO ideriv = 1, nderivs
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(ideriv+1)%matrix, gs_mos(ispin)%matrix_mos_occ, &
+            CALL cp_dbcsr_sm_fm_multiply(dipole_op_xyz(ideriv)%matrix, gs_mos(ispin)%matrix_mos_occ, &
                                          dS_mos_occ(ideriv, ispin)%matrix, ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
          END DO
       END DO
@@ -3676,13 +3732,24 @@ CONTAINS
                CALL cp_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin)%matrix, &
                             evects(ispin, istate)%matrix, 0.0_dp, weights_fm(ispin)%matrix)
 
-               ! compute transition dipole moments
-               CALL cp_fm_schur_product(weights_fm(ispin)%matrix, ediff_inv(ispin)%matrix, ediff_inv_weights(ispin)%matrix)
-               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), 1.0_dp, gs_mos(ispin)%matrix_mos_virt, &
-                            ediff_inv_weights(ispin)%matrix, 0.0_dp, scaled_evect(ispin)%matrix)
+               ! compute electric dipole moments
+               IF (dipole_form == xas_dip_vel) THEN
+                  CALL cp_fm_schur_product(weights_fm(ispin)%matrix, ediff_inv(ispin)%matrix, ediff_inv_weights(ispin)%matrix)
+                  CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), 1.0_dp, gs_mos(ispin)%matrix_mos_virt, &
+                               ediff_inv_weights(ispin)%matrix, 0.0_dp, scaled_evect(ispin)%matrix)
+               END IF
 
                DO ideriv = 1, nderivs
-                  CALL cp_fm_trace(dS_mos_occ(ideriv, ispin)%matrix, scaled_evect(ispin)%matrix, trans_dipole)
+                  SELECT CASE (dipole_form)
+                  CASE (xas_dip_len2)
+                     CALL cp_fm_trace(dS_mos_occ(ideriv, ispin)%matrix, evects(ispin, istate)%matrix, trans_dipole)
+
+                  CASE (xas_dip_vel)
+                     CALL cp_fm_trace(dS_mos_occ(ideriv, ispin)%matrix, scaled_evect(ispin)%matrix, trans_dipole)
+
+                  CASE DEFAULT
+                     CPABORT("Unimplemented form of the dipole operator")
+                  END SELECT
 
                   IF (para_env_sub%mepos == para_env_sub%source) &
                      trans_dipoles(ideriv, istate) = trans_dipoles(ideriv, istate)+trans_dipole
