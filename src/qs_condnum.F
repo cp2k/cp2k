@@ -245,9 +245,13 @@ CONTAINS
          IF (SUM(r) == SUM(MAXLOC(ABS(x)))) EXIT
       END DO
       !
-      DO i = 1, nbas
-         x(i) = -1._dp**(i+1)*(1._dp+REAL(i-1, dp)/REAL(nbas-1, dp))
-      END DO
+      IF (nbas > 1) THEN
+         DO i = 1, nbas
+            x(i) = -1._dp**(i+1)*(1._dp+REAL(i-1, dp)/REAL(nbas-1, dp))
+         END DO
+      ELSE
+         x(1) = 1.0_dp
+      END IF
       CALL dbcsr_solve(amat, x, pmat)
       gg = dlange("1", nbas, 1, x, nbas, work)
       gg = 2._dp*gg/REAL(3*nbas, dp)
