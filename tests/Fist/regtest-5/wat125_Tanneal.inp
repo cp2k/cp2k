@@ -1,0 +1,75 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/wat125.pot
+      parmtype CHM
+      &spline
+        EMAX_SPLINE 1.0
+      &end
+      &CHARGE
+        ATOM 62
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM 3
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    SEED 1 2 3 4 5 6
+    &CELL
+      ABC 15.0 15.0 15.0 
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_xyz/wat125.xyz
+      COORDINATE XYZ
+      CONNECTIVITY PSF
+      CONN_FILE_NAME ../sample_psf/wat125.psf
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
+    &END TOPOLOGY
+    &KIND 62
+      ELEMENT O
+    &END
+    &KIND  3
+      ELEMENT H
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT wat125_Tanneal
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE LANGEVIN
+    STEPS 10
+    TIMESTEP 1.0
+    TEMPERATURE 298
+    TEMPERATURE_ANNEALING 0.65
+    &LANGEVIN
+      GAMMA 0.1
+    &END LANGEVIN
+    &PRINT
+      &PROGRAM_RUN_INFO
+        ADD_LAST SYMBOLIC
+        &EACH
+          MD 1000
+        &END
+      &END
+    &END PRINT
+  &END MD
+&END MOTION

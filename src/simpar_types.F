@@ -45,11 +45,13 @@ MODULE simpar_types
       REAL(KIND=dp) :: p0
       REAL(KIND=dp) :: f_annealing
       REAL(KIND=dp) :: f_annealing_cell
+      REAL(KIND=dp) :: f_temperature_annealing
       REAL(KIND=dp) :: gamma_nph
       INTEGER        :: ensemble
       LOGICAL        :: constraint
       LOGICAL        :: annealing
       LOGICAL        :: annealing_cell
+      LOGICAL        :: temperature_annealing
       LOGICAL        :: dump_lm
       LOGICAL        :: angvel_zero
       LOGICAL        :: variable_dt

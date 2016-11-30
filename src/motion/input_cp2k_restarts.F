@@ -529,13 +529,14 @@ CONTAINS
       TYPE(npt_info_type), POINTER                       :: npt(:, :)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: replica_section, work_section
+      TYPE(simpar_type), POINTER                         :: simpar
       TYPE(thermostat_type), POINTER                     :: thermostat_baro, thermostat_part, &
                                                             thermostat_shell
 
       CALL timeset(routineN, handle)
       NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
                work_section, thermostat_shell, t, averages, constant, &
-               walkers_status, itimes, meta_env)
+               walkers_status, itimes, meta_env, simpar)
       NULLIFY (particles)
       NULLIFY (subsys)
       IF (PRESENT(md_env)) THEN
@@ -547,6 +548,7 @@ CONTAINS
                          t=t, &
                          constant=constant, &
                          itimes=itimes, &
+                         simpar=simpar, &
                          averages=averages, &
                          para_env=para_env)
       ELSE
@@ -658,6 +660,15 @@ CONTAINS
          END IF
       END IF
       CALL timestop(handle2)
+
+      ! SAVE THERMOSTAT target TEMPERATURE when doing TEMPERATURE_ANNEALING
+      IF (PRESENT(md_env)) THEN
+         IF (ASSOCIATED(simpar)) THEN
+            IF (simpar%temperature_annealing .AND. ABS(1._dp-simpar%f_temperature_annealing) > 1.E-10_dp) THEN
+               CALL section_vals_val_set(motion_section, "MD%TEMPERATURE", r_val=simpar%temp_ext)
+            END IF
+         END IF
+      END IF
 
       ! PARTICLE THERMOSTAT
       CALL timeset(routineN//"_THERMOSTAT_PARTICLES", handle2)

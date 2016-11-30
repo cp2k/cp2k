@@ -342,6 +342,11 @@ CONTAINS
        END DO
     END DO
 
+    IF (simpar%temperature_annealing) THEN
+       simpar%temp_ext = simpar%temp_ext*simpar%f_temperature_annealing
+       simpar%var_w = simpar%var_w*simpar%f_temperature_annealing
+    END IF
+
     IF (simpar%constraint) THEN
        CALL rattle_control(gci,local_molecules,molecule_set,molecule_kind_set,&
             particle_set,vel,dt,simpar%shake_tol,&

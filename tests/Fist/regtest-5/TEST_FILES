@@ -28,6 +28,9 @@ phenobenz.inp                                          2      1e-10            0
 liquid.inp                                             2    1.0E-14            -0.857747949868E+02
 #PSF EXT CHARMM
 wat125.inp                                             2    1.0E-14            -0.201482786158E+01
+#TEMPERATURE_ANNEALING
+wat125_Tanneal.inp                                    70       1E-2                        125.767
+wat125_Tanneal_restart.inp                            70       1E-2                        443.013
 #General potential
 argon_GENPOT.inp                                       2    1.0E-14            -0.211229954170E+00
 H2O-1-GENPOT.inp                                       2    1.0E-14            -0.170754712778E-03

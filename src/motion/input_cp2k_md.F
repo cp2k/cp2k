@@ -210,6 +210,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="TEMPERATURE_ANNEALING", &
+                          description="Specifies the rescaling factor for the external temperature."// &
+                          "This scheme works only for the Langevin ensemble.", &
+                          usage="TEMPERATURE_ANNEALING <REAL>", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="DISPLACEMENT_TOL", &
                           description="This keyword sets a maximum atomic displacement "// &
                           " in each Cartesian direction."// &

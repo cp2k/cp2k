@@ -508,6 +508,11 @@ CONTAINS
                           type_of_var=logical_t, lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="RESTART_TEMPERATURE_ANNEALING", &
+                          description="Restarts external temperature when using TEMPERATURE_ANNEALING.", &
+                          type_of_var=logical_t, lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="RESTART_CELL", &
                           description="Restarts the cell (and cell_ref) "// &
                           "from the EXTERNAL file", &

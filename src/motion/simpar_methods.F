@@ -281,6 +281,8 @@ CONTAINS
       CALL section_vals_val_get(md_section, "ANNEALING", r_val=simpar%f_annealing, explicit=simpar%annealing)
       CALL section_vals_val_get(md_section, "ANNEALING_CELL", r_val=simpar%f_annealing_cell, &
                                 explicit=simpar%annealing_cell)
+      CALL section_vals_val_get(md_section, "TEMPERATURE_ANNEALING", r_val=simpar%f_temperature_annealing, &
+                                explicit=simpar%temperature_annealing)
       CALL section_vals_val_get(md_section, "DISPLACEMENT_TOL", r_val=simpar%dr_tol, &
                                 explicit=simpar%variable_dt)
       CALL section_vals_val_get(md_section, "TIMESTEP", r_val=simpar%dt)

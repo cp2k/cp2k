@@ -609,6 +609,25 @@ CONTAINS
             CALL set_restart_info("METADYNAMICS", restarted_infos)
          END IF
 
+         CALL section_vals_val_get(r_section, "RESTART_TEMPERATURE_ANNEALING", l_val=flag)
+         IF (flag .AND. check_restart(input_file, restart_file, "MOTION%MD")) THEN
+            CALL section_vals_val_get(input_file, "MOTION%MD%TEMPERATURE_ANNEALING", r_val=myt, explicit=explicit1)
+            IF ((.NOT. explicit1) .OR. (ABS(1._dp-myt) <= 1.E-10_dp)) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "I'm about to override the input temperature "// &
+                            "with the temperature found in external restart "// &
+                            "but TEMPERATURE_ANNEALING isn't explicitly given or it is set to 1.")
+            END IF
+            CALL section_vals_val_get(restart_file, "MOTION%MD%TEMPERATURE", r_val=myt, explicit=explicit1)
+            IF (explicit1) THEN
+               CALL section_vals_val_get(input_file, "MOTION%MD%TEMPERATURE", r_val=myt)
+            ELSE
+               CALL cp_warn(__LOCATION__, &
+                            "I'm not going to override the input temperature "// &
+                            "since the temperature isn't explicitly given in the external restart.")
+            END IF
+         END IF
+
          CALL section_vals_val_get(r_section, "RESTART_WALKERS", l_val=flag)
          IF (flag .AND. check_restart(input_file, restart_file, "MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS")) THEN
             CALL section_vals_val_get(restart_file, "MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS%WALKERS_STATUS", &
