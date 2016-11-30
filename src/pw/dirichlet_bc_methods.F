@@ -82,7 +82,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: n_prtn, npts
       INTEGER, DIMENSION(:), POINTER                     :: aa_cylindrical_nsides
       LOGICAL                                            :: is_periodic, verbose
-      REAL(dp)                                           :: base_radius, delta_alpha, sigma, &
+      REAL(dp)                                           :: base_radius, delta_alpha, frequency, &
+                                                            oscillating_fraction, phase, sigma, &
                                                             thickness, v_D
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: x_glbl, x_locl, y_glbl, y_locl, z_glbl, &
                                                             z_locl
@@ -136,6 +137,9 @@ CONTAINS
             n_prtn = poisson_params%dbc_params%aa_planar_nprtn(:, j)
             dbc_id = AA_PLANAR+j
             v_D = poisson_params%dbc_params%aa_planar_vD(j)
+            frequency = poisson_params%dbc_params%aa_planar_frequency(j)
+            oscillating_fraction = poisson_params%dbc_params%aa_planar_osc_frac(j)
+            phase = poisson_params%dbc_params%aa_planar_phase(j)
             sigma = poisson_params%dbc_params%aa_planar_sigma(j)
             thickness = poisson_params%dbc_params%aa_planar_thickness(j)
             parallel_plane = poisson_params%dbc_params%aa_planar_pplane(j)
@@ -150,7 +154,8 @@ CONTAINS
                                      poisson_params%dbc_params%aa_planar_xxtnt(:, j), &
                                      poisson_params%dbc_params%aa_planar_yxtnt(:, j), &
                                      poisson_params%dbc_params%aa_planar_zxtnt(:, j), &
-                                     thickness, sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
+                                     thickness, sigma, v_D, oscillating_fraction, frequency, &
+                                     phase, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                         x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
@@ -162,6 +167,9 @@ CONTAINS
             n_prtn = poisson_params%dbc_params%aa_cuboidal_nprtn(:, j-l)
             dbc_id = AA_CUBOIDAL+j-l
             v_D = poisson_params%dbc_params%aa_cuboidal_vD(j-l)
+            frequency = poisson_params%dbc_params%aa_cuboidal_frequency(j-l)
+            oscillating_fraction = poisson_params%dbc_params%aa_cuboidal_osc_frac(j-l)
+            phase = poisson_params%dbc_params%aa_cuboidal_phase(j-l)
             sigma = poisson_params%dbc_params%aa_cuboidal_sigma(j-l)
             is_periodic = poisson_params%dbc_params%aa_cuboidal_is_periodic(j-l)
 
@@ -174,7 +182,8 @@ CONTAINS
                                        poisson_params%dbc_params%aa_cuboidal_xxtnt(:, j-l), &
                                        poisson_params%dbc_params%aa_cuboidal_yxtnt(:, j-l), &
                                        poisson_params%dbc_params%aa_cuboidal_zxtnt(:, j-l), &
-                                       sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
+                                       sigma, v_D, oscillating_fraction, frequency, &
+                                       phase, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                         x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
@@ -187,6 +196,9 @@ CONTAINS
             n_prtn(1:2) = poisson_params%dbc_params%planar_nprtn(:, j-l)
             dbc_id = PLANAR+j-l
             v_D = poisson_params%dbc_params%planar_vD(j-l)
+            frequency = poisson_params%dbc_params%planar_frequency(j-l)
+            oscillating_fraction = poisson_params%dbc_params%planar_osc_frac(j-l)
+            phase = poisson_params%dbc_params%planar_phase(j-l)
             sigma = poisson_params%dbc_params%planar_sigma(j-l)
             thickness = poisson_params%dbc_params%planar_thickness(j-l)
             is_periodic = poisson_params%dbc_params%planar_is_periodic(j-l)
@@ -200,7 +212,8 @@ CONTAINS
                                             poisson_params%dbc_params%planar_Avtx(:, j-l), &
                                             poisson_params%dbc_params%planar_Bvtx(:, j-l), &
                                             poisson_params%dbc_params%planar_Cvtx(:, j-l), &
-                                            thickness, sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
+                                            thickness, sigma, v_D, oscillating_fraction, frequency, &
+                                            phase, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
             CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                         x_locl, y_locl, z_locl, is_periodic, verbose, dbcs(j)%dirichlet_bc)
@@ -221,6 +234,9 @@ CONTAINS
             delta_alpha = poisson_params%dbc_params%aa_cylindrical_sgap(j)
             sigma = poisson_params%dbc_params%aa_cylindrical_sigma(j)
             v_D = poisson_params%dbc_params%aa_cylindrical_vD(j)
+            frequency = poisson_params%dbc_params%aa_cylindrical_frequency(j)
+            oscillating_fraction = poisson_params%dbc_params%aa_cylindrical_osc_frac(j)
+            phase = poisson_params%dbc_params%aa_cylindrical_phase(j)
             is_periodic = poisson_params%dbc_params%aa_cylindrical_is_periodic(j)
 
             IF (unit_nr .GT. 0) THEN
@@ -231,6 +247,7 @@ CONTAINS
             CALL aa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, parallel_axis, &
                                           poisson_params%dbc_params%aa_cylindrical_xtnt(:, j), &
                                           base_center, base_radius, thickness, delta_alpha, sigma, v_D, &
+                                          oscillating_fraction, frequency, phase, &
                                           n_prtn, is_periodic, verbose, dbcs(ind_start:ind_end))
 
             l = l+aa_cylindrical_nsides(j)
@@ -424,6 +441,9 @@ CONTAINS
 !> \param thickness the thickness of the region
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
+!> \param osc_frac ...
+!> \param frequency ...
+!> \param phase ...
 !> \param dbc_id unique ID for the Dirichlet region
 !> \param verbose whether or not to print out the coordinates of the vertices
 !> \param dirichlet_bc the dirichlet_bc object to be created
@@ -432,12 +452,13 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE aa_planar_dbc_setup(cell_xtnts, parallel_plane, x_xtnt, y_xtnt, z_xtnt, &
-                                  thickness, sigma, v_D, dbc_id, verbose, dirichlet_bc)
+                                  thickness, sigma, v_D, osc_frac, frequency, phase, dbc_id, verbose, dirichlet_bc)
 
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
       INTEGER, INTENT(IN)                                :: parallel_plane
       REAL(dp), DIMENSION(2), INTENT(IN)                 :: x_xtnt, y_xtnt, z_xtnt
-      REAL(dp), INTENT(IN)                               :: thickness, sigma, v_D
+      REAL(dp), INTENT(IN)                               :: thickness, sigma, v_D, osc_frac, &
+                                                            frequency, phase
       INTEGER, INTENT(IN)                                :: dbc_id
       LOGICAL, INTENT(IN)                                :: verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
@@ -492,6 +513,9 @@ CONTAINS
       END IF
 
       dirichlet_bc%v_D = v_D
+      dirichlet_bc%osc_frac = osc_frac
+      dirichlet_bc%frequency = frequency
+      dirichlet_bc%phase = phase
       dirichlet_bc%dbc_id = dbc_id
       dirichlet_bc%dbc_geom = AA_PLANAR
       dirichlet_bc%smoothing_width = sigma
@@ -525,6 +549,9 @@ CONTAINS
 !> \param z_xtnt the z extent of the cuboidal region
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
+!> \param osc_frac ...
+!> \param frequency ...
+!> \param phase ...
 !> \param dbc_id unique ID for the Dirichlet region
 !> \param verbose whether or not to print out the coordinates of the vertices
 !> \param dirichlet_bc the dirichlet_bc object to be created
@@ -533,11 +560,11 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE aa_cuboidal_dbc_setup(cell_xtnts, x_xtnt, y_xtnt, z_xtnt, &
-                                    sigma, v_D, dbc_id, verbose, dirichlet_bc)
+                                    sigma, v_D, osc_frac, frequency, phase, dbc_id, verbose, dirichlet_bc)
 
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
       REAL(dp), DIMENSION(2), INTENT(IN)                 :: x_xtnt, y_xtnt, z_xtnt
-      REAL(dp), INTENT(IN)                               :: sigma, v_D
+      REAL(dp), INTENT(IN)                               :: sigma, v_D, osc_frac, frequency, phase
       INTEGER, INTENT(IN)                                :: dbc_id
       LOGICAL, INTENT(IN)                                :: verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
@@ -575,6 +602,9 @@ CONTAINS
       END IF
 
       dirichlet_bc%v_D = v_D
+      dirichlet_bc%osc_frac = osc_frac
+      dirichlet_bc%frequency = frequency
+      dirichlet_bc%phase = phase
       dirichlet_bc%dbc_id = dbc_id
       dirichlet_bc%dbc_geom = AA_CUBOIDAL
       dirichlet_bc%smoothing_width = sigma
@@ -610,6 +640,9 @@ CONTAINS
 !> \param thickness the thickness of the region
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
+!> \param osc_frac ...
+!> \param frequency ...
+!> \param phase ...
 !> \param dbc_id unique ID for the Dirichlet region
 !> \param verbose whether or not to print out the coordinates of the vertices
 !> \param dirichlet_bc the dirichlet_bc object to be created
@@ -618,11 +651,12 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
    SUBROUTINE arbitrary_planar_dbc_setup(cell_xtnts, A, B, C, thickness, &
-                                         sigma, v_D, dbc_id, verbose, dirichlet_bc)
+                                         sigma, v_D, osc_frac, frequency, phase, dbc_id, verbose, dirichlet_bc)
 
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: A, B, C
-      REAL(dp), INTENT(IN)                               :: thickness, sigma, v_D
+      REAL(dp), INTENT(IN)                               :: thickness, sigma, v_D, osc_frac, &
+                                                            frequency, phase
       INTEGER, INTENT(IN)                                :: dbc_id
       LOGICAL, INTENT(IN)                                :: verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
@@ -696,6 +730,9 @@ CONTAINS
       END IF
 
       dirichlet_bc%v_D = v_D
+      dirichlet_bc%osc_frac = osc_frac
+      dirichlet_bc%frequency = frequency
+      dirichlet_bc%phase = phase
       dirichlet_bc%dbc_id = dbc_id
       dirichlet_bc%dbc_geom = PLANAR
       dirichlet_bc%smoothing_width = sigma
@@ -744,6 +781,9 @@ CONTAINS
 !> \param delta_alpha ...
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
+!> \param osc_frac ...
+!> \param frequency ...
+!> \param phase ...
 !> \param n_prtn number of partitions along the edges of the faces of the prism
 !> \param is_periodic whether or not the tile is periodic with a periodicity of one unit cell
 !> \param verbose whether or not to print out the coordinates of the vertices
@@ -754,7 +794,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE aa_cylindrical_dbc_setup(pw_pool, cell_xtnts, x_locl, y_locl, z_locl, apx_type, parallel_axis, &
                                        xtnt, base_center, base_radius, thickness, delta_alpha, &
-                                       sigma, v_D, n_prtn, is_periodic, verbose, dbcs)
+                                       sigma, v_D, osc_frac, frequency, phase, n_prtn, is_periodic, verbose, dbcs)
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
@@ -763,7 +803,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: parallel_axis
       REAL(dp), DIMENSION(2), INTENT(IN)                 :: xtnt, base_center
       REAL(dp), INTENT(IN)                               :: base_radius, thickness, delta_alpha, &
-                                                            sigma, v_D
+                                                            sigma, v_D, osc_frac, frequency, phase
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_prtn
       LOGICAL, INTENT(IN)                                :: is_periodic, verbose
       TYPE(dirichlet_bc_p_type), DIMENSION(:), &
@@ -888,6 +928,9 @@ CONTAINS
             ALLOCATE (dbcs(j)%dirichlet_bc)
             dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
             dbcs(j)%dirichlet_bc%v_D = v_D
+            dbcs(j)%dirichlet_bc%osc_frac = osc_frac
+            dbcs(j)%dirichlet_bc%frequency = frequency
+            dbcs(j)%dirichlet_bc%phase = phase
             dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
@@ -937,6 +980,9 @@ CONTAINS
             ALLOCATE (dbcs(j)%dirichlet_bc)
             dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
             dbcs(j)%dirichlet_bc%v_D = v_D
+            dbcs(j)%dirichlet_bc%osc_frac = osc_frac
+            dbcs(j)%dirichlet_bc%frequency = frequency
+            dbcs(j)%dirichlet_bc%phase = phase
             dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
@@ -986,6 +1032,9 @@ CONTAINS
             ALLOCATE (dbcs(j)%dirichlet_bc)
             dbcs(j)%dirichlet_bc%dbc_geom = CYLINDRICAL
             dbcs(j)%dirichlet_bc%v_D = v_D
+            dbcs(j)%dirichlet_bc%osc_frac = osc_frac
+            dbcs(j)%dirichlet_bc%frequency = frequency
+            dbcs(j)%dirichlet_bc%phase = phase
             dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL+j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 

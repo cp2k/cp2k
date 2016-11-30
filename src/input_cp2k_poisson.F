@@ -920,6 +920,24 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+                          description="A fraction of the field can be set to oscilate over time.", &
+                          usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FREQUENCY", &
+                          description="The frequency with which the oscillating fraction oscillates.", &
+                          usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PHASE", &
+                          description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
+                          usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="PARALLEL_PLANE", &
                           enum_c_vals=s2a('XY', 'YZ', 'XZ'), &
                           enum_i_vals=(/xy_plane, yz_plane, xz_plane/), &
@@ -1013,6 +1031,24 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+                          description="A fraction of the field can be set to oscilate over time.", &
+                          usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FREQUENCY", &
+                          description="The frequency with which the oscillating fraction oscillates.", &
+                          usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PHASE", &
+                          description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
+                          usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="A", &
                           description="Coordinates of the vertex A.", &
                           usage="A <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
@@ -1080,6 +1116,24 @@ CONTAINS
       CALL keyword_create(keyword, name="v_D", &
                           description="The value of the fixed potential to be imposed at the cylindrical Dirichlet boundary.", &
                           usage="v_D <real>", unit_str="volt", type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+                          description="A fraction of the field can be set to oscilate over time.", &
+                          usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FREQUENCY", &
+                          description="The frequency with which the oscillating fraction oscillates.", &
+                          usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PHASE", &
+                          description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
+                          usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1181,6 +1235,24 @@ CONTAINS
       CALL keyword_create(keyword, name="v_D", &
                           description="The value of the fixed potential to be imposed at the region.", &
                           usage="v_D <real>", unit_str="volt", type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="OSCILLATING_FRACTION", &
+                          description="A fraction of the field can be set to oscilate over time.", &
+                          usage="OSCILLATING_FRACTION <real>", default_r_val=0.0_dp, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="FREQUENCY", &
+                          description="The frequency with which the oscillating fraction oscillates.", &
+                          usage="FREQUENCY <real>", default_r_val=0.0_dp, unit_str="s^-1", type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="PHASE", &
+                          description="The phase of the oscillattion. A phase of zero corresponds to a cosine function. ", &
+                          usage="PHASE <real>", default_r_val=0.0_dp, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

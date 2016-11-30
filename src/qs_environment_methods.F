@@ -403,6 +403,9 @@ CONTAINS
          CALL set_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
       ENDIF
 
+      !update the time in the poisson environement, to update time dependant constraints
+      new_pw_env%poisson_env%parameters%dbc_params%time = qs_env%sim_time
+
       CALL timestop(handle)
 
    END SUBROUTINE qs_env_rebuild_pw_env

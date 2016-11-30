@@ -27,6 +27,7 @@ MODULE dirichlet_bc_types
    TYPE :: dirichlet_bc_parameters
       LOGICAL                                  :: verbose_output
       LOGICAL                                  :: do_dbc_cube = .FALSE.
+      REAL(KIND=dp)                            :: time
 
       INTEGER                                  :: n_aa_planar
       INTEGER, DIMENSION(:, :), POINTER         :: aa_planar_nprtn => NULL()
@@ -35,6 +36,9 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_planar_yxtnt => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_planar_zxtnt => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_vD => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_osc_frac => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_frequency => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_phase => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_sigma => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_planar_thickness => NULL()
       LOGICAL, DIMENSION(:), POINTER           :: aa_planar_is_periodic => NULL()
@@ -46,6 +50,9 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: planar_Cvtx => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: planar_Dvtx => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_vD => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_osc_frac => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_frequency => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_phase => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_sigma => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: planar_thickness => NULL()
       LOGICAL, DIMENSION(:), POINTER           :: planar_is_periodic => NULL()
@@ -59,6 +66,9 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cylindrical_bctr => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_brad => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_vD => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_osc_frac => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_frequency => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_phase => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_sigma => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_thickness => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cylindrical_sgap => NULL()
@@ -70,12 +80,18 @@ MODULE dirichlet_bc_types
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cuboidal_yxtnt => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: aa_cuboidal_zxtnt => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cuboidal_vD => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cuboidal_osc_frac => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cuboidal_frequency => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cuboidal_phase => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: aa_cuboidal_sigma => NULL()
       LOGICAL, DIMENSION(:), POINTER           :: aa_cuboidal_is_periodic => NULL()
    END TYPE dirichlet_bc_parameters
 
    TYPE :: dirichlet_bc_type
       REAL(dp)                          :: v_D
+      REAL(dp)                          :: osc_frac
+      REAL(dp)                          :: frequency
+      REAL(dp)                          :: phase
       INTEGER                           :: dbc_id
       INTEGER                           :: dbc_geom
       REAL(dp), DIMENSION(3, 8)          :: vertices
@@ -227,6 +243,9 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%aa_planar_yxtnt)) DEALLOCATE (dbc_params%aa_planar_yxtnt)
       IF (ASSOCIATED(dbc_params%aa_planar_zxtnt)) DEALLOCATE (dbc_params%aa_planar_zxtnt)
       IF (ASSOCIATED(dbc_params%aa_planar_vD)) DEALLOCATE (dbc_params%aa_planar_vD)
+      IF (ASSOCIATED(dbc_params%aa_planar_frequency)) DEALLOCATE (dbc_params%aa_planar_frequency)
+      IF (ASSOCIATED(dbc_params%aa_planar_osc_frac)) DEALLOCATE (dbc_params%aa_planar_osc_frac)
+      IF (ASSOCIATED(dbc_params%aa_planar_phase)) DEALLOCATE (dbc_params%aa_planar_phase)
       IF (ASSOCIATED(dbc_params%aa_planar_sigma)) DEALLOCATE (dbc_params%aa_planar_sigma)
       IF (ASSOCIATED(dbc_params%aa_planar_thickness)) DEALLOCATE (dbc_params%aa_planar_thickness)
       IF (ASSOCIATED(dbc_params%aa_planar_is_periodic)) DEALLOCATE (dbc_params%aa_planar_is_periodic)
@@ -237,6 +256,9 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%planar_Cvtx)) DEALLOCATE (dbc_params%planar_Cvtx)
       IF (ASSOCIATED(dbc_params%planar_Dvtx)) DEALLOCATE (dbc_params%planar_Dvtx)
       IF (ASSOCIATED(dbc_params%planar_vD)) DEALLOCATE (dbc_params%planar_vD)
+      IF (ASSOCIATED(dbc_params%planar_frequency)) DEALLOCATE (dbc_params%planar_frequency)
+      IF (ASSOCIATED(dbc_params%planar_osc_frac)) DEALLOCATE (dbc_params%planar_osc_frac)
+      IF (ASSOCIATED(dbc_params%planar_phase)) DEALLOCATE (dbc_params%planar_phase)
       IF (ASSOCIATED(dbc_params%planar_sigma)) DEALLOCATE (dbc_params%planar_sigma)
       IF (ASSOCIATED(dbc_params%planar_thickness)) DEALLOCATE (dbc_params%planar_thickness)
       IF (ASSOCIATED(dbc_params%planar_is_periodic)) DEALLOCATE (dbc_params%planar_is_periodic)
@@ -249,6 +271,9 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%aa_cylindrical_bctr)) DEALLOCATE (dbc_params%aa_cylindrical_bctr)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_brad)) DEALLOCATE (dbc_params%aa_cylindrical_brad)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_vD)) DEALLOCATE (dbc_params%aa_cylindrical_vD)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_frequency)) DEALLOCATE (dbc_params%aa_cylindrical_frequency)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_osc_frac)) DEALLOCATE (dbc_params%aa_cylindrical_osc_frac)
+      IF (ASSOCIATED(dbc_params%aa_cylindrical_phase)) DEALLOCATE (dbc_params%aa_cylindrical_phase)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_sigma)) DEALLOCATE (dbc_params%aa_cylindrical_sigma)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_thickness)) DEALLOCATE (dbc_params%aa_cylindrical_thickness)
       IF (ASSOCIATED(dbc_params%aa_cylindrical_sgap)) DEALLOCATE (dbc_params%aa_cylindrical_sgap)
@@ -259,6 +284,9 @@ CONTAINS
       IF (ASSOCIATED(dbc_params%aa_cuboidal_yxtnt)) DEALLOCATE (dbc_params%aa_cuboidal_yxtnt)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_zxtnt)) DEALLOCATE (dbc_params%aa_cuboidal_zxtnt)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_vD)) DEALLOCATE (dbc_params%aa_cuboidal_vD)
+      IF (ASSOCIATED(dbc_params%aa_cuboidal_frequency)) DEALLOCATE (dbc_params%aa_cuboidal_frequency)
+      IF (ASSOCIATED(dbc_params%aa_cuboidal_osc_frac)) DEALLOCATE (dbc_params%aa_cuboidal_osc_frac)
+      IF (ASSOCIATED(dbc_params%aa_cuboidal_phase)) DEALLOCATE (dbc_params%aa_cuboidal_phase)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_sigma)) DEALLOCATE (dbc_params%aa_cuboidal_sigma)
       IF (ASSOCIATED(dbc_params%aa_cuboidal_is_periodic)) DEALLOCATE (dbc_params%aa_cuboidal_is_periodic)
 

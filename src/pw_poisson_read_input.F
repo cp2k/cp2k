@@ -343,8 +343,9 @@ CONTAINS
                                                             aa_cylindrical_explicit, &
                                                             aa_planar_explicit, is_periodic, &
                                                             planar_explicit
-      REAL(dp)                                           :: aa_cylindrical_brad, delta_alpha, &
-                                                            intercept, sigma, thickness, v_D
+      REAL(dp)                                           :: aa_cylindrical_brad, delta_alpha, freq, &
+                                                            intercept, osc_frac, phase, sigma, &
+                                                            thickness, v_D
       REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt, &
          aa_cylindrical_bctr, aa_cylindrical_xtnt, aa_planar_xxtnt, aa_planar_yxtnt, &
          aa_planar_zxtnt, planar_Avtx, planar_Bvtx, planar_Cvtx
@@ -372,17 +373,25 @@ CONTAINS
                       params%dbc_params%aa_planar_yxtnt(2, n_aap_rep), &
                       params%dbc_params%aa_planar_zxtnt(2, n_aap_rep), &
                       params%dbc_params%aa_planar_vD(n_aap_rep), &
+                      params%dbc_params%aa_planar_frequency(n_aap_rep), &
+                      params%dbc_params%aa_planar_phase(n_aap_rep), &
+                      params%dbc_params%aa_planar_osc_frac(n_aap_rep), &
                       params%dbc_params%aa_planar_sigma(n_aap_rep), &
                       params%dbc_params%aa_planar_thickness(n_aap_rep), &
                       params%dbc_params%aa_planar_is_periodic(n_aap_rep))
             NULLIFY (aa_planar_nprtn, aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt)
             DO i = 1, n_aap_rep
                CALL section_vals_val_get(aa_planar_section, "v_D", i_rep_section=i, r_val=v_D)
+               CALL section_vals_val_get(aa_planar_section, "OSCILLATING_FRACTION", i_rep_section=i, r_val=osc_frac)
+               CALL section_vals_val_get(aa_planar_section, "FREQUENCY", i_rep_section=i, r_val=freq)
+               CALL section_vals_val_get(aa_planar_section, "PHASE", i_rep_section=i, r_val=phase)
                CALL section_vals_val_get(aa_planar_section, "SIGMA", i_rep_section=i, r_val=sigma)
                CALL section_vals_val_get(aa_planar_section, "THICKNESS", i_rep_section=i, r_val=thickness)
                CALL section_vals_val_get(aa_planar_section, "PERIODIC_REGION", i_rep_section=i, l_val=is_periodic)
-
                params%dbc_params%aa_planar_vD(i) = v_D
+               params%dbc_params%aa_planar_frequency(i) = freq
+               params%dbc_params%aa_planar_phase(i) = phase
+               params%dbc_params%aa_planar_osc_frac(i) = osc_frac
                params%dbc_params%aa_planar_sigma(i) = sigma
                params%dbc_params%aa_planar_thickness(i) = thickness
                params%dbc_params%aa_planar_is_periodic(i) = is_periodic
@@ -440,6 +449,9 @@ CONTAINS
                       params%dbc_params%planar_Bvtx(3, n_p_rep), &
                       params%dbc_params%planar_Cvtx(3, n_p_rep), &
                       params%dbc_params%planar_vD(n_p_rep), &
+                      params%dbc_params%planar_frequency(n_p_rep), &
+                      params%dbc_params%planar_phase(n_p_rep), &
+                      params%dbc_params%planar_osc_frac(n_p_rep), &
                       params%dbc_params%planar_sigma(n_p_rep), &
                       params%dbc_params%planar_thickness(n_p_rep), &
                       params%dbc_params%planar_is_periodic(n_p_rep))
@@ -450,6 +462,9 @@ CONTAINS
                CALL section_vals_val_get(planar_section, "B", i_rep_section=i, r_vals=planar_Bvtx)
                CALL section_vals_val_get(planar_section, "C", i_rep_section=i, r_vals=planar_Cvtx)
                CALL section_vals_val_get(planar_section, "v_D", i_rep_section=i, r_val=v_D)
+               CALL section_vals_val_get(planar_section, "OSCILLATING_FRACTION", i_rep_section=i, r_val=osc_frac)
+               CALL section_vals_val_get(planar_section, "FREQUENCY", i_rep_section=i, r_val=freq)
+               CALL section_vals_val_get(planar_section, "PHASE", i_rep_section=i, r_val=phase)
                CALL section_vals_val_get(planar_section, "SIGMA", i_rep_section=i, r_val=sigma)
                CALL section_vals_val_get(planar_section, "THICKNESS", i_rep_section=i, r_val=thickness)
                params%dbc_params%planar_nprtn(:, i) = planar_nprtn
@@ -457,6 +472,9 @@ CONTAINS
                params%dbc_params%planar_Bvtx(:, i) = planar_Bvtx
                params%dbc_params%planar_Cvtx(:, i) = planar_Cvtx
                params%dbc_params%planar_vD(i) = v_D
+               params%dbc_params%planar_frequency(i) = freq
+               params%dbc_params%planar_phase(i) = phase
+               params%dbc_params%planar_osc_frac(i) = osc_frac
                params%dbc_params%planar_sigma(i) = sigma
                params%dbc_params%planar_thickness(i) = thickness
                params%dbc_params%planar_is_periodic(i) = .FALSE. ! periodic not yet implemented
@@ -475,6 +493,9 @@ CONTAINS
                       params%dbc_params%aa_cylindrical_bctr(2, n_aacyl_rep), &
                       params%dbc_params%aa_cylindrical_brad(n_aacyl_rep), &
                       params%dbc_params%aa_cylindrical_vD(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_frequency(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_phase(n_aacyl_rep), &
+                      params%dbc_params%aa_cylindrical_osc_frac(n_aacyl_rep), &
                       params%dbc_params%aa_cylindrical_sigma(n_aacyl_rep), &
                       params%dbc_params%aa_cylindrical_thickness(n_aacyl_rep), &
                       params%dbc_params%aa_cylindrical_sgap(n_aacyl_rep), &
@@ -489,6 +510,9 @@ CONTAINS
                CALL section_vals_val_get(aa_cylindrical_section, "BASE_CENTER", i_rep_section=i, r_vals=aa_cylindrical_bctr)
                CALL section_vals_val_get(aa_cylindrical_section, "BASE_RADIUS", i_rep_section=i, r_val=aa_cylindrical_brad)
                CALL section_vals_val_get(aa_cylindrical_section, "v_D", i_rep_section=i, r_val=v_D)
+               CALL section_vals_val_get(aa_cylindrical_section, "OSCILLATING_FRACTION", i_rep_section=i, r_val=osc_frac)
+               CALL section_vals_val_get(aa_cylindrical_section, "FREQUENCY", i_rep_section=i, r_val=freq)
+               CALL section_vals_val_get(aa_cylindrical_section, "PHASE", i_rep_section=i, r_val=phase)
                CALL section_vals_val_get(aa_cylindrical_section, "SIGMA", i_rep_section=i, r_val=sigma)
                CALL section_vals_val_get(aa_cylindrical_section, "THICKNESS", i_rep_section=i, r_val=thickness)
                CALL section_vals_val_get(aa_cylindrical_section, "delta_alpha", i_rep_section=i, r_val=delta_alpha)
@@ -500,6 +524,9 @@ CONTAINS
                params%dbc_params%aa_cylindrical_bctr(:, i) = aa_cylindrical_bctr
                params%dbc_params%aa_cylindrical_brad(i) = aa_cylindrical_brad
                params%dbc_params%aa_cylindrical_vD(i) = v_D
+               params%dbc_params%aa_cylindrical_frequency(i) = freq
+               params%dbc_params%aa_cylindrical_phase(i) = phase
+               params%dbc_params%aa_cylindrical_osc_frac(i) = osc_frac
                params%dbc_params%aa_cylindrical_sigma(i) = sigma
                params%dbc_params%aa_cylindrical_thickness(i) = thickness
                params%dbc_params%aa_cylindrical_sgap(i) = delta_alpha
@@ -517,6 +544,9 @@ CONTAINS
                       params%dbc_params%aa_cuboidal_yxtnt(2, n_aac_rep), &
                       params%dbc_params%aa_cuboidal_zxtnt(2, n_aac_rep), &
                       params%dbc_params%aa_cuboidal_vD(n_aac_rep), &
+                      params%dbc_params%aa_cuboidal_frequency(n_aac_rep), &
+                      params%dbc_params%aa_cuboidal_phase(n_aac_rep), &
+                      params%dbc_params%aa_cuboidal_osc_frac(n_aac_rep), &
                       params%dbc_params%aa_cuboidal_sigma(n_aac_rep), &
                       params%dbc_params%aa_cuboidal_is_periodic(n_aac_rep))
             NULLIFY (aa_cuboidal_nprtn, aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt)
@@ -526,6 +556,9 @@ CONTAINS
                CALL section_vals_val_get(aa_cuboidal_section, "Y_xtnt", i_rep_section=i, r_vals=aa_cuboidal_yxtnt)
                CALL section_vals_val_get(aa_cuboidal_section, "Z_xtnt", i_rep_section=i, r_vals=aa_cuboidal_zxtnt)
                CALL section_vals_val_get(aa_cuboidal_section, "v_D", i_rep_section=i, r_val=v_D)
+               CALL section_vals_val_get(aa_cuboidal_section, "OSCILLATING_FRACTION", i_rep_section=i, r_val=osc_frac)
+               CALL section_vals_val_get(aa_cuboidal_section, "FREQUENCY", i_rep_section=i, r_val=freq)
+               CALL section_vals_val_get(aa_cuboidal_section, "PHASE", i_rep_section=i, r_val=phase)
                CALL section_vals_val_get(aa_cuboidal_section, "SIGMA", i_rep_section=i, r_val=sigma)
                CALL section_vals_val_get(aa_cuboidal_section, "PERIODIC_REGION", i_rep_section=i, l_val=is_periodic)
                params%dbc_params%aa_cuboidal_nprtn(:, i) = aa_cuboidal_nprtn
@@ -533,6 +566,9 @@ CONTAINS
                params%dbc_params%aa_cuboidal_yxtnt(:, i) = aa_cuboidal_yxtnt
                params%dbc_params%aa_cuboidal_zxtnt(:, i) = aa_cuboidal_zxtnt
                params%dbc_params%aa_cuboidal_vD(i) = v_D
+               params%dbc_params%aa_cuboidal_frequency(i) = freq
+               params%dbc_params%aa_cuboidal_phase(i) = phase
+               params%dbc_params%aa_cuboidal_osc_frac(i) = osc_frac
                params%dbc_params%aa_cuboidal_sigma(i) = sigma
                params%dbc_params%aa_cuboidal_is_periodic(i) = is_periodic
             END DO

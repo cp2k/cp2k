@@ -27,7 +27,8 @@ MODULE ps_implicit_methods
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE mathconstants,                   ONLY: fourpi
+   USE mathconstants,                   ONLY: fourpi,&
+                                              pi
    USE message_passing,                 ONLY: mp_sum
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
@@ -561,13 +562,13 @@ CONTAINS
       ALLOCATE (Bt(data_size, n_tiles_tot))
       ALLOCATE (QS(n_tiles_tot, n_tiles_tot))
       ALLOCATE (Rinv(n_tiles_tot+1, n_tiles_tot+1))
-      ALLOCATE (v_D(n_tiles_tot))
 
       B(:, :) = ps_implicit_env%B
       Bt(:, :) = ps_implicit_env%Bt
       QS(:, :) = ps_implicit_env%QS
       Rinv(:, :) = ps_implicit_env%Rinv
-      v_D(:) = ps_implicit_env%v_D
+      CALL get_voltage(poisson_env%parameters%dbc_params%time, ps_implicit_env%v_D, ps_implicit_env%osc_frac, &
+                       ps_implicit_env%frequency, ps_implicit_env%phase, v_D)
 
       lb1 = bounds_local(1, 1); ub1 = bounds_local(2, 1)
       lb2 = bounds_local(1, 2); ub2 = bounds_local(2, 2)
@@ -837,13 +838,13 @@ CONTAINS
       ALLOCATE (Bt(data_size, n_tiles_tot))
       ALLOCATE (QS(n_tiles_tot, n_tiles_tot))
       ALLOCATE (Rinv(n_tiles_tot+1, n_tiles_tot+1))
-      ALLOCATE (v_D(n_tiles_tot))
 
       B(:, :) = ps_implicit_env%B
       Bt(:, :) = ps_implicit_env%Bt
       QS(:, :) = ps_implicit_env%QS
       Rinv(:, :) = ps_implicit_env%Rinv
-      v_D(:) = ps_implicit_env%v_D
+      CALL get_voltage(poisson_env%parameters%dbc_params%time, ps_implicit_env%v_D, ps_implicit_env%osc_frac, &
+                       ps_implicit_env%frequency, ps_implicit_env%phase, v_D)
 
       lb1 = bounds_local(1, 1); ub1 = bounds_local(2, 1)
       lb2 = bounds_local(1, 2); ub2 = bounds_local(2, 2)
@@ -1173,6 +1174,9 @@ CONTAINS
          ALLOCATE (ps_implicit_env%QS(n_tiles_tot, n_tiles_tot))
          ALLOCATE (ps_implicit_env%Rinv(n_tiles_tot+1, n_tiles_tot+1))
          ALLOCATE (ps_implicit_env%v_D(n_tiles_tot))
+         ALLOCATE (ps_implicit_env%osc_frac(n_tiles_tot))
+         ALLOCATE (ps_implicit_env%frequency(n_tiles_tot))
+         ALLOCATE (ps_implicit_env%phase(n_tiles_tot))
 
          ALLOCATE (QAinvxBt(data_size, n_tiles_tot))
          ALLOCATE (Bxunit_vec(n_tiles_tot))
@@ -1205,6 +1209,9 @@ CONTAINS
                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
                ! the electrostatic potential has opposite sign by internal convention
                ps_implicit_env%v_D(indx1+i-1) = -1.0_dp*ps_implicit_env%contacts(j)%dirichlet_bc%v_D
+               ps_implicit_env%osc_frac(indx1+i-1) = ps_implicit_env%contacts(j)%dirichlet_bc%osc_frac
+               ps_implicit_env%frequency(indx1+i-1) = ps_implicit_env%contacts(j)%dirichlet_bc%frequency
+               ps_implicit_env%phase(indx1+i-1) = ps_implicit_env%contacts(j)%dirichlet_bc%phase
 
                CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in)
                CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out)
@@ -1296,6 +1303,9 @@ CONTAINS
          ALLOCATE (ps_implicit_env%QS(n_tiles_tot, n_tiles_tot))
          ALLOCATE (ps_implicit_env%Rinv(n_tiles_tot+1, n_tiles_tot+1))
          ALLOCATE (ps_implicit_env%v_D(n_tiles_tot))
+         ALLOCATE (ps_implicit_env%osc_frac(n_tiles_tot))
+         ALLOCATE (ps_implicit_env%frequency(n_tiles_tot))
+         ALLOCATE (ps_implicit_env%phase(n_tiles_tot))
 
          ALLOCATE (QAinvxBt(data_size, n_tiles_tot))
          ALLOCATE (Bxunit_vec(n_tiles_tot))
@@ -1323,6 +1333,9 @@ CONTAINS
                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
                ! the electrostatic potential has opposite sign by internal convention
                ps_implicit_env%v_D(indx1+i-1) = -1.0_dp*ps_implicit_env%contacts(j)%dirichlet_bc%v_D
+               ps_implicit_env%osc_frac(indx1+i-1) = ps_implicit_env%contacts(j)%dirichlet_bc%osc_frac
+               ps_implicit_env%frequency(indx1+i-1) = ps_implicit_env%contacts(j)%dirichlet_bc%frequency
+               ps_implicit_env%phase(indx1+i-1) = ps_implicit_env%contacts(j)%dirichlet_bc%phase
 
                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in)
                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
@@ -1374,6 +1387,9 @@ CONTAINS
          ALLOCATE (ps_implicit_env%QS(1, 1))
          ALLOCATE (ps_implicit_env%Rinv(1, 1))
          ALLOCATE (ps_implicit_env%v_D(1))
+         ALLOCATE (ps_implicit_env%osc_frac(1))
+         ALLOCATE (ps_implicit_env%frequency(1))
+         ALLOCATE (ps_implicit_env%phase(1))
 
          ps_implicit_env%idx_1dto3d = 1
          ps_implicit_env%B = 0.0_dp
@@ -2174,5 +2190,37 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE convert_1dto3d
+
+! **************************************************************************************************
+!> \brief Returns the voltage of a tile. In case an alternating field is used, the oltage is a funtion of time
+!> \param time ...
+!> \param v_D ...
+!> \param osc_frac ...
+!> \param frequency ...
+!> \param phase ...
+!> \param v_D_new ...
+! **************************************************************************************************
+   SUBROUTINE get_voltage(time, v_D, osc_frac, frequency, phase, v_D_new)
+
+      REAL(dp), INTENT(IN)                               :: time
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: v_D, osc_frac, frequency, phase
+      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT)   :: v_D_new
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_voltage', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (v_D_new(SIZE(v_D)))
+
+      DO i = 1, SIZE(v_D)
+         v_D_new(i) = v_D(i)*(1-osc_frac(i))+ &
+                      v_D(i)*osc_frac(i)*COS(2*pi*time*frequency(i)+phase(i))
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_voltage
 
 END MODULE ps_implicit_methods
