@@ -4,17 +4,17 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief basic linear algebra operations for full matrixes
+!> \brief basic linear algebra operations for full matrices
 !> \par History
-!>      08.2002 splitted out of qs_blacs [fawzi]
+!>      08.2002 split out of qs_blacs [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_fm_basic_linalg
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: dp,&
@@ -32,8 +32,9 @@ MODULE cp_fm_basic_linalg
 
    PUBLIC :: cp_fm_scale, & ! scale a matrix
              cp_fm_scale_and_add, & ! scale and add two matrices
-             cp_fm_column_scale, & ! scale colummns of a matrix
+             cp_fm_column_scale, & ! scale columns of a matrix
              cp_fm_trace, & ! trace of the transpose(A)*B
+             cp_fm_p_trace, & ! trace of the transpose(A)*B
              cp_fm_norm, & ! different norms of A
              cp_fm_schur_product, & ! schur product
              cp_fm_transpose, & ! transpose a matrix
@@ -45,7 +46,7 @@ MODULE cp_fm_basic_linalg
              cp_complex_fm_gemm, & ! multiply two complex matrices, represented by non_complex fm matrices
              cp_fm_invert, & ! computes the inverse and determinant
              cp_fm_frobenius_norm, & ! frobenius norm
-             cp_fm_triangular_invert, & ! compute the reciprocal of a tirangular matrix
+             cp_fm_triangular_invert, & ! compute the reciprocal of a triangular matrix
              cp_fm_qr_factorization, & ! compute the QR factorization of a rectangular matrix
              cp_fm_solve ! solves the equation  A*B=C A and C are input
 
@@ -735,6 +736,81 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_trace
+
+! **************************************************************************************************
+!> \brief Compute trace(matrix_a(k)^T matrix_b(k)) for each pair of matrices.
+!> \param matrix_a list of matrices
+!> \param matrix_b another list of matrices
+!> \param trace    computed traces
+!> \par History
+!>    * 11.2016 forked from cp_fm_trace() [Sergey Chulkov]
+!> \note
+!>      Computing the trace requires collective communication between involved MPI processes
+!>      that implies a synchronisation point among them. The aim of this subroutine is to reduce
+!>      the amount of time wasted in such synchronisation by performing one large collective
+!>      operation which involves all the matrices in question.
+! **************************************************************************************************
+   SUBROUTINE cp_fm_p_trace(matrix_a, matrix_b, trace)
+
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a, matrix_b
+      REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_p_trace', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: group, handle, imatrix, n_matrices, &
+                                                            ncols_local, ncols_local_b, &
+                                                            nrows_local, nrows_local_b
+      LOGICAL                                            :: use_sp_a, use_sp_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ldata_a, ldata_b
+      REAL(KIND=sp), DIMENSION(:, :), POINTER            :: ldata_a_sp, ldata_b_sp
+
+      CALL timeset(routineN, handle)
+
+      n_matrices = SIZE(trace)
+      CPASSERT(SIZE(matrix_a) == n_matrices)
+      CPASSERT(SIZE(matrix_b) == n_matrices)
+
+      group = matrix_a(1)%matrix%matrix_struct%para_env%group
+
+!$OMP PARALLEL DO DEFAULT(NONE), &
+!$OMP             PRIVATE(imatrix, ldata_a, ldata_a_sp, ldata_b, ldata_b_sp, ncols_local), &
+!$OMP             PRIVATE(ncols_local_b, nrows_local, nrows_local_b, use_sp_a, use_sp_b), &
+!$OMP             SHARED(matrix_a, matrix_b, n_matrices, trace)
+      DO imatrix = 1, n_matrices
+         CALL cp_fm_get_info(matrix_a(imatrix)%matrix, nrow_local=nrows_local, ncol_local=ncols_local)
+         CALL cp_fm_get_info(matrix_a(imatrix)%matrix, nrow_local=nrows_local_b, ncol_local=ncols_local_b)
+         CPASSERT(nrows_local_b == nrows_local)
+         CPASSERT(ncols_local_b == ncols_local)
+
+         use_sp_a = matrix_a(imatrix)%matrix%use_sp
+         ldata_a => matrix_a(imatrix)%matrix%local_data
+         ldata_a_sp => matrix_a(imatrix)%matrix%local_data_sp
+
+         use_sp_b = matrix_b(imatrix)%matrix%use_sp
+         ldata_b => matrix_b(imatrix)%matrix%local_data
+         ldata_b_sp => matrix_b(imatrix)%matrix%local_data_sp
+
+         IF (use_sp_a .AND. use_sp_b) THEN
+            trace(imatrix) = accurate_sum(REAL(ldata_a_sp(1:nrows_local, 1:ncols_local)* &
+                                               ldata_b_sp(1:nrows_local, 1:ncols_local), dp))
+         ELSE IF (use_sp_a .AND. .NOT. use_sp_b) THEN
+            trace(imatrix) = accurate_sum(REAL(ldata_a_sp(1:nrows_local, 1:ncols_local), dp)* &
+                                          ldata_b(1:nrows_local, 1:ncols_local))
+         ELSE IF (.NOT. use_sp_a .AND. use_sp_b) THEN
+            trace(imatrix) = accurate_sum(ldata_a(1:nrows_local, 1:ncols_local)* &
+                                          REAL(ldata_b_sp(1:nrows_local, 1:ncols_local), dp))
+         ELSE
+            trace(imatrix) = accurate_sum(ldata_a(1:nrows_local, 1:ncols_local)* &
+                                          ldata_b(1:nrows_local, 1:ncols_local))
+         END IF
+      END DO
+!$OMP END PARALLEL DO
+
+      CALL mp_sum(trace, group)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_p_trace
 
 ! **************************************************************************************************
 !> \brief multiplies in place by a triangular matrix:

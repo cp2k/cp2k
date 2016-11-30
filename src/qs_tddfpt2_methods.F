@@ -30,6 +30,7 @@ MODULE qs_tddfpt2_methods
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_p_trace,&
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_schur_product,&
@@ -3446,7 +3447,8 @@ CONTAINS
                                                             istate, nrvs, nspins, nstates_total
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmo_occ
       REAL(kind=dp)                                      :: eref, minus_lambda, weight
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: Ab_minus_eb
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: Ab_minus_eb, matrix_a, matrix_b
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(tddfpt_fm_vector), ALLOCATABLE, DIMENSION(:)  :: Ab_cols, residual_cols
 
@@ -3494,6 +3496,8 @@ CONTAINS
             END DO
          END DO
 
+         ALLOCATE (matrix_a(nstates_total), matrix_b(nstates_total), weights(nstates_total))
+
          ! *** actually compute residual vectors ***
          DO irv = 1, nrvs
             IF (ASSOCIATED(ritz_vects(1, irv)%matrix)) THEN
@@ -3517,13 +3521,22 @@ CONTAINS
                   imo_occ = guess_vectors%imos_occ(istate)
                   imo_virt = guess_vectors%imos_virt(istate)
 
+                  matrix_a(istate)%matrix => gs_mos(ispin)%vectors_mo_virt(imo_virt)%matrix
+                  matrix_b(istate)%matrix => Ab_cols(ispin)%vect(imo_occ)%matrix
+               END DO
+
+               CALL cp_fm_p_trace(matrix_a, matrix_b, weights)
+
+               DO istate = 1, nstates_total
+                  ispin = guess_vectors%ispins(istate)
+                  imo_occ = guess_vectors%imos_occ(istate)
+                  imo_virt = guess_vectors%imos_virt(istate)
+
                   eref = guess_vectors%evals(istate)+minus_lambda
                   IF (ABS(eref) < threshold) &
                      eref = guess_vectors%evals(istate)+eref_scale*minus_lambda
 
-                  CALL cp_fm_trace(gs_mos(ispin)%vectors_mo_virt(imo_virt)%matrix, Ab_cols(ispin)%vect(imo_occ)%matrix, weight)
-
-                  weight = weight/eref
+                  weight = weights(istate)/eref
                   CALL cp_fm_scale_and_add(1.0_dp, residual_cols(ispin)%vect(imo_occ)%matrix, &
                                            weight, gs_mos(ispin)%vectors_mo_virt(imo_virt)%matrix)
                END DO
@@ -3536,6 +3549,8 @@ CONTAINS
                END DO
             END IF
          END DO
+
+         DEALLOCATE (matrix_a, matrix_b, weights)
 
          DO ispin = SIZE(Ab_cols), 1, -1
             DO imo_occ = SIZE(Ab_cols(ispin)%vect), 1, -1
