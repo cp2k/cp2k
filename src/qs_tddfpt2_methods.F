@@ -4117,6 +4117,7 @@ CONTAINS
             CALL cp_warn(__LOCATION__, &
                          "User requested to restart the TDDFPT wave functions from the file '"//TRIM(filename)// &
                          "' which does not exist. Guess wave functions will be constructed using Kohn-Sham orbitals.")
+            CALL timestop(handle)
             RETURN
          END IF
 
