@@ -322,7 +322,7 @@ CONTAINS
                                   force_env_section=force_env_section, subsys_section=subsys_section)
 
          CALL qs_env_create(qs_env, globenv)
-         CALL qs_init(qs_env, para_env, globenv, root_section, cp_subsys=subsys_loc, &
+         CALL qs_init(qs_env, para_env, root_section, globenv=globenv, cp_subsys=subsys_loc, &
                       force_env_section=force_env_section, subsys_section=subsys_section, &
                       use_motion_section=.FALSE.)
          CALL cp_subsys_release(subsys_loc)

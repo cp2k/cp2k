@@ -61,7 +61,9 @@ MODULE qs_wannier90
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_release,&
                                               qs_environment_type
+   USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
@@ -165,7 +167,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: mp_grid
       INTEGER, DIMENSION(:), POINTER                     :: invals
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: gamma_only, my_kpgrp, mygrp, spinors
+      LOGICAL                                            :: do_kpoints, gamma_only, my_kpgrp, mygrp, &
+                                                            spinors
       REAL(KIND=dp)                                      :: cmmn, ksign, rmmn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt
@@ -192,6 +195,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_environment_type), POINTER                 :: qs_env_kp
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
 
@@ -330,10 +334,19 @@ CONTAINS
       END IF
 
       ! calculate bands
+      NULLIFY (qs_env_kp)
+      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+      IF (do_kpoints) THEN
+         ! we already do kpoints
+         qs_env_kp => qs_env
+      ELSE
+         ! we start from gamma point only
+         CALL create_kp_from_gamma(qs_env, qs_env_kp)
+      END IF
       IF (iw > 0) THEN
          WRITE (unit=iw, FMT="(/,T2,A)") "Start K-Point Calculation ... "
       END IF
-      CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
+      CALL get_qs_env(qs_env=qs_env_kp, para_env=para_env, blacs_env=blacs_env)
       kpoint%para_env => para_env
       CALL cp_para_env_retain(para_env)
       kpoint%blacs_env_all => blacs_env
@@ -356,10 +369,10 @@ CONTAINS
          END DO
       END DO
       !
-      CALL get_qs_env(qs_env=qs_env, sab_orb=sab_nl, dft_control=dft_control)
+      CALL get_qs_env(qs_env=qs_env_kp, sab_orb=sab_nl, dft_control=dft_control)
       CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)
       !
-      CALL get_qs_env(qs_env=qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
+      CALL get_qs_env(qs_env=qs_env_kp, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
                       scf_env=scf_env, scf_control=scf_control)
       CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE.)
       !
@@ -415,7 +428,7 @@ CONTAINS
          NULLIFY (berry_matrix(i)%cosmat)
          NULLIFY (berry_matrix(i)%sinmat)
          bvec(1:3) = twopi*MATMUL(TRANSPOSE(cell%h_inv(1:3, 1:3)), b_latt(1:3, i))
-         CALL build_berry_kpoint_matrix(qs_env, berry_matrix(i)%cosmat, &
+         CALL build_berry_kpoint_matrix(qs_env_kp, berry_matrix(i)%cosmat, &
                                         berry_matrix(i)%sinmat, bvec)
       END DO
       ! work matrices for MOs (all group)
@@ -604,6 +617,11 @@ CONTAINS
       DEALLOCATE (nblist, b_latt)
       IF (nexcl > 0) THEN
          DEALLOCATE (exclude_bands)
+      END IF
+      IF (do_kpoints) THEN
+         NULLIFY (qs_env_kp)
+      ELSE
+         CALL qs_env_release(qs_env_kp)
       END IF
 
       CALL kpoint_release(kpoint)

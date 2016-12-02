@@ -68,7 +68,7 @@ MODULE qs_force
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_initialization,           ONLY: qs_scf_compute_properties
+   USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
    USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                               qs_subsys_type
    USE rt_propagation_forces,           ONLY: calc_c_mat_force,&

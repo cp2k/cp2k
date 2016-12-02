@@ -34,6 +34,8 @@
        FULL_GRID ON 
        VERBOSE F
        PARALLEL_GROUP_SIZE  0
+    &END KPOINTS
+    &PRINT
        &BAND_STRUCTURE
           FILE_NAME xx.bs
           &KPOINT_SET
@@ -43,7 +45,7 @@
              SPECIAL_POINT  1.0 0.0 0.0
           &END
        &END BAND_STRUCTURE
-    &END KPOINTS
+    &END PRINT
   &END DFT
   &SUBSYS
     &TOPOLOGY

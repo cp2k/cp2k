@@ -97,7 +97,8 @@ MODULE qs_environment_types
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
                                               qs_ks_release,&
-                                              qs_ks_retain
+                                              qs_ks_retain,&
+                                              set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_release,&
                                               linres_control_retain,&
                                               linres_control_type
@@ -799,7 +800,7 @@ CONTAINS
    SUBROUTINE init_qs_env(qs_env, globenv)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
 
       NULLIFY (qs_env%ls_scf_env)
       NULLIFY (qs_env%transport_env)
@@ -870,8 +871,13 @@ CONTAINS
       qs_env%has_unit_metric = .FALSE.
       qs_env%calc_image_preconditioner = .TRUE.
       qs_env%do_transport = .FALSE.
-      qs_env%target_time = globenv%cp2k_target_time
-      qs_env%start_time = globenv%cp2k_start_time
+      IF (PRESENT(globenv)) THEN
+         qs_env%target_time = globenv%cp2k_target_time
+         qs_env%start_time = globenv%cp2k_start_time
+      ELSE
+         qs_env%target_time = 0.0_dp
+         qs_env%start_time = 0.0_dp
+      END IF
 
       qs_env%sim_time = 0._dp
       qs_env%sim_step = 0
@@ -943,6 +949,7 @@ CONTAINS
 !> \param dispersion_env ...
 !> \param mp2_env ...
 !> \param kg_env ...
+!> \param kpoints ...
 !> \param WannierCentres ...
 !> \date    23.01.2002
 !> \author  MK
@@ -961,7 +968,7 @@ CONTAINS
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, dispersion_env, mp2_env, kg_env, &
-                         WannierCentres)
+                         kpoints, WannierCentres)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1023,6 +1030,7 @@ CONTAINS
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(wannier_centres_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: WannierCentres
 
@@ -1188,6 +1196,7 @@ CONTAINS
       IF (PRESENT(lri_density)) qs_env%lri_density => lri_density
       IF (PRESENT(dispersion_env)) qs_env%dispersion_env => dispersion_env
       IF (PRESENT(WannierCentres)) qs_env%WannierCentres => WannierCentres
+      IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
    END SUBROUTINE set_qs_env
 
 ! **************************************************************************************************
@@ -1200,7 +1209,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_env_create(qs_env, globenv)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(global_environment_type), POINTER             :: globenv
+      TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', routineP = moduleN//':'//routineN
 

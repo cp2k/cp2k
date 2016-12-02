@@ -10,7 +10,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_band_structure
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -35,6 +36,7 @@ MODULE qs_band_structure
                                               kpoint_create,&
                                               kpoint_env_type,&
                                               kpoint_release,&
+                                              kpoint_sym_create,&
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: twopi
@@ -42,7 +44,9 @@ MODULE qs_band_structure
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_release,&
                                               qs_environment_type
+   USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
@@ -60,14 +64,14 @@ MODULE qs_band_structure
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_band_structure'
 
-   PUBLIC :: calculate_band_structure
+   PUBLIC :: calculate_band_structure, calculate_kp_orbitals
 
 ! **************************************************************************************************
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Create a kpoint environment
+!> \brief Main routine for band structure calculation
 !> \param qs_env ...
 !> \author JGH
 ! **************************************************************************************************
@@ -77,32 +81,58 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_band_structure', &
          routineP = moduleN//':'//routineN
 
+      LOGICAL                                            :: do_kpoints, explicit
+      TYPE(qs_environment_type), POINTER                 :: qs_env_kp
+      TYPE(section_vals_type), POINTER                   :: bs_input
+
+      bs_input => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%BAND_STRUCTURE")
+      CALL section_vals_get(bs_input, explicit=explicit)
+      IF (explicit) THEN
+         CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
+         IF (do_kpoints) THEN
+            CALL do_calculate_band_structure(qs_env)
+         ELSE
+            NULLIFY (qs_env_kp)
+            CALL create_kp_from_gamma(qs_env, qs_env_kp)
+            CALL do_calculate_band_structure(qs_env_kp)
+            CALL qs_env_release(qs_env_kp)
+         END IF
+      END IF
+
+   END SUBROUTINE calculate_band_structure
+
+! **************************************************************************************************
+!> \brief band structure calculation
+!> \param qs_env ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE do_calculate_band_structure(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_calculate_band_structure', &
+         routineP = moduleN//':'//routineN
+
       CHARACTER(LEN=default_string_length)               :: filename, ustr
-      INTEGER                                            :: i_rep, ic, ik, ikk, ikpgr, ip, ispin, &
-                                                            iw, n_ptr, n_rep, nadd, nkp, nmo, &
-                                                            npline, npoints, nspins, unit_nr
+      INTEGER                                            :: i_rep, ik, ikk, ikpgr, ip, ispin, iw, &
+                                                            n_ptr, n_rep, nadd, nkp, nmo, npline, &
+                                                            npoints, nspins, unit_nr
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: explicit, io_default, my_kpgrp
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval, kpptr
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: kspecial, xkp
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral, kspecial, xkp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: bs_input, kpset
 
-      bs_input => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS%BAND_STRUCTURE")
+      bs_input => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%BAND_STRUCTURE")
       CALL section_vals_get(bs_input, explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(bs_input, "FILE_NAME", c_val=filename)
@@ -114,7 +144,7 @@ CONTAINS
          kpset => section_vals_get_subs_vals(bs_input, "KPOINT_SET")
          CALL section_vals_get(kpset, n_repetition=n_rep)
          IF (unit_nr > 0) THEN
-            WRITE (unit_nr, FMT="(T2,A)") "KPOINTS| Band Structure Calculation"
+            WRITE (unit_nr, FMT="(/,T2,A)") "KPOINTS| Band Structure Calculation"
             WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of K-Point Sets", n_rep
             IF (nadd /= 0) THEN
                WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of added Mos/Bands", nadd
@@ -173,55 +203,21 @@ CONTAINS
                   WRITE (iw, "(A,I4,T30,3F12.6)") "   POINT", ip, kspecial(1:3, ip)
                END DO
             END IF
-            ! initialize environment
-            NULLIFY (kpoint)
-            CALL kpoint_create(kpoint)
-            kpoint%kp_scheme = "GENERAL"
-            kpoint%symmetry = .FALSE.
-            kpoint%verbose = .FALSE.
-            kpoint%full_grid = .FALSE.
-            kpoint%use_real_wfn = .FALSE.
-            kpoint%eps_geo = 1.e-6_dp
-            kpoint%parallel_group_size = -1
-            kpoint%nkp = npoints
-            ALLOCATE (kpoint%xkp(3, npoints), kpoint%wkp(npoints))
-            kpoint%wkp(:) = 1._dp/REAL(npoints, KIND=dp)
-            kpoint%xkp(1:3, 1) = kspecial(1:3, 1)
+            ! initialize environment and calculate MOS
+            ALLOCATE (kpgeneral(3, npoints))
+            kpgeneral(1:3, 1) = kspecial(1:3, 1)
             ikk = 1
             DO ik = 2, n_ptr
                DO ip = 1, npline
                   ikk = ikk+1
-                  kpoint%xkp(1:3, ikk) = kspecial(1:3, ik-1)+ &
-                                         REAL(ip, KIND=dp)/REAL(npline, KIND=dp)* &
-                                         (kspecial(1:3, ik)-kspecial(1:3, ik-1))
+                  kpgeneral(1:3, ikk) = kspecial(1:3, ik-1)+ &
+                                        REAL(ip, KIND=dp)/REAL(npline, KIND=dp)* &
+                                        (kspecial(1:3, ik)-kspecial(1:3, ik-1))
                END DO
             END DO
-            kpoint%para_env => para_env
-            CALL cp_para_env_retain(para_env)
-            kpoint%blacs_env_all => blacs_env
-            CALL cp_blacs_env_retain(blacs_env)
-            CALL kpoint_env_initialize(kpoint)
-            CALL kpoint_initialize_mos(kpoint, qs_env%mos, nadd)
-            DO ik = 1, SIZE(kpoint%kp_env)
-               CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-               mos => kpoint%kp_env(ik)%kpoint_env%mos
-               ikk = kpoint%kp_range(1)+ik-1
-               CPASSERT(ASSOCIATED(mos))
-               DO ispin = 1, SIZE(mos, 2)
-                  DO ic = 1, SIZE(mos, 1)
-                     CALL get_mo_set(mos(ic, ispin)%mo_set, mo_coeff=mo_coeff)
-                     IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                        CALL init_mo_set(mos(ic, ispin)%mo_set, &
-                                         fm_pool=ao_mo_fm_pools(ispin)%pool, name="kpoints")
-                     END IF
-                  END DO
-               END DO
-            END DO
-            CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)
-            !
-            CALL get_qs_env(qs_env=qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
-                            scf_env=scf_env, scf_control=scf_control)
-            CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE.)
+            NULLIFY (kpoint)
+            CALL calculate_kp_orbitals(qs_env, kpoint, "GENERAL", nadd, kpgeneral=kpgeneral)
+            DEALLOCATE (kpgeneral)
             !
             nspins = SIZE(matrix_ks, 1)
             kp => kpoint%kp_env(1)%kpoint_env
@@ -266,7 +262,146 @@ CONTAINS
          END IF
       END IF
 
-   END SUBROUTINE calculate_band_structure
+   END SUBROUTINE do_calculate_band_structure
+
+! **************************************************************************************************
+!> \brief diagonalize KS matrices at a set of kpoints
+!> \param qs_env ...
+!> \param kpoint ...
+!> \param scheme ...
+!> \param nadd ...
+!> \param mp_grid ...
+!> \param kpgeneral ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE calculate_kp_orbitals(qs_env, kpoint, scheme, nadd, mp_grid, kpgeneral)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      CHARACTER(LEN=*), INTENT(IN)                       :: scheme
+      INTEGER, INTENT(IN)                                :: nadd
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: mp_grid
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: kpgeneral
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_kp_orbitals', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, ic, ik, ikk, ispin, ix, iy, iz, &
+                                                            npoints
+      REAL(KIND=dp), DIMENSION(3)                        :: kpt_latt
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      CPASSERT(.NOT. ASSOCIATED(kpoint))
+
+      CALL kpoint_create(kpoint)
+
+      kpoint%kp_scheme = scheme
+      kpoint%symmetry = .FALSE.
+      kpoint%verbose = .FALSE.
+      kpoint%full_grid = .FALSE.
+      kpoint%use_real_wfn = .FALSE.
+      kpoint%eps_geo = 1.e-6_dp
+      kpoint%parallel_group_size = -1
+      SELECT CASE (scheme)
+      CASE ("GAMMA")
+         kpoint%nkp = 1
+         ALLOCATE (kpoint%xkp(3, 1), kpoint%wkp(1))
+         kpoint%xkp(1:3, 1) = 0.0_dp
+         kpoint%wkp(1) = 1.0_dp
+         kpoint%symmetry = .TRUE.
+         ALLOCATE (kpoint%kp_sym(1))
+         NULLIFY (kpoint%kp_sym(1)%kpoint_sym)
+         CALL kpoint_sym_create(kpoint%kp_sym(1)%kpoint_sym)
+      CASE ("MONKHORST-PACK")
+         CPASSERT(PRESENT(mp_grid))
+         npoints = mp_grid(1)*mp_grid(2)*mp_grid(3)
+         kpoint%nkp_grid(1:3) = mp_grid(1:3)
+         kpoint%full_grid = .TRUE.
+         kpoint%nkp = npoints
+         ALLOCATE (kpoint%xkp(3, npoints), kpoint%wkp(npoints))
+         kpoint%wkp(:) = 1._dp/REAL(npoints, KIND=dp)
+         CALL get_qs_env(qs_env, cell=cell)
+         CALL get_cell(cell, h_inv=h_inv)
+         i = 0
+         DO ix = 0, mp_grid(1)-1
+            DO iy = 0, mp_grid(2)-1
+               DO iz = 0, mp_grid(3)-1
+                  i = i+1
+                  kpt_latt(1) = REAL(ix, KIND=dp)/REAL(mp_grid(1), KIND=dp)
+                  kpt_latt(2) = REAL(iy, KIND=dp)/REAL(mp_grid(2), KIND=dp)
+                  kpt_latt(3) = REAL(iz, KIND=dp)/REAL(mp_grid(3), KIND=dp)
+                  kpoint%xkp(1:3, i) = MATMUL(TRANSPOSE(h_inv), kpt_latt(:))
+               END DO
+            END DO
+         END DO
+         ! default: no symmetry settings
+         ALLOCATE (kpoint%kp_sym(kpoint%nkp))
+         DO i = 1, kpoint%nkp
+            NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
+            CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
+         END DO
+      CASE ("MACDONALD")
+         CPABORT("MACDONALD not implemented")
+      CASE ("GENERAL")
+         CPASSERT(PRESENT(kpgeneral))
+         npoints = SIZE(kpgeneral, 2)
+         kpoint%nkp = npoints
+         ALLOCATE (kpoint%xkp(3, npoints), kpoint%wkp(npoints))
+         kpoint%wkp(:) = 1._dp/REAL(npoints, KIND=dp)
+         kpoint%xkp(1:3, 1:npoints) = kpgeneral(1:3, 1:npoints)
+         ! default: no symmetry settings
+         ALLOCATE (kpoint%kp_sym(kpoint%nkp))
+         DO i = 1, kpoint%nkp
+            NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
+            CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
+         END DO
+      CASE DEFAULT
+         CPABORT("Unknown kpoint scheme requested")
+      END SELECT
+
+      CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
+      kpoint%para_env => para_env
+      CALL cp_para_env_retain(para_env)
+      kpoint%blacs_env_all => blacs_env
+      CALL cp_blacs_env_retain(blacs_env)
+      CALL kpoint_env_initialize(kpoint)
+
+      CALL kpoint_initialize_mos(kpoint, qs_env%mos, nadd)
+      DO ik = 1, SIZE(kpoint%kp_env)
+         CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
+         mos => kpoint%kp_env(ik)%kpoint_env%mos
+         ikk = kpoint%kp_range(1)+ik-1
+         CPASSERT(ASSOCIATED(mos))
+         DO ispin = 1, SIZE(mos, 2)
+            DO ic = 1, SIZE(mos, 1)
+               CALL get_mo_set(mos(ic, ispin)%mo_set, mo_coeff=mo_coeff)
+               IF (.NOT. ASSOCIATED(mo_coeff)) THEN
+                  CALL init_mo_set(mos(ic, ispin)%mo_set, &
+                                   fm_pool=ao_mo_fm_pools(ispin)%pool, name="kpoints")
+               END IF
+            END DO
+         END DO
+      END DO
+      CALL get_qs_env(qs_env, sab_kp=sab_nl, dft_control=dft_control)
+      CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control)
+      !
+      CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
+                      scf_env=scf_env, scf_control=scf_control)
+      CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE.)
+
+   END SUBROUTINE calculate_kp_orbitals
 
 ! **************************************************************************************************
 

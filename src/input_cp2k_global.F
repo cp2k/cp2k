@@ -470,9 +470,9 @@ CONTAINS
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, "spherical_harmonics", &
+      CALL keyword_create(keyword, "SPHERICAL_HARMONICS", &
                           description="if the printkey is active prints the spherical harmonics", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_i_val=-1, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, "RNG_MATRICES", &

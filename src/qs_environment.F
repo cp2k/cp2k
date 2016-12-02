@@ -51,7 +51,7 @@ MODULE qs_environment
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_methods,            ONLY: distribute_molecules_1d
-   USE dm_ls_scf,                       ONLY: ls_scf_create
+   USE dm_ls_scf_create,                ONLY: ls_scf_create
    USE et_coupling_types,               ONLY: et_coupling_create
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
@@ -78,7 +78,9 @@ MODULE qs_environment
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
         do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
         do_method_rm1, do_method_scptb, do_qmmm_gauss, do_qmmm_swave, general_roks, rel_none, &
-        rel_trans_atom, vdw_pairpot_dftd3, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        rel_trans_atom, vdw_pairpot_dftd3, wfi_aspc_nr, wfi_linear_ps_method_nr, &
+        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, xc_vdw_fun_none, &
+        xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -88,7 +90,8 @@ MODULE qs_environment
    USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
                                               kpoint_initialize,&
                                               kpoint_initialize_mos
-   USE kpoint_types,                    ONLY: kpoint_type,&
+   USE kpoint_types,                    ONLY: kpoint_create,&
+                                              kpoint_type,&
                                               read_kpoint_section,&
                                               write_kpoint_info
    USE lri_environment_init,            ONLY: lri_env_init
@@ -194,9 +197,10 @@ CONTAINS
 !>      QUICKSTEP environment.
 !> \param qs_env ...
 !> \param para_env ...
-!> \param globenv ...
 !> \param root_section ...
+!> \param globenv ...
 !> \param cp_subsys ...
+!> \param kpoint_env ...
 !> \param cell ...
 !> \param cell_ref ...
 !> \param qmmm ...
@@ -206,14 +210,15 @@ CONTAINS
 !> \param use_motion_section ...
 !> \author Creation (22.05.2000,MK)
 ! **************************************************************************************************
-   SUBROUTINE qs_init(qs_env, para_env, globenv, root_section, cp_subsys, cell, cell_ref, qmmm, &
-                      qmmm_env_qm, force_env_section, subsys_section, use_motion_section)
+   SUBROUTINE qs_init(qs_env, para_env, root_section, globenv, cp_subsys, kpoint_env, cell, cell_ref, &
+                      qmmm, qmmm_env_qm, force_env_section, subsys_section, use_motion_section)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(global_environment_type), POINTER             :: globenv
-      TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
+      TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoint_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
       LOGICAL, INTENT(IN), OPTIONAL                      :: qmmm
       TYPE(qmmm_env_qm_type), OPTIONAL, POINTER          :: qmmm_env_qm
@@ -225,7 +230,7 @@ CONTAINS
       INTEGER                                            :: ikind, method_id, natom, nkind
       LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
                                                             do_kpoints, mp2_present, my_qmmm, &
-                                                            qmmm_decoupl, use_ref_cell
+                                                            qmmm_decoupl, silent, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -275,10 +280,11 @@ CONTAINS
          ! Do nothing
       END SELECT
 
-      CALL qs_subsys_create(subsys, para_env, root_section=root_section, &
+      CALL qs_subsys_create(subsys, para_env, &
                             force_env_section=force_env_section, &
                             subsys_section=subsys_section, &
                             use_motion_section=use_motion_section, &
+                            root_section=root_section, &
                             cp_subsys=cp_subsys, cell=cell, cell_ref=cell_ref)
 
       CALL qs_ks_env_create(ks_env)
@@ -294,8 +300,12 @@ CONTAINS
                          particle_set=particle_set)
 
       CALL set_ks_env(ks_env, para_env=para_env)
-      CALL cp_blacs_env_create(blacs_env, para_env, globenv%blacs_grid_layout, &
-                               globenv%blacs_repeatable)
+      IF (PRESENT(globenv)) THEN
+         CALL cp_blacs_env_create(blacs_env, para_env, globenv%blacs_grid_layout, &
+                                  globenv%blacs_repeatable)
+      ELSE
+         CALL cp_blacs_env_create(blacs_env, para_env)
+      END IF
       CALL set_ks_env(ks_env, blacs_env=blacs_env)
       CALL cp_blacs_env_release(blacs_env)
 
@@ -304,15 +314,25 @@ CONTAINS
                                  force_env_section, subsys_section, para_env)
 
       ! kpoints
-      CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
-      kpoint_section => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS")
-      CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat)
-      CALL kpoint_initialize(kpoints, particle_set, my_cell)
-      dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
-      CALL write_kpoint_info(kpoints, dft_section)
+      IF (PRESENT(kpoint_env)) THEN
+         silent = .TRUE.
+         kpoints => kpoint_env
+         CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
+         CALL kpoint_initialize(kpoints, particle_set, my_cell)
+      ELSE
+         silent = .FALSE.
+         NULLIFY (kpoints)
+         CALL kpoint_create(kpoints)
+         CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
+         kpoint_section => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS")
+         CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat)
+         CALL kpoint_initialize(kpoints, particle_set, my_cell)
+         dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+         CALL write_kpoint_info(kpoints, dft_section)
+      END IF
 
       CALL qs_init_subsys(qs_env, para_env, subsys, my_cell, my_cell_ref, use_ref_cell, &
-                          root_section, subsys_section)
+                          subsys_section, silent=silent)
 
       ! more kpoint stuff
       kpoints%para_env => para_env
@@ -402,6 +422,7 @@ CONTAINS
 
       CALL qs_subsys_release(subsys)
       CALL qs_ks_release(ks_env)
+
    END SUBROUTINE qs_init
 
 ! **************************************************************************************************
@@ -412,19 +433,20 @@ CONTAINS
 !> \param cell ...
 !> \param cell_ref ...
 !> \param use_ref_cell ...
-!> \param root_section ...
 !> \param subsys_section ...
+!> \param silent ...
 !> \author Creation (22.05.2000,MK)
 ! **************************************************************************************************
-   SUBROUTINE qs_init_subsys(qs_env, para_env, subsys, cell, cell_ref, use_ref_cell, &
-                             root_section, subsys_section)
+   SUBROUTINE qs_init_subsys(qs_env, para_env, subsys, cell, cell_ref, use_ref_cell, subsys_section, &
+                             silent)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       LOGICAL, INTENT(in)                                :: use_ref_cell
-      TYPE(section_vals_type), POINTER                   :: root_section, subsys_section
+      TYPE(section_vals_type), POINTER                   :: subsys_section
+      LOGICAL, INTENT(in), OPTIONAL                      :: silent
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_init_subsys', routineP = moduleN//':'//routineN
 
@@ -432,8 +454,9 @@ CONTAINS
          method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, nelectron, &
          output_unit
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
-      LOGICAL                                            :: all_potential_present, do_kpoints, &
-                                                            has_unit_metric, was_present
+      LOGICAL                                            :: all_potential_present, be_silent, &
+                                                            do_kpoints, has_unit_metric, &
+                                                            was_present
       REAL(dp)                                           :: ewald_rcut, maxocc, verlet_skin
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -475,6 +498,9 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
       was_present = .FALSE.
 
+      be_silent = .FALSE.
+      IF (PRESENT(silent)) be_silent = silent
+
       ! Initialise the Quickstep environment
       NULLIFY (mos, se_taper, mos_aux_fit)
       NULLIFY (dft_control)
@@ -508,25 +534,34 @@ CONTAINS
       END IF
 
       !   *** Print the Quickstep program banner (copyright and version number) ***
-      iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PROGRAM_BANNER", extension=".Log")
-      CALL section_vals_val_get(qs_section, "METHOD", i_val=method_id)
-      SELECT CASE (method_id)
-      CASE DEFAULT
-         CALL qs_header(iw)
-      CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
-            do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl)
-         CALL se_header(iw)
-      CASE (do_method_dftb)
-         CALL dftb_header(iw)
-      CASE (do_method_scptb)
-         CALL scptb_header(iw)
-      END SELECT
-
-      CALL cp_print_key_finished_output(iw, logger, dft_section, &
-                                        "PRINT%PROGRAM_BANNER")
+      IF (.NOT. be_silent) THEN
+         iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PROGRAM_BANNER", extension=".Log")
+         CALL section_vals_val_get(qs_section, "METHOD", i_val=method_id)
+         SELECT CASE (method_id)
+         CASE DEFAULT
+            CALL qs_header(iw)
+         CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, &
+               do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl)
+            CALL se_header(iw)
+         CASE (do_method_dftb)
+            CALL dftb_header(iw)
+         CASE (do_method_scptb)
+            CALL scptb_header(iw)
+         END SELECT
+         CALL cp_print_key_finished_output(iw, logger, dft_section, &
+                                           "PRINT%PROGRAM_BANNER")
+      END IF
 
       !   *** Read the input section with the Quickstep control parameters ***
       CALL read_qs_section(dft_control%qs_control, qs_section)
+      CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
+      IF (do_kpoints) THEN
+         ! reset some of the settings for wfn extrapolation for kpoints
+         SELECT CASE (dft_control%qs_control%wf_interpolation_method_nr)
+         CASE (wfi_linear_wf_method_nr, wfi_linear_ps_method_nr, wfi_ps_method_nr, wfi_aspc_nr)
+            dft_control%qs_control%wf_interpolation_method_nr = wfi_use_guess_method_nr
+         END SELECT
+      END IF
 
       !   *******  check if any kind of electron transfer calculation has to be performed
       CALL section_vals_val_get(et_coupling_section, "TYPE_OF_CONSTRAINT", i_val=my_ival)
@@ -628,11 +663,7 @@ CONTAINS
 
       CALL init_orbital_pointers(maxl)
 
-      output_unit = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PRINT/SPHERICAL_HARMONICS", &
-                                         extension=".Log")
-      CALL init_spherical_harmonics(maxl, output_unit)
-      CALL cp_print_key_finished_output(output_unit, logger, root_section, &
-                                        "GLOBAL%PRINT/SPHERICAL_HARMONICS")
+      CALL init_spherical_harmonics(maxl, 0)
 
       !   *** Initialise the qs_kind_set ***
       CALL init_qs_kind_set(qs_kind_set)
@@ -654,13 +685,15 @@ CONTAINS
       !   *** Initialize the atomic interaction radii ***
       CALL init_interaction_radii(dft_control%qs_control, atomic_kind_set, qs_kind_set)
 
-      CALL write_pgf_orb_radii("orb", atomic_kind_set, qs_kind_set, subsys_section)
-      CALL write_pgf_orb_radii("aux", atomic_kind_set, qs_kind_set, subsys_section)
-      CALL write_pgf_orb_radii("lri", atomic_kind_set, qs_kind_set, subsys_section)
-      CALL write_core_charge_radii(atomic_kind_set, qs_kind_set, subsys_section)
-      CALL write_ppl_radii(atomic_kind_set, qs_kind_set, subsys_section)
-      CALL write_ppnl_radii(atomic_kind_set, qs_kind_set, subsys_section)
-      CALL write_paw_radii(atomic_kind_set, qs_kind_set, subsys_section)
+      IF (.NOT. be_silent) THEN
+         CALL write_pgf_orb_radii("orb", atomic_kind_set, qs_kind_set, subsys_section)
+         CALL write_pgf_orb_radii("aux", atomic_kind_set, qs_kind_set, subsys_section)
+         CALL write_pgf_orb_radii("lri", atomic_kind_set, qs_kind_set, subsys_section)
+         CALL write_core_charge_radii(atomic_kind_set, qs_kind_set, subsys_section)
+         CALL write_ppl_radii(atomic_kind_set, qs_kind_set, subsys_section)
+         CALL write_ppnl_radii(atomic_kind_set, qs_kind_set, subsys_section)
+         CALL write_paw_radii(atomic_kind_set, qs_kind_set, subsys_section)
+      END IF
 
       !   *** Distribute molecules and atoms using the new data structures ***
       CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set, &
@@ -1159,58 +1192,60 @@ CONTAINS
          CALL set_qs_env(qs_env, mos_aux_fit=mos_aux_fit)
       END IF
 
-      ! Print the DFT control parameters
-      CALL write_dft_control(dft_control, dft_section)
+      IF (.NOT. be_silent) THEN
+         ! Print the DFT control parameters
+         CALL write_dft_control(dft_control, dft_section)
 
-      ! Print the vdW control parameters
-      IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
-          dft_control%qs_control%method_id == do_method_gapw .OR. &
-          dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
-          dft_control%qs_control%method_id == do_method_lrigpw .OR. &
-          dft_control%qs_control%method_id == do_method_scptb .OR. &
-          dft_control%qs_control%method_id == do_method_dftb .OR. &
-          dft_control%qs_control%method_id == do_method_ofgpw) THEN
-         CALL get_qs_env(qs_env, dispersion_env=dispersion_env)
-         CALL qs_write_dispersion(qs_env, dispersion_env)
-      END IF
+         ! Print the vdW control parameters
+         IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
+             dft_control%qs_control%method_id == do_method_gapw .OR. &
+             dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
+             dft_control%qs_control%method_id == do_method_lrigpw .OR. &
+             dft_control%qs_control%method_id == do_method_scptb .OR. &
+             dft_control%qs_control%method_id == do_method_dftb .OR. &
+             dft_control%qs_control%method_id == do_method_ofgpw) THEN
+            CALL get_qs_env(qs_env, dispersion_env=dispersion_env)
+            CALL qs_write_dispersion(qs_env, dispersion_env)
+         END IF
 
-      ! Print the Quickstep control parameters
-      CALL write_qs_control(dft_control%qs_control, dft_section)
+         ! Print the Quickstep control parameters
+         CALL write_qs_control(dft_control%qs_control, dft_section)
 
-      ! Print XES/XAS control parameters
-      IF (dft_control%do_xas_calculation) THEN
-         CALL cite_reference(Iannuzzi2007)
-!       CALL write_xas_control(dft_control%xas_control,dft_section)
-      END IF
+         ! Print XES/XAS control parameters
+         IF (dft_control%do_xas_calculation) THEN
+            CALL cite_reference(Iannuzzi2007)
+            !CALL write_xas_control(dft_control%xas_control,dft_section)
+         END IF
 
-      ! Print the unnormalized basis set information (input data)
-      CALL write_gto_basis_sets(qs_kind_set, subsys_section)
+         ! Print the unnormalized basis set information (input data)
+         CALL write_gto_basis_sets(qs_kind_set, subsys_section)
 
-      ! Print the atomic kind set
-      CALL write_qs_kind_set(qs_kind_set, subsys_section)
+         ! Print the atomic kind set
+         CALL write_qs_kind_set(qs_kind_set, subsys_section)
 
-      ! Print the molecule kind set
-      CALL write_molecule_kind_set(molecule_kind_set, subsys_section)
+         ! Print the molecule kind set
+         CALL write_molecule_kind_set(molecule_kind_set, subsys_section)
 
-      ! Print the total number of kinds, atoms, basis functions etc.
-      CALL write_total_numbers(qs_kind_set, particle_set, qs_env%input)
+         ! Print the total number of kinds, atoms, basis functions etc.
+         CALL write_total_numbers(qs_kind_set, particle_set, qs_env%input)
 
-      ! Print the atomic coordinates
-      CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section, label="QUICKSTEP")
+         ! Print the atomic coordinates
+         CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section, label="QUICKSTEP")
 
-      ! Print the interatomic distances
-      CALL write_particle_distances(particle_set, cell, subsys_section)
+         ! Print the interatomic distances
+         CALL write_particle_distances(particle_set, cell, subsys_section)
 
-      ! Print the requested structure data
-      CALL write_structure_data(particle_set, cell, subsys_section)
+         ! Print the requested structure data
+         CALL write_structure_data(particle_set, cell, subsys_section)
 
-      ! Print symmetry information
-      CALL write_symmetry(particle_set, cell, subsys_section)
+         ! Print symmetry information
+         CALL write_symmetry(particle_set, cell, subsys_section)
 
-      ! Print the SCF parameters
-      IF ((.NOT. dft_control%qs_control%do_ls_scf) .AND. &
-          (.NOT. dft_control%qs_control%do_almo_scf)) THEN
-         CALL scf_c_write_parameters(scf_control, dft_section)
+         ! Print the SCF parameters
+         IF ((.NOT. dft_control%qs_control%do_ls_scf) .AND. &
+             (.NOT. dft_control%qs_control%do_almo_scf)) THEN
+            CALL scf_c_write_parameters(scf_control, dft_section)
+         ENDIF
       ENDIF
 
       ! Sets up pw_env, qs_charges, mpools ...

@@ -114,8 +114,7 @@ MODULE qs_scf
                                               outer_loop_update_qs_env
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_initialization,           ONLY: qs_scf_compute_properties,&
-                                              qs_scf_env_initialize
+   USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
    USE qs_scf_loop_utils,               ONLY: qs_scf_check_inner_exit,&
                                               qs_scf_check_outer_exit,&
                                               qs_scf_density_mixing,&
@@ -128,6 +127,7 @@ MODULE qs_scf
                                               qs_scf_loop_print,&
                                               qs_scf_outer_loop_info,&
                                               qs_scf_write_mos
+   USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_release, &

@@ -46,8 +46,8 @@ MODULE rt_propagation
    USE machine,                         ONLY: m_walltime
    USE md_environment_types,            ONLY: md_environment_type
    USE qs_dftb_matrices,                ONLY: build_dftb_overlap
+   USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
-   USE qs_energy_utils,                 ONLY: qs_energies_init
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_external_potential,           ONLY: external_c_potential,&

@@ -41,8 +41,7 @@ MODULE qs_ks_types
                                               kpoint_transitional_type,&
                                               set_1d_pointer,&
                                               set_2d_pointer
-   USE kpoint_types,                    ONLY: kpoint_create,&
-                                              kpoint_release,&
+   USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
    USE molecule_types_new,              ONLY: molecule_type
@@ -247,7 +246,6 @@ CONTAINS
       CALL qs_rho_create(ks_env%rho_aux_fit_buffer)
       CALL qs_rho_create(ks_env%rho_xc)
       CALL qs_rho_create(ks_env%rho_buffer)
-      CALL kpoint_create(ks_env%kpoints)
    END SUBROUTINE qs_ks_env_create
 
 ! **************************************************************************************************
@@ -564,6 +562,7 @@ CONTAINS
 !> \param rho_nlcc_g ...
 !> \param vee ...
 !> \param neighbor_list_id ...
+!> \param kpoints ...
 !> \param sab_orb ...
 !> \param sab_aux_fit ...
 !> \param sab_aux_fit_asymm ...
@@ -602,6 +601,7 @@ CONTAINS
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
+                         kpoints, &
                          sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
                          sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, &
                          sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp, &
@@ -623,6 +623,7 @@ CONTAINS
                                                             matrix_s_kp, matrix_w_kp
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_aux_fit, &
          sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sap_ppnl, sap_oce, &
          sab_lrc, sab_se, sab_tbe, sab_core, sab_vdw, sab_scp, sab_almo, sab_kp
@@ -684,6 +685,7 @@ CONTAINS
       IF (PRESENT(vee)) ks_env%vee => vee
 
       IF (PRESENT(neighbor_list_id)) ks_env%neighbor_list_id = neighbor_list_id
+      IF (PRESENT(kpoints)) ks_env%kpoints => kpoints
       IF (PRESENT(sab_orb)) ks_env%sab_orb => sab_orb
       IF (PRESENT(sab_aux_fit)) ks_env%sab_aux_fit => sab_aux_fit
       IF (PRESENT(sab_aux_fit_asymm)) ks_env%sab_aux_fit_asymm => sab_aux_fit_asymm

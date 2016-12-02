@@ -76,8 +76,10 @@ MODULE environment
                                               mp_max,&
                                               mp_sum,&
                                               rm_mp_perf_env
-   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
-   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
+   USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
+                                              init_orbital_pointers
+   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
+                                              init_spherical_harmonics
    USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                               check_rng,&
                                               create_rng_stream,&
@@ -402,7 +404,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_setup', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iw
+      INTEGER                                            :: iw, maxl
       INTEGER, DIMENSION(:), POINTER                     :: seed_vals
       REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -455,6 +457,18 @@ CONTAINS
       END IF
       CALL cp_print_key_finished_output(iw, logger, root_section, &
                                         "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG")
+
+      CALL section_vals_val_get(root_section, "GLOBAL%PRINT%SPHERICAL_HARMONICS", i_val=maxl)
+      IF (maxl >= 0) THEN
+         iw = cp_print_key_unit_nr(logger, root_section, "GLOBAL%PRINT", &
+                                   extension=".Log")
+         CALL init_orbital_pointers(maxl)
+         CALL init_spherical_harmonics(maxl, iw)
+         CALL deallocate_spherical_harmonics()
+         CALL deallocate_orbital_pointers()
+         CALL cp_print_key_finished_output(iw, logger, root_section, &
+                                           "GLOBAL%PRINT")
+      END IF
 
    END SUBROUTINE cp2k_setup
 

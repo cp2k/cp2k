@@ -9,48 +9,32 @@
     &QS
       METHOD GPW
       EPS_DEFAULT 1.0E-10
-      EXTRAPOLATION USE_GUESS
     &END QS
     &SCF
-      EPS_SCF 1.0E-4
+      EPS_SCF 1.0E-6
       SCF_GUESS ATOMIC 
-      MAX_SCF  20
-      &MIXING
-          METHOD DIRECT_P_MIXING
-          ALPHA   0.70
+      MAX_SCF  8
+      &OT
+         MINIMIZER DIIS
+         PRECONDITIONER FULL_ALL
       &END
-      CHOLESKY OFF
-      EPS_EIGVAL 1.e-5
+      &OUTER_SCF
+         EPS_SCF 1.0E-6
+         MAX_SCF  20
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
-    &KPOINTS
-       SCHEME MONKHORST-PACK 1 1 1
-       SYMMETRY OFF 
-       WAVEFUNCTIONS REAL
-       EPS_GEO 1.e-8
-       FULL_GRID ON 
-       VERBOSE F
-       PARALLEL_GROUP_SIZE  0
-    &END KPOINTS
     &PRINT
        &BAND_STRUCTURE
-          ADDED_MOS 2
           FILE_NAME xx.bs
           &KPOINT_SET
-             UNITS  B_VECTOR
-             SPECIAL_POINT  0.0 0.0 0.0
-             SPECIAL_POINT  1.0 0.0 0.0
+             UNITS CART_BOHR
              NPOINTS     10
-          &END
-          &KPOINT_SET
-             UNITS  B_VECTOR
              SPECIAL_POINT  0.0 0.0 0.0
-             SPECIAL_POINT  0.5 0.5 0.5
              SPECIAL_POINT  1.0 0.0 0.0
-             NPOINTS     5
           &END
        &END BAND_STRUCTURE
     &END PRINT

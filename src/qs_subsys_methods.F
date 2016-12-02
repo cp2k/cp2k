@@ -66,8 +66,8 @@ CONTAINS
                                use_motion_section, cp_subsys, cell, cell_ref)
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(section_vals_type), POINTER                   :: root_section, force_env_section, &
-                                                            subsys_section
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: root_section
+      TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
       LOGICAL, INTENT(IN)                                :: use_motion_section
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
@@ -89,11 +89,13 @@ CONTAINS
       ! create cp_subsys
       IF (PRESENT(cp_subsys)) THEN
          my_cp_subsys => cp_subsys
-      ELSE
+      ELSE IF (PRESENT(root_section)) THEN
          CALL cp_subsys_create(my_cp_subsys, para_env, root_section=root_section, &
                                force_env_section=force_env_section, &
                                subsys_section=subsys_section, &
                                use_motion_section=use_motion_section)
+      ELSE
+         CPABORT("qs_subsys_create: cp_subsys or root_section needed")
       END IF
 
       ! create cp_subsys%cell

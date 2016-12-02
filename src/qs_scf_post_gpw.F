@@ -519,8 +519,10 @@ CONTAINS
 
       ! Gets the lumos, and eigenvalues for the lumos, and localize them if requested
       IF (do_kpoints) THEN
-         ! nothing at the moment, not implemented
-         CPWARN("Localization and MO related output not implemented for k-point calculations!")
+         IF (do_mo_cubes .OR. p_loc_lumo) THEN
+            ! nothing at the moment, not implemented
+            CPWARN("Localization and MO related output not implemented for k-point calculations!")
+         END IF
       ELSE
          IF (nlumo .GT. -1) THEN
             nlumo = MAX(nlumo, nlumo_tddft)

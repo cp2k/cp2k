@@ -51,10 +51,8 @@ MODULE qs_scf_initialization
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
    USE pw_types,                        ONLY: pw_p_type
    USE qmmm_image_charge,               ONLY: conditional_calc_image_matrix
-   USE qs_band_structure,               ONLY: calculate_band_structure
    USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                               block_davidson_env_create
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
@@ -94,10 +92,6 @@ MODULE qs_scf_initialization
    USE qs_scf_diagonalization,          ONLY: diag_subspace_allocate
    USE qs_scf_lanczos,                  ONLY: krylov_space_allocate
    USE qs_scf_output,                   ONLY: qs_scf_initial_info
-   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
-   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
-   USE qs_scf_post_scptb,               ONLY: scf_post_calculation_scptb
-   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, diag_subspace_env_create, &
         filter_matrix_diag_method_nr, general_diag_method_nr, krylov_space_create, &
@@ -117,7 +111,7 @@ MODULE qs_scf_initialization
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_initialization'
 
-   PUBLIC:: qs_scf_env_initialize, qs_scf_compute_properties
+   PUBLIC:: qs_scf_env_initialize, qs_scf_env_init_basic
 
 CONTAINS
 
@@ -139,12 +133,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: my_scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, my_scf_section
 
-      CALL get_qs_env(qs_env, input=input, rho=rho, &
-                      dft_control=dft_control)
+      CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
 
       IF (PRESENT(scf_control)) THEN
          my_scf_control => scf_control
@@ -180,6 +172,45 @@ CONTAINS
       CALL init_scf_run(scf_env, qs_env, my_scf_section, my_scf_control)
 
    END SUBROUTINE qs_scf_env_initialize
+
+! **************************************************************************************************
+!> \brief initializes input parameters if needed for non-scf calclulations using diagonalization
+!> \param qs_env the qs_environment where to perform the scf procedure
+!> \param scf_env ...
+! **************************************************************************************************
+   SUBROUTINE qs_scf_env_init_basic(qs_env, scf_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_env_init_basic', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
+
+      CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
+
+      CALL get_qs_env(qs_env, scf_control=scf_control)
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      scf_section => section_vals_get_subs_vals(dft_section, "SCF")
+
+      CALL qs_scf_ensure_scf_env(qs_env, scf_env)
+
+      CALL section_vals_val_get(scf_section, "CHOLESKY", i_val=scf_env%cholesky_method)
+      scf_control%use_diag = .TRUE.
+      scf_control%diagonalization%method = diag_standard
+
+      CALL qs_scf_ensure_mos(qs_env, scf_env)
+
+      ! set flags for diagonalization
+      CALL qs_scf_ensure_diagonalization(scf_env, scf_section, qs_env, &
+                                         scf_control, qs_env%has_unit_metric)
+      CALL qs_scf_ensure_work_matrices(qs_env, scf_env)
+
+      CALL init_scf_run(scf_env, qs_env, scf_section, scf_control)
+
+   END SUBROUTINE qs_scf_env_init_basic
 
 ! **************************************************************************************************
 !> \brief makes sure scf_env is allocated (might already be from before)
@@ -527,8 +558,12 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
       IF (kpoints%nkp /= 0) THEN
          ! check for some incompatible options
-         IF (qs_env%requires_mo_derivs) &
-            CPABORT("No MO derivative methods allowed with kpoints")
+         IF (qs_env%requires_mo_derivs) THEN
+            CPWARN("MO derivative methods flag has been switched off for kpoint calculation")
+            ! we switch it off to make band structure calculations
+            ! possible for OT gamma point calculations
+            qs_env%requires_mo_derivs = .FALSE.
+         END IF
          IF (dft_control%do_admm) &
             CPABORT("No ADMM implemented with kpoints")
          IF (dft_control%do_xas_calculation) &
@@ -743,53 +778,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE qs_scf_ensure_diagonalization
-
-! **************************************************************************************************
-!> \brief computes properties for a given hamilonian using the current wfn
-!> \param qs_env ...
-!> \param dft_section ...
-!> \param wf_type ...
-! **************************************************************************************************
-   SUBROUTINE qs_scf_compute_properties(qs_env, dft_section, wf_type)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(section_vals_type), POINTER                   :: dft_section
-      CHARACTER(6), OPTIONAL                             :: wf_type
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_compute_properties', &
-         routineP = moduleN//':'//routineN
-
-      LOGICAL                                            :: do_kpoints
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_scf_env_type), POINTER                     :: scf_env
-
-      CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control)
-
-      IF (dft_control%qs_control%semi_empirical) THEN
-         CALL scf_post_calculation_se(qs_env)
-      ELSEIF (dft_control%qs_control%dftb) THEN
-         CALL scf_post_calculation_dftb(dft_section, scf_env, qs_env)
-      ELSEIF (dft_control%qs_control%scptb) THEN
-         CALL scf_post_calculation_scptb(qs_env)
-      ELSEIF (dft_control%qs_control%do_kg) THEN
-         CPWARN("No properties from PRINT section available for KG methods")
-      ELSEIF (dft_control%qs_control%ofgpw) THEN
-         CPWARN("No properties from PRINT section available for OFGPW methods")
-      ELSEIF (dft_control%qs_control%lri_optbas .AND. dft_control%qs_control%gpw) THEN
-         CALL optimize_lri_basis(qs_env)
-      ELSE
-         IF (PRESENT(wf_type)) THEN
-            CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, wf_type=wf_type)
-         ELSE
-            CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env)
-         ENDIF
-      END IF
-
-      CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
-      IF (do_kpoints) THEN
-         CALL calculate_band_structure(qs_env)
-      END IF
-
-   END SUBROUTINE qs_scf_compute_properties
 
 ! **************************************************************************************************
 !> \brief performs those initialisations that need to be done only once

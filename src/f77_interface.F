@@ -753,7 +753,7 @@ CONTAINS
 
          CASE (do_qs)
             CALL qs_env_create(qs_env, globenv)
-            CALL qs_init(qs_env, my_para_env, globenv, root_section, force_env_section=force_env_section, &
+            CALL qs_init(qs_env, my_para_env, root_section, globenv=globenv, force_env_section=force_env_section, &
                          subsys_section=subsys_section, use_motion_section=use_motion_section)
             CALL force_env_create(my_force_env, root_section, qs_env=qs_env, para_env=my_para_env, globenv=globenv, &
                                   force_env_section=force_env_section)
