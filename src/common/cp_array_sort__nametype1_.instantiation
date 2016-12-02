@@ -1,4 +1,10 @@
 [
+{'nametype1':'s',
+'type1':'REAL(kind=sp)',
+'USE':'USE kinds, ONLY: sp',
+'defaultFormatType1':'"(es14.6)"',
+'lessQ':'CP_S_LESS_Q',
+'defines':"#define CP_S_LESS_Q(el1,el2) ( el1 < el2 )\n"},
 
 {'nametype1':'r',
 'type1':'REAL(kind=dp)',

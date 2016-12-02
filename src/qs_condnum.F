@@ -9,14 +9,16 @@
 !> \author JGH (14.11.2016)
 ! **************************************************************************************************
 MODULE qs_condnum
+   USE arnoldi_api,                     ONLY: arnoldi_conjugate_gradient,&
+                                              arnoldi_extremal
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_arnoldi_extremal, cp_dbcsr_conjugate_gradient, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_gershgorin_norm, cp_dbcsr_get_block_diag, &
-        cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+        cp_dbcsr_gershgorin_norm, cp_dbcsr_get_block_diag, cp_dbcsr_get_info, &
+        cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_norm
    USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -152,8 +154,8 @@ CONTAINS
             threshold = 1.0E-6_dp
             maxiter = 1000
             eps_ev = 1.0E8_dp
-            CALL cp_dbcsr_arnoldi_extremal(smat, max_ev, min_ev, &
-                                           threshold=threshold, max_iter=maxiter, converged=converged)
+            CALL arnoldi_extremal(smat, max_ev, min_ev, &
+                                  threshold=threshold, max_iter=maxiter, converged=converged)
             IF (iunit > 0) THEN
                WRITE (iunit, '(T2,A)') "2-Norm Condition Number using Arnoldi iterations"
                IF (min_ev > 0) THEN
@@ -279,7 +281,7 @@ CONTAINS
       CALL cp_dbcsr_get_info(amat, nfullrows_total=nbas)
       max_iter = MIN(1000, nbas)
       threshold = 1.e-6_dp
-      CALL cp_dbcsr_conjugate_gradient(amat, x, pmat, converged=converged, threshold=threshold, max_iter=max_iter)
+      CALL arnoldi_conjugate_gradient(amat, x, pmat, converged=converged, threshold=threshold, max_iter=max_iter)
 
    END SUBROUTINE dbcsr_solve
 

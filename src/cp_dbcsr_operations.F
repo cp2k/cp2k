@@ -20,8 +20,8 @@ MODULE cp_dbcsr_operations
         convert_sizes_to_offsets, cp_add_work_coordinate, cp_create_bl_distribution, cp_dbcsr_add, &
         cp_dbcsr_col_block_sizes, cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
         cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_distribution_new, &
-        cp_dbcsr_finalize, cp_dbcsr_get_data_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
-        cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
+        cp_dbcsr_finalize, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_get_info, &
+        cp_dbcsr_get_matrix_type, cp_dbcsr_get_wms_data_p, cp_dbcsr_init, cp_dbcsr_iterator, &
         cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
         cp_dbcsr_iterator_stop, cp_dbcsr_mp_new, cp_dbcsr_mp_release, cp_dbcsr_multiply, &
         cp_dbcsr_name, cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
@@ -776,12 +776,12 @@ CONTAINS
             CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p)
             IF (fm%use_sp) THEN
                !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
-               blk_1d_sp => cp_dbcsr_get_data_p(bc_mat, 1, &
-                                                select_data_type=REAL(0.0, KIND=sp), lb=blk_p, ub=blk_p+nze-1)
+               blk_1d_sp => cp_dbcsr_get_wms_data_p(bc_mat, 1, &
+                                                    select_data_type=REAL(0.0, KIND=sp), lb=blk_p, ub=blk_p+nze-1)
             ELSE
                !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
-               blk_1d_dp => cp_dbcsr_get_data_p(bc_mat, 1, &
-                                                select_data_type=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
+               blk_1d_dp => cp_dbcsr_get_wms_data_p(bc_mat, 1, &
+                                                    select_data_type=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
             ENDIF
             IF (nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1)) &
                CPABORT("Block size does not match block row/col sizes")
@@ -967,12 +967,12 @@ CONTAINS
             nze = blk_map(my_blk+1)-blk_map(my_blk)
             IF (fm%use_sp) THEN
                !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
-               blk_1d_sp => cp_dbcsr_get_data_p(bc_mat, 1, &
-                                                select_data_type=REAL(0.0, KIND=sp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
+               blk_1d_sp => cp_dbcsr_get_wms_data_p(bc_mat, 1, select_data_type=REAL(0.0, KIND=sp), &
+                                                    lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
             ELSE
                !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
-               blk_1d_dp => cp_dbcsr_get_data_p(bc_mat, 1, &
-                                                select_data_type=REAL(0.0, KIND=dp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
+               blk_1d_dp => cp_dbcsr_get_wms_data_p(bc_mat, 1, select_data_type=REAL(0.0, KIND=dp), &
+                                                    lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
             ENDIF
             IF (nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1)) &
                CPABORT("Block size does not match block row/col sizes")
@@ -1124,8 +1124,8 @@ CONTAINS
             !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
             CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p)
             !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
-            blk_1d => cp_dbcsr_get_data_p(bc_mat, 1, &
-                                          select_data_type=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
+            blk_1d => cp_dbcsr_get_wms_data_p(bc_mat, 1, &
+                                              select_data_type=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
             IF (nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1)) &
                CPABORT("Block size does not match block row/col sizes")
             blk_1d(1:nze) = RESHAPE( &

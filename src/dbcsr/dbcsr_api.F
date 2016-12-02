@@ -13,15 +13,6 @@
 !> \author  Joost VandeVondele
 ! **************************************************************************************************
 MODULE dbcsr_api
-   USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev,&
-                                              dbcsr_arnoldi_extremal,&
-                                              dbcsr_conjugate_gradient
-   USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
-                                              deallocate_arnoldi_data,&
-                                              get_selected_ritz_val,&
-                                              get_selected_ritz_vector,&
-                                              set_arnoldi_initial_vector,&
-                                              setup_arnoldi_data
    USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                               dbcsr_put_block,&
                                               dbcsr_reserve_all_blocks,&
@@ -84,8 +75,8 @@ MODULE dbcsr_api
         dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
         dbcsr_row_block_sizes, dbcsr_setname, dbcsr_valid_index, dbcsr_wm_use_mutable
    USE dbcsr_mp_methods,                ONLY: &
-        dbcsr_mp_get_process, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, &
-        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_release
+        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
+        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_release
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
    USE dbcsr_operations,                ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_filter, &
@@ -95,7 +86,6 @@ MODULE dbcsr_api
         dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
         dbcsr_triu
    USE dbcsr_tests,                     ONLY: dbcsr_run_tests,&
-                                              dbcsr_test_arnoldi,&
                                               dbcsr_test_binary_io,&
                                               dbcsr_test_mm
    USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
@@ -114,6 +104,11 @@ MODULE dbcsr_api
                                               convert_sizes_to_offsets,&
                                               dbcsr_checksum,&
                                               dbcsr_verify_matrix
+   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix,&
+                                              create_replicated_col_vec_from_matrix,&
+                                              create_replicated_row_vec_from_matrix,&
+                                              create_row_vec_from_matrix,&
+                                              dbcsr_matrix_colvec_multiply
    USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                               dbcsr_create,&
                                               dbcsr_finalize,&
@@ -139,7 +134,6 @@ MODULE dbcsr_api
              convert_sizes_to_offsets, &
              dbcsr_run_tests, &
              dbcsr_test_mm, &
-             dbcsr_test_arnoldi, &
              dbcsr_test_binary_io, &
              create_bl_distribution, &
              accdrv_avoid_after_busy, &
@@ -154,15 +148,6 @@ MODULE dbcsr_api
              accdrv_priority_streams, &
              dbcsr_add, &
              dbcsr_add_on_diag, &
-             dbcsr_arnoldi_data, &
-             setup_arnoldi_data, &
-             set_arnoldi_initial_vector, &
-             deallocate_arnoldi_data, &
-             dbcsr_arnoldi_ev, &
-             dbcsr_arnoldi_extremal, &
-             dbcsr_conjugate_gradient, &
-             get_selected_ritz_val, &
-             get_selected_ritz_vector, &
              dbcsr_binary_read, &
              dbcsr_binary_write, &
              dbcsr_triu, &
@@ -255,6 +240,7 @@ MODULE dbcsr_api
              dbcsr_mp_numnodes, &
              dbcsr_mp_obj, &
              dbcsr_mp_release, &
+             dbcsr_mp_grid_setup, &
              dbcsr_multiply, &
              dbcsr_name, &
              dbcsr_setname, &
@@ -347,5 +333,11 @@ MODULE dbcsr_api
              dbcsr_distribution_get_num_images_1d, &
              dbcsr_set_conf_randmat_seed, dbcsr_get_conf_randmat_seed, &
              dbcsr_set_conf_num_layers_3D, &
-             dbcsr_get_conf_num_layers_3D
+             dbcsr_get_conf_num_layers_3D, &
+             dbcsr_matrix_colvec_multiply, &
+             create_replicated_row_vec_from_matrix, &
+             create_replicated_col_vec_from_matrix, &
+             create_row_vec_from_matrix, &
+             create_col_vec_from_matrix
+
 END MODULE dbcsr_api

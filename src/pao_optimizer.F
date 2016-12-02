@@ -8,11 +8,12 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_optimizer
+   USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_multiply, &
-        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
+        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
+        cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, &
+        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
+        cp_dbcsr_trace, cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_opt_bfgs,&
                                               pao_opt_cg
@@ -338,8 +339,8 @@ CONTAINS
 
       ! approximate condition of Hessian
       !TODO: good setting for arnoldi?
-      CALL cp_dbcsr_arnoldi_extremal(pao%matrix_BFGS, eval_max, eval_min, max_iter=100, &
-                                     threshold=1e-2_dp, converged=arnoldi_converged)
+      CALL arnoldi_extremal(pao%matrix_BFGS, eval_max, eval_min, max_iter=100, &
+                            threshold=1e-2_dp, converged=arnoldi_converged)
       IF (arnoldi_converged) THEN
          IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|BFGS| evals of inv. Hessian: min, max, max/min", &
             eval_min, eval_max, eval_max/eval_min

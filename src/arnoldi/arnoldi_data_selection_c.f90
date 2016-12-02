@@ -7,19 +7,19 @@
 !> \brief ...
 !> \param arnoldi_data ...
 ! **************************************************************************************************
-  SUBROUTINE select_evals_s(arnoldi_data)
-    TYPE(dbcsr_arnoldi_data)                :: arnoldi_data
+  SUBROUTINE select_evals_c(arnoldi_data)
+    TYPE(arnoldi_data_type)                :: arnoldi_data
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals_s', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals_c', &
       routineP = moduleN//':'//routineN 
     
     INTEGER                                  :: my_crit, last_el, my_ind, i
     REAL(real_4)                        :: convergence
-    TYPE(arnoldi_data_s),POINTER   :: ar_data
-    TYPE(arnoldi_control), POINTER           :: control
+    TYPE(arnoldi_data_c_type),POINTER   :: ar_data
+    TYPE(arnoldi_control_type), POINTER           :: control
 
     control => get_control(arnoldi_data)
-    ar_data => get_data_s(arnoldi_data)
+    ar_data => get_data_c(arnoldi_data)
 
     last_el=control%current_step
     convergence=REAL(0.0, real_4)
@@ -28,13 +28,13 @@
     SELECT CASE(my_crit)
     ! minimum and maximum real eval
     CASE(1)
-       CALL index_min_max_real_eval_s(ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
+       CALL index_min_max_real_eval_c(ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
     ! n maximum real eval
     CASE(2)
-       CALL index_nmax_real_eval_s(ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
+       CALL index_nmax_real_eval_c(ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
     ! n minimum real eval
     CASE(3)
-       CALL index_nmin_real_eval_s(ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
+       CALL index_nmin_real_eval_c(ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
     CASE DEFAULT
        CPABORT("unknown selection index")
     END SELECT
@@ -46,7 +46,7 @@
     END DO
     control%converged=convergence.LT.control%threshold
 
-  END SUBROUTINE select_evals_s
+  END SUBROUTINE select_evals_c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -55,13 +55,13 @@
 !> \param selected_ind ...
 !> \param neval ...
 ! **************************************************************************************************
-  SUBROUTINE index_min_max_real_eval_s(evals, current_step, selected_ind, neval)
+  SUBROUTINE index_min_max_real_eval_c(evals, current_step, selected_ind, neval)
     COMPLEX(real_4), DIMENSION(:)       :: evals
-    INTEGER                                  :: current_step
+    INTEGER, INTENT(IN)                      :: current_step
     INTEGER, DIMENSION(:)                    :: selected_ind
     INTEGER                                  :: neval
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'index_min_max_real_eval_s', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'index_min_max_real_eval_c', &
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(current_step)         :: indexing
@@ -87,7 +87,7 @@
        END IF
     END DO
 
-  END SUBROUTINE index_min_max_real_eval_s
+  END SUBROUTINE index_min_max_real_eval_c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -96,13 +96,13 @@
 !> \param selected_ind ...
 !> \param neval ...
 ! **************************************************************************************************
-  SUBROUTINE index_nmax_real_eval_s(evals, current_step, selected_ind, neval)
+  SUBROUTINE index_nmax_real_eval_c(evals, current_step, selected_ind, neval)
     COMPLEX(real_4), DIMENSION(:)       :: evals
-    INTEGER                                  :: current_step
+    INTEGER, INTENT(IN)                      :: current_step
     INTEGER, DIMENSION(:)                    :: selected_ind
     INTEGER                                  :: neval
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'index_nmax_real_eval_s', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'index_nmax_real_eval_c', &
       routineP = moduleN//':'//routineN
     
     INTEGER                                  :: i, nlimit
@@ -121,7 +121,7 @@
        END IF
     END DO
 
-  END SUBROUTINE index_nmax_real_eval_s
+  END SUBROUTINE index_nmax_real_eval_c
 
 ! **************************************************************************************************
 !> \brief ...
@@ -130,13 +130,13 @@
 !> \param selected_ind ...
 !> \param neval ...
 ! **************************************************************************************************
-  SUBROUTINE index_nmin_real_eval_s(evals, current_step, selected_ind, neval)
+  SUBROUTINE index_nmin_real_eval_c(evals, current_step, selected_ind, neval)
     COMPLEX(real_4), DIMENSION(:)       :: evals
-    INTEGER                                  :: current_step
+    INTEGER, INTENT(IN)                      :: current_step
     INTEGER, DIMENSION(:)                    :: selected_ind
     INTEGER                                  :: neval,nlimit
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'index_nmin_real_eval_s', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'index_nmin_real_eval_c', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
@@ -155,5 +155,5 @@
        END IF
     END DO
 
-  END SUBROUTINE index_nmin_real_eval_s
+  END SUBROUTINE index_nmin_real_eval_c
 

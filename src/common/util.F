@@ -13,6 +13,7 @@ MODULE util
    USE cp_array_sort_i4,                ONLY: cp_1d_i4_sort
    USE cp_array_sort_i8,                ONLY: cp_1d_i8_sort
    USE cp_array_sort_r,                 ONLY: cp_1d_r_sort
+   USE cp_array_sort_s,                 ONLY: cp_1d_s_sort
    USE kinds,                           ONLY: dp
 
    IMPLICIT NONE
@@ -26,7 +27,7 @@ MODULE util
              sort_unique
 
    INTERFACE sort
-      MODULE PROCEDURE cp_1d_r_sort, cp_1d_i4_sort, cp_1d_i8_sort, &
+      MODULE PROCEDURE cp_1d_s_sort, cp_1d_r_sort, cp_1d_i4_sort, cp_1d_i8_sort, &
          sort_cv, sort_im, sort_cm
    END INTERFACE
 

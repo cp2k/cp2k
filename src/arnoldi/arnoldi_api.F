@@ -10,8 +10,8 @@
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-MODULE dbcsr_arnoldi
-   USE dbcsr_arnoldi_data_methods,      ONLY: arnoldi_is_converged,&
+MODULE arnoldi_api
+   USE arnoldi_data_methods,            ONLY: arnoldi_is_converged,&
                                               deallocate_arnoldi_data,&
                                               get_nrestart,&
                                               get_selected_ritz_val,&
@@ -19,46 +19,38 @@ MODULE dbcsr_arnoldi
                                               select_evals,&
                                               set_arnoldi_initial_vector,&
                                               setup_arnoldi_data
-   USE dbcsr_arnoldi_methods,           ONLY: arnoldi_init,&
+   USE arnoldi_methods,                 ONLY: arnoldi_init,&
                                               arnoldi_iram,&
                                               build_subspace,&
                                               compute_evals,&
                                               gev_arnoldi_init,&
                                               gev_build_subspace,&
                                               gev_update_data
-   USE dbcsr_arnoldi_types,             ONLY: arnoldi_control,&
-                                              dbcsr_arnoldi_data,&
+   USE arnoldi_types,                   ONLY: arnoldi_control_type,&
+                                              arnoldi_data_type,&
                                               get_control,&
-                                              m_x_v_vectors
-   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                              dbcsr_iterator_next_block,&
-                                              dbcsr_iterator_start,&
-                                              dbcsr_iterator_stop
-   USE dbcsr_methods,                   ONLY: dbcsr_init,&
-                                              dbcsr_release
-   USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_get_info,&
-                                              dbcsr_set
-   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                              dbcsr_obj,&
-                                              dbcsr_obj_type_p
-   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix,&
-                                              create_replicated_col_vec_from_matrix,&
-                                              create_replicated_row_vec_from_matrix,&
-                                              dbcsr_matrix_colvec_multiply
+                                              m_x_v_vectors_type
+   USE cp_dbcsr_interface,              ONLY: &
+        cp_create_col_vec_from_matrix, cp_create_replicated_col_vec_from_matrix, &
+        cp_create_replicated_row_vec_from_matrix, cp_dbcsr_add, cp_dbcsr_copy, &
+        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_iterator, &
+        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+        cp_dbcsr_iterator_stop, cp_dbcsr_matrix_colvec_multiply, cp_dbcsr_p_type, &
+        cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
-#include "../../base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_api'
 
-   PUBLIC :: dbcsr_arnoldi_ev, dbcsr_arnoldi_extremal, dbcsr_conjugate_gradient
+   PUBLIC :: arnoldi_ev, arnoldi_extremal, arnoldi_conjugate_gradient
+   PUBLIC :: arnoldi_data_type, setup_arnoldi_data, deallocate_arnoldi_data
+   PUBLIC :: set_arnoldi_initial_vector
+   PUBLIC :: get_selected_ritz_val, get_selected_ritz_vector
 
 CONTAINS
 
@@ -70,24 +62,23 @@ CONTAINS
 !> \param arnoldi_data ...
 ! **************************************************************************************************
 
-   SUBROUTINE dbcsr_arnoldi_ev(matrix, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+   SUBROUTINE arnoldi_ev(matrix, arnoldi_data)
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_arnoldi_ev', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_ev', routineP = moduleN//':'//routineN
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(arnoldi_data)
 
       IF (control%generalized_ev) THEN
-         CALL dbcsr_arnoldi_generalized_ev(matrix, arnoldi_data)
+         CALL arnoldi_generalized_ev(matrix, arnoldi_data)
       ELSE
-         CALL dbcsr_arnoldi_normal_ev(matrix, arnoldi_data)
+         CALL arnoldi_normal_ev(matrix, arnoldi_data)
       END IF
 
-   END SUBROUTINE dbcsr_arnoldi_ev
+   END SUBROUTINE arnoldi_ev
 
 ! **************************************************************************************************
 !> \brief The main routine for arnoldi method to compute ritz values
@@ -96,7 +87,7 @@ CONTAINS
 !>        arnoldi data has to be create with the setup routine and
 !>        will contain on input all necessary information to start/restart
 !>        the calculation. On output it contains all data
-!> \param matrix a pointer array to dbcsr_matrices. Multiplication order is as
+!> \param matrix a pointer array to cp_dbcsr_matrices. Multiplication order is as
 !>        described above
 !> \param arnoldi_data On input data_type contains all information to start/restart
 !>                     an arnoldi iteration
@@ -104,31 +95,31 @@ CONTAINS
 !>                     processing of the created subspace
 !>                     arnoldi_data has to be created with setup_arnoldi_data
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_arnoldi_normal_ev(matrix, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+   SUBROUTINE arnoldi_normal_ev(matrix, arnoldi_data)
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_arnoldi_normal_ev', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_normal_ev', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i_loop, ncol_local, nrow_local
-      TYPE(arnoldi_control), POINTER                     :: control
-      TYPE(dbcsr_obj), POINTER                           :: restart_vec
-      TYPE(m_x_v_vectors)                                :: vectors
+      TYPE(arnoldi_control_type), POINTER                :: control
+      TYPE(cp_dbcsr_type), POINTER                       :: restart_vec
+      TYPE(m_x_v_vectors_type)                           :: vectors
 
       NULLIFY (restart_vec)
       CALL timeset(routineN, handle)
 
 !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
-      CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
-      CALL dbcsr_init(vectors%result_vec)
-      CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
-      CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
-      CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
+      CALL cp_create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
+      CALL cp_dbcsr_init(vectors%result_vec)
+      CALL cp_dbcsr_copy(vectors%result_vec, vectors%input_vec)
+      CALL cp_create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
+      CALL cp_create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
 
 ! Tells whether we have local data available on the processor (usually all in pcol 0 but even ther can be some without data)
       control => get_control(arnoldi_data)
-      CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+      CALL cp_dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
       control%local_comp = ncol_local > 0 .AND. nrow_local > 0
 
       DO i_loop = 0, get_nrestart(arnoldi_data)
@@ -160,15 +151,15 @@ CONTAINS
       END DO
 
 ! Deallocated the work vectors
-      CALL dbcsr_release(vectors%input_vec)
-      CALL dbcsr_release(vectors%result_vec)
-      CALL dbcsr_release(vectors%rep_col_vec)
-      CALL dbcsr_release(vectors%rep_row_vec)
-      CALL dbcsr_release(restart_vec)
+      CALL cp_dbcsr_release(vectors%input_vec)
+      CALL cp_dbcsr_release(vectors%result_vec)
+      CALL cp_dbcsr_release(vectors%rep_col_vec)
+      CALL cp_dbcsr_release(vectors%rep_row_vec)
+      CALL cp_dbcsr_release(restart_vec)
       DEALLOCATE (restart_vec)
       CALL timestop(handle)
 
-   END SUBROUTINE dbcsr_arnoldi_normal_ev
+   END SUBROUTINE arnoldi_normal_ev
 
 ! **************************************************************************************************
 !> \brief The main routine for arnoldi method to compute the lowest ritz pair
@@ -178,7 +169,7 @@ CONTAINS
 !>        In other words, M(1) is the matrix and M(2) the metric
 !>        This only works if the two matrices are symmetric in values
 !>        (flag in dbcsr does not need to be set)
-!> \param matrix a pointer array to dbcsr_matrices. Multiplication order is as
+!> \param matrix a pointer array to cp_dbcsr_matrices. Multiplication order is as
 !>        described above
 !> \param arnoldi_data On input data_type contains all information to start/restart
 !>                     an arnoldi iteration
@@ -186,36 +177,36 @@ CONTAINS
 !>                     processing of the created subspace
 !>                     arnoldi_data has to be created with setup_arnoldi_data
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_arnoldi_generalized_ev(matrix, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+   SUBROUTINE arnoldi_generalized_ev(matrix, arnoldi_data)
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_arnoldi_generalized_ev', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_generalized_ev', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i_loop, ncol_local, nrow_local
-      TYPE(arnoldi_control), POINTER                     :: control
-      TYPE(dbcsr_obj), TARGET                            :: A_rho_B
-      TYPE(dbcsr_obj_type_p), ALLOCATABLE, DIMENSION(:)  :: matrix_arnoldi
-      TYPE(m_x_v_vectors)                                :: vectors
+      TYPE(arnoldi_control_type), POINTER                :: control
+      TYPE(cp_dbcsr_p_type), ALLOCATABLE, DIMENSION(:)   :: matrix_arnoldi
+      TYPE(cp_dbcsr_type), TARGET                        :: A_rho_B
+      TYPE(m_x_v_vectors_type)                           :: vectors
 
       CALL timeset(routineN, handle)
       ALLOCATE (matrix_arnoldi(2))
       ! this matrix will contain +/- A-rho*B
-      CALL dbcsr_init(A_rho_B)
+      CALL cp_dbcsr_init(A_rho_B)
       matrix_arnoldi(1)%matrix => A_rho_B
       matrix_arnoldi(2)%matrix => matrix(2)%matrix
 
 !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
-      CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
-      CALL dbcsr_init(vectors%result_vec)
-      CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
-      CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
-      CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
+      CALL cp_create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
+      CALL cp_dbcsr_init(vectors%result_vec)
+      CALL cp_dbcsr_copy(vectors%result_vec, vectors%input_vec)
+      CALL cp_create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
+      CALL cp_create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
 
 ! Tells whether we have local data available on the processor (usually all in pcol 0 but even ther can be some without data)
       control => get_control(arnoldi_data)
-      CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+      CALL cp_dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
       control%local_comp = ncol_local > 0 .AND. nrow_local > 0
 
       DO i_loop = 0, get_nrestart(arnoldi_data)
@@ -241,16 +232,16 @@ CONTAINS
       END DO
 
 ! Deallocated the work vectors
-      CALL dbcsr_release(vectors%input_vec)
-      CALL dbcsr_release(vectors%result_vec)
-      CALL dbcsr_release(vectors%rep_col_vec)
-      CALL dbcsr_release(vectors%rep_row_vec)
-      CALL dbcsr_release(A_rho_B)
+      CALL cp_dbcsr_release(vectors%input_vec)
+      CALL cp_dbcsr_release(vectors%result_vec)
+      CALL cp_dbcsr_release(vectors%rep_col_vec)
+      CALL cp_dbcsr_release(vectors%rep_row_vec)
+      CALL cp_dbcsr_release(A_rho_B)
       DEALLOCATE (matrix_arnoldi)
 
       CALL timestop(handle)
 
-   END SUBROUTINE dbcsr_arnoldi_generalized_ev
+   END SUBROUTINE arnoldi_generalized_ev
 
 ! **************************************************************************************************
 !> \brief simple wrapper to estimate extremal eigenvalues with arnoldi, using the old lanczos interface
@@ -263,19 +254,19 @@ CONTAINS
 !> \param threshold target precision
 !> \param max_iter max allowed iterations (will be rounded up)
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_arnoldi_extremal(matrix_a, max_ev, min_ev, converged, threshold, max_iter)
-      TYPE(dbcsr_obj), INTENT(INOUT), TARGET             :: matrix_a
+   SUBROUTINE arnoldi_extremal(matrix_a, max_ev, min_ev, converged, threshold, max_iter)
+      TYPE(cp_dbcsr_type), INTENT(INOUT), TARGET         :: matrix_a
       REAL(KIND=dp), INTENT(OUT)                         :: max_ev, min_ev
       LOGICAL, INTENT(OUT)                               :: converged
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: max_iter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_arnoldi_extremal', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_extremal', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, max_iter_internal, nrestarts
-      TYPE(dbcsr_arnoldi_data)                           :: my_arnoldi
-      TYPE(dbcsr_obj_type_p), DIMENSION(:), POINTER      :: arnoldi_matrices
+      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: arnoldi_matrices
 
       CALL timeset(routineN, handle)
 
@@ -293,7 +284,7 @@ CONTAINS
       CALL setup_arnoldi_data(my_arnoldi, arnoldi_matrices, max_iter=max_iter_internal, &
                               threshold=threshold, selection_crit=1, nval_request=2, nrestarts=nrestarts, &
                               generalized_ev=.FALSE., iram=.TRUE.)
-      CALL dbcsr_arnoldi_ev(arnoldi_matrices, my_arnoldi)
+      CALL arnoldi_ev(arnoldi_matrices, my_arnoldi)
       converged = arnoldi_is_converged(my_arnoldi)
       max_eV = REAL(get_selected_ritz_val(my_arnoldi, 2), dp)
       min_eV = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
@@ -302,7 +293,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE dbcsr_arnoldi_extremal
+   END SUBROUTINE arnoldi_extremal
 
 ! **************************************************************************************************
 !> \brief Wrapper for conjugated gradient algorithm for Ax=b
@@ -313,51 +304,50 @@ CONTAINS
 !> \param threshold target precision
 !> \param max_iter max allowed iterations
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_conjugate_gradient(matrix_a, vec_x, matrix_p, converged, threshold, max_iter)
-      TYPE(dbcsr_obj), INTENT(IN), TARGET                :: matrix_a
+   SUBROUTINE arnoldi_conjugate_gradient(matrix_a, vec_x, matrix_p, converged, threshold, max_iter)
+      TYPE(cp_dbcsr_type), INTENT(IN), TARGET            :: matrix_a
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec_x
-      TYPE(dbcsr_obj), INTENT(IN), OPTIONAL, TARGET      :: matrix_p
+      TYPE(cp_dbcsr_type), INTENT(IN), OPTIONAL, TARGET  :: matrix_p
       LOGICAL, INTENT(OUT)                               :: converged
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: max_iter
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_conjugate_gradient', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_conjugate_gradient', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, j, mpgrp, nb, nloc, no
       INTEGER, DIMENSION(:), POINTER                     :: rb_offset, rb_size
-      LOGICAL                                            :: tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xvec
-      TYPE(arnoldi_control), POINTER                     :: control
-      TYPE(dbcsr_arnoldi_data)                           :: my_arnoldi
-      TYPE(dbcsr_iterator)                               :: dbcsr_iter
-      TYPE(dbcsr_obj), TARGET                            :: x
-      TYPE(dbcsr_obj_type_p), DIMENSION(:), POINTER      :: arnoldi_matrices
-      TYPE(m_x_v_vectors)                                :: vectors
+      TYPE(arnoldi_control_type), POINTER                :: control
+      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(cp_dbcsr_iterator)                            :: cp_dbcsr_iter
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: arnoldi_matrices
+      TYPE(cp_dbcsr_type), TARGET                        :: x
+      TYPE(m_x_v_vectors_type)                           :: vectors
 
       CALL timeset(routineN, handle)
 
       !prepare the vector like matrices needed in the matrix vector products,
       !they will be reused throughout the iterations
-      CALL create_col_vec_from_matrix(vectors%input_vec, matrix_a, 1)
-      CALL dbcsr_init(vectors%result_vec)
-      CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
-      CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix_a, 1)
-      CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix_a, 1)
+      CALL cp_create_col_vec_from_matrix(vectors%input_vec, matrix_a, 1)
+      CALL cp_dbcsr_init(vectors%result_vec)
+      CALL cp_dbcsr_copy(vectors%result_vec, vectors%input_vec)
+      CALL cp_create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix_a, 1)
+      CALL cp_create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix_a, 1)
       !
-      CALL dbcsr_init(x)
-      CALL dbcsr_copy(x, vectors%input_vec)
+      CALL cp_dbcsr_init(x)
+      CALL cp_dbcsr_copy(x, vectors%input_vec)
       !
-      CALL dbcsr_get_info(x, nfullrows_local=nloc, row_blk_size=rb_size, row_blk_offset=rb_offset)
+      CALL cp_dbcsr_get_info(x, nfullrows_local=nloc, row_blk_size=rb_size, row_blk_offset=rb_offset)
       !
-      CALL dbcsr_iterator_start(dbcsr_iter, x)
-      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec, tr)
+      CALL cp_dbcsr_iterator_start(cp_dbcsr_iter, x)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(cp_dbcsr_iter))
+         CALL cp_dbcsr_iterator_next_block(cp_dbcsr_iter, i, j, xvec)
          nb = rb_size(i)
          no = rb_offset(i)
          xvec(1:nb, 1) = vec_x(no:no+nb-1)
       END DO
-      CALL dbcsr_iterator_stop(dbcsr_iter)
+      CALL cp_dbcsr_iterator_stop(cp_dbcsr_iter)
 
       ! Arnoldi interface (used just for the iterator information here
       ALLOCATE (arnoldi_matrices(3))
@@ -377,30 +367,30 @@ CONTAINS
       converged = arnoldi_is_converged(my_arnoldi)
 
       vec_x = 0.0_dp
-      CALL dbcsr_iterator_start(dbcsr_iter, x)
-      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, xvec, tr)
+      CALL cp_dbcsr_iterator_start(cp_dbcsr_iter, x)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(cp_dbcsr_iter))
+         CALL cp_dbcsr_iterator_next_block(cp_dbcsr_iter, i, j, xvec)
          nb = rb_size(i)
          no = rb_offset(i)
          vec_x(no:no+nb-1) = xvec(1:nb, 1)
       END DO
-      CALL dbcsr_iterator_stop(dbcsr_iter)
+      CALL cp_dbcsr_iterator_stop(cp_dbcsr_iter)
       control => get_control(my_arnoldi)
       mpgrp = control%mp_group
       CALL mp_sum(vec_x, mpgrp)
       ! Deallocated the work vectors
-      CALL dbcsr_release(x)
-      CALL dbcsr_release(vectors%input_vec)
-      CALL dbcsr_release(vectors%result_vec)
-      CALL dbcsr_release(vectors%rep_col_vec)
-      CALL dbcsr_release(vectors%rep_row_vec)
+      CALL cp_dbcsr_release(x)
+      CALL cp_dbcsr_release(vectors%input_vec)
+      CALL cp_dbcsr_release(vectors%result_vec)
+      CALL cp_dbcsr_release(vectors%rep_col_vec)
+      CALL cp_dbcsr_release(vectors%rep_row_vec)
 
       CALL deallocate_arnoldi_data(my_arnoldi)
       DEALLOCATE (arnoldi_matrices)
 
       CALL timestop(handle)
 
-   END SUBROUTINE dbcsr_conjugate_gradient
+   END SUBROUTINE arnoldi_conjugate_gradient
 
 ! **************************************************************************************************
 !> \brief ...
@@ -409,18 +399,18 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE conjugate_gradient(arnoldi_data, arnoldi_matrices, vectors)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: arnoldi_matrices
-      TYPE(m_x_v_vectors)                                :: vectors
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: arnoldi_matrices
+      TYPE(m_x_v_vectors_type)                           :: vectors
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'conjugate_gradient', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: iter, mpgrp, pcgrp
       REAL(KIND=dp)                                      :: alpha, beta, pap, rsnew, rsold
-      TYPE(arnoldi_control), POINTER                     :: control
-      TYPE(dbcsr_obj)                                    :: apvec, pvec, rvec, zvec
-      TYPE(dbcsr_obj), POINTER                           :: amat, pmat, xvec
+      TYPE(arnoldi_control_type), POINTER                :: control
+      TYPE(cp_dbcsr_type)                                :: apvec, pvec, rvec, zvec
+      TYPE(cp_dbcsr_type), POINTER                       :: amat, pmat, xvec
 
       control => get_control(arnoldi_data)
       control%converged = .FALSE.
@@ -434,32 +424,32 @@ CONTAINS
 
       IF (ASSOCIATED(pmat)) THEN
          ! Preconditioned conjugate gradients
-         CALL dbcsr_init(apvec)
-         CALL dbcsr_init(pvec)
-         CALL dbcsr_init(rvec)
-         CALL dbcsr_init(zvec)
-         CALL dbcsr_copy(vectors%input_vec, xvec)
-         CALL dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
-                                           0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
-         CALL dbcsr_copy(pvec, vectors%result_vec)
-         CALL dbcsr_copy(vectors%input_vec, pvec)
-         CALL dbcsr_matrix_colvec_multiply(amat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
-                                           0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
-         CALL dbcsr_copy(apvec, vectors%result_vec)
-         CALL dbcsr_copy(rvec, xvec)
-         CALL dbcsr_add(rvec, apvec, 1.0_dp, -1.0_dp)
-         CALL dbcsr_copy(xvec, pvec)
-         CALL dbcsr_copy(vectors%input_vec, rvec)
-         CALL dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
-                                           0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
-         CALL dbcsr_copy(zvec, vectors%result_vec)
-         CALL dbcsr_copy(pvec, zvec)
+         CALL cp_dbcsr_init(apvec)
+         CALL cp_dbcsr_init(pvec)
+         CALL cp_dbcsr_init(rvec)
+         CALL cp_dbcsr_init(zvec)
+         CALL cp_dbcsr_copy(vectors%input_vec, xvec)
+         CALL cp_dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
+                                              0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
+         CALL cp_dbcsr_copy(pvec, vectors%result_vec)
+         CALL cp_dbcsr_copy(vectors%input_vec, pvec)
+         CALL cp_dbcsr_matrix_colvec_multiply(amat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
+                                              0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
+         CALL cp_dbcsr_copy(apvec, vectors%result_vec)
+         CALL cp_dbcsr_copy(rvec, xvec)
+         CALL cp_dbcsr_add(rvec, apvec, 1.0_dp, -1.0_dp)
+         CALL cp_dbcsr_copy(xvec, pvec)
+         CALL cp_dbcsr_copy(vectors%input_vec, rvec)
+         CALL cp_dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
+                                              0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
+         CALL cp_dbcsr_copy(zvec, vectors%result_vec)
+         CALL cp_dbcsr_copy(pvec, zvec)
          rsold = vec_dot_vec(rvec, zvec, mpgrp)
          DO iter = 1, control%max_iter
-            CALL dbcsr_copy(vectors%input_vec, pvec)
-            CALL dbcsr_matrix_colvec_multiply(amat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
-                                              0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
-            CALL dbcsr_copy(apvec, vectors%result_vec)
+            CALL cp_dbcsr_copy(vectors%input_vec, pvec)
+            CALL cp_dbcsr_matrix_colvec_multiply(amat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
+                                                 0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
+            CALL cp_dbcsr_copy(apvec, vectors%result_vec)
 
             pap = vec_dot_vec(pvec, apvec, mpgrp)
             IF (ABS(pap) < 1.e-24_dp) THEN
@@ -468,60 +458,60 @@ CONTAINS
                alpha = rsold/pap
             END IF
 
-            CALL dbcsr_add(xvec, pvec, 1.0_dp, alpha)
-            CALL dbcsr_add(rvec, apvec, 1.0_dp, -alpha)
+            CALL cp_dbcsr_add(xvec, pvec, 1.0_dp, alpha)
+            CALL cp_dbcsr_add(rvec, apvec, 1.0_dp, -alpha)
             rsnew = vec_dot_vec(rvec, rvec, mpgrp)
             IF (SQRT(rsnew) < control%threshold) EXIT
             CPASSERT(alpha /= 0.0_dp)
 
-            CALL dbcsr_copy(vectors%input_vec, rvec)
-            CALL dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
-                                              0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
-            CALL dbcsr_copy(zvec, vectors%result_vec)
+            CALL cp_dbcsr_copy(vectors%input_vec, rvec)
+            CALL cp_dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
+                                                 0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
+            CALL cp_dbcsr_copy(zvec, vectors%result_vec)
             rsnew = vec_dot_vec(rvec, zvec, mpgrp)
             beta = rsnew/rsold
-            CALL dbcsr_add(pvec, zvec, beta, 1.0_dp)
+            CALL cp_dbcsr_add(pvec, zvec, beta, 1.0_dp)
             rsold = rsnew
          END DO
          IF (SQRT(rsnew) < control%threshold) control%converged = .TRUE.
-         CALL dbcsr_release(zvec)
-         CALL dbcsr_release(pvec)
-         CALL dbcsr_release(rvec)
-         CALL dbcsr_release(apvec)
+         CALL cp_dbcsr_release(zvec)
+         CALL cp_dbcsr_release(pvec)
+         CALL cp_dbcsr_release(rvec)
+         CALL cp_dbcsr_release(apvec)
 
       ELSE
-         CALL dbcsr_init(pvec)
-         CALL dbcsr_copy(pvec, xvec)
-         CALL dbcsr_init(rvec)
-         CALL dbcsr_copy(rvec, xvec)
-         CALL dbcsr_init(apvec)
-         CALL dbcsr_set(xvec, 0.0_dp)
+         CALL cp_dbcsr_init(pvec)
+         CALL cp_dbcsr_copy(pvec, xvec)
+         CALL cp_dbcsr_init(rvec)
+         CALL cp_dbcsr_copy(rvec, xvec)
+         CALL cp_dbcsr_init(apvec)
+         CALL cp_dbcsr_set(xvec, 0.0_dp)
          ! Conjugate gradients
          rsold = vec_dot_vec(rvec, rvec, mpgrp)
          DO iter = 1, control%max_iter
-            CALL dbcsr_copy(vectors%input_vec, pvec)
-            CALL dbcsr_matrix_colvec_multiply(amat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
-                                              0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
-            CALL dbcsr_copy(apvec, vectors%result_vec)
+            CALL cp_dbcsr_copy(vectors%input_vec, pvec)
+            CALL cp_dbcsr_matrix_colvec_multiply(amat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
+                                                 0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
+            CALL cp_dbcsr_copy(apvec, vectors%result_vec)
             pap = vec_dot_vec(pvec, apvec, mpgrp)
             IF (ABS(pap) < 1.e-24_dp) THEN
                alpha = 0.0_dp
             ELSE
                alpha = rsold/pap
             END IF
-            CALL dbcsr_add(xvec, pvec, 1.0_dp, alpha)
-            CALL dbcsr_add(rvec, apvec, 1.0_dp, -alpha)
+            CALL cp_dbcsr_add(xvec, pvec, 1.0_dp, alpha)
+            CALL cp_dbcsr_add(rvec, apvec, 1.0_dp, -alpha)
             rsnew = vec_dot_vec(rvec, rvec, mpgrp)
             IF (SQRT(rsnew) < control%threshold) EXIT
             CPASSERT(alpha /= 0.0_dp)
             beta = rsnew/rsold
-            CALL dbcsr_add(pvec, rvec, beta, 1.0_dp)
+            CALL cp_dbcsr_add(pvec, rvec, beta, 1.0_dp)
             rsold = rsnew
          END DO
          IF (SQRT(rsnew) < control%threshold) control%converged = .TRUE.
-         CALL dbcsr_release(pvec)
-         CALL dbcsr_release(rvec)
-         CALL dbcsr_release(apvec)
+         CALL cp_dbcsr_release(pvec)
+         CALL cp_dbcsr_release(rvec)
+         CALL cp_dbcsr_release(apvec)
       END IF
 
    END SUBROUTINE conjugate_gradient
@@ -534,27 +524,27 @@ CONTAINS
 !> \retval adotb ...
 ! **************************************************************************************************
    FUNCTION vec_dot_vec(avec, bvec, mpgrp) RESULT(adotb)
-      TYPE(dbcsr_obj)                                    :: avec, bvec
+      TYPE(cp_dbcsr_type)                                :: avec, bvec
       INTEGER, INTENT(IN)                                :: mpgrp
       REAL(KIND=dp)                                      :: adotb
 
       INTEGER                                            :: i, j
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: av, bv
-      TYPE(dbcsr_iterator)                               :: dbcsr_iter
+      TYPE(cp_dbcsr_iterator)                            :: cp_dbcsr_iter
 
       adotb = 0.0_dp
-      CALL dbcsr_iterator_start(dbcsr_iter, avec)
-      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL dbcsr_iterator_next_block(dbcsr_iter, i, j, av, tr)
-         CALL dbcsr_get_block_p(bvec, i, j, bv, tr, found)
+      CALL cp_dbcsr_iterator_start(cp_dbcsr_iter, avec)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(cp_dbcsr_iter))
+         CALL cp_dbcsr_iterator_next_block(cp_dbcsr_iter, i, j, av)
+         CALL cp_dbcsr_get_block_p(bvec, i, j, bv, found)
          IF (found .AND. SIZE(bv) > 0) THEN
             adotb = adotb+DOT_PRODUCT(av(:, 1), bv(:, 1))
          END IF
       END DO
-      CALL dbcsr_iterator_stop(dbcsr_iter)
+      CALL cp_dbcsr_iterator_stop(cp_dbcsr_iter)
       CALL mp_sum(adotb, mpgrp)
 
    END FUNCTION vec_dot_vec
 
-END MODULE dbcsr_arnoldi
+END MODULE arnoldi_api

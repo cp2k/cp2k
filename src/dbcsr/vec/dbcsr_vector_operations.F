@@ -36,6 +36,7 @@ MODULE dbcsr_vector_operations
 
    PUBLIC :: dbcsr_matrix_colvec_multiply, &
              create_col_vec_from_matrix, &
+             create_row_vec_from_matrix, &
              create_replicated_col_vec_from_matrix, &
              create_replicated_row_vec_from_matrix
 

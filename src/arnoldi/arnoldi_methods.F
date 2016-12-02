@@ -10,38 +10,30 @@
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-MODULE dbcsr_arnoldi_methods
-   USE dbcsr_arnoldi_types,             ONLY: &
-        arnoldi_control, arnoldi_data_c, arnoldi_data_d, arnoldi_data_s, arnoldi_data_z, &
-        dbcsr_arnoldi_data, get_control, get_data_c, get_data_d, get_data_s, get_data_z, &
-        has_d_cmplx, has_d_real, has_s_cmplx, has_s_real, m_x_v_vectors
-   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-   USE dbcsr_geev,                      ONLY: dbcsr_general_local_diag,&
-                                              dbcsr_symm_local_diag,&
-                                              dbcsr_tridiag_local_diag
-   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                              dbcsr_iterator_next_block,&
-                                              dbcsr_iterator_start,&
-                                              dbcsr_iterator_stop
-   USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_get_info,&
-                                              dbcsr_scale
-   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                              dbcsr_obj,&
-                                              dbcsr_obj_type_p
-   USE dbcsr_vector_operations,         ONLY: dbcsr_matrix_colvec_multiply
+MODULE arnoldi_methods
+   USE arnoldi_geev,                    ONLY: arnoldi_general_local_diag,&
+                                              arnoldi_symm_local_diag,&
+                                              arnoldi_tridiag_local_diag
+   USE arnoldi_types,                   ONLY: &
+        arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
+        arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
+        get_data_z, has_d_cmplx, has_d_real, has_s_cmplx, has_s_real, m_x_v_vectors_type
+   USE cp_dbcsr_interface,              ONLY: &
+        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_data_p, cp_dbcsr_get_info, cp_dbcsr_iterator, &
+        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+        cp_dbcsr_iterator_stop, cp_dbcsr_matrix_colvec_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, &
+        cp_dbcsr_type
    USE kinds,                           ONLY: real_4,&
                                               real_8
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_sum
-#include "../../base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_methods'
 
    PUBLIC :: arnoldi_init, build_subspace, compute_evals, arnoldi_iram, &
              gev_arnoldi_init, gev_build_subspace, gev_update_data
@@ -60,7 +52,7 @@ CONTAINS
 !> \param arnoldi_data ...
 ! **************************************************************************************************
    SUBROUTINE arnoldi_iram(arnoldi_data)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_iram', routineP = moduleN//':'//routineN
 
@@ -83,7 +75,7 @@ CONTAINS
 !> \param arnoldi_data ...
 ! **************************************************************************************************
    SUBROUTINE compute_evals(arnoldi_data)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_evals', routineP = moduleN//':'//routineN
 
@@ -109,9 +101,9 @@ CONTAINS
 !> \param arnoldi_data all data concerning the subspace
 ! **************************************************************************************************
    SUBROUTINE arnoldi_init(matrix, vectors, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
-      TYPE(m_x_v_vectors)                                :: vectors
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(m_x_v_vectors_type)                           :: vectors
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init', routineP = moduleN//':'//routineN
 
@@ -137,9 +129,9 @@ CONTAINS
 !> \param arnoldi_data all data concerning the subspace
 ! **************************************************************************************************
    SUBROUTINE gev_arnoldi_init(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix, matrix_arnoldi
-      TYPE(m_x_v_vectors)                                :: vectors
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix, matrix_arnoldi
+      TYPE(m_x_v_vectors_type)                           :: vectors
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_arnoldi_init', &
          routineP = moduleN//':'//routineN
@@ -164,9 +156,9 @@ CONTAINS
 !> \param arnoldi_data see above
 ! **************************************************************************************************
    SUBROUTINE build_subspace(matrix, vectors, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
-      TYPE(m_x_v_vectors)                                :: vectors
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(m_x_v_vectors_type)                           :: vectors
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace', routineP = moduleN//':'//routineN
 
@@ -191,9 +183,9 @@ CONTAINS
 !> \param arnoldi_data see above
 ! **************************************************************************************************
    SUBROUTINE gev_build_subspace(matrix, vectors, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
-      TYPE(m_x_v_vectors)                                :: vectors
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(m_x_v_vectors_type)                           :: vectors
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_build_subspace', &
          routineP = moduleN//':'//routineN
@@ -221,9 +213,9 @@ CONTAINS
 !> \param arnoldi_data see above
 ! **************************************************************************************************
    SUBROUTINE gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix, matrix_arnoldi
-      TYPE(m_x_v_vectors)                                :: vectors
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix, matrix_arnoldi
+      TYPE(m_x_v_vectors_type)                           :: vectors
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_update_data', &
          routineP = moduleN//':'//routineN
@@ -312,9 +304,9 @@ CONTAINS
       m_out(:, :) = m_in
    END SUBROUTINE convert_matrix_c_to_c
 
-#include "dbcsr_arnoldi_methods_low_d.f90"
-#include "dbcsr_arnoldi_methods_low_s.f90"
-#include "dbcsr_arnoldi_methods_low_z.f90"
-#include "dbcsr_arnoldi_methods_low_c.f90"
+#include "arnoldi_methods_low_d.f90"
+#include "arnoldi_methods_low_s.f90"
+#include "arnoldi_methods_low_z.f90"
+#include "arnoldi_methods_low_c.f90"
 
-END MODULE dbcsr_arnoldi_methods
+END MODULE arnoldi_methods

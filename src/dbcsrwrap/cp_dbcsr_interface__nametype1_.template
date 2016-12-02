@@ -443,15 +443,52 @@
 !> \param ub ...
 !> \retval DATA ...
 ! **************************************************************************************************
-  FUNCTION cp_dbcsr_get_data_c_[nametype1] (matrix, index_matrix, select_data_type, lb, ub) RESULT (DATA)
+  FUNCTION cp_dbcsr_get_wms_data_[nametype1] (matrix, index_matrix, select_data_type, lb, ub) RESULT (DATA)
     TYPE(cp_dbcsr_type), INTENT(IN)  :: matrix
     INTEGER, INTENT(IN)              :: index_matrix
     [type1], INTENT(IN)              :: select_data_type
     [type1], DIMENSION(:), POINTER   :: DATA
     INTEGER, INTENT(IN), OPTIONAL    :: lb, ub
-    
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_data_p_[nametype1]', &
-      routineP = moduleN//':'//routineN
 
     DATA => dbcsr_get_data_p(matrix%matrix%m%wms(index_matrix)%data_area,select_data_type,lb,ub)
-  END FUNCTION cp_dbcsr_get_data_c_[nametype1]
+
+  END FUNCTION cp_dbcsr_get_wms_data_[nametype1]
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param index_matrix ...
+!> \param lb ...
+!> \param ub ...
+!> \retval DATA ...
+! **************************************************************************************************
+  FUNCTION cp_dbcsr_get_data_[nametype1] (matrix, select_data_type, lb, ub) RESULT (DATA)
+    TYPE(cp_dbcsr_type), INTENT(IN)  :: matrix
+    [type1], INTENT(IN)              :: select_data_type
+    [type1], DIMENSION(:), POINTER   :: DATA
+    INTEGER, INTENT(IN), OPTIONAL    :: lb, ub
+
+    DATA => dbcsr_get_data_p(matrix%matrix%m%data_area,select_data_type,lb,ub)
+
+  END FUNCTION cp_dbcsr_get_data_[nametype1]
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param vec_in ...
+!> \param vec_out ...
+!> \param alpha ...
+!> \param beta ...
+!> \param work_row ...
+!> \param work_col ...
+! **************************************************************************************************
+   SUBROUTINE cp_dbcsr_matrix_colvec_multiply_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
+      TYPE(cp_dbcsr_type)                                :: matrix, vec_in, vec_out
+      [type1]                                            :: alpha, beta
+      TYPE(cp_dbcsr_type)                                :: work_row, work_col
+
+      CALL dbcsr_matrix_colvec_multiply(matrix%matrix, vec_in%matrix, vec_out%matrix,&
+                                        alpha, beta, &
+                                        work_row%matrix, work_col%matrix)
+
+   END SUBROUTINE cp_dbcsr_matrix_colvec_multiply_[nametype1]

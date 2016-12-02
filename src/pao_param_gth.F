@@ -8,17 +8,17 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_gth
+   USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_arnoldi_extremal, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
-        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, &
-        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_distribution_mp, dbcsr_mp_group
+        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
+        cp_dbcsr_reserve_all_blocks, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, &
+        cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
@@ -215,8 +215,8 @@ CONTAINS
       ENDDO
 
       !TODO: good setting for arnoldi?
-      CALL cp_dbcsr_arnoldi_extremal(matrix_gth_overlap, eval_max, eval_min, max_iter=100, &
-                                     threshold=1e-2_dp, converged=arnoldi_converged)
+      CALL arnoldi_extremal(matrix_gth_overlap, eval_max, eval_min, max_iter=100, &
+                            threshold=1e-2_dp, converged=arnoldi_converged)
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| GTH-preconditioner converged, min, max, max/min:", &
          arnoldi_converged, eval_min, eval_max, eval_max/eval_min
 

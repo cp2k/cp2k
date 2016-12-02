@@ -11,12 +11,13 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE dm_ls_scf
+   USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE bibliography,                    ONLY: Kolafa2004,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_arnoldi_extremal, cp_dbcsr_binary_read, cp_dbcsr_binary_write, &
-        cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
+        cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_binary_write, cp_dbcsr_checksum, &
+        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
         cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
         cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_external_control,             ONLY: external_control
@@ -900,8 +901,8 @@ CONTAINS
                                 0.0_dp, matrix_k, filter_eps=ls_scf_env%eps_filter)
 
          ! extremal eigenvalues ks
-         CALL cp_dbcsr_arnoldi_extremal(matrix_k, eps_max, eps_min, max_iter=ls_scf_env%max_iter_lanczos, &
-                                        threshold=ls_scf_env%eps_lanczos, converged=converged)
+         CALL arnoldi_extremal(matrix_k, eps_max, eps_min, max_iter=ls_scf_env%max_iter_lanczos, &
+                               threshold=ls_scf_env%eps_lanczos, converged=converged)
 
          ! ortho basis p
          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_p(ispin), &

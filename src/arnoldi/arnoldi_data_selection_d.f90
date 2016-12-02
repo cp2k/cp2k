@@ -8,15 +8,15 @@
 !> \param arnoldi_data ...
 ! **************************************************************************************************
   SUBROUTINE select_evals_d(arnoldi_data)
-    TYPE(dbcsr_arnoldi_data)                :: arnoldi_data
+    TYPE(arnoldi_data_type)                :: arnoldi_data
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals_d', &
       routineP = moduleN//':'//routineN 
     
     INTEGER                                  :: my_crit, last_el, my_ind, i
     REAL(real_8)                        :: convergence
-    TYPE(arnoldi_data_d),POINTER   :: ar_data
-    TYPE(arnoldi_control), POINTER           :: control
+    TYPE(arnoldi_data_d_type),POINTER   :: ar_data
+    TYPE(arnoldi_control_type), POINTER           :: control
 
     control => get_control(arnoldi_data)
     ar_data => get_data_d(arnoldi_data)
@@ -57,7 +57,7 @@
 ! **************************************************************************************************
   SUBROUTINE index_min_max_real_eval_d(evals, current_step, selected_ind, neval)
     COMPLEX(real_8), DIMENSION(:)       :: evals
-    INTEGER                                  :: current_step
+    INTEGER, INTENT(IN)                      :: current_step
     INTEGER, DIMENSION(:)                    :: selected_ind
     INTEGER                                  :: neval
 
@@ -98,7 +98,7 @@
 ! **************************************************************************************************
   SUBROUTINE index_nmax_real_eval_d(evals, current_step, selected_ind, neval)
     COMPLEX(real_8), DIMENSION(:)       :: evals
-    INTEGER                                  :: current_step
+    INTEGER, INTENT(IN)                      :: current_step
     INTEGER, DIMENSION(:)                    :: selected_ind
     INTEGER                                  :: neval
 
@@ -132,7 +132,7 @@
 ! **************************************************************************************************
   SUBROUTINE index_nmin_real_eval_d(evals, current_step, selected_ind, neval)
     COMPLEX(real_8), DIMENSION(:)       :: evals
-    INTEGER                                  :: current_step
+    INTEGER, INTENT(IN)                      :: current_step
     INTEGER, DIMENSION(:)                    :: selected_ind
     INTEGER                                  :: neval,nlimit
 

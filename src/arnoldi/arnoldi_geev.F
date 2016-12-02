@@ -10,31 +10,31 @@
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-MODULE dbcsr_geev
+MODULE arnoldi_geev
    USE kinds,                           ONLY: real_4,&
                                               real_8
-#include "../../base/base_uses.f90"
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_geev'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_geev'
 
-   PUBLIC :: dbcsr_general_local_diag, dbcsr_tridiag_local_diag, dbcsr_symm_local_diag
+   PUBLIC :: arnoldi_general_local_diag, arnoldi_tridiag_local_diag, arnoldi_symm_local_diag
 
-   INTERFACE dbcsr_general_local_diag
-      MODULE PROCEDURE dbcsr_sgeev, dbcsr_dgeev, dbcsr_zgeev, dbcsr_cgeev
+   INTERFACE arnoldi_general_local_diag
+      MODULE PROCEDURE arnoldi_sgeev, arnoldi_dgeev, arnoldi_zgeev, arnoldi_cgeev
    END INTERFACE
 
    ! currently only specialzed for real matrices
-   INTERFACE dbcsr_tridiag_local_diag
-      MODULE PROCEDURE dbcsr_sstev, dbcsr_dstev, dbcsr_zgeev, dbcsr_cgeev
+   INTERFACE arnoldi_tridiag_local_diag
+      MODULE PROCEDURE arnoldi_sstev, arnoldi_dstev, arnoldi_zgeev, arnoldi_cgeev
    END INTERFACE
 
    ! currently only specialzed for real matrices
-   INTERFACE dbcsr_symm_local_diag
-      MODULE PROCEDURE dbcsr_dsyevd, dbcsr_ssyevd, dbcsr_cheevd, dbcsr_zheevd
+   INTERFACE arnoldi_symm_local_diag
+      MODULE PROCEDURE arnoldi_dsyevd, arnoldi_ssyevd, arnoldi_cheevd, arnoldi_zheevd
    END INTERFACE
 
 CONTAINS
@@ -47,14 +47,14 @@ CONTAINS
 !> \param evals ...
 !> \param revec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_zheevd(jobvr, matrix, ndim, evals, revec)
+   SUBROUTINE arnoldi_zheevd(jobvr, matrix, ndim, evals, revec)
       CHARACTER(1)                                       :: jobvr
       COMPLEX(real_8), DIMENSION(:, :)                   :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_8), DIMENSION(:)                      :: evals
       COMPLEX(real_8), DIMENSION(:, :)                   :: revec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_zheevd', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_zheevd', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, liwork, lrwork, lwork, &
                                                             iwork(3+5*ndim)
@@ -73,7 +73,7 @@ CONTAINS
          revec(:, i) = tmp_array(:, i)
       END DO
 
-   END SUBROUTINE dbcsr_zheevd
+   END SUBROUTINE arnoldi_zheevd
 
 ! **************************************************************************************************
 !> \brief ...
@@ -83,14 +83,14 @@ CONTAINS
 !> \param evals ...
 !> \param revec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_cheevd(jobvr, matrix, ndim, evals, revec)
+   SUBROUTINE arnoldi_cheevd(jobvr, matrix, ndim, evals, revec)
       CHARACTER(1)                                       :: jobvr
       COMPLEX(real_4), DIMENSION(:, :)                   :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_4), DIMENSION(:)                      :: evals
       COMPLEX(real_4), DIMENSION(:, :)                   :: revec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_cheevd', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_cheevd', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, liwork, lrwork, lwork, &
                                                             iwork(3+5*ndim)
@@ -109,7 +109,7 @@ CONTAINS
          revec(:, i) = tmp_array(:, i)
       END DO
 
-   END SUBROUTINE dbcsr_cheevd
+   END SUBROUTINE arnoldi_cheevd
 
 ! **************************************************************************************************
 !> \brief ...
@@ -119,14 +119,14 @@ CONTAINS
 !> \param evals ...
 !> \param revec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_dsyevd(jobvr, matrix, ndim, evals, revec)
+   SUBROUTINE arnoldi_dsyevd(jobvr, matrix, ndim, evals, revec)
       CHARACTER(1)                                       :: jobvr
       REAL(real_8), DIMENSION(:, :)                      :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_8), DIMENSION(:)                      :: evals
       COMPLEX(real_8), DIMENSION(:, :)                   :: revec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_dsyevd', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_dsyevd', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, liwork, lwork, iwork(3+5*ndim)
       REAL(real_8)                                       :: tmp_array(ndim, ndim), &
@@ -144,7 +144,7 @@ CONTAINS
          evals(i) = CMPLX(eval(i), 0.0, real_8)
       END DO
 
-   END SUBROUTINE dbcsr_dsyevd
+   END SUBROUTINE arnoldi_dsyevd
 
 ! **************************************************************************************************
 !> \brief ...
@@ -154,14 +154,14 @@ CONTAINS
 !> \param evals ...
 !> \param revec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_ssyevd(jobvr, matrix, ndim, evals, revec)
+   SUBROUTINE arnoldi_ssyevd(jobvr, matrix, ndim, evals, revec)
       CHARACTER(1)                                       :: jobvr
       REAL(real_4), DIMENSION(:, :)                      :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_4), DIMENSION(:)                      :: evals
       COMPLEX(real_4), DIMENSION(:, :)                   :: revec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_ssyevd', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_ssyevd', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, liwork, lwork, iwork(3+5*ndim)
       REAL(real_4)                                       :: tmp_array(ndim, ndim), &
@@ -180,7 +180,7 @@ CONTAINS
          evals(i) = CMPLX(eval(i), 0.0, real_4)
       END DO
 
-   END SUBROUTINE dbcsr_ssyevd
+   END SUBROUTINE arnoldi_ssyevd
 
 ! **************************************************************************************************
 !> \brief ...
@@ -192,14 +192,14 @@ CONTAINS
 !> \param revec ...
 !> \param levec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_sstev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
+   SUBROUTINE arnoldi_sstev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
       CHARACTER(1)                                       :: jobvl, jobvr
       REAL(real_4), DIMENSION(:, :)                      :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_4), DIMENSION(:)                      :: evals
       COMPLEX(real_4), DIMENSION(:, :)                   :: revec, levec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sstev', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_sstev', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info
       REAL(real_4)                                       :: work(20*ndim)
@@ -222,7 +222,7 @@ CONTAINS
          revec(:, i) = CMPLX(evec_r(:, i), REAL(0.0, real_4), real_4)
          evals(i) = CMPLX(diag(i), 0.0, real_4)
       END DO
-   END SUBROUTINE dbcsr_sstev
+   END SUBROUTINE arnoldi_sstev
 
 ! **************************************************************************************************
 !> \brief ...
@@ -234,14 +234,14 @@ CONTAINS
 !> \param revec ...
 !> \param levec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_dstev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
+   SUBROUTINE arnoldi_dstev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
       CHARACTER(1)                                       :: jobvl, jobvr
       REAL(real_8), DIMENSION(:, :)                      :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_8), DIMENSION(:)                      :: evals
       COMPLEX(real_8), DIMENSION(:, :)                   :: revec, levec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_dstev', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_dstev', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info
       REAL(real_8)                                       :: work(20*ndim)
@@ -265,7 +265,7 @@ CONTAINS
          revec(:, i) = CMPLX(evec_r(:, i), REAL(0.0, real_8), real_8)
          evals(i) = CMPLX(diag(i), 0.0, real_8)
       END DO
-   END SUBROUTINE dbcsr_dstev
+   END SUBROUTINE arnoldi_dstev
 ! **************************************************************************************************
 !> \brief ...
 !> \param jobvl ...
@@ -276,14 +276,14 @@ CONTAINS
 !> \param revec ...
 !> \param levec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_sgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
+   SUBROUTINE arnoldi_sgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
       CHARACTER(1)                                       :: jobvl, jobvr
       REAL(real_4), DIMENSION(:, :)                      :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_4), DIMENSION(:)                      :: evals
       COMPLEX(real_4), DIMENSION(:, :)                   :: revec, levec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sgeev', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_sgeev', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, lwork
       LOGICAL                                            :: selects(ndim)
@@ -323,7 +323,7 @@ CONTAINS
             levec(:, i+1) = CMPLX(evec_l(:, i), -evec_l(:, i+1), real_4)
             i = i+2
          ELSE
-            CPABORT('something went wrong while sorting the EV in dbcsr_geev')
+            CPABORT('something went wrong while sorting the EV in arnoldi_geev')
          END IF
       END DO
 
@@ -332,7 +332,7 @@ CONTAINS
          evals(i) = CMPLX(eval1(i), eval2(i), real_4)
       END DO
 
-   END SUBROUTINE dbcsr_sgeev
+   END SUBROUTINE arnoldi_sgeev
 
 ! **************************************************************************************************
 !> \brief ...
@@ -344,14 +344,14 @@ CONTAINS
 !> \param revec ...
 !> \param levec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_dgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
+   SUBROUTINE arnoldi_dgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
       CHARACTER(1)                                       :: jobvl, jobvr
       REAL(real_8), DIMENSION(:, :)                      :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_8), DIMENSION(:)                      :: evals
       COMPLEX(real_8), DIMENSION(:, :)                   :: revec, levec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_dgeev', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_dgeev', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, info, lwork
       LOGICAL                                            :: selects(ndim)
@@ -391,7 +391,7 @@ CONTAINS
             levec(:, i+1) = CMPLX(evec_l(:, i), -evec_l(:, i+1), real_8)
             i = i+2
          ELSE
-            CPABORT('something went wrong while sorting the EV in dbcsr_geev')
+            CPABORT('something went wrong while sorting the EV in arnoldi_geev')
          END IF
       END DO
 
@@ -400,7 +400,7 @@ CONTAINS
          evals(i) = CMPLX(eval1(i), eval2(i), real_8)
       END DO
 
-   END SUBROUTINE dbcsr_dgeev
+   END SUBROUTINE arnoldi_dgeev
 
 ! **************************************************************************************************
 !> \brief ...
@@ -412,14 +412,14 @@ CONTAINS
 !> \param revec ...
 !> \param levec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_zgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
+   SUBROUTINE arnoldi_zgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
       CHARACTER(1)                                       :: jobvl, jobvr
       COMPLEX(real_8), DIMENSION(:, :)                   :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_8), DIMENSION(:)                      :: evals
       COMPLEX(real_8), DIMENSION(:, :)                   :: revec, levec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_zgeev', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_zgeev', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: info, lwork
       COMPLEX(real_8)                                    :: work(20*ndim), tmp_array(ndim, ndim)
@@ -434,7 +434,7 @@ CONTAINS
       tmp_array(:, :) = matrix(:, :)
       CALL ZGEEV(jobvl, jobvr, ndim, tmp_array, ndim, evals, levec, ndim, revec, ndim, work, lwork, work2, info)
 
-   END SUBROUTINE dbcsr_zgeev
+   END SUBROUTINE arnoldi_zgeev
 
 ! **************************************************************************************************
 !> \brief ...
@@ -446,14 +446,14 @@ CONTAINS
 !> \param revec ...
 !> \param levec ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_cgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
+   SUBROUTINE arnoldi_cgeev(jobvl, jobvr, matrix, ndim, evals, revec, levec)
       CHARACTER(1)                                       :: jobvl, jobvr
       COMPLEX(real_4), DIMENSION(:, :)                   :: matrix
       INTEGER                                            :: ndim
       COMPLEX(real_4), DIMENSION(:)                      :: evals
       COMPLEX(real_4), DIMENSION(:, :)                   :: revec, levec
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_cgeev', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_cgeev', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: info, lwork
       COMPLEX(real_4)                                    :: work(20*ndim), tmp_array(ndim, ndim)
@@ -468,6 +468,6 @@ CONTAINS
       tmp_array(:, :) = matrix(:, :)
       CALL CGEEV(jobvl, jobvr, ndim, tmp_array, ndim, evals, levec, ndim, revec, ndim, work, lwork, work2, info)
 
-   END SUBROUTINE dbcsr_cgeev
+   END SUBROUTINE arnoldi_cgeev
 
-END MODULE dbcsr_geev
+END MODULE arnoldi_geev

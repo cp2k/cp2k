@@ -52,8 +52,8 @@ MODULE cp_array_sort_[nametype1]
 !> \author Ole Schuett
 ! **************************************************************************************************
 subroutine cp_1d_[nametype1]_sort(arr, n, indices)
-   [type1], dimension(1:n), intent(inout) :: arr
    integer, intent(in)                  :: n
+   [type1], dimension(1:n), intent(inout) :: arr
    integer, dimension(1:n), intent(out)   :: indices
    
    integer :: i

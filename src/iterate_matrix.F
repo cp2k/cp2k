@@ -9,15 +9,20 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE iterate_matrix
+   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+                                              arnoldi_ev,&
+                                              arnoldi_extremal,&
+                                              deallocate_arnoldi_data,&
+                                              get_selected_ritz_val,&
+                                              setup_arnoldi_data
+!cp_dbcsr_arnoldi_ev, cp_dbcsr_arnoldi_extremal, dbcsr_arnoldi_data,
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, cp_dbcsr_arnoldi_extremal, &
-        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, &
-        cp_dbcsr_gershgorin_norm, cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, &
-        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, &
-        cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_arnoldi_data, &
-        dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, deallocate_arnoldi_data, &
-        get_selected_ritz_val
+        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
+        cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, cp_dbcsr_get_info, &
+        cp_dbcsr_get_matrix_type, cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+        cp_dbcsr_norm, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+        cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_norm_maxabsnorm, &
+        dbcsr_type_no_symmetry
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -79,10 +84,10 @@ CONTAINS
                                                             gershgorin_norm, max_ev, &
                                                             maxnorm_matrix, min_ev, occ_matrix, &
                                                             t1, t2
+      TYPE(arnoldi_data_type)                            :: my_arnoldi
       TYPE(cp_dbcsr_p_type), DIMENSION(1)                :: mymat
       TYPE(cp_dbcsr_type), TARGET                        :: tmp1, tmp2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_arnoldi_data)                           :: my_arnoldi
 
 ! turn this off for the time being
 
@@ -131,9 +136,9 @@ CONTAINS
                              0.0_dp, tmp1, flop=flop1, filter_eps=filter_eps)
 
       mymat(1)%matrix => tmp1
-      CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, mymat, max_iter=30, threshold=1.0E-3_dp, selection_crit=1, &
-                                       nval_request=2, nrestarts=2, generalized_ev=.FALSE., iram=.TRUE.)
-      CALL cp_dbcsr_arnoldi_ev(mymat, my_arnoldi)
+      CALL setup_arnoldi_data(my_arnoldi, mymat, max_iter=30, threshold=1.0E-3_dp, selection_crit=1, &
+                              nval_request=2, nrestarts=2, generalized_ev=.FALSE., iram=.TRUE.)
+      CALL arnoldi_ev(mymat, my_arnoldi)
       max_eV = REAL(get_selected_ritz_val(my_arnoldi, 2), dp)
       min_eV = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
       CALL deallocate_arnoldi_data(my_arnoldi)
@@ -382,8 +387,8 @@ CONTAINS
       CALL cp_dbcsr_copy(matrix_sqrt, matrix)
 
       ! scale the matrix to get into the convergence range
-      CALL cp_dbcsr_arnoldi_extremal(matrix_sqrt, max_ev, min_ev, threshold=eps_lanczos, &
-                                     max_iter=max_iter_lanczos, converged=arnoldi_converged)
+      CALL arnoldi_extremal(matrix_sqrt, max_ev, min_ev, threshold=eps_lanczos, &
+                            max_iter=max_iter_lanczos, converged=arnoldi_converged)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          WRITE (unit_nr, '(T6,A,1X,L1,A,E12.3)') "Lanczos converged: ", arnoldi_converged, " threshold:", eps_lanczos

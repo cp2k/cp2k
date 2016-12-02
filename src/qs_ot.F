@@ -11,20 +11,21 @@
 !> \author Joost VandeVondele (06.2002)
 ! **************************************************************************************************
 MODULE qs_ot
+   USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, &
-        cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_get_occupation, &
-        cp_dbcsr_hadamard_product, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, &
-        cp_dbcsr_scale, cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_transposed, &
-        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_distribution, cp_dbcsr_filter, &
+        cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, cp_dbcsr_get_block_p, &
+        cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_hadamard_product, cp_dbcsr_init, &
+        cp_dbcsr_init_p, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_scale, &
+        cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
+        dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
@@ -858,7 +859,7 @@ CONTAINS
       ! get an upper bound for the largest eigenvalue
       ! try using lancos first and fall back to gershgorin norm if it fails
       max_iter = 30; threshold = 1.0E-03_dp
-      CALL cp_dbcsr_arnoldi_extremal(qs_ot_env%matrix_p, max_ev, min_ev, converged, threshold, max_iter)
+      CALL arnoldi_extremal(qs_ot_env%matrix_p, max_ev, min_ev, converged, threshold, max_iter)
       qs_ot_env%largest_eval_upper_bound = MAX(max_ev, ABS(min_ev))
 
       IF (.NOT. converged) qs_ot_env%largest_eval_upper_bound = cp_dbcsr_gershgorin_norm(qs_ot_env%matrix_p)

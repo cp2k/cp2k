@@ -11,15 +11,19 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_solvers
+   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+                                              arnoldi_ev,&
+                                              deallocate_arnoldi_data,&
+                                              get_selected_ritz_val,&
+                                              setup_arnoldi_data
    USE bibliography,                    ONLY: Schiffmann2015,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_arnoldi_ev, cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
-        cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init_p, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_setup_arnoldi_data, &
-        cp_dbcsr_type, dbcsr_arnoldi_data, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-        dbcsr_type_real_default, deallocate_arnoldi_data, get_selected_ritz_val
+        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
+        cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init_p, cp_dbcsr_p_type, &
+        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_real_4, dbcsr_type_real_default
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
@@ -282,8 +286,8 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: max_ev, min_ev
+      TYPE(arnoldi_data_type)                            :: my_arnoldi
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrices
-      TYPE(dbcsr_arnoldi_data)                           :: my_arnoldi
 
       CALL timeset(routineN, handle)
 
@@ -291,15 +295,15 @@ CONTAINS
       ALLOCATE (matrices(1))
       matrices(1)%matrix => matrix
       ! compute the minimum ev
-      CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=2, &
-                                       nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
-      CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi)
+      CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=2, &
+                              nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
+      CALL arnoldi_ev(matrices, my_arnoldi)
       max_ev = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
       CALL deallocate_arnoldi_data(my_arnoldi)
 
-      CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=3, &
-                                       nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
-      CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi)
+      CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=5.0E-4_dp, selection_crit=3, &
+                              nval_request=1, nrestarts=15, generalized_ev=.FALSE., iram=.FALSE.)
+      CALL arnoldi_ev(matrices, my_arnoldi)
       min_ev = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
       CALL deallocate_arnoldi_data(my_arnoldi)
 

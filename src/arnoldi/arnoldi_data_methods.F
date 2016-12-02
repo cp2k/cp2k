@@ -12,40 +12,31 @@
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-MODULE dbcsr_arnoldi_data_methods
-   USE dbcsr_arnoldi_types,             ONLY: &
-        arnoldi_control, arnoldi_data_c, arnoldi_data_d, arnoldi_data_s, arnoldi_data_z, &
-        dbcsr_arnoldi_data, get_control, get_data_c, get_data_d, get_data_s, get_data_z, &
-        get_evals_c, get_evals_d, get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, has_d_real, &
-        has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, set_data_z
-   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
-                                              dbcsr_is_initialized,&
-                                              dbcsr_release
-   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_grid_setup
-   USE dbcsr_operations,                ONLY: dbcsr_get_info
-   USE dbcsr_toollib,                   ONLY: sort
-   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                              dbcsr_obj,&
-                                              dbcsr_obj_type_p,&
-                                              dbcsr_type_complex_4,&
-                                              dbcsr_type_complex_8,&
-                                              dbcsr_type_real_4,&
-                                              dbcsr_type_real_8,&
-                                              dbcsr_type_symmetric
-   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix
+MODULE arnoldi_data_methods
+   USE arnoldi_types,                   ONLY: &
+        arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
+        arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
+        get_data_z, get_evals_c, get_evals_d, get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, &
+        has_d_real, has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, &
+        set_data_z
+   USE cp_dbcsr_interface,              ONLY: &
+        cp_create_col_vec_from_matrix, cp_dbcsr_get_data_p, cp_dbcsr_get_data_type, &
+        cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_p_type, cp_dbcsr_release, &
+        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_mp_grid_setup, dbcsr_type_complex_4, &
+        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
    USE kinds,                           ONLY: real_4,&
                                               real_8
-#include "../../base/base_uses.f90"
+   USE util,                            ONLY: sort
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_data_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_data_methods'
 
    PUBLIC :: select_evals, get_selected_ritz_val, arnoldi_is_converged, &
-             dbcsr_arnoldi_data, get_nrestart, set_arnoldi_initial_vector, &
+             arnoldi_data_type, get_nrestart, set_arnoldi_initial_vector, &
              setup_arnoldi_data, deallocate_arnoldi_data, get_selected_ritz_vector
 
 CONTAINS
@@ -71,8 +62,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_arnoldi_data(arnoldi_data, matrix, max_iter, threshold, selection_crit, &
                                  nval_request, nrestarts, generalized_ev, iram)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
       INTEGER                                            :: max_iter
       REAL(real_8)                                       :: threshold
       INTEGER                                            :: selection_crit, nval_request, nrestarts
@@ -84,7 +75,7 @@ CONTAINS
       CALL setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, &
                                  nval_request, nrestarts, generalized_ev, iram)
 
-      SELECT CASE (matrix (1)%matrix%m%data_type)
+      SELECT CASE (cp_dbcsr_get_data_type (matrix (1)%matrix))
       CASE (dbcsr_type_real_8)
          CALL setup_arnoldi_data_d(arnoldi_data, matrix, max_iter)
       CASE (dbcsr_type_real_4)
@@ -111,8 +102,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, nval_request, &
                                     nrestarts, generalized_ev, iram)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-      TYPE(dbcsr_obj_type_p), DIMENSION(:)               :: matrix
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
+      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
       INTEGER                                            :: max_iter
       REAL(real_8)                                       :: threshold
       INTEGER                                            :: selection_crit, nval_request, nrestarts
@@ -121,14 +112,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_control', &
          routineP = moduleN//':'//routineN
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
       TYPE(dbcsr_distribution_obj)                       :: distri
 
       ALLOCATE (control)
 ! Fill the information which will later on control the behavior of the arnoldi method and allow synchronization
-      CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
+      CALL cp_dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
       control%mp_group = distri%d%mp_env%mp%mp_group
       control%myproc = distri%d%mp_env%mp%mynode
+
       CALL dbcsr_mp_grid_setup(distri%d%mp_env)
       IF (.NOT. distri%d%mp_env%mp%subgroups_defined) &
          CPABORT("arnoldi only with subgroups")
@@ -137,8 +129,8 @@ CONTAINS
 
       control%symmetric = .FALSE.
 ! Will need a fix for complex because there it has to be hermitian
-      IF (SIZE(matrix) == 1) control%symmetric = &
-         dbcsr_get_matrix_type(matrix(1)%matrix) == dbcsr_type_symmetric
+      IF (SIZE(matrix) == 1) &
+         control%symmetric = cp_dbcsr_get_matrix_type(matrix(1)%matrix) == dbcsr_type_symmetric
 
 ! Set the control parameters
       control%max_iter = max_iter
@@ -176,16 +168,16 @@ CONTAINS
    END SUBROUTINE setup_arnoldi_control
 
 ! **************************************************************************************************
-!> \brief Deallocate the data in dbcsr_arnoldi_data
+!> \brief Deallocate the data in arnoldi_data
 !> \param arnoldi_data ...
 !> \param ind ...
 !> \param matrix ...
 !> \param vector ...
 ! **************************************************************************************************
    SUBROUTINE get_selected_ritz_vector(arnoldi_data, ind, matrix, vector)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
       INTEGER                                            :: ind
-      TYPE(dbcsr_obj)                                    :: matrix, vector
+      TYPE(cp_dbcsr_type)                                :: matrix, vector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector', &
          routineP = moduleN//':'//routineN
@@ -198,16 +190,16 @@ CONTAINS
    END SUBROUTINE get_selected_ritz_vector
 
 ! **************************************************************************************************
-!> \brief Deallocate the data in dbcsr_arnoldi_data
+!> \brief Deallocate the data in arnoldi_data
 !> \param arnoldi_data ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_arnoldi_data(arnoldi_data)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_arnoldi_data', &
          routineP = moduleN//':'//routineN
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       IF (has_d_real(arnoldi_data)) CALL deallocate_arnoldi_data_d(arnoldi_data)
       IF (has_s_real(arnoldi_data)) CALL deallocate_arnoldi_data_s(arnoldi_data)
@@ -225,7 +217,7 @@ CONTAINS
 !> \param arnoldi_data ...
 ! **************************************************************************************************
    SUBROUTINE select_evals(arnoldi_data)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals', routineP = moduleN//':'//routineN
 
@@ -242,10 +234,10 @@ CONTAINS
 !> \param itype ...
 ! **************************************************************************************************
    SUBROUTINE set_eval_selection(ar_data, itype)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       INTEGER                                            :: itype
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(ar_data)
       control%selection_crit = itype
@@ -257,10 +249,10 @@ CONTAINS
 !> \retval nrestart ...
 ! **************************************************************************************************
    FUNCTION get_nrestart(arnoldi_data) RESULT(nrestart)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+      TYPE(arnoldi_data_type)                            :: arnoldi_data
       INTEGER                                            :: nrestart
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(arnoldi_data)
       nrestart = control%nrestart
@@ -273,10 +265,10 @@ CONTAINS
 !> \retval nval_out ...
 ! **************************************************************************************************
    FUNCTION get_nval_out(ar_data) RESULT(nval_out)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       INTEGER                                            :: nval_out
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(ar_data)
       nval_out = control%nval_out
@@ -290,10 +282,10 @@ CONTAINS
 !> \retval current_step ...
 ! **************************************************************************************************
    FUNCTION get_subsp_size(ar_data) RESULT(current_step)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       INTEGER                                            :: current_step
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(ar_data)
       current_step = control%current_step
@@ -306,10 +298,10 @@ CONTAINS
 !> \retval converged ...
 ! **************************************************************************************************
    FUNCTION arnoldi_is_converged(ar_data) RESULT(converged)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       LOGICAL                                            :: converged
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(ar_data)
       converged = control%converged
@@ -323,7 +315,7 @@ CONTAINS
 !> \retval eval_out ...
 ! **************************************************************************************************
    FUNCTION get_selected_ritz_val(ar_data, ind) RESULT(eval_out)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       INTEGER                                            :: ind
       COMPLEX(real_8)                                    :: eval_out
 
@@ -359,7 +351,7 @@ CONTAINS
 !> \param eval_out ...
 ! **************************************************************************************************
    SUBROUTINE get_all_selected_ritz_val(ar_data, eval_out)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       COMPLEX(real_8), DIMENSION(:)                      :: eval_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_all_selected_ritz_val', &
@@ -394,10 +386,10 @@ CONTAINS
 !> \param vector ...
 ! **************************************************************************************************
    SUBROUTINE set_arnoldi_initial_vector(ar_data, vector)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(dbcsr_obj)                                    :: vector
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(cp_dbcsr_type)                                :: vector
 
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => get_control(ar_data)
       control%has_initial_vector = .TRUE.
@@ -409,14 +401,14 @@ CONTAINS
 
    END SUBROUTINE set_arnoldi_initial_vector
 
-#include "dbcsr_arnoldi_data_selection_d.f90"
-#include "dbcsr_arnoldi_data_selection_s.f90"
-#include "dbcsr_arnoldi_data_selection_z.f90"
-#include "dbcsr_arnoldi_data_selection_c.f90"
-#include "dbcsr_arnoldi_data_manipulation_d.f90"
-#include "dbcsr_arnoldi_data_manipulation_s.f90"
-#include "dbcsr_arnoldi_data_manipulation_z.f90"
-#include "dbcsr_arnoldi_data_manipulation_c.f90"
+#include "arnoldi_data_selection_d.f90"
+#include "arnoldi_data_selection_s.f90"
+#include "arnoldi_data_selection_z.f90"
+#include "arnoldi_data_selection_c.f90"
+#include "arnoldi_data_manipulation_d.f90"
+#include "arnoldi_data_manipulation_s.f90"
+#include "arnoldi_data_manipulation_z.f90"
+#include "arnoldi_data_manipulation_c.f90"
 
-END MODULE dbcsr_arnoldi_data_methods
+END MODULE arnoldi_data_methods
 

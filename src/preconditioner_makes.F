@@ -11,12 +11,17 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_makes
+   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+                                              arnoldi_ev,&
+                                              deallocate_arnoldi_data,&
+                                              get_selected_ritz_val,&
+                                              get_selected_ritz_vector,&
+                                              set_arnoldi_initial_vector,&
+                                              setup_arnoldi_data
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_setup_arnoldi_data, cp_dbcsr_type, cp_set_arnoldi_initial_vector, &
-        dbcsr_arnoldi_data, dbcsr_type_symmetric, deallocate_arnoldi_data, get_selected_ritz_val, &
-        get_selected_ritz_vec
+        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_get_info, &
+        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -691,9 +696,9 @@ CONTAINS
 
       INTEGER                                            :: handle, k, n
       REAL(KIND=dp)                                      :: max_ev, min_ev, pre_shift
+      TYPE(arnoldi_data_type)                            :: my_arnoldi
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrices
       TYPE(cp_dbcsr_type), TARGET                        :: dbcsr_cThc, dbcsr_hc, dbcsr_sc, mo_dbcsr
-      TYPE(dbcsr_arnoldi_data)                           :: my_arnoldi
 
       CALL timeset(routineN, handle)
 
@@ -735,16 +740,16 @@ CONTAINS
       ! Compute the Energy of the HOMO. We will use this as a reference energy
       ALLOCATE (matrices(1))
       matrices(1)%matrix => dbcsr_cThc
-      CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=1.0E-3_dp, selection_crit=2, &
-                                       nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
+      CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=1.0E-3_dp, selection_crit=2, &
+                              nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
       IF (ASSOCIATED(preconditioner_env%max_ev_vector)) &
-         CALL cp_set_arnoldi_initial_vector(my_arnoldi, preconditioner_env%max_ev_vector)
-      CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi)
+         CALL set_arnoldi_initial_vector(my_arnoldi, preconditioner_env%max_ev_vector)
+      CALL arnoldi_ev(matrices, my_arnoldi)
       max_ev = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
 
       ! save the ev as guess for the next time
       IF (.NOT. ASSOCIATED(preconditioner_env%max_ev_vector)) ALLOCATE (preconditioner_env%max_ev_vector)
-      CALL get_selected_ritz_vec(my_arnoldi, 1, matrices(1)%matrix, preconditioner_env%max_ev_vector)
+      CALL get_selected_ritz_vector(my_arnoldi, 1, matrices(1)%matrix, preconditioner_env%max_ev_vector)
       CALL deallocate_arnoldi_data(my_arnoldi)
       DEALLOCATE (matrices)
 
@@ -760,24 +765,24 @@ CONTAINS
          ALLOCATE (matrices(2))
          matrices(1)%matrix => preconditioner_env%sparse_matrix
          matrices(2)%matrix => matrix_s
-         CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
-                                          nval_request=1, nrestarts=21, generalized_ev=.TRUE., iram=.FALSE.)
+         CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
+                                 nval_request=1, nrestarts=21, generalized_ev=.TRUE., iram=.FALSE.)
       ELSE
          ALLOCATE (matrices(1))
          matrices(1)%matrix => preconditioner_env%sparse_matrix
-         CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
-                                          nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
+         CALL setup_arnoldi_data(my_arnoldi, matrices, max_iter=20, threshold=2.0E-2_dp, selection_crit=3, &
+                                 nval_request=1, nrestarts=8, generalized_ev=.FALSE., iram=.FALSE.)
       END IF
       IF (ASSOCIATED(preconditioner_env%min_ev_vector)) &
-         CALL cp_set_arnoldi_initial_vector(my_arnoldi, preconditioner_env%min_ev_vector)
+         CALL set_arnoldi_initial_vector(my_arnoldi, preconditioner_env%min_ev_vector)
 
       ! compute the LUMO energy
-      CALL cp_dbcsr_arnoldi_ev(matrices, my_arnoldi)
+      CALL arnoldi_ev(matrices, my_arnoldi)
       min_eV = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
 
       ! save the lumo vector for restarting in the next step
       IF (.NOT. ASSOCIATED(preconditioner_env%min_ev_vector)) ALLOCATE (preconditioner_env%min_ev_vector)
-      CALL get_selected_ritz_vec(my_arnoldi, 1, matrices(1)%matrix, preconditioner_env%min_ev_vector)
+      CALL get_selected_ritz_vector(my_arnoldi, 1, matrices(1)%matrix, preconditioner_env%min_ev_vector)
       CALL deallocate_arnoldi_data(my_arnoldi)
       DEALLOCATE (matrices)
 

@@ -4,19 +4,19 @@
 !> \param matrix ...
 !> \param max_iter ...
 ! **************************************************************************************************
-  SUBROUTINE  setup_arnoldi_data_d (arnoldi_data, matrix, max_iter)
-    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
-    INTEGER                                  :: max_iter
+  SUBROUTINE setup_arnoldi_data_d (arnoldi_data, matrix, max_iter)
+    TYPE(arnoldi_data_type)                 :: arnoldi_data
+    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix
+    INTEGER                                 :: max_iter
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_arnoldi_data_d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                           :: nrow_local
-    TYPE(arnoldi_data_d), POINTER           :: ar_data
+    TYPE(arnoldi_data_d_type), POINTER      :: ar_data
 
     ALLOCATE(ar_data)
-    CALL dbcsr_get_info(matrix=matrix(1)%matrix, nfullrows_local=nrow_local)
+    CALL cp_dbcsr_get_info(matrix=matrix(1)%matrix, nfullrows_local=nrow_local)
     ALLOCATE(ar_data%f_vec(nrow_local))
     ALLOCATE(ar_data%x_vec(nrow_local))
     ALLOCATE(ar_data%Hessenberg(max_iter+1, max_iter))
@@ -34,12 +34,12 @@
 !> \param arnoldi_data ...
 ! **************************************************************************************************
   SUBROUTINE deallocate_arnoldi_data_d (arnoldi_data)
-    TYPE(dbcsr_arnoldi_data)                     :: arnoldi_data
+    TYPE(arnoldi_data_type)                     :: arnoldi_data
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_arnoldi_data_d', &
       routineP = moduleN//':'//routineN
 
-    TYPE(arnoldi_data_d), POINTER            :: ar_data
+    TYPE(arnoldi_data_d_type), POINTER            :: ar_data
 
     ar_data=>get_data_d(arnoldi_data)
     IF(ASSOCIATED(ar_data%f_vec))DEALLOCATE(ar_data%f_vec)
@@ -60,20 +60,20 @@
 !> \param vector ...
 ! **************************************************************************************************
   SUBROUTINE get_selected_ritz_vector_d(arnoldi_data,ind,matrix,vector)
-    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(arnoldi_data_type)                 :: arnoldi_data
     INTEGER                                  :: ind
-    TYPE(dbcsr_obj)                          :: matrix
-    TYPE(dbcsr_obj)                          :: vector
+    TYPE(cp_dbcsr_type)                          :: matrix
+    TYPE(cp_dbcsr_type)                          :: vector
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector_d', &
       routineP = moduleN//':'//routineN
 
-    TYPE(arnoldi_data_d), POINTER           :: ar_data
+    TYPE(arnoldi_data_d_type), POINTER      :: ar_data
     INTEGER                                           :: vsize, myind, sspace_size, i
     INTEGER, DIMENSION(:), POINTER           :: selected_ind
     COMPLEX(real_8),DIMENSION(:),ALLOCATABLE       :: ritz_v
     REAL(kind=real_8), DIMENSION(:), POINTER          :: data_vec
-    TYPE(arnoldi_control), POINTER           :: control
+    TYPE(arnoldi_control_type), POINTER           :: control
 
     control=>get_control(arnoldi_data)
     selected_ind=>get_sel_ind(arnoldi_data)
@@ -84,13 +84,13 @@
     ALLOCATE(ritz_v(vsize))
     ritz_v=CMPLX(0.0,0.0,real_8)
 
-    IF(dbcsr_is_initialized (vector))CALL dbcsr_release(vector)
-    CALL create_col_vec_from_matrix(vector,matrix,1)
+    CALL cp_dbcsr_release(vector)
+    CALL cp_create_col_vec_from_matrix(vector,matrix,1)
     IF(control%local_comp)THEN
        DO i=1,sspace_size
           ritz_v(:)=ritz_v(:)+ar_data%local_history(:,i)*ar_data%revec(i,myind)
        END DO
-       data_vec => dbcsr_get_data_p (vector%m%data_area, select_data_type=0.0_real_8)
+       data_vec => cp_dbcsr_get_data_p (vector, select_data_type=0.0_real_8)
        ! is a bit odd but ritz_v is always complex and matrix type determines where it goes
        ! again I hope the user knows what is required
        data_vec(1:vsize) =REAL(ritz_v(1:vsize),KIND=real_8)
@@ -107,22 +107,22 @@
 !> \param vector ...
 ! **************************************************************************************************
   SUBROUTINE set_initial_vector_d(arnoldi_data,vector)
-    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_obj)                          :: vector
+    TYPE(arnoldi_data_type)                 :: arnoldi_data
+    TYPE(cp_dbcsr_type)                          :: vector
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_initial_vector_d', &
       routineP = moduleN//':'//routineN
     
-    TYPE(arnoldi_data_d), POINTER           :: ar_data
+    TYPE(arnoldi_data_d_type), POINTER     :: ar_data
     REAL(kind=real_8), DIMENSION(:), POINTER          :: data_vec
     INTEGER                                           :: nrow_local, ncol_local
-    TYPE(arnoldi_control), POINTER           :: control
+    TYPE(arnoldi_control_type), POINTER           :: control
 
     control=>get_control(arnoldi_data)
 
-    CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    CALL cp_dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ar_data=>get_data_d(arnoldi_data)
-    data_vec => dbcsr_get_data_p (vector%m%data_area, select_data_type=0.0_real_8)
+    data_vec => cp_dbcsr_get_data_p (vector, select_data_type=0.0_real_8)
     IF(nrow_local*ncol_local>0)ar_data%f_vec(1:nrow_local)=data_vec(1:nrow_local)
 
   END SUBROUTINE set_initial_vector_d  

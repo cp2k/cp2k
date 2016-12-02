@@ -4,14 +4,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief collection of types used in dbcsr_arnoldi
+!> \brief collection of types used in arnoldi
 !> \par History
 !>       2014.09 created [Florian Schiffmann]
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-MODULE dbcsr_arnoldi_types
-   USE dbcsr_types,                     ONLY: dbcsr_obj
+MODULE arnoldi_types
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
    USE kinds,                           ONLY: real_4,&
                                               real_8
 
@@ -20,7 +20,7 @@ MODULE dbcsr_arnoldi_types
 ! Type that gets created during the arnoldi procedure and contains basically everything
 ! As it is not quite clear what the user will request, this is the most general way to satisfy all needs:
 ! Give him everything we have and create some easy to use routines to post process externally
-   TYPE arnoldi_control
+   TYPE arnoldi_control_type
       LOGICAL                                 :: local_comp, converged
       INTEGER                                 :: myproc, mp_group, pcol_group, prow_group
       INTEGER                                 :: max_iter ! Maximum number of iterations
@@ -35,9 +35,9 @@ MODULE dbcsr_arnoldi_types
       LOGICAL                                 :: iram
       LOGICAL                                 :: has_initial_vector
       INTEGER, DIMENSION(:), POINTER          :: selected_ind ! list of indicies matching the selection criterium
-   END TYPE arnoldi_control
+   END TYPE arnoldi_control_type
 
-   TYPE arnoldi_data_d
+   TYPE arnoldi_data_d_type
       REAL(kind=real_8), POINTER, DIMENSION(:)         :: f_vec ! the local parts of the residual vector
       REAL(kind=real_8), POINTER, DIMENSION(:, :)      :: Hessenberg ! the Hessenberg matrix
       REAL(kind=real_8), POINTER, DIMENSION(:, :)      :: local_history ! the complete set of orthonormal vectors (local part)
@@ -45,9 +45,9 @@ MODULE dbcsr_arnoldi_types
       COMPLEX(real_8), POINTER, DIMENSION(:, :)        :: revec ! the right eigenvectors
       REAL(kind=real_8)                                :: rho_scale ! scling factor for general eig arnoldi
       REAL(kind=real_8), POINTER, DIMENSION(:)         :: x_vec ! eigenvector for genreal eig arnoldi
-   END TYPE arnoldi_data_d
+   END TYPE arnoldi_data_d_type
 
-   TYPE arnoldi_data_s
+   TYPE arnoldi_data_s_type
       REAL(kind=real_4), POINTER, DIMENSION(:)         :: f_vec ! the local parts of the residual vector
       REAL(kind=real_4), POINTER, DIMENSION(:, :)      :: Hessenberg ! the Hessenberg matrix
       REAL(kind=real_4), POINTER, DIMENSION(:, :)      :: local_history ! the complete set of orthonormal vectors (local part)
@@ -55,9 +55,9 @@ MODULE dbcsr_arnoldi_types
       COMPLEX(real_4), POINTER, DIMENSION(:, :)        :: revec ! the right eigenvectors
       REAL(kind=real_4)                                :: rho_scale ! scling factor for general eig arnoldi
       REAL(kind=real_4), POINTER, DIMENSION(:)         :: x_vec ! eigenvector for genreal eig arnoldi
-   END TYPE arnoldi_data_s
+   END TYPE arnoldi_data_s_type
 
-   TYPE arnoldi_data_z
+   TYPE arnoldi_data_z_type
       COMPLEX(kind=real_8), POINTER, DIMENSION(:)      :: f_vec ! the local parts of the residual vector
       COMPLEX(kind=real_8), POINTER, DIMENSION(:, :)   :: Hessenberg ! the Hessenberg matrix
       COMPLEX(kind=real_8), POINTER, DIMENSION(:, :)   :: local_history ! the complete set of orthonormal vectors (local part)
@@ -65,9 +65,9 @@ MODULE dbcsr_arnoldi_types
       COMPLEX(real_8), POINTER, DIMENSION(:, :)        :: revec ! the right eigenvectors
       COMPLEX(kind=real_8)                             :: rho_scale ! scling factor for general eig arnoldi
       COMPLEX(kind=real_8), POINTER, DIMENSION(:)      :: x_vec ! eigenvector for genreal eig arnoldi
-   END TYPE arnoldi_data_z
+   END TYPE arnoldi_data_z_type
 
-   TYPE arnoldi_data_c
+   TYPE arnoldi_data_c_type
       COMPLEX(kind=real_4), POINTER, DIMENSION(:)      :: f_vec ! the local parts of the residual vector
       COMPLEX(kind=real_4), POINTER, DIMENSION(:, :)   :: Hessenberg ! the Hessenberg matrix
       COMPLEX(kind=real_4), POINTER, DIMENSION(:, :)   :: local_history ! the complete set of orthonormal vectors (local part)
@@ -75,30 +75,30 @@ MODULE dbcsr_arnoldi_types
       COMPLEX(real_4), POINTER, DIMENSION(:, :)        :: revec ! the right eigenvectors
       COMPLEX(kind=real_4)                             :: rho_scale ! scling factor for general eig arnoldi
       COMPLEX(kind=real_4), POINTER, DIMENSION(:)      :: x_vec ! eigenvector for genreal eig arnoldi
-   END TYPE arnoldi_data_c
+   END TYPE arnoldi_data_c_type
 
-   TYPE dbcsr_arnoldi_data
-      TYPE(arnoldi_data_s), POINTER, PRIVATE              :: data_s => NULL()
-      TYPE(arnoldi_data_d), POINTER, PRIVATE              :: data_d => NULL()
-      TYPE(arnoldi_data_c), POINTER, PRIVATE              :: data_c => NULL()
-      TYPE(arnoldi_data_z), POINTER, PRIVATE              :: data_z => NULL()
-      TYPE(arnoldi_control), POINTER, PRIVATE             :: control
-   END TYPE dbcsr_arnoldi_data
+   TYPE arnoldi_data_type
+      TYPE(arnoldi_data_s_type), POINTER, PRIVATE              :: data_s => NULL()
+      TYPE(arnoldi_data_d_type), POINTER, PRIVATE              :: data_d => NULL()
+      TYPE(arnoldi_data_c_type), POINTER, PRIVATE              :: data_c => NULL()
+      TYPE(arnoldi_data_z_type), POINTER, PRIVATE              :: data_z => NULL()
+      TYPE(arnoldi_control_type), POINTER, PRIVATE             :: control
+   END TYPE arnoldi_data_type
 
-   TYPE m_x_v_vectors
-      TYPE(dbcsr_obj)                          :: input_vec
-      TYPE(dbcsr_obj)                          :: result_vec
-      TYPE(dbcsr_obj)                          :: rep_col_vec
-      TYPE(dbcsr_obj)                          :: rep_row_vec
-   END TYPE
+   TYPE m_x_v_vectors_type
+      TYPE(cp_dbcsr_type)                          :: input_vec
+      TYPE(cp_dbcsr_type)                          :: result_vec
+      TYPE(cp_dbcsr_type)                          :: rep_col_vec
+      TYPE(cp_dbcsr_type)                          :: rep_row_vec
+   END TYPE m_x_v_vectors_type
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_types'
 
-   PUBLIC :: dbcsr_arnoldi_data, m_x_v_vectors, get_data_d, get_data_s, get_sel_ind, &
-             get_data_z, get_data_c, get_control, has_s_real, has_d_real, arnoldi_control, &
-             has_s_cmplx, has_d_cmplx, arnoldi_data_d, arnoldi_data_s, arnoldi_data_z, arnoldi_data_c, &
+   PUBLIC :: arnoldi_data_type, m_x_v_vectors_type, get_data_d, get_data_s, get_sel_ind, &
+             get_data_z, get_data_c, get_control, has_s_real, has_d_real, arnoldi_control_type, &
+             has_s_cmplx, has_d_cmplx, arnoldi_data_d_type, arnoldi_data_s_type, arnoldi_data_z_type, arnoldi_data_c_type, &
              get_evals_d, get_evals_c, get_evals_z, get_evals_s, set_control, set_data_d, set_data_s, &
              set_data_z, set_data_c
 CONTAINS
@@ -109,8 +109,8 @@ CONTAINS
 !> \param control ...
 ! **************************************************************************************************
    SUBROUTINE set_control(ar_data, control)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       ar_data%control => control
    END SUBROUTINE set_control
@@ -121,7 +121,7 @@ CONTAINS
 !> \retval selected_ind ...
 ! **************************************************************************************************
    FUNCTION get_sel_ind(ar_data) RESULT(selected_ind)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       INTEGER, DIMENSION(:), POINTER                     :: selected_ind
 
       selected_ind => ar_data%control%selected_ind
@@ -134,8 +134,8 @@ CONTAINS
 !> \retval data_d ...
 ! **************************************************************************************************
    FUNCTION get_data_d(ar_data) RESULT(data_d)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_d), POINTER                      :: data_d
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_d_type), POINTER                 :: data_d
 
       data_d => ar_data%data_d
 
@@ -147,8 +147,8 @@ CONTAINS
 !> \retval data_s ...
 ! **************************************************************************************************
    FUNCTION get_data_s(ar_data) RESULT(data_s)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_s), POINTER                      :: data_s
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_s_type), POINTER                 :: data_s
 
       data_s => ar_data%data_s
 
@@ -160,8 +160,8 @@ CONTAINS
 !> \retval data_z ...
 ! **************************************************************************************************
    FUNCTION get_data_z(ar_data) RESULT(data_z)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_z), POINTER                      :: data_z
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_z_type), POINTER                 :: data_z
 
       data_z => ar_data%data_z
 
@@ -173,8 +173,8 @@ CONTAINS
 !> \retval data_c ...
 ! **************************************************************************************************
    FUNCTION get_data_c(ar_data) RESULT(data_c)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_c), POINTER                      :: data_c
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_c_type), POINTER                 :: data_c
 
       data_c => ar_data%data_c
 
@@ -186,8 +186,8 @@ CONTAINS
 !> \param data_d ...
 ! **************************************************************************************************
    SUBROUTINE set_data_d(ar_data, data_d)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_d), POINTER                      :: data_d
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_d_type), POINTER                 :: data_d
 
       ar_data%data_d => data_d
 
@@ -199,8 +199,8 @@ CONTAINS
 !> \param data_s ...
 ! **************************************************************************************************
    SUBROUTINE set_data_s(ar_data, data_s)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_s), POINTER                      :: data_s
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_s_type), POINTER                 :: data_s
 
       ar_data%data_s => data_s
 
@@ -212,8 +212,8 @@ CONTAINS
 !> \param data_c ...
 ! **************************************************************************************************
    SUBROUTINE set_data_c(ar_data, data_c)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_c), POINTER                      :: data_c
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_c_type), POINTER                 :: data_c
 
       ar_data%data_c => data_c
 
@@ -225,8 +225,8 @@ CONTAINS
 !> \param data_z ...
 ! **************************************************************************************************
    SUBROUTINE set_data_z(ar_data, data_z)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_data_z), POINTER                      :: data_z
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_data_z_type), POINTER                 :: data_z
 
       ar_data%data_z => data_z
 
@@ -238,8 +238,8 @@ CONTAINS
 !> \retval control ...
 ! **************************************************************************************************
    FUNCTION get_control(ar_data) RESULT(control)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
-      TYPE(arnoldi_control), POINTER                     :: control
+      TYPE(arnoldi_data_type)                            :: ar_data
+      TYPE(arnoldi_control_type), POINTER                :: control
 
       control => ar_data%control
 
@@ -251,7 +251,7 @@ CONTAINS
 !> \retval is_present ...
 ! **************************************************************************************************
    FUNCTION has_d_real(ar_data) RESULT(is_present)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       LOGICAL                                            :: is_present
 
       is_present = ASSOCIATED(ar_data%data_d)
@@ -264,7 +264,7 @@ CONTAINS
 !> \retval is_present ...
 ! **************************************************************************************************
    FUNCTION has_s_real(ar_data) RESULT(is_present)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       LOGICAL                                            :: is_present
 
       is_present = ASSOCIATED(ar_data%data_s)
@@ -277,7 +277,7 @@ CONTAINS
 !> \retval is_present ...
 ! **************************************************************************************************
    FUNCTION has_d_cmplx(ar_data) RESULT(is_present)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       LOGICAL                                            :: is_present
 
       is_present = ASSOCIATED(ar_data%data_z)
@@ -290,7 +290,7 @@ CONTAINS
 !> \retval is_present ...
 ! **************************************************************************************************
    FUNCTION has_s_cmplx(ar_data) RESULT(is_present)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       LOGICAL                                            :: is_present
 
       is_present = ASSOCIATED(ar_data%data_c)
@@ -303,7 +303,7 @@ CONTAINS
 !> \retval evals ...
 ! **************************************************************************************************
    FUNCTION get_evals_d(ar_data) RESULT(evals)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       COMPLEX(real_8), DIMENSION(:), POINTER             :: evals
 
       evals => ar_data%data_d%evals
@@ -316,7 +316,7 @@ CONTAINS
 !> \retval evals ...
 ! **************************************************************************************************
    FUNCTION get_evals_s(ar_data) RESULT(evals)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       COMPLEX(real_4), DIMENSION(:), POINTER             :: evals
 
       evals => ar_data%data_s%evals
@@ -329,7 +329,7 @@ CONTAINS
 !> \retval evals ...
 ! **************************************************************************************************
    FUNCTION get_evals_z(ar_data) RESULT(evals)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       COMPLEX(real_8), DIMENSION(:), POINTER             :: evals
 
       evals => ar_data%data_z%evals
@@ -342,11 +342,11 @@ CONTAINS
 !> \retval evals ...
 ! **************************************************************************************************
    FUNCTION get_evals_c(ar_data) RESULT(evals)
-      TYPE(dbcsr_arnoldi_data)                           :: ar_data
+      TYPE(arnoldi_data_type)                            :: ar_data
       COMPLEX(real_4), DIMENSION(:), POINTER             :: evals
 
       evals => ar_data%data_c%evals
 
    END FUNCTION get_evals_c
 
-END MODULE dbcsr_arnoldi_types
+END MODULE arnoldi_types

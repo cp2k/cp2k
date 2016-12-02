@@ -10,11 +10,12 @@
 !> \author Jinwoong Cha
 ! **************************************************************************************************
 MODULE dm_ls_chebyshev
+   USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_frobenius_norm, cp_dbcsr_get_info, cp_dbcsr_get_occupation, &
-        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_type_no_symmetry
+        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
+        cp_dbcsr_frobenius_norm, cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init, &
+        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
+        cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -198,8 +199,8 @@ CONTAINS
                                 0.0_dp, matrix_F, filter_eps=ls_scf_env%eps_filter)
 
          ! find largest and smallest eigenvalues
-         CALL cp_dbcsr_arnoldi_extremal(matrix_F, max_ev, min_ev, converged=converged, max_iter=ls_scf_env%max_iter_lanczos, &
-                                        threshold=ls_scf_env%eps_lanczos) !Lanczos algorithm to calculate eigenvalue
+         CALL arnoldi_extremal(matrix_F, max_ev, min_ev, converged=converged, max_iter=ls_scf_env%max_iter_lanczos, &
+                               threshold=ls_scf_env%eps_lanczos) !Lanczos algorithm to calculate eigenvalue
          IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,2F16.8,A,L2)') &
             "smallest largest eigenvalue", min_ev, max_ev, " converged ", converged
          IF (nwindow > 0) THEN

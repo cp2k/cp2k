@@ -13,11 +13,6 @@
 !> - Created 2010-02-08
 ! **************************************************************************************************
 MODULE dbcsr_tests
-   USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev
-   USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
-                                              deallocate_arnoldi_data,&
-                                              get_selected_ritz_val,&
-                                              setup_arnoldi_data
    USE dbcsr_data_methods,              ONLY: dbcsr_scalar
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp,&
                                               dbcsr_distribution_new,&
@@ -45,7 +40,6 @@ MODULE dbcsr_tests
    USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                               dbcsr_mp_obj,&
                                               dbcsr_obj,&
-                                              dbcsr_obj_type_p,&
                                               dbcsr_scalar_type,&
                                               dbcsr_type_no_symmetry
    USE dbcsr_util,                      ONLY: dbcsr_checksum
@@ -66,13 +60,12 @@ MODULE dbcsr_tests
 
    PRIVATE
 
-   PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_test_binary_io
+   PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_binary_io
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tests'
 
    INTEGER, PARAMETER          :: dbcsr_test_mm = 1
-   INTEGER, PARAMETER          :: dbcsr_test_arnoldi = 2
-   INTEGER, PARAMETER          :: dbcsr_test_binary_io = 3
+   INTEGER, PARAMETER          :: dbcsr_test_binary_io = 2
 
 CONTAINS
 
@@ -246,8 +239,6 @@ CONTAINS
                                         n_loops=n_loops, eps=eps, &
                                         io_unit=io_unit, always_checksum=always_checksum, &
                                         retain_sparsity=retain_sparsity)
-      CASE (dbcsr_test_arnoldi)
-         CALL test_arnoldi(matrix_a, matrix_b, io_unit, n_loops)
       CASE (dbcsr_test_binary_io)
          CALL test_binary_io(matrix_a, io_unit)
       END SELECT
@@ -300,49 +291,6 @@ CONTAINS
 
    END SUBROUTINE test_binary_io
 
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix_a ...
-!> \param matrix_b ...
-!> \param io_unit ...
-!> \param n_loops ...
-! **************************************************************************************************
-   SUBROUTINE test_arnoldi(matrix_a, matrix_b, io_unit, n_loops)
-      TYPE(dbcsr_obj), TARGET                            :: matrix_a, matrix_b
-      INTEGER                                            :: io_unit, n_loops
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'test_arnoldi', routineP = moduleN//':'//routineN
-
-      COMPLEX(real_8)                                    :: max_ev, min_ev
-      INTEGER                                            :: i
-      REAL(kind=real_8)                                  :: t1, t2
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-      TYPE(dbcsr_obj_type_p), ALLOCATABLE, DIMENSION(:)  :: matrix_p
-
-      DO i = 1, n_loops
-         t1 = m_walltime()
-         ALLOCATE (matrix_p(2))
-         matrix_p(1)%matrix => matrix_a
-         matrix_p(2)%matrix => matrix_b
-         CALL setup_arnoldi_data(arnoldi_data, matrix_p, 30, 1.0E-14_dp, 1, 2, 0, .FALSE., .FALSE.)
-         CALL dbcsr_arnoldi_ev(matrix_p, arnoldi_data)
-         max_eV = get_selected_ritz_val(arnoldi_data, 2)
-         min_eV = get_selected_ritz_val(arnoldi_data, 1)
-         CALL deallocate_arnoldi_data(arnoldi_data)
-         DEALLOCATE (matrix_p)
-         t2 = m_walltime()
-         IF (io_unit .GT. 0) THEN
-            WRITE (io_unit, '(A,I5,A,F12.3,A)') &
-               " loop ", i, " used ", t2-t1, "s "
-            CALL m_flush(io_unit)
-         ENDIF
-      END DO
-      IF (io_unit .GT. 0) THEN
-         WRITE (io_unit, '(A,1X,"(",ES12.3," , ",ES12.3,")")') 'Maximum computed EV is: ', max_ev
-         WRITE (io_unit, '(A,1X,"(",ES12.3," , ",ES12.3,")")') 'Minimum computed EV is: ', min_ev
-      END IF
-
-   END SUBROUTINE test_arnoldi
 ! **************************************************************************************************
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids

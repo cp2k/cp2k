@@ -13,16 +13,21 @@
 ! **************************************************************************************************
 
 MODULE pexsi_methods
+   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+                                              arnoldi_ev,&
+                                              deallocate_arnoldi_data,&
+                                              get_selected_ritz_val,&
+                                              get_selected_ritz_vector,&
+                                              set_arnoldi_initial_vector,&
+                                              setup_arnoldi_data
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
    USE cp_dbcsr_interface,              ONLY: &
         cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, cp_csr_create_from_dbcsr, &
-        cp_csr_destroy, cp_csr_print_sparsity, cp_dbcsr_allocate_matrix_set, cp_dbcsr_arnoldi_ev, &
-        cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+        cp_csr_destroy, cp_csr_print_sparsity, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
         cp_dbcsr_distribution, cp_dbcsr_has_symmetry, cp_dbcsr_init, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, &
-        cp_dbcsr_type, cp_set_arnoldi_initial_vector, csr_eqrow_floor_dist, dbcsr_arnoldi_data, &
-        dbcsr_distribution_mp, dbcsr_mp_mynode, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
-        deallocate_arnoldi_data, get_selected_ritz_val, get_selected_ritz_vec
+        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, csr_eqrow_floor_dist, &
+        dbcsr_distribution_mp, dbcsr_mp_mynode, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -320,9 +325,9 @@ CONTAINS
       LOGICAL                                            :: first_call, pexsi_convergence
       REAL(KIND=dp) :: delta_E, energy_H, energy_S, free_energy, mu_max_in, mu_max_out, mu_min_in, &
          mu_min_out, nel_tol, nelectron_diff, nelectron_exact_pexsi, nelectron_out
+      TYPE(arnoldi_data_type)                            :: my_arnoldi
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: arnoldi_matrices
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_arnoldi_data)                           :: my_arnoldi
 
       CALL timeset(routineN, handle)
 
@@ -375,17 +380,16 @@ CONTAINS
       CALL cp_dbcsr_allocate_matrix_set(arnoldi_matrices, 2)
       arnoldi_matrices(1)%matrix => matrix_ks
       arnoldi_matrices(2)%matrix => matrix_s
-      CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi, arnoldi_matrices, max_iter=20, &
-                                       threshold=1.0E-2_dp, selection_crit=2, nval_request=1, nrestarts=21, &
-                                       generalized_ev=.TRUE., iram=.FALSE.)
-      IF (iscf .GT. 1) CALL cp_set_arnoldi_initial_vector(my_arnoldi, &
-                                                          pexsi_env%max_ev_vector(ispin))
-      CALL cp_dbcsr_arnoldi_ev(arnoldi_matrices, my_arnoldi)
+      CALL setup_arnoldi_data(my_arnoldi, arnoldi_matrices, max_iter=20, &
+                              threshold=1.0E-2_dp, selection_crit=2, nval_request=1, nrestarts=21, &
+                              generalized_ev=.TRUE., iram=.FALSE.)
+      IF (iscf .GT. 1) CALL set_arnoldi_initial_vector(my_arnoldi, pexsi_env%max_ev_vector(ispin))
+      CALL arnoldi_ev(arnoldi_matrices, my_arnoldi)
       delta_E = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
       ! increase delta_E a bit to make sure that it really is an upper bound
       delta_E = delta_E+1.0E-2_dp*ABS(delta_E)
-      CALL get_selected_ritz_vec(my_arnoldi, 1, arnoldi_matrices(1)%matrix, &
-                                 pexsi_env%max_ev_vector(ispin))
+      CALL get_selected_ritz_vector(my_arnoldi, 1, arnoldi_matrices(1)%matrix, &
+                                    pexsi_env%max_ev_vector(ispin))
       CALL deallocate_arnoldi_data(my_arnoldi)
       DEALLOCATE (arnoldi_matrices)
 

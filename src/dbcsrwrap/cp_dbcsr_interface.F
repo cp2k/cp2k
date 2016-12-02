@@ -23,15 +23,15 @@ MODULE cp_dbcsr_interface
         accdrv_priority_streams, add_work_coordinate, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
         convert_offsets_to_sizes, convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
         cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
-        create_bl_distribution, csr_create_from_dbcsr, csr_create_new, csr_create_template, &
-        csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, csr_eqrow_floor_dist, csr_p_type, &
-        csr_print_sparsity, csr_type, dbcsr_add, dbcsr_add_on_diag, dbcsr_arnoldi_data, &
-        dbcsr_arnoldi_ev, dbcsr_arnoldi_extremal, dbcsr_binary_read, dbcsr_binary_write, &
-        dbcsr_checksum, dbcsr_clear_mempools, dbcsr_complete_redistribute, &
-        dbcsr_conjugate_gradient, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
-        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, &
-        dbcsr_data_init, dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
-        dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
+        create_bl_distribution, create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
+        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, csr_create_from_dbcsr, &
+        csr_create_new, csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, &
+        csr_eqrow_ceil_dist, csr_eqrow_floor_dist, csr_p_type, csr_print_sparsity, csr_type, &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, &
+        dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
+        dbcsr_create, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
+        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, dbcsr_data_obj, &
+        dbcsr_data_release, dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
         dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_init, &
@@ -52,32 +52,30 @@ MODULE cp_dbcsr_interface
         dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
         dbcsr_hadamard_product, dbcsr_has_symmetry, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
         dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_maxabs, dbcsr_mp_get_process, &
-        dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_npcols, &
-        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_release, dbcsr_multiply, &
-        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_new_transposed, &
-        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
-        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
-        dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, &
-        dbcsr_replicate_all, dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, &
-        dbcsr_reserve_blocks, dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
-        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
-        dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, dbcsr_scale, &
-        dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_conf_avg_elements_images, &
-        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, &
-        dbcsr_set_conf_num_mult_images, dbcsr_set_conf_randmat_seed, &
-        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_matrix_colvec_multiply, dbcsr_maxabs, &
+        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
+        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
+        dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, &
+        dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
+        dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, &
+        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
+        dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, dbcsr_scalar_fill_all, &
+        dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, dbcsr_scalar_type, &
+        dbcsr_scalar_zero, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
+        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
+        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+        dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, dbcsr_set_conf_num_mult_images, &
+        dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
         dbcsr_set_conf_use_mpi_filtering, dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
-        dbcsr_test_arnoldi, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, dbcsr_triu, &
-        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-        dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix, &
-        dbcsr_wm_use_mutable, dbcsr_work_create, deallocate_arnoldi_data, get_selected_ritz_val, &
-        get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, heap_new, &
-        heap_release, heap_reset_first, heap_t, mm_driver_auto, mm_driver_blas, mm_driver_matmul, &
-        mm_driver_smm, mm_driver_xsmm, mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, &
-        mm_name_xsmm, multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data
+        dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
+        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_complex_default, &
+        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, &
+        dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
+        dbcsr_work_create, has_acc, has_mpi, heap_fill, heap_get_first, heap_new, heap_release, &
+        heap_reset_first, heap_t, mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
+        mm_driver_xsmm, mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, &
+        multrec_limit
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8,&
@@ -117,11 +115,11 @@ MODULE cp_dbcsr_interface
              dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters
    PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
    PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, &
-             dbcsr_mp_get_process
+             dbcsr_mp_get_process, dbcsr_mp_grid_setup
    PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
    PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
    PUBLIC :: dbcsr_mp_obj, dbcsr_norm_frobenius
-   PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_norm_maxabsnorm, &
+   PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_norm_maxabsnorm, &
              dbcsr_norm_column, dbcsr_distribution_has_threads, dbcsr_test_binary_io
    PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_hold, dbcsr_distribution_release
    PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
@@ -222,15 +220,16 @@ MODULE cp_dbcsr_interface
    PUBLIC :: cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_deallocate_matrix
    PUBLIC :: cp_dbcsr_add_block_node
    PUBLIC :: cp_dbcsr_maxabs
-   PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data, &
-             get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector, &
-             cp_dbcsr_arnoldi_extremal, cp_dbcsr_conjugate_gradient
    PUBLIC :: csr_type, csr_p_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, &
              cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create, &
              csr_eqrow_floor_dist, csr_eqrow_ceil_dist, csr_dbcsr_blkrow_dist, &
              cp_csr_print_sparsity
-   PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_data_p, &
+   PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_wms_data_p, cp_dbcsr_get_data_p, &
              cp_dbcsr_init_random, cp_dbcsr_setname, cp_set_work_size
+   PUBLIC :: cp_dbcsr_matrix_colvec_multiply, &
+             cp_create_col_vec_from_matrix, cp_create_row_vec_from_matrix, &
+             cp_create_replicated_col_vec_from_matrix, cp_create_replicated_row_vec_from_matrix
+
    TYPE cp_dbcsr_p_type
       TYPE(cp_dbcsr_type), POINTER :: matrix
    END TYPE cp_dbcsr_p_type
@@ -360,9 +359,19 @@ MODULE cp_dbcsr_interface
          cp_csr_create_template
    END INTERFACE
 
+   INTERFACE cp_dbcsr_get_wms_data_p
+      MODULE PROCEDURE cp_dbcsr_get_wms_data_s, cp_dbcsr_get_wms_data_c, &
+         cp_dbcsr_get_wms_data_d, cp_dbcsr_get_wms_data_z
+   END INTERFACE
+
    INTERFACE cp_dbcsr_get_data_p
-      MODULE PROCEDURE cp_dbcsr_get_data_c_s, cp_dbcsr_get_data_c_c, &
-         cp_dbcsr_get_data_c_d, cp_dbcsr_get_data_c_z
+      MODULE PROCEDURE cp_dbcsr_get_data_s, cp_dbcsr_get_data_c, &
+         cp_dbcsr_get_data_d, cp_dbcsr_get_data_z
+   END INTERFACE
+
+   INTERFACE cp_dbcsr_matrix_colvec_multiply
+      MODULE PROCEDURE cp_dbcsr_matrix_colvec_multiply_s, cp_dbcsr_matrix_colvec_multiply_c, &
+         cp_dbcsr_matrix_colvec_multiply_d, cp_dbcsr_matrix_colvec_multiply_z
    END INTERFACE
 
    PRIVATE
@@ -1660,131 +1669,33 @@ CONTAINS
                                 use_distribution=myuse_distribution)
    END SUBROUTINE cp_dbcsr_transposed
 
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param arnoldi_data ...
-! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_arnoldi_ev(matrix, arnoldi_data)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), INTENT(IN)    :: matrix
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_arnoldi_ev', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i
-      TYPE(dbcsr_obj_type_p), ALLOCATABLE, DIMENSION(:)  :: m_ptrs
-
-! convert cp_dbcsr_p_type to dbcsr_obj_type_p
-
-      ALLOCATE (m_ptrs(SIZE(matrix)))
-      DO i = 1, SIZE(matrix)
-         m_ptrs(i)%matrix => matrix(i)%matrix%matrix
-      END DO
-
-      CALL dbcsr_arnoldi_ev(m_ptrs, arnoldi_data)
-
-      DEALLOCATE (m_ptrs)
-
-   END SUBROUTINE cp_dbcsr_arnoldi_ev
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param max_ev ...
-!> \param min_ev ...
-!> \param converged ...
-!> \param threshold ...
-!> \param max_iter ...
-! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_arnoldi_extremal(matrix, max_ev, min_ev, converged, threshold, max_iter)
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix
-      REAL(KIND=dp), INTENT(OUT)                         :: max_ev, min_ev
-      LOGICAL, INTENT(OUT)                               :: converged
-      REAL(KIND=dp), INTENT(IN)                          :: threshold
-      INTEGER, INTENT(IN)                                :: max_iter
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_arnoldi_extremal', &
-         routineP = moduleN//':'//routineN
-
-      CALL dbcsr_arnoldi_extremal(matrix%matrix, max_ev, min_ev, converged, threshold, max_iter)
-
-   END SUBROUTINE cp_dbcsr_arnoldi_extremal
-
-! **************************************************************************************************
-!> \brief ...
-!> \param arnoldi_data ...
-!> \param matrix ...
-!> \param max_iter ...
-!> \param threshold ...
-!> \param selection_crit ...
-!> \param nval_request ...
-!> \param nrestarts ...
-!> \param generalized_ev ...
-!> \param iram ...
-! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_setup_arnoldi_data(arnoldi_data, matrix, max_iter, threshold, selection_crit, &
-                                          nval_request, nrestarts, generalized_ev, iram)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
-      INTEGER                                            :: max_iter
-      REAL(real_8)                                       :: threshold
-      INTEGER                                            :: selection_crit, nval_request, nrestarts
-      LOGICAL                                            :: generalized_ev, iram
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_setup_arnoldi_data', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: i
-      TYPE(dbcsr_obj_type_p), ALLOCATABLE, DIMENSION(:)  :: m_ptrs
-
-! convert cp_dbcsr_p_type to dbcsr_obj_type_p
-
-      ALLOCATE (m_ptrs(SIZE(matrix)))
-      DO i = 1, SIZE(matrix)
-         m_ptrs(i)%matrix => matrix(i)%matrix%matrix
-      END DO
-
-      CALL setup_arnoldi_data(arnoldi_data, m_ptrs, max_iter, threshold, selection_crit, &
-                              nval_request, nrestarts, generalized_ev, iram)
-
-      DEALLOCATE (m_ptrs)
-   END SUBROUTINE cp_dbcsr_setup_arnoldi_data
-
-! **************************************************************************************************
-!> \brief ...
-!> \param arnoldi_data ...
-!> \param vector ...
-! **************************************************************************************************
-   SUBROUTINE cp_set_arnoldi_initial_vector(arnoldi_data, vector)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-      TYPE(cp_dbcsr_type)                                :: vector
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_set_arnoldi_initial_vector', &
-         routineP = moduleN//':'//routineN
-
-      CALL set_arnoldi_initial_vector(arnoldi_data, vector%matrix)
-
-   END SUBROUTINE cp_set_arnoldi_initial_vector
-
-! **************************************************************************************************
-!> \brief ...
-!> \param arnoldi_data ...
-!> \param ind ...
-!> \param matrix ...
-!> \param vector ...
-! **************************************************************************************************
-   SUBROUTINE get_selected_ritz_vec(arnoldi_data, ind, matrix, vector)
-      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
-      INTEGER                                            :: ind
-      TYPE(cp_dbcsr_type)                                :: matrix, vector
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_selected_ritz_vec', &
-         routineP = moduleN//':'//routineN
-
-      CALL get_selected_ritz_vector(arnoldi_data, ind, matrix%matrix, vector%matrix)
-
-   END SUBROUTINE get_selected_ritz_vec
+!! **************************************************************************************************
+!!> \brief ...
+!!> \param matrix ...
+!!> \param arnoldi_data ...
+!! **************************************************************************************************
+!   SUBROUTINE cp_dbcsr_arnoldi_ev(matrix, arnoldi_data)
+!      TYPE(cp_dbcsr_p_type), DIMENSION(:), INTENT(IN)    :: matrix
+!      TYPE(dbcsr_arnoldi_data)                           :: arnoldi_data
+!
+!      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_arnoldi_ev', &
+!         routineP = moduleN//':'//routineN
+!
+!      INTEGER                                            :: i
+!      TYPE(dbcsr_obj_type_p), ALLOCATABLE, DIMENSION(:)  :: m_ptrs
+!
+!! convert cp_dbcsr_p_type to dbcsr_obj_type_p
+!
+!      ALLOCATE (m_ptrs(SIZE(matrix)))
+!      DO i = 1, SIZE(matrix)
+!         m_ptrs(i)%matrix => matrix(i)%matrix%matrix
+!      END DO
+!
+!      CALL dbcsr_arnoldi_ev(m_ptrs, arnoldi_data)
+!
+!      DEALLOCATE (m_ptrs)
+!
+!   END SUBROUTINE cp_dbcsr_arnoldi_ev
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2172,42 +2083,6 @@ CONTAINS
    END SUBROUTINE cp_dbcsr_deallocate_matrix
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param matrix_a ...
-!> \param vec_x ...
-!> \param matrix_p ...
-!> \param converged ...
-!> \param threshold ...
-!> \param max_iter ...
-!> \retval norm ...
-! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_conjugate_gradient(matrix_a, vec_x, matrix_p, converged, threshold, max_iter)
-
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix_a
-      REAL(KIND=real_8), DIMENSION(:), INTENT(INOUT)     :: vec_x
-      TYPE(cp_dbcsr_type), INTENT(IN), OPTIONAL          :: matrix_p
-      LOGICAL, INTENT(OUT)                               :: converged
-      REAL(KIND=real_8), INTENT(IN)                      :: threshold
-      INTEGER, INTENT(IN)                                :: max_iter
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_conjugate_gradient', &
-         routineP = moduleN//':'//routineN
-
-      IF (PRESENT(matrix_p)) THEN
-         CALL dbcsr_conjugate_gradient(matrix_a%matrix, vec_x, matrix_p%matrix, &
-                                       converged=converged, threshold=threshold, max_iter=max_iter)
-      ELSE
-         CALL dbcsr_conjugate_gradient(matrix_a%matrix, vec_x, &
-                                       converged=converged, threshold=threshold, max_iter=max_iter)
-      END IF
-
-   END SUBROUTINE cp_dbcsr_conjugate_gradient
-
-! **************************************************************************************************
-! CP2k-compatible matrix sets
-! **************************************************************************************************
-
-! **************************************************************************************************
 !> \brief   Allocate and initialize a real matrix 1-dimensional set.
 !> \param[in,out] matrix_set  Set containing the DBCSR matrices
 !> \param[in] nmatrix         Size of set
@@ -2580,6 +2455,62 @@ CONTAINS
                            summation=summation, scale=scale)
 
    END SUBROUTINE cp_dbcsr_put_block_area
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dbcsr_vec ...
+!> \param matrix ...
+!> \param ncol ...
+! **************************************************************************************************
+   SUBROUTINE cp_create_col_vec_from_matrix(dbcsr_vec, matrix, ncol)
+      TYPE(cp_dbcsr_type)                                :: dbcsr_vec, matrix
+      INTEGER                                            :: ncol
+
+      CALL create_col_vec_from_matrix(dbcsr_vec%matrix, matrix%matrix, ncol)
+
+   END SUBROUTINE cp_create_col_vec_from_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dbcsr_vec ...
+!> \param matrix ...
+!> \param nrow ...
+! **************************************************************************************************
+   SUBROUTINE cp_create_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
+      TYPE(cp_dbcsr_type)                                :: dbcsr_vec, matrix
+      INTEGER                                            :: nrow
+
+      CALL create_row_vec_from_matrix(dbcsr_vec%matrix, matrix%matrix, nrow)
+
+   END SUBROUTINE cp_create_row_vec_from_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dbcsr_vec ...
+!> \param matrix ...
+!> \param ncol ...
+! **************************************************************************************************
+   SUBROUTINE cp_create_replicated_col_vec_from_matrix(dbcsr_vec, matrix, ncol)
+      TYPE(cp_dbcsr_type)                                :: dbcsr_vec, matrix
+      INTEGER                                            :: ncol
+
+      CALL create_replicated_col_vec_from_matrix(dbcsr_vec%matrix, matrix%matrix, ncol)
+
+   END SUBROUTINE cp_create_replicated_col_vec_from_matrix
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dbcsr_vec ...
+!> \param matrix ...
+!> \param nrow ...
+! **************************************************************************************************
+   SUBROUTINE cp_create_replicated_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
+      TYPE(cp_dbcsr_type)                                :: dbcsr_vec, matrix
+      INTEGER                                            :: nrow
+
+      CALL create_replicated_row_vec_from_matrix(dbcsr_vec%matrix, matrix%matrix, nrow)
+
+   END SUBROUTINE cp_create_replicated_row_vec_from_matrix
 
 #include "cp_dbcsr_interface_s.f90"
 #include "cp_dbcsr_interface_d.f90"
