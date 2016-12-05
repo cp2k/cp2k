@@ -318,7 +318,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: accdrv_binning_nbins, &
                                                             accdrv_binning_binsize
 
-      TYPE(dbcsr_config_type) :: default_cfg = dbcsr_config_type()
+      TYPE(dbcsr_config_type)                            :: default_cfg
 
       IF (PRESENT(use_MPI_memory)) use_MPI_memory = default_cfg%use_MPI_memory
       IF (PRESENT(mm_stack_size)) mm_stack_size = default_cfg%mm_stack_size
@@ -364,7 +364,6 @@ CONTAINS
          CASE (mm_driver_smm); mm_name = mm_name_smm
          CASE (mm_driver_xsmm); mm_name = mm_name_xsmm
          CASE DEFAULT
-            WRITE (*, *) "dbcsr driver:", dbcsr_cfg%mm_driver
             CPABORT("Unkown MM driver")
          END SELECT
          WRITE (UNIT=unit_nr, FMT='(1X,A,T41,A40)') &
