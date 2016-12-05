@@ -13,9 +13,6 @@
 !> - Created 2010
 ! **************************************************************************************************
 MODULE cp_dbcsr_interface
-   USE bibliography,                    ONLY: Borstnik2014,&
-                                              Schuett2016,&
-                                              cite_reference
    USE dbcsr_api,                       ONLY: &
         add_work_coordinate, convert_csr_to_dbcsr, convert_dbcsr_to_csr, convert_offsets_to_sizes, &
         convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
@@ -61,13 +58,12 @@ MODULE cp_dbcsr_interface
         dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
         dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix, &
         dbcsr_wm_use_mutable, dbcsr_work_create, heap_fill, heap_get_first, heap_new, &
-        heap_release, heap_reset_first, heap_t
+        heap_release, heap_reset_first, heap_t, uppercase
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8,&
                                               real_4,&
                                               real_8
-   USE string_utilities,                ONLY: uppercase
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "../base/base_uses.f90"
@@ -352,9 +348,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_lib', &
          routineP = moduleN//':'//routineN
-
-      CALL cite_reference(Borstnik2014)
-      CALL cite_reference(Schuett2016)
 
       CALL dbcsr_init_lib()
    END SUBROUTINE cp_dbcsr_init_lib

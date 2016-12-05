@@ -16,7 +16,8 @@ MODULE cp_dbcsr_cp2k_link
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE bibliography,                    ONLY: Borstnik2014,&
-                                              Schuett2016
+                                              Schuett2016,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
@@ -323,6 +324,10 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dbcsr_section
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Borstnik2014)
+      CALL cite_reference(Schuett2016)
+
       dbcsr_section => section_vals_get_subs_vals(root_section, "GLOBAL%DBCSR")
 
       CALL section_vals_val_get(dbcsr_section, "mm_stack_size", i_val=ival)
