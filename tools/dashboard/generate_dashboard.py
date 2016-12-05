@@ -551,13 +551,12 @@ def parse_regtest_report(report_txt):
         report['summary'] = "Test directory is locked."
         return(report)
 
-    m = re.search("make: .* Error .*", report_txt)
-    if(m):
+    m = re.search("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
+    if(not m and re.search("make: .* Error .*", report_txt)):
         report['status'] = "FAILED"
         report['summary'] = "Compilation failed."
         return(report)
 
-    m = re.search("\nGREPME (\d+) (\d+) (\d+) (\d+) (\d+) (.+)\n", report_txt)
     runtime_errors = int(m.group(1))
     wrong_results  = int(m.group(2))
     correct_tests  = int(m.group(3))
