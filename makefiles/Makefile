@@ -3,7 +3,6 @@
 #
 # will now perform a parallel build of 4 cp2k executables
 #
-.SUFFIXES: .F .dep .o .f90 .cu .c .cpp .cxx .cc .instantiation .instantiated .template
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory: you must cd to the makefiles
@@ -63,6 +62,7 @@ endif
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates \
          instantiationdir templatesclean \
+		 fypp fyppdebug fyppclean \
          test testbg testclean testrealclean
 
 
@@ -78,6 +78,7 @@ OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cxx")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cc")
 ALL_INST_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.instantiation")
+ALL_FYPP_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.fypp")
 
 ifneq ($(NVCC),)
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
@@ -124,7 +125,7 @@ ifeq ($(INCLUDE_DEPS),)
 $(EXE_NAMES): dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(EXEDIR)/$@.$(ONEVERSION) INCLUDE_DEPS=true
 
-all: dirs makedep
+all: dirs makedep fypp
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
 test: dirs makedep all
@@ -168,6 +169,8 @@ endif
 	@echo "========= Python ($(ONEVERSION)) ========="
 	/usr/bin/env python --version
 	@echo ""
+	@echo "========== Fypp ($(ONEVERSION)) =========="
+	../tools/fypp/fypp.py --version
 
 else
 
@@ -270,6 +273,26 @@ mrproper:
 OTHER_HELP += "mrproper : Remove ALL files not in SVN"
 
 #
+# Invoking Fypp preprocessor
+#
+vpath %.fypp $(ALL_SRC_DIRS)
+FYPPFLAGS += --indentation 3
+
+fypp: $(ALL_FYPP_FILES:.fypp=.F)
+TOOL_HELP += "fypp : generate *.F from *.fypp using Fypp preprocessor. "
+
+%.F: %.fypp
+	../tools/fypp/fypp.py $(FYPPFLAGS) -i ../src/base/fyppinit.py $(if $(wildcard $(dir $<)fyppinit.py), -i $(dir $<)fyppinit.py) $< $@
+
+fyppdebug: FYPPFLAGS += -n
+fyppdebug: fypp
+TOOL_HELP += "fyppdebug : same as fypp but with compiler and runtime messages referring to the original *.fypp files."
+
+fyppclean:
+	-rm -fR $(ALL_FYPP_FILES:.fypp=.F)
+TOOL_HELP += "fyppclean : remove Fortran files generated with Fypp."
+
+#
 # instantiate the templates
 #
 vpath %.instantiation   $(ALL_SRC_DIRS)
@@ -281,7 +304,7 @@ instantiateddir:
 	-rm -fR $(INSTANTIATEDDIR)
 	@mkdir -p $(dir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated)))
 
-templates: instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
+templates: fypp instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
 TOOL_HELP += "templates : instantiate all templates"
 
 $(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
@@ -374,7 +397,7 @@ else
 endif
 
 # this happens on stage 3
-makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES) dirs
+makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES) dirs fypp
 ifeq ($(LD_SHARED),)
 	@echo "Removing stale archives for $(ONEVERSION) ... "
 	@$(TOOLSRC)/build_utils/check_archives.py $(firstword $(AR)) $(SRCDIR) $(LIBDIR)
