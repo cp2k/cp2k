@@ -94,7 +94,9 @@ PROGRAM dbcsr_tensor_unittest
    CALL allocate_and_fill_test_tensor(tensor2, blk_ind_1, blk_ind_2, blk_ind_3, mynode)
 
    eql = dbcsr_t_equal(tensor1, tensor2)
-   IF (.NOT. eql) CPABORT("Tensors are not the same ;-(")
+   IF (.NOT. eql) THEN
+      CPABORT("Tensors are not the same ;-(")
+   ENDIF
 
    DEALLOCATE (dist1_1, dist1_2, dist1_3, dist2_1, dist2_2, dist2_3, size_1, size_2, size_3, blk_ind_1, blk_ind_2, blk_ind_3)
 
