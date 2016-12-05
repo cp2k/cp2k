@@ -57,8 +57,7 @@ MODULE cp_dbcsr_interface
         dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
         dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
         dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix, &
-        dbcsr_wm_use_mutable, dbcsr_work_create, heap_fill, heap_get_first, heap_new, &
-        heap_release, heap_reset_first, heap_t, uppercase
+        dbcsr_wm_use_mutable, dbcsr_work_create, uppercase
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8,&
@@ -173,12 +172,6 @@ MODULE cp_dbcsr_interface
    PUBLIC :: cp_dbcsr_function_of_elements
    PUBLIC :: cp_dbcsr_triu
    PUBLIC :: cp_dbcsr_clear_mempools
-   PUBLIC :: heap_fill, &
-             heap_get_first, &
-             heap_new, &
-             heap_release, &
-             heap_reset_first, &
-             heap_t
    PUBLIC :: cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_deallocate_matrix
    PUBLIC :: cp_dbcsr_add_block_node
    PUBLIC :: cp_dbcsr_maxabs

@@ -31,6 +31,12 @@ MODULE dbcsr_dist_operations
    USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                               dbcsr_is_initialized,&
                                               dbcsr_release_locals
+   USE dbcsr_min_heap,                  ONLY: dbcsr_heap_fill,&
+                                              dbcsr_heap_get_first,&
+                                              dbcsr_heap_new,&
+                                              dbcsr_heap_release,&
+                                              dbcsr_heap_reset_first,&
+                                              dbcsr_heap_type
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mypcol,&
                                               dbcsr_mp_myprow,&
                                               dbcsr_mp_new_transposed,&
@@ -47,12 +53,6 @@ MODULE dbcsr_dist_operations
         dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
         dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
    USE kinds,                           ONLY: sp
-   USE min_heap,                        ONLY: heap_fill,&
-                                              heap_get_first,&
-                                              heap_new,&
-                                              heap_release,&
-                                              heap_reset_first,&
-                                              heap_t
 #include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -2405,9 +2405,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_dist_bin', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bin, bin_cnt, error_handle, i
-      LOGICAL                                            :: found, heap_error
+      LOGICAL                                            :: dbcsr_heap_error, found
       REAL(kind=sp)                                      :: rn
-      TYPE(heap_t)                                       :: bin_heap
+      TYPE(dbcsr_heap_type)                              :: bin_heap
 
 !   ---------------------------------------------------------------------------
 
@@ -2416,16 +2416,16 @@ CONTAINS
     IF (PRESENT (element_sizes)) THEN
        IF(SIZE(element_sizes) /= nelements) &
           CPABORT("Array of element sizes does not match the number of elements.")
-       CALL heap_new (bin_heap, nbins)
-       CALL heap_fill (bin_heap, (/ (bin, bin = 0, nbins-1) /),&
-                                 (/ (0,   bin = 0, nbins-1) /), heap_error)
+       CALL dbcsr_heap_new (bin_heap, nbins)
+       CALL dbcsr_heap_fill (bin_heap, (/ (bin, bin = 0, nbins-1) /),&
+                                 (/ (0,   bin = 0, nbins-1) /), dbcsr_heap_error)
        DO i = 1, nelements
-          CALL heap_get_first (bin_heap, bin, bin_cnt, found, heap_error)
+          CALL dbcsr_heap_get_first (bin_heap, bin, bin_cnt, found, dbcsr_heap_error)
           bin_dist(i) = bin
           bin_cnt = bin_cnt + element_sizes(i)
-          CALL heap_reset_first (bin_heap, bin_cnt, heap_error)
+          CALL dbcsr_heap_reset_first (bin_heap, bin_cnt, dbcsr_heap_error)
        ENDDO
-       CALL heap_release (bin_heap)
+       CALL dbcsr_heap_release (bin_heap)
     ELSE
        DO i = 1, nelements
           CALL RANDOM_NUMBER(rn)

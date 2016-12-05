@@ -21,17 +21,17 @@ MODULE kg_vertex_coloring_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_min_heap,                     ONLY: cp_heap_fill,&
+                                              cp_heap_new,&
+                                              cp_heap_pop,&
+                                              cp_heap_release,&
+                                              cp_heap_reset_node,&
+                                              cp_heap_type,&
+                                              keyt,&
+                                              valt
    USE input_constants,                 ONLY: kg_color_dsatur,&
                                               kg_color_greedy
    USE kg_environment_types,            ONLY: kg_environment_type
-   USE kg_min_heap,                     ONLY: heap_fill,&
-                                              heap_new,&
-                                              heap_pop,&
-                                              heap_release,&
-                                              heap_reset_node,&
-                                              heap_t,&
-                                              keyt,&
-                                              valt
    USE kinds,                           ONLY: int_4,&
                                               int_8
 #include "./base/base_uses.f90"
@@ -280,16 +280,17 @@ CONTAINS
 !> \param heap ...
 !> \param graph ...
 ! **************************************************************************************************
-   SUBROUTINE kg_heap_fill(heap, graph)
-      TYPE(heap_t), INTENT(INOUT)                        :: heap
+   SUBROUTINE kg_cp_heap_fill(heap, graph)
+      TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       TYPE(vertex_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: graph
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_fill', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_cp_heap_fill', &
+         routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, nnodes
       INTEGER(kind=valt), ALLOCATABLE, DIMENSION(:)      :: values
-      LOGICAL                                            :: heap_error
+      LOGICAL                                            :: cp_heap_error
 
       nnodes = SIZE(graph)
 
@@ -300,8 +301,8 @@ CONTAINS
       END DO
 
       ! fill the heap
-      CALL heap_fill(heap, values, heap_error)
-      IF (heap_error) &
+      CALL cp_heap_fill(heap, values, cp_heap_error)
+      IF (cp_heap_error) &
          CPWARN("Error initially filling heap.")
 
       DEALLOCATE (values)
@@ -313,17 +314,17 @@ CONTAINS
 !> \param heap ...
 !> \param key ...
 ! **************************************************************************************************
-   SUBROUTINE kg_heap_pop(heap, key)
-      TYPE(heap_t)                                       :: heap
+   SUBROUTINE kg_cp_heap_pop(heap, key)
+      TYPE(cp_heap_type)                                 :: heap
       INTEGER, INTENT(OUT)                               :: key
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_pop', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_cp_heap_pop', routineP = moduleN//':'//routineN
 
       INTEGER(KIND=valt)                                 :: value
-      LOGICAL                                            :: found, heap_error
+      LOGICAL                                            :: cp_heap_error, found
 
-      CALL heap_pop(heap, key, value, found, heap_error)
-      IF (heap_error) &
+      CALL cp_heap_pop(heap, key, value, found, cp_heap_error)
+      IF (cp_heap_error) &
          CPWARN("Error getting topmost heap element.")
 
    END SUBROUTINE
@@ -334,18 +335,18 @@ CONTAINS
 !> \param key ...
 !> \param value ...
 ! **************************************************************************************************
-   SUBROUTINE kg_heap_reset_node(heap, key, value)
-      TYPE(heap_t)                                       :: heap
+   SUBROUTINE kg_cp_heap_reset_node(heap, key, value)
+      TYPE(cp_heap_type)                                 :: heap
       INTEGER(KIND=keyt), INTENT(IN)                     :: key
       INTEGER(KIND=valt), INTENT(IN)                     :: value
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_heap_reset_node', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_cp_heap_reset_node', &
          routineP = moduleN//':'//routineN
 
-      LOGICAL                                            :: heap_error
+      LOGICAL                                            :: cp_heap_error
 
-      CALL heap_reset_node(heap, key, value, heap_error)
-      IF (heap_error) &
+      CALL cp_heap_reset_node(heap, key, value, cp_heap_error)
+      IF (cp_heap_error) &
          CPWARN("Error changing value of heap element.")
 
    END SUBROUTINE
@@ -356,7 +357,7 @@ CONTAINS
 !> \param node ...
 ! **************************************************************************************************
    SUBROUTINE kg_update_node(heap, node)
-      TYPE(heap_t)                                       :: heap
+      TYPE(cp_heap_type)                                 :: heap
       TYPE(vertex), INTENT(IN), POINTER                  :: node
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_update_node', routineP = moduleN//':'//routineN
@@ -374,7 +375,7 @@ CONTAINS
 
          value = kg_get_value(dsat, degree)
 
-         CALL kg_heap_reset_node(heap, id, value)
+         CALL kg_cp_heap_reset_node(heap, id, value)
 
       END IF
 
@@ -397,7 +398,7 @@ CONTAINS
       INTEGER                                            :: color_limit, handle, i, j, key, &
                                                             maxdegree, nneighbors, nnodes
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: color_present
-      TYPE(heap_t)                                       :: heap
+      TYPE(cp_heap_type)                                 :: heap
       TYPE(vertex), POINTER                              :: neighbor, this
 
       CALL timeset(routineN, handle)
@@ -422,13 +423,13 @@ CONTAINS
       ELSE
 
          ! allocate and fill the heap
-         CALL heap_new(heap, nnodes)
+         CALL cp_heap_new(heap, nnodes)
 
-         CALL kg_heap_fill(heap, graph)
+         CALL kg_cp_heap_fill(heap, graph)
 
          DO WHILE (heap%n > 0)
 
-            CALL kg_heap_pop(heap, key)
+            CALL kg_cp_heap_pop(heap, key)
 
             this => graph(key)%vertex
 
@@ -480,7 +481,7 @@ CONTAINS
          END DO
 
          ! release the heap
-         CALL heap_release(heap)
+         CALL cp_heap_release(heap)
 
       END IF
 

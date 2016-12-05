@@ -19,6 +19,12 @@ MODULE dbcsr_dist_methods
    USE dbcsr_config,                    ONLY: dbcsr_cfg
    USE dbcsr_methods,                   ONLY: dbcsr_distribution_init,&
                                               dbcsr_distribution_release
+   USE dbcsr_min_heap,                  ONLY: dbcsr_heap_fill,&
+                                              dbcsr_heap_get_first,&
+                                              dbcsr_heap_new,&
+                                              dbcsr_heap_release,&
+                                              dbcsr_heap_reset_first,&
+                                              dbcsr_heap_type
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_hold,&
                                               dbcsr_mp_mypcol,&
                                               dbcsr_mp_myprow,&
@@ -29,12 +35,6 @@ MODULE dbcsr_dist_methods
    USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                               dbcsr_mp_obj
    USE kinds,                           ONLY: sp
-   USE min_heap,                        ONLY: heap_fill,&
-                                              heap_get_first,&
-                                              heap_new,&
-                                              heap_release,&
-                                              heap_reset_first,&
-                                              heap_t
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_IN_PARALLEL
@@ -627,9 +627,9 @@ CONTAINS
                                                             nrows, nthreads, row, t, t_cnt
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: itemp1, itemp2, reorder, sorted_row_sizes
       INTEGER, DIMENSION(:), POINTER                     :: lrows, td
-      LOGICAL                                            :: assigned, found, heap_error
+      LOGICAL                                            :: assigned, dbcsr_heap_error, found
       REAL(kind=sp)                                      :: load_fraction, rn, soft_thr
-      TYPE(heap_t)                                       :: t_heap
+      TYPE(dbcsr_heap_type)                              :: t_heap
 
 !   ---------------------------------------------------------------------------
 
@@ -670,7 +670,7 @@ CONTAINS
             ! The heap is used to distribute "leftover"rows to threads.
             ! Lefotver rows are those of the same size that can not be
             ! evenly distributed among all threads.
-            CALL heap_new(t_heap, nthreads-1)
+            CALL dbcsr_heap_new(t_heap, nthreads-1)
             ! We do not want thread 0 to be in the heap.
             ALLOCATE (itemp1(1:nthreads-1))
             ALLOCATE (itemp2(1:nthreads-1))
@@ -678,7 +678,7 @@ CONTAINS
                itemp1(i) = i
                itemp2(i) = 0
             ENDDO
-            CALL heap_fill(t_heap, itemp1, itemp2, heap_error)
+            CALL dbcsr_heap_fill(t_heap, itemp1, itemp2, dbcsr_heap_error)
             DEALLOCATE (itemp1, itemp2)
             ALLOCATE (sorted_row_sizes(nrows))
             ALLOCATE (reorder(nrows))
@@ -719,14 +719,14 @@ CONTAINS
 
                !Leftover bocks
                DO i = last_row-block_size0-(nthreads-1)*block_size, last_row+1-group_size, -1
-                  CALL heap_get_first(t_heap, t, t_cnt, found, heap_error)
+                  CALL dbcsr_heap_get_first(t_heap, t, t_cnt, found, dbcsr_heap_error)
                   t_cnt = t_cnt+cur_block
-                  CALL heap_reset_first(t_heap, t_cnt, heap_error)
+                  CALL dbcsr_heap_reset_first(t_heap, t_cnt, dbcsr_heap_error)
                   td(reorder(i)) = t
                END DO
 
             END DO
-            CALL heap_release(t_heap)
+            CALL dbcsr_heap_release(t_heap)
             DEALLOCATE (sorted_row_sizes)
             DEALLOCATE (reorder)
          ELSE

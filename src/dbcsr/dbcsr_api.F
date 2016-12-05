@@ -100,12 +100,6 @@ MODULE dbcsr_api
                                               dbcsr_create,&
                                               dbcsr_finalize,&
                                               dbcsr_work_create
-   USE min_heap,                        ONLY: heap_fill,&
-                                              heap_get_first,&
-                                              heap_new,&
-                                              heap_release,&
-                                              heap_reset_first,&
-                                              heap_t
 
    IMPLICIT NONE
    PRIVATE
@@ -113,12 +107,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_print_config, &
              dbcsr_get_default_config, &
              dbcsr_set_config, &
-             heap_fill, &
-             heap_get_first, &
-             heap_new, &
-             heap_release, &
-             heap_reset_first, &
-             heap_t, &
              add_work_coordinate, &
              convert_offsets_to_sizes, &
              convert_sizes_to_offsets, &
