@@ -198,13 +198,13 @@ MODULE cp_dbcsr_interface
    PUBLIC :: dbcsr_set_config, dbcsr_get_default_config, dbcsr_print_config
 
    TYPE cp_dbcsr_p_type
-      TYPE(cp_dbcsr_type), POINTER :: matrix
+      TYPE(cp_dbcsr_type), POINTER :: matrix => Null()
    END TYPE cp_dbcsr_p_type
 
    ! the components of this type must remain private to encapsulate better the internals
    ! of the dbcsr library.
    TYPE cp_dbcsr_type
-      INTEGER, PRIVATE                     :: ref_count
+      INTEGER, PRIVATE                     :: ref_count = 0
       TYPE(dbcsr_obj), PRIVATE             :: matrix
    END TYPE cp_dbcsr_type
 
