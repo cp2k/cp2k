@@ -625,9 +625,9 @@ CONTAINS
       INTEGER                                            :: block_size, block_size0, cur_block, &
                                                             group_size, i, last_row, nlrows, &
                                                             nrows, nthreads, row, t, t_cnt
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: itemp1, itemp2, reorder, sorted_row_sizes
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: reorder, sorted_row_sizes
       INTEGER, DIMENSION(:), POINTER                     :: lrows, td
-      LOGICAL                                            :: assigned, dbcsr_heap_error, found
+      LOGICAL                                            :: assigned, found
       REAL(kind=sp)                                      :: load_fraction, rn, soft_thr
       TYPE(dbcsr_heap_type)                              :: t_heap
 
@@ -672,14 +672,7 @@ CONTAINS
             ! evenly distributed among all threads.
             CALL dbcsr_heap_new(t_heap, nthreads-1)
             ! We do not want thread 0 to be in the heap.
-            ALLOCATE (itemp1(1:nthreads-1))
-            ALLOCATE (itemp2(1:nthreads-1))
-            DO i = 1, nthreads-1
-               itemp1(i) = i
-               itemp2(i) = 0
-            ENDDO
-            CALL dbcsr_heap_fill(t_heap, itemp1, itemp2, dbcsr_heap_error)
-            DEALLOCATE (itemp1, itemp2)
+            CALL dbcsr_heap_fill(t_heap, (/(0, i=1, nthreads-1)/))
             ALLOCATE (sorted_row_sizes(nrows))
             ALLOCATE (reorder(nrows))
             sorted_row_sizes(:) = row_sizes(:)
@@ -719,9 +712,9 @@ CONTAINS
 
                !Leftover bocks
                DO i = last_row-block_size0-(nthreads-1)*block_size, last_row+1-group_size, -1
-                  CALL dbcsr_heap_get_first(t_heap, t, t_cnt, found, dbcsr_heap_error)
+                  CALL dbcsr_heap_get_first(t_heap, t, t_cnt, found)
                   t_cnt = t_cnt+cur_block
-                  CALL dbcsr_heap_reset_first(t_heap, t_cnt, dbcsr_heap_error)
+                  CALL dbcsr_heap_reset_first(t_heap, t_cnt)
                   td(reorder(i)) = t
                END DO
 

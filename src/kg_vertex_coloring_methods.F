@@ -27,7 +27,6 @@ MODULE kg_vertex_coloring_methods
                                               cp_heap_release,&
                                               cp_heap_reset_node,&
                                               cp_heap_type,&
-                                              keyt,&
                                               valt
    USE input_constants,                 ONLY: kg_color_dsatur,&
                                               kg_color_greedy
@@ -290,7 +289,6 @@ CONTAINS
 
       INTEGER                                            :: i, nnodes
       INTEGER(kind=valt), ALLOCATABLE, DIMENSION(:)      :: values
-      LOGICAL                                            :: cp_heap_error
 
       nnodes = SIZE(graph)
 
@@ -301,53 +299,9 @@ CONTAINS
       END DO
 
       ! fill the heap
-      CALL cp_heap_fill(heap, values, cp_heap_error)
-      IF (cp_heap_error) &
-         CPWARN("Error initially filling heap.")
+      CALL cp_heap_fill(heap, values)
 
       DEALLOCATE (values)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param key ...
-! **************************************************************************************************
-   SUBROUTINE kg_cp_heap_pop(heap, key)
-      TYPE(cp_heap_type)                                 :: heap
-      INTEGER, INTENT(OUT)                               :: key
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_cp_heap_pop', routineP = moduleN//':'//routineN
-
-      INTEGER(KIND=valt)                                 :: value
-      LOGICAL                                            :: cp_heap_error, found
-
-      CALL cp_heap_pop(heap, key, value, found, cp_heap_error)
-      IF (cp_heap_error) &
-         CPWARN("Error getting topmost heap element.")
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   SUBROUTINE kg_cp_heap_reset_node(heap, key, value)
-      TYPE(cp_heap_type)                                 :: heap
-      INTEGER(KIND=keyt), INTENT(IN)                     :: key
-      INTEGER(KIND=valt), INTENT(IN)                     :: value
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_cp_heap_reset_node', &
-         routineP = moduleN//':'//routineN
-
-      LOGICAL                                            :: cp_heap_error
-
-      CALL cp_heap_reset_node(heap, key, value, cp_heap_error)
-      IF (cp_heap_error) &
-         CPWARN("Error changing value of heap element.")
 
    END SUBROUTINE
 
@@ -375,7 +329,7 @@ CONTAINS
 
          value = kg_get_value(dsat, degree)
 
-         CALL kg_cp_heap_reset_node(heap, id, value)
+         CALL cp_heap_reset_node(heap, id, value)
 
       END IF
 
@@ -397,6 +351,8 @@ CONTAINS
 
       INTEGER                                            :: color_limit, handle, i, j, key, &
                                                             maxdegree, nneighbors, nnodes
+      INTEGER(KIND=valt)                                 :: value
+      LOGICAL                                            :: found
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: color_present
       TYPE(cp_heap_type)                                 :: heap
       TYPE(vertex), POINTER                              :: neighbor, this
@@ -429,7 +385,7 @@ CONTAINS
 
          DO WHILE (heap%n > 0)
 
-            CALL kg_cp_heap_pop(heap, key)
+            CALL cp_heap_pop(heap, key, value, found)
 
             this => graph(key)%vertex
 

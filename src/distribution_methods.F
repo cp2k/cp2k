@@ -132,10 +132,9 @@ CONTAINS
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: workload_count, workload_fill
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmolecule_local, nparticle_local, work
       INTEGER, DIMENSION(:), POINTER                     :: molecule_list
-      LOGICAL                                            :: cp_heap_error, found, &
-                                                            has_prev_subsys_info, is_local
+      LOGICAL                                            :: found, has_prev_subsys_info, is_local
       TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:)    :: local_molecule
-      TYPE(cp_heap_type)                                 :: bin_cp_heap_count, bin_cp_heap_fill
+      TYPE(cp_heap_type)                                 :: bin_heap_count, bin_heap_fill
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
 
@@ -189,15 +188,11 @@ CONTAINS
 
       nbins = npe
 
-      CALL cp_heap_new(bin_cp_heap_count, nbins)
-      CALL cp_heap_fill(bin_cp_heap_count, workload_count, cp_heap_error)
-      IF (cp_heap_error) &
-         CPABORT("Error initially filling the heap.")
+      CALL cp_heap_new(bin_heap_count, nbins)
+      CALL cp_heap_fill(bin_heap_count, workload_count)
 
-      CALL cp_heap_new(bin_cp_heap_fill, nbins)
-      CALL cp_heap_fill(bin_cp_heap_fill, workload_fill, cp_heap_error)
-      IF (cp_heap_error) &
-         CPABORT("Error initially filling the heap.")
+      CALL cp_heap_new(bin_heap_fill, nbins)
+      CALL cp_heap_fill(bin_heap_fill, workload_fill)
 
       DO imolecule_kind = 1, nmolecule_kind
 
@@ -231,9 +226,7 @@ CONTAINS
                   ENDIF
                END DO
             ELSE
-               CALL cp_heap_get_first(bin_cp_heap_count, bin, bin_price, found, cp_heap_error)
-               IF (cp_heap_error) &
-                  CPABORT("Error getting topmost heap element.")
+               CALL cp_heap_get_first(bin_heap_count, bin, bin_price, found)
                IF (.NOT. found) &
                   CPABORT("No topmost heap element found.")
 
@@ -247,9 +240,7 @@ CONTAINS
                END IF
 
                bin_price = workload_count(ipe)
-               CALL cp_heap_reset_first(bin_cp_heap_count, bin_price, cp_heap_error)
-               IF (cp_heap_error) &
-                  CPWARN("Error setting price of top heap element.")
+               CALL cp_heap_reset_first(bin_heap_count, bin_price)
             END IF
          END DO
 
@@ -278,9 +269,7 @@ CONTAINS
                   END IF
                END DO
             ELSE
-               CALL cp_heap_get_first(bin_cp_heap_fill, bin, bin_price, found, cp_heap_error)
-               IF (cp_heap_error) &
-                  CPABORT("Error getting topmost heap element.")
+               CALL cp_heap_get_first(bin_heap_fill, bin, bin_price, found)
                IF (.NOT. found) &
                   CPABORT("No topmost heap element found.")
 
@@ -305,9 +294,7 @@ CONTAINS
             END IF
             IF (.NOT. has_prev_subsys_info) THEN
                bin_price = workload_fill(ipe)
-               CALL cp_heap_reset_first(bin_cp_heap_fill, bin_price, cp_heap_error)
-               IF (cp_heap_error) &
-                  CPWARN("Error setting price of top heap element.")
+               CALL cp_heap_reset_first(bin_heap_fill, bin_price)
             END IF
          END DO
 
@@ -316,8 +303,8 @@ CONTAINS
       IF (ANY(workload_fill .NE. workload_count)) &
          CPABORT("Inconsistent heaps encountered")
 
-      CALL cp_heap_release(bin_cp_heap_count)
-      CALL cp_heap_release(bin_cp_heap_fill)
+      CALL cp_heap_release(bin_heap_count)
+      CALL cp_heap_release(bin_heap_fill)
 
 !   *** Create the local molecule structure ***
 
@@ -930,7 +917,7 @@ CONTAINS
                                                             cluster_price, nbins, nclusters, pcol, &
                                                             pgrid_gcd, prow, timing_handle
       INTEGER(int_8)                                     :: bin_price
-      LOGICAL                                            :: cp_heap_error, found
+      LOGICAL                                            :: found
       TYPE(cp_heap_type)                                 :: bin_heap
 
 !   ---------------------------------------------------------------------------
@@ -940,18 +927,14 @@ CONTAINS
       pgrid_gcd = gcd(nprows, npcols)
       CALL sort(cluster_prices, SIZE(cluster_list), cluster_list)
       CALL cp_heap_new(bin_heap, nbins)
-      CALL cp_heap_fill(bin_heap, (/(0_int_8, bin=1, nbins)/), cp_heap_error)
-      IF (cp_heap_error) &
-         CPABORT("Error initially filling the heap.")
+      CALL cp_heap_fill(bin_heap, (/(0_int_8, bin=1, nbins)/))
       !
       nclusters = SIZE(cluster_list)
       ! Put the most expensive cluster in the bin with the smallest
       ! price and repeat.
       DO cluster_index = nclusters, 1, -1
          cluster = cluster_list(cluster_index)
-         CALL cp_heap_get_first(bin_heap, bin, bin_price, found, cp_heap_error)
-         IF (cp_heap_error) &
-            CPABORT("Error getting topmost heap element.")
+         CALL cp_heap_get_first(bin_heap, bin, bin_price, found)
          IF (.NOT. found) &
             CPABORT("No topmost heap element found.")
          !
@@ -966,9 +949,7 @@ CONTAINS
          !
          cluster_price = cluster_prices(cluster_index)
          bin_price = bin_price+cluster_price
-         CALL cp_heap_reset_first(bin_heap, bin_price, cp_heap_error)
-         IF (cp_heap_error) &
-            CPWARN("Error setting price of top heap element.")
+         CALL cp_heap_reset_first(bin_heap, bin_price)
       ENDDO
       CALL cp_heap_release(bin_heap)
       CALL timestop(timing_handle)

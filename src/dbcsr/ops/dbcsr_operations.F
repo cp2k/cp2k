@@ -674,6 +674,7 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE dbcsr_add_anytype
 
+! **************************************************************************************************
 !> \brief Interface for dbcsr_add
 !> \param matrix_a ...
 !> \param matrix_b ...

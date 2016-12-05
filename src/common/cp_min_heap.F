@@ -6,6 +6,7 @@
 MODULE cp_min_heap
    USE kinds,                           ONLY: int_4,&
                                               int_8
+#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
@@ -33,14 +34,6 @@ MODULE cp_min_heap
       INTEGER, DIMENSION(:), POINTER           :: index
       TYPE(cp_heap_node_e), DIMENSION(:), POINTER :: nodes
    END TYPE cp_heap_type
-
-   INTERFACE node_set
-      MODULE PROCEDURE node_set_node, node_set_heap
-   END INTERFACE
-
-   INTERFACE node_get
-      MODULE PROCEDURE node_get_node, node_get_heap
-   END INTERFACE
 
 CONTAINS
 
@@ -145,32 +138,26 @@ CONTAINS
 !> \brief Fill heap with given values
 !> \param heap ...
 !> \param values ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE cp_heap_fill(heap, values, error)
+   SUBROUTINE cp_heap_fill(heap, values)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER(KIND=valt), DIMENSION(:), INTENT(IN)       :: values
-      LOGICAL, INTENT(OUT)                               :: error
 
       INTEGER                                            :: first, i, n
 
-      error = .FALSE.
       n = SIZE(values)
-      IF (heap%n .LT. n) THEN
-         error = .TRUE.
-      ELSE
-         DO i = 1, n
-            !   call node_set(heap, i, i, values(i))
-            heap%index(i) = i
-            heap%nodes(i)%node%key = i
-            heap%nodes(i)%node%value = values(i)
-         END DO
-         ! Sort from the last full subtree
-         first = get_parent(n)
-         DO i = first, 1, -1
-            CALL bubble_down(heap, i, error)
-         ENDDO
-      ENDIF
+      CPASSERT(heap%n >= n)
+
+      DO i = 1, n
+         heap%index(i) = i
+         heap%nodes(i)%node%key = i
+         heap%nodes(i)%node%value = values(i)
+      END DO
+      ! Sort from the last full subtree
+      first = get_parent(n)
+      DO i = first, 1, -1
+         CALL bubble_down(heap, i)
+      ENDDO
 
    END SUBROUTINE cp_heap_fill
 
@@ -180,22 +167,19 @@ CONTAINS
 !> \param key ...
 !> \param value ...
 !> \param found ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE cp_heap_get_first(heap, key, value, found, error)
+   SUBROUTINE cp_heap_get_first(heap, key, value, found)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER(KIND=keyt), INTENT(OUT)                    :: key
       INTEGER(KIND=valt), INTENT(OUT)                    :: value
-      LOGICAL, INTENT(OUT)                               :: found, error
+      LOGICAL, INTENT(OUT)                               :: found
 
-!
-
-      error = .FALSE.
       IF (heap%n .LT. 1) THEN
          found = .FALSE.
       ELSE
          found = .TRUE.
-         CALL node_get(heap, 1, key, value)
+         key = heap%nodes(1)%node%key
+         value = heap%nodes(1)%node%value
       ENDIF
    END SUBROUTINE cp_heap_get_first
 
@@ -206,22 +190,21 @@ CONTAINS
 !> \param key ...
 !> \param value ...
 !> \param found ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE cp_heap_pop(heap, key, value, found, error)
+   SUBROUTINE cp_heap_pop(heap, key, value, found)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER(KIND=keyt), INTENT(OUT)                    :: key
       INTEGER(KIND=valt), INTENT(OUT)                    :: value
-      LOGICAL, INTENT(OUT)                               :: found, error
+      LOGICAL, INTENT(OUT)                               :: found
 
 !
 
-      CALL cp_heap_get_first(heap, key, value, found, error)
-      IF (.NOT. error .AND. found) THEN
+      CALL cp_heap_get_first(heap, key, value, found)
+      IF (found) THEN
          IF (heap%n .GT. 1) THEN
             CALL cp_heap_copy_node(heap, 1, heap%n)
             heap%n = heap%n-1
-            CALL bubble_down(heap, 1, error)
+            CALL bubble_down(heap, 1)
          ELSE
             heap%n = heap%n-1
          ENDIF
@@ -234,41 +217,35 @@ CONTAINS
 !> \param heap ...
 !> \param key ...
 !> \param value ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE cp_heap_reset_node(heap, key, value, error)
+   SUBROUTINE cp_heap_reset_node(heap, key, value)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER(KIND=keyt), INTENT(IN)                     :: key
       INTEGER(KIND=valt), INTENT(IN)                     :: value
-      LOGICAL, INTENT(OUT)                               :: error
 
       INTEGER                                            :: n, new_pos
 
-!
+      CPASSERT(heap%n > 0)
 
-      error = .FALSE.
-      IF (heap%n .LT. 1) THEN
-         error = .TRUE.
-      ELSE
-         n = heap%index(key)
-         heap%nodes(n)%node%value = value
-         CALL bubble_up(heap, n, new_pos, error)
-         CALL bubble_down(heap, new_pos, error)
-      ENDIF
+      n = heap%index(key)
+      CPASSERT(heap%nodes(n)%node%key == key)
+      heap%nodes(n)%node%value = value
+      CALL bubble_up(heap, n, new_pos)
+      CALL bubble_down(heap, new_pos)
    END SUBROUTINE cp_heap_reset_node
 
 ! **************************************************************************************************
 !> \brief Changes the value of the minimum heap element and rebalances the heap.
 !> \param heap ...
 !> \param value ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE cp_heap_reset_first(heap, value, error)
+   SUBROUTINE cp_heap_reset_first(heap, value)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER(KIND=valt), INTENT(IN)                     :: value
-      LOGICAL, INTENT(OUT)                               :: error
 
-      CALL cp_heap_reset_node(heap, 1, value, error)
+      CPASSERT(heap%n > 0)
+      heap%nodes(1)%node%value = value
+      CALL bubble_down(heap, 1)
    END SUBROUTINE cp_heap_reset_first
 
 ! **************************************************************************************************
@@ -283,10 +260,6 @@ CONTAINS
 
       INTEGER(KIND=keyt)                                 :: key1, key2
       TYPE(cp_heap_node)                                 :: tmp_node
-
-!
-!node_get_heap (heap, e1, key1, value)
-!node_get_heap (heap, e2, key2, value)
 
       key1 = heap%nodes(e1)%node%key
       key2 = heap%nodes(e2)%node%key
@@ -311,10 +284,6 @@ CONTAINS
 
       INTEGER(KIND=keyt)                                 :: key1, key2
 
-!
-!node_get_heap (heap, e1, key1, value)
-!node_get_heap (heap, e2, key2, value)
-
       key1 = heap%nodes(e1)%node%key
       key2 = heap%nodes(e2)%node%key
 
@@ -325,83 +294,13 @@ CONTAINS
    END SUBROUTINE cp_heap_copy_node
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param node ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_get_node(node, key, value)
-      TYPE(cp_heap_node), INTENT(IN)                     :: node
-      INTEGER(KIND=keyt), INTENT(OUT)                    :: key
-      INTEGER(KIND=valt), INTENT(OUT)                    :: value
-
-!
-
-      key = node%key
-      value = node%value
-   END SUBROUTINE node_get_node
-! **************************************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param n ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_get_heap(heap, n, key, value)
-      TYPE(cp_heap_type), INTENT(IN)                     :: heap
-      INTEGER, INTENT(IN)                                :: n
-      INTEGER(KIND=keyt), INTENT(OUT)                    :: key
-      INTEGER(KIND=valt), INTENT(OUT)                    :: value
-
-!
-
-      CALL node_get_node(heap%nodes(n)%node, key, value)
-   END SUBROUTINE node_get_heap
-! **************************************************************************************************
-!> \brief ...
-!> \param node ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_set_node(node, key, value)
-      TYPE(cp_heap_node), INTENT(OUT)                    :: node
-      INTEGER(KIND=keyt), INTENT(IN)                     :: key
-      INTEGER(KIND=valt), INTENT(IN)                     :: value
-
-!
-
-      node%key = key
-      node%value = value
-   END SUBROUTINE node_set_node
-! **************************************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param n ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_set_heap(heap, n, key, value)
-      TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
-      INTEGER, INTENT(IN)                                :: n
-      INTEGER(KIND=keyt), INTENT(IN)                     :: key
-      INTEGER(KIND=valt), INTENT(IN)                     :: value
-
-!
-
-      CALL node_set_node(heap%nodes(n)%node, key, value)
-      heap%index(key) = n
-   END SUBROUTINE node_set_heap
-
-! **************************************************************************************************
 !> \brief Balances a heap by bubbling down from the given element.
 !> \param heap ...
 !> \param first ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE bubble_down(heap, first, error)
+   SUBROUTINE bubble_down(heap, first)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER, INTENT(IN)                                :: first
-      LOGICAL, INTENT(OUT)                               :: error
 
       INTEGER                                            :: e, left_child, right_child, smallest
       INTEGER(kind=valt)                                 :: left_child_value, min_value, &
@@ -409,12 +308,8 @@ CONTAINS
       LOGICAL                                            :: all_done
 
 !
+      CPASSERT(0 < first .AND. first <= heap%n)
 
-      IF (first .GT. heap%n .OR. first .LT. 1) THEN
-         error = .TRUE.
-         RETURN
-      ENDIF
-      error = .FALSE.
       e = first
       all_done = .FALSE.
       ! Check whether we are finished, i.e,. whether the element to
@@ -455,25 +350,18 @@ CONTAINS
 !> \param heap ...
 !> \param first ...
 !> \param new_pos ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE bubble_up(heap, first, new_pos, error)
+   SUBROUTINE bubble_up(heap, first, new_pos)
       TYPE(cp_heap_type), INTENT(INOUT)                  :: heap
       INTEGER, INTENT(IN)                                :: first
       INTEGER, INTENT(OUT)                               :: new_pos
-      LOGICAL, INTENT(OUT)                               :: error
 
       INTEGER                                            :: e, parent
       INTEGER(kind=valt)                                 :: my_value, parent_value
       LOGICAL                                            :: all_done
 
-!
+      CPASSERT(0 < first .AND. first <= heap%n)
 
-      IF (first .GT. heap%n .OR. first .LT. 1) THEN
-         error = .TRUE.
-         RETURN
-      ENDIF
-      error = .FALSE.
       e = first
       all_done = .FALSE.
       IF (e .GT. 1) THEN

@@ -4,17 +4,20 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE dbcsr_min_heap
+   USE kinds,                           ONLY: int_4
+#include "../../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: dbcsr_heap_type
-   PUBLIC :: dbcsr_heap_get_first, dbcsr_heap_reset_first, dbcsr_heap_fill
+   PUBLIC :: dbcsr_heap_type, keyt, valt
+   PUBLIC :: dbcsr_heap_pop, dbcsr_heap_reset_node, dbcsr_heap_fill
    PUBLIC :: dbcsr_heap_new, dbcsr_heap_release
+   PUBLIC :: dbcsr_heap_get_first, dbcsr_heap_reset_first
 
-   ! Sets the types to the default integer types.
-   INTEGER, PARAMETER :: keyt = KIND(0)
-   INTEGER, PARAMETER :: valt = KIND(0)
+   ! Sets the types
+   INTEGER, PARAMETER         :: keyt = int_4
+   INTEGER, PARAMETER         :: valt = int_4
 
    TYPE dbcsr_heap_node
       INTEGER(KIND=keyt) :: key
@@ -27,16 +30,9 @@ MODULE dbcsr_min_heap
 
    TYPE dbcsr_heap_type
       INTEGER :: n
+      INTEGER, DIMENSION(:), POINTER           :: index
       TYPE(dbcsr_heap_node_e), DIMENSION(:), POINTER :: nodes
    END TYPE dbcsr_heap_type
-
-   INTERFACE node_set
-      MODULE PROCEDURE node_set_node, node_set_heap
-   END INTERFACE
-
-   INTERFACE node_get
-      MODULE PROCEDURE node_get_node, node_get_heap
-   END INTERFACE
 
 CONTAINS
 
@@ -92,6 +88,23 @@ CONTAINS
       value = heap%nodes(n)%node%value
    END FUNCTION get_value
 
+! **************************************************************************************************
+!> \brief ...
+!> \param heap ...
+!> \param key ...
+!> \retval value ...
+! **************************************************************************************************
+   ELEMENTAL FUNCTION get_value_by_key(heap, key) RESULT(value)
+      TYPE(dbcsr_heap_type), INTENT(IN)                  :: heap
+      INTEGER(KIND=keyt), INTENT(IN)                     :: key
+      INTEGER(KIND=valt)                                 :: value
+
+      INTEGER                                            :: n
+
+      n = heap%index(key)
+      value = get_value(heap, n)
+   END FUNCTION get_value_by_key
+
    ! Initialization functions
 
 ! **************************************************************************************************
@@ -104,6 +117,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
 
       heap%n = n
+      ALLOCATE (heap%index(n))
       ALLOCATE (heap%nodes(n))
    END SUBROUTINE dbcsr_heap_new
 
@@ -114,42 +128,36 @@ CONTAINS
    SUBROUTINE dbcsr_heap_release(heap)
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
 
+      DEALLOCATE (heap%index)
       DEALLOCATE (heap%nodes)
       heap%n = 0
    END SUBROUTINE dbcsr_heap_release
 
-!> \brief Fill heap with given keys and values
-!> \param[in,out] heap  Heap to fill.
-!> \param[in] keys      Keys to store in heap
-!> \param[in] values    Values (i.e., costs) of the keys.
-!> \param[out] error    Error occurred.
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_heap_fill(heap, keys, values, error)
+!> \brief Fill heap with given values
+!> \param heap ...
+!> \param values ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_heap_fill(heap, values)
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
-      INTEGER(KIND=keyt), DIMENSION(:), INTENT(IN)       :: keys
       INTEGER(KIND=valt), DIMENSION(:), INTENT(IN)       :: values
-      LOGICAL, INTENT(OUT)                               :: error
 
       INTEGER                                            :: first, i, n
 
-!
+      n = SIZE(values)
+      CPASSERT(heap%n >= n)
 
-      error = .FALSE.
-      n = SIZE(keys)
-      IF (SIZE(values) .NE. n .OR. heap%n .LT. n) THEN
-         error = .TRUE.
-      ELSE
-         DO i = 1, n
-            !   call node_set(heap, i, keys(i), values(i))
-            heap%nodes(i)%node%key = keys(i)
-            heap%nodes(i)%node%value = values(i)
-         END DO
-         ! Sort from the last full subtree
-         first = get_parent(n)
-         DO i = first, 1, -1
-            CALL bubble_down(heap, i, error)
-         ENDDO
-      ENDIF
+      DO i = 1, n
+         heap%index(i) = i
+         heap%nodes(i)%node%key = i
+         heap%nodes(i)%node%value = values(i)
+      END DO
+      ! Sort from the last full subtree
+      first = get_parent(n)
+      DO i = first, 1, -1
+         CALL bubble_down(heap, i)
+      ENDDO
+
    END SUBROUTINE dbcsr_heap_fill
 
 ! **************************************************************************************************
@@ -158,47 +166,21 @@ CONTAINS
 !> \param key ...
 !> \param value ...
 !> \param found ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_heap_get_first(heap, key, value, found, error)
+   SUBROUTINE dbcsr_heap_get_first(heap, key, value, found)
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
       INTEGER(KIND=keyt), INTENT(OUT)                    :: key
       INTEGER(KIND=valt), INTENT(OUT)                    :: value
-      LOGICAL, INTENT(OUT)                               :: found, error
+      LOGICAL, INTENT(OUT)                               :: found
 
-!
-
-      error = .FALSE.
       IF (heap%n .LT. 1) THEN
          found = .FALSE.
       ELSE
          found = .TRUE.
-         CALL node_get(heap, 1, key, value)
+         key = heap%nodes(1)%node%key
+         value = heap%nodes(1)%node%value
       ENDIF
    END SUBROUTINE dbcsr_heap_get_first
-
-! **************************************************************************************************
-!> \brief Changes the value of the minimum heap element and
-!>        rebalances the heap.
-!> \param heap ...
-!> \param value ...
-!> \param error ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_heap_reset_first(heap, value, error)
-      TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
-      INTEGER(KIND=valt), INTENT(IN)                     :: value
-      LOGICAL, INTENT(OUT)                               :: error
-
-!
-
-      error = .FALSE.
-      IF (heap%n .LT. 1) THEN
-         error = .TRUE.
-      ELSE
-         heap%nodes(1)%node%value = value
-         CALL bubble_down(heap, 1, error)
-      ENDIF
-   END SUBROUTINE dbcsr_heap_reset_first
 
 ! **************************************************************************************************
 !> \brief Returns and removes the first heap element and rebalances
@@ -207,22 +189,21 @@ CONTAINS
 !> \param key ...
 !> \param value ...
 !> \param found ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_heap_pop(heap, key, value, found, error)
+   SUBROUTINE dbcsr_heap_pop(heap, key, value, found)
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
       INTEGER(KIND=keyt), INTENT(OUT)                    :: key
       INTEGER(KIND=valt), INTENT(OUT)                    :: value
-      LOGICAL, INTENT(OUT)                               :: found, error
+      LOGICAL, INTENT(OUT)                               :: found
 
 !
 
-      CALL dbcsr_heap_get_first(heap, key, value, found, error)
-      IF (.NOT. error .AND. found) THEN
+      CALL dbcsr_heap_get_first(heap, key, value, found)
+      IF (found) THEN
          IF (heap%n .GT. 1) THEN
             CALL dbcsr_heap_copy_node(heap, 1, heap%n)
             heap%n = heap%n-1
-            CALL bubble_down(heap, 1, error)
+            CALL bubble_down(heap, 1)
          ELSE
             heap%n = heap%n-1
          ENDIF
@@ -230,30 +211,41 @@ CONTAINS
    END SUBROUTINE dbcsr_heap_pop
 
 ! **************************************************************************************************
-!> \brief Adds an element to the heap and rebalances it.
+!> \brief Changes the value of the heap element with given key and
+!>        rebalances the heap.
 !> \param heap ...
 !> \param key ...
 !> \param value ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_heap_add(heap, key, value, error)
+   SUBROUTINE dbcsr_heap_reset_node(heap, key, value)
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
       INTEGER(KIND=keyt), INTENT(IN)                     :: key
       INTEGER(KIND=valt), INTENT(IN)                     :: value
-      LOGICAL, INTENT(OUT)                               :: error
 
-      INTEGER                                            :: new_n, new_pos
+      INTEGER                                            :: n, new_pos
 
-!
+      CPASSERT(heap%n > 0)
 
-      error = .FALSE.
-      new_n = heap%n+1
-      CALL dbcsr_heap_reallocate(heap, new_n)
-      heap%n = new_n
-      CALL node_set(heap, new_n, key, value)
-      CALL bubble_up(heap, new_n, new_pos, error)
-      CALL bubble_down(heap, new_pos, error)
-   END SUBROUTINE dbcsr_heap_add
+      n = heap%index(key)
+      CPASSERT(heap%nodes(n)%node%key == key)
+      heap%nodes(n)%node%value = value
+      CALL bubble_up(heap, n, new_pos)
+      CALL bubble_down(heap, new_pos)
+   END SUBROUTINE dbcsr_heap_reset_node
+
+! **************************************************************************************************
+!> \brief Changes the value of the minimum heap element and rebalances the heap.
+!> \param heap ...
+!> \param value ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_heap_reset_first(heap, value)
+      TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
+      INTEGER(KIND=valt), INTENT(IN)                     :: value
+
+      CPASSERT(heap%n > 0)
+      heap%nodes(1)%node%value = value
+      CALL bubble_down(heap, 1)
+   END SUBROUTINE dbcsr_heap_reset_first
 
 ! **************************************************************************************************
 !> \brief ...
@@ -265,13 +257,18 @@ CONTAINS
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
       INTEGER, INTENT(IN)                                :: e1, e2
 
+      INTEGER(KIND=keyt)                                 :: key1, key2
       TYPE(dbcsr_heap_node)                              :: tmp_node
 
-!
+      key1 = heap%nodes(e1)%node%key
+      key2 = heap%nodes(e2)%node%key
 
       tmp_node = heap%nodes(e1)%node
       heap%nodes(e1)%node = heap%nodes(e2)%node
       heap%nodes(e2)%node = tmp_node
+
+      heap%index(key1) = e2
+      heap%index(key2) = e1
    END SUBROUTINE dbcsr_heap_swap
 
 ! **************************************************************************************************
@@ -284,88 +281,25 @@ CONTAINS
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
       INTEGER, INTENT(IN)                                :: e1, e2
 
-!
+      INTEGER(KIND=keyt)                                 :: key1, key2
+
+      key1 = heap%nodes(e1)%node%key
+      key2 = heap%nodes(e2)%node%key
 
       heap%nodes(e1)%node = heap%nodes(e2)%node
+
+      heap%index(key1) = 0
+      heap%index(key2) = e1
    END SUBROUTINE dbcsr_heap_copy_node
-
-! **************************************************************************************************
-!> \brief ...
-!> \param node ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_get_node(node, key, value)
-      TYPE(dbcsr_heap_node), INTENT(IN)                  :: node
-      INTEGER(KIND=keyt), INTENT(OUT)                    :: key
-      INTEGER(KIND=valt), INTENT(OUT)                    :: value
-
-!
-
-      key = node%key
-      value = node%value
-   END SUBROUTINE node_get_node
-! **************************************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param n ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_get_heap(heap, n, key, value)
-      TYPE(dbcsr_heap_type), INTENT(IN)                  :: heap
-      INTEGER, INTENT(IN)                                :: n
-      INTEGER(KIND=keyt), INTENT(OUT)                    :: key
-      INTEGER(KIND=valt), INTENT(OUT)                    :: value
-
-!
-
-      CALL node_get_node(heap%nodes(n)%node, key, value)
-   END SUBROUTINE node_get_heap
-! **************************************************************************************************
-!> \brief ...
-!> \param node ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_set_node(node, key, value)
-      TYPE(dbcsr_heap_node), INTENT(OUT)                 :: node
-      INTEGER(KIND=keyt), INTENT(IN)                     :: key
-      INTEGER(KIND=valt), INTENT(IN)                     :: value
-
-!
-
-      node%key = key
-      node%value = value
-   END SUBROUTINE node_set_node
-! **************************************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param n ...
-!> \param key ...
-!> \param value ...
-! **************************************************************************************************
-   PURE SUBROUTINE node_set_heap(heap, n, key, value)
-      TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
-      INTEGER, INTENT(IN)                                :: n
-      INTEGER(KIND=keyt), INTENT(IN)                     :: key
-      INTEGER(KIND=valt), INTENT(IN)                     :: value
-
-!
-
-      CALL node_set_node(heap%nodes(n)%node, key, value)
-   END SUBROUTINE node_set_heap
 
 ! **************************************************************************************************
 !> \brief Balances a heap by bubbling down from the given element.
 !> \param heap ...
 !> \param first ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE bubble_down(heap, first, error)
+   SUBROUTINE bubble_down(heap, first)
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
       INTEGER, INTENT(IN)                                :: first
-      LOGICAL, INTENT(OUT)                               :: error
 
       INTEGER                                            :: e, left_child, right_child, smallest
       INTEGER(kind=valt)                                 :: left_child_value, min_value, &
@@ -373,12 +307,8 @@ CONTAINS
       LOGICAL                                            :: all_done
 
 !
+      CPASSERT(0 < first .AND. first <= heap%n)
 
-      IF (first .GT. heap%n .OR. first .LT. 1) THEN
-         error = .TRUE.
-         RETURN
-      ENDIF
-      error = .FALSE.
       e = first
       all_done = .FALSE.
       ! Check whether we are finished, i.e,. whether the element to
@@ -419,25 +349,18 @@ CONTAINS
 !> \param heap ...
 !> \param first ...
 !> \param new_pos ...
-!> \param error ...
 ! **************************************************************************************************
-   SUBROUTINE bubble_up(heap, first, new_pos, error)
+   SUBROUTINE bubble_up(heap, first, new_pos)
       TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
       INTEGER, INTENT(IN)                                :: first
       INTEGER, INTENT(OUT)                               :: new_pos
-      LOGICAL, INTENT(OUT)                               :: error
 
       INTEGER                                            :: e, parent
       INTEGER(kind=valt)                                 :: my_value, parent_value
       LOGICAL                                            :: all_done
 
-!
+      CPASSERT(0 < first .AND. first <= heap%n)
 
-      IF (first .GT. heap%n .OR. first .LT. 1) THEN
-         error = .TRUE.
-         RETURN
-      ENDIF
-      error = .FALSE.
       e = first
       all_done = .FALSE.
       IF (e .GT. 1) THEN
@@ -460,30 +383,5 @@ CONTAINS
       ENDDO
       new_pos = e
    END SUBROUTINE bubble_up
-
-! **************************************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param n ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_heap_reallocate(heap, n)
-      TYPE(dbcsr_heap_type), INTENT(INOUT)               :: heap
-      INTEGER, INTENT(IN)                                :: n
-
-      INTEGER, PARAMETER                                 :: min_size = 10
-      REAL, PARAMETER                                    :: oversize = 1.4
-
-      INTEGER                                            :: n_allocate
-      TYPE(dbcsr_heap_node_e), DIMENSION(:), POINTER     :: new_nodes, tmp_nodes
-
-      IF (n .GT. SIZE(heap%nodes)) THEN
-         n_allocate = MAX(MAX(n, min_size), INT(n*oversize))
-         ALLOCATE (new_nodes(n_allocate))
-         new_nodes(1:heap%n) = heap%nodes(1:heap%n)
-         tmp_nodes => heap%nodes
-         heap%nodes => new_nodes
-         DEALLOCATE (tmp_nodes)
-      ENDIF
-   END SUBROUTINE dbcsr_heap_reallocate
 
 END MODULE dbcsr_min_heap

@@ -2405,7 +2405,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_dist_bin', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: bin, bin_cnt, error_handle, i
-      LOGICAL                                            :: dbcsr_heap_error, found
+      LOGICAL                                            :: found
       REAL(kind=sp)                                      :: rn
       TYPE(dbcsr_heap_type)                              :: bin_heap
 
@@ -2417,13 +2417,12 @@ CONTAINS
        IF(SIZE(element_sizes) /= nelements) &
           CPABORT("Array of element sizes does not match the number of elements.")
        CALL dbcsr_heap_new (bin_heap, nbins)
-       CALL dbcsr_heap_fill (bin_heap, (/ (bin, bin = 0, nbins-1) /),&
-                                 (/ (0,   bin = 0, nbins-1) /), dbcsr_heap_error)
+       CALL dbcsr_heap_fill (bin_heap, (/ (0,   bin = 0, nbins-1) /))
        DO i = 1, nelements
-          CALL dbcsr_heap_get_first (bin_heap, bin, bin_cnt, found, dbcsr_heap_error)
-          bin_dist(i) = bin
+          CALL dbcsr_heap_get_first (bin_heap, bin, bin_cnt, found)
+          bin_dist(i) = bin-1
           bin_cnt = bin_cnt + element_sizes(i)
-          CALL dbcsr_heap_reset_first (bin_heap, bin_cnt, dbcsr_heap_error)
+          CALL dbcsr_heap_reset_first (bin_heap, bin_cnt)
        ENDDO
        CALL dbcsr_heap_release (bin_heap)
     ELSE
