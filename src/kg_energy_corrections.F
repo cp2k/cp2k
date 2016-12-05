@@ -55,7 +55,7 @@ MODULE kg_energy_corrections
                                               kg_environment_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mao_methods,                     ONLY: mao_basis_simple
+   USE mao_basis,                       ONLY: mao_generate_basis
    USE molecule_types_new,              ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -177,8 +177,8 @@ CONTAINS
          IF (ec_env%mao) THEN
             IF (ASSOCIATED(ec_env%mao_coef)) CALL cp_dbcsr_deallocate_matrix_set(ec_env%mao_coef)
             NULLIFY (ec_env%mao_coef)
-            CALL mao_basis_simple(qs_env, ec_env%mao_coef, ref_basis_set="HARRIS", molecular=.TRUE., &
-                                  max_iter=ec_env%mao_max_iter, eps_grad=ec_env%mao_eps_grad, unit_nr=unit_nr)
+            CALL mao_generate_basis(qs_env, ec_env%mao_coef, ref_basis_set="HARRIS", molecular=.TRUE., &
+                                    max_iter=ec_env%mao_max_iter, eps_grad=ec_env%mao_eps_grad, unit_nr=unit_nr)
          END IF
          CALL ec_ks_solver(qs_env, ec_env)
          CALL ec_energy(qs_env, ec_env, unit_nr)

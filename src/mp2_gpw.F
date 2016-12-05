@@ -70,7 +70,7 @@ MODULE mp2_gpw
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush,&
                                               m_memory
-   USE mao_methods,                     ONLY: mao_basis_simple
+   USE mao_basis,                       ONLY: mao_generate_basis
    USE message_passing,                 ONLY: mp_comm_split_direct,&
                                               mp_max,&
                                               mp_min,&
@@ -3051,10 +3051,10 @@ CONTAINS
          ! get mao transformation matrix
          IF (mp2_env%ri_rpa_im_time%nmao_occ(1) .GE. 0) THEN
 
-            CALL mao_basis_simple(qs_env, mao_coef=mao_coeff_occ, pmat_external=scaled_dm_for_maos_occ, &
-                                  max_iter=mp2_env%ri_rpa_im_time%max_iter_occ, &
-                                  eps_grad=mp2_env%ri_rpa_im_time%eps_grad_occ, &
-                                  nmao_external=mp2_env%ri_rpa_im_time%nmao_occ, unit_nr=unit_nr)
+            CALL mao_generate_basis(qs_env, mao_coef=mao_coeff_occ, pmat_external=scaled_dm_for_maos_occ, &
+                                    max_iter=mp2_env%ri_rpa_im_time%max_iter_occ, &
+                                    eps_grad=mp2_env%ri_rpa_im_time%eps_grad_occ, &
+                                    nmao_external=mp2_env%ri_rpa_im_time%nmao_occ, unit_nr=unit_nr)
             CALL mao_build_trafo_A(mao_coeff_occ_A, mao_coeff_occ, matrix_s, nspins)
 
          ELSE
@@ -3067,10 +3067,10 @@ CONTAINS
          IF (mp2_env%ri_rpa_im_time%nmao_virt(1) .GE. 0) THEN
 
             ! for the beginning, but mao_coeff_virt is not used, just use full basis for virtuals!
-            CALL mao_basis_simple(qs_env, mao_coef=mao_coeff_virt, pmat_external=dm_for_maos_virt, &
-                                  max_iter=mp2_env%ri_rpa_im_time%max_iter_virt, &
-                                  eps_grad=mp2_env%ri_rpa_im_time%eps_grad_virt, &
-                                  nmao_external=mp2_env%ri_rpa_im_time%nmao_virt, unit_nr=unit_nr)
+            CALL mao_generate_basis(qs_env, mao_coef=mao_coeff_virt, pmat_external=dm_for_maos_virt, &
+                                    max_iter=mp2_env%ri_rpa_im_time%max_iter_virt, &
+                                    eps_grad=mp2_env%ri_rpa_im_time%eps_grad_virt, &
+                                    nmao_external=mp2_env%ri_rpa_im_time%nmao_virt, unit_nr=unit_nr)
             CALL mao_build_trafo_A(mao_coeff_virt_A, mao_coeff_virt, matrix_s, nspins)
 
          ELSE

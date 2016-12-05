@@ -91,7 +91,7 @@ MODULE qs_scf_post_gpw
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE lapack,                          ONLY: lapack_sgesv
-   USE mao_methods,                     ONLY: mao_analysis
+   USE mao_wfn_analysis,                ONLY: mao_analysis
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_sum
