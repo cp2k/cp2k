@@ -13,8 +13,8 @@
 !  - 2011-09-26 Split dbcsr_internal_operations
 ! **************************************************************************************************
 MODULE dbcsr_mm_hostdrv
-   USE dbcsr_config,                    ONLY: has_acc,&
-                                              mm_driver,&
+   USE dbcsr_config,                    ONLY: dbcsr_cfg,&
+                                              has_acc,&
                                               mm_driver_blas,&
                                               mm_driver_matmul,&
                                               mm_driver_smm,&
@@ -171,7 +171,7 @@ CONTAINS
          ENDDO
       ENDIF
 
-      SELECT CASE (mm_driver)
+      SELECT CASE (dbcsr_cfg%mm_driver)
       CASE (mm_driver_matmul)
          SELECT CASE (this%data_area%d%data_type)
          CASE (dbcsr_type_real_4)

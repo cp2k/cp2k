@@ -81,15 +81,13 @@ CONTAINS
 !>      The previous components of qs_env must be valid.
 !>      Initializes pools, charges and pw_env.
 !> \param qs_env the qs_env to set up
-!> \param unit_nr ...
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE qs_env_setup(qs_env, unit_nr)
+   SUBROUTINE qs_env_setup(qs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(in)                                :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', routineP = moduleN//':'//routineN
 
@@ -181,7 +179,7 @@ CONTAINS
 
       ! and use it to create the dbcsr_dist, which should be the sole user of distribution_2d by now.
       ALLOCATE (dbcsr_dist)
-      CALL cp_dbcsr_dist2d_to_dist(distribution_2d, dbcsr_dist, unit_nr)
+      CALL cp_dbcsr_dist2d_to_dist(distribution_2d, dbcsr_dist)
       CALL set_ks_env(ks_env, dbcsr_dist=dbcsr_dist)
 
       ! also keep distribution_2d in qs_env

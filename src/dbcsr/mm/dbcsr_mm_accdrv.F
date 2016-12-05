@@ -40,10 +40,11 @@ MODULE dbcsr_mm_accdrv
                                               acc_stream_type
    USE dbcsr_acc_operations,            ONLY: dbcsr_acc_do_mm_stack
    USE dbcsr_block_operations,          ONLY: block_add
-   USE dbcsr_config,                    ONLY: &
-        accdrv_binning_binsize, accdrv_binning_nbins, accdrv_min_flop_sort, &
-        accdrv_posterior_buffers, accdrv_posterior_streams, accdrv_priority_buffers, &
-        accdrv_priority_streams, default_resize_factor, mm_stack_size
+   USE dbcsr_config,                    ONLY: dbcsr_cfg,&
+                                              default_resize_factor
+   !accdrv_binning_binsize, accdrv_binning_nbins, accdrv_min_flop_sort, &
+   !accdrv_posterior_buffers, accdrv_posterior_streams, accdrv_priority_buffers, &
+   !accdrv_priority_streams, default_resize_factor, mm_stack_size
    USE dbcsr_data_methods,              ONLY: dbcsr_data_dev2host,&
                                               dbcsr_data_ensure_size,&
                                               dbcsr_data_get_size,&
@@ -239,9 +240,9 @@ CONTAINS
 !$OMP MASTER
       CALL acc_stream_priority_range(least_priority, greatest_priority)
       CALL stream_array_force_size(priority_streams, "Calc (priority)", &
-                                   n=accdrv_priority_streams, priority=greatest_priority)
+                                   n=dbcsr_cfg%accdrv_priority_streams, priority=greatest_priority)
       CALL stream_array_force_size(posterior_streams, "Calc (posterior)", &
-                                   n=accdrv_posterior_streams, events=barrier_events)
+                                   n=dbcsr_cfg%accdrv_posterior_streams, events=barrier_events)
 
       !create upload stream
       IF (.NOT. acc_stream_associated(upload_stream)) &
@@ -331,8 +332,8 @@ CONTAINS
 
       ! distribute total number of buffers approx. evenly among threads
       ! my_* variables hold number of buffers for current thread.
-      my_priority_buffers = CEILING(REAL(accdrv_priority_buffers)/REAL(nthreads), int_4)
-      my_posterior_buffers = CEILING(REAL(accdrv_posterior_buffers)/REAL(nthreads), int_4)
+      my_priority_buffers = CEILING(REAL(dbcsr_cfg%accdrv_priority_buffers)/REAL(nthreads), int_4)
+      my_posterior_buffers = CEILING(REAL(dbcsr_cfg%accdrv_posterior_buffers)/REAL(nthreads), int_4)
 
       this%nbuffers_phaseout = my_priority_buffers
       my_total_buffers = my_posterior_buffers+my_priority_buffers
@@ -348,7 +349,7 @@ CONTAINS
 !$OMP        CRITICAL(crit_setup_stackbuffers)
          DO i = 1, my_total_buffers
             CALL acc_devmem_allocate_bytes(thread_privates%stack_buffers(i)%devmem, &
-                                           int_4_size*dbcsr_ps_width*mm_stack_size)
+                                           int_4_size*dbcsr_ps_width*dbcsr_cfg%mm_stack_size)
             IF (i <= my_priority_buffers) THEN
                curr_priority_stream = MOD(curr_priority_stream, SIZE(priority_streams))+1
                thread_privates%stack_buffers(i)%stream = priority_streams(curr_priority_stream)
@@ -357,7 +358,7 @@ CONTAINS
                thread_privates%stack_buffers(i)%stream = posterior_streams(curr_posterior_stream)
             ENDIF
             CALL acc_hostmem_allocate(thread_privates%stack_buffers(i)%hostmem, &
-                                      dbcsr_ps_width, mm_stack_size, thread_privates%stack_buffers(i)%stream)
+                                      dbcsr_ps_width, dbcsr_cfg%mm_stack_size, thread_privates%stack_buffers(i)%stream)
             CALL acc_event_create(thread_privates%stack_buffers(i)%ready)
             CALL acc_event_create(thread_privates%stack_buffers(i)%calculated)
          END DO
@@ -468,18 +469,19 @@ CONTAINS
          INTENT(IN)                                      :: params_in
 
       INTEGER                                            :: bin_id, i, top
-      INTEGER, DIMENSION(accdrv_binning_nbins)           :: bin_top
+      INTEGER, DIMENSION(dbcsr_cfg%accdrv_binning_nbins) :: bin_top
       INTEGER, DIMENSION(dbcsr_ps_width)                 :: val
-      INTEGER, DIMENSION(dbcsr_ps_width, &
-         accdrv_binning_binsize, accdrv_binning_nbins)   :: bin_arr
+      INTEGER, DIMENSION(dbcsr_ps_width, dbcsr_cfg%&
+         accdrv_binning_binsize, dbcsr_cfg%&
+         accdrv_binning_nbins)                           :: bin_arr
 
       bin_top = 1
       top = 1
       DO i = 1, stack_size
          val(:) = params_in(:, i)
          bin_id = 1+INT(MODULO(INT(val(6)*(val(6)+3), KIND=int_8), &
-                               INT(accdrv_binning_nbins, KIND=int_8)))
-         IF (bin_top(bin_id) > accdrv_binning_binsize) THEN
+                               INT(dbcsr_cfg%accdrv_binning_nbins, KIND=int_8)))
+         IF (bin_top(bin_id) > dbcsr_cfg%accdrv_binning_binsize) THEN
             params_out(:, top:top+bin_top(bin_id)-2) = bin_arr(:, 1:bin_top(bin_id)-1, bin_id)
             top = top+bin_top(bin_id)-1
             bin_top(bin_id) = 1
@@ -487,7 +489,7 @@ CONTAINS
          bin_arr(:, bin_top(bin_id), bin_id) = val(:)
          bin_top(bin_id) = bin_top(bin_id)+1
       END DO
-      DO i = 1, accdrv_binning_nbins
+      DO i = 1, dbcsr_cfg%accdrv_binning_nbins
          IF (bin_top(i) > 1) THEN
             params_out(:, top:top+bin_top(i)-2) = bin_arr(:, 1:bin_top(i)-1, i)
             top = top+bin_top(i)-1
@@ -594,7 +596,7 @@ CONTAINS
       CALL timeset(routineN//"_sort", error_handle2)
       flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
-      IF (flop_per_entry > accdrv_min_flop_sort) THEN
+      IF (flop_per_entry > dbcsr_cfg%accdrv_min_flop_sort) THEN
          CALL stack_sort(params, stackbuf%hostmem, stack_size)
       ELSE
          CALL stack_binning(params, stackbuf%hostmem, stack_size)

@@ -17,7 +17,7 @@ MODULE dbcsr_dist_operations
    USE array_types,                     ONLY: &
         array_data, array_equality, array_exists, array_hold, array_i1d_obj, array_new, &
         array_nullify, array_release, array_size
-   USE dbcsr_config,                    ONLY: max_elements_per_block
+   USE dbcsr_config,                    ONLY: dbcsr_cfg
    USE dbcsr_dist_methods,              ONLY: &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
@@ -1248,14 +1248,14 @@ CONTAINS
     ! Define the sizes on which we build the distribution.
     IF (nelements .GT. 0) THEN
 
-       nblocks = CEILING(REAL(nelements)/REAL(max_elements_per_block))
+       nblocks = CEILING(REAL(nelements)/REAL(dbcsr_cfg%max_elements_per_block))
        max_blocks_per_bin = CEILING(REAL(nblocks)/REAL(nbins))
 
        IF (debug_mod) THEN
           WRITE(*,'(1X,A,1X,A,I7,A,I7,A)')routineP,"For",nelements,&
                " elements and",nbins," bins"
           WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
-               max_elements_per_block," max elements per block"
+               dbcsr_cfg%max_elements_per_block," max elements per block"
           WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
                nblocks," blocks"
           WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
@@ -1273,7 +1273,7 @@ CONTAINS
        nblks = 0
        DO blk_layer = 1, max_blocks_per_bin
           DO bin = 0, nbins-1
-             els = MIN (max_elements_per_block, nelements-element_stack)
+             els = MIN (dbcsr_cfg%max_elements_per_block, nelements-element_stack)
              IF (els .GT. 0) THEN
                 element_stack = element_stack + els
                 nblks = nblks + 1

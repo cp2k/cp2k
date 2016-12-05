@@ -1249,7 +1249,7 @@ CONTAINS
       ENDIF
 
       ! Sets up pw_env, qs_charges, mpools ...
-      CALL qs_env_setup(qs_env, cp_logger_get_default_io_unit(logger))
+      CALL qs_env_setup(qs_env)
 
       ! Allocate and Initialie rho0 soft on the global grid
       IF (dft_control%qs_control%method == "GAPW") THEN

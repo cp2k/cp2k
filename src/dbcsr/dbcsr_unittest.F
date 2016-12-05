@@ -21,8 +21,7 @@ PROGRAM dbcsr_unittest
                                               dbcsr_init_lib,&
                                               dbcsr_mp_new,&
                                               dbcsr_mp_obj,&
-                                              dbcsr_mp_release,&
-                                              dbcsr_set_default_config
+                                              dbcsr_mp_release
    USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
    USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
    USE kinds,                           ONLY: dp
@@ -81,7 +80,6 @@ PROGRAM dbcsr_unittest
    IF (acc_get_ndevices() > 0) &
       CALL acc_set_active_device(MOD(mynode, acc_get_ndevices()))
    CALL dbcsr_init_lib()
-   CALL dbcsr_set_default_config()
 
    ! run tests
 

@@ -141,15 +141,13 @@ CONTAINS
 !> \brief Creates a DBCSR distribution from a distribution_2d
 !> \param[in] dist2d          distribution_2d
 !> \param[out] dist           DBCSR distribution
-!> \param unit_nr ...
 !> \param mp_obj ...
 !> \par History
 !>    move form dbcsr_operation 01.2010
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_dist2d_to_dist(dist2d, dist, unit_nr, mp_obj)
+   SUBROUTINE cp_dbcsr_dist2d_to_dist(dist2d, dist, mp_obj)
       TYPE(distribution_2d_type), INTENT(IN), TARGET     :: dist2d
       TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
-      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(dbcsr_mp_obj), INTENT(IN), OPTIONAL           :: mp_obj
 
       INTEGER                                            :: mypcol, myproc, myprow, numproc
@@ -178,7 +176,7 @@ CONTAINS
          CALL cp_dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc, &
                               myprow, mypcol)
       ENDIF
-      CALL cp_dbcsr_distribution_new(dist, mp_env, row_dist_data, col_dist_data, unit_nr=unit_nr)
+      CALL cp_dbcsr_distribution_new(dist, mp_env, row_dist_data, col_dist_data)
       CALL cp_dbcsr_mp_release(mp_env)
    END SUBROUTINE cp_dbcsr_dist2d_to_dist
 

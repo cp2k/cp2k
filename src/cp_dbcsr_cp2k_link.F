@@ -15,35 +15,25 @@ MODULE cp_dbcsr_cp2k_link
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Borstnik2014,&
+                                              Schuett2016
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_interface,              ONLY: &
-        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
-        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
-        accdrv_posterior_buffers, accdrv_posterior_streams, accdrv_priority_buffers, &
-        accdrv_priority_streams, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-        cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, cp_dbcsr_reserve_blocks, cp_dbcsr_set, &
-        cp_dbcsr_type, dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
-        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-        dbcsr_get_conf_nstacks, dbcsr_get_conf_num_layers_3D, dbcsr_get_conf_num_mult_images, &
-        dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
-        dbcsr_get_conf_use_mpi_filtering, dbcsr_set_conf_avg_elements_images, &
-        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, &
-        dbcsr_set_conf_num_mult_images, dbcsr_set_conf_randmat_seed, &
-        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
-        dbcsr_set_conf_use_mpi_filtering, dbcsr_type_no_symmetry, has_acc, has_mpi, &
-        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, mm_name_blas, &
-        mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
-                                              cp_logger_type,&
-                                              cp_logger_would_log,&
-                                              cp_note_level
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
+        cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_get_default_config, &
+        dbcsr_set_config, dbcsr_type_no_symmetry
+   USE input_keyword_types,             ONLY: keyword_create,&
+                                              keyword_release,&
+                                              keyword_type
+   USE input_section_types,             ONLY: section_add_keyword,&
+                                              section_add_subsection,&
+                                              section_create,&
+                                              section_release,&
+                                              section_type,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
+   USE kinds,                           ONLY: dp,&
                                               real_8
    USE orbital_pointers,                ONLY: nso
    USE qs_integral_utils,               ONLY: basis_set_list_setup
@@ -57,20 +47,267 @@ MODULE cp_dbcsr_cp2k_link
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_cp2k_link'
 
+   PUBLIC :: create_dbcsr_section
    PUBLIC :: cp_dbcsr_config
-   PUBLIC :: cp_dbcsr_print_config
    PUBLIC :: cp_dbcsr_alloc_block_from_nbl
    PUBLIC :: cp_dbcsr_to_csr_screening
 
    PRIVATE
 
+   ! Possible drivers to use for matrix multiplications
+   INTEGER, PARAMETER :: mm_driver_auto = 0
+   INTEGER, PARAMETER :: mm_driver_matmul = 1
+   INTEGER, PARAMETER :: mm_driver_blas = 2
+   INTEGER, PARAMETER :: mm_driver_smm = 3
+   INTEGER, PARAMETER :: mm_driver_xsmm = 4
+
+   CHARACTER(len=*), PARAMETER :: mm_name_auto = "AUTO", &
+                                  mm_name_blas = "BLAS", &
+                                  mm_name_matmul = "MATMUL", &
+                                  mm_name_smm = "SMM", &
+                                  mm_name_xsmm = "XSMM"
 CONTAINS
+
+! **************************************************************************************************
+!> \brief   Creates the dbcsr section for configuring DBCSR
+!> \param section ...
+!> \date    2011-04-05
+!> \author  Urban Borstnik
+! **************************************************************************************************
+   SUBROUTINE create_dbcsr_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_dbcsr_section', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: idefault
+      LOGICAL                                            :: ldefault
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="DBCSR", &
+                          description="Configuration options for the DBCSR library.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE., &
+                          citations=(/Borstnik2014, Schuett2016/))
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, name="mm_stack_size", &
+                          description="Size of multiplication parameter stack." &
+                          //" A negative value leaves the decision up to DBCSR.", &
+                          usage="mm_stack_size 1000", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="mm_driver", &
+                          description="Select which backend to use preferably "// &
+                          "for matrix block multiplications on the host.", &
+                          usage="mm_driver blas", &
+                          default_i_val=mm_driver_auto, &
+                          enum_c_vals=s2a("AUTO", "BLAS", "MATMUL", "SMM", "XSMM"), &
+                          enum_i_vals=(/mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
+                                        mm_driver_xsmm/), &
+                          enum_desc=s2a("Choose automatically the best available driver", &
+                                        "BLAS (requires the BLAS library at link time)", &
+                                        "Fortran MATMUL", &
+                                        "Library optimised for Small Matrix Multiplies "// &
+                                        "(requires the SMM library at link time)", &
+                                        "Intel's libxsmm"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(avg_elements_images=idefault)
+      CALL keyword_create(keyword, name="avg_elements_images", &
+                          description="Average number of elements (dense limit)" &
+                          //" for each image, which also corresponds to" &
+                          //" the average number of elements exchanged between MPI processes" &
+                          //" during the operations." &
+                          //" A negative or zero value means unlimited.", &
+                          usage="avg_elements_images 10000", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(num_mult_images=idefault)
+      CALL keyword_create(keyword, name="num_mult_images", &
+                          description="Multiplicative factor for number of virtual images.", &
+                          usage="num_mult_images 2", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(use_mpi_filtering=ldefault)
+      CALL keyword_create(keyword, name="use_mpi_filtering", &
+                          description="Use filtering for MPI communications" &
+                          //" in RMA algorithm for each image, which also corresponds to" &
+                          //" the number of elements exchanged between MPI processes" &
+                          //" during the operations.", &
+                          usage="use_mpi_filtering F", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(use_mpi_exp=ldefault)
+      CALL keyword_create(keyword, name="use_mpi_exp", &
+                          description="Use RMA for MPI communications" &
+                          //" for each image, which also corresponds to" &
+                          //" the number of elements exchanged between MPI processes" &
+                          //" during the operations.", &
+                          usage="use_mpi_exp F", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(num_layers_3D=idefault)
+      CALL keyword_create(keyword, name="num_layers_3D", &
+                          description="Number of layers for the 3D multplication algorithm.", &
+                          usage="num_layers_3D 1", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(nstacks=idefault)
+      CALL keyword_create(keyword, name="n_size_mnk_stacks", &
+                          description="Number of stacks to use for distinct atomic sizes" &
+                          //" (e.g., 2 for a system of mostly waters). ", &
+                          usage="n_size_mnk_stacks 2", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(use_comm_thread=ldefault)
+      CALL keyword_create(keyword, name="use_comm_thread", &
+                          description="During multiplication, use a thread to periodically poll" &
+                          //" MPI to progress outstanding message completions.  This is" &
+                          //" beneficial on systems without a DMA-capable network adapter" &
+                          //" e.g. Cray XE6.", &
+                          usage="use_comm_thread T", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(max_elements_per_block=idefault)
+      CALL keyword_create(keyword, name="MAX_ELEMENTS_PER_BLOCK", &
+                          description="Default block size for turning dense matrices in blocked ones", &
+                          usage="MAX_ELEMENTS_PER_BLOCK 32", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="comm_thread_load", &
+                          description="If a communications thread is used, specify how much " &
+                          //"multiplication workload (%) the thread should perform in " &
+                          //"addition to communication tasks. " &
+                          //"A negative value leaves the decision up to DBCSR.", &
+                          usage="comm_thread_load 50", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(multrec_limit=idefault)
+      CALL keyword_create(keyword, name="multrec_limit", &
+                          description="Recursion limit of cache oblivious multrec algorithm.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      !---------------------------------------------------------------------------
+      NULLIFY (subsection)
+      CALL section_create(subsection, name="ACC", &
+                          description="Configuration options for the ACC-Driver.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      CALL dbcsr_get_default_config(accdrv_priority_buffers=idefault)
+      CALL keyword_create(keyword, name="priority_buffers", &
+                          description="Number of transfer-buffers associated with high priority streams.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_posterior_buffers=idefault)
+      CALL keyword_create(keyword, name="posterior_buffers", &
+                          description="Number of transfer-buffers associated with low priority streams.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_priority_streams=idefault)
+      CALL keyword_create(keyword, name="priority_streams", &
+                          description="Number of acc streams created with high priority.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_posterior_streams=idefault)
+      CALL keyword_create(keyword, name="posterior_streams", &
+                          description="Number of acc streams created with low priority.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_avoid_after_busy=ldefault)
+      CALL keyword_create(keyword, name="avoid_after_busy", &
+                          description="If enabled, stacks are not processed by the acc-driver " &
+                          //"after it has signaled congestion during a round of flushing. " &
+                          //"For the next round of flusing the driver is used again.", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_min_flop_process=idefault)
+      CALL keyword_create(keyword, name="min_flop_process", &
+                          description="Only process stacks with more than the given number of " &
+                          //"floating-point operations per stack-entry (2*m*n*k).", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_min_flop_sort=idefault)
+      CALL keyword_create(keyword, name="min_flop_sort", &
+                          description="Only sort stacks with more than the given number of " &
+                          //"floating-point operations per stack-entry (2*m*n*k). " &
+                          //"Alternatively, the stacks are roughly ordered through a " &
+                          //"binning-scheme by Peter Messmer.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_do_inhomogenous=ldefault)
+      CALL keyword_create(keyword, name="process_inhomogenous", &
+                          description="If enabled, inhomogenous stacks are also processed by the acc driver.", &
+                          default_l_val=ldefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_binning_nbins=idefault)
+      CALL keyword_create(keyword, name="binning_nbins", &
+                          description="Number of bins used when ordering " &
+                          //"the stacks with the binning-scheme.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL dbcsr_get_default_config(accdrv_binning_binsize=idefault)
+      CALL keyword_create(keyword, name="binning_binsize", &
+                          description="Size of bins used when ordering " &
+                          //"the stacks with the binning-scheme.", &
+                          default_i_val=idefault)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_dbcsr_section
 
 ! **************************************************************************************************
 !> \brief Configures options for DBCSR
@@ -79,197 +316,96 @@ CONTAINS
    SUBROUTINE cp_dbcsr_config(root_section)
       TYPE(section_vals_type), POINTER                   :: root_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_dbcsr_config'
 
-      INTEGER :: avg_elements_images, comm_thread_load, error_handle, max_ele_block, mm_driver, &
-         mm_ss, num_layers, num_mult_images, randmat_seed
-      INTEGER, DIMENSION(3)                              :: nstacks
-      LOGICAL                                            :: use_comm_thread, use_mpi_exp, &
-                                                            use_mpi_filtering
+      INTEGER                                            :: handle, ival
+      LOGICAL                                            :: lval
       TYPE(section_vals_type), POINTER                   :: dbcsr_section
 
-      CALL timeset(routineN, error_handle)
-      dbcsr_section => section_vals_get_subs_vals(root_section, &
-                                                  "GLOBAL%DBCSR")
-      CALL section_vals_val_get(dbcsr_section, &
-                                "mm_stack_size", i_val=mm_ss)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "mm_driver", i_val=mm_driver)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "MAX_ELEMENTS_PER_BLOCK", i_val=max_ele_block)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "avg_elements_images", i_val=avg_elements_images)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "num_mult_images", i_val=num_mult_images)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "n_size_mnk_stacks", i_val=nstacks(1))
-      nstacks(2:3) = nstacks(1)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "use_mpi_filtering", l_val=use_mpi_filtering)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "use_mpi_exp", l_val=use_mpi_exp)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "num_layers_3D", i_val=num_layers)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "use_comm_thread", l_val=use_comm_thread)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "comm_thread_load", i_val=comm_thread_load)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "multrec_limit", i_val=multrec_limit)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "randmat_seed", i_val=randmat_seed)
+      CALL timeset(routineN, handle)
+      dbcsr_section => section_vals_get_subs_vals(root_section, "GLOBAL%DBCSR")
 
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%priority_streams", i_val=accdrv_priority_streams)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%priority_buffers", i_val=accdrv_priority_buffers)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%posterior_streams", i_val=accdrv_posterior_streams)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%posterior_buffers", i_val=accdrv_posterior_buffers)
+      CALL section_vals_val_get(dbcsr_section, "mm_stack_size", i_val=ival)
+      CALL dbcsr_set_config(mm_stack_size=ival)
 
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%min_flop_process", i_val=accdrv_min_flop_process)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%min_flop_sort", i_val=accdrv_min_flop_sort)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%process_inhomogenous", l_val=accdrv_do_inhomogenous)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%avoid_after_busy", l_val=accdrv_avoid_after_busy)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%binning_nbins", i_val=accdrv_binning_nbins)
-      CALL section_vals_val_get(dbcsr_section, &
-                                "ACC%binning_binsize", i_val=accdrv_binning_binsize)
+      CALL section_vals_val_get(dbcsr_section, "MAX_ELEMENTS_PER_BLOCK", i_val=ival)
+      CALL dbcsr_set_config(max_elements_per_block=ival)
 
-      CALL dbcsr_set_conf_mm_driver(mm_driver)
-      CALL dbcsr_set_conf_max_ele_block(max_ele_block)
-      IF (mm_ss > 0) &
-         CALL dbcsr_set_conf_mm_stacksize(mm_ss)
-      IF (avg_elements_images > 0) &
-         CALL dbcsr_set_conf_avg_elements_images(avg_elements_images)
-      IF (num_mult_images > 0) &
-         CALL dbcsr_set_conf_num_mult_images(num_mult_images)
-      IF (nstacks(1) > 0) &
-         CALL dbcsr_set_conf_nstacks(nstacks)
-      CALL dbcsr_set_conf_use_mpi_filtering(use_mpi_filtering)
-      CALL dbcsr_set_conf_use_mpi_exp(use_mpi_exp)
-      CALL dbcsr_set_conf_use_comm_thread(use_comm_thread)
-      CALL dbcsr_set_conf_comm_thread_load(comm_thread_load)
-      CALL dbcsr_set_conf_randmat_seed(randmat_seed)
-      IF (num_layers > 0) &
-         CALL dbcsr_set_conf_num_layers_3D(num_layers)
+      CALL section_vals_val_get(dbcsr_section, "avg_elements_images", i_val=ival)
+      CALL dbcsr_set_config(avg_elements_images=ival)
 
-      CALL timestop(error_handle)
+      CALL section_vals_val_get(dbcsr_section, "num_mult_images", i_val=ival)
+      CALL dbcsr_set_config(num_mult_images=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "n_size_mnk_stacks", i_val=ival)
+      CALL dbcsr_set_config(nstacks=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "use_mpi_filtering", l_val=lval)
+      CALL dbcsr_set_config(use_mpi_filtering=lval)
+
+      CALL section_vals_val_get(dbcsr_section, "use_mpi_exp", l_val=lval)
+      CALL dbcsr_set_config(use_mpi_exp=lval)
+
+      CALL section_vals_val_get(dbcsr_section, "num_layers_3D", i_val=ival)
+      CALL dbcsr_set_config(num_layers_3D=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "use_comm_thread", l_val=lval)
+      CALL dbcsr_set_config(use_comm_thread=lval)
+
+      CALL section_vals_val_get(dbcsr_section, "comm_thread_load", i_val=ival)
+      CALL dbcsr_set_config(comm_thread_load=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "multrec_limit", i_val=ival)
+      CALL dbcsr_set_config(multrec_limit=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%priority_streams", i_val=ival)
+      CALL dbcsr_set_config(accdrv_priority_streams=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%priority_buffers", i_val=ival)
+      CALL dbcsr_set_config(accdrv_priority_buffers=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%posterior_streams", i_val=ival)
+      CALL dbcsr_set_config(accdrv_posterior_streams=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%posterior_buffers", i_val=ival)
+      CALL dbcsr_set_config(accdrv_posterior_buffers=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%min_flop_process", i_val=ival)
+      CALL dbcsr_set_config(accdrv_min_flop_process=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%min_flop_sort", i_val=ival)
+      CALL dbcsr_set_config(accdrv_min_flop_sort=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%process_inhomogenous", l_val=lval)
+      CALL dbcsr_set_config(accdrv_do_inhomogenous=lval)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%avoid_after_busy", l_val=lval)
+      CALL dbcsr_set_config(accdrv_avoid_after_busy=lval)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%binning_nbins", i_val=ival)
+      CALL dbcsr_set_config(accdrv_binning_nbins=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "ACC%binning_binsize", i_val=ival)
+      CALL dbcsr_set_config(accdrv_binning_binsize=ival)
+
+      CALL section_vals_val_get(dbcsr_section, "mm_driver", i_val=ival)
+      SELECT CASE (ival)
+      CASE (mm_driver_auto)
+         CALL dbcsr_set_config(mm_driver="AUTO")
+      CASE (mm_driver_blas)
+         CALL dbcsr_set_config(mm_driver="BLAS")
+      CASE (mm_driver_matmul)
+         CALL dbcsr_set_config(mm_driver="MATMUL")
+      CASE (mm_driver_smm)
+         CALL dbcsr_set_config(mm_driver="SMM")
+      CASE (mm_driver_xsmm)
+         CALL dbcsr_set_config(mm_driver="XSMM")
+      CASE DEFAULT
+         CPABORT("Unknown mm_driver")
+      END SELECT
+
+      CALL timestop(handle)
    END SUBROUTINE cp_dbcsr_config
-
-! **************************************************************************************************
-!> \brief Prints configuration for DBCSR
-!> \param unit_nr ...
-! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_print_config(unit_nr)
-      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print_config', &
-         routineP = moduleN//':'//routineN
-
-      CHARACTER(len=default_string_length)               :: mm_name
-      INTEGER                                            :: unit_num
-      INTEGER, DIMENSION(3)                              :: n_mnk_stacks
-      TYPE(cp_logger_type), POINTER                      :: logger
-
-      logger => cp_get_default_logger()
-      unit_num = cp_logger_get_default_io_unit(logger)
-      IF (PRESENT(unit_nr)) unit_num = unit_nr
-
-      IF (unit_num > 0 .AND. cp_logger_would_log(logger, cp_note_level)) THEN
-         SELECT CASE (dbcsr_get_conf_mm_driver ())
-         CASE (mm_driver_blas); mm_name = mm_name_blas
-         CASE (mm_driver_matmul); mm_name = mm_name_matmul
-         CASE (mm_driver_smm); mm_name = mm_name_smm
-         CASE (mm_driver_xsmm); mm_name = mm_name_xsmm
-         CASE DEFAULT; CPABORT("Unkown MM driver")
-         END SELECT
-         WRITE (UNIT=unit_num, FMT='(1X,A,T41,A40)') &
-            "DBCSR| Multiplication driver", ADJUSTR(mm_name(1:40))
-
-         WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-            "DBCSR| Multrec recursion limit", multrec_limit
-         WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-            "DBCSR| Multiplication stack size", dbcsr_get_conf_mm_stacksize()
-
-         IF (dbcsr_get_conf_avg_elements_images() > 0) THEN
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| Average elements for images", dbcsr_get_conf_avg_elements_images()
-         ELSE
-            WRITE (UNIT=unit_num, FMT='(1X,A,T72,A)') &
-               "DBCSR| Maximum elements for images", "UNLIMITED"
-         ENDIF
-         WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-            "DBCSR| Multiplicative factor virtual images", dbcsr_get_conf_num_mult_images()
-         WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-            "DBCSR| Randmat seed", dbcsr_get_conf_randmat_seed()
-
-         CALL dbcsr_get_conf_nstacks(n_mnk_stacks)
-         IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| Multiplication size stacks", n_mnk_stacks(1)
-         ELSE
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| Multiplication size m stacks", n_mnk_stacks(1)
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| Multiplication size n stacks", n_mnk_stacks(2)
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| Multiplication size l stacks", n_mnk_stacks(3)
-         ENDIF
-
-         IF (has_mpi) THEN
-            IF (dbcsr_get_conf_num_layers_3D() < 2) THEN
-               WRITE (UNIT=unit_num, FMT='(1X,A,T75,A)') &
-                  "DBCSR| Number of 3D layers", "SINGLE"
-            ELSE
-               WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-                  "DBCSR| Number of 3D layers", dbcsr_get_conf_num_layers_3D()
-            ENDIF
-            WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &
-               "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem()
-            WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &
-               "DBCSR| Use RMA algorithm", dbcsr_get_conf_use_mpi_exp()
-            WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &
-               "DBCSR| Use Communication thread", dbcsr_get_conf_use_comm_thread()
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
-            IF (dbcsr_get_conf_use_mpi_exp()) THEN
-               WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &
-                  "DBCSR| Use MPI filtering", dbcsr_get_conf_use_mpi_filtering()
-            ENDIF
-         ENDIF
-
-         IF (has_acc) THEN
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Number of priority stack-buffers", accdrv_priority_buffers
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Number of posterior stack-buffers", accdrv_posterior_buffers
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Number of priority streams", accdrv_priority_streams
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Number of posterior streams", accdrv_posterior_streams
-            WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &
-               "DBCSR| ACC: Avoid driver after busy ", accdrv_avoid_after_busy
-            WRITE (UNIT=unit_num, FMT='(1X,A,T80,L1)') &
-               "DBCSR| ACC: Process inhomogenous stacks", accdrv_do_inhomogenous
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Min. flop for processing", accdrv_min_flop_process
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Min. flop for sorting", accdrv_min_flop_sort
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Number of binning bins", accdrv_binning_nbins
-            WRITE (UNIT=unit_num, FMT='(1X,A,T70,I11)') &
-               "DBCSR| ACC: Size of binning bins", accdrv_binning_binsize
-         END IF
-      ENDIF
-
-   END SUBROUTINE cp_dbcsr_print_config
 
 ! **************************************************************************************************
 !> \brief allocate the blocks of a dbcsr based on the neighbor list

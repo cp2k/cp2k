@@ -22,7 +22,6 @@ MODULE dbcsr_test_methods
                                               dbcsr_block_transpose,&
                                               dbcsr_data_clear,&
                                               dbcsr_data_set
-   USE dbcsr_config,                    ONLY: randmat_counter
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, dbcsr_data_init, &
         dbcsr_data_new, dbcsr_data_release, dbcsr_scalar, dbcsr_scalar_negative, dbcsr_scalar_one, &
@@ -79,6 +78,8 @@ MODULE dbcsr_test_methods
              dbcsr_test_read_args, atoi, atol, ator
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
+
+   INTEGER, PRIVATE, SAVE :: randmat_counter = 12341313
 
 CONTAINS
 

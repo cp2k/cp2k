@@ -12,7 +12,6 @@
 PROGRAM dbcsr_tensor_unittest
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib,&
-                                              dbcsr_set_default_config,&
                                               dbcsr_type_real_8
    USE dbcsr_tensor,                    ONLY: &
         dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, dbcsr_t_iterator, &
@@ -57,7 +56,6 @@ PROGRAM dbcsr_tensor_unittest
 
    ! initialize libdbcsr
    CALL dbcsr_init_lib()
-   CALL dbcsr_set_default_config()
 
    ! set standard output parameters
    io_unit = 0

@@ -17,11 +17,8 @@ MODULE cp_dbcsr_interface
                                               Schuett2016,&
                                               cite_reference
    USE dbcsr_api,                       ONLY: &
-        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
-        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
-        accdrv_posterior_buffers, accdrv_posterior_streams, accdrv_priority_buffers, &
-        accdrv_priority_streams, add_work_coordinate, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
-        convert_offsets_to_sizes, convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
+        add_work_coordinate, convert_csr_to_dbcsr, convert_dbcsr_to_csr, convert_offsets_to_sizes, &
+        convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
         cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
         create_bl_distribution, create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
         create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, csr_create_from_dbcsr, &
@@ -41,47 +38,35 @@ MODULE cp_dbcsr_interface
         dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
         dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_func_artanh, &
         dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
-        dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
-        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
-        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, dbcsr_get_conf_num_layers_3D, &
-        dbcsr_get_conf_num_mult_images, dbcsr_get_conf_randmat_seed, &
-        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
-        dbcsr_get_conf_use_mpi_filtering, dbcsr_get_data_p, dbcsr_get_data_size, &
-        dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_get_stored_coordinates, &
-        dbcsr_hadamard_product, dbcsr_has_symmetry, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
-        dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_matrix_colvec_multiply, dbcsr_maxabs, &
-        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
-        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
-        dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, &
-        dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
-        dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, &
-        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
-        dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, dbcsr_scalar_fill_all, &
-        dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, dbcsr_scalar_type, &
-        dbcsr_scalar_zero, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
-        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
-        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-        dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, dbcsr_set_conf_num_mult_images, &
-        dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
-        dbcsr_set_conf_use_mpi_filtering, dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
-        dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
-        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_complex_default, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, &
-        dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
-        dbcsr_work_create, has_acc, has_mpi, heap_fill, heap_get_first, heap_new, heap_release, &
-        heap_reset_first, heap_t, mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
-        mm_driver_xsmm, mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, &
-        multrec_limit
+        dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_data_p, &
+        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_default_config, dbcsr_get_diag, &
+        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
+        dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_has_symmetry, dbcsr_init, &
+        dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
+        dbcsr_matrix_colvec_multiply, dbcsr_maxabs, dbcsr_mp_get_process, dbcsr_mp_grid_setup, &
+        dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_npcols, &
+        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_release, dbcsr_multiply, &
+        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_new_transposed, &
+        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
+        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_print, &
+        dbcsr_print_block_sum, dbcsr_print_config, dbcsr_put_block, dbcsr_release, &
+        dbcsr_replicate_all, dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, &
+        dbcsr_reserve_blocks, dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
+        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
+        dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, dbcsr_scale, &
+        dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_config, dbcsr_set_diag, dbcsr_setname, &
+        dbcsr_sum_replicated, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, dbcsr_triu, &
+        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+        dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix, &
+        dbcsr_wm_use_mutable, dbcsr_work_create, heap_fill, heap_get_first, heap_new, &
+        heap_release, heap_reset_first, heap_t
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8,&
                                               real_4,&
                                               real_8
-   USE machine,                         ONLY: default_output_unit
    USE string_utilities,                ONLY: uppercase
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -93,17 +78,8 @@ MODULE cp_dbcsr_interface
 
    !
    ! Interface to libdbcsr (contains cp2k timing and error)
-   PUBLIC :: dbcsr_get_conf_comm_thread_load, &
-             dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_num_mult_images, &
-             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks, &
-             dbcsr_set_conf_mm_stacksize, &
-             dbcsr_get_conf_use_mpi_exp, dbcsr_get_conf_use_mpi_filtering, &
-             dbcsr_set_conf_num_layers_3D, dbcsr_get_conf_num_layers_3D
-   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-             dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_use_comm_thread, &
-             dbcsr_set_conf_num_mult_images, &
-             has_mpi, dbcsr_set_conf_use_mpi_exp, dbcsr_set_conf_use_mpi_filtering
-   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols, &
+   PUBLIC :: dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
+             dbcsr_distribution_local_cols, &
              dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows, &
              dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, &
              dbcsr_mp_hold, cp_distribution_get_num_images
@@ -113,7 +89,7 @@ MODULE cp_dbcsr_interface
    PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
    PUBLIC :: dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters, &
              dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters
-   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
+   PUBLIC :: dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
    PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, &
              dbcsr_mp_get_process, dbcsr_mp_grid_setup
    PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
@@ -201,16 +177,6 @@ MODULE cp_dbcsr_interface
    PUBLIC :: cp_dbcsr_function_of_elements
    PUBLIC :: cp_dbcsr_triu
    PUBLIC :: cp_dbcsr_clear_mempools
-   PUBLIC :: accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
-             accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
-             accdrv_posterior_buffers, accdrv_posterior_streams, &
-             accdrv_priority_buffers, accdrv_priority_streams, &
-             dbcsr_get_conf_max_ele_block, &
-             dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
-             mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, &
-             mm_name_auto, mm_name_blas, mm_name_matmul, &
-             mm_name_smm, mm_name_xsmm, multrec_limit
-   PUBLIC :: dbcsr_set_conf_randmat_seed, dbcsr_get_conf_randmat_seed
    PUBLIC :: heap_fill, &
              heap_get_first, &
              heap_new, &
@@ -229,6 +195,7 @@ MODULE cp_dbcsr_interface
    PUBLIC :: cp_dbcsr_matrix_colvec_multiply, &
              cp_create_col_vec_from_matrix, cp_create_row_vec_from_matrix, &
              cp_create_replicated_col_vec_from_matrix, cp_create_replicated_row_vec_from_matrix
+   PUBLIC :: dbcsr_set_config, dbcsr_get_default_config, dbcsr_print_config
 
    TYPE cp_dbcsr_p_type
       TYPE(cp_dbcsr_type), POINTER :: matrix
@@ -1223,23 +1190,21 @@ CONTAINS
 !> \param row_dist_cluster ...
 !> \param col_dist_cluster ...
 !> \param reuse_arrays ...
-!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_distribution_new_clusters1(dist, mp_env, &
                                                   row_dist_block, col_dist_block, &
                                                   row_dist_cluster, col_dist_cluster, &
-                                                  reuse_arrays, unit_nr)
+                                                  reuse_arrays)
       TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
       TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_dist_block, col_dist_block, &
                                                             row_dist_cluster, col_dist_cluster
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays
-      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_distribution_new_clusters1', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iunit, timing_handle
+      INTEGER                                            :: timing_handle
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_cluster2, row_dist_cluster2
 
       CALL timeset(routineN, timing_handle)
@@ -1252,19 +1217,6 @@ CONTAINS
       IF (ASSOCIATED(col_dist_cluster2)) THEN
          IF (ANY(col_dist_cluster2 .EQ. -1)) NULLIFY (col_dist_cluster2)
       END IF
-
-      IF ((ASSOCIATED(row_dist_cluster2) .OR. ASSOCIATED(col_dist_cluster2)) .AND. &
-          .NOT. dbcsr_get_conf_use_mpi_exp()) THEN
-         iunit = default_output_unit
-         IF (PRESENT(unit_nr)) iunit = unit_nr
-         IF (iunit > 0) THEN
-            WRITE (iunit, *) "************************************************************"
-            WRITE (iunit, *) "WARNING:: Cannot use cluster distribution without MPI RMA!!!"
-            WRITE (iunit, *) "          Set 'USE_MPI_EXP T' in DBCSR section."
-            WRITE (iunit, *) "************************************************************"
-         ENDIF
-         NULLIFY (row_dist_cluster2, col_dist_cluster2)
-      ENDIF
 
       CALL dbcsr_distribution_new(dist, mp_env, row_dist_block, col_dist_block, &
                                   row_dist_cluster=row_dist_cluster2, &
@@ -1282,14 +1234,12 @@ CONTAINS
 !> \param row_dist row distribution
 !> \param col_dist column distribution
 !> \param reuse_arrays ...
-!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_distribution_new_clusters2(dist, mp_env, row_dist, col_dist, reuse_arrays, unit_nr)
+   SUBROUTINE cp_dbcsr_distribution_new_clusters2(dist, mp_env, row_dist, col_dist, reuse_arrays)
       TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
       TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
       INTEGER, DIMENSION(:, :), INTENT(IN), POINTER      :: row_dist, col_dist
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays
-      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_distribution_new_clusters2', &
          routineP = moduleN//':'//routineN
@@ -1305,7 +1255,7 @@ CONTAINS
       CALL cp_dbcsr_distribution_new(dist, mp_env, &
                                      row_dist_block, col_dist_block, &
                                      row_dist_cluster, col_dist_cluster, &
-                                     reuse_arrays, unit_nr)
+                                     reuse_arrays)
 
    END SUBROUTINE cp_dbcsr_distribution_new_clusters2
 

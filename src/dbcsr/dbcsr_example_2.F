@@ -21,7 +21,7 @@ PROGRAM dbcsr_example_2
         dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, &
         dbcsr_mp_obj, dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, &
         dbcsr_print, dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
-        dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE kinds,                           ONLY: real_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
@@ -72,7 +72,6 @@ PROGRAM dbcsr_example_2
    !
    ! initialize libdbcsr
    CALL dbcsr_init_lib()
-   CALL dbcsr_set_default_config()
 
    !
    ! set standard output parameters

@@ -17,8 +17,7 @@ PROGRAM dbcsr_performance_driver
                                               dbcsr_init_lib,&
                                               dbcsr_mp_new,&
                                               dbcsr_mp_obj,&
-                                              dbcsr_mp_release,&
-                                              dbcsr_set_default_config
+                                              dbcsr_mp_release
    USE dbcsr_performance_multiply,      ONLY: dbcsr_perf_multiply
    USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
    USE kinds,                           ONLY: default_string_length
@@ -86,7 +85,6 @@ PROGRAM dbcsr_performance_driver
    !
    ! initialize libdbcsr
    CALL dbcsr_init_lib()
-   CALL dbcsr_set_default_config()
 
    !
    ! select the operation

@@ -428,7 +428,7 @@ CONTAINS
       CALL pw_env_rebuild(pw_env_sub, qs_env, para_env_sub)
 
       CALL tddfpt_build_distribution_2d(distribution_2d=dist_2d_sub, dbcsr_dist=dbcsr_dist_sub, &
-                                        blacs_env=blacs_env_sub, qs_env=qs_env, log_unit=log_unit)
+                                        blacs_env=blacs_env_sub, qs_env=qs_env)
       CALL tddfpt_build_tasklist(task_list=task_list_orb_sub, sab=sab_orb_sub, basis_type="ORB", &
                                  distribution_2d=dist_2d_sub, pw_env=pw_env_sub, qs_env=qs_env, &
                                  skip_load_balance=qs_control%skip_load_balance_distributed, reorder_grid_ranks=.TRUE.)
@@ -1210,16 +1210,14 @@ CONTAINS
 !> \param dbcsr_dist      new DBCSR distribution (allocated and initialised on exit)
 !> \param blacs_env       BLACS parallel environment
 !> \param qs_env          Quickstep environment
-!> \param log_unit        output unit
 !> \par History
 !>   * 09.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_build_distribution_2d(distribution_2d, dbcsr_dist, blacs_env, qs_env, log_unit)
+   SUBROUTINE tddfpt_build_distribution_2d(distribution_2d, dbcsr_dist, blacs_env, qs_env)
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(in)                                :: log_unit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_build_distribution_2d', &
          routineP = moduleN//':'//routineN
@@ -1251,7 +1249,7 @@ CONTAINS
                                    force_env_section=input)
 
       ALLOCATE (dbcsr_dist)
-      CALL cp_dbcsr_dist2d_to_dist(distribution_2d, dbcsr_dist, log_unit)
+      CALL cp_dbcsr_dist2d_to_dist(distribution_2d, dbcsr_dist)
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt_build_distribution_2d

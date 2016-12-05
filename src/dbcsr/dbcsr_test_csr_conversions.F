@@ -17,7 +17,7 @@ PROGRAM dbcsr_test_csr_conversions
         dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_init_lib, dbcsr_max_col_size, &
         dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, dbcsr_put_block, dbcsr_release, &
-        dbcsr_row_block_sizes, dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_row_block_sizes, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE dbcsr_csr_conversions,           ONLY: csr_conversion_test
    USE kinds,                           ONLY: dp,&
                                               real_8
@@ -74,7 +74,6 @@ PROGRAM dbcsr_test_csr_conversions
    DEALLOCATE (pgrid)
 
    CALL dbcsr_init_lib()
-   CALL dbcsr_set_default_config()
 
    io_unit = 0
    IF (mynode .EQ. 0) io_unit = default_output_unit

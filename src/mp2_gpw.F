@@ -349,7 +349,7 @@ CONTAINS
       CALL create_mat_munu(mat_munu, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                            atom2d, molecule_kind_set, &
                            molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub_mat_munu, &
-                           unit_nr, sab_orb_all=sab_orb_all, do_im_time=do_im_time)
+                           sab_orb_all=sab_orb_all, do_im_time=do_im_time)
 
       IF (do_im_time) THEN
 
@@ -623,7 +623,7 @@ CONTAINS
                                                mat_dm_virt_global_mao, mat_dm_occ_local, mat_dm_virt_local, &
                                                do_mao, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                                                atom2d, molecule_kind_set, molecule_set, particle_set, cell, &
-                                               para_env_sub_im_time_P, blacs_env_sub_im_time_3c, unit_nr, sab_orb_all)
+                                               para_env_sub_im_time_P, blacs_env_sub_im_time_3c, sab_orb_all)
 
             para_env_sub_RPA => para_env_sub_im_time_3c
 
@@ -2107,7 +2107,6 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param blacs_env_sub ...
-!> \param unit_nr ...
 !> \param do_ri_aux_basis ...
 !> \param do_mixed_basis ...
 !> \param group_size_prim ...
@@ -2118,7 +2117,7 @@ CONTAINS
    SUBROUTINE create_mat_munu(mat_munu, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                               atom2d, molecule_kind_set, &
                               molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub, &
-                              unit_nr, do_ri_aux_basis, do_mixed_basis, group_size_prim, sab_orb_all, do_im_time)
+                              do_ri_aux_basis, do_mixed_basis, group_size_prim, sab_orb_all, do_im_time)
 
       TYPE(cp_dbcsr_p_type)                              :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -2135,7 +2134,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      INTEGER                                            :: unit_nr
       LOGICAL, OPTIONAL                                  :: do_ri_aux_basis, do_mixed_basis
       INTEGER, OPTIONAL                                  :: group_size_prim
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -2243,7 +2241,7 @@ CONTAINS
 
       ! a dbcsr_dist
       ALLOCATE (dbcsr_dist_sub)
-      CALL cp_dbcsr_dist2d_to_dist(distribution_2d_sub, dbcsr_dist_sub, unit_nr)
+      CALL cp_dbcsr_dist2d_to_dist(distribution_2d_sub, dbcsr_dist_sub)
 
       ! build a dbcsr matrix the hard way
       natom = SIZE(particle_set)
@@ -2421,7 +2419,6 @@ CONTAINS
 !> \param cell ...
 !> \param para_env_sub_im_time_P ...
 !> \param blacs_env_sub_im_time_3c ...
-!> \param unit_nr ...
 !> \param sab_orb_all ...
 !> \author Jan Wilhelm
 ! **************************************************************************************************
@@ -2429,7 +2426,7 @@ CONTAINS
                                             mat_dm_virt_global_mao, mat_dm_occ_local, mat_dm_virt_local, do_mao, &
                                             qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                                             atom2d, molecule_kind_set, molecule_set, particle_set, cell, &
-                                            para_env_sub_im_time_P, blacs_env_sub_im_time_3c, unit_nr, sab_orb_all)
+                                            para_env_sub_im_time_P, blacs_env_sub_im_time_3c, sab_orb_all)
 
       TYPE(cp_dbcsr_p_type) :: mat_munu, mat_P_local, mat_P_global, mat_M, mat_dm_occ_global_mao, &
          mat_dm_virt_global_mao, mat_dm_occ_local, mat_dm_virt_local
@@ -2447,7 +2444,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_im_time_P
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub_im_time_3c
-      INTEGER                                            :: unit_nr
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_all
 
@@ -2484,7 +2480,7 @@ CONTAINS
       CALL create_mat_munu(mat_munu, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, qs_kind_set, &
                            atom2d, molecule_kind_set, &
                            molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub_im_time_3c, &
-                           unit_nr, do_im_time=.TRUE.)
+                           do_im_time=.TRUE.)
 
       CALL cp_blacs_env_release(blacs_env_sub_im_time_3c)
 
@@ -2527,7 +2523,7 @@ CONTAINS
       CALL create_mat_munu(mat_P_local, qs_env, mp2_env, para_env, dft_control, &
                            atomic_kind_set, qs_kind_set, atom2d, molecule_kind_set, &
                            molecule_set, sab_orb_sub, particle_set, cell, blacs_env_sub_P, &
-                           unit_nr, do_ri_aux_basis=.TRUE.)
+                           do_ri_aux_basis=.TRUE.)
 
       ! fragment n_group_P in product of integers of similar size, n_group_row*n_group_col=n_group_P
       ! employing Fermat's factorization method
@@ -2931,7 +2927,7 @@ CONTAINS
       CALL create_mat_munu(mat_P_global, qs_env, mp2_env, para_env, dft_control, &
                            atomic_kind_set, qs_kind_set, atom2d, molecule_kind_set, &
                            molecule_set, sab_orb_sub, particle_set, cell, blacs_env_global, &
-                           unit_nr, do_ri_aux_basis=.TRUE.)
+                           do_ri_aux_basis=.TRUE.)
 
       CALL cp_dbcsr_reserve_all_blocks(mat_P_global%matrix)
 

@@ -18,10 +18,10 @@ MODULE cp2k_runs
                                               cp2k_version,&
                                               cp2k_year
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config,&
-                                              cp_dbcsr_print_config
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
    USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
-                                              cp_dbcsr_init_lib
+                                              cp_dbcsr_init_lib,&
+                                              dbcsr_print_config
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -242,7 +242,7 @@ CONTAINS
       CALL cp_dbcsr_config(root_section)
       IF (output_unit > 0 .AND. &
           cp_logger_would_log(logger, cp_note_level)) THEN
-         CALL cp_dbcsr_print_config(unit_nr=output_unit)
+         CALL dbcsr_print_config(unit_nr=output_unit)
          WRITE (UNIT=output_unit, FMT='()')
       ENDIF
 

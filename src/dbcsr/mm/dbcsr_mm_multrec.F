@@ -21,7 +21,7 @@ MODULE dbcsr_mm_multrec
    USE array_types,                     ONLY: array_data,&
                                               array_equality
    USE dbcsr_block_operations,          ONLY: dbcsr_data_set
-   USE dbcsr_config,                    ONLY: multrec_limit
+   USE dbcsr_config,                    ONLY: dbcsr_cfg
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                               dbcsr_distribution_has_threads,&
                                               dbcsr_distribution_local_cols,&
@@ -592,7 +592,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      IF (.NOT. do_rec .OR. (af-ai+1 <= multrec_limit .AND. bf-bi+1 <= multrec_limit)) THEN
+      IF (.NOT. do_rec .OR. (af-ai+1 <= dbcsr_cfg%multrec_limit .AND. bf-bi+1 <= dbcsr_cfg%multrec_limit)) THEN
          IF (af-ai+1 .GT. 0 .AND. bf-bi+1 .GT. 0) &
             CALL dbcsr_mm_csr_multiply(this%csr, left, right, &
                                        mi=mi, mf=mf, ni=ni, nf=nf, ki=ki, kf=kf, &

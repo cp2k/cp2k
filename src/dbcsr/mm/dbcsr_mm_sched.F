@@ -18,9 +18,7 @@
 ! **************************************************************************************************
 MODULE dbcsr_mm_sched
    USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
-   USE dbcsr_config,                    ONLY: accdrv_avoid_after_busy,&
-                                              accdrv_do_inhomogenous,&
-                                              accdrv_min_flop_process,&
+   USE dbcsr_config,                    ONLY: dbcsr_cfg,&
                                               default_resize_factor,&
                                               has_acc
    USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
@@ -395,9 +393,9 @@ CONTAINS
       total_flop = stack_fillcount*flop_per_entry
 
       IF (has_acc .AND. &
-          flop_per_entry > accdrv_min_flop_process .AND. &
+          flop_per_entry > dbcsr_cfg%accdrv_min_flop_process .AND. &
           (.NOT. this%avoid_accdrv) .AND. &
-          (stack_descr%defined_mnk .OR. accdrv_do_inhomogenous)) THEN
+          (stack_descr%defined_mnk .OR. dbcsr_cfg%accdrv_do_inhomogenous)) THEN
          CALL dbcsr_mm_accdrv_process( &
             this%accdrv, &
             left, right, &
@@ -415,7 +413,7 @@ CONTAINS
                            stacksize_acc=INT(stack_fillcount, kind=int_8))
             RETURN
          ELSE
-            this%avoid_accdrv = accdrv_avoid_after_busy
+            this%avoid_accdrv = dbcsr_cfg%accdrv_avoid_after_busy
          ENDIF
       ENDIF
 

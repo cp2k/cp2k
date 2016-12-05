@@ -25,9 +25,8 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_block_real_neg,&
                                               dbcsr_block_scale,&
                                               dbcsr_block_transpose_aa
-   USE dbcsr_config,                    ONLY: has_acc,&
-                                              use_comm_thread,&
-                                              use_mpi_exp
+   USE dbcsr_config,                    ONLY: dbcsr_cfg,&
+                                              has_acc
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, dbcsr_data_init, &
@@ -286,7 +285,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      IF (use_mpi_exp) &
+      IF (dbcsr_cfg%use_mpi_exp) &
          CPABORT("RMA algo not supported here!")
       IF (.NOT. dbcsr_valid_index(source)) &
          CPABORT("Matrix not initialized.")
@@ -1666,7 +1665,7 @@ CONTAINS
 !$OMP         keep_sparsity,threads_finished, &
 !$OMP         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
 !$OMP         left_data_sr, left_data_rr, left_index_sr, left_index_rr, &
-!$OMP         use_comm_thread) &
+!$OMP         dbcsr_cfg) &
 !$OMP PRIVATE (ithread,nthreads,threads_finished_read) &
 !$OMP FIRSTPRIVATE (metronome, nsteps_k, min_nimages) &
 !$OMP REDUCTION (+: flop_single)
@@ -1689,7 +1688,7 @@ CONTAINS
 
 !$OMP ATOMIC
             threads_finished = threads_finished+1
-            IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
+            IF (dbcsr_cfg%use_comm_thread .AND. (ithread .EQ. 0)) THEN
                DO
 ! requires OMP 3.1 (e.g. gcc >=4.7), for correctness, otherwise we keep fingers crossed
 #if defined _OPENMP && _OPENMP >= 200711

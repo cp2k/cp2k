@@ -10,7 +10,6 @@
 ! **************************************************************************************************
 
 MODULE dbcsr_lib
-   USE dbcsr_config,                    ONLY: is_initialized
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_clear_mempools,&
                                               dbcsr_multiply_lib_finalize,&
                                               dbcsr_multiply_lib_init
@@ -28,6 +27,8 @@ MODULE dbcsr_lib
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_lib'
 
    PUBLIC :: dbcsr_init_lib, dbcsr_finalize_lib, dbcsr_clear_mempools
+
+   LOGICAL, PRIVATE, SAVE :: is_initialized = .FALSE.
 
 CONTAINS
 

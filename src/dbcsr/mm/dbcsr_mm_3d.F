@@ -27,10 +27,8 @@ MODULE dbcsr_mm_3d
                                               dbcsr_block_transpose_aa,&
                                               dbcsr_data_clear,&
                                               dbcsr_data_set
-   USE dbcsr_config,                    ONLY: has_acc,&
-                                              num_layers_3D,&
-                                              use_mpi_exp,&
-                                              use_mpi_filtering
+   USE dbcsr_config,                    ONLY: dbcsr_cfg,&
+                                              has_acc
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_exists, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_host2dev, dbcsr_data_init, &
@@ -1521,7 +1519,7 @@ CONTAINS
       ENDIF
       !
       ! Evaluate and exchange max norms for MPI filtering
-      IF (otf_filtering .AND. use_mpi_filtering) THEN
+      IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
          IF (is_left) THEN
             ALLOCATE (left_local_max_norms(local_no_empty_images))
             ALLOCATE (left_max_norms(total_no_empty_images))
@@ -1711,7 +1709,7 @@ CONTAINS
       numnodes = dbcsr_mp_numnodes(mp_obj)
       nprows = dbcsr_mp_nprows(mp_obj)
       npcols = dbcsr_mp_npcols(mp_obj)
-      IF (use_mpi_exp) THEN
+      IF (dbcsr_cfg%use_mpi_exp) THEN
          IF (nprows .NE. npcols) THEN
             ! No square topology, scale the maximum coordinate
             do_layers_3D = MAX(nprows, npcols) .EQ. (my_num_layers_3D*MIN(nprows, npcols)) .AND. &
@@ -1893,7 +1891,7 @@ CONTAINS
           .NOT. ALLOCATED(right_refs_displ_unmerged) .OR. &
           .NOT. ALLOCATED(left_local_refs_displ_unmerged) .OR. &
           .NOT. ALLOCATED(right_local_refs_displ_unmerged) .OR. &
-          (otf_filtering .AND. use_mpi_filtering .AND. &
+          (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering .AND. &
            (.NOT. (ALLOCATED(left_max_norms) .AND. ALLOCATED(right_max_norms) .AND. &
                    ALLOCATED(left_local_max_norms) .AND. ALLOCATED(right_local_max_norms))))) &
          CPABORT("No buffers associated for the experimental algo!")
@@ -2065,7 +2063,7 @@ CONTAINS
       !
       ! Delete buffers used for collectives
       DEALLOCATE (right_local_refs_displ_unmerged, left_local_refs_displ_unmerged)
-      IF (otf_filtering .AND. use_mpi_filtering) THEN
+      IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
          DEALLOCATE (right_local_max_norms, left_local_max_norms)
       ENDIF
       DEALLOCATE (right_local_refs_meta_size, left_local_refs_meta_size)
@@ -2426,7 +2424,7 @@ CONTAINS
                !
                IF (left_refs_meta_size_layers3D(irow3D, left_buffer_p%vpcol) .NE. 0) THEN
                   do_comm = .TRUE.
-                  IF (otf_filtering .AND. use_mpi_filtering) THEN
+                  IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
                      IF (left_max_norms(left_displ_vunmerged(irow3D, left_buffer_p%vpcol)+1)* &
                          right_max_norms(right_displ_vunmerged(icol3D, &
                                                                right_buffer_p%vprow)+1) .LT. &
@@ -2839,7 +2837,7 @@ CONTAINS
          DEALLOCATE (product_matrix_meta)
       ENDIF
       DEALLOCATE (right_norms, left_norms)
-      IF (otf_filtering .AND. use_mpi_filtering) THEN
+      IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
          DEALLOCATE (right_max_norms, left_max_norms)
       ENDIF
       DEALLOCATE (product_matrix_epss_size, product_matrix_epss_displ)
@@ -3256,7 +3254,7 @@ CONTAINS
           .NOT. ALLOCATED(right_refs_displ_unmerged) .OR. &
           .NOT. ALLOCATED(left_local_refs_displ_unmerged) .OR. &
           .NOT. ALLOCATED(right_local_refs_displ_unmerged) .OR. &
-          (otf_filtering .AND. use_mpi_filtering .AND. &
+          (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering .AND. &
            (.NOT. (ALLOCATED(left_max_norms) .AND. ALLOCATED(right_max_norms) .AND. &
                    ALLOCATED(left_local_max_norms) .AND. ALLOCATED(right_local_max_norms))))) &
          CPABORT("No buffers associated for the RMA algo!")
@@ -3590,7 +3588,7 @@ CONTAINS
       CALL mp_waitall(requests)
       ! Delete buffers used for collectives
       DEALLOCATE (right_local_refs_displ_unmerged, left_local_refs_displ_unmerged)
-      IF (otf_filtering .AND. use_mpi_filtering) THEN
+      IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
          DEALLOCATE (right_local_max_norms, left_local_max_norms)
       ENDIF
       DEALLOCATE (right_local_refs_meta_size, left_local_refs_meta_size)
@@ -3627,7 +3625,7 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED (nsteps_k,min_nimages,right_col_nimages,imgdist_right,&
-!$OMP         otf_filtering,use_mpi_filtering,right_nprows,left_npcols,&
+!$OMP         otf_filtering,dbcsr_cfg,right_nprows,left_npcols,&
 !$OMP         right_myfirstvrow,right_myfirstvcol,right_max_norms,&
 !$OMP         left_row_nimages,imgdist_left,left_myfirstvrow,left_myfirstvcol,&
 !$OMP         left_max_norms,min_row_max_epss,right_row_nimages,&
@@ -3739,7 +3737,7 @@ CONTAINS
                   IF (do_diagonal .AND. &
                       right_vmerged(v_ci, v_ki, metronome) .EQ. recv_vrow .AND. &
                       .NOT. do_k_scatter) CYCLE
-                  IF (otf_filtering .AND. use_mpi_filtering) THEN
+                  IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
                      IF (left_max_norms(left_displ_vunmerged(recv_vcol)+v_ri)* &
                          right_max_norms(right_displ_vunmerged(recv_vrow)+v_ci) .LT. &
                          min_row_max_epss) CYCLE
@@ -3790,7 +3788,7 @@ CONTAINS
 !$OMP BARRIER
       ENDDO
 !$OMP END PARALLEL
-      IF (otf_filtering .AND. use_mpi_filtering) THEN
+      IF (otf_filtering .AND. dbcsr_cfg%use_mpi_filtering) THEN
          DEALLOCATE (right_max_norms, left_max_norms)
       ENDIF
       DEALLOCATE (left_recv_filtered, right_recv_filtered)

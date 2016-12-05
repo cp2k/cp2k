@@ -16,9 +16,7 @@ MODULE dbcsr_dist_methods
                                               array_nullify,&
                                               array_release,&
                                               array_size
-   USE dbcsr_config,                    ONLY: avg_elements_images,&
-                                              comm_thread_load,&
-                                              num_mult_images
+   USE dbcsr_config,                    ONLY: dbcsr_cfg
    USE dbcsr_methods,                   ONLY: dbcsr_distribution_init,&
                                               dbcsr_distribution_release
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_hold,&
@@ -115,26 +113,36 @@ CONTAINS
       CALL array_nullify(dist%d%row_dist_cluster)
       IF (PRESENT(row_dist_cluster)) THEN
          IF (ASSOCIATED(row_dist_cluster)) THEN
-            ! check against the case where there are more clusters than blocks
-            IF (SIZE(row_dist_cluster) .GE. lcmv) THEN
-               row_dist_tmp => row_dist_cluster
-               CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
-               IF (SIZE(row_dist_cluster) /= SIZE(row_dist_block)) &
-                  CPABORT("Blocks and clusters size are different for row grid")
-               nclusters = MAXVAL(row_dist_cluster)
+            IF (dbcsr_cfg%use_mpi_exp) THEN
+               ! check against the case where there are more clusters than blocks
+               IF (SIZE(row_dist_cluster) .GE. lcmv) THEN
+                  row_dist_tmp => row_dist_cluster
+                  CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
+                  IF (SIZE(row_dist_cluster) /= SIZE(row_dist_block)) &
+                     CPABORT("Blocks and clusters size are different for row grid")
+                  nclusters = MAXVAL(row_dist_cluster)
+               ENDIF
+            ELSE
+               CALL cp_warn(__LOCATION__, "Cannot use row cluster distribution "// &
+                            "without MPI RMA!!! Set 'USE_MPI_EXP T' in DBCSR section.")
             ENDIF
          ENDIF
       ENDIF
       CALL array_nullify(dist%d%col_dist_cluster)
       IF (PRESENT(col_dist_cluster)) THEN
          IF (ASSOCIATED(col_dist_cluster)) THEN
-            ! check against the case where there are more clusters than blocks
-            IF (SIZE(col_dist_cluster) .GE. lcmv) THEN
-               col_dist_tmp => col_dist_cluster
-               CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
-               IF (SIZE(col_dist_cluster) /= SIZE(col_dist_block)) &
-                  CPABORT("Blocks and clusters size are different for column grid")
-               nclusters = MAX(nclusters, MAXVAL(col_dist_cluster))
+            IF (dbcsr_cfg%use_mpi_exp) THEN
+               ! check against the case where there are more clusters than blocks
+               IF (SIZE(col_dist_cluster) .GE. lcmv) THEN
+                  col_dist_tmp => col_dist_cluster
+                  CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
+                  IF (SIZE(col_dist_cluster) /= SIZE(col_dist_block)) &
+                     CPABORT("Blocks and clusters size are different for column grid")
+                  nclusters = MAX(nclusters, MAXVAL(col_dist_cluster))
+               ENDIF
+            ELSE
+               CALL cp_warn(__LOCATION__, "Cannot use col cluster distribution "// &
+                            "without MPI RMA!!! Set 'USE_MPI_EXP T' in DBCSR section.")
             ENDIF
          ENDIF
       ENDIF
@@ -482,16 +490,16 @@ CONTAINS
 
       lcmv = lcm(nprows, npcols)
       num_images_1d = lcmv
-      IF (num_mult_images .GT. 1) THEN
-         num_images_1d = num_images_1d*num_mult_images
+      IF (dbcsr_cfg%num_mult_images .GT. 1) THEN
+         num_images_1d = num_images_1d*dbcsr_cfg%num_mult_images
          RETURN
       ENDIF
       IF (matrix_dense_size_1d .EQ. 0) RETURN
       !
-      IF (avg_elements_images .GT. 0) THEN
+      IF (dbcsr_cfg%avg_elements_images .GT. 0) THEN
          num_images_1d = num_images_1d* &
                          CEILING((DBLE(matrix_dense_size_1d)/num_images_1d)/ &
-                                 SQRT(DBLE(avg_elements_images)))
+                                 SQRT(DBLE(dbcsr_cfg%avg_elements_images)))
       ENDIF
       ! limiting # clusters to be close to # atoms
       IF (num_images_1d .GT. nblocks .AND. nblocks .GT. 0) THEN
@@ -636,7 +644,7 @@ CONTAINS
 !$OMP     BARRIER
 !$OMP     MASTER
 
-      load_fraction = REAL(comm_thread_load)/100.0
+      load_fraction = REAL(dbcsr_cfg%comm_thread_load)/100.0
       IF (nthreads == 1) load_fraction = 1.0
 
       IF (.NOT. dist%d%has_thread_dist) THEN

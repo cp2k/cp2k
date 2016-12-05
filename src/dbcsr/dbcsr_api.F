@@ -19,23 +19,9 @@ MODULE dbcsr_api
                                               dbcsr_reserve_block2d,&
                                               dbcsr_reserve_blocks,&
                                               dbcsr_reserve_diag_blocks
-   USE dbcsr_config,                    ONLY: &
-        accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins, &
-        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
-        accdrv_posterior_buffers, accdrv_posterior_streams, accdrv_priority_buffers, &
-        accdrv_priority_streams, dbcsr_get_conf_avg_elements_images, &
-        dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
-        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-        dbcsr_get_conf_num_layers_3D, dbcsr_get_conf_num_mult_images, dbcsr_get_conf_randmat_seed, &
-        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_exp, &
-        dbcsr_get_conf_use_mpi_filtering, dbcsr_set_conf_avg_elements_images, &
-        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, dbcsr_set_conf_num_layers_3D, &
-        dbcsr_set_conf_num_mult_images, dbcsr_set_conf_randmat_seed, &
-        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_exp, &
-        dbcsr_set_conf_use_mpi_filtering, dbcsr_set_default_config, has_acc, has_mpi, &
-        mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, &
-        mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
+   USE dbcsr_config,                    ONLY: dbcsr_get_default_config,&
+                                              dbcsr_print_config,&
+                                              dbcsr_set_config
    USE dbcsr_csr_conversions,           ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_create_new, &
         csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
@@ -123,7 +109,10 @@ MODULE dbcsr_api
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: heap_fill, &
+   PUBLIC :: dbcsr_print_config, &
+             dbcsr_get_default_config, &
+             dbcsr_set_config, &
+             heap_fill, &
              heap_get_first, &
              heap_new, &
              heap_release, &
@@ -136,16 +125,6 @@ MODULE dbcsr_api
              dbcsr_test_mm, &
              dbcsr_test_binary_io, &
              create_bl_distribution, &
-             accdrv_avoid_after_busy, &
-             accdrv_binning_binsize, &
-             accdrv_binning_nbins, &
-             accdrv_do_inhomogenous, &
-             accdrv_min_flop_process, &
-             accdrv_min_flop_sort, &
-             accdrv_posterior_buffers, &
-             accdrv_posterior_streams, &
-             accdrv_priority_buffers, &
-             accdrv_priority_streams, &
              dbcsr_add, &
              dbcsr_add_on_diag, &
              dbcsr_binary_read, &
@@ -198,17 +177,6 @@ MODULE dbcsr_api
              dbcsr_gershgorin_norm, &
              dbcsr_get_block_diag, &
              dbcsr_get_block_p, &
-             dbcsr_get_conf_comm_thread_load, &
-             dbcsr_get_conf_max_ele_block, &
-             dbcsr_get_conf_mm_driver, &
-             dbcsr_get_conf_avg_elements_images, &
-             dbcsr_get_conf_num_mult_images, &
-             dbcsr_get_conf_mm_stacksize, &
-             dbcsr_get_conf_mpi_mem, &
-             dbcsr_get_conf_nstacks, &
-             dbcsr_get_conf_use_mpi_exp, &
-             dbcsr_get_conf_use_mpi_filtering, &
-             dbcsr_get_conf_use_comm_thread, &
              dbcsr_get_data_p, &
              dbcsr_get_data_size, &
              dbcsr_get_data_type, &
@@ -275,16 +243,6 @@ MODULE dbcsr_api
              dbcsr_scale, &
              dbcsr_scale_by_vector, &
              dbcsr_set, &
-             dbcsr_set_conf_comm_thread_load, &
-             dbcsr_set_conf_max_ele_block, &
-             dbcsr_set_conf_mm_driver, &
-             dbcsr_set_conf_mm_stacksize, &
-             dbcsr_set_conf_avg_elements_images, &
-             dbcsr_set_conf_num_mult_images, &
-             dbcsr_set_conf_nstacks, &
-             dbcsr_set_conf_use_mpi_exp, &
-             dbcsr_set_conf_use_mpi_filtering, &
-             dbcsr_set_conf_use_comm_thread, &
              dbcsr_set_diag, &
              dbcsr_sum_replicated, &
              dbcsr_trace, &
@@ -301,20 +259,6 @@ MODULE dbcsr_api
              dbcsr_verify_matrix, &
              dbcsr_wm_use_mutable, &
              dbcsr_work_create, &
-             has_mpi, &
-             mm_driver_auto, &
-             mm_driver_blas, &
-             mm_driver_matmul, &
-             mm_driver_smm, &
-             mm_driver_xsmm, &
-             mm_name_auto, &
-             mm_name_blas, &
-             mm_name_matmul, &
-             mm_name_smm, &
-             mm_name_xsmm, &
-             has_acc, &
-             multrec_limit, &
-             dbcsr_set_default_config, &
              dbcsr_row_block_sizes, &
              dbcsr_col_block_sizes, &
              dbcsr_has_symmetry, &
@@ -331,9 +275,6 @@ MODULE dbcsr_api
              csr_dbcsr_blkrow_dist, &
              csr_print_sparsity, &
              dbcsr_distribution_get_num_images_1d, &
-             dbcsr_set_conf_randmat_seed, dbcsr_get_conf_randmat_seed, &
-             dbcsr_set_conf_num_layers_3D, &
-             dbcsr_get_conf_num_layers_3D, &
              dbcsr_matrix_colvec_multiply, &
              create_replicated_row_vec_from_matrix, &
              create_replicated_col_vec_from_matrix, &
