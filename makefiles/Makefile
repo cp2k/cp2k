@@ -23,6 +23,7 @@ MAINOBJDIR   := $(CP2KHOME)/obj
 MAINTSTDIR   := $(CP2KHOME)/regtesting
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
 DOXIFYOBJDIR := $(CP2KHOME)/obj/doxified
+FYPPOBJDIR   := $(CP2KHOME)/obj/fypped
 INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
@@ -62,7 +63,7 @@ endif
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates \
          instantiationdir templatesclean \
-		 fypp fyppdebug fyppclean \
+         fypp fyppdebug fyppclean \
          test testbg testclean testrealclean
 
 
@@ -125,7 +126,7 @@ ifeq ($(INCLUDE_DEPS),)
 $(EXE_NAMES): dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(EXEDIR)/$@.$(ONEVERSION) INCLUDE_DEPS=true
 
-all: dirs makedep fypp
+all: dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
 test: dirs makedep all
@@ -272,29 +273,27 @@ mrproper:
 	cd $(CP2KHOME); ./tools/clean_cwd.sh
 OTHER_HELP += "mrproper : Remove ALL files not in SVN"
 
-#
-# Invoking Fypp preprocessor
-#
-vpath %.fypp $(ALL_SRC_DIRS)
+# Fypp stuff ================================================================
+vpath %.fypped $(FYPPOBJDIR)
 FYPPFLAGS += --indentation 3
 
-fypp: $(ALL_FYPP_FILES:.fypp=.F)
+fypp: $(addprefix $(FYPPOBJDIR)/, $(notdir $(ALL_FYPP_FILES:.fypp=.fypped)))
 TOOL_HELP += "fypp : generate *.F from *.fypp using Fypp preprocessor. "
-
-%.F: %.fypp
-	../tools/fypp/fypp.py $(FYPPFLAGS) -i ../src/base/fyppinit.py $(if $(wildcard $(dir $<)fyppinit.py), -i $(dir $<)fyppinit.py) $< $@
 
 fyppdebug: FYPPFLAGS += -n
 fyppdebug: fypp
 TOOL_HELP += "fyppdebug : same as fypp but with compiler and runtime messages referring to the original *.fypp files."
 
 fyppclean:
-	-rm -fR $(ALL_FYPP_FILES:.fypp=.F)
-TOOL_HELP += "fyppclean : remove Fortran files generated with Fypp."
+	-rm -rf $(FYPPOBJDIR)
+TOOL_HELP += "fyppclean : remove all Fypp marker files."
 
-#
-# instantiate the templates
-#
+$(FYPPOBJDIR)/%.fypped: %.fypp
+	@mkdir -p $(FYPPOBJDIR)
+	$(TOOLSRC)/fypp/fypp.py $(FYPPFLAGS) -i $(SRCDIR)/base/fyppinit.py $(if $(wildcard $(dir $<)fyppinit.py), -i $(dir $<)fyppinit.py) $< $@
+	@touch $@
+
+# Template stuff ============================================================
 vpath %.instantiation   $(ALL_SRC_DIRS)
 
 # since the same named .instantiation file can be present in many directories, we need to copy the full tree
@@ -397,7 +396,7 @@ else
 endif
 
 # this happens on stage 3
-makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES) dirs fypp
+makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES) dirs
 ifeq ($(LD_SHARED),)
 	@echo "Removing stale archives for $(ONEVERSION) ... "
 	@$(TOOLSRC)/build_utils/check_archives.py $(firstword $(AR)) $(SRCDIR) $(LIBDIR)
@@ -417,14 +416,15 @@ endif
 
 
 ### Slave rules ###
-vpath %.F   $(ALL_SRC_DIRS)
-vpath %.h   $(ALL_SRC_DIRS)
-vpath %.f90 $(ALL_SRC_DIRS)
-vpath %.cu  $(ALL_SRC_DIRS)
-vpath %.c   $(ALL_SRC_DIRS)
-vpath %.cpp $(ALL_SRC_DIRS)
-vpath %.cxx $(ALL_SRC_DIRS)
-vpath %.cc  $(ALL_SRC_DIRS)
+vpath %.F     $(ALL_SRC_DIRS)
+vpath %.h     $(ALL_SRC_DIRS)
+vpath %.f90   $(ALL_SRC_DIRS)
+vpath %.cu    $(ALL_SRC_DIRS)
+vpath %.c     $(ALL_SRC_DIRS)
+vpath %.cpp   $(ALL_SRC_DIRS)
+vpath %.cxx   $(ALL_SRC_DIRS)
+vpath %.cc    $(ALL_SRC_DIRS)
+vpath %.fypp  $(ALL_SRC_DIRS)
 
 #
 # Add additional dependency of cp2k_info.F to SVN-entry or git-HEAD.
