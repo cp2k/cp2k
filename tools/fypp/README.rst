@@ -1,5 +1,5 @@
 =============================================
-Fypp — Python powered Fortran metaprogramming
+Fypp - Python powered Fortran metaprogramming
 =============================================
 
 Fypp is a Python powered preprocessor. It can be used for any programming

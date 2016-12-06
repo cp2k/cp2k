@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-# Bálint Aradi, 2016
+# Balint Aradi, 2016
 
 '''General module for using Fypp as preprocessor.
 

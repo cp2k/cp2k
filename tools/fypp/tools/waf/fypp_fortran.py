@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-# Bálint Aradi, 2016
+# Balint Aradi, 2016
 
 '''Uses Fypp as Fortran preprocessor (.fpp -> .f90). Use this one (instead of 
 fypp_preprocessor) if you want to preprocess Fortran sources with Fypp.
