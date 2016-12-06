@@ -41,6 +41,19 @@ MODULE array_list_methods
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief number of arrays stored in list
+!> \param list ...
+!> \retval number_of_arrays ...
+! **************************************************************************************************
+   PURE FUNCTION number_of_arrays(list)
+      TYPE(array_list), INTENT(IN)                       :: list
+      INTEGER                                            :: number_of_arrays
+
+      number_of_arrays = SIZE(list%ptr)-1
+
+   END FUNCTION number_of_arrays
+
+! **************************************************************************************************
 !> \brief Get an element for each array.
 !> \param list ...
 !> \param indices element index for each array
@@ -184,19 +197,6 @@ CONTAINS
       END ASSOCIATE
 
    END SUBROUTINE get_arrays
-
-! **************************************************************************************************
-!> \brief number of arrays stored in list
-!> \param list ...
-!> \retval number_of_arrays ...
-! **************************************************************************************************
-   PURE FUNCTION number_of_arrays(list)
-      TYPE(array_list), INTENT(IN)                       :: list
-      INTEGER                                            :: number_of_arrays
-
-      number_of_arrays = SIZE(list%ptr)-1
-
-   END FUNCTION number_of_arrays
 
 ! **************************************************************************************************
 !> \brief sizes of arrays stored in list
