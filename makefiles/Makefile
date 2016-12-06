@@ -169,9 +169,6 @@ endif
 	@echo ""
 	@echo "========= Python ($(ONEVERSION)) ========="
 	/usr/bin/env python --version
-	@echo ""
-	@echo "========== Fypp ($(ONEVERSION)) =========="
-	../tools/fypp/fypp.py --version
 
 else
 
@@ -290,7 +287,7 @@ TOOL_HELP += "fyppclean : remove all Fypp marker files."
 
 $(FYPPOBJDIR)/%.fypped: %.fypp
 	@mkdir -p $(FYPPOBJDIR)
-	$(TOOLSRC)/fypp/fypp.py $(FYPPFLAGS) -i $(SRCDIR)/base/fyppinit.py $(if $(wildcard $(dir $<)fyppinit.py), -i $(dir $<)fyppinit.py) $< $@
+	$(TOOLSRC)/fypp/bin/fypp $(FYPPFLAGS) -i $(SRCDIR)/base/fyppinit.py $(if $(wildcard $(dir $<)fyppinit.py), -i $(dir $<)fyppinit.py) $< $(<:.fypp=.F)
 	@touch $@
 
 # Template stuff ============================================================

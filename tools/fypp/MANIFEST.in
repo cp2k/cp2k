@@ -1,0 +1,5 @@
+include bin/fypp
+include LICENSE.txt
+include CHANGELOG.rst
+include test/runtests.sh
+include test/include/*
