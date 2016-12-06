@@ -20,9 +20,14 @@ MODULE dbcsr_tests
    USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
    USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                               dbcsr_binary_write
-   USE dbcsr_methods,                   ONLY: &
-        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, dbcsr_init, dbcsr_name, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_release, dbcsr_row_block_sizes
+   USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
+                                              dbcsr_distribution,&
+                                              dbcsr_get_data_type,&
+                                              dbcsr_name,&
+                                              dbcsr_nblkcols_total,&
+                                              dbcsr_nblkrows_total,&
+                                              dbcsr_release,&
+                                              dbcsr_row_block_sizes
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_active,&
                                               dbcsr_mp_group,&
                                               dbcsr_mp_init,&
@@ -272,7 +277,6 @@ CONTAINS
       CALL dbcsr_binary_write(matrix_a, file_name)
 
       ! needs a new matrix, reading into matrix_a does not work
-      CALL dbcsr_init(matrix_a_read)
       CALL dbcsr_binary_read(file_name, distribution=dbcsr_distribution(matrix_a), &
                              matrix_new=matrix_a_read)
 
@@ -346,9 +350,6 @@ CONTAINS
       CALL timeset(routineN, error_handle)
       IF (SIZE(group_sizes, 2) /= 2) &
          CPABORT("second dimension of group_sizes must be 2")
-      CALL dbcsr_init(m_a)
-      CALL dbcsr_init(m_b)
-      CALL dbcsr_init(m_c)
       p_sizes: DO test = 1, SIZE(group_sizes, 1)
          t2 = 0.0_real_8
          flop_sum = 0
@@ -419,12 +420,10 @@ CONTAINS
                               data_type=dbcsr_get_data_type(matrix_c))
             CALL dbcsr_distribution_release(dist_c)
             CALL dbcsr_redistribute(matrix_c, m_c)
-            CALL dbcsr_init(m_c_reserve)
             CALL dbcsr_copy(m_c_reserve, m_c)
             ! Perform multiply
             loops: DO loop_iter = 1, n_loops
                CALL dbcsr_release(m_c)
-               CALL dbcsr_init(m_c)
                CALL dbcsr_copy(m_c, m_c_reserve)
                CALL mp_sync(group)
                t1 = -m_walltime()

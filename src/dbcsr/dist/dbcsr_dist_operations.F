@@ -21,15 +21,14 @@ MODULE dbcsr_dist_operations
    USE dbcsr_dist_methods,              ONLY: &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
-        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_init, &
-        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-        dbcsr_distribution_make_threads, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-        dbcsr_distribution_new, dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
-        dbcsr_distribution_num_local_col_clusters, dbcsr_distribution_num_local_row_clusters, &
-        dbcsr_distribution_processor, dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-        dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
+        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_local_cols, &
+        dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
+        dbcsr_distribution_ncols, dbcsr_distribution_new, dbcsr_distribution_no_threads, &
+        dbcsr_distribution_nrows, dbcsr_distribution_num_local_col_clusters, &
+        dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_processor, &
+        dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
+        dbcsr_distribution_thread_dist
    USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                              dbcsr_is_initialized,&
                                               dbcsr_release_locals
    USE dbcsr_min_heap,                  ONLY: dbcsr_heap_fill,&
                                               dbcsr_heap_get_first,&
@@ -243,8 +242,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (debug_mod .AND. .NOT.dbcsr_is_initialized(matrix))&
-       CPABORT("matrix%m not associated")
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_stored_coordinates (matrix%m, row, column, processor)
     ELSE
@@ -943,8 +940,6 @@ CONTAINS
     ALLOCATE (imgdist%i)
     imgdist%i%refcount = 1
     imgdist%i%id = idid
-    CALL dbcsr_distribution_init (new_dist)
-    CALL dbcsr_distribution_init (imgdist%i%main)
     mp_env = dbcsr_distribution_mp (dist)
     ! Determine the factors.
     nrows = dbcsr_distribution_nrows (dist)

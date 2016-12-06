@@ -23,8 +23,8 @@ MODULE pao_methods
         cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
         cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
         cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
-        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_init, dbcsr_distribution_mp, &
-        dbcsr_distribution_obj, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj
+        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_distribution_obj, &
+        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -352,7 +352,6 @@ CONTAINS
       NULLIFY (no_clusters)
 
       ! instanciate distribution object
-      CALL dbcsr_distribution_init(pao%diag_distribution)
       CALL cp_dbcsr_distribution_new(pao%diag_distribution, &
                                      mp_env=mp_env, &
                                      row_dist_block=diag_row_dist, &

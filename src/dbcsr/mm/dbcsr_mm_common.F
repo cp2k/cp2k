@@ -22,7 +22,6 @@ MODULE dbcsr_mm_common
    USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                               dbcsr_data_host2dev
    USE dbcsr_methods,                   ONLY: dbcsr_get_index_memory_type,&
-                                              dbcsr_init,&
                                               dbcsr_nfullcols_local,&
                                               dbcsr_nfullrows_local
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_type
@@ -150,7 +149,7 @@ CONTAINS
       TYPE(dbcsr_data_obj), INTENT(IN), OPTIONAL         :: data_buffer
       TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL     :: data_memory_type
 
-      CALL dbcsr_init(matrix)
+      matrix = dbcsr_obj()
       CALL dbcsr_create(matrix, &
                         template=source_matrix, &
                         name=TRIM("Buffer of "//TRIM(source_matrix%m%name)), &

@@ -34,11 +34,10 @@ MODULE dbcsr_api
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_get_num_images_1d, dbcsr_distribution_has_col_clusters, &
         dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_threads, &
-        dbcsr_distribution_hold, dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-        dbcsr_distribution_local_rows, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-        dbcsr_distribution_nrows, dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-        dbcsr_distribution_row_dist
+        dbcsr_distribution_hold, dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+        dbcsr_distribution_mp, dbcsr_distribution_ncols, dbcsr_distribution_new, &
+        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+        dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist
    USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                               dbcsr_create_dist_block_cyclic,&
                                               dbcsr_create_dist_r_unrot,&
@@ -56,10 +55,10 @@ MODULE dbcsr_api
                                               dbcsr_init_lib
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_size, dbcsr_get_data_type, &
-        dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_has_symmetry, dbcsr_init, &
-        dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-        dbcsr_row_block_sizes, dbcsr_setname, dbcsr_valid_index, dbcsr_wm_use_mutable
+        dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_has_symmetry, dbcsr_max_col_size, &
+        dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+        dbcsr_setname, dbcsr_valid_index, dbcsr_wm_use_mutable
    USE dbcsr_mp_methods,                ONLY: &
         dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
         dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_release
@@ -137,7 +136,6 @@ MODULE dbcsr_api
              dbcsr_distribution, &
              dbcsr_distribution_col_dist, &
              dbcsr_distribution_has_threads, &
-             dbcsr_distribution_init, &
              dbcsr_distribution_local_cols, &
              dbcsr_distribution_local_rows, &
              dbcsr_distribution_mp, &
@@ -176,7 +174,6 @@ MODULE dbcsr_api
              dbcsr_get_occupation, &
              dbcsr_get_stored_coordinates, &
              dbcsr_hadamard_product, &
-             dbcsr_init, &
              dbcsr_init_lib, &
              dbcsr_init_random, &
              dbcsr_iterator, &

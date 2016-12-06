@@ -23,7 +23,6 @@ MODULE dbcsr_csr_conversions
                                               dbcsr_type_real_8,&
                                               dbcsr_type_real_default
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
-                                              dbcsr_distribution_init,&
                                               dbcsr_distribution_mp,&
                                               dbcsr_distribution_new,&
                                               dbcsr_distribution_release
@@ -33,9 +32,8 @@ MODULE dbcsr_csr_conversions
                                               dbcsr_iterator_stop
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_num_blocks, &
-        dbcsr_get_nze, dbcsr_has_symmetry, dbcsr_init, dbcsr_is_initialized, dbcsr_name, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullrows_local, dbcsr_release, &
-        dbcsr_row_block_sizes, dbcsr_valid_index
+        dbcsr_get_nze, dbcsr_has_symmetry, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+        dbcsr_nfullrows_local, dbcsr_release, dbcsr_row_block_sizes, dbcsr_valid_index
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                               dbcsr_mp_mynode,&
                                               dbcsr_mp_new,&
@@ -324,7 +322,6 @@ CONTAINS
             matrix_b%dbcsr_mapping%dbcsr_col_blk_size = map%dbcsr_col_blk_size
          ENDIF
 
-         CALL dbcsr_init(matrix_b%dbcsr_mapping%brd_mat)
          CALL dbcsr_copy(matrix_b%dbcsr_mapping%brd_mat, map%brd_mat)
 
          matrix_b%valid = .TRUE.
@@ -460,8 +457,7 @@ CONTAINS
          IF (ASSOCIATED(map%dbcsr_col_i)) &
             DEALLOCATE (map%dbcsr_col_i)
 
-         IF (dbcsr_is_initialized(map%brd_mat)) &
-            CALL dbcsr_release(map%brd_mat)
+         CALL dbcsr_release(map%brd_mat)
       ENDIF
 
       IF (ASSOCIATED(csr_mat%nzval_local%r_dp)) &
@@ -936,7 +932,6 @@ CONTAINS
          floor_dist = .TRUE.
       END SELECT
 
-      CALL dbcsr_init(dbcsr_mat_nosym)
       ! Conversion does not support matrices in symmetric format, therefore desymmetrize
       IF (dbcsr_has_symmetry(dbcsr_mat)) THEN
          CALL dbcsr_desymmetrize_deep(dbcsr_mat, dbcsr_mat_nosym, untransposed_data=.TRUE.)
@@ -944,7 +939,6 @@ CONTAINS
          CALL dbcsr_copy(dbcsr_mat_nosym, dbcsr_mat)
       ENDIF
 
-      CALL dbcsr_init(csr_sparsity_nosym)
       IF (PRESENT(csr_sparsity)) THEN
          IF (dbcsr_has_symmetry(csr_sparsity)) THEN
             CALL dbcsr_desymmetrize_deep(csr_sparsity, csr_sparsity_nosym, &
@@ -1119,7 +1113,6 @@ CONTAINS
          CPABORT("CSR_mat must contain mapping to DBCSR format")
 
       IF (dbcsr_has_symmetry(dbcsr_mat)) THEN
-         CALL dbcsr_init(dbcsr_mat_nosym)
          CALL dbcsr_desymmetrize_deep(dbcsr_mat, dbcsr_mat_nosym, untransposed_data=.TRUE.)
       ELSE
          dbcsr_mat_nosym = dbcsr_mat
@@ -1169,7 +1162,6 @@ CONTAINS
 
       ! Desymmetrize to assert that DBCSR matrix has sparsity pattern consistent with CSR matrix
       IF (dbcsr_has_symmetry(dbcsr_mat)) THEN
-         CALL dbcsr_init(dbcsr_mat_nosym)
          CALL dbcsr_desymmetrize_deep(dbcsr_mat, dbcsr_mat_nosym, untransposed_data=.TRUE.)
       ELSE
          dbcsr_mat_nosym = dbcsr_mat
@@ -1209,7 +1201,6 @@ CONTAINS
 
 !REAL(kind=real_8), DIMENSION(:), POINTER :: block
 
-      CALL dbcsr_init(csr_sparsity)
       CALL dbcsr_create(csr_sparsity, &
                         template=dbcsr_mat, &
                         name="CSR sparsity", &
@@ -1283,7 +1274,6 @@ CONTAINS
       CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, csr_eqrow_ceil_dist, csr_sparsity)
       CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
 
-      CALL dbcsr_init(dbcsr_mat_conv)
       CALL dbcsr_copy(dbcsr_mat_conv, dbcsr_mat)
 
       CALL convert_csr_to_dbcsr(dbcsr_mat_conv, csr_mat)
@@ -1642,10 +1632,8 @@ CONTAINS
 
       pgrid(:, :) = RESHAPE((/(i, i=0, numnodes_total-1)/), (/numnodes_total, 1/))
       CALL dbcsr_mp_new(mp_obj_new, pgrid, mp_group, mynode, numnodes=numnodes_total)
-      CALL dbcsr_distribution_init(dist_new)
       CALL dbcsr_distribution_new(dist_new, mp_obj_new, rdist, cdist, reuse_arrays=.TRUE.)
 
-      CALL dbcsr_init(brd_mat)
       CALL dbcsr_create(brd_mat, TRIM(matrix_name)//" row-block distributed", &
                         dist_new, matrix_type, row_blk_size_new, col_blk_size, data_type=data_type)
       CALL dbcsr_complete_redistribute(dbcsr_mat, brd_mat)

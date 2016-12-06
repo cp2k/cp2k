@@ -22,7 +22,7 @@ MODULE dbcsr_test_add
                                               dbcsr_distribution_release
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_methods,                   ONLY: &
-        dbcsr_col_block_sizes, dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_init, dbcsr_name, &
+        dbcsr_col_block_sizes, dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_name, &
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
         dbcsr_release, dbcsr_row_block_sizes
    USE dbcsr_operations,                ONLY: dbcsr_add,&
@@ -274,9 +274,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-
-      CALL dbcsr_init(m_a)
-      CALL dbcsr_init(m_b)
 
       ! Row & column distributions
       CALL dbcsr_random_dist(row_dist_a, dbcsr_nblkrows_total(matrix_a), npdims(1))

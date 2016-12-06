@@ -24,8 +24,8 @@ MODULE dbcsr_performance_multiply
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
-        dbcsr_get_matrix_type, dbcsr_init, dbcsr_name, dbcsr_nfullcols_total, &
-        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_offsets, dbcsr_row_block_sizes
+        dbcsr_get_matrix_type, dbcsr_name, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+        dbcsr_release, dbcsr_row_block_offsets, dbcsr_row_block_sizes
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
    USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                               dbcsr_scale
@@ -506,11 +506,6 @@ CONTAINS
       flops(:, :) = 0
       flop_sum(:) = 0
       load_imb(:) = 0.0_real_8
-
-      CALL dbcsr_init(m_a)
-      CALL dbcsr_init(m_b)
-      CALL dbcsr_init(m_c)
-      CALL dbcsr_init(m_c_orig)
 
       ! Row & column distributions
       row_dist_c => dbcsr_distribution_row_dist(dbcsr_distribution(matrix_c))

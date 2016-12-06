@@ -63,11 +63,10 @@ MODULE dbcsr_work_operations
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_memory_type, &
         dbcsr_get_data_size_used, dbcsr_get_data_type, dbcsr_get_index_memory_type, &
-        dbcsr_get_matrix_type, dbcsr_get_replication_type, dbcsr_init, dbcsr_is_initialized, &
-        dbcsr_matrix_counter, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mutable_destroy, &
-        dbcsr_mutable_init, dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, &
-        dbcsr_name, dbcsr_row_block_sizes, dbcsr_use_mutable, dbcsr_valid_index, &
-        dbcsr_wm_use_mutable
+        dbcsr_get_matrix_type, dbcsr_get_replication_type, dbcsr_matrix_counter, &
+        dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mutable_destroy, dbcsr_mutable_init, &
+        dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_name, &
+        dbcsr_row_block_sizes, dbcsr_use_mutable, dbcsr_valid_index, dbcsr_wm_use_mutable
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
    USE dbcsr_toollib,                   ONLY: dbcsr_unpack_i8_2i4,&
                                               sort,&
@@ -194,8 +193,6 @@ CONTAINS
       MARK_USED(thread_dist) ! only used with OMP
 
       CALL timeset(routineN, handle)
-      IF (.NOT. dbcsr_is_initialized(matrix)) &
-         CPABORT("Matrix may not have been initialized with dbcsr_init")
 
       ! Reuse matrix only if has actually been allocated.
       hijack = ASSOCIATED(matrix%m%index)
@@ -205,7 +202,7 @@ CONTAINS
       IF (PRESENT(make_index)) my_make_index = make_index
 
       IF (.NOT. hijack) THEN
-         CALL dbcsr_init(matrix%m)
+         matrix%m = dbcsr_type()
          matrix%m%refcount = 1
       ENDIF
 !$OMP     CRITICAL
@@ -730,8 +727,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-      IF (.NOT. dbcsr_is_initialized(matrix)) &
-         CPABORT("Can not create work matrix for nonexisting matrix object.")
       IF (PRESENT(n)) THEN
          nw = n
       ELSE
@@ -813,9 +808,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 !$OMP     BARRIER
-      IF (.NOT. dbcsr_is_initialized(matrix)) &
-         CPABORT("Can not finalize uninitialized matrix.")
-
       ! If the matrix is not marked as dirty then skip the work.
       IF (dbcsr_valid_index(matrix)) THEN
          !"No need to finalize a valid matrix, skipping."
@@ -1019,8 +1011,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (.NOT. dbcsr_is_initialized(matrix)) &
-         CPABORT("Can not finalize uninitialized matrix.")
       IF (matrix%m%nblks .NE. 0) &
          CPABORT("Optimized finalize requires empty matrix.")
       IF (dbcsr_valid_index(matrix)) &

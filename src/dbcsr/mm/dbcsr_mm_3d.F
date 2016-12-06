@@ -57,10 +57,9 @@ MODULE dbcsr_mm_3d
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
         dbcsr_get_data_type, dbcsr_get_index_memory_type, dbcsr_has_symmetry, &
-        dbcsr_image_dist_hold, dbcsr_init, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
-        dbcsr_nfullrows_total, dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
-        dbcsr_row_block_sizes, dbcsr_valid_index
+        dbcsr_image_dist_hold, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_local, &
+        dbcsr_nfullcols_total, dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_release, &
+        dbcsr_release_locals, dbcsr_row_block_offsets, dbcsr_row_block_sizes, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
         count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, enumerate_blk_sizes, &
         max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_mpi_product, &
@@ -3409,7 +3408,7 @@ CONTAINS
       ! Prepare result matrix for scatter data
       nimages_scatter = 0
       IF (do_scatter .OR. do_diagonal) THEN
-         CALL dbcsr_init(product_matrix_scatter)
+         product_matrix_scatter = dbcsr_obj()
          !
          ! Check scattered meta
          IF (local_size_scatter(imeta) .GT. 1) THEN
@@ -4862,7 +4861,7 @@ CONTAINS
 !$OMP        imgdist,data_buffer,memtype_mpi_buffer,&
 !$OMP        index_size_images,index_size)
       DO v_ki = 1, nimages
-         CALL dbcsr_init(buffer_set%mats(v_ki))
+         buffer_set%mats(v_ki) = dbcsr_obj()
          CALL dbcsr_create(buffer_set%mats(v_ki), &
                            "Buffer image of "//template_matrix%m%name, &
                            imgdist%i%main, &

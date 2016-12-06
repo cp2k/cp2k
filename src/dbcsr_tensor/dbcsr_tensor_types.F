@@ -25,8 +25,8 @@ MODULE dbcsr_tensor_types
         dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_distribution_col_dist, &
         dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
         dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_finalize, &
-        dbcsr_get_data_type, dbcsr_init, dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_obj, &
-        dbcsr_mp_release, dbcsr_name, dbcsr_obj, dbcsr_release, dbcsr_row_block_sizes
+        dbcsr_get_data_type, dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
+        dbcsr_name, dbcsr_obj, dbcsr_release, dbcsr_row_block_sizes
    USE dbcsr_tensor_index,              ONLY: create_nd_to_2d_mapping,&
                                               destroy_nd_to_2d_mapping,&
                                               get_2d_indices,&
@@ -246,7 +246,6 @@ CONTAINS
          ENDDO
       ENDDO
 
-      CALL dbcsr_init(tensor%matrix_rep)
       CALL dbcsr_create(matrix=tensor%matrix_rep, &
                         name=name//"_matrix_rep", &
                         dist=dist%dist, &
@@ -283,7 +282,6 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
 
-      CALL dbcsr_init(tensor%matrix_rep)
       CALL dbcsr_create(tensor%matrix_rep, tensor_in%matrix_rep)
       CALL dbcsr_finalize(tensor%matrix_rep)
 

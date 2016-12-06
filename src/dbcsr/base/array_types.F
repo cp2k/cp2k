@@ -61,11 +61,11 @@ MODULE array_types
    END INTERFACE
 
    TYPE array_i1d_type
-      INTEGER, DIMENSION(:), POINTER     :: DATA
-      INTEGER                            :: refcount
+      INTEGER, DIMENSION(:), POINTER     :: DATA => Null()
+      INTEGER                            :: refcount = 0
    END TYPE array_i1d_type
    TYPE array_i1d_obj
-      TYPE(array_i1d_type), POINTER      :: low
+      TYPE(array_i1d_type), POINTER      :: low => Null()
    END TYPE array_i1d_obj
 
 CONTAINS

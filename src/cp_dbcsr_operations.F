@@ -27,7 +27,7 @@ MODULE cp_dbcsr_operations
         cp_dbcsr_name, cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
         cp_dbcsr_type, cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, cp_dbcsr_work_create, &
         cp_set_work_size, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
         dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
         dbcsr_distribution_nrows, dbcsr_distribution_obj, dbcsr_distribution_release, &
@@ -703,7 +703,6 @@ CONTAINS
          CPABORT("FM and DBCSR matrix sizes do not match in columns")
 
       ! Create a block-cyclic distribution compatible with the FM matrix.
-      CALL dbcsr_distribution_init(bc_dist)
       CALL dbcsr_create_dist_block_cyclic(bc_dist, &
                                           nfullrows_total, nfullcols_total, & ! Actual full matrix size
                                           nrow_block, ncol_block, & ! BLACS parameters
@@ -875,7 +874,6 @@ CONTAINS
                            myprow, mypcol)
 
       ! Create a block-cyclic distribution compatible with the FM matrix.
-      CALL dbcsr_distribution_init(bc_dist)
       CALL dbcsr_create_dist_block_cyclic(bc_dist, &
                                           nfullrows_total, nfullcols_total, & ! Actual full matrix size
                                           nrow_block, ncol_block, & ! BLACS parameters
@@ -1055,7 +1053,6 @@ CONTAINS
          CPABORT("FM and DBCSR matrix sizes do not match in columns")
 
       ! Create a block-cyclic distribution compatible with the FM matrix.
-      CALL dbcsr_distribution_init(bc_dist)
       CALL dbcsr_create_dist_block_cyclic(bc_dist, &
                                           nfullrows_total, nfullcols_total, & ! Actual full matrix size
                                           nrow_block, ncol_block, & ! BLACS parameters
@@ -1197,7 +1194,6 @@ CONTAINS
                              nfullcols_total=nfullcols_total)
 
       ! Convert DBCSR to a block-cyclic one
-      CALL dbcsr_distribution_init(bc_dist)
       CALL dbcsr_create_dist_block_cyclic(bc_dist, &
                                           nfullrows_total, nfullcols_total, &
                                           nrow_block, ncol_block, &
@@ -1341,7 +1337,6 @@ CONTAINS
                              nfullcols_total=nfullcols_total)
 
       ! Convert DBCSR to a block-cyclic one
-      CALL dbcsr_distribution_init(bc_dist)
       CALL dbcsr_create_dist_block_cyclic(bc_dist, &
                                           nfullrows_total, nfullcols_total, &
                                           nrow_block, ncol_block, &
@@ -1462,7 +1457,6 @@ CONTAINS
       nfullrows_total = nrow_global; nfullcols_total = ncol_global
 
       ! Convert DBCSR to a block-cyclic one
-      CALL dbcsr_distribution_init(bc_dist)
       CALL dbcsr_create_dist_block_cyclic(bc_dist, &
                                           nfullrows_total, nfullcols_total, &
                                           nrow_block, ncol_block, &

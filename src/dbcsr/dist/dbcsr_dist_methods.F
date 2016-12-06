@@ -17,8 +17,7 @@ MODULE dbcsr_dist_methods
                                               array_release,&
                                               array_size
    USE dbcsr_config,                    ONLY: dbcsr_cfg
-   USE dbcsr_methods,                   ONLY: dbcsr_distribution_init,&
-                                              dbcsr_distribution_release
+   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
    USE dbcsr_min_heap,                  ONLY: dbcsr_heap_fill,&
                                               dbcsr_heap_get_first,&
                                               dbcsr_heap_new,&
@@ -45,7 +44,7 @@ MODULE dbcsr_dist_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_methods'
 
    PUBLIC :: dbcsr_distribution_new, dbcsr_distribution_hold, &
-             dbcsr_distribution_release, dbcsr_distribution_init, &
+             dbcsr_distribution_release, &
              dbcsr_distribution_mp, dbcsr_distribution_processor, &
              dbcsr_distribution_nrows, dbcsr_distribution_ncols, &
              dbcsr_distribution_row_dist, dbcsr_distribution_col_dist, &

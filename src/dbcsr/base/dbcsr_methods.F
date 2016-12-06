@@ -14,7 +14,6 @@
 ! **************************************************************************************************
 MODULE dbcsr_methods
    USE array_types,                     ONLY: array_data,&
-                                              array_nullify,&
                                               array_release
    USE btree_I8_k_cp2d_v,               ONLY: btree_destroy_c => btree_delete,&
                                               btree_new_c => btree_new
@@ -24,8 +23,7 @@ MODULE dbcsr_methods
                                               btree_new_s => btree_new
    USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                               btree_new_z => btree_new
-   USE dbcsr_data_methods,              ONLY: dbcsr_data_init,&
-                                              dbcsr_data_release
+   USE dbcsr_data_methods,              ONLY: dbcsr_data_release
    USE dbcsr_ptr_util,                  ONLY: memory_deallocate
    USE dbcsr_types,                     ONLY: &
         dbcsr_1d_array_type, dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
@@ -47,9 +45,8 @@ MODULE dbcsr_methods
 
    INTEGER, PUBLIC, SAVE :: dbcsr_matrix_counter = 111111
 
-   PUBLIC :: dbcsr_init
    PUBLIC :: dbcsr_release
-   PUBLIC :: dbcsr_valid_index, dbcsr_is_initialized
+   PUBLIC :: dbcsr_valid_index
    PUBLIC :: dbcsr_release_locals
    PUBLIC :: dbcsr_distribution, &
              dbcsr_get_matrix_type, dbcsr_get_data_type, dbcsr_get_replication_type, &
@@ -76,19 +73,11 @@ MODULE dbcsr_methods
              dbcsr_mutable_release, &
              dbcsr_mutable_instantiated
 
-   PUBLIC :: dbcsr_distribution_release, dbcsr_distribution_init
+   PUBLIC :: dbcsr_distribution_release
    PUBLIC :: dbcsr_mp_release, dbcsr_mp_grid_remove
-
-   INTERFACE dbcsr_init
-      MODULE PROCEDURE dbcsr_init_type, dbcsr_init_obj
-   END INTERFACE
 
    INTERFACE dbcsr_valid_index
       MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
-   END INTERFACE
-
-   INTERFACE dbcsr_is_initialized
-      MODULE PROCEDURE dbcsr_is_initialized_type, dbcsr_is_initialized_obj
    END INTERFACE
 
    INTERFACE dbcsr_blk_row_size
@@ -106,59 +95,6 @@ MODULE dbcsr_methods
    END INTERFACE
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Initializes a DBCSR matrix but does not create it.
-!> \param[out] matrix         uninitialized matrix
-! **************************************************************************************************
-   SUBROUTINE dbcsr_init_type(matrix)
-      TYPE(dbcsr_type), INTENT(OUT)                      :: matrix
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_type', &
-         routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-      matrix%initialized = .TRUE.
-      matrix%valid = .FALSE.
-      matrix%refcount = 0
-      ! Nullifies all pointers.
-      NULLIFY (matrix%index, matrix%row_p, matrix%col_i, &
-               matrix%blk_p, matrix%thr_c, matrix%coo_l)
-      CALL dbcsr_data_init(matrix%data_area)
-      CALL dbcsr_distribution_init(matrix%dist)
-      CALL array_nullify(matrix%row_blk_size)
-      CALL array_nullify(matrix%col_blk_size)
-      CALL array_nullify(matrix%row_blk_offset)
-      CALL array_nullify(matrix%col_blk_offset)
-      CALL array_nullify(matrix%local_rows)
-      CALL array_nullify(matrix%global_rows)
-      CALL array_nullify(matrix%local_cols)
-      CALL array_nullify(matrix%global_cols)
-      NULLIFY (matrix%wms)
-   END SUBROUTINE dbcsr_init_type
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dist ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_distribution_init(dist)
-      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
-
-      NULLIFY (dist%d)
-   END SUBROUTINE dbcsr_distribution_init
-
-! **************************************************************************************************
-!> \brief Initializes a DBCSR matrix but does not allocate any memory.
-!> \param[out] matrix         uninitialized matrix
-! **************************************************************************************************
-   SUBROUTINE dbcsr_init_obj(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj', routineP = moduleN//':'//routineN
-
-      CALL dbcsr_init(matrix%m)
-   END SUBROUTINE dbcsr_init_obj
 
 ! **************************************************************************************************
 !> \brief Returns whether the index structure of the matrix is valid.
@@ -185,30 +121,6 @@ CONTAINS
    END FUNCTION dbcsr_valid_index_obj
 
 ! **************************************************************************************************
-!> \brief Returns whether the index structure of the matrix is valid.
-!> \param[in] matrix          verify index validity of this matrix
-!> \retval initialized        the matrix is initialized
-! **************************************************************************************************
-   PURE FUNCTION dbcsr_is_initialized_type(matrix) RESULT(initialized)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      LOGICAL                                            :: initialized
-
-      initialized = matrix%initialized
-   END FUNCTION dbcsr_is_initialized_type
-
-! **************************************************************************************************
-!> \brief Returns whether the index structure of the matrix is valid.
-!> \param[in] matrix          verify index validity of this matrix
-!> \retval initialized        the matrix is initialized
-! **************************************************************************************************
-   PURE FUNCTION dbcsr_is_initialized_obj(matrix) RESULT(initialized)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      LOGICAL                                            :: initialized
-
-      initialized = dbcsr_is_initialized_type(matrix%m)
-   END FUNCTION dbcsr_is_initialized_obj
-
-! **************************************************************************************************
 !> \brief Releases a reference for a DBCSR matrix
 !>
 !> If there are no references left, the matrix is destroyed.
@@ -221,13 +133,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      IF (.NOT. dbcsr_is_initialized(matrix)) &
-         CPWARN("Matrix not initialized")
-      IF (matrix%m%initialized) THEN
-         matrix%m%refcount = matrix%m%refcount-1
-         IF (matrix%m%refcount .EQ. 0) THEN
-            CALL dbcsr_destroy(matrix)
-         ENDIF
+      matrix%m%refcount = matrix%m%refcount-1
+      IF (matrix%m%refcount .EQ. 0) THEN
+         CALL dbcsr_destroy(matrix)
       ENDIF
    END SUBROUTINE dbcsr_release
 
@@ -248,31 +156,27 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, error_handle)
-      IF (.NOT. dbcsr_is_initialized(matrix)) &
-         CPWARN("Can not destroy uninitialized matrix object.")
       force_all = .FALSE.
       IF (PRESENT(force)) force_all = force
-      IF (dbcsr_is_initialized(matrix)) THEN
-         IF (.NOT. force_all .AND. matrix%m%refcount .NE. 0) &
-            CPWARN("You should not destroy referenced matrix.")
-         IF (force_all .AND. matrix%m%refcount .GT. 1) &
-            CPWARN("You should not destroy referenced matrix.")
-         IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
-            IF (ASSOCIATED(matrix%m%wms)) &
-               CPWARN("Destroying unfinalized matrix")
-            IF (ASSOCIATED(matrix%m%index)) THEN
-               CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type)
-            ENDIF
-            CALL dbcsr_data_release(matrix%m%data_area)
-            CALL array_release(matrix%m%row_blk_size)
-            CALL array_release(matrix%m%col_blk_size)
-            CALL array_release(matrix%m%row_blk_offset)
-            CALL array_release(matrix%m%col_blk_offset)
-            CALL dbcsr_distribution_release(matrix%m%dist)
-            CALL dbcsr_release_locals(matrix)
-            matrix%m%valid = .FALSE.
-            CALL dbcsr_init(matrix%m)
+      IF (.NOT. force_all .AND. matrix%m%refcount .NE. 0) &
+         CPWARN("You should not destroy referenced matrix.")
+      IF (force_all .AND. matrix%m%refcount .GT. 1) &
+         CPWARN("You should not destroy referenced matrix.")
+      IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
+         IF (ASSOCIATED(matrix%m%wms)) &
+            CPWARN("Destroying unfinalized matrix")
+         IF (ASSOCIATED(matrix%m%index)) THEN
+            CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type)
          ENDIF
+         CALL dbcsr_data_release(matrix%m%data_area)
+         CALL array_release(matrix%m%row_blk_size)
+         CALL array_release(matrix%m%col_blk_size)
+         CALL array_release(matrix%m%row_blk_offset)
+         CALL array_release(matrix%m%col_blk_offset)
+         CALL dbcsr_distribution_release(matrix%m%dist)
+         CALL dbcsr_release_locals(matrix)
+         matrix%m%valid = .FALSE.
+         matrix%m%refcount = 0
       ENDIF
       CALL timestop(error_handle)
    END SUBROUTINE dbcsr_destroy
@@ -302,7 +206,6 @@ CONTAINS
             CALL array_release(dist%d%col_map)
             CALL dbcsr_dist_release_locals(dist)
             DEALLOCATE (dist%d)
-            CALL dbcsr_distribution_init(dist)
          ENDIF
       ENDIF
    END SUBROUTINE dbcsr_distribution_release

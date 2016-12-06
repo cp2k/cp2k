@@ -27,7 +27,6 @@ MODULE dbcsr_vector_operations_low
    USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
                                               dbcsr_distribution,&
                                               dbcsr_get_matrix_type,&
-                                              dbcsr_init,&
                                               dbcsr_release,&
                                               dbcsr_row_block_sizes
    USE dbcsr_operations,                ONLY: dbcsr_copy,&
@@ -166,7 +165,6 @@ CONTAINS
                                   dbcsr_distribution_row_dist(dbcsr_distribution(matrix)), &
                                   dist_col, &
                                   row_dist_cluster=dbcsr_distribution_row_clusters(dbcsr_distribution(matrix)))
-      CALL dbcsr_init(dbcsr_vec)
       CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
                         dbcsr_row_block_sizes(matrix), col_sizes, &
                         nze=0, data_type=matrix%m%data_type)
@@ -213,7 +211,6 @@ CONTAINS
                                   dbcsr_distribution_col_dist(dbcsr_distribution(matrix)), &
                                   col_dist_cluster=dbcsr_distribution_col_clusters(dbcsr_distribution(matrix)))
 
-      CALL dbcsr_init(dbcsr_vec)
       CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
                         row_sizes, dbcsr_col_block_sizes(matrix), &
                         nze=0, data_type=matrix%m%data_type)
@@ -263,7 +260,6 @@ CONTAINS
                                   dist_col, &
                                   row_dist_cluster=dbcsr_distribution_row_clusters(dbcsr_distribution(matrix)))
 
-      CALL dbcsr_init(dbcsr_vec)
       CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
                         dbcsr_row_block_sizes(matrix), col_sizes, &
                         nze=0, data_type=matrix%m%data_type)
@@ -313,7 +309,6 @@ CONTAINS
                                   dbcsr_distribution_col_dist(dbcsr_distribution(matrix)), &
                                   col_dist_cluster=dbcsr_distribution_col_clusters(dbcsr_distribution(matrix)))
 
-      CALL dbcsr_init(dbcsr_vec)
       CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
                         row_sizes, dbcsr_col_block_sizes(matrix), &
                         nze=0, data_type=matrix%m%data_type)

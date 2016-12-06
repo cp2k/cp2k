@@ -58,7 +58,7 @@ MODULE dbcsr_mm_cannon
    USE dbcsr_methods,                   ONLY: &
         dbcsr_destroy_array, dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_index_memory_type, &
         dbcsr_has_symmetry, dbcsr_image_dist_hold, dbcsr_image_dist_init, &
-        dbcsr_image_dist_release, dbcsr_init, dbcsr_nblkcols_local, dbcsr_nblkrows_local, &
+        dbcsr_image_dist_release, dbcsr_nblkcols_local, dbcsr_nblkrows_local, &
         dbcsr_nblkrows_total, dbcsr_release, dbcsr_valid_index
    USE dbcsr_mm_common,                 ONLY: &
         acc_transpose_blocks, count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, &
@@ -216,7 +216,7 @@ CONTAINS
             CALL dbcsr_reset_vlocals(m2s%mats(i, j), rdist)
             ! Crop if necessary
             IF (ANY(f_crop .NE. 0)) THEN
-               CALL dbcsr_init(matrix_tmp)
+               matrix_tmp = dbcsr_obj()
                CALL dbcsr_crop_matrix(matrix_tmp, m2s%mats(i, j), &
                                       full_row_bounds=f_crop(1:2), &
                                       full_column_bounds=f_crop(3:4), &
@@ -230,7 +230,7 @@ CONTAINS
       ENDDO
 
       IF (ab_dense) THEN
-         CALL dbcsr_init(dense_template)
+         dense_template = dbcsr_obj()
          CALL dbcsr_create(dense_template, template=matrix, &
                            dist=dense_rdist%i%main, &
                            row_blk_size=array_data(row_blk_size), col_blk_size=array_data(col_blk_size))
@@ -445,7 +445,7 @@ CONTAINS
       data_memory_type = memtype_abpanel_1
       DO row_img = 1, nrow_images
          DO col_img = 1, ncol_images
-            CALL dbcsr_init(ums%mats(row_img, col_img))
+            ums%mats(row_img, col_img) = dbcsr_obj()
             CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name, &
                               target_dist, &
                               dbcsr_type_no_symmetry, array_data(sm%row_blk_size), array_data(sm%col_blk_size), &
@@ -837,9 +837,9 @@ CONTAINS
             ! The old matrix has to be remembered so it is copied to
             ! tmp_mat.
             old_meta(:) = images%mats(mat_row, mat_col)%m%index(1:dbcsr_meta_size)
-            CALL dbcsr_init(tmp_mat)
+            tmp_mat = dbcsr_obj()
             tmp_mat = images%mats(mat_row, mat_col)
-            CALL dbcsr_init(images%mats(mat_row, mat_col))
+            images%mats(mat_row, mat_col) = dbcsr_obj()
             CALL dbcsr_create(images%mats(mat_row, mat_col), template=new_template)
             images%mats(mat_row, mat_col)%m%index(dbcsr_slot_home_prow &
                                                   :dbcsr_slot_home_vpcol) = &

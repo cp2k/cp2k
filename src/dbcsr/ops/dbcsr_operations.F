@@ -57,9 +57,9 @@ MODULE dbcsr_operations
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_distribution, dbcsr_get_data_size, dbcsr_get_data_type, &
         dbcsr_get_index_memory_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-        dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_is_initialized, dbcsr_max_col_size, &
-        dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_row_block_offsets, dbcsr_valid_index
+        dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_max_col_size, dbcsr_max_row_size, &
+        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+        dbcsr_nfullrows_total, dbcsr_row_block_offsets, dbcsr_valid_index
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                               dbcsr_mp_mynode,&
                                               dbcsr_mp_mypcol,&
@@ -1493,8 +1493,6 @@ CONTAINS
       shallow = .FALSE.; IF (PRESENT(shallow_data)) shallow = shallow_data
       keep_sparse = .FALSE.
       IF (PRESENT(keep_sparsity)) keep_sparse = keep_sparsity
-      IF (.NOT. dbcsr_is_initialized(matrix_b)) &
-         CPABORT("Target matrix must be initialized")
       IF (keep_sparse .AND. .NOT. dbcsr_valid_index(matrix_b)) &
          CPABORT("Target matrix must be valid to keep its sparsity")
       IF (keep_sparse .AND. shallow) &
@@ -2877,8 +2875,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      IF (.NOT. matrix%m%initialized) &
-         CPABORT("Matrix not initialized")
       !vw avoid massive priting of warnings
       !CPWARN("Invalid matrix")
       IF (PRESENT(nblkrows_total)) nblkrows_total = matrix%m%nblkrows_total

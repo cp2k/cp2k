@@ -52,8 +52,8 @@ MODULE dbcsr_mm
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
         dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_image_dist_release, &
-        dbcsr_init, dbcsr_nblkcols_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-        dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets
+        dbcsr_nblkcols_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+        dbcsr_release_locals, dbcsr_row_block_offsets
    USE dbcsr_mm_3D,                     ONLY: buffers_release,&
                                               dbcsr_make_buffers,&
                                               make_layers_3D_C_reduction,&
@@ -487,7 +487,7 @@ CONTAINS
          matrix_left = matrix_a
          transpose_left = .FALSE.
       CASE (dbcsr_transpose)
-         CALL dbcsr_init(matrix_left)
+         matrix_left = dbcsr_obj()
          IF (dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_antisymmetric) THEN
             !
             ! For antisymmetric matrix, we need to do a hard copy
@@ -502,7 +502,7 @@ CONTAINS
          ENDIF
          transpose_left = .TRUE.
       CASE (dbcsr_conjugate_transpose)
-         CALL dbcsr_init(matrix_left)
+         matrix_left = dbcsr_obj()
          CALL dbcsr_new_transposed(matrix_left, matrix_a, &
                                    shallow_data_copy=.FALSE., redistribute=.FALSE., &
                                    transpose_distribution=.FALSE.)
@@ -517,7 +517,7 @@ CONTAINS
          matrix_right = matrix_b
          transpose_right = .FALSE.
       CASE (dbcsr_transpose)
-         CALL dbcsr_init(matrix_right)
+         matrix_right = dbcsr_obj()
          IF (dbcsr_get_matrix_type(matrix_b) .EQ. dbcsr_type_antisymmetric) THEN
             !
             ! For antisymmetric matrix, we need to do a hard copy
@@ -532,7 +532,7 @@ CONTAINS
          ENDIF
          transpose_right = .TRUE.
       CASE (dbcsr_conjugate_transpose)
-         CALL dbcsr_init(matrix_right)
+         matrix_right = dbcsr_obj()
          CALL dbcsr_new_transposed(matrix_right, matrix_b, &
                                    shallow_data_copy=.FALSE., redistribute=.FALSE., &
                                    transpose_distribution=.FALSE.)
@@ -773,13 +773,13 @@ CONTAINS
          CALL array_hold(old_product_col_blk_sizes)
          old_product_distribution = dbcsr_distribution(matrix_c)
          CALL dbcsr_distribution_hold(old_product_distribution)
-         CALL dbcsr_init(product_matrix)
+         product_matrix = dbcsr_obj()
          CALL dbcsr_make_dense(matrix_c, product_matrix, &
                                dense_product_distribution, &
                                dense_row_sizes, dense_col_sizes, &
                                m_map, n_map)
       ELSE
-         CALL dbcsr_init(product_matrix)
+         product_matrix = dbcsr_obj()
          CALL dbcsr_copy(product_matrix, matrix_c, shallow_data=.TRUE.)
       ENDIF
       IF (ab_dense) THEN
@@ -924,7 +924,7 @@ CONTAINS
       ENDIF
       IF (use_dense_mult) THEN
          CALL dbcsr_release(matrix_c)
-         CALL dbcsr_init(matrix_c)
+         matrix_c = dbcsr_obj()
          CALL dbcsr_make_undense(product_matrix, matrix_c, &
                                  old_product_distribution, &
                                  old_product_row_blk_offsets, old_product_col_blk_offsets, &
@@ -938,7 +938,7 @@ CONTAINS
          CALL dbcsr_distribution_release(old_product_distribution)
       ELSE
          CALL dbcsr_release(matrix_c)
-         CALL dbcsr_init(matrix_c)
+         matrix_c = dbcsr_obj()
          CALL dbcsr_copy(matrix_c, product_matrix, shallow_data=.TRUE.)
          CALL dbcsr_release(product_matrix)
       ENDIF

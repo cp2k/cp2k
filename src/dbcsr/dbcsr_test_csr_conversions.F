@@ -14,10 +14,10 @@ PROGRAM dbcsr_test_csr_conversions
         csr_destroy, csr_type, dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, &
         dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
         dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
-        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_init_lib, dbcsr_max_col_size, &
-        dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, dbcsr_put_block, dbcsr_release, &
-        dbcsr_row_block_sizes, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
+        dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, dbcsr_nblkcols_total, &
+        dbcsr_nblkrows_total, dbcsr_obj, dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
+        dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE dbcsr_csr_conversions,           ONLY: csr_conversion_test
    USE kinds,                           ONLY: dp,&
                                               real_8
@@ -179,8 +179,6 @@ CONTAINS
       TYPE(dbcsr_distribution_obj)                       :: dist
 
       CALL dbcsr_distribution_new(dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
-
-      CALL dbcsr_init(matrix_a)
 
       CALL dbcsr_create(matrix=matrix_a, &
                         name="this is my matrix a", &

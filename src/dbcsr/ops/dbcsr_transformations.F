@@ -56,9 +56,8 @@ MODULE dbcsr_transformations
                                               dbcsr_iterator_stop
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_matrix_type, &
-        dbcsr_has_symmetry, dbcsr_init, dbcsr_is_initialized, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-        dbcsr_row_block_sizes, dbcsr_valid_index
+        dbcsr_has_symmetry, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, dbcsr_valid_index
    USE dbcsr_mp_methods,                ONLY: &
         dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
         dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
@@ -279,7 +278,6 @@ CONTAINS
     ENDIF
     IF (redist) THEN
        !write (*,*)routineN//" redistributing"
-       CALL dbcsr_init (t2)
        CALL dbcsr_create (t2, template=transposed)
        CALL dbcsr_redistribute (transposed, t2)
        CALL dbcsr_release (transposed)
@@ -328,7 +326,6 @@ CONTAINS
        CPABORT("Input matrix is invalid.")
     IF(dbcsr_valid_index (desm)) THEN
        CALL dbcsr_release(desm)
-       CALL dbcsr_init(desm)
     ENDIF
     CALL dbcsr_create(desm, sm, matrix_type="N")
 
@@ -605,7 +602,6 @@ CONTAINS
        CALL dbcsr_iterator_stop (iter)
        matrix%m%replication_type = dbcsr_repl_none
     ELSE
-       CALL dbcsr_init(distributed)
        CALL dbcsr_create(distributed, name='Distributed '//TRIM(matrix%m%name),&
             template = matrix,&
             matrix_type = dbcsr_type_no_symmetry,&
@@ -748,7 +744,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_init (dense_matrix)
     CALL dbcsr_create (dense_matrix, template=matrix,&
          dist = dense_dist,&
          row_blk_size=array_data(dense_row_sizes), col_blk_size=array_data(dense_col_sizes))
@@ -1438,7 +1433,6 @@ CONTAINS
     ALLOCATE (recv_count(2, 0:numnodes-1))
     ALLOCATE (rd_disp(0:numnodes-1))
     ALLOCATE (rm_disp(0:numnodes-1))
-    CALL dbcsr_init (replicated)
     CALL dbcsr_create(replicated, name='Replicated '//TRIM(matrix%m%name),&
          template = matrix,&
          matrix_type = dbcsr_type_no_symmetry,&
@@ -1634,8 +1628,6 @@ CONTAINS
 
     IF(.NOT.dbcsr_valid_index(matrix%m))&
        CPABORT("Input not valid.")
-    IF(.NOT.dbcsr_is_initialized(redist%m))&
-       CPABORT("Output matrix not initialized.")
     IF(matrix%m%replication_type.NE.dbcsr_repl_none)&
        CPWARN("Can not redistribute replicated matrix.")
     IF(dbcsr_has_symmetry (matrix).AND..NOT.dbcsr_has_symmetry (redist))&
@@ -2029,8 +2021,6 @@ CONTAINS
     !call dbcsr_print_dist (redist%m%dist)
     IF(.NOT.dbcsr_valid_index(matrix%m))&
        CPABORT("Input not valid.")
-    IF(.NOT.dbcsr_is_initialized(redist%m))&
-       CPABORT("Output matrix not initialized.")
     IF(matrix%m%replication_type.NE.dbcsr_repl_none)&
        CPWARN("Can not redistribute replicated matrix.")
     data_type = matrix%m%data_type

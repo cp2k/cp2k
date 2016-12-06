@@ -520,10 +520,8 @@
 ! We need some work matrices as we try to exploit operations on the replicated vectors which are duplicated otherwise
     CALL dbcsr_get_info(matrix=vec_in,nfullcols_total=vec_dim)
 ! This is a performance hack as the new creation of a replicated vector is a fair bit more expensive
-    CALL dbcsr_init(result_col)
     CALL dbcsr_set(work_col, CMPLX(0.0, 0.0, real_4))
     CALL dbcsr_copy(result_col, work_col)
-    CALL dbcsr_init(result_row)
     CALL dbcsr_set(work_row, CMPLX(0.0, 0.0, real_4))
     CALL dbcsr_copy(result_row, work_row)
 

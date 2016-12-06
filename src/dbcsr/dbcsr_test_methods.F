@@ -36,7 +36,6 @@ MODULE dbcsr_test_methods
                                               dbcsr_iterator_start,&
                                               dbcsr_iterator_stop
    USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
-                                              dbcsr_init,&
                                               dbcsr_max_col_size,&
                                               dbcsr_max_row_size,&
                                               dbcsr_nblkcols_total,&
@@ -413,7 +412,6 @@ CONTAINS
          CALL dbcsr_make_null_dist(new_dist, SIZE(row_blk_sizes), &
                                    SIZE(col_blk_sizes), group=mp_group)
       ENDIF
-      CALL dbcsr_init(matrix)
       my_data_type = dbcsr_type_real_default
       IF (PRESENT(data_type)) my_data_type = data_type
       my_symmetry = dbcsr_type_no_symmetry

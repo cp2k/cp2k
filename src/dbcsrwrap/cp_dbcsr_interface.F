@@ -28,26 +28,25 @@ MODULE cp_dbcsr_interface
         dbcsr_data_release, dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
-        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_init, &
-        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-        dbcsr_distribution_ncols, dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
-        dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_func_artanh, &
+        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_local_cols, &
+        dbcsr_distribution_local_rows, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+        dbcsr_distribution_nrows, dbcsr_distribution_obj, dbcsr_distribution_release, &
+        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_func_artanh, &
         dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
         dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_data_p, &
         dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_default_config, dbcsr_get_diag, &
         dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
-        dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_has_symmetry, dbcsr_init, &
-        dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
-        dbcsr_matrix_colvec_multiply, dbcsr_maxabs, dbcsr_mp_get_process, dbcsr_mp_grid_setup, &
-        dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_npcols, &
-        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, dbcsr_mp_release, dbcsr_multiply, &
-        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_new_transposed, &
-        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
-        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_print, &
-        dbcsr_print_block_sum, dbcsr_print_config, dbcsr_put_block, dbcsr_release, &
+        dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_has_symmetry, dbcsr_init_lib, &
+        dbcsr_init_random, dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_matrix_colvec_multiply, dbcsr_maxabs, &
+        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
+        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
+        dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, &
+        dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
+        dbcsr_print, dbcsr_print_block_sum, dbcsr_print_config, dbcsr_put_block, dbcsr_release, &
         dbcsr_replicate_all, dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, &
         dbcsr_reserve_blocks, dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
         dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
@@ -92,7 +91,7 @@ MODULE cp_dbcsr_interface
    PUBLIC :: dbcsr_mp_obj, dbcsr_norm_frobenius
    PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_norm_maxabsnorm, &
              dbcsr_norm_column, dbcsr_distribution_has_threads, dbcsr_test_binary_io
-   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_hold, dbcsr_distribution_release
+   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_hold, dbcsr_distribution_release
    PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
    PUBLIC :: dbcsr_distribution_mp
    PUBLIC :: convert_sizes_to_offsets
@@ -1043,7 +1042,6 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init', routineP = moduleN//':'//routineN
 
-      CALL dbcsr_init(matrix%matrix)
       matrix%ref_count = 0
 
    END SUBROUTINE cp_dbcsr_init

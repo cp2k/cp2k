@@ -25,7 +25,7 @@ MODULE dbcsr_test_multiply
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_methods,                   ONLY: &
         dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_get_data_type, &
-        dbcsr_get_matrix_type, dbcsr_init, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+        dbcsr_get_matrix_type, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
         dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_offsets, &
         dbcsr_row_block_sizes
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
@@ -407,10 +407,6 @@ CONTAINS
             ") ............... !"
          WRITE (io_unit, *) REPEAT("*", 70)
       END IF
-
-      CALL dbcsr_init(m_a)
-      CALL dbcsr_init(m_b)
-      CALL dbcsr_init(m_c)
 
       ! Row & column distributions
       CALL dbcsr_random_dist(row_dist_a, dbcsr_nblkrows_total(matrix_a), npdims(1))
