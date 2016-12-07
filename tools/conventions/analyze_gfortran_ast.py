@@ -130,6 +130,9 @@ def process_log_file(fn, public_symbols, used_symbols):
             stat_stm = line.split()[0]
             skip_until_DT_END = stat_stm in ("READ", "WRITE",)
 
+        elif("_gfortran_float" in line):
+            print(loc+': Found FLOAT in "'+curr_procedure+'"')
+
         elif(re_conv.search(line)):
             for m in re_conv.finditer(line):
                 args = parse_args(line[m.end():])
