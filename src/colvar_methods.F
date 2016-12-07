@@ -3169,7 +3169,7 @@ CONTAINS
       !ftmp(:) = 0.0_dp
 
       qparm = 0.0_dp
-      inv_n_atoms_from = 1.0_dp/REAL(n_atoms_from)
+      inv_n_atoms_from = 1.0_dp/REAL(n_atoms_from, KIND=dp)
       DO ii = 1, n_atoms_from
          i = colvar%qparm_param%i_at_from(ii)
          CALL get_coordinates(colvar, i, xpi, my_particles)
@@ -4246,7 +4246,7 @@ CONTAINS
       r_0_b = colvar%coord_param%r_0_b
 
       ncoord = 0.0_dp
-      inv_n_atoms_from = 1.0_dp/REAL(n_atoms_from)
+      inv_n_atoms_from = 1.0_dp/REAL(n_atoms_from, KIND=dp)
       DO ii = 1, n_atoms_from
          i = colvar%coord_param%i_at_from(ii)
          CALL get_coordinates(colvar, i, xpi, my_particles)
@@ -5342,7 +5342,7 @@ CONTAINS
       population = 0.0_dp
 
       colvar%dsdr = 0.0_dp
-      inv_n_atoms_from = 1.0_dp/REAL(n_atoms_from)
+      inv_n_atoms_from = 1.0_dp/REAL(n_atoms_from, KIND=dp)
 
       norm = SQRT(pi*2.0_dp)*sigma
       norm = 1/norm

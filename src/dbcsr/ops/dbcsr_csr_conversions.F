@@ -1565,9 +1565,9 @@ CONTAINS
 
          ! Calculate the number of rows a processor can hold
          IF (floor_dist) THEN
-            nfullrows_local = FLOOR(REAL(nfullrows_total)/numnodes)
+            nfullrows_local = FLOOR(REAL(nfullrows_total, KIND=dp)/numnodes)
          ELSE
-            nfullrows_local = CEILING(REAL(nfullrows_total)/numnodes)
+            nfullrows_local = CEILING(REAL(nfullrows_total, KIND=dp)/numnodes)
          ENDIF
 
          ! allocate maximum amount of memory possibly needed
@@ -1616,7 +1616,7 @@ CONTAINS
          IF (numnodes .GT. nblkrows_total) THEN
             rdist = (/(i, i=0, nblkrows_total-1)/)
          ELSE
-            chunk_size = REAL(nblkrows_total)/numnodes
+            chunk_size = REAL(nblkrows_total, KIND=dp)/numnodes
             row_index = 0
             start_ind = 1
             DO i = 0, numnodes-1

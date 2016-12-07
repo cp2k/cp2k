@@ -1251,7 +1251,7 @@ CONTAINS
       IF (natoms .LE. 1) THEN
          nsplits = 1
       ELSE
-         nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.00/LOG(REAL(natoms)))), KIND=int_8), ncluster)), natoms)
+         nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.00/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
       ENDIF
       IF (nsplits == 1) THEN
          icluster = icluster+1
@@ -1262,7 +1262,7 @@ CONTAINS
          ! initialise some values
          cluster_cost = 0; seed = 300; found = .TRUE.; min_seed = seed
          CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed, conv)
-         balance = MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster))
+         balance = MAXVAL(REAL(nat_cluster, KIND=dp))/MINVAL(REAL(nat_cluster, KIND=dp))
 
          ! If the system is small enough try to do better in terms of balancing number of atoms per cluster
          ! by changing the seed for the initial guess
@@ -1271,7 +1271,7 @@ CONTAINS
             DO i = 1, 5
                IF (balance .GT. 1.1) THEN
                   CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed+i*40, conv)
-                  balance_new = MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster))
+                  balance_new = MAXVAL(REAL(nat_cluster, KIND=dp))/MINVAL(REAL(nat_cluster, KIND=dp))
                   IF (balance_new .LT. balance) THEN
                      balance = balance_new
                      min_seed = seed+i*40; 

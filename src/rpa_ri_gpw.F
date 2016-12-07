@@ -2027,7 +2027,7 @@ CONTAINS
             my_group_L_size_im_time = my_group_L_sizes_im_time(i_cut_RI)
 
             CALL cp_dbcsr_filter(mat_3c_overl_int(i_cut_RI)%matrix, &
-                                 eps_filter*SQRT(REAL(my_group_L_size_im_time)))
+                                 eps_filter*SQRT(REAL(my_group_L_size_im_time, KIND=dp)))
 
          END DO
 
@@ -4350,7 +4350,7 @@ CONTAINS
          chi2_min_jquad = 100.0_dp
 
          ! set the x-values logarithmically in the interval [Emin,Emax]
-         multiplicator = (E_max/E_min)**(1.0_dp/(REAL(num_x_nodes)-1.0_dp))
+         multiplicator = (E_max/E_min)**(1.0_dp/(REAL(num_x_nodes, KIND=dp)-1.0_dp))
          DO iii = 1, num_x_nodes
             x_values(iii) = E_min*multiplicator**(iii-1)
          END DO
@@ -6385,7 +6385,7 @@ CONTAINS
 
       Rc_max = 1.0E+7
 
-      multiplicator = Rc_max**(1.0_dp/(REAL(nR)-1.0_dp))
+      multiplicator = Rc_max**(1.0_dp/(REAL(nR, KIND=dp)-1.0_dp))
 
       DO num_integ_points = 1, 20
 

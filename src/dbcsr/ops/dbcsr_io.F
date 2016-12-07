@@ -958,7 +958,7 @@ CONTAINS
 ! compute the offsets in sub-header2 and read 2 integers nblocks, data_area_size
       ! number of data chunks from sub-header 2 and 3 to be read by every node rounded up
       ! to the next integer to make it even for all the nodes in the specified mpi group
-      share_size = CEILING(REAL(size_of_pgrid)/group_list_size)
+      share_size = CEILING(REAL(size_of_pgrid, KIND=dp)/group_list_size)
 
       ALLOCATE (subh2_offsets(share_size))
       subh2_offsets = BOF

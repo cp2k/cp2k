@@ -1102,7 +1102,7 @@ CONTAINS
             CPASSERT(ASSOCIATED(kpsym))
 
             IF (kpsym%apply_symmetry) THEN
-               wkpx = wkp(ik)/REAL(kpsym%nwght)
+               wkpx = wkp(ik)/REAL(kpsym%nwght, KIND=dp)
                DO is = 1, kpsym%nwght
                   IF (real_only) THEN
                      CALL symtrans(srpmat, rpmat, kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), symmetric=.TRUE.)

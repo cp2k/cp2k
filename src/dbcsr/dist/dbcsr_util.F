@@ -797,8 +797,8 @@ CONTAINS
        CALL mp_sum(n_have_blocks_local, dbcsr_mp_group (dbcsr_distribution_mp (&
             m%m%dist)))
        n_have_blocks_total = n_have_blocks_local
-       sparsity_total = REAL(n_have_blocks_total)&
-            / REAL(n_full_blocks_total)*100.0
+       sparsity_total = REAL(n_have_blocks_total, KIND=dp)&
+            / REAL(n_full_blocks_total, KIND=dp)*100.0_dp
        !WRITE(*,FMT='(30A,F5.1,A)')r//' Sparsity: ', sparsity_total,'%'
        WRITE(*,FMT='(1X,A,F5.1,A)')r//' Non-sparsity: ',&
             sparsity_total,'%'

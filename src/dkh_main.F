@@ -2645,7 +2645,7 @@ CONTAINS
 
       tol = 1.0E-15
       ext_norm = 0.0_dp
-      u1 = REAL(n)
+      u1 = REAL(n, KIND=dp)
       DO i = 1, n
          eigv(i, i) = 1.0_dp
          eigw(i) = sogt(i, i)

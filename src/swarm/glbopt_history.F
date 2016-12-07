@@ -308,7 +308,7 @@ CONTAINS
 
       DO WHILE (low < high)
          !linear interpolation
-         slope = REAL(high-low)/(history%entries(high)%p%Epot-history%entries(low)%p%Epot)
+         slope = REAL(high-low, KIND=dp)/(history%entries(high)%p%Epot-history%entries(low)%p%Epot)
          mid = low+INT(slope*(Efind-history%entries(low)%p%Epot))
          mid = MIN(MAX(mid, low), high)
 

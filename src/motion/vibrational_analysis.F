@@ -757,7 +757,7 @@ CONTAINS
 !   ZPE
       zpe = 0.5_dp*(h_bar*2._dp*pi)*freqsum*(hertz/wavenumbers)*n_avogadro
 
-      el_entropy = (n_avogadro*boltzmann)*LOG(REAL(spin))
+      el_entropy = (n_avogadro*boltzmann)*LOG(REAL(spin, KIND=dp))
 !
       natoms = SIZE(mass)
       ALLOCATE (mass_kg(natoms))

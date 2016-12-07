@@ -245,7 +245,7 @@ CONTAINS
                                             ! last_row=ends_array_cm(i_mem), &
                                             ! first_column=(starts_array_cm(j_mem)-1)*my_group_L_size+1, &
                                             ! last_column=ends_array_cm(j_mem)*my_group_L_size, &
-                                            filter_eps=eps_filter*SQRT(REAL(my_group_L_size)))
+                                            filter_eps=eps_filter*SQRT(REAL(my_group_L_size, KIND=dp)))
 
                   END IF
 
@@ -260,7 +260,7 @@ CONTAINS
                                             ! last_row=ends_array_cm(j_mem), &
                                             ! first_column=(starts_array_cm(i_mem)-1)*my_group_L_size+1, &
                                             ! last_column=ends_array_cm(i_mem)*my_group_L_size, &
-                                            filter_eps=eps_filter*SQRT(REAL(my_group_L_size)))
+                                            filter_eps=eps_filter*SQRT(REAL(my_group_L_size, KIND=dp)))
 
                   END IF
 
@@ -318,7 +318,7 @@ CONTAINS
 
                ! P_RT = sum_mu sigma M^occ_P_mu_sigma M^virt_R_mu_sigma
                CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mat_M_P_munu_occ%matrix, mat_M_P_munu_virt%matrix, &
-                                      0.0_dp, mat_P_local%matrix, filter_eps=eps_filter_im_time/REAL(cut_memory))
+                                      0.0_dp, mat_P_local%matrix, filter_eps=eps_filter_im_time/REAL(cut_memory, KIND=dp))
 
                IF (first_cycle_im_time .AND. memory_info) THEN
                   CALL print_occupation_2c(mat_P_local%matrix, unit_nr, "local P matrix", para_env)
@@ -1077,7 +1077,7 @@ CONTAINS
 
       END DO
 
-      local_occupation = local_occupation/REAL(cut_RI)
+      local_occupation = local_occupation/REAL(cut_RI, KIND=dp)
 
       ALLOCATE (buffer_send(0:para_env%num_pe-1))
       ALLOCATE (buffer_rec(0:para_env%num_pe-1))

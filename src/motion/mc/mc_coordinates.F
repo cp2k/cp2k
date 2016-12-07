@@ -759,7 +759,7 @@ CONTAINS
       IF (PRESENT(box) .AND. PRESENT(molecule_type_old)) THEN
 ! only need to find the atom number the molecule starts on
          rand = next_random_number(rng_stream)
-         molecule_number = CEILING(rand*REAL(nchains(molecule_type_old, box)))
+         molecule_number = CEILING(rand*REAL(nchains(molecule_type_old, box), KIND=dp))
 
          start_mol = 1
          DO jbox = 1, box-1
@@ -779,7 +779,7 @@ CONTAINS
       ELSEIF (PRESENT(box)) THEN
 ! any molecule in box...need to find molecule type and start atom
          rand = next_random_number(rng_stream)
-         molecule_number = CEILING(rand*REAL(SUM(nchains(:, box))))
+         molecule_number = CEILING(rand*REAL(SUM(nchains(:, box)), KIND=dp))
 
          start_mol = 1
          DO jbox = 1, box-1
@@ -797,7 +797,7 @@ CONTAINS
       ELSEIF (PRESENT(molecule_type_old)) THEN
 ! any molecule of type molecule_type_old...need to find box number and start atom
          rand = next_random_number(rng_stream)
-         molecule_number = CEILING(rand*REAL(SUM(nchains(molecule_type_old, :))))
+         molecule_number = CEILING(rand*REAL(SUM(nchains(molecule_type_old, :)), KIND=dp))
 
 ! find which box it's in
          nchains_tot = 0
@@ -830,7 +830,7 @@ CONTAINS
             nchains_tot = nchains_tot+SUM(nchains(:, ibox))
          ENDDO
          rand = next_random_number(rng_stream)
-         molecule_number = CEILING(rand*REAL(nchains_tot))
+         molecule_number = CEILING(rand*REAL(nchains_tot, KIND=dp))
 
          molecule_type = mol_type(molecule_number)
 

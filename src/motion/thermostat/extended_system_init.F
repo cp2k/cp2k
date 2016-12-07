@@ -765,7 +765,7 @@ CONTAINS
          number = nhc%loc_num_nhc
 
          ! scale velocities to get the correct initial temperature
-         temp = 2.0_dp*akin/REAL(number)
+         temp = 2.0_dp*akin/REAL(number, KIND=dp)
          IF (temp > 0.0_dp) temp = SQRT(temp_ext/temp)
          DO i = 1, nhc%loc_num_nhc
             DO j = 1, nhc%nhc_len
@@ -806,7 +806,7 @@ CONTAINS
          CALL get_nhc_energies(nhc, dum, akin, para_env)
 
          ! scale velocities to get the correct initial temperature
-         temp = 2.0_dp*akin/REAL(number)
+         temp = 2.0_dp*akin/REAL(number, KIND=dp)
          IF (temp > 0.0_dp) temp = SQRT(temp_ext/temp)
          DO i = 1, nhc%loc_num_nhc
             DO j = 1, nhc%nhc_len

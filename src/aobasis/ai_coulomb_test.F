@@ -134,7 +134,7 @@ CONTAINS
             END DO
             tend = m_walltime()
             t = tend-tstart+threshold
-            perf = REAL(ii*nco(l)**2)*1.e-6_dp*REAL(npgfa*npgfc, dp)/t
+            perf = REAL(ii*nco(l)**2, KIND=dp)*1.e-6_dp*REAL(npgfa*npgfc, KIND=dp)/t
             WRITE (iw, '(A,T40,A,T66,F15.3)') " Performance [Mintegrals/s] ", i2c(l), perf
             DEALLOCATE (f, v, vac)
          END DO

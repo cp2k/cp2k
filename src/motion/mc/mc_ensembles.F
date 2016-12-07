@@ -1271,7 +1271,7 @@ CONTAINS
       ENDDO
 
       ! print out a notice every 1%
-      iprint = FLOOR(REAL(nvirial)/100.0)
+      iprint = FLOOR(REAL(nvirial, KIND=dp)/100.0_dp)
       IF (iprint == 0) iprint = 1
 
       ! we'll compute the average potential, and then integrate that, as opposed to

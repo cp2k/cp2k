@@ -51,7 +51,8 @@ MODULE dbcsr_dist_operations
         dbcsr_distribution_obj, dbcsr_imagedistribution_obj, dbcsr_mp_obj, dbcsr_obj, &
         dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
         dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
-   USE kinds,                           ONLY: sp
+   USE kinds,                           ONLY: dp,&
+                                              sp
 #include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -585,7 +586,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    maxbinsize = CEILING (REAL(SIZE (array)) / REAL(nbins))
+    maxbinsize = CEILING (REAL(SIZE (array), KIND=dp) / REAL(nbins, KIND=dp))
     DO bin = 1, nbins
        first = 1 + (bin-1)*maxbinsize
        last = MIN (1 + (bin)*maxbinsize-1, SIZE (array))
@@ -1243,8 +1244,8 @@ CONTAINS
     ! Define the sizes on which we build the distribution.
     IF (nelements .GT. 0) THEN
 
-       nblocks = CEILING(REAL(nelements)/REAL(dbcsr_cfg%max_elements_per_block))
-       max_blocks_per_bin = CEILING(REAL(nblocks)/REAL(nbins))
+       nblocks = CEILING(REAL(nelements, KIND=dp)/REAL(dbcsr_cfg%max_elements_per_block, KIND=dp))
+       max_blocks_per_bin = CEILING(REAL(nblocks, KIND=dp)/REAL(nbins, KIND=dp))
 
        IF (debug_mod) THEN
           WRITE(*,'(1X,A,1X,A,I7,A,I7,A)')routineP,"For",nelements,&
