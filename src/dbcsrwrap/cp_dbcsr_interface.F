@@ -15,7 +15,7 @@
 MODULE cp_dbcsr_interface
    USE dbcsr_api,                       ONLY: &
         add_work_coordinate, convert_csr_to_dbcsr, convert_dbcsr_to_csr, convert_offsets_to_sizes, &
-        convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
+        convert_sizes_to_offsets, &
         cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
         create_bl_distribution, create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
         create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, csr_create_from_dbcsr, &
@@ -24,8 +24,7 @@ MODULE cp_dbcsr_interface
         dbcsr_add, dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, &
         dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
         dbcsr_create, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, dbcsr_data_obj, &
-        dbcsr_data_release, dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
+        dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
         dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_local_cols, &
@@ -83,11 +82,8 @@ MODULE cp_dbcsr_interface
    PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
    PUBLIC :: dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters, &
              dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters
-   PUBLIC :: dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
    PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, &
              dbcsr_mp_get_process, dbcsr_mp_grid_setup
-   PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
-   PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
    PUBLIC :: dbcsr_mp_obj, dbcsr_norm_frobenius
    PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_norm_maxabsnorm, &
              dbcsr_norm_column, dbcsr_distribution_has_threads, dbcsr_test_binary_io
@@ -196,6 +192,10 @@ MODULE cp_dbcsr_interface
       TYPE(dbcsr_obj), PRIVATE             :: matrix
    END TYPE cp_dbcsr_type
 
+   TYPE cp_dbcsr_iterator
+      TYPE(dbcsr_iterator), PRIVATE        :: iter
+   END TYPE cp_dbcsr_iterator
+
    INTERFACE cp_dbcsr_distribution_new
       MODULE PROCEDURE cp_dbcsr_distribution_new_clusters1
       MODULE PROCEDURE cp_dbcsr_distribution_new_clusters2
@@ -271,7 +271,6 @@ MODULE cp_dbcsr_interface
    END INTERFACE
 
    INTERFACE cp_dbcsr_put_block
-      MODULE PROCEDURE cp_dbcsr_put_block_area
       MODULE PROCEDURE cp_dbcsr_put_block_d, &
          cp_dbcsr_put_block_s, &
          cp_dbcsr_put_block_z, &
@@ -800,7 +799,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_iterator_blocks_left', &
          routineP = moduleN//':'//routineN
 
-      blocks_left = dbcsr_iterator_blocks_left(iterator)
+      blocks_left = dbcsr_iterator_blocks_left(iterator%iter)
 
    END FUNCTION cp_dbcsr_iterator_blocks_left
 
@@ -853,7 +852,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_iterator_stop', &
          routineP = moduleN//':'//routineN
 
-      CALL dbcsr_iterator_stop(iterator)
+      CALL dbcsr_iterator_stop(iterator%iter)
 
    END SUBROUTINE cp_dbcsr_iterator_stop
 
@@ -877,7 +876,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_iterator_start', &
          routineP = moduleN//':'//routineN
 
-      CALL dbcsr_iterator_start(iterator, matrix%matrix, shared, dynamic, &
+      CALL dbcsr_iterator_start(iterator%iter, matrix%matrix, shared, dynamic, &
                                 dynamic_byrows, contiguous_pointers, read_only)
 
    END SUBROUTINE cp_dbcsr_iterator_start
@@ -905,7 +904,6 @@ CONTAINS
 !> \param col_blk_offset ...
 !> \param distribution ...
 !> \param name ...
-!> \param data_area ...
 !> \param matrix_type ...
 !> \param data_type ...
 ! **************************************************************************************************
@@ -915,8 +913,8 @@ CONTAINS
                                 nfullrows_local, nfullcols_local, &
                                 my_prow, my_pcol, &
                                 local_rows, local_cols, proc_row_dist, proc_col_dist, &
-                                row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, distribution, name, data_area, &
-                                matrix_type, data_type)
+                                row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, &
+                                distribution, name, matrix_type, data_type)
       TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix
       INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, nfullrows_total, &
          nfullcols_total, nblkrows_local, nblkcols_local, nfullrows_local, nfullcols_local, &
@@ -929,21 +927,35 @@ CONTAINS
       TYPE(dbcsr_distribution_obj), INTENT(OUT), &
          OPTIONAL                                        :: distribution
       CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
-      TYPE(dbcsr_data_obj), INTENT(OUT), OPTIONAL        :: data_area
       CHARACTER, OPTIONAL                                :: matrix_type
       INTEGER, OPTIONAL                                  :: data_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_info', &
          routineP = moduleN//':'//routineN
 
-      CALL dbcsr_get_info(matrix%matrix, nblkrows_total, nblkcols_total, &
-                          nfullrows_total, nfullcols_total, &
-                          nblkrows_local, nblkcols_local, &
-                          nfullrows_local, nfullcols_local, &
-                          my_prow, my_pcol, &
-                          local_rows, local_cols, proc_row_dist, proc_col_dist, &
-                          row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, distribution, name, data_area, &
-                          matrix_type, data_type)
+      CALL dbcsr_get_info(matrix=matrix%matrix, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total, &
+                          nfullrows_total=nfullrows_total, &
+                          nfullcols_total=nfullcols_total, &
+                          nblkrows_local=nblkrows_local, &
+                          nblkcols_local=nblkcols_local, &
+                          nfullrows_local=nfullrows_local, &
+                          nfullcols_local=nfullcols_local, &
+                          my_prow=my_prow, &
+                          my_pcol=my_pcol, &
+                          local_rows=local_rows, &
+                          local_cols=local_cols, &
+                          proc_row_dist=proc_row_dist, &
+                          proc_col_dist=proc_col_dist, &
+                          row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size, &
+                          row_blk_offset=row_blk_offset, &
+                          col_blk_offset=col_blk_offset, &
+                          distribution=distribution, &
+                          name=name, &
+                          matrix_type=matrix_type, &
+                          data_type=data_type)
 
    END SUBROUTINE cp_dbcsr_get_info
 
@@ -2364,31 +2376,6 @@ CONTAINS
       IF (existed) CPWARN("You should not add existing blocks according to old API.")
       IF (.NOT. is_there) block(:, :) = 0.0_dp
    END SUBROUTINE cp_dbcsr_add_block_node
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param row ...
-!> \param col ...
-!> \param block ...
-!> \param summation ...
-!> \param scale ...
-! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_put_block_area(matrix, row, col, block, &
-                                      summation, scale)
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix
-      INTEGER, INTENT(IN)                                :: row, col
-      TYPE(dbcsr_data_obj)                               :: block
-      LOGICAL, INTENT(IN), OPTIONAL                      :: summation
-      TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: scale
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_area', &
-         routineP = moduleN//':'//routineN
-
-      CALL dbcsr_put_block(matrix%matrix, row, col, block, &
-                           summation=summation, scale=scale)
-
-   END SUBROUTINE cp_dbcsr_put_block_area
 
 ! **************************************************************************************************
 !> \brief ...

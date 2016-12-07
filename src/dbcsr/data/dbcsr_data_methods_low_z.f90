@@ -19,6 +19,8 @@
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
+    IF(area%d%data_type /= dbcsr_type_complex_8) &
+       CPABORT("set_data_p_z: data-area has wrong type")
 
     area%d%c_dp => p
   END SUBROUTINE set_data_p_z
@@ -39,6 +41,9 @@
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
+
+    IF(area%d%data_type /= dbcsr_type_complex_8_2d) &
+       CPABORT("set_data_p_2d_z: data-area has wrong type")
 
     area%d%c2_dp => p
   END SUBROUTINE set_data_p_2d_z
@@ -75,6 +80,8 @@
        CPABORT("compiler borken")
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= dbcsr_type_complex_8) &
+          CPABORT("dbcsr_get_data_c_z: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%c_dp, 1)
           IF (PRESENT (lb)) l = lb
@@ -117,6 +124,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= dbcsr_type_complex_8) &
+          CPABORT("dbcsr_get_data_p_z: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%c_dp, 1)
           IF (PRESENT (lb)) l = lb
@@ -159,6 +168,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= dbcsr_type_complex_8_2d) &
+          CPABORT("dbcsr_get_data_p_2d_z: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%c2_dp)
           IF (PRESENT (lb)) l = lb
@@ -204,6 +215,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= dbcsr_type_complex_8) &
+          CPABORT("get_data_z: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%c_dp, 1)
           IF (PRESENT (lb)) l = lb
@@ -244,6 +257,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= dbcsr_type_complex_8_2d) &
+          CPABORT("get_data_2d_z: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%c2_dp)
           IF (PRESENT (lb)) l = lb

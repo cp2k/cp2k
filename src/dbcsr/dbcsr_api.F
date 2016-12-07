@@ -26,10 +26,13 @@ MODULE dbcsr_api
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_create_new, &
         csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
         csr_eqrow_floor_dist, csr_p_type, csr_print_sparsity, csr_type
-   USE dbcsr_data_methods,              ONLY: &
-        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-        dbcsr_get_data_p, dbcsr_scalar, dbcsr_scalar_fill_all, dbcsr_scalar_get_type, &
-        dbcsr_scalar_get_value, dbcsr_scalar_set_type, dbcsr_scalar_zero
+   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p,&
+                                              dbcsr_scalar,&
+                                              dbcsr_scalar_fill_all,&
+                                              dbcsr_scalar_get_type,&
+                                              dbcsr_scalar_get_value,&
+                                              dbcsr_scalar_set_type,&
+                                              dbcsr_scalar_zero
    USE dbcsr_dist_methods,              ONLY: &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_get_num_images_1d, dbcsr_distribution_has_col_clusters, &
@@ -80,12 +83,12 @@ MODULE dbcsr_api
                                               dbcsr_new_transposed,&
                                               dbcsr_replicate_all
    USE dbcsr_types,                     ONLY: &
-        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_func_artanh, dbcsr_func_dtanh, &
-        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_iterator, dbcsr_mp_obj, dbcsr_no_transpose, &
-        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
-        dbcsr_obj_type_p, dbcsr_scalar_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
-        dbcsr_type_complex_8, dbcsr_type_complex_default, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
+        dbcsr_distribution_obj, dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
+        dbcsr_func_tanh, dbcsr_iterator, dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
+        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_obj_type_p, &
+        dbcsr_scalar_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+        dbcsr_type_real_default, dbcsr_type_symmetric
    USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                               convert_sizes_to_offsets,&
                                               dbcsr_checksum,&
@@ -126,11 +129,6 @@ MODULE dbcsr_api
              dbcsr_create, &
              dbcsr_create_dist_block_cyclic, &
              dbcsr_create_dist_r_unrot, &
-             dbcsr_data_clear_pointer, &
-             dbcsr_data_init, &
-             dbcsr_data_new, &
-             dbcsr_data_obj, &
-             dbcsr_data_release, &
              dbcsr_desymmetrize_deep, &
              dbcsr_distribute, &
              dbcsr_distribution, &

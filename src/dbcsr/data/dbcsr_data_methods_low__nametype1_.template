@@ -19,6 +19,8 @@
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
+    IF(area%d%data_type /= [dkind1]) &
+       CPABORT("set_data_p_[nametype1]: data-area has wrong type")
 
     area%d%[base1]_[prec1] => p
   END SUBROUTINE set_data_p_[nametype1]
@@ -39,6 +41,9 @@
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
+
+    IF(area%d%data_type /= [dkind1]_2d) &
+       CPABORT("set_data_p_2d_[nametype1]: data-area has wrong type")
 
     area%d%[base1]2_[prec1] => p
   END SUBROUTINE set_data_p_2d_[nametype1]
@@ -75,6 +80,8 @@
        CPABORT("compiler borken")
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= [dkind1]) &
+          CPABORT("dbcsr_get_data_c_[nametype1]: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%[base1]_[prec1], 1)
           IF (PRESENT (lb)) l = lb
@@ -117,6 +124,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= [dkind1]) &
+          CPABORT("dbcsr_get_data_p_[nametype1]: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%[base1]_[prec1], 1)
           IF (PRESENT (lb)) l = lb
@@ -159,6 +168,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= [dkind1]_2d) &
+          CPABORT("dbcsr_get_data_p_2d_[nametype1]: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%[base1]2_[prec1])
           IF (PRESENT (lb)) l = lb
@@ -204,6 +215,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= [dkind1]) &
+          CPABORT("get_data_[nametype1]: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%[base1]_[prec1], 1)
           IF (PRESENT (lb)) l = lb
@@ -244,6 +257,8 @@
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
+       IF(area%d%data_type /= [dkind1]_2d) &
+          CPABORT("get_data_2d_[nametype1]: data-area has wrong type")
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%[base1]2_[prec1])
           IF (PRESENT (lb)) l = lb

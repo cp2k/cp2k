@@ -86,7 +86,7 @@
 
     LOGICAL                                  :: transposed
 
-    CALL dbcsr_iterator_next_block (iterator, row, column,&
+    CALL dbcsr_iterator_next_block (iterator%iter, row, column,&
        block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)
     IF(transposed)&
@@ -121,7 +121,7 @@
 
     LOGICAL                                   :: transposed
 
-    CALL dbcsr_iterator_next_block (iterator, row, column, block,&
+    CALL dbcsr_iterator_next_block (iterator%iter, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
     IF(transposed)&
        CPABORT("CP2K does not handle transposed blocks.")

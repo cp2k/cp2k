@@ -136,14 +136,14 @@
     a_col_blk_size => array_data (matrix_a%m%col_blk_size)
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)
     b_col_blk_size => array_data (matrix_b%m%col_blk_size)
-    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
-    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
-    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
-    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
-    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
-    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
-    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
-    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
+    IF(matrix_a%m%data_type==dbcsr_type_real_4)    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
+    IF(matrix_b%m%data_type==dbcsr_type_real_4)    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
+    IF(matrix_a%m%data_type==dbcsr_type_real_8)    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
+    IF(matrix_b%m%data_type==dbcsr_type_real_8)    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
+    IF(matrix_a%m%data_type==dbcsr_type_complex_4) CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
+    IF(matrix_b%m%data_type==dbcsr_type_complex_4) CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
+    IF(matrix_a%m%data_type==dbcsr_type_complex_8) CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
+    IF(matrix_b%m%data_type==dbcsr_type_complex_8) CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
 
     my_trans_a = 'T'
     IF(PRESENT(trans_a)) my_trans_a = trans_a
