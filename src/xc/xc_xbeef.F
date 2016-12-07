@@ -270,7 +270,7 @@ CONTAINS
             END IF
 
             DO i = 2, m-1 !LEGENDRE PART
-               e_leg(i) = 2.*(t)*e_leg(i-1)-e_leg(i-2)-((t)*e_leg(i-1)-e_leg(i-2))/(FLOAT(i))
+               e_leg(i) = 2.*(t)*e_leg(i-1)-e_leg(i-2)-((t)*e_leg(i-1)-e_leg(i-2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
                IF (ABS(grad_deriv) >= 1) THEN !first derivative
@@ -472,7 +472,7 @@ CONTAINS
             END IF
 
             DO i = 2, m-1 !LEGENDRE PART
-               e_leg(i) = 2.*(t)*e_leg(i-1)-e_leg(i-2)-((t)*e_leg(i-1)-e_leg(i-2))/(FLOAT(i))
+               e_leg(i) = 2.*(t)*e_leg(i-1)-e_leg(i-2)-((t)*e_leg(i-1)-e_leg(i-2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
                IF (ABS(grad_deriv) >= 1) THEN !first derivative

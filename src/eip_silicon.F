@@ -1224,7 +1224,7 @@ CONTAINS
 !$OMP BARRIER
 
 ! Each thread treats at most lot atoms
-        lot=INT(float(nat)/float(npr)+.999999999999e0_dp)
+        lot=INT(REAL(nat, KIND=dp)/REAL(npr, KIND=dp)+.999999999999e0_dp)
         iat1=iam*lot+1
         iat2=MIN((iam+1)*lot,nat)
 !       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
@@ -2388,7 +2388,7 @@ CONTAINS
 !$OMP BARRIER
 
 ! Each thread treats at most lot atoms
-        lot=INT(float(nat)/float(npr)+.999999999999e0_dp)
+        lot=INT(REAL(nat, KIND=dp)/REAL(npr, KIND=dp)+.999999999999e0_dp)
         iat1=iam*lot+1
         iat2=MIN((iam+1)*lot,nat)
 !       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam

@@ -1154,14 +1154,14 @@ CONTAINS
             group_grid_2_mepos = 0
             group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
             CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
-            part_ia = FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
-            part_RI = FLOAT(dimen_RI)/FLOAT(ngroup)
+            part_ia = REAL(dimen_ia, KIND=dp)/REAL(para_env_sub%num_pe, KIND=dp)
+            part_RI = REAL(dimen_RI, KIND=dp)/REAL(ngroup, KIND=dp)
 
             DO jjB = 1, ncol_local
                j_global = col_indices(jjB)
                ! check the group holding this element
                ! dirty way, if someone has a better idea ...
-               rec_pcol = INT(FLOAT(j_global-1)/part_RI)
+               rec_pcol = INT(REAL(j_global-1, KIND=dp)/part_RI)
                rec_pcol = MAX(0, rec_pcol)
                rec_pcol = MIN(rec_pcol, ngroup-1)
                DO
@@ -1178,7 +1178,7 @@ CONTAINS
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
                   ! check the process in the group holding this element
-                  rec_prow = INT(FLOAT(i_global-1)/part_ia)
+                  rec_prow = INT(REAL(i_global-1, KIND=dp)/part_ia)
                   rec_prow = MAX(0, rec_prow)
                   rec_prow = MIN(rec_prow, para_env_sub%num_pe-1)
                   DO

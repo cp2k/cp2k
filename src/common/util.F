@@ -214,9 +214,9 @@ CONTAINS
       INTEGER                                            :: nl, nu
       REAL(KIND=dp)                                      :: part
 
-      part = float(m)/float(n)
-      nl = NINT(float(me)*part)+1
-      nu = NINT(float(me+1)*part)
+      part = REAL(m, KIND=dp)/REAL(n, KIND=dp)
+      nl = NINT(REAL(me, KIND=dp)*part)+1
+      nu = NINT(REAL(me+1, KIND=dp)*part)
       nlim(1) = MAX(1, nl)
       nlim(2) = MIN(m, nu)
 

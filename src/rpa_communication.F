@@ -686,14 +686,14 @@ CONTAINS
       ! loop over local data of fm_ia and define the receiving map
       ALLOCATE (map_rec_size(0:para_env_sub%num_pe-1))
       map_rec_size = 0
-      part_ia = FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
+      part_ia = REAL(dimen_ia, KIND=dp)/REAL(para_env_sub%num_pe, KIND=dp)
 
       DO iiB = 1, nrow_local
          i_global = row_indices(iiB)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             iaia = (i_global-1)*virtual+j_global
-            proc_receive = INT(FLOAT(iaia-1)/part_ia)
+            proc_receive = INT(REAL(iaia-1, KIND=dp)/part_ia)
             proc_receive = MAX(0, proc_receive)
             proc_receive = MIN(proc_receive, para_env_sub%num_pe-1)
             DO

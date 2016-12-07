@@ -233,7 +233,7 @@
                       factorial = 1.0_dp
                       DO kk = 1, nkdamp_ij
                          xf = xf*dampa_ij*r
-                         factorial = factorial * float(kk)
+                         factorial = factorial * REAL(kk, KIND=dp)
                          dampsumfi = dampsumfi + (xf/factorial)
                       END DO
                       dampaexpi = dexp(-dampa_ij * r)
@@ -254,7 +254,7 @@
                       factorial = 1.0_dp
                       DO kk = 1, nkdamp_ji
                          xf = xf*dampa_ji*r
-                         factorial = factorial * float(kk)
+                         factorial = factorial * REAL(kk, KIND=dp)
                          dampsumfj = dampsumfj + (xf/factorial)
                       END DO
                       dampaexpj = dexp(-dampa_ji * r)
@@ -274,7 +274,7 @@
                       factorial = 1.0_dp
                       DO kk = 1, nkdamp_ij
                          xf = xf*dampa_ij*r
-                         factorial = factorial * float(kk)
+                         factorial = factorial * REAL(kk, KIND=dp)
                          dampsumfj = dampsumfj + (xf/factorial)
                       END DO
                       dampaexpj = dexp(-dampa_ij * r)
@@ -295,7 +295,7 @@
                       factorial = 1.0_dp
                       DO kk = 1, nkdamp_ji
                          xf = xf*dampa_ji*r
-                         factorial = factorial * float(kk)
+                         factorial = factorial * REAL(kk, KIND=dp)
                          dampsumfi = dampsumfi + (xf/factorial)
                       END DO
                       dampaexpi = dexp(-dampa_ji * r)

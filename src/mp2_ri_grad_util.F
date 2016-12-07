@@ -714,14 +714,14 @@ CONTAINS
       ! 2) loop over my local data of fm_mat and define a map for the proc from which rec data
       ALLOCATE (map_rec_size(0:para_env%num_pe-1))
       map_rec_size = 0
-      part_row = FLOAT(num_rows)/FLOAT(ngroup_row)
-      part_col = FLOAT(num_cols)/FLOAT(ngroup_col)
+      part_row = REAL(num_rows, KIND=dp)/REAL(ngroup_row, KIND=dp)
+      part_col = REAL(num_cols, KIND=dp)/REAL(ngroup_col, KIND=dp)
 
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          ! check the group holding this element
          ! dirty way, if someone has a better idea ...
-         rec_pcol = INT(FLOAT(j_global-1)/part_col)
+         rec_pcol = INT(REAL(j_global-1, KIND=dp)/part_col)
          rec_pcol = MAX(0, rec_pcol)
          rec_pcol = MIN(rec_pcol, ngroup_col-1)
          DO
@@ -734,7 +734,7 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             ! check the process in the group holding this element
-            rec_prow = INT(FLOAT(i_global-1)/part_row)
+            rec_prow = INT(REAL(i_global-1, KIND=dp)/part_row)
             rec_prow = MAX(0, rec_prow)
             rec_prow = MIN(rec_prow, ngroup_row-1)
             DO
@@ -1100,14 +1100,14 @@ CONTAINS
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE (map_send_size(0:para_env%num_pe-1))
       map_send_size = 0
-      part_row = FLOAT(num_rows)/FLOAT(ngroup_row)
-      part_col = FLOAT(num_cols)/FLOAT(ngroup_col)
+      part_row = REAL(num_rows, KIND=dp)/REAL(ngroup_row, KIND=dp)
+      part_col = REAL(num_cols, KIND=dp)/REAL(ngroup_col, KIND=dp)
 
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          ! check the group holding this element
          ! dirty way, if someone has a better idea ...
-         send_pcol = INT(FLOAT(j_global-1)/part_col)
+         send_pcol = INT(REAL(j_global-1, KIND=dp)/part_col)
          send_pcol = MAX(0, send_pcol)
          send_pcol = MIN(send_pcol, ngroup_col-1)
          DO
@@ -1120,7 +1120,7 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             ! check the process in the group holding this element
-            send_prow = INT(FLOAT(i_global-1)/part_row)
+            send_prow = INT(REAL(i_global-1, KIND=dp)/part_row)
             send_prow = MAX(0, send_prow)
             send_prow = MIN(send_prow, ngroup_row-1)
             DO
@@ -1219,7 +1219,7 @@ CONTAINS
          j_global = col_indices(jjB)
          ! check the group holding this element
          ! dirty way, if someone has a better idea ...
-         send_pcol = INT(FLOAT(j_global-1)/part_col)
+         send_pcol = INT(REAL(j_global-1, KIND=dp)/part_col)
          send_pcol = MAX(0, send_pcol)
          send_pcol = MIN(send_pcol, ngroup_col-1)
          DO
@@ -1232,7 +1232,7 @@ CONTAINS
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             ! check the process in the group holding this element
-            send_prow = INT(FLOAT(i_global-1)/part_row)
+            send_prow = INT(REAL(i_global-1, KIND=dp)/part_row)
             send_prow = MAX(0, send_prow)
             send_prow = MIN(send_prow, ngroup_row-1)
             DO
@@ -1490,14 +1490,14 @@ CONTAINS
       ! loop over local data of fm_ia and define the receiving map
       ALLOCATE (map_rec_size(0:para_env_sub%num_pe-1))
       map_rec_size = 0
-      part_ia = FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
+      part_ia = REAL(dimen_ia, KIND=dp)/REAL(para_env_sub%num_pe, KIND=dp)
 
       DO iiB = 1, nrow_local
          i_global = row_indices(iiB)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
             iaia = (i_global-1)*virtual+j_global
-            proc_receive = INT(FLOAT(iaia-1)/part_ia)
+            proc_receive = INT(REAL(iaia-1, KIND=dp)/part_ia)
             proc_receive = MAX(0, proc_receive)
             proc_receive = MIN(proc_receive, para_env_sub%num_pe-1)
             DO

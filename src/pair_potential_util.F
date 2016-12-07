@@ -92,13 +92,13 @@ CONTAINS
             dampexp = dexp(-damp*r)
             DO i = 1, 6
                xf = xf*damp*r
-               factorial = factorial*float(i)
+               factorial = factorial*REAL(i, KIND=dp)
                dampsum = dampsum+xf/factorial
             ENDDO
             f6 = 1.0_dp-dampexp*dampsum
             DO i = 7, 8
                xf = xf*damp*r
-               factorial = factorial*float(i)
+               factorial = factorial*REAL(i, KIND=dp)
                dampsum = dampsum+xf/factorial
             ENDDO
             f8 = 1.0_dp-dampexp*dampsum
