@@ -445,21 +445,21 @@ MODULE dbcsr_types
       INTEGER                                      :: serial_number = -1
       LOGICAL                                      :: valid = .FALSE.
       CHARACTER(LEN=default_string_length)         :: name = ""
-      TYPE(dbcsr_data_obj)                         :: data_area
+      TYPE(dbcsr_data_obj)                         :: data_area = dbcsr_data_obj()
       INTEGER, DIMENSION(:), POINTER               :: index => Null()
       INTEGER, DIMENSION(:), POINTER               :: row_p => Null()
       INTEGER, DIMENSION(:), POINTER               :: col_i => Null()
       INTEGER, DIMENSION(:), POINTER               :: blk_p => Null()
       INTEGER, DIMENSION(:), POINTER               :: thr_c => Null()
       INTEGER, DIMENSION(:), POINTER               :: coo_l => Null()
-      TYPE(array_i1d_obj)                          :: row_blk_size
-      TYPE(array_i1d_obj)                          :: col_blk_size
-      TYPE(array_i1d_obj)                          :: row_blk_offset
-      TYPE(array_i1d_obj)                          :: col_blk_offset
-      TYPE(array_i1d_obj)                          :: local_rows
-      TYPE(array_i1d_obj)                          :: global_rows
-      TYPE(array_i1d_obj)                          :: local_cols
-      TYPE(array_i1d_obj)                          :: global_cols
+      TYPE(array_i1d_obj)                          :: row_blk_size = array_i1d_obj()
+      TYPE(array_i1d_obj)                          :: col_blk_size = array_i1d_obj()
+      TYPE(array_i1d_obj)                          :: row_blk_offset = array_i1d_obj()
+      TYPE(array_i1d_obj)                          :: col_blk_offset = array_i1d_obj()
+      TYPE(array_i1d_obj)                          :: local_rows = array_i1d_obj()
+      TYPE(array_i1d_obj)                          :: global_rows = array_i1d_obj()
+      TYPE(array_i1d_obj)                          :: local_cols = array_i1d_obj()
+      TYPE(array_i1d_obj)                          :: global_cols = array_i1d_obj()
       LOGICAL                                      :: has_local_rows = .FALSE.
       LOGICAL                                      :: has_global_rows = .FALSE.
       LOGICAL                                      :: has_local_cols = .FALSE.
@@ -486,11 +486,11 @@ MODULE dbcsr_types
       LOGICAL                                      :: bcsc = .FALSE.
       LOGICAL                                      :: local_indexing = .FALSE.
       LOGICAL                                      :: list_indexing = .FALSE.
-      TYPE(dbcsr_memtype_type)                     :: data_memory_type
-      TYPE(dbcsr_memtype_type)                     :: index_memory_type
-      TYPE(dbcsr_block_buffer_obj)                 :: buffers
+      TYPE(dbcsr_memtype_type)                     :: data_memory_type = dbcsr_memtype_type()
+      TYPE(dbcsr_memtype_type)                     :: index_memory_type = dbcsr_memtype_type()
+      TYPE(dbcsr_block_buffer_obj)                 :: buffers = dbcsr_block_buffer_obj()
       TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms => Null()
-      TYPE(dbcsr_distribution_obj)                 :: dist
+      TYPE(dbcsr_distribution_obj)                 :: dist = dbcsr_distribution_obj()
       INTEGER                                      :: refcount = 0
       LOGICAL                                      :: work_mutable = .FALSE.
    END TYPE dbcsr_type
@@ -573,7 +573,7 @@ MODULE dbcsr_types
 !> \var m  The DBCSR array.
 ! **************************************************************************************************
    TYPE dbcsr_obj
-      TYPE(dbcsr_type) :: m
+      TYPE(dbcsr_type) :: m = dbcsr_type()
    END TYPE dbcsr_obj
 
 ! **************************************************************************************************
