@@ -59,10 +59,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: a1, a2, alpha, an, beta, eps_fun, fa1, &
                                                             fa2, fnnew, fnold, fval, grad_norm
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_grad
-      TYPE(cp_dbcsr_type)                                :: amat, cgmat, tmat
+      TYPE(cp_dbcsr_type)                                :: amat, binv, cgmat
       TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
-
-!     TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
 
       CALL timeset(routineN, handle)
 
@@ -70,11 +68,11 @@ CONTAINS
 
       nspin = SIZE(mao_coef, 1)
 
-!     IF (iw > 0) THEN
-!        WRITE (iw, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
-!        WRITE (UNIT=iw, FMT="(T37,A)") "MAO BASIS"
-!        WRITE (iw, '(T2,A)') '!-----------------------------------------------------------------------------!'
-!     END IF
+      IF (iw > 0) THEN
+         WRITE (iw, '(/,T2,A)') '!-----------------------------------------------------------------------------!'
+         WRITE (UNIT=iw, FMT="(T37,A)") "MAO BASIS"
+         WRITE (iw, '(T2,A)') '!-----------------------------------------------------------------------------!'
+      END IF
 
       ! initialize MAO coeficients from diagonal blocks of the Q matrix
       DO ispin = 1, nspin
@@ -85,18 +83,18 @@ CONTAINS
       IF (max_iter < 1) THEN
          ! projection only
          CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-         CALL cp_dbcsr_init(tmat)
-         CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+         CALL cp_dbcsr_init(binv)
+         CALL cp_dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                               row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
          DO ispin = 1, nspin
             CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
-                              matrix_smm(1)%matrix, tmat, .FALSE.)
+                              matrix_smm(1)%matrix, binv, .FALSE.)
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(T2,A,T31,A,I2,T56,A,F12.8)") &
                   "MAO Projection", "Spin:", ispin, "Completeness:", fval/electra(ispin)
             END IF
          END DO
-         CALL cp_dbcsr_release(tmat)
+         CALL cp_dbcsr_release(binv)
       ELSE
          ! optimize MAOs
          NULLIFY (mao_grad)
@@ -107,19 +105,19 @@ CONTAINS
             CALL cp_dbcsr_create(matrix=mao_grad(ispin)%matrix, name="MAO_GRAD", template=mao_coef(1)%matrix)
             CALL cp_dbcsr_reserve_diag_blocks(matrix=mao_grad(ispin)%matrix)
          END DO
-         alpha = 0.25_dp
-         beta = 0.0_dp
          CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-         CALL cp_dbcsr_init(tmat)
-         CALL cp_dbcsr_create(tmat, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+         CALL cp_dbcsr_init(binv)
+         CALL cp_dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                               row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
          CALL cp_dbcsr_init(cgmat)
          CALL cp_dbcsr_create(cgmat, template=mao_grad(1)%matrix)
          CALL cp_dbcsr_init(amat)
          CALL cp_dbcsr_create(amat, template=mao_coef(1)%matrix)
          DO ispin = 1, nspin
+            alpha = 0.25_dp
+            beta = 0.0_dp
             CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
-                                       matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .FALSE.)
+                                       matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .FALSE.)
             CALL cp_dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
             CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
             fnold = mao_scalar_product(mao_grad(ispin)%matrix, mao_grad(ispin)%matrix)
@@ -134,7 +132,7 @@ CONTAINS
                CALL cp_dbcsr_add(mao_coef(ispin)%matrix, cgmat, 1.0_dp, alpha)
                CALL mao_orthogonalization(mao_coef(ispin)%matrix, matrix_smm(1)%matrix)
                CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
-                                          matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+                                          matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
                CALL cp_dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
                IF (iw > 0) THEN
                   WRITE (UNIT=iw, FMT="(T2,A,i8,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
@@ -148,11 +146,11 @@ CONTAINS
                CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
                CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, 0.5_dp*alpha)
                CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
-               CALL mao_function(amat, fa1, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               CALL mao_function(amat, fa1, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
                CALL cp_dbcsr_copy(amat, mao_coef(ispin)%matrix)
                CALL cp_dbcsr_add(amat, cgmat, 1.0_dp, alpha)
                CALL mao_orthogonalization(amat, matrix_smm(1)%matrix)
-               CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, tmat, .TRUE.)
+               CALL mao_function(amat, fa2, matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
                a2 = (4._dp*fa1-fa2-3._dp*fval)/alpha
                a1 = (fa2-fval-a2*alpha)/(alpha*alpha)
                IF (ABS(a1) > 1.e-14_dp) THEN
@@ -169,7 +167,7 @@ CONTAINS
                END IF
             END DO
          END DO
-         CALL cp_dbcsr_release(tmat)
+         CALL cp_dbcsr_release(binv)
          CALL cp_dbcsr_release(cgmat)
          CALL cp_dbcsr_release(amat)
          IF (ASSOCIATED(mao_grad)) CALL cp_dbcsr_deallocate_matrix_set(mao_grad)
