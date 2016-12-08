@@ -122,14 +122,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigval, kpptr
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral, kspecial, xkp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
       TYPE(section_vals_type), POINTER                   :: bs_input, kpset
 
       bs_input => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%BAND_STRUCTURE")
@@ -138,8 +134,7 @@ CONTAINS
          CALL section_vals_val_get(bs_input, "FILE_NAME", c_val=filename)
          CALL section_vals_val_get(bs_input, "ADDED_MOS", i_val=nadd)
          unit_nr = cp_logger_get_default_io_unit()
-         CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
-         CALL get_qs_env(qs_env, sab_kp=sab_nl, dft_control=dft_control)
+         CALL get_qs_env(qs_env=qs_env, para_env=para_env)
          CALL get_qs_env(qs_env, cell=cell)
          kpset => section_vals_get_subs_vals(bs_input, "KPOINT_SET")
          CALL section_vals_get(kpset, n_repetition=n_rep)
@@ -219,7 +214,8 @@ CONTAINS
             CALL calculate_kp_orbitals(qs_env, kpoint, "GENERAL", nadd, kpgeneral=kpgeneral)
             DEALLOCATE (kpgeneral)
             !
-            nspins = SIZE(matrix_ks, 1)
+            CALL get_qs_env(qs_env, dft_control=dft_control)
+            nspins = dft_control%nspins
             kp => kpoint%kp_env(1)%kpoint_env
             CALL get_mo_set(kp%mos(1, 1)%mo_set, nmo=nmo)
             ALLOCATE (eigval(nmo))
@@ -335,13 +331,13 @@ CONTAINS
          CALL get_qs_env(qs_env, cell=cell)
          CALL get_cell(cell, h_inv=h_inv)
          i = 0
-         DO ix = 0, mp_grid(1)-1
-            DO iy = 0, mp_grid(2)-1
-               DO iz = 0, mp_grid(3)-1
+         DO ix = 1, mp_grid(1)
+            DO iy = 1, mp_grid(2)
+               DO iz = 1, mp_grid(3)
                   i = i+1
-                  kpt_latt(1) = REAL(ix, KIND=dp)/REAL(mp_grid(1), KIND=dp)
-                  kpt_latt(2) = REAL(iy, KIND=dp)/REAL(mp_grid(2), KIND=dp)
-                  kpt_latt(3) = REAL(iz, KIND=dp)/REAL(mp_grid(3), KIND=dp)
+                  kpt_latt(1) = REAL(2*ix-mp_grid(1)-1, KIND=dp)/(2._dp*REAL(mp_grid(1), KIND=dp))
+                  kpt_latt(2) = REAL(2*iy-mp_grid(2)-1, KIND=dp)/(2._dp*REAL(mp_grid(2), KIND=dp))
+                  kpt_latt(3) = REAL(2*iz-mp_grid(3)-1, KIND=dp)/(2._dp*REAL(mp_grid(3), KIND=dp))
                   kpoint%xkp(1:3, i) = MATMUL(TRANSPOSE(h_inv), kpt_latt(:))
                END DO
             END DO
