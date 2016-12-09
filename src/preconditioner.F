@@ -84,7 +84,6 @@ CONTAINS
 !> \param matrix_t ...
 !> \param mo_set ...
 !> \param energy_gap ...
-!> \param mixed_precision ...
 !> \param convert_precond_to_dbcsr ...
 !> \param chol_type ...
 !> \par History
@@ -93,7 +92,7 @@ CONTAINS
 !>              sparse approximate inverse at rev 14341 [Florian Schiffmann]
 ! **************************************************************************************************
    SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
-                                  matrix_t, mo_set, energy_gap, mixed_precision, convert_precond_to_dbcsr, chol_type)
+                                  matrix_t, mo_set, energy_gap, convert_precond_to_dbcsr, chol_type)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       INTEGER, INTENT(IN)                                :: precon_type, solver_type
@@ -101,7 +100,7 @@ CONTAINS
       TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s, matrix_t
       TYPE(mo_set_type), POINTER                         :: mo_set
       REAL(KIND=dp)                                      :: energy_gap
-      LOGICAL, INTENT(IN), OPTIONAL                      :: mixed_precision, convert_precond_to_dbcsr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: convert_precond_to_dbcsr
       INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner', &
@@ -109,7 +108,6 @@ CONTAINS
 
       INTEGER                                            :: handle, k, my_solver_type
       LOGICAL                                            :: my_convert_precond_to_dbcsr, &
-                                                            my_mixed_precision, &
                                                             needs_full_spectrum, needs_homo, &
                                                             use_mo_coeff_b
       REAL(KIND=dp)                                      :: energy_homo
@@ -127,24 +125,11 @@ CONTAINS
       my_convert_precond_to_dbcsr = .FALSE.
       IF (PRESENT(convert_precond_to_dbcsr)) my_convert_precond_to_dbcsr = convert_precond_to_dbcsr
 
-      ! Check whether we perform everything in single precision
-      my_mixed_precision = .FALSE.
-      IF (PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
-      IF (my_mixed_precision) THEN
-         SELECT CASE (precon_type)
-         CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse)
-            !supported
-         CASE DEFAULT
-            CPABORT("This precond with mixed precision is not supported yet")
-         END SELECT
-      ENDIF
-
       ! Thanks to the mess with the matrices we need to make sure in this case that the
       ! Previous inverse is properly stored as a sparse matrix, fm gets deallocated here
       ! if it wasn't anyway
       IF (preconditioner_env%solver == ot_precond_solver_update) &
-         CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%dbcsr_matrix, &
-                                   matrix_h, my_mixed_precision)
+         CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%dbcsr_matrix, matrix_h)
 
       needs_full_spectrum = .FALSE.
       needs_homo = .FALSE.
@@ -209,18 +194,16 @@ CONTAINS
                                       energy_homo, eigenvalues_ot, energy_gap, &
                                       my_solver_type)
 
-      CALL solve_preconditioner(my_solver_type, preconditioner_env, matrix_s, matrix_h, my_mixed_precision)
+      CALL solve_preconditioner(my_solver_type, preconditioner_env, matrix_s, matrix_h)
 
       ! Here comes more matrix mess, make sure to output the correct matrix format,
       ! A bit pointless to convert the cholesky factorized version as it doesn't work in
       ! dbcsr form and will crash later,...
       IF (my_convert_precond_to_dbcsr) THEN
-         CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%dbcsr_matrix, &
-                                   matrix_h, my_mixed_precision)
+         CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%dbcsr_matrix, matrix_h)
       ELSE
          CALL transfer_dbcsr_to_fm(preconditioner_env%dbcsr_matrix, preconditioner_env%fm, &
-                                   preconditioner_env%para_env, preconditioner_env%ctxt, &
-                                   my_mixed_precision)
+                                   preconditioner_env%para_env, preconditioner_env%ctxt)
       ENDIF
 
       IF (needs_full_spectrum) THEN
@@ -300,13 +283,12 @@ CONTAINS
 !> \param energy_gap ...
 !> \param nspins ...
 !> \param has_unit_metric ...
-!> \param mixed_precision ...
 !> \param convert_to_dbcsr ...
 !> \param chol_type ...
 ! **************************************************************************************************
    SUBROUTINE prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, &
                                      ot_preconditioner, prec_type, solver_type, &
-                                     energy_gap, nspins, has_unit_metric, mixed_precision, &
+                                     energy_gap, nspins, has_unit_metric, &
                                      convert_to_dbcsr, chol_type)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -316,8 +298,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: prec_type, solver_type
       REAL(dp), INTENT(IN)                               :: energy_gap
       INTEGER, INTENT(IN)                                :: nspins
-      LOGICAL, INTENT(IN), OPTIONAL                      :: has_unit_metric, mixed_precision, &
-                                                            convert_to_dbcsr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: has_unit_metric, convert_to_dbcsr
       INTEGER, INTENT(IN), OPTIONAL                      :: chol_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_preconditioner', &
@@ -326,8 +307,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: msg
       INTEGER                                            :: handle, icall, ispin, n_loops
       LOGICAL                                            :: do_co_rotate, my_convert_to_dbcsr, &
-                                                            my_has_unit_metric, &
-                                                            my_mixed_precision, use_mo_coeff_b
+                                                            my_has_unit_metric, use_mo_coeff_b
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: kinetic
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_t, mo_coeff_b
@@ -339,8 +319,6 @@ CONTAINS
       NULLIFY (matrix_t, mo_coeff_b, mo_coeff, kinetic, dft_control, para_env, blacs_env)
       my_has_unit_metric = .FALSE.
       IF (PRESENT(has_unit_metric)) my_has_unit_metric = has_unit_metric
-      my_mixed_precision = .FALSE.
-      IF (PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
       my_convert_to_dbcsr = .TRUE.
       IF (PRESENT(convert_to_dbcsr)) my_convert_to_dbcsr = convert_to_dbcsr
 
@@ -423,7 +401,6 @@ CONTAINS
                                         matrix_t=matrix_t, &
                                         mo_set=mos(icall)%mo_set, &
                                         energy_gap=energy_gap, &
-                                        mixed_precision=my_mixed_precision, &
                                         convert_precond_to_dbcsr=my_convert_to_dbcsr, chol_type=chol_type)
             END IF
          END DO

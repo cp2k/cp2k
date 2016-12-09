@@ -662,16 +662,12 @@ CONTAINS
             ELSE
                orthogonality_metric => matrix_s(1)%matrix
             ENDIF
-            IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
-               scf_env%qs_ot_env(1)%settings%mixed_precision = .FALSE.
-            END IF
 
             CALL prepare_preconditioner(qs_env, mos, matrix_ks, matrix_s, scf_env%ot_preconditioner, &
                                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                                         scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                                         scf_env%qs_ot_env(1)%settings%energy_gap, dft_control%nspins, &
                                         has_unit_metric=has_unit_metric, &
-                                        mixed_precision=scf_env%qs_ot_env(1)%settings%mixed_precision, &
                                         chol_type=scf_env%qs_ot_env(1)%settings%cholesky_type)
 
             CALL ot_scf_init(mo_array=mos, matrix_s=orthogonality_metric, &

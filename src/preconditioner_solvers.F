@@ -23,7 +23,7 @@ MODULE preconditioner_solvers
         cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
         cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init_p, cp_dbcsr_p_type, &
         cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_4, dbcsr_type_real_default
+        dbcsr_type_real_8
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
@@ -62,15 +62,13 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_s ...
 !> \param matrix_h ...
-!> \param my_mixed_precision ...
 ! **************************************************************************************************
    SUBROUTINE solve_preconditioner(my_solver_type, preconditioner_env, matrix_s, &
-                                   matrix_h, my_mixed_precision)
+                                   matrix_h)
       INTEGER                                            :: my_solver_type
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
-      LOGICAL                                            :: my_mixed_precision
 
       CHARACTER(len=*), PARAMETER :: routineN = 'solve_preconditioner', &
          routineP = moduleN//':'//routineN
@@ -84,12 +82,12 @@ CONTAINS
          !
          ! compute the full inverse
          preconditioner_env%solver = ot_precond_solver_inv_chol
-         CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision)
+         CALL make_full_inverse_cholesky(preconditioner_env, matrix_s)
       CASE (ot_precond_solver_direct)
          !
          ! prepare for the direct solver
          preconditioner_env%solver = ot_precond_solver_direct
-         CALL make_full_fact_cholesky(preconditioner_env, matrix_s, my_mixed_precision)
+         CALL make_full_fact_cholesky(preconditioner_env, matrix_s)
       CASE (ot_precond_solver_update)
          !
          ! uses an update of the full inverse (needs to be computed the first time)
@@ -105,10 +103,10 @@ CONTAINS
          ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
          IF (preconditioner_env%solver .NE. ot_precond_solver_update .AND. occ_matrix > 0.5_dp) THEN
             preconditioner_env%solver = ot_precond_solver_update
-            CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision)
+            CALL make_full_inverse_cholesky(preconditioner_env, matrix_s)
          ELSE
             preconditioner_env%solver = ot_precond_solver_update
-            CALL make_inverse_update(preconditioner_env, matrix_h, my_mixed_precision)
+            CALL make_inverse_update(preconditioner_env, matrix_h)
          END IF
       CASE (ot_precond_solver_default)
          preconditioner_env%solver = ot_precond_solver_default
@@ -123,13 +121,11 @@ CONTAINS
 !> \brief Compute the inverse using cholseky factorization
 !> \param preconditioner_env ...
 !> \param matrix_s ...
-!> \param mixed_precision ...
 ! **************************************************************************************************
-   SUBROUTINE make_full_inverse_cholesky(preconditioner_env, matrix_s, mixed_precision)
+   SUBROUTINE make_full_inverse_cholesky(preconditioner_env, matrix_s)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
-      LOGICAL, INTENT(IN)                                :: mixed_precision
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
          routineP = moduleN//':'//routineN
@@ -142,13 +138,12 @@ CONTAINS
       ! Maybe we will get a sparse Cholesky at a given point then this can go,
       ! if stuff was stored in fm anyway this simple returns
       CALL transfer_dbcsr_to_fm(preconditioner_env%sparse_matrix, preconditioner_env%fm, &
-                                preconditioner_env%para_env, preconditioner_env%ctxt, &
-                                mixed_precision)
+                                preconditioner_env%para_env, preconditioner_env%ctxt)
       fm => preconditioner_env%fm
 
       NULLIFY (fm_work)
 
-      CALL cp_fm_create(fm_work, fm%matrix_struct, name="fm_work", use_sp=mixed_precision)
+      CALL cp_fm_create(fm_work, fm%matrix_struct, name="fm_work")
       !
       ! compute the inverse of SPD matrix fm using the Cholesky factorization
       CALL cp_fm_cholesky_decompose(fm, info_out=info)
@@ -179,13 +174,11 @@ CONTAINS
 !>        system on the fly
 !> \param preconditioner_env ...
 !> \param matrix_s ...
-!> \param mixed_precision ...
 ! **************************************************************************************************
-   SUBROUTINE make_full_fact_cholesky(preconditioner_env, matrix_s, mixed_precision)
+   SUBROUTINE make_full_fact_cholesky(preconditioner_env, matrix_s)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
-      LOGICAL, INTENT(IN)                                :: mixed_precision
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
          routineP = moduleN//':'//routineN
@@ -198,8 +191,7 @@ CONTAINS
       ! Maybe we will get a sparse Cholesky at a given point then this can go,
       ! if stuff was stored in fm anyway this simple returns
       CALL transfer_dbcsr_to_fm(preconditioner_env%sparse_matrix, preconditioner_env%fm, &
-                                preconditioner_env%para_env, preconditioner_env%ctxt, &
-                                mixed_precision)
+                                preconditioner_env%para_env, preconditioner_env%ctxt)
 
       fm => preconditioner_env%fm
       !
@@ -226,12 +218,10 @@ CONTAINS
 !> \brief computes an approximate inverse using Hotelling iterations
 !> \param preconditioner_env ...
 !> \param matrix_h as S is not always present this is a safe template for the transfer
-!> \param mixed_precision ...
 ! **************************************************************************************************
-   SUBROUTINE make_inverse_update(preconditioner_env, matrix_h, mixed_precision)
+   SUBROUTINE make_inverse_update(preconditioner_env, matrix_h)
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
-      LOGICAL, INTENT(IN)                                :: mixed_precision
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_inverse_update', &
          routineP = moduleN//':'//routineN
@@ -249,8 +239,7 @@ CONTAINS
       CALL cite_reference(Schiffmann2015)
 
       ! Maybe I gonna add a fm Hotelling, ... for now the same as above make sure we are dbcsr
-      CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%sparse_matrix, &
-                                matrix_h, mixed_precision)
+      CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%sparse_matrix, matrix_h)
       IF (.NOT. ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
          use_guess = .FALSE.
          CALL cp_dbcsr_init_p(preconditioner_env%dbcsr_matrix)
@@ -313,18 +302,16 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE estimate_cond_num
 
-!   ***************************************************************************
+! **************************************************************************************************
 !> \brief transfers a full matrix to a dbcsr
 !> \param fm_matrix a full matrix gets deallocated in the end
 !> \param dbcsr_matrix a dbcsr matrix, gets create from a template
 !> \param template_mat the template which is used for the structure
-!> \param mixed_precision  whether to use single or double precision
 ! **************************************************************************************************
-   SUBROUTINE transfer_fm_to_dbcsr(fm_matrix, dbcsr_matrix, template_mat, mixed_precision)
+   SUBROUTINE transfer_fm_to_dbcsr(fm_matrix, dbcsr_matrix, template_mat)
 
       TYPE(cp_fm_type), POINTER                          :: fm_matrix
       TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_matrix, template_mat
-      LOGICAL                                            :: mixed_precision
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transfer_fm_to_dbcsr', &
          routineP = moduleN//':'//routineN
@@ -335,17 +322,10 @@ CONTAINS
       IF (ASSOCIATED(fm_matrix)) THEN
          IF (.NOT. ASSOCIATED(dbcsr_matrix)) THEN
             CALL cp_dbcsr_init_p(dbcsr_matrix)
-            IF (mixed_precision) THEN
-               CALL cp_dbcsr_create(dbcsr_matrix, "transfered_matrix", &
-                                    cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
-                                    cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
-                                    nze=0, data_type=dbcsr_type_real_4)
-            ELSE
-               CALL cp_dbcsr_create(dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
-                                    cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
-                                    cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
-                                    nze=0, data_type=dbcsr_type_real_default)
-            ENDIF
+            CALL cp_dbcsr_create(dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
+                                 cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
+                                 cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
+                                 nze=0, data_type=dbcsr_type_real_8)
          ENDIF
 !       CALL cp_fm_create(fm_tmp, matrix_struct=fm_matrix%matrix_struct)
 !       CALL cp_fm_upper_to_full(fm_matrix, fm_tmp)
@@ -364,15 +344,13 @@ CONTAINS
 !> \param fm_matrix a full matrix gets created if not yet done
 !> \param para_env the para_env
 !> \param context the blacs context
-!> \param mixed_precision  whether to use single or double precision
 ! **************************************************************************************************
-   SUBROUTINE transfer_dbcsr_to_fm(dbcsr_matrix, fm_matrix, para_env, context, mixed_precision)
+   SUBROUTINE transfer_dbcsr_to_fm(dbcsr_matrix, fm_matrix, para_env, context)
 
       TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_matrix
       TYPE(cp_fm_type), POINTER                          :: fm_matrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      LOGICAL                                            :: mixed_precision
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transfer_dbcsr_to_fm', &
          routineP = moduleN//':'//routineN
@@ -391,7 +369,7 @@ CONTAINS
          CALL cp_dbcsr_get_info(dbcsr_matrix, nfullrows_total=n)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                   context=context, para_env=para_env)
-         CALL cp_fm_create(fm_matrix, fm_struct_tmp, use_sp=mixed_precision)
+         CALL cp_fm_create(fm_matrix, fm_struct_tmp)
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          CALL copy_dbcsr_to_fm(dbcsr_matrix, fm_matrix)

@@ -5989,16 +5989,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MIXED_PRECISION", &
-                          description="Uses a mixed precision algorithm."// &
-                          "With a well behaved basis set (i.e. condition number less than 1/eps_sp)"// &
-                          "it provides double precision accuracy results and up to a 2 fold speedup for building and "// &
-                          "applying the preconditioner.", &
-                          usage="MIXED_PRECISION T", &
-                          default_l_val=.FALSE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, name="ORTHO_IRAC", &
                           description="The orthogonality method.", &
                           usage="ORTHO_IRAC POLY", &

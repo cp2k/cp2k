@@ -75,7 +75,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ncoef
-      LOGICAL                                            :: mixed_precision
 
       qs_ot_env%preconditioner => preconditioner
       qs_ot_env%os_valid = .FALSE.
@@ -83,8 +82,6 @@ CONTAINS
          CALL cp_dbcsr_init_p(qs_ot_env%matrix_psc0)
          CALL cp_dbcsr_copy(qs_ot_env%matrix_psc0, qs_ot_env%matrix_sc0, 'matrix_psc0')
       ENDIF
-
-      mixed_precision = qs_ot_env%settings%mixed_precision
 
       IF (.NOT. qs_ot_env%use_dx) THEN
          qs_ot_env%use_dx = .TRUE.
@@ -765,13 +762,11 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, k, n
-      LOGICAL                                            :: mixed_precision
       REAL(dp)                                           :: occ_in, occ_out
       TYPE(cp_dbcsr_type), POINTER                       :: C, CHC, G, G_dp, HC, SC
 
       CALL timeset(routineN, handle)
 
-      mixed_precision = qs_ot_env%settings%mixed_precision
       CALL cp_dbcsr_get_info(matrix_x, nfullrows_total=n, nfullcols_total=k)
       !
       C => matrix_x ! NBsf*NOcc
@@ -781,50 +776,26 @@ CONTAINS
       CHC => qs_ot_env%buf1_k_k_sym ! buffer
       G_dp => qs_ot_env%buf1_n_k_dp ! buffer dp
 
-      IF (mixed_precision) THEN
-         ! C'*(H*C)
-         CALL cp_dbcsr_multiply('T', 'N', 1.0_dp, C, HC, 0.0_dp, CHC)
-         IF (qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) THEN
-            occ_in = cp_dbcsr_get_occupation(chc)
-            CALL cp_dbcsr_filter(chc, qs_ot_env%settings%eps_irac_filter_matrix)
-            occ_out = cp_dbcsr_get_occupation(chc)
-            IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(CHC): occ_in', occ_in, ' occ_out', occ_out
-         ENDIF
-         ! (S*C)*(C'*H*C)
-         CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, SC, CHC, 0.0_dp, G_dp)
-         IF (qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) THEN
-            occ_in = cp_dbcsr_get_occupation(g_dp)
-            CALL cp_dbcsr_filter(g_dp, qs_ot_env%settings%eps_irac_filter_matrix)
-            occ_out = cp_dbcsr_get_occupation(g_dp)
-            IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(G_dp): occ_in', occ_in, ' occ_out', occ_out
-         ENDIF
-         ! G = 2*(1-S*C*C')*H*C
-         CALL cp_dbcsr_add(G_dp, HC, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
-         CALL cp_dbcsr_copy(G, G_dp)
-      ELSE
-         ! C'*(H*C)
-         CALL cp_dbcsr_multiply('T', 'N', 1.0_dp, C, HC, 0.0_dp, CHC)
-         IF (qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) THEN
-            occ_in = cp_dbcsr_get_occupation(chc)
-            CALL cp_dbcsr_filter(chc, qs_ot_env%settings%eps_irac_filter_matrix)
-            occ_out = cp_dbcsr_get_occupation(chc)
-            IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(CHC): occ_in', occ_in, ' occ_out', occ_out
-         ENDIF
-         ! (S*C)*(C'*H*C)
-         CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, SC, CHC, 0.0_dp, G)
-         IF (qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) THEN
-            occ_in = cp_dbcsr_get_occupation(g)
-            CALL cp_dbcsr_filter(g, qs_ot_env%settings%eps_irac_filter_matrix)
-            occ_out = cp_dbcsr_get_occupation(g)
-            IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
-               WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(G): occ_in', occ_in, ' occ_out', occ_out
-         ENDIF
-         ! G = 2*(1-S*C*C')*H*C
-         CALL cp_dbcsr_add(G, HC, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+      ! C'*(H*C)
+      CALL cp_dbcsr_multiply('T', 'N', 1.0_dp, C, HC, 0.0_dp, CHC)
+      IF (qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) THEN
+         occ_in = cp_dbcsr_get_occupation(chc)
+         CALL cp_dbcsr_filter(chc, qs_ot_env%settings%eps_irac_filter_matrix)
+         occ_out = cp_dbcsr_get_occupation(chc)
+         IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
+            WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(CHC): occ_in', occ_in, ' occ_out', occ_out
       ENDIF
+      ! (S*C)*(C'*H*C)
+      CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, SC, CHC, 0.0_dp, G)
+      IF (qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) THEN
+         occ_in = cp_dbcsr_get_occupation(g)
+         CALL cp_dbcsr_filter(g, qs_ot_env%settings%eps_irac_filter_matrix)
+         occ_out = cp_dbcsr_get_occupation(g)
+         IF (output_unit > 0 .AND. qs_ot_env%settings%eps_irac_filter_matrix .GT. 0.0_dp) &
+            WRITE (output_unit, '(2(A,F8.5))') routinen//' filter(G): occ_in', occ_in, ' occ_out', occ_out
+      ENDIF
+      ! G = 2*(1-S*C*C')*H*C
+      CALL cp_dbcsr_add(G, HC, alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
       !
       CALL timestop(handle)
    END SUBROUTINE qs_ot_get_derivative_ref

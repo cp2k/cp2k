@@ -20,8 +20,7 @@ MODULE qs_ot_types
    USE cp_dbcsr_interface,              ONLY: &
         cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init_p, &
         cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-        dbcsr_type_real_default
+        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
@@ -83,7 +82,6 @@ MODULE qs_ot_types
       REAL(KIND=dp)   :: eps_irac_switch
       LOGICAL           :: on_the_fly_loc
       CHARACTER(LEN=4)  :: ortho_irac
-      LOGICAL           :: mixed_precision
       LOGICAL           :: occupation_preconditioner, add_nondiag_energy
       REAL(KIND=dp)   :: nondiag_energy_strength
       REAL(KIND=dp)   :: broyden_beta, broyden_gamma, broyden_sigma
@@ -227,7 +225,6 @@ CONTAINS
       settings%gold_target = 0.01_dp
       settings%do_rotation = .FALSE.
       settings%do_ener = .FALSE.
-      settings%mixed_precision = .FALSE.
       settings%irac_degree = 4
       settings%max_irac = 50
       settings%eps_irac = 1.0E-10_dp
@@ -304,9 +301,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_allocate', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i, k, m_diis, my_ortho_k, n, ncoef, &
-                                                            special_data_type
-      LOGICAL                                            :: mixed_precision
+      INTEGER                                            :: i, k, m_diis, my_ortho_k, n, ncoef
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -332,10 +327,6 @@ CONTAINS
       ENDIF
 
       m_diis = qs_ot_env%settings%diis_m
-      mixed_precision = qs_ot_env%settings%mixed_precision
-
-      special_data_type = dbcsr_type_real_default
-      IF (mixed_precision) special_data_type = dbcsr_type_real_4
 
       qs_ot_env%use_gx_old = .FALSE.
       qs_ot_env%use_dx = .FALSE.
@@ -417,18 +408,18 @@ CONTAINS
 
       CALL cp_dbcsr_init_p(qs_ot_env%matrix_gx)
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx, template=matrix_s, n=k, &
-                                             sym=dbcsr_type_no_symmetry, data_type=special_data_type)
+                                             sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
 
       IF (qs_ot_env%use_dx) THEN
          CALL cp_dbcsr_init_p(qs_ot_env%matrix_dx)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_dx, template=matrix_s, n=k, &
-                                                sym=dbcsr_type_no_symmetry, data_type=special_data_type)
+                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
       ENDIF
 
       IF (qs_ot_env%use_gx_old) THEN
          CALL cp_dbcsr_init_p(qs_ot_env%matrix_gx_old)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_old, template=matrix_s, n=k, &
-                                                sym=dbcsr_type_no_symmetry, data_type=special_data_type)
+                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
       ENDIF
 
       SELECT CASE (qs_ot_env%settings%ot_algorithm)
@@ -527,12 +518,6 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k, template=matrix_s, n=k, &
                                                 sym=dbcsr_type_no_symmetry)
          !
-         IF (mixed_precision) THEN
-            CALL cp_dbcsr_init_p(qs_ot_env%buf1_n_k_dp)
-            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k_dp, template=matrix_s, n=k, &
-                                                   sym=dbcsr_type_no_symmetry)
-         ENDIF
-         !
 
       END SELECT
 
@@ -545,11 +530,11 @@ CONTAINS
          DO i = 1, m_diis
             CALL cp_dbcsr_init_p(qs_ot_env%matrix_h_x(i)%matrix)
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_x(i)%matrix, template=matrix_s, n=k, &
-                                                   sym=dbcsr_type_no_symmetry, data_type=special_data_type)
+                                                   sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
 
             CALL cp_dbcsr_init_p(qs_ot_env%matrix_h_e(i)%matrix)
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_e(i)%matrix, template=matrix_s, n=k, &
-                                                   sym=dbcsr_type_no_symmetry, data_type=special_data_type)
+                                                   sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
          ENDDO
       ENDIF
 
@@ -788,11 +773,6 @@ CONTAINS
          CPABORT("READ OT EPS_IRAC_SWITCH: VALUE MUST BE GREATER THAN ZERO")
       ENDIF
 
-      CALL section_vals_val_get(ot_section, "MIXED_PRECISION", l_val=settings%mixed_precision)
-      IF (settings%mixed_precision .AND. ot_algorithm .NE. ot_algo_irac) THEN
-         CPABORT("MIXED_PRECISION implemented only for IRAC so far")
-      ENDIF
-
       CALL section_vals_val_get(ot_section, "ORTHO_IRAC", i_val=ot_ortho_irac)
       SELECT CASE (ot_ortho_irac)
       CASE (ot_chol_irac)
@@ -997,9 +977,6 @@ CONTAINS
             WRITE (output_unit, '(A,E14.5,T49,A,E14.5)') "  eps_irac_switch    :", settings%eps_irac_switch, &
                "  eps_irac_quick_exit:", settings%eps_irac_quick_exit
             WRITE (output_unit, '(A,L2)') "  on_the_fly_loc     :", settings%on_the_fly_loc
-         END IF
-         IF (settings%mixed_precision) THEN
-            WRITE (output_unit, '(A)') "  Preconditioner arithmetic in mixed_precision    "
          END IF
          WRITE (output_unit, '(A)') "  ----------------------------------- OT ---------------------------------------"
          WRITE (UNIT=output_unit, &
