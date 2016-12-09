@@ -113,11 +113,11 @@ cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
-cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t_native"
+cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "copy_dbcsr_to_cfm"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "copy_dbcsr_to_fm"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "copy_dbcsr_to_fm_bc"
-cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t_native"
+cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector"

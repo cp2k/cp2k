@@ -90,7 +90,6 @@ MODULE dbcsr_config
       INTEGER  :: mm_driver = mm_default_driver
       LOGICAL  :: use_MPI_memory = has_MPI
       INTEGER  :: mm_stack_size = mm_stack_default_size
-      INTEGER  :: max_elements_per_block = 32
       INTEGER  :: avg_elements_images = -1
       INTEGER  :: num_mult_images = 1
       INTEGER  :: nm_stacks = 3
@@ -127,7 +126,6 @@ CONTAINS
 !> \param mm_driver ...
 !> \param use_MPI_memory ...
 !> \param mm_stack_size ...
-!> \param max_elements_per_block Default blocking parameter
 !> \param avg_elements_images Maximum number of elements for each image
 !> \param num_mult_images Multiplicative factor for number of virtual images
 !> \param nstacks Number of stacks to use
@@ -152,7 +150,6 @@ CONTAINS
       mm_driver, &
       use_MPI_memory, &
       mm_stack_size, &
-      max_elements_per_block, &
       avg_elements_images, &
       num_mult_images, &
       nstacks, &
@@ -175,9 +172,8 @@ CONTAINS
 !
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: mm_driver
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_MPI_memory
-      INTEGER, INTENT(IN), OPTIONAL                      :: mm_stack_size, max_elements_per_block, &
-                                                            avg_elements_images, num_mult_images, &
-                                                            nstacks
+      INTEGER, INTENT(IN), OPTIONAL                      :: mm_stack_size, avg_elements_images, &
+                                                            num_mult_images, nstacks
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_mpi_exp, use_mpi_filtering
       INTEGER, INTENT(IN), OPTIONAL                      :: num_layers_3D
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_comm_thread
@@ -193,7 +189,6 @@ CONTAINS
       INTEGER                                            :: nthreads
 
       IF (PRESENT(use_MPI_memory)) dbcsr_cfg%use_MPI_memory = use_MPI_memory
-      IF (PRESENT(max_elements_per_block)) dbcsr_cfg%max_elements_per_block = max_elements_per_block
       IF (PRESENT(avg_elements_images)) dbcsr_cfg%avg_elements_images = avg_elements_images
       IF (PRESENT(num_mult_images)) dbcsr_cfg%num_mult_images = num_mult_images
       IF (PRESENT(use_mpi_exp)) dbcsr_cfg%use_mpi_exp = use_mpi_exp
@@ -257,7 +252,6 @@ CONTAINS
 !> \brief ...
 !> \param use_MPI_memory ...
 !> \param mm_stack_size ...
-!> \param max_elements_per_block ...
 !> \param avg_elements_images ...
 !> \param num_mult_images ...
 !> \param nstacks ...
@@ -281,7 +275,6 @@ CONTAINS
    SUBROUTINE dbcsr_get_default_config( &
       use_MPI_memory, &
       mm_stack_size, &
-      max_elements_per_block, &
       avg_elements_images, &
       num_mult_images, &
       nstacks, &
@@ -303,9 +296,8 @@ CONTAINS
       accdrv_binning_binsize)
 !
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_MPI_memory
-      INTEGER, INTENT(OUT), OPTIONAL                     :: mm_stack_size, max_elements_per_block, &
-                                                            avg_elements_images, num_mult_images, &
-                                                            nstacks
+      INTEGER, INTENT(OUT), OPTIONAL                     :: mm_stack_size, avg_elements_images, &
+                                                            num_mult_images, nstacks
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_mpi_exp, use_mpi_filtering
       INTEGER, INTENT(OUT), OPTIONAL                     :: num_layers_3D
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_comm_thread
@@ -322,7 +314,6 @@ CONTAINS
 
       IF (PRESENT(use_MPI_memory)) use_MPI_memory = default_cfg%use_MPI_memory
       IF (PRESENT(mm_stack_size)) mm_stack_size = default_cfg%mm_stack_size
-      IF (PRESENT(max_elements_per_block)) max_elements_per_block = default_cfg%max_elements_per_block
       IF (PRESENT(avg_elements_images)) avg_elements_images = default_cfg%avg_elements_images
       IF (PRESENT(num_mult_images)) num_mult_images = default_cfg%num_mult_images
       IF (PRESENT(use_mpi_exp)) use_mpi_exp = default_cfg%use_mpi_exp

@@ -39,10 +39,6 @@ MODULE dbcsr_mm_cannon
                                               dbcsr_distribution_has_threads,&
                                               dbcsr_distribution_mp,&
                                               dbcsr_distribution_row_dist
-   USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_vcols,&
-                                              dbcsr_get_local_vrows,&
-                                              dbcsr_reset_vlocals,&
-                                              image_calculator
    USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
                                               dbcsr_has_local_row_index,&
                                               dbcsr_index_prune_deleted,&
@@ -64,6 +60,10 @@ MODULE dbcsr_mm_cannon
         acc_transpose_blocks, count_mpi_statistics, dbcsr_mm_multrec_type_p, dbcsr_mpi_statistics, &
         max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_trsbuffer_1, &
         memtype_trsbuffer_2, product_matrix_size_guess, rec_sort_index, setup_buffer_matrix
+   USE dbcsr_mm_dist_operations,        ONLY: dbcsr_get_local_vcols,&
+                                              dbcsr_get_local_vrows,&
+                                              dbcsr_reset_vlocals,&
+                                              image_calculator
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                               dbcsr_mm_multrec_init,&
                                               dbcsr_mm_multrec_multiply,&

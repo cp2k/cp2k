@@ -44,9 +44,6 @@ MODULE dbcsr_mm_3d
                                               dbcsr_distribution_mp,&
                                               dbcsr_distribution_row_dist,&
                                               dbcsr_distribution_thread_dist
-   USE dbcsr_dist_operations,           ONLY: dbcsr_reset_locals,&
-                                              dbcsr_reset_vlocals,&
-                                              image_calculator
    USE dbcsr_index_operations,          ONLY: dbcsr_repoint_index
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -65,6 +62,9 @@ MODULE dbcsr_mm_3d
         max_memory, memtype_abpanel_1, memtype_abpanel_2, memtype_mpi_buffer, memtype_mpi_product, &
         memtype_product_wm, memtype_trsbuffer_1, memtype_trsbuffer_2, product_matrix_size_guess, &
         rec_sort_index, setup_buffer_matrix
+   USE dbcsr_mm_dist_operations,        ONLY: dbcsr_reset_locals,&
+                                              dbcsr_reset_vlocals,&
+                                              image_calculator
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_dev2host_init,&
                                               dbcsr_mm_multrec_finalize,&
                                               dbcsr_mm_multrec_get_nblks,&

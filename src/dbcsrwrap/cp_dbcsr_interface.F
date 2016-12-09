@@ -17,14 +17,13 @@ MODULE cp_dbcsr_interface
         add_work_coordinate, convert_csr_to_dbcsr, convert_dbcsr_to_csr, convert_offsets_to_sizes, &
         convert_sizes_to_offsets, &
         cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
-        create_bl_distribution, create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
+        create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
         create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, csr_create_from_dbcsr, &
         csr_create_new, csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, &
         csr_eqrow_ceil_dist, csr_eqrow_floor_dist, csr_p_type, csr_print_sparsity, csr_type, &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, &
         dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
-        dbcsr_create, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-        dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
+        dbcsr_create, dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
         dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_local_cols, &
@@ -71,8 +70,7 @@ MODULE cp_dbcsr_interface
 
    !
    ! Interface to libdbcsr (contains cp2k timing and error)
-   PUBLIC :: dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-             dbcsr_distribution_local_cols, &
+   PUBLIC :: dbcsr_distribution_local_cols, &
              dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows, &
              dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, &
              dbcsr_mp_hold, cp_distribution_get_num_images
@@ -139,7 +137,6 @@ MODULE cp_dbcsr_interface
    PUBLIC :: cp_dbcsr_distribution_release
    PUBLIC :: cp_dbcsr_col_block_sizes
    PUBLIC :: cp_dbcsr_row_block_sizes
-   PUBLIC :: cp_create_bl_distribution
    PUBLIC :: cp_dbcsr_get_matrix_type
    PUBLIC :: cp_dbcsr_get_occupation
    PUBLIC :: cp_dbcsr_distribution
@@ -752,26 +749,6 @@ CONTAINS
       distribution = dbcsr_distribution(matrix%matrix)
 
    END FUNCTION cp_dbcsr_distribution
-
-! **************************************************************************************************
-!> \brief ...
-!> \param block_distribution ...
-!> \param block_size ...
-!> \param nelements ...
-!> \param nbins ...
-! **************************************************************************************************
-   SUBROUTINE cp_create_bl_distribution(block_distribution, &
-                                        block_size, nelements, nbins)
-      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: block_distribution, block_size
-      INTEGER, INTENT(IN)                                :: nelements, nbins
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_create_bl_distribution', &
-         routineP = moduleN//':'//routineN
-
-      CALL create_bl_distribution(block_distribution, &
-                                  block_size, nelements, nbins)
-
-   END SUBROUTINE cp_create_bl_distribution
 
 ! **************************************************************************************************
 !> \brief ...

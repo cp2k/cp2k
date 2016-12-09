@@ -41,10 +41,7 @@ MODULE dbcsr_api
         dbcsr_distribution_mp, dbcsr_distribution_ncols, dbcsr_distribution_new, &
         dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
         dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist
-   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
-                                              dbcsr_create_dist_block_cyclic,&
-                                              dbcsr_create_dist_r_unrot,&
-                                              dbcsr_get_stored_coordinates
+   USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
    USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                               dbcsr_binary_write,&
                                               dbcsr_print,&
@@ -115,7 +112,6 @@ MODULE dbcsr_api
              dbcsr_run_tests, &
              dbcsr_test_mm, &
              dbcsr_test_binary_io, &
-             create_bl_distribution, &
              dbcsr_add, &
              dbcsr_add_on_diag, &
              dbcsr_binary_read, &
@@ -127,8 +123,6 @@ MODULE dbcsr_api
              dbcsr_copy, &
              dbcsr_copy_into_existing, &
              dbcsr_create, &
-             dbcsr_create_dist_block_cyclic, &
-             dbcsr_create_dist_r_unrot, &
              dbcsr_desymmetrize_deep, &
              dbcsr_distribute, &
              dbcsr_distribution, &

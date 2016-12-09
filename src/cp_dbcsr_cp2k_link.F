@@ -23,6 +23,7 @@ MODULE cp_dbcsr_cp2k_link
         cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
         cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_get_default_config, &
         dbcsr_set_config, dbcsr_type_no_symmetry
+   USE cp_dbcsr_operations,             ONLY: max_elements_per_block
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -196,11 +197,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL dbcsr_get_default_config(max_elements_per_block=idefault)
       CALL keyword_create(keyword, name="MAX_ELEMENTS_PER_BLOCK", &
                           description="Default block size for turning dense matrices in blocked ones", &
                           usage="MAX_ELEMENTS_PER_BLOCK 32", &
-                          default_i_val=idefault)
+                          default_i_val=max_elements_per_block)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -333,8 +333,7 @@ CONTAINS
       CALL section_vals_val_get(dbcsr_section, "mm_stack_size", i_val=ival)
       CALL dbcsr_set_config(mm_stack_size=ival)
 
-      CALL section_vals_val_get(dbcsr_section, "MAX_ELEMENTS_PER_BLOCK", i_val=ival)
-      CALL dbcsr_set_config(max_elements_per_block=ival)
+      CALL section_vals_val_get(dbcsr_section, "MAX_ELEMENTS_PER_BLOCK", i_val=max_elements_per_block)
 
       CALL section_vals_val_get(dbcsr_section, "avg_elements_images", i_val=ival)
       CALL dbcsr_set_config(avg_elements_images=ival)

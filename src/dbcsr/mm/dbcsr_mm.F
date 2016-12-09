@@ -39,10 +39,6 @@ MODULE dbcsr_mm
         dbcsr_distribution_nrows, dbcsr_distribution_num_local_col_clusters, &
         dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_release, &
         dbcsr_distribution_row_dist
-   USE dbcsr_dist_operations,           ONLY: dbcsr_create_image_dist,&
-                                              dbcsr_make_dists_dense,&
-                                              dbcsr_reset_locals,&
-                                              make_sizes_dense
    USE dbcsr_index_operations,          ONLY: dbcsr_make_index_canonical
    USE dbcsr_io,                        ONLY: dbcsr_print
    USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_clear,&
@@ -66,6 +62,10 @@ MODULE dbcsr_mm
         dbcsr_mpi_statistics, max_memory, memtype_abpanel_1, memtype_abpanel_2, &
         memtype_mpi_buffer, memtype_mpi_product, memtype_product_wm, memtype_trsbuffer_1, &
         memtype_trsbuffer_2, num_multiplications, stream_1, stream_2
+   USE dbcsr_mm_dist_operations,        ONLY: dbcsr_create_image_dist,&
+                                              dbcsr_make_dists_dense,&
+                                              dbcsr_reset_locals,&
+                                              make_sizes_dense
    USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_lib_finalize,&
                                               dbcsr_mm_multrec_lib_init
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&

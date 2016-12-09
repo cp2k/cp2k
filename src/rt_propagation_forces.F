@@ -21,9 +21,9 @@ MODULE rt_propagation_forces
         cp_dbcsr_get_data_type, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
         cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
         cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-        cp_dbcsr_type, dbcsr_create_dist_r_unrot, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_type_no_symmetry
+        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                              cp_dbcsr_create_dist_r_unrot,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -138,7 +138,7 @@ CONTAINS
          CALL get_mo_set(mos(ispin)%mo_set, nao=nao, nmo=nmo)
 
          NULLIFY (col_blk_size)
-         CALL dbcsr_create_dist_r_unrot(dist, cp_dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
+         CALL cp_dbcsr_create_dist_r_unrot(dist, cp_dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
 
          CALL cp_dbcsr_init(db_mos_re)
          CALL cp_dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
