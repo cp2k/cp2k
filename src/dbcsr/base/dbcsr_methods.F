@@ -211,16 +211,6 @@ CONTAINS
    END SUBROUTINE dbcsr_distribution_release
 
 ! **************************************************************************************************
-!> \brief Retains a reference to a distribution
-!> \param dist ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_distribution_hold(dist)
-      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dist
-
-      dist%d%refcount = dist%d%refcount+1
-   END SUBROUTINE dbcsr_distribution_hold
-
-! **************************************************************************************************
 !> \brief ...
 !> \param dist ...
 ! **************************************************************************************************
