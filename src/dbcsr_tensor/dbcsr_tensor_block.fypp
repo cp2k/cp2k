@@ -500,7 +500,7 @@ CONTAINS
    SUBROUTINE reshape_2d_to_${ndim}$d_block_${dsuffix}$(map, block_2d, block)
       TYPE(nd_to_2d_mapping), INTENT(IN)                        :: map
       ${dtype}$, DIMENSION(:, :), INTENT(IN)                    :: block_2d
-      ${dtype}$, DIMENSION(${arrlist("map%dims_nd", ndim)}$), &
+      ${dtype}$, DIMENSION(${arrlist("map%dims_nd", nmax=ndim)}$), &
          INTENT(OUT)                                            :: block
       INTEGER, DIMENSION(ndims_mapping(map))                    :: map_tmp
 
@@ -522,7 +522,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reshape_${ndim}$d_to_2d_block_${dsuffix}$(map, block, block_2d)
       TYPE(nd_to_2d_mapping), INTENT(IN)                                 :: map
-      ${dtype}$, DIMENSION(${arrlist("map%dims_nd", ndim)}$), INTENT(IN) :: block
+      ${dtype}$, DIMENSION(${arrlist("map%dims_nd", nmax=ndim)}$), INTENT(IN) :: block
       ${dtype}$, DIMENSION(map%dims_2d(1), map%dims_2d(2)), INTENT(OUT)  :: block_2d
 
       INTEGER                                                            :: i

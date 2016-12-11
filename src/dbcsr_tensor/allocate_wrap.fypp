@@ -36,7 +36,7 @@ CONTAINS
       INTEGER, DIMENSION(${dim}$), INTENT(IN)                              :: sizes
       ${dtype}$, DIMENSION(${shape_colon(dim)}$), ALLOCATABLE, INTENT(OUT) :: array
       ${dtype}$, DIMENSION(${shape_colon(dim)}$), INTENT(IN), OPTIONAL     :: source
-      ALLOCATE(array(${arrlist("sizes", dim)}$))
+      ALLOCATE(array(${arrlist("sizes", nmax=dim)}$))
       IF(PRESENT(source)) THEN
          array(${shape_colon(dim)}$) = source(${shape_colon(dim)}$)
       ENDIF

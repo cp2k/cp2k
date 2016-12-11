@@ -273,21 +273,9 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data_1, data_2, data_3, data_4
 
-      IF (number_of_arrays(list_in) == 2) THEN
-         CALL get_arrays(list_in, data_1, data_2, order=order)
-         CALL create_array_list(list_out, number_of_arrays(list_in), &
-                                data_1, data_2)
-      ENDIF
-      IF (number_of_arrays(list_in) == 3) THEN
-         CALL get_arrays(list_in, data_1, data_2, data_3, order=order)
-         CALL create_array_list(list_out, number_of_arrays(list_in), &
-                                data_1, data_2, data_3)
-      ENDIF
-      IF (number_of_arrays(list_in) == 4) THEN
-         CALL get_arrays(list_in, data_1, data_2, data_3, data_4, order=order)
-         CALL create_array_list(list_out, number_of_arrays(list_in), &
-                                data_1, data_2, data_3, data_4)
-      ENDIF
+      CALL get_arrays(list_in, data_1, data_2, data_3, data_4, order=order)
+      CALL create_array_list(list_out, number_of_arrays(list_in), &
+                             data_1, data_2, data_3, data_4)
 
    END SUBROUTINE
 

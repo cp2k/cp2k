@@ -76,10 +76,10 @@ CONTAINS
 !> \brief collects any number of arrays of different sizes into a single array (list%col_data),
 !>        storing the indices that start a new array (list%ptr).
 ! **************************************************************************************************
-   SUBROUTINE create_array_list(list, ndata, ${varlist("data", maxdim)}$)
+   SUBROUTINE create_array_list(list, ndata, ${varlist("data")}$)
       TYPE(array_list), INTENT(OUT)               :: list
       INTEGER, INTENT(IN)                         :: ndata
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("data", maxdim)}$
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("data")}$
       INTEGER                                     :: ptr, size_all
 
       size_all = 0
@@ -122,10 +122,10 @@ CONTAINS
 !> \param list ...
 !> \param order order in which to retrieve arrays
 ! **************************************************************************************************
-   SUBROUTINE get_arrays(list, ${varlist("data", maxdim)}$, order)
+   SUBROUTINE get_arrays(list, ${varlist("data")}$, order)
       TYPE(array_list), INTENT(IN)                              :: list
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &
-         OPTIONAL                                               :: ${varlist("data", maxdim)}$
+         OPTIONAL                                               :: ${varlist("data")}$
       INTEGER, DIMENSION(number_of_arrays(list)), INTENT(IN), &
          OPTIONAL                                               :: order
 
@@ -222,17 +222,13 @@ CONTAINS
    SUBROUTINE reorder_arrays(list_in, list_out, order)
       TYPE(array_list), INTENT(IN)                     :: list_in
       TYPE(array_list), INTENT(OUT)                    :: list_out
-      INTEGER, ALLOCATABLE, DIMENSION(:)               :: ${varlist("data", maxdim)}$
+      INTEGER, ALLOCATABLE, DIMENSION(:)               :: ${varlist("data")}$
       INTEGER, DIMENSION(number_of_arrays(list_in)), &
          INTENT(IN)                                    :: order
 
-#:for ndim in ndims
-      IF (number_of_arrays(list_in) == ${ndim}$) THEN
-         CALL get_arrays(list_in, ${varlist("data", ndim)}$, order=order)
-         CALL create_array_list(list_out, number_of_arrays(list_in), &
-                                ${varlist("data", ndim)}$)
-      ENDIF
-#:endfor
+      CALL get_arrays(list_in, ${varlist("data")}$, order=order)
+      CALL create_array_list(list_out, number_of_arrays(list_in), &
+                             ${varlist("data")}$)
 
    END SUBROUTINE
 

@@ -211,8 +211,8 @@ CONTAINS
 
       INTEGER                                            :: icol, imap, irow, ndims
       INTEGER, DIMENSION(2)                              :: dims_2d
-      INTEGER, DIMENSION(3)                              :: blk_dims, dims, nd_ind
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: blk_dims, dims, nd_ind
       TYPE(array_list)                                   :: blk_size
       TYPE(nd_to_2d_mapping)                             :: map
 

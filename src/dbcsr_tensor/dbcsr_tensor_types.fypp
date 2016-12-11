@@ -90,12 +90,12 @@ CONTAINS
 !> \param nd_dist_5 ...
 !> \param nd_dist_6 ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_t_distribution_new(dist, comm, map1_2d, map2_2d, ${varlist("nd_dist", maxdim)}$)
+   SUBROUTINE dbcsr_t_distribution_new(dist, comm, map1_2d, map2_2d, ${varlist("nd_dist")}$)
 
       TYPE(dbcsr_t_distribution_type), INTENT(OUT)    :: dist
       INTEGER, INTENT(IN)                             :: comm
       INTEGER, DIMENSION(:), INTENT(IN)               :: map1_2d, map2_2d
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist", maxdim)}$
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist")}$
       INTEGER                                         :: bcol, brow, comm_2d, mynode, ndims, &
                                                          numnodes, pcol, prow
       INTEGER, ALLOCATABLE, DIMENSION(:, :)           :: pgrid
@@ -111,7 +111,7 @@ CONTAINS
       ndims = SIZE(map1_2d)+SIZE(map2_2d)
       CPASSERT(ndims .GE. 2 .AND. ndims .LE. ${maxdim}$)
 
-      CALL create_array_list(nd_dist, ndims, ${varlist("nd_dist", maxdim)}$)
+      CALL create_array_list(nd_dist, ndims, ${varlist("nd_dist")}$)
 
       nblks_nd(:) = sizes_of_arrays(nd_dist)
 
@@ -200,22 +200,22 @@ CONTAINS
 !> \param blk_size_6 ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_create_new(tensor, name, dist, map1_2d, map2_2d, data_type, &
-                                 ${varlist("blk_size", maxdim)}$)
-      TYPE(dbcsr_t_type), INTENT(OUT)                :: tensor
-      CHARACTER(len=*), INTENT(IN)                   :: name
-      TYPE(dbcsr_t_distribution_type), INTENT(INOUT) :: dist
-      INTEGER, DIMENSION(:), INTENT(IN)              :: map1_2d, map2_2d
-      INTEGER, INTENT(IN), OPTIONAL                  :: data_type
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL    :: ${varlist("blk_size", maxdim)}$
-      INTEGER                                        :: icol, imap, irow, ndims
-      INTEGER, DIMENSION(2)                          :: dims_2d
-      INTEGER, DIMENSION(3)                          :: blk_dims, dims, nd_ind
-      INTEGER, DIMENSION(:), POINTER                 :: col_blk_size, row_blk_size
-      TYPE(array_list)                               :: blk_size
-      TYPE(nd_to_2d_mapping)                         :: map
+                                 ${varlist("blk_size")}$)
+      TYPE(dbcsr_t_type), INTENT(OUT)                   :: tensor
+      CHARACTER(len=*), INTENT(IN)                      :: name
+      TYPE(dbcsr_t_distribution_type), INTENT(INOUT)    :: dist
+      INTEGER, DIMENSION(:), INTENT(IN)                 :: map1_2d, map2_2d
+      INTEGER, INTENT(IN), OPTIONAL                     :: data_type
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL       :: ${varlist("blk_size")}$
+      INTEGER                                           :: icol, imap, irow, ndims
+      INTEGER, DIMENSION(2)                             :: dims_2d
+      INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: blk_dims, dims, nd_ind
+      INTEGER, DIMENSION(:), POINTER                    :: col_blk_size, row_blk_size
+      TYPE(array_list)                                  :: blk_size
+      TYPE(nd_to_2d_mapping)                            :: map
 
       ndims = SIZE(map1_2d)+SIZE(map2_2d)
-      CALL create_array_list(blk_size, ndims, ${varlist("blk_size", maxdim)}$)
+      CALL create_array_list(blk_size, ndims, ${varlist("blk_size")}$)
       dims = sizes_of_arrays(blk_size)
 
       CALL create_nd_to_2d_mapping(map, dims, map1_2d, map2_2d)

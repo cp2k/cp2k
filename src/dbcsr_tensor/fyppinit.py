@@ -22,17 +22,17 @@ dtype_float_list = list(zip(dtype_float_param, dtype_float_type, dtype_float_suf
 dtype_int_list = list(zip(dtype_int_param, dtype_int_type, dtype_int_suffix))
 dtype_all_list = list(zip(dtype_all_param, dtype_all_type, dtype_all_suffix))
 
-def arrlist(name, n):
+def arrlist(name, nmin=1, nmax=maxrank):
     """ expand array into list of elements "name(1), name(2), ..., name(n)"
     """
-    return ", ".join([name + "(" + str(i) +")" for i in range(1, n+1)])
+    return ", ".join([name + "(" + str(i) +")" for i in range(nmin, nmax+1)])
 
-def varlist(name, n):
+def varlist(name, nmin=1, nmax=maxrank, suffix=""):
     """ create variable list "name_1, name_2, ..., name_n"
     """
-    return ", ".join([name + "_" + str(i) for i in range(1, n+1)])
+    return ", ".join([name + "_" + str(i) + suffix for i in range(nmin, nmax+1)])
 
-def shape_colon(n):
+def shape_colon(n=maxrank):
     """ repeated colon ':' for e.g. assumed shape array notation
     """
     return ','.join([':']*n)

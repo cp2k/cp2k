@@ -150,7 +150,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_reserved_block_indices(tensor, blk_ind)
       TYPE(dbcsr_t_type), INTENT(IN)            :: tensor
-      INTEGER, ALLOCATABLE, DIMENSION(:)        :: ${varlist("blk_ind", maxdim)}$
+      INTEGER, ALLOCATABLE, DIMENSION(:)        :: ${varlist("blk_ind")}$
       INTEGER                                   :: blk, iblk, nblk
       TYPE(dbcsr_t_iterator)                    :: iterator
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor)) :: ind_nd
@@ -175,7 +175,7 @@ CONTAINS
 
 #:for ndim in ndims
       IF (dbcsr_t_ndims(tensor) == ${ndim}$) THEN
-         CALL create_array_list(blk_ind, dbcsr_t_ndims(tensor), ${varlist("blk_ind", ndim)}$)
+         CALL create_array_list(blk_ind, dbcsr_t_ndims(tensor), ${varlist("blk_ind", nmax=ndim)}$)
       ENDIF
 #:endfor
    END SUBROUTINE
@@ -271,12 +271,12 @@ CONTAINS
    SUBROUTINE dbcsr_t_reserve_blocks_index_list(tensor, blk_ind)
       TYPE(dbcsr_t_type), INTENT(INOUT)  :: tensor
       TYPE(array_list), INTENT(IN)       :: blk_ind
-      INTEGER, DIMENSION(:), ALLOCATABLE :: ${varlist("blk_ind", maxdim)}$
+      INTEGER, DIMENSION(:), ALLOCATABLE :: ${varlist("blk_ind")}$
 
 #:for ndim in ndims
       IF (dbcsr_t_ndims(tensor) == ${ndim}$) THEN
-         CALL get_arrays(blk_ind, ${varlist("blk_ind", ndim)}$)
-         CALL dbcsr_t_reserve_blocks(tensor, ${varlist("blk_ind", ndim)}$)
+         CALL get_arrays(blk_ind, ${varlist("blk_ind", nmax=ndim)}$)
+         CALL dbcsr_t_reserve_blocks(tensor, ${varlist("blk_ind", nmax=ndim)}$)
       ENDIF
 #:endfor
    END SUBROUTINE
@@ -291,9 +291,9 @@ CONTAINS
 !> \param blk_ind_5 ...
 !> \param blk_ind_6 ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_t_reserve_blocks_index(tensor, ${varlist("blk_ind", maxdim)}$)
+   SUBROUTINE dbcsr_t_reserve_blocks_index(tensor, ${varlist("blk_ind")}$)
       TYPE(dbcsr_t_type), INTENT(INOUT)           :: tensor
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("blk_ind", maxdim)}$
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("blk_ind")}$
       INTEGER                                     :: iblk, nblk
       INTEGER, ALLOCATABLE, DIMENSION(:)          :: cols, rows
       INTEGER, DIMENSION(2)                       :: ind_2d
@@ -303,7 +303,7 @@ CONTAINS
       CPASSERT(tensor%valid)
 
       CALL create_array_list(blks, dbcsr_t_ndims(tensor), &
-                             ${varlist("blk_ind", maxdim)}$)
+                             ${varlist("blk_ind")}$)
 
       nblk_tmp(:) = sizes_of_arrays(blks)
       nblk = nblk_tmp(1)
@@ -670,7 +670,7 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT)                     :: tensor
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN) :: ind
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN) :: sizes
-      ${dtype}$, DIMENSION(${arrlist("sizes", ndim)}$), &
+      ${dtype}$, DIMENSION(${arrlist("sizes", nmax=ndim)}$), &
          INTENT(IN)                                         :: block
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                    :: map1_2d, map2_2d
@@ -706,7 +706,7 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT)                     :: tensor
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN) :: ind
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor)), INTENT(IN) :: sizes
-      ${dtype}$, DIMENSION(${arrlist("sizes", ndim)}$), &
+      ${dtype}$, DIMENSION(${arrlist("sizes", nmax=ndim)}$), &
          INTENT(OUT)                                        :: block
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                    :: map1_2d, map2_2d
