@@ -440,3 +440,4 @@ xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_1 called with an implicit interface
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_2 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_3 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_4 called with an implicit interface.
+dbcsr_tensor_test.F: Found CALL RANDOM_NUMBER in procedure "random_dist"
