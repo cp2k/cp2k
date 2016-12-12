@@ -3443,7 +3443,7 @@ CONTAINS
                          "AF Bates, Jefferson E.", &
                          "Furche, Filipp", &
                          "TI Communication: Random phase approximation renormalized many-body", &
-                         "perturbation theory", &
+                         "   perturbation theory", &
                          "SO JOURNAL OF CHEMICAL PHYSICS", &
                          "RI Furche, Filipp/G-2020-2011", &
                          "TC 19", &

@@ -104,6 +104,7 @@ MODULE mp2_types
       LOGICAL                  :: do_ri_axk
       TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, &
                                                   mo_coeff_v
+      REAL(KIND=dp)            :: ener_axk
    END TYPE
 
    TYPE ri_rpa_im_time_util

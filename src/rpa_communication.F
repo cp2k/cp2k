@@ -38,6 +38,7 @@ MODULE rpa_communication
                                               mp_sum,&
                                               mp_wait,&
                                               mp_waitall
+   USE mp2_ri_grad_util,                ONLY: fm2array
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
@@ -566,21 +567,31 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Redistribute RPA-AXK Gamma_3 density matrices: from fm to dbcsr
-!> \param fm_mat_Gamma_3 ...
-!> \param dbcsr_Gamma_3 ...
+!> \param fm_mat_Gamma_3 ... ia*dime_RI sized density matrix (fm type on para_env_RPA)
+!> \param dbcsr_Gamma_3 ...  redistributed Gamma_3 (dbcsr array): dimen_RI of i*a: i*a on subgroup, L distributed in RPA_group
+!> \param para_env_RPA ...
 !> \param para_env_sub ...
 !> \param homo ...
 !> \param virtual ...
-!> \param mo_coeff_o ...
+!> \param mo_coeff_o ...   dbcsr on a subgroup
+!> \param ngroup ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param my_group_L_size ...
+!> \param dimen_RI ...
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
-   SUBROUTINE gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_sub, &
-                                homo, virtual, mo_coeff_o)
+   SUBROUTINE gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
+                                homo, virtual, mo_coeff_o, ngroup, my_group_L_start, my_group_L_end, &
+                                my_group_L_size, dimen_RI)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dbcsr_Gamma_3
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA, para_env_sub
       INTEGER                                            :: homo, virtual
       TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o
+      INTEGER                                            :: ngroup, my_group_L_start, &
+                                                            my_group_L_end, my_group_L_size, &
+                                                            dimen_RI
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gamma_fm_to_dbcsr', &
          routineP = moduleN//':'//routineN
@@ -592,12 +603,13 @@ CONTAINS
          rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
          send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_ia, iii_vet, map_rec_size, &
-                                                            map_send_size, req_send, sizes_ia, &
-                                                            starts_ia, sub_proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
-                                                            indices_map_my, mepos_2_grid
+                                                            map_send_size, proc_map, req_send, &
+                                                            sizes_ia, starts_ia, sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, grid_ref_2_send_pos, &
+         group_grid_2_mepos, indices_map_my, mepos_2_grid, mepos_2_grid_group, sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: part_ia
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_ia
@@ -608,6 +620,38 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       dimen_ia = virtual*homo
+
+      ! Prepare sizes for a 2D array
+      ALLOCATE (sizes_ia(0:para_env_sub%num_pe-1))
+      sizes_ia = 0
+      ALLOCATE (starts_ia(0:para_env_sub%num_pe-1))
+      starts_ia = 0
+      ALLOCATE (ends_ia(0:para_env_sub%num_pe-1))
+      ends_ia = 0
+
+      DO iproc = 0, para_env_sub%num_pe-1
+         itmp = get_limit(dimen_ia, para_env_sub%num_pe, iproc)
+         starts_ia(iproc) = itmp(1)
+         ends_ia(iproc) = itmp(2)
+         sizes_ia(iproc) = itmp(2)-itmp(1)+1
+      END DO
+
+      my_ia_start = starts_ia(para_env_sub%mepos)
+      my_ia_end = ends_ia(para_env_sub%mepos)
+      my_ia_size = sizes_ia(para_env_sub%mepos)
+
+      ! Make a 2D array intermediate
+
+      CALL prepare_redistribution(para_env_RPA, para_env_sub, ngroup, &
+                                  proc_map, sizes, group_grid_2_mepos, mepos_2_grid_group, &
+                                  fm_mat_Gamma_3)
+
+      CALL fm2array(Gamma_2D, dimen_ia, dimen_RI, para_env_RPA, proc_map, &
+                    my_ia_size, my_ia_start, my_ia_end, &
+                    my_group_L_size, my_group_L_start, my_group_L_end, &
+                    sizes, group_grid_2_mepos, mepos_2_grid_group, &
+                    para_env_sub%num_pe, ngroup, &
+                    fm_mat_Gamma_3)
 
       ! create sub blacs env
       NULLIFY (blacs_env)
@@ -637,24 +681,6 @@ CONTAINS
       mypcol = fm_ia%matrix_struct%context%mepos(2)
       nprow = fm_ia%matrix_struct%context%num_pe(1)
       npcol = fm_ia%matrix_struct%context%num_pe(2)
-
-      ALLOCATE (sizes_ia(0:para_env_sub%num_pe-1))
-      sizes_ia = 0
-      ALLOCATE (starts_ia(0:para_env_sub%num_pe-1))
-      starts_ia = 0
-      ALLOCATE (ends_ia(0:para_env_sub%num_pe-1))
-      ends_ia = 0
-
-      DO iproc = 0, para_env_sub%num_pe-1
-         itmp = get_limit(dimen_ia, para_env_sub%num_pe, iproc)
-         starts_ia(iproc) = itmp(1)
-         ends_ia(iproc) = itmp(2)
-         sizes_ia(iproc) = itmp(2)-itmp(1)+1
-      END DO
-
-      my_ia_start = starts_ia(para_env_sub%mepos)
-      my_ia_end = ends_ia(para_env_sub%mepos)
-      my_ia_size = sizes_ia(para_env_sub%mepos)
 
       ! 0) create array containing the processes position and supporting infos
       ALLOCATE (grid_2_mepos(0:nprow-1, 0:npcol-1))
@@ -821,19 +847,18 @@ CONTAINS
       ! Allocate dbcsr_Gamma_3
       NULLIFY (dbcsr_Gamma_3)
 
-      CALL cp_fm_get_info(matrix=fm_mat_Gamma_3, &
-                          ncol_local=ncol_local)
+      !CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_3, ncol_local)
+      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_3, my_group_L_size)
 
-      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_3, ncol_local)
-
-      ! auxiliary vector of indeces for the send buffer
+      ! auxiliary vector of indices for the send buffer
       ALLOCATE (iii_vet(number_of_send))
       ! vector for the send requests
       ALLOCATE (req_send(number_of_send))
       ! loop over auxiliary basis function and redistribute into a fm
       ! and then compy the fm into a dbcsr matrix
 
-      DO kkB = 1, ncol_local
+      !DO kkB = 1, ncol_local
+      DO kkB = 1, my_group_L_size
          ! zero the matries of the buffers and post the messages to be received
          CALL cp_fm_set_all(matrix=fm_ia, alpha=0.0_dp)
          rec_counter = 0
@@ -867,14 +892,14 @@ CONTAINS
                i_local = indices_map_my(1, jjj)
                j_local = indices_map_my(2, jjj)
                fm_ia%local_data(i_local, j_local) = &
-                  fm_mat_Gamma_3%local_data(iaia-my_ia_start+1, kkB)
+                  Gamma_2D(iaia-my_ia_start+1, kkB)
 
             ELSE
                send_counter = grid_ref_2_send_pos(send_prow, send_pcol)
                iii_vet(send_counter) = iii_vet(send_counter)+1
                iii = iii_vet(send_counter)
                buffer_send(send_counter)%msg(iii) = &
-                  fm_mat_Gamma_3%local_data(iaia-my_ia_start+1, kkB)
+                  Gamma_2D(iaia-my_ia_start+1, kkB)
             END IF
          END DO
          req_send = 0
@@ -921,6 +946,7 @@ CONTAINS
 
       ! Deallocate memory
 
+      DEALLOCATE (Gamma_2d)
       DEALLOCATE (iii_vet)
       DEALLOCATE (req_send)
       IF (map_rec_size(para_env_sub%mepos) > 0) THEN
@@ -944,9 +970,75 @@ CONTAINS
 
       ! release buffer matrix
       CALL cp_fm_release(fm_ia)
+      ! release auxiliary gamma
+      CALL cp_fm_release(fm_mat_Gamma_3)
 
       CALL timestop(handle)
 
    END SUBROUTINE gamma_fm_to_dbcsr
+
+! **************************************************************************************************
+!> \brief ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param ngroup ...
+!> \param proc_map ...
+!> \param sizes ...
+!> \param group_grid_2_mepos ...
+!> \param mepos_2_grid_group ...
+!> \param fm_mat_Gamma_3 ...
+! **************************************************************************************************
+   SUBROUTINE prepare_redistribution(para_env, para_env_sub, ngroup, &
+                                     proc_map, sizes, group_grid_2_mepos, mepos_2_grid_group, &
+                                     fm_mat_Gamma_3)
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      INTEGER                                            :: ngroup
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sizes, group_grid_2_mepos, &
+                                                            mepos_2_grid_group
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
+
+      INTEGER                                            :: i, ncol_local, nrow_local, pos_group, &
+                                                            pos_sub
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
+
+      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe-1))
+      proc_map = 0
+      ALLOCATE (pos_info(0:para_env%num_pe-1))
+      pos_info = 0
+      pos_info(para_env%mepos) = para_env_sub%mepos
+      CALL mp_sum(pos_info, para_env%group)
+
+      ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe-1, 0:ngroup-1))
+      group_grid_2_mepos = 0
+      ALLOCATE (mepos_2_grid_group(0:para_env%num_pe-1, 2))
+      mepos_2_grid_group = 0
+
+      DO i = 0, para_env%num_pe-1
+         proc_map(i) = i
+         proc_map(-i-1) = para_env%num_pe-i-1
+         proc_map(para_env%num_pe+i) = i
+         ! calculate postition of the group
+         pos_group = i/para_env_sub%num_pe
+         ! calculate postition in the subgroup
+         pos_sub = pos_info(i)
+         ! fill the map from the grid of groups to process
+         group_grid_2_mepos(pos_sub, pos_group) = i
+         ! and the opposite, from the global pos to the grid pos
+         mepos_2_grid_group(i, 1) = pos_sub
+         mepos_2_grid_group(i, 2) = pos_group
+      ENDDO
+
+      CALL cp_fm_get_info(matrix=fm_mat_Gamma_3, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local)
+
+      ALLOCATE (sizes(2, 0:para_env%num_pe-1))
+      sizes = 0
+      sizes(1, para_env%mepos) = nrow_local
+      sizes(2, para_env%mepos) = ncol_local
+      CALL mp_sum(sizes, para_env%group)
+
+   END SUBROUTINE prepare_redistribution
 
 END MODULE rpa_communication

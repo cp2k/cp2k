@@ -29,6 +29,7 @@ MODULE rpa_ri_gpw
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_invert,&
+                                              cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_syrk,&
                                               cp_fm_transpose,&
@@ -3048,7 +3049,7 @@ CONTAINS
 
                ! update G matrix with the new value of omega
                IF (first_cycle) THEN
-                  ! In this case just update the matrix (symmetric form) witrh
+                  ! In this case just update the matrix (symmetric form) with
                   ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
 !$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_S,virtual,homo,omega)
@@ -3138,6 +3139,10 @@ CONTAINS
                CALL fm_redistribute(fm_mat_Q_gemm, fm_mat_Q, RPA_proc_map, buffer_rec, buffer_send, &
                                     number_of_send, &
                                     map_send_size, map_rec_size, local_size_source, para_env_RPA)
+
+               CALL cp_fm_get_info(matrix=fm_mat_Q, &
+                                   nrow_local=nrow_local, &
+                                   ncol_local=ncol_local)
 
                IF (my_open_shell) THEN
                   ! the same for the beta spin
@@ -3279,6 +3284,21 @@ CONTAINS
 
             END IF ! im time
 
+            IF (jquad <= num_integ_points) THEN
+               ! Calculate AXK energy correction
+               IF (mp2_env%ri_rpa%do_ri_axk) THEN
+                  CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
+                                        para_env_sub, &
+                                        para_env_RPA, RPA_proc_map, eigenval, fm_mat_S, homo, virtual, omega, &
+                                        buffer_send_axk, buffer_rec_axk, &
+                                        number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
+                                        local_size_source_axk, mp2_env, mat_munu, unit_nr, e_axk_corr)
+
+                  ! Evaluate the final AXK energy correction
+                  e_axk = e_axk+e_axk_corr*wj(jquad)
+               ENDIF ! do_ri_axk
+            ENDIF ! jquad
+
             ! get info of fm_mat_Q
             CALL cp_fm_get_info(matrix=fm_mat_Q, &
                                 nrow_local=nrow_local, &
@@ -3345,21 +3365,6 @@ CONTAINS
             omega_old = omega
 
             CALL timestop(handle3)
-
-            ! Calculate R^(1/2) in case of AXK
-            IF (mp2_env%ri_rpa%do_ri_axk) THEN
-               IF (jquad <= num_integ_points) THEN
-                  CALL compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
-                                        para_env_sub, &
-                                        para_env_RPA, RPA_proc_map, eigenval, fm_mat_S, homo, virtual, omega, &
-                                        buffer_send_axk, buffer_rec_axk, &
-                                        number_of_send_axk, map_send_size_axk, map_rec_size_axk, &
-                                        local_size_source_axk, mp2_env, mat_munu, unit_nr, e_axk_corr)
-               ENDIF
-
-               ! Evaluate the final AXK energy correction
-               e_axk = e_axk+e_axk_corr*wj(jquad)
-            ENDIF
 
             ! the actual G0W0 calculation
             IF (my_do_gw) THEN
@@ -3555,8 +3560,10 @@ CONTAINS
          IF (do_minimax_quad) Erpa = Erpa/2.0_dp
 
          IF (mp2_env%ri_rpa%do_ri_axk) THEN
-            CALL mp_sum(e_axk, para_env_RPA%group)
+            CALL mp_sum(E_axk, para_env%group)
+            E_axk = E_axk/(pi*2.0_dp)
             IF (do_minimax_quad) E_axk = E_axk/2.0_dp
+            mp2_env%ri_rpa%ener_axk = E_axk
          ENDIF
 
          IF (.NOT. do_im_time) THEN
@@ -6025,7 +6032,7 @@ CONTAINS
 !> \param mp2_env ...
 !> \param mat_munu ...
 !> \param unit_nr ...
-!> \param e_axk_corr ...
+!> \param e_axk_corr ...          AXK energy correctrion for a quadrature point
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
    SUBROUTINE compute_axk_ener(qs_env, fm_mat_Q, fm_mat_Q_gemm, dimen_RI, dimen_ia, &
@@ -6055,12 +6062,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_axk_ener', &
          routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER                                            :: avirt, handle, i_global, iib, iocc, &
-                                                            j_global, jjb, kkb, ncol_local, &
-                                                            nrow_local
+      INTEGER :: avirt, handle, i_global, iib, iocc, j_global, jjb, kkb, L_counter, &
+         my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: eigen_diff, eps_filter
+      REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
                                                             dbcsr_Gamma_munu_P
@@ -6089,36 +6096,46 @@ CONTAINS
       CALL cp_fm_create(fm_mat_U, fm_struct, name="fm_mat_U")
       CALL cp_fm_create(fm_mat_R_half, fm_struct, name="fm_mat_R_half")
       CALL cp_fm_create(fm_mat_Q_tmp, fm_struct, name="fm_mat_Q_tmp")
+      CALL cp_fm_set_all(matrix=fm_mat_Q_tmp, alpha=0.0_dp)
+      CALL cp_fm_set_all(matrix=fm_mat_U, alpha=0.0_dp)
+      CALL cp_fm_set_all(matrix=fm_mat_R_half, alpha=0.0_dp)
 
       ! Copy Q to Q_tmp
-      !CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_Q_tmp)
       CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_tmp)
 
-      CALL cp_fm_set_all(matrix=fm_mat_U, alpha=0.0_dp)
+      CALL cp_fm_get_info(matrix=fm_mat_Q, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local)
 
+      CALL cp_fm_scale(0.50_dp, fm_mat_Q_tmp)
       ! Diagonalize Q
       CALL choose_eigv_solver(fm_mat_Q_tmp, fm_mat_U, eigenval)
 
       !Calculate diagonal matrix for R_half
 
       ! U*diag stored in U, whereas eigenvectors are in fm_mat_Q_tmp
-      CALL cp_fm_to_fm(fm_mat_Q_tmp, fm_mat_U)
+      !CALL cp_fm_to_fm(fm_mat_Q_tmp, fm_mat_U)
+      CALL cp_fm_to_fm(fm_mat_U, fm_mat_Q_tmp)
+
       ! Manipulate eigenvalues to get diagonal matrix
       CALL cp_fm_get_info(matrix=fm_mat_U, &
                           nrow_local=nrow_local, &
                           row_indices=row_indices)
-!$OMP  PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,i_global) &
-!$OMP              SHARED(nrow_local,row_indices,eigenval,dimen_RI)
-      DO iiB = 1, nrow_local
-         i_global = row_indices(iiB)
-         IF (i_global <= dimen_RI) THEN
-            eigenval(i_global) = &
-               SQRT((1.0_dp/(eigenval(i_global)**2))*LOG(1.0_dp+eigenval(i_global)) &
-                    -1.0_dp/(eigenval(i_global)*(eigenval(i_global)+1.0_dp)))
-         END IF
-      END DO
+
+      DO iib = 1, dimen_RI
+         IF (ABS(eigenval(iib)) .GE. thresh) THEN
+            eigenval(iib) = &
+               SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp+eigenval(iib)) &
+                    -1.0_dp/(eigenval(iib)*(eigenval(iib)+1.0_dp)))
+         ELSE
+            eigenval(iib) = 0.707_dp
+         ENDIF
+      ENDDO
 
       CALL cp_fm_column_scale(fm_mat_U, eigenval)
+
+      ! Release memory
+      DEALLOCATE (eigenval)
 
       ! Get R_half by multiplication
       CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
@@ -6135,12 +6152,12 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      ! Update G with a new value of Omega
+      ! Update G with a new value of Omega: in practice, it is G*S
 
       ! Here eig are orbital energies, don't confuse with eigenval, which are eigenvalues of Q!
 
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Eig,fm_mat_S,virtual,homo,omega)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eig,fm_mat_S,virtual,homo,omega)
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
@@ -6151,10 +6168,11 @@ CONTAINS
             eigen_diff = eig(avirt+homo)-eig(iocc)
 
             fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
-                                            2*SQRT(eigen_diff/(eigen_diff**2+omega**2))
+                                            SQRT(eigen_diff/(eigen_diff**2+omega**2))
 
          END DO
       END DO
+!$OMP END PARALLEL DO
 
       ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
       NULLIFY (fm_mat_R_half_gemm)
@@ -6165,19 +6183,10 @@ CONTAINS
                            number_of_send_axk, &
                            map_send_size_axk, map_rec_size_axk, local_size_source_axk, para_env_RPA)
 
-      ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = S'*R^(1/2) )
+      ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
       CALL cp_gemm(transa="N", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                    matrix_a=fm_mat_S, matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
                    matrix_c=fm_mat_Gamma_3)
-
-      ! Release full matrix stuff
-      CALL cp_fm_release(fm_mat_Q_tmp)
-      CALL cp_fm_release(fm_mat_U)
-      CALL cp_fm_release(fm_mat_R_half)
-      CALL cp_fm_release(fm_mat_R_half_gemm)
-      DEALLOCATE (eigenval)
-
-      !CALL mp_sum(fm_mat_Gamma_3%local_data, para_env%group)
 
       ! Remove extra factor from S after the multiplication
 !$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
@@ -6191,74 +6200,107 @@ CONTAINS
             avirt = i_global-(iocc-1)*virtual
             eigen_diff = eig(avirt+homo)-eig(iocc)
 
-            fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/(2* &
-                                                                           SQRT(eigen_diff/(eigen_diff**2+omega**2)))
+            fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
+                                            SQRT(eigen_diff/(eigen_diff**2+omega**2))
 
          END DO
       END DO
+!$OMP              END PARALLEL DO
+
+      ! Release full matrix stuff
+      CALL cp_fm_release(fm_mat_Q_tmp)
+      CALL cp_fm_release(fm_mat_U)
+      CALL cp_fm_release(fm_mat_R_half)
+      CALL cp_fm_release(fm_mat_R_half_gemm)
 
       ! Retrieve mo coefficients in dbcsr format
       NULLIFY (mo_coeff_o, mo_coeff_v)
       mo_coeff_o => mp2_env%ri_rpa%mo_coeff_o
       mo_coeff_v => mp2_env%ri_rpa%mo_coeff_v
 
+      ! Get aux sizes
+      ngroup = para_env_RPA%num_pe/para_env_sub%num_pe
+      CALL get_aux_sizes(dimen_RI, ngroup, my_group_L_size, my_group_L_start, my_group_L_end, &
+                         para_env_sub%num_pe, para_env_RPA%mepos)
+
       ! Copy Gamma_ia_P^3 to dbcsr matrix set
-      CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_sub, &
-                             homo, virtual, mo_coeff_o)
+      CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
+                             homo, virtual, mo_coeff_o, ngroup, my_group_L_start, &
+                             my_group_L_end, my_group_L_size, dimen_RI)
 
       ! Release Gamma_3
       CALL cp_fm_release(fm_mat_Gamma_3)
 
       ! Create more dbcsr matrices
-      CALL cp_fm_get_info(matrix=fm_mat_S, &
-                          ncol_local=ncol_local)
 
       NULLIFY (dbcsr_Gamma_inu_P)
-      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_inu_P, ncol_local)
+      !CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_inu_P, ncol_local)
+      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_inu_P, my_group_L_size)
       NULLIFY (dbcsr_Gamma_munu_P)
-      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, ncol_local)
+      !CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, ncol_local)
+      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_munu_P, my_group_L_size)
       eps_filter = mp2_env%mp2_gpw%eps_filter
 
-      DO kkb = 1, ncol_local
-         ALLOCATE (dbcsr_Gamma_inu_P(kkb)%matrix)
-         CALL cp_dbcsr_init_p(dbcsr_Gamma_inu_P(kkb)%matrix)
-         CALL cp_dbcsr_create(dbcsr_Gamma_inu_P(kkb)%matrix, template=mo_coeff_o)
-         CALL cp_dbcsr_copy(dbcsr_Gamma_inu_P(kkb)%matrix, mo_coeff_o)
-         CALL cp_dbcsr_set(dbcsr_Gamma_inu_P(kkb)%matrix, 0.0_dp)
-         ! Do dbcsr multiplication: transform the virtual index
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(kkb)%matrix, &
-                                0.0_dp, dbcsr_Gamma_inu_P(kkb)%matrix, filter_eps=eps_filter)
-
-         ! Gamma_3 not needed anymore
-         CALL cp_dbcsr_release(dbcsr_Gamma_3(kkb)%matrix)
-         ALLOCATE (dbcsr_Gamma_munu_P(kkb)%matrix)
-         DEALLOCATE (dbcsr_Gamma_3(kkb)%matrix)
-
+      L_counter = 0
+      DO kkb = my_group_L_start, my_group_L_end
+         L_counter = L_counter+1
+         ! One-index transformed Gamma_3
+         ALLOCATE (dbcsr_Gamma_inu_P(L_counter)%matrix)
+         CALL cp_dbcsr_init_p(dbcsr_Gamma_inu_P(L_counter)%matrix)
+         CALL cp_dbcsr_create(dbcsr_Gamma_inu_P(L_counter)%matrix, template=mo_coeff_o)
+         CALL cp_dbcsr_copy(dbcsr_Gamma_inu_P(L_counter)%matrix, mo_coeff_o)
+         CALL cp_dbcsr_set(dbcsr_Gamma_inu_P(L_counter)%matrix, 0.0_dp)
          ! Init Gamma_3 in AO basis
-         CALL cp_dbcsr_init_p(dbcsr_Gamma_munu_P(kkb)%matrix)
-         CALL cp_dbcsr_create(dbcsr_Gamma_munu_P(kkb)%matrix, template=mat_munu%matrix, &
+         ALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
+         CALL cp_dbcsr_init_p(dbcsr_Gamma_munu_P(L_counter)%matrix)
+         CALL cp_dbcsr_create(dbcsr_Gamma_munu_P(L_counter)%matrix, template=mat_munu%matrix, &
                               matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_copy(dbcsr_Gamma_munu_P(kkb)%matrix, mat_munu%matrix)
-         CALL cp_dbcsr_set(dbcsr_Gamma_munu_P(kkb)%matrix, 0.0_dp)
-         !Do dbcsr multiplication: transform the occupied index
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(kkb)%matrix, mo_coeff_o, &
-                                0.0_dp, dbcsr_Gamma_munu_P(kkb)%matrix, filter_eps=eps_filter)
+         CALL cp_dbcsr_copy(dbcsr_Gamma_munu_P(L_counter)%matrix, mat_munu%matrix)
+         CALL cp_dbcsr_set(dbcsr_Gamma_munu_P(L_counter)%matrix, 0.0_dp)
       ENDDO
 
+      !! Loup over auxiliary basis functions: multiplication
+      L_counter = 0
+      DO kkb = my_group_L_start, my_group_L_end
+         L_counter = L_counter+1
+         ! Do dbcsr multiplication: transform the virtual index
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, dbcsr_Gamma_3(L_counter)%matrix, &
+                                0.0_dp, dbcsr_Gamma_inu_P(L_counter)%matrix, filter_eps=eps_filter)
+
+         !Do dbcsr multiplication: transform the occupied index
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, dbcsr_Gamma_inu_P(L_counter)%matrix, mo_coeff_o, &
+                                0.0_dp, dbcsr_Gamma_munu_P(L_counter)%matrix, filter_eps=eps_filter)
+         !
+         CALL cp_dbcsr_trace(dbcsr_Gamma_munu_P(L_counter)%matrix, trace_corr)
+      ENDDO
+
+      ! Gamma_3 not needed anymore
+      L_counter = 0
+      DO kkb = my_group_L_start, my_group_L_end
+         L_counter = L_counter+1
+         CALL cp_dbcsr_release(dbcsr_Gamma_3(L_counter)%matrix)
+         DEALLOCATE (dbcsr_Gamma_3(L_counter)%matrix)
+      ENDDO
       DEALLOCATE (dbcsr_Gamma_3)
 
       ! Contract DM with exchange integrals
-      CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, ncol_local, eps_filter, e_axk_corr)
+      !CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, ncol_local, eps_filter, e_axk_corr)
+      CALL integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, my_group_L_size, eps_filter, e_axk_corr, &
+                              my_group_L_start, my_group_L_end)
+
+      !CALL mp_sum(e_axk_corr,para_env_RPA%group)
 
       ! Print AXK correlation energy to the file
-      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy:', &
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F25.14,A4)') 'AXK correlation energy for a quadrature point:', &
          e_axk_corr, ' a.u.'
 
-      DO kkb = 1, ncol_local
-         CALL cp_dbcsr_release(dbcsr_Gamma_inu_P(kkb)%matrix)
-         CALL cp_dbcsr_release(dbcsr_Gamma_munu_P(kkb)%matrix)
-         DEALLOCATE (dbcsr_Gamma_inu_P(kkb)%matrix)
-         DEALLOCATE (dbcsr_Gamma_munu_P(kkb)%matrix)
+      L_counter = 0
+      DO kkb = my_group_L_start, my_group_L_end
+         L_counter = L_counter+1
+         CALL cp_dbcsr_release(dbcsr_Gamma_inu_P(L_counter)%matrix)
+         CALL cp_dbcsr_release(dbcsr_Gamma_munu_P(L_counter)%matrix)
+         DEALLOCATE (dbcsr_Gamma_inu_P(L_counter)%matrix)
+         DEALLOCATE (dbcsr_Gamma_munu_P(L_counter)%matrix)
       ENDDO
       DEALLOCATE (dbcsr_Gamma_inu_P)
       DEALLOCATE (dbcsr_Gamma_munu_P)
@@ -6268,29 +6310,77 @@ CONTAINS
    END SUBROUTINE compute_axk_ener
 
 ! **************************************************************************************************
-!> \brief Contract RPA-AXK density matrix with HF exchange integrals
+!> \brief ...
+!> \param dimen_RI ...
+!> \param ngroup ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param num_proc ...
+!> \param mepos ...
+! **************************************************************************************************
+   SUBROUTINE get_aux_sizes(dimen_RI, ngroup, my_group_L_size, my_group_L_start, my_group_L_end, num_proc, mepos)
+      INTEGER                                            :: dimen_RI, ngroup, my_group_L_size, &
+                                                            my_group_L_start, my_group_L_end, &
+                                                            num_proc, mepos
+
+      INTEGER                                            :: color_sub, igroup, iitmp(2)
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, sizes_array, starts_array
+
+      color_sub = mepos/num_proc
+
+      ALLOCATE (sizes_array(0:ngroup-1))
+      sizes_array = 0
+      ALLOCATE (starts_array(0:ngroup-1))
+      starts_array = 0
+      ALLOCATE (ends_array(0:ngroup-1))
+      ends_array = 0
+
+      DO igroup = 0, ngroup-1
+         iitmp = get_limit(dimen_RI, ngroup, igroup)
+         starts_array(igroup) = iitmp(1)
+         ends_array(igroup) = iitmp(2)
+         sizes_array(igroup) = iitmp(2)-iitmp(1)+1
+      ENDDO
+
+      my_group_L_size = sizes_array(color_sub)
+      my_group_L_start = starts_array(color_sub)
+      my_group_L_end = ends_array(color_sub)
+
+      DEALLOCATE (sizes_array)
+      DEALLOCATE (starts_array)
+      DEALLOCATE (ends_array)
+
+   END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Contract RPA-AXK density matrix with HF exchange integrals and evaluate the correction
 !> \param qs_env ...
-!> \param dbcsr_Gamma_munu_P ...
+!> \param dbcsr_Gamma_munu_P ...  AXK density matrix in AO basis to be contracted
 !> \param mat_munu ...
 !> \param para_env_sub ...
 !> \param P_stack_size ...
 !> \param eps_filter ...
-!> \param axk_corr ...
+!> \param axk_corr ...  The AXK energy correction
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
 !> \author Vladimir Rybkin, 08/2016
 ! **************************************************************************************************
    SUBROUTINE integrate_exchange(qs_env, dbcsr_Gamma_munu_P, mat_munu, para_env_sub, P_stack_size, &
-                                 eps_filter, axk_corr)
+                                 eps_filter, axk_corr, &
+                                 my_group_L_start, my_group_L_end)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dbcsr_Gamma_munu_P
       TYPE(cp_dbcsr_p_type)                              :: mat_munu
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER                                            :: P_stack_size
       REAL(KIND=dp)                                      :: eps_filter, axk_corr
+      INTEGER                                            :: my_group_L_start, my_group_L_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_exchange', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: aux, handle, irep, n_rep_hf, ns
+      INTEGER                                            :: aux, handle, irep, kkb, n_rep_hf, ns
       LOGICAL                                            :: my_recalc_hfx_integrals
       REAL(KIND=dp)                                      :: e_axk_P, ex_energy
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_work_ao
@@ -6329,7 +6419,11 @@ CONTAINS
 
       ! The loop over auxiliary basis functions
       axk_corr = 0.0_dp
-      DO aux = 1, P_stack_size
+      !DO aux = 1, P_stack_size
+      P_stack_size = P_stack_size
+      aux = 0
+      DO kkb = my_group_L_start, my_group_L_end
+         aux = aux+1
 
          CALL cp_dbcsr_copy(rho_work_ao(1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix)
          ! save old EX energy
@@ -6344,12 +6438,12 @@ CONTAINS
                                        para_env_sub, my_recalc_hfx_integrals, irep, .TRUE., &
                                        ispin=1, axk_x_data=x_data)
          END DO
+
          ! restore original EX energy
-         !write(*,*) 'ex_energy', energy%ex, ex_energy
          energy%ex = ex_energy
          my_recalc_hfx_integrals = .FALSE.
          ! One more dbcsr multiplication and trace
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mat_munu%matrix, dbcsr_Gamma_munu_P(aux)%matrix, &
+         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mat_2d(1, 1)%matrix, dbcsr_Gamma_munu_P(aux)%matrix, &
                                 0.0_dp, dbcsr_Gamma_munu_P(aux)%matrix, filter_eps=eps_filter)
          CALL cp_dbcsr_trace(dbcsr_Gamma_munu_P(aux)%matrix, e_axk_p)
          axk_corr = axk_corr+e_axk_P

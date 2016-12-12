@@ -54,7 +54,7 @@ MODULE mp2_ri_grad_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
 
-   PUBLIC :: complete_gamma
+   PUBLIC :: complete_gamma, fm2array
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
@@ -1085,6 +1085,7 @@ CONTAINS
       grid_2_mepos = 0
       ALLOCATE (mepos_2_grid(0:para_env%num_pe-1, 2))
       mepos_2_grid = 0
+
       ! ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2),STAT=stat)
       ! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
       ! mepos_2_grid_group=0

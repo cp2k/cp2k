@@ -636,10 +636,16 @@ CONTAINS
       ELSE
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total RI-RPA Time=', t2-t1
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA energy  =   ', Emp2
+         IF (mp2_env%ri_rpa%do_ri_axk) THEN
+            IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'RI-RPA-AXK energy=', mp2_env%ri_rpa%ener_axk
+         ENDIF
       END IF
       IF (unit_nr > 0) WRITE (unit_nr, *)
 
       ! we have it !!!!
+      IF (mp2_env%ri_rpa%do_ri_axk) THEN
+         Emp2 = Emp2+mp2_env%ri_rpa%ener_axk
+      ENDIF
       energy%mp2 = Emp2
       energy%total = energy%total+Emp2
 
