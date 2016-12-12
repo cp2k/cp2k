@@ -2730,15 +2730,10 @@ CONTAINS
 !> \param matrix_a ...
 !> \param matrix_b ...
 !> \param trace ...
-!> \param trans_a ...
-!> \param trans_b ...
-!> \param local_sum ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_trace_a_b_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
+   SUBROUTINE dbcsr_trace_a_b_d(matrix_a, matrix_b, trace)
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a, matrix_b
       REAL(kind=real_8), INTENT(INOUT)                   :: trace
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: trans_a, trans_b
-      LOGICAL, INTENT(IN), OPTIONAL                      :: local_sum
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_b_d', &
          routineP = moduleN//':'//routineN
@@ -2753,11 +2748,11 @@ CONTAINS
           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8 .OR. &
           dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
-         CALL dbcsr_trace_ab_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
+         CALL dbcsr_trace_ab_d(matrix_a, matrix_b, trace)
       ELSEIF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
               dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
          trace_4 = 0.0_real_4
-         CALL dbcsr_trace_ab_s(matrix_a, matrix_b, trace_4, trans_a, trans_b, local_sum)
+         CALL dbcsr_trace_ab_s(matrix_a, matrix_b, trace_4)
          trace = REAL(trace_4, real_8)
       ELSE
          CPABORT("Invalid combination of data type, NYI")

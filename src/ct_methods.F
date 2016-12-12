@@ -276,8 +276,7 @@ CONTAINS
 
             IF (cts_env%calculate_energy_corr) THEN
 
-               CALL cp_dbcsr_trace(matrix_qp, cts_env%matrix_x, &
-                                   cts_env%energy_correction, "T", "N")
+               CALL cp_dbcsr_trace(matrix_qp, cts_env%matrix_x, cts_env%energy_correction)
 
             ENDIF
 
@@ -399,8 +398,7 @@ CONTAINS
 
             IF (cts_env%calculate_energy_corr) THEN
 
-               CALL cp_dbcsr_trace(matrix_qp_save, cts_env%matrix_x, &
-                                   cts_env%energy_correction, "T", "N")
+               CALL cp_dbcsr_trace(matrix_qp_save, cts_env%matrix_x, cts_env%energy_correction)
 
             ENDIF
             CALL cp_dbcsr_release(matrix_qp_save)
@@ -1005,48 +1003,48 @@ CONTAINS
                CASE (cg_hestenes_stiefel)
                   CALL cp_dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
                   CALL cp_dbcsr_hadamard_product(prec, grad, n)
-                  CALL cp_dbcsr_trace(n, m, numer, "T", "N")
-                  CALL cp_dbcsr_trace(grad, step, denom, "T", "N")
+                  CALL cp_dbcsr_trace(n, m, numer)
+                  CALL cp_dbcsr_trace(grad, step, denom)
                   beta = numer/denom
                CASE (cg_fletcher_reeves)
                   CALL cp_dbcsr_hadamard_product(prec, grad, n)
-                  CALL cp_dbcsr_trace(grad, n, denom, "T", "N")
+                  CALL cp_dbcsr_trace(grad, n, denom)
                   CALL cp_dbcsr_hadamard_product(prec, m, n)
-                  CALL cp_dbcsr_trace(m, n, numer, "T", "N")
+                  CALL cp_dbcsr_trace(m, n, numer)
                   beta = numer/denom
                CASE (cg_polak_ribiere)
                   CALL cp_dbcsr_hadamard_product(prec, grad, n)
-                  CALL cp_dbcsr_trace(grad, n, denom, "T", "N")
+                  CALL cp_dbcsr_trace(grad, n, denom)
                   CALL cp_dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
                   CALL cp_dbcsr_hadamard_product(prec, grad, n)
-                  CALL cp_dbcsr_trace(n, m, numer, "T", "N")
+                  CALL cp_dbcsr_trace(n, m, numer)
                   beta = numer/denom
                CASE (cg_fletcher)
                   CALL cp_dbcsr_hadamard_product(prec, m, n)
-                  CALL cp_dbcsr_trace(m, n, numer, "T", "N")
-                  CALL cp_dbcsr_trace(grad, step, denom, "T", "N")
+                  CALL cp_dbcsr_trace(m, n, numer)
+                  CALL cp_dbcsr_trace(grad, step, denom)
                   beta = -1.0_dp*numer/denom
                CASE (cg_liu_storey)
-                  CALL cp_dbcsr_trace(grad, step, denom, "T", "N")
+                  CALL cp_dbcsr_trace(grad, step, denom)
                   CALL cp_dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
                   CALL cp_dbcsr_hadamard_product(prec, grad, n)
-                  CALL cp_dbcsr_trace(n, m, numer, "T", "N")
+                  CALL cp_dbcsr_trace(n, m, numer)
                   beta = -1.0_dp*numer/denom
                CASE (cg_dai_yuan)
                   CALL cp_dbcsr_hadamard_product(prec, m, n)
-                  CALL cp_dbcsr_trace(m, n, numer, "T", "N")
+                  CALL cp_dbcsr_trace(m, n, numer)
                   CALL cp_dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
-                  CALL cp_dbcsr_trace(grad, step, denom, "T", "N")
+                  CALL cp_dbcsr_trace(grad, step, denom)
                   beta = numer/denom
                CASE (cg_hager_zhang)
                   CALL cp_dbcsr_add(grad, m, -1.0_dp, 1.0_dp)
-                  CALL cp_dbcsr_trace(grad, step, denom, "T", "N")
+                  CALL cp_dbcsr_trace(grad, step, denom)
                   CALL cp_dbcsr_hadamard_product(prec, grad, n)
-                  CALL cp_dbcsr_trace(n, grad, numer, "T", "N")
+                  CALL cp_dbcsr_trace(n, grad, numer)
                   kappa = 2.0_dp*numer/denom
-                  CALL cp_dbcsr_trace(n, m, numer, "T", "N")
+                  CALL cp_dbcsr_trace(n, m, numer)
                   tau = numer/denom
-                  CALL cp_dbcsr_trace(step, m, numer, "T", "N")
+                  CALL cp_dbcsr_trace(step, m, numer)
                   beta = tau-kappa*numer/denom
                CASE (cg_zero)
                   beta = 0.0_dp
@@ -1139,13 +1137,13 @@ CONTAINS
             ! calculate coefficients of the cubic eq for alpha - step size
             c0 = 2.0_dp*(cp_dbcsr_frobenius_norm(n))**2
 
-            CALL cp_dbcsr_trace(m, n, c1, "T", "N")
+            CALL cp_dbcsr_trace(m, n, c1)
             c1 = -3.0_dp*c1
 
-            CALL cp_dbcsr_trace(res, n, c2, "T", "N")
+            CALL cp_dbcsr_trace(res, n, c2)
             c2 = -2.0_dp*c2+(cp_dbcsr_frobenius_norm(m))**2
 
-            CALL cp_dbcsr_trace(res, m, c3, "T", "N")
+            CALL cp_dbcsr_trace(res, m, c3)
 
             ! find step size
             CALL analytic_line_search(c0, c1, c2, c3, step_size, nsteps)

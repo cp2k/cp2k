@@ -78,80 +78,54 @@
 !> \param[in] matrix_a DBCSR matrices
 !> \param[in] matrix_b DBCSR matrices
 !> \param[out] trace             the trace of the product of the matrices
-!> \param[in] trans_a            (optional) is matrix_a transposed or not?
-!> \param[in] trans_b            (optional) is matrix_b transposed or not?
-!> \param local_sum ...
 ! **************************************************************************************************
-  SUBROUTINE dbcsr_trace_ab_[nametype1](matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
+  SUBROUTINE dbcsr_trace_ab_[nametype1](matrix_a, matrix_b, trace)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
     [type1], INTENT(INOUT)                   :: trace
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
-    LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_ab_[nametype1]', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1)                         :: my_trans_a, my_trans_b
     INTEGER :: a_blk, a_col, a_col_size, a_row_size, b_blk, b_col_size, &
       b_frst_blk, b_last_blk, b_row_size, nze, row, a_beg, a_end, b_beg, b_end
+    CHARACTER                                :: matrix_a_type, matrix_b_type
     INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
                                                 a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
     [type1]                                  :: sym_fac, fac
-    LOGICAL                                  :: found, my_local_sum
+    LOGICAL                                  :: found, matrix_a_symm, matrix_b_symm
     REAL(real_4), EXTERNAL                   :: SDOT
     REAL(real_8), EXTERNAL                   :: DDOT
     COMPLEX(real_4), EXTERNAL                :: CDOTU
     COMPLEX(real_8), EXTERNAL                :: ZDOTU
-    REAL(real_4), DIMENSION(:), POINTER      :: a_data_r, b_data_r
-    REAL(real_8), DIMENSION(:), POINTER      :: a_data_d, b_data_d
-    COMPLEX(real_4), DIMENSION(:), POINTER   :: a_data_c, b_data_c
-    COMPLEX(real_8), DIMENSION(:), POINTER   :: a_data_z, b_data_z
+    [type1], DIMENSION(:), POINTER           :: a_data, b_data
 
 !   ---------------------------------------------------------------------------
 
-    my_local_sum = .FALSE.
-    IF(PRESENT(local_sum)) my_local_sum=local_sum
-    IF(.NOT.my_local_sum) THEN!fixme
-       IF(matrix_a%m%replication_type .NE. dbcsr_repl_none&
-            .OR. matrix_b%m%replication_type .NE. dbcsr_repl_none)&
-            CPABORT("Trace of product of replicated matrices not yet possible.")
-    ENDIF
+    IF(matrix_a%m%replication_type .NE. dbcsr_repl_none&
+         .OR. matrix_b%m%replication_type .NE. dbcsr_repl_none)&
+         CPABORT("Trace of product of replicated matrices not yet possible.")
 
     sym_fac = REAL(1.0,[kind1])
-    IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
-        dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).AND.&
-       (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
-        dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) sym_fac = REAL(2.0,[kind1])
+    matrix_a_type = dbcsr_get_matrix_type(matrix_a)
+    matrix_b_type = dbcsr_get_matrix_type(matrix_b)
+    matrix_a_symm = matrix_a_type==dbcsr_type_symmetric.OR.matrix_a_type==dbcsr_type_antisymmetric
+    matrix_b_symm = matrix_b_type==dbcsr_type_symmetric.OR.matrix_b_type==dbcsr_type_antisymmetric
+
+    IF(matrix_a_symm .AND. matrix_b_symm) sym_fac = REAL(2.0,[kind1])
 
     ! tracing a symmetric with a general matrix is not implemented, as it would require communication of blocks
-    IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
-        dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).NEQV. &
-       (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
-        dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) THEN
+    IF(matrix_a_symm .NEQV. matrix_b_symm) &
        CPABORT("Tracing general with symmetric matrix NYI")
-    ENDIF
 
     a_row_blk_size => array_data (matrix_a%m%row_blk_size)
     a_col_blk_size => array_data (matrix_a%m%col_blk_size)
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)
     b_col_blk_size => array_data (matrix_b%m%col_blk_size)
-    IF(matrix_a%m%data_type==dbcsr_type_real_4)    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
-    IF(matrix_b%m%data_type==dbcsr_type_real_4)    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
-    IF(matrix_a%m%data_type==dbcsr_type_real_8)    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
-    IF(matrix_b%m%data_type==dbcsr_type_real_8)    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
-    IF(matrix_a%m%data_type==dbcsr_type_complex_4) CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
-    IF(matrix_b%m%data_type==dbcsr_type_complex_4) CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
-    IF(matrix_a%m%data_type==dbcsr_type_complex_8) CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
-    IF(matrix_b%m%data_type==dbcsr_type_complex_8) CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
 
-    my_trans_a = 'T'
-    IF(PRESENT(trans_a)) my_trans_a = trans_a
-    my_trans_b = 'N'
-    IF(PRESENT(trans_b)) my_trans_b = trans_b
-    IF(my_trans_a.NE.'T'.OR.my_trans_b.NE.'N')&
-       CPABORT("this combination of transpose is NYI")
-    !
+    CALL dbcsr_get_data (matrix_a%m%data_area, a_data)
+    CALL dbcsr_get_data (matrix_b%m%data_area, b_data)
+
     ! let's go
     trace = REAL(0.0,[kind1])
     IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total)&
@@ -159,11 +133,7 @@
     DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
-       IF(a_row_size.NE.b_row_size) THEN
-          WRITE(*,*) 'a_row_size',a_row_size
-          WRITE(*,*) 'b_row_size',b_row_size
-          CPABORT("matrices not consistent")
-       ENDIF
+       IF(a_row_size.NE.b_row_size) CPABORT("matrices not consistent")
        b_blk = matrix_b%m%row_p(row)+1
        b_frst_blk = matrix_b%m%row_p(row)+1
        b_last_blk = matrix_b%m%row_p(row+1)
@@ -177,11 +147,7 @@
                matrix_b%m%blk_p,b_blk,found)
           IF(found) THEN
              b_col_size = b_col_blk_size(a_col)
-             IF(a_col_size.NE.b_col_size)  THEN
-                WRITE(*,*) 'a_col_size',a_col_size
-                WRITE(*,*) 'b_col_size',b_col_size
-                CPABORT("matrices not consistent")
-             ENDIF
+             IF(a_col_size.NE.b_col_size) CPABORT("matrices not consistent")
              !
              nze = a_row_size*a_col_size
              !
@@ -194,46 +160,16 @@
                 b_end = b_beg + nze - 1
                 fac = REAL(1.0,[kind1])
                 IF(row.NE.a_col) fac = sym_fac
-                ! this is a mess, no need to support that..
-                IF(    matrix_a%m%data_type.EQ.dbcsr_type_real_4.AND.&
-                       matrix_b%m%data_type.EQ.dbcsr_type_real_4) THEN
-                   trace = trace +[conv1]fac * SDOT (nze,&
-                        a_data_r(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_r(ABS(matrix_b%m%blk_p(b_blk))),1)[conv2]
-                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_4.AND.&
-                     matrix_b%m%data_type.EQ.dbcsr_type_real_8) THEN
-                   trace = trace + &
-                        [conv1]fac * SUM ( a_data_r(a_beg:a_end) * b_data_d(b_beg:b_end) )[conv2]
-                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_8.AND.&
-                       matrix_b%m%data_type.EQ.dbcsr_type_real_4) THEN
-                   trace = trace + &
-                        [conv1]fac * SUM ( a_data_d(a_beg:a_end) * b_data_r(b_beg:b_end) )[conv2]
-                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_8.AND.&
-                       matrix_b%m%data_type.EQ.dbcsr_type_real_8) THEN
-                   trace = trace + [conv1]fac * DDOT (nze,&
-                        a_data_d(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_d(ABS(matrix_b%m%blk_p(b_blk))),1)[conv2]
-                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_complex_4.AND.&
-                       matrix_b%m%data_type.EQ.dbcsr_type_complex_4) THEN
-                   trace = trace + [conv1]fac * CDOTU (nze,&
-                        a_data_c(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_c(ABS(matrix_b%m%blk_p(b_blk))),1)[conv2]
-                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_complex_8.AND.&
-                       matrix_b%m%data_type.EQ.dbcsr_type_complex_8) THEN
-                   trace = trace + [conv1]fac * ZDOTU (nze,&
-                        a_data_z(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1)[conv2]
-                ELSE
-                   CPABORT("combination of types NYI")
-                ENDIF
+
+                trace = trace + fac * SUM ( a_data(a_beg:a_end) * b_data(b_beg:b_end) )
+
              ENDIF
           ENDIF
        ENDDO ! a_col
     ENDDO ! a_row
     !
-    ! summe
-    IF(.NOT.my_local_sum) &
-           CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
+    ! sum
+    CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
   END SUBROUTINE dbcsr_trace_ab_[nametype1]
 

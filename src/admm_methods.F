@@ -1286,8 +1286,7 @@ CONTAINS
             ! Calculate LAMBDA according to Merlot, 1. IF: ADMMQ, 2. IF: ADMMP, 3. IF: ADMMS,
             IF (admm_env%charge_constrain .AND. &
                 (admm_env%scaling_model == do_admm_exch_scaling_none)) THEN
-               CALL cp_dbcsr_trace(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, &
-                                   trace_tmp, 'T', 'N')
+               CALL cp_dbcsr_trace(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
 
                ! Factor of 2 is missing compared to Eq. 28 in Merlot due to
                ! Tr(ds) = N in the code \neq 2N in Merlot
@@ -1308,10 +1307,8 @@ CONTAINS
 
             ELSE IF (admm_env%charge_constrain .AND. &
                      (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
-               CALL cp_dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, &
-                                   trace_tmp, 'T', 'N')
-               CALL cp_dbcsr_trace(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, &
-                                   trace_tmp_two, 'T', 'N')
+               CALL cp_dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
+               CALL cp_dbcsr_trace(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp_two)
                ! For ADMMS open-shell case we need k and x (Merlot) separately since gsi(a)\=gsi(b)
                IF (dft_control%nspins == 2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
@@ -2102,10 +2099,10 @@ CONTAINS
 
          ! Calculate number of electrons in the original density matrix, transposing doesn't matter
          ! since both matrices are symmetric
-         CALL cp_dbcsr_trace(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin), 'T', 'N')
+         CALL cp_dbcsr_trace(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin))
          admm_env%n_large_basis(3) = admm_env%n_large_basis(3)+admm_env%n_large_basis(ispin)
          ! Calculate number of electrons in the auxiliary density matrix
-         CALL cp_dbcsr_trace(density_matrix, overlap_matrix, nel_tmp_aux, 'T', 'N')
+         CALL cp_dbcsr_trace(density_matrix, overlap_matrix, nel_tmp_aux)
          admm_env%gsi(ispin) = admm_env%n_large_basis(ispin)/nel_tmp_aux
 
          IF (admm_env%charge_constrain) THEN

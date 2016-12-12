@@ -268,20 +268,15 @@
 !> \param matrix_a ...
 !> \param matrix_b ...
 !> \param trace ...
-!> \param trans_a ...
-!> \param trans_b ...
-!> \param local_sum ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_trace_ab_c (matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
+  SUBROUTINE cp_dbcsr_trace_ab_c (matrix_a, matrix_b, trace)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a, matrix_b
     COMPLEX(kind=real_4), INTENT(INOUT)                   :: trace
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
-    LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_ab_c', &
       routineP = moduleN//':'//routineN
 
-    CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace, trans_a, trans_b, local_sum)
+    CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace)
   END SUBROUTINE cp_dbcsr_trace_ab_c
 
 

@@ -613,8 +613,7 @@ CONTAINS
                   !CALL cp_dbcsr_add(matrix_x,almo_scf_env%matrix_t(ispin),&
                   !        -1.0_dp,1.0_dp)
 
-                  !CALL cp_dbcsr_trace(matrix_x,&
-                  !        almo_scf_env%matrix_err_xx(ispin),denergy,"T","N")
+                  !CALL cp_dbcsr_trace(matrix_x, almo_scf_env%matrix_err_xx(ispin),denergy)
 
                   !denergy=denergy*spin_factor
 
@@ -1251,8 +1250,7 @@ CONTAINS
                                          almo_scf_env%matrix_sigma_inv(ispin), &
                                          0.0_dp, FTsiginv, &
                                          filter_eps=almo_scf_env%eps_filter)
-                  CALL cp_dbcsr_trace(matrix_t_out(ispin), &
-                                      FTsiginv, energy_new, "T", "N")
+                  CALL cp_dbcsr_trace(matrix_t_out(ispin), FTsiginv, energy_new)
                   energy_new = energy_new*spin_factor
                ENDIF
 
@@ -1472,18 +1470,17 @@ CONTAINS
 
                         IF (fixed_line_search_niter .EQ. 0) THEN
 
-                           CALL cp_dbcsr_trace(grad, step, line_search_error, &
-                                               "T", "N")
+                           CALL cp_dbcsr_trace(grad, step, line_search_error)
                            ! normalize the result
                            !IF (unit_nr>0) THEN
                            !   WRITE(unit_nr,*) "Angle between step/grad: ", line_search_error
                            !ENDIF
-                           CALL cp_dbcsr_trace(grad, grad, denom, "T", "N")
+                           CALL cp_dbcsr_trace(grad, grad, denom)
                            !IF (unit_nr>0) THEN
                            !   WRITE(unit_nr,*) "Frobenius norm of grad:  ", SQRT(denom)
                            !ENDIF
                            line_search_error = line_search_error/SQRT(denom)
-                           CALL cp_dbcsr_trace(step, step, denom, "T", "N")
+                           CALL cp_dbcsr_trace(step, step, denom)
                            !IF (unit_nr>0) THEN
                            !   WRITE(unit_nr,*) "Frobenius norm of step:  ", SQRT(denom)
                            !ENDIF
@@ -1916,46 +1913,44 @@ CONTAINS
                               CALL cp_dbcsr_copy(m_tmp_no_1, grad)
                               CALL cp_dbcsr_add(m_tmp_no_1, prev_grad, &
                                                 1.0_dp, -1.0_dp)
-                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer, &
-                                                  "T", "N")
-                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_step, denom, &
-                                                  "T", "N")
+                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer)
+                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_step, denom)
                               beta = -1.0_dp*numer/denom
                            CASE (cg_fletcher_reeves)
-                              CALL cp_dbcsr_trace(grad, step, numer, "T", "N")
-                              CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom, "T", "N")
+                              CALL cp_dbcsr_trace(grad, step, numer)
+                              CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom)
                               beta = numer/denom
                            CASE (cg_polak_ribiere)
-                              CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom, "T", "N")
+                              CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom)
                               CALL cp_dbcsr_copy(m_tmp_no_1, grad)
                               CALL cp_dbcsr_add(m_tmp_no_1, prev_grad, 1.0_dp, -1.0_dp)
-                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer, "T", "N")
+                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer)
                               beta = numer/denom
                            CASE (cg_fletcher)
-                              CALL cp_dbcsr_trace(grad, step, numer, "T", "N")
-                              CALL cp_dbcsr_trace(prev_grad, prev_step, denom, "T", "N")
+                              CALL cp_dbcsr_trace(grad, step, numer)
+                              CALL cp_dbcsr_trace(prev_grad, prev_step, denom)
                               beta = numer/denom
                            CASE (cg_liu_storey)
-                              CALL cp_dbcsr_trace(prev_grad, prev_step, denom, "T", "N")
+                              CALL cp_dbcsr_trace(prev_grad, prev_step, denom)
                               CALL cp_dbcsr_copy(m_tmp_no_1, grad)
                               CALL cp_dbcsr_add(m_tmp_no_1, prev_grad, 1.0_dp, -1.0_dp)
-                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer, "T", "N")
+                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer)
                               beta = numer/denom
                            CASE (cg_dai_yuan)
-                              CALL cp_dbcsr_trace(grad, step, numer, "T", "N")
+                              CALL cp_dbcsr_trace(grad, step, numer)
                               CALL cp_dbcsr_copy(m_tmp_no_1, grad)
                               CALL cp_dbcsr_add(m_tmp_no_1, prev_grad, 1.0_dp, -1.0_dp)
-                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_step, denom, "T", "N")
+                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_step, denom)
                               beta = -1.0_dp*numer/denom
                            CASE (cg_hager_zhang)
                               CALL cp_dbcsr_copy(m_tmp_no_1, grad)
                               CALL cp_dbcsr_add(m_tmp_no_1, prev_grad, 1.0_dp, -1.0_dp)
-                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_step, denom, "T", "N")
-                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_minus_prec_grad, numer, "T", "N")
+                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_step, denom)
+                              CALL cp_dbcsr_trace(m_tmp_no_1, prev_minus_prec_grad, numer)
                               kappa = -2.0_dp*numer/denom
-                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer, "T", "N")
+                              CALL cp_dbcsr_trace(m_tmp_no_1, step, numer)
                               tau = -1.0_dp*numer/denom
-                              CALL cp_dbcsr_trace(prev_step, grad, numer, "T", "N")
+                              CALL cp_dbcsr_trace(prev_step, grad, numer)
                               beta = tau-kappa*numer/denom
                            CASE (cg_zero)
                               beta = 0.0_dp
@@ -1997,7 +1992,7 @@ CONTAINS
                      ! estimate the step size
                      IF (.NOT. line_search) THEN
                         e0 = energy_new
-                        CALL cp_dbcsr_trace(grad, step, g0, "T", "N")
+                        CALL cp_dbcsr_trace(grad, step, g0)
                         ! we just changed the direction and
                         ! we have only E and grad from the current step
                         ! it is not enouhg to compute step_size - just guess it
@@ -2015,7 +2010,7 @@ CONTAINS
                      ELSE
                         IF (fixed_line_search_niter .EQ. 0) THEN
                            e1 = energy_new
-                           CALL cp_dbcsr_trace(grad, step, g1, "T", "N")
+                           CALL cp_dbcsr_trace(grad, step, g1)
                            ! we have accumulated some points along this direction
                            ! use only the most recent g0 (quadratic approximation)
                            appr_sec_der = (g1-g0)/step_size
@@ -2164,12 +2159,10 @@ CONTAINS
                                  -1.0_dp, 1.0_dp)
 
                CALL cp_dbcsr_scale(fvo_0, spin_factor)
-               CALL cp_dbcsr_trace(step, fvo_0, energy_new, "T", "N")
+               CALL cp_dbcsr_trace(step, fvo_0, energy_new)
 
-               !CALL cp_dbcsr_add(matrix_t_0,matrix_t_out(ispin),&
-               !        -1.0_dp,1.0_dp)
-               !CALL cp_dbcsr_trace(matrix_t_0,&
-               !        fvo_0,energy_new,"T","N")
+               !CALL cp_dbcsr_add(matrix_t_0,matrix_t_out(ispin), -1.0_dp,1.0_dp)
+               !CALL cp_dbcsr_trace(matrix_t_0, fvo_0,energy_new)
 
                ! print out the energy lowering
                IF (unit_nr > 0) THEN
@@ -3128,8 +3121,7 @@ CONTAINS
                                                   0.0_dp, sigma_oo_curr, &
                                                   filter_eps=almo_scf_env%eps_filter)
                            delta_obj_function = fun0
-                           CALL cp_dbcsr_trace(sigma_oo_curr_inv, &
-                                               sigma_oo_curr, obj_function, "T", "N")
+                           CALL cp_dbcsr_trace(sigma_oo_curr_inv, sigma_oo_curr, obj_function)
                            delta_obj_function = obj_function-delta_obj_function
                            IF (line_search) THEN
                               fun1 = obj_function
@@ -3201,10 +3193,10 @@ CONTAINS
 
                                  ! check for the errors in the cg algorithm
                                  !CALL cp_dbcsr_hadamard_product(prec,prev_grad,tmp_k_blk)
-                                 !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer,"T","N")
-                                 !CALL cp_dbcsr_trace(prev_grad,tmp_k_blk,denom,"T","N")
-                                 CALL cp_dbcsr_trace(grad, prev_minus_prec_grad, numer, "T", "N")
-                                 CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom, "T", "N")
+                                 !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer)
+                                 !CALL cp_dbcsr_trace(prev_grad,tmp_k_blk,denom)
+                                 CALL cp_dbcsr_trace(grad, prev_minus_prec_grad, numer)
+                                 CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom)
                                  conjugacy_error = numer/denom
 
                                  IF (conjugacy_error .GT. MIN(0.5_dp, conjugacy_error_threshold)) THEN
@@ -3216,8 +3208,8 @@ CONTAINS
 
                                  ! check the gradient along the previous direction
                                  IF ((iteration .NE. 0) .AND. (.NOT. reset_conjugator)) THEN
-                                    CALL cp_dbcsr_trace(grad, prev_step, numer, "T", "N")
-                                    CALL cp_dbcsr_trace(prev_grad, prev_step, denom, "T", "N")
+                                    CALL cp_dbcsr_trace(grad, prev_step, numer)
+                                    CALL cp_dbcsr_trace(prev_grad, prev_step, denom)
                                     line_search_error = numer/denom
                                     IF (line_search_error .GT. line_search_error_threshold) THEN
                                        reset_conjugator = .TRUE.
@@ -3236,75 +3228,75 @@ CONTAINS
                                  CASE (cg_hestenes_stiefel)
                                     CALL cp_dbcsr_copy(tmp_k_blk, grad)
                                     CALL cp_dbcsr_add(tmp_k_blk, prev_grad, 1.0_dp, -1.0_dp)
-                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer, "T", "N")
-                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_step, denom, "T", "N")
+                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer)
+                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_step, denom)
                                     beta = -1.0_dp*numer/denom
                                  CASE (cg_fletcher_reeves)
                                     !CALL cp_dbcsr_hadamard_product(prec,prev_grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(prev_grad,tmp_k_blk,denom,"T","N")
+                                    !CALL cp_dbcsr_trace(prev_grad,tmp_k_blk,denom)
                                     !CALL cp_dbcsr_hadamard_product(prec,grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer,"T","N")
+                                    !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer)
                                     !beta=numer/denom
-                                    CALL cp_dbcsr_trace(grad, step, numer, "T", "N")
-                                    CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom, "T", "N")
+                                    CALL cp_dbcsr_trace(grad, step, numer)
+                                    CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom)
                                     beta = numer/denom
                                  CASE (cg_polak_ribiere)
                                     !CALL cp_dbcsr_hadamard_product(prec,prev_grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(prev_grad,tmp_k_blk,denom,"T","N")
+                                    !CALL cp_dbcsr_trace(prev_grad,tmp_k_blk,denom)
                                     !CALL cp_dbcsr_add(prev_grad,grad,-1.0_dp,1.0_dp)
                                     !CALL cp_dbcsr_hadamard_product(prec,prev_grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(tmp_k_blk,grad,numer,"T","N")
-                                    CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom, "T", "N")
+                                    !CALL cp_dbcsr_trace(tmp_k_blk,grad,numer)
+                                    CALL cp_dbcsr_trace(prev_grad, prev_minus_prec_grad, denom)
                                     CALL cp_dbcsr_copy(tmp_k_blk, grad)
                                     CALL cp_dbcsr_add(tmp_k_blk, prev_grad, 1.0_dp, -1.0_dp)
-                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer, "T", "N")
+                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer)
                                     beta = numer/denom
                                  CASE (cg_fletcher)
                                     !CALL cp_dbcsr_hadamard_product(prec,grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer,"T","N")
-                                    !CALL cp_dbcsr_trace(prev_grad,prev_step,denom,"T","N")
+                                    !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer)
+                                    !CALL cp_dbcsr_trace(prev_grad,prev_step,denom)
                                     !beta=-1.0_dp*numer/denom
-                                    CALL cp_dbcsr_trace(grad, step, numer, "T", "N")
-                                    CALL cp_dbcsr_trace(prev_grad, prev_step, denom, "T", "N")
+                                    CALL cp_dbcsr_trace(grad, step, numer)
+                                    CALL cp_dbcsr_trace(prev_grad, prev_step, denom)
                                     beta = numer/denom
                                  CASE (cg_liu_storey)
-                                    CALL cp_dbcsr_trace(prev_grad, prev_step, denom, "T", "N")
+                                    CALL cp_dbcsr_trace(prev_grad, prev_step, denom)
                                     !CALL cp_dbcsr_add(prev_grad,grad,-1.0_dp,1.0_dp)
                                     !CALL cp_dbcsr_hadamard_product(prec,prev_grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(tmp_k_blk,grad,numer,"T","N")
+                                    !CALL cp_dbcsr_trace(tmp_k_blk,grad,numer)
                                     CALL cp_dbcsr_copy(tmp_k_blk, grad)
                                     CALL cp_dbcsr_add(tmp_k_blk, prev_grad, 1.0_dp, -1.0_dp)
-                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer, "T", "N")
+                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer)
                                     beta = numer/denom
                                  CASE (cg_dai_yuan)
                                     !CALL cp_dbcsr_hadamard_product(prec,grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer,"T","N")
+                                    !CALL cp_dbcsr_trace(grad,tmp_k_blk,numer)
                                     !CALL cp_dbcsr_add(prev_grad,grad,-1.0_dp,1.0_dp)
-                                    !CALL cp_dbcsr_trace(prev_grad,prev_step,denom,"T","N")
+                                    !CALL cp_dbcsr_trace(prev_grad,prev_step,denom)
                                     !beta=numer/denom
-                                    CALL cp_dbcsr_trace(grad, step, numer, "T", "N")
+                                    CALL cp_dbcsr_trace(grad, step, numer)
                                     CALL cp_dbcsr_copy(tmp_k_blk, grad)
                                     CALL cp_dbcsr_add(tmp_k_blk, prev_grad, 1.0_dp, -1.0_dp)
-                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_step, denom, "T", "N")
+                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_step, denom)
                                     beta = -1.0_dp*numer/denom
                                  CASE (cg_hager_zhang)
                                     !CALL cp_dbcsr_add(prev_grad,grad,-1.0_dp,1.0_dp)
-                                    !CALL cp_dbcsr_trace(prev_grad,prev_step,denom,"T","N")
+                                    !CALL cp_dbcsr_trace(prev_grad,prev_step,denom)
                                     !CALL cp_dbcsr_hadamard_product(prec,prev_grad,tmp_k_blk)
-                                    !CALL cp_dbcsr_trace(tmp_k_blk,prev_grad,numer,"T","N")
+                                    !CALL cp_dbcsr_trace(tmp_k_blk,prev_grad,numer)
                                     !kappa=2.0_dp*numer/denom
-                                    !CALL cp_dbcsr_trace(tmp_k_blk,grad,numer,"T","N")
+                                    !CALL cp_dbcsr_trace(tmp_k_blk,grad,numer)
                                     !tau=numer/denom
-                                    !CALL cp_dbcsr_trace(prev_step,grad,numer,"T","N")
+                                    !CALL cp_dbcsr_trace(prev_step,grad,numer)
                                     !beta=tau-kappa*numer/denom
                                     CALL cp_dbcsr_copy(tmp_k_blk, grad)
                                     CALL cp_dbcsr_add(tmp_k_blk, prev_grad, 1.0_dp, -1.0_dp)
-                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_step, denom, "T", "N")
-                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_minus_prec_grad, numer, "T", "N")
+                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_step, denom)
+                                    CALL cp_dbcsr_trace(tmp_k_blk, prev_minus_prec_grad, numer)
                                     kappa = -2.0_dp*numer/denom
-                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer, "T", "N")
+                                    CALL cp_dbcsr_trace(tmp_k_blk, step, numer)
                                     tau = -1.0_dp*numer/denom
-                                    CALL cp_dbcsr_trace(prev_step, grad, numer, "T", "N")
+                                    CALL cp_dbcsr_trace(prev_step, grad, numer)
                                     beta = tau-kappa*numer/denom
                                  CASE (cg_zero)
                                     beta = 0.0_dp
@@ -3351,10 +3343,10 @@ CONTAINS
 
                            ! compute the gradient with respect to the step size in the curr direction
                            IF (line_search) THEN
-                              CALL cp_dbcsr_trace(grad, step, gfun1, "T", "N")
+                              CALL cp_dbcsr_trace(grad, step, gfun1)
                               line_search_error = gfun1/gfun0
                            ELSE
-                              CALL cp_dbcsr_trace(grad, step, gfun0, "T", "N")
+                              CALL cp_dbcsr_trace(grad, step, gfun0)
                            ENDIF
 
                            ! make a step - update k
@@ -4927,7 +4919,7 @@ CONTAINS
 !             !!!CALL cp_dbcsr_multiply("N","N",4.0_dp,Fov,grad_blk,&
 !             !!!        0.0_dp,temp0_ov,&
 !             !!!        filter_eps=almo_scf_env%eps_filter)
-!             !!!CALL cp_dbcsr_trace(Fov_filtered,temp0_ov,b0,"T","N")
+!             !!!CALL cp_dbcsr_trace(Fov_filtered,temp0_ov,b0)
 !
 !             alpha=almo_scf_env%truncate_v_trial_step_size
 !

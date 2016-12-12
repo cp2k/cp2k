@@ -186,8 +186,7 @@ MODULE cp_dbcsr_interface
    ! of the dbcsr library.
    TYPE cp_dbcsr_type
       INTEGER, PRIVATE                     :: ref_count = 0
-      !TYPE(dbcsr_obj), PRIVATE             :: matrix
-      TYPE(dbcsr_obj)           :: matrix
+      TYPE(dbcsr_obj), PRIVATE             :: matrix
    END TYPE cp_dbcsr_type
 
    TYPE cp_dbcsr_iterator
