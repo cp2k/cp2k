@@ -29,9 +29,11 @@ static const int   max_1d_plans = 30;
 static const int   sum_plans = max_3d_plans + max_2d_plans + max_1d_plans; 
 static const int   max_plans = sum_plans > 1? sum_plans : 1; 
 
+#if (__CUDACC_VER_MAJOR__<8) || ( defined(__CUDA_ARCH__) && (__CUDA_ARCH__<600) )
 // configuration(s)
 #define FFT_ALIGNMENT CUFFT_COMPATIBILITY_NATIVE // potentially faster
 //#define FFT_ALIGNMENT CUFFT_COMPATIBILITY_FFTW_PADDING // the default
+#endif
 
 #endif
 #endif
