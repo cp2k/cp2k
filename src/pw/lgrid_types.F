@@ -114,7 +114,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(lgrid))
       CPASSERT(.NOT. ASSOCIATED(lgrid%r))
       ALLOCATE (lgrid%r(lgrid%ldim, 0:nthreads-1))
-      WRITE (*, *) "lgrid bounds:", LBOUND(lgrid%r, 1), UBOUND(lgrid%r, 1), LBOUND(lgrid%r, 2), UBOUND(lgrid%r, 2)
 
       CALL timestop(handle)
    END SUBROUTINE
