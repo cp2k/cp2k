@@ -221,7 +221,6 @@ CONTAINS
 
 #define IF_FLAT(x,y) y
 
-      ig = 0
       ithread = 0
 !$    ithread = omp_get_thread_num()
 

@@ -62,7 +62,6 @@ MODULE qs_linres_current
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
-   USE lgrid_types,                     ONLY: lgrid_type
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
    USE orbital_pointers,                ONLY: ncoset
@@ -590,8 +589,8 @@ CONTAINS
       INTEGER :: bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, idir2, igrid_level, &
          iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, &
          jkind, jkind_old, jpgf, jset, jset_old, lmax_global, maxco, maxpgf, maxset, maxsgf, &
-         maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, ngpts, nimages, nkind, nseta, nsetb, &
-         ntasks, nthread, sgfa, sgfb
+         maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, ntasks, &
+         nthread, sgfa, sgfb
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
@@ -619,7 +618,6 @@ CONTAINS
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, orb_basis_set
-      TYPE(lgrid_type)                                   :: lgrid
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -644,7 +642,6 @@ CONTAINS
       NULLIFY (jp_block_a, jp_block_b, jp_block_c, jp_block_d)
       NULLIFY (jpblock_a, jpblock_b, jpblock_c, jpblock_d)
       NULLIFY (jpabt_a, jpabt_b, jpabt_c, jpabt_d)
-      NULLIFY (lgrid%r)
 
       CALL timeset(routineN, handle)
 
@@ -926,15 +923,6 @@ CONTAINS
          CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
          CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
       ENDDO
-
-      ngpts = 0
-      IF (nthread > 1) THEN
-         DO igrid_level = 1, gridlevel_info%ngrid_levels
-            ngpts = MAX(ngpts, rs_rho(igrid_level)%rs_grid%ngpts_local)
-         END DO
-         ngpts = ngpts*nthread
-         CALL reallocate(lgrid%r, 1, ngpts)
-      END IF
 
       !
       ! we need to build the gauge here
@@ -1247,10 +1235,6 @@ CONTAINS
          IF (do_igaim) CALL cp_dbcsr_deallocate_matrix(deltajp_d(1)%matrix)
       END IF
       DEALLOCATE (deltajp_a, deltajp_b, deltajp_c, deltajp_d)
-
-      IF (nthread > 1) THEN
-         DEALLOCATE (lgrid%r)
-      END IF
 
       DEALLOCATE (jpabt_a, jpabt_b, jpabt_c, jpabt_d, workt, tasks, dist_ab)
 

@@ -5,7 +5,7 @@
 
 ! **************************************************************************************************
 !> \brief Scratch space for multiple threads writing to rs grids (see
-!>        qs_collocate_density.F for an example
+!>        qs_collocate_density.F for an example)
 !> \par History
 !>      IAB 26-Apr-2010 : initial version - moved out of qs_collocate_density.F
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
@@ -14,8 +14,7 @@
 
 MODULE lgrid_types
 
-   USE kinds,                           ONLY: dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               rs_grid_max_ngpts
 #include "../base/base_uses.f90"
@@ -30,7 +29,7 @@ MODULE lgrid_types
 
    TYPE lgrid_type
       INTEGER :: ldim, ref_count
-      REAL(dp), DIMENSION(:), POINTER :: r
+      REAL(dp), DIMENSION(:, :), POINTER :: r
    END TYPE lgrid_type
 
    TYPE lgrid_p_type
@@ -114,9 +113,8 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(lgrid))
       CPASSERT(.NOT. ASSOCIATED(lgrid%r))
-      ! larger than int_4 will overflow elsewhere
-      CPASSERT(INT(lgrid%ldim, int_8)*INT(nthreads, int_8) < HUGE(1))
-      ALLOCATE (lgrid%r(lgrid%ldim*nthreads))
+      ALLOCATE (lgrid%r(lgrid%ldim, 0:nthreads-1))
+      WRITE (*, *) "lgrid bounds:", LBOUND(lgrid%r, 1), UBOUND(lgrid%r, 1), LBOUND(lgrid%r, 2), UBOUND(lgrid%r, 2)
 
       CALL timestop(handle)
    END SUBROUTINE

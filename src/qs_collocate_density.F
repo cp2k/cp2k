@@ -1457,7 +1457,7 @@ CONTAINS
          ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, &
          lmax_global, maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_der_type, my_idir, n, na1, &
          na2, natoms, nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, ntasks, &
-         nthread, nxy, nz, nzsize, sgfa, sgfb, ub
+         nthread, nw, nxy, nz, nzsize, sgfa, sgfb, ub
       INTEGER(kind=int_8), DIMENSION(:), POINTER         :: atom_pair_recv, atom_pair_send
       INTEGER(kind=int_8), DIMENSION(:, :), POINTER      :: tasks
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, mylmax, &
@@ -1708,7 +1708,7 @@ CONTAINS
 !$OMP          PRIVATE(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$OMP          PRIVATE(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$OMP          PRIVATE(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
-!$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n), &
+!$OMP          PRIVATE(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n,nw), &
 !$OMP          PRIVATE(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
 
       ithread = 0
@@ -1726,9 +1726,7 @@ CONTAINS
 
          ! Only zero the region of the lgrid required for this grid level
          IF (nthread > 1) THEN
-            lb = ithread*lgrid%ldim+1
-            ub = ithread*lgrid%ldim+rs_rho(igrid_level)%rs_grid%ngpts_local
-            lgrid%r(lb:ub) = 0._dp
+            lgrid%r(1:rs_rho(igrid_level)%rs_grid%ngpts_local, ithread) = 0._dp
          END IF
 !$OMP DO schedule(dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
          loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
@@ -1933,14 +1931,14 @@ CONTAINS
 
                lb = (nz*itask)/nzsize
                ub = (nz*(itask+1))/nzsize-1
-               n = (ithread/nblock)*nblock
-               lbw = 1+n*lgrid%ldim+nxy*lb
+               nw = (ithread/nblock)*nblock
+               lbw = 1+nxy*lb
 
-               n = n+nblock/2
+               n = nw+nblock/2
                IF (n < nthread) THEN
-                  lbr = 1+n*lgrid%ldim+nxy*lb
+                  lbr = 1+nxy*lb
 
-                  CALL daxpy(nxy*(1+ub-lb), 1.0_dp, lgrid%r(lbr), 1, lgrid%r(lbw), 1)
+                  CALL daxpy(nxy*(1+ub-lb), 1.0_dp, lgrid%r(lbr, n), 1, lgrid%r(lbw, nw), 1)
                END IF
 !$OMP BARRIER
             END DO
@@ -1954,7 +1952,7 @@ CONTAINS
             ub = ub+rs_rho(igrid_level)%rs_grid%lb_local(3)
             lbr = 1+nxy*(nz*ithread/nthread)
 
-            CALL daxpy(nxy*nzsize, 1.0_dp, lgrid%r(lbr), 1, &
+            CALL daxpy(nxy*nzsize, 1.0_dp, lgrid%r(lbr, 0), 1, &
                        rs_rho(igrid_level)%rs_grid%r(:, :, lb:ub), 1)
 !$OMP BARRIER
          END IF
@@ -3252,7 +3250,6 @@ CONTAINS
 #include "prep.f90"
 
          IF (PRESENT(lgrid)) THEN
-            ig = lgrid%ldim*ithread_l+1
 #include "call_collocate_omp.f90"
          ELSE
 #include "call_collocate.f90"
@@ -3563,8 +3560,8 @@ CONTAINS
 
                   i_index = grid_map(i)
                   IF (PRESENT(lgrid)) THEN
-                     ig = lgrid%ldim*ithread_l+(k_index-1)*ng(2)*ng(1)+(j_index-1)*ng(1)+(i_index-1)+1
-                     lgrid%r(ig) = lgrid%r(ig)+res
+                     ig = (k_index-1)*ng(2)*ng(1)+(j_index-1)*ng(1)+(i_index-1)+1
+                     lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l)+res
                   ELSE
                      grid(i_index, j_index, k_index) = grid(i_index, j_index, k_index)+res
                   ENDIF
@@ -3684,8 +3681,8 @@ CONTAINS
             ipoint = MODULO((/i, j, k/), ng)+1
             ! add to grid
             IF (PRESENT(lgrid)) THEN
-               ig = lgrid%ldim*ithread_l+ipoint(3)*ng(2)*ng(1)+ipoint(2)*ng(1)+ipoint(1)+1
-               lgrid%r(ig) = lgrid%r(ig)+primitive_value(point)
+               ig = ipoint(3)*ng(2)*ng(1)+ipoint(2)*ng(1)+ipoint(1)+1
+               lgrid%r(ig, ithread_l) = lgrid%r(ig, ithread_l)+primitive_value(point)
             ELSE
                grid(ipoint(1), ipoint(2), ipoint(3)) = grid(ipoint(1), ipoint(2), ipoint(3))+primitive_value(point)
             ENDIF
