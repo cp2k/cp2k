@@ -176,6 +176,7 @@ cusmm_dnt_medium(const int* __restrict__ param_stack, int  careful,  int nruns,
       if (left_to_finish_2 < kn)
         lbb_r[load_unroll_factor_2 + knloads_remained] = __ldg(b_data +srcB + left_to_finish_2);
     }
+    syncthreads ();
     }
     else
      {
