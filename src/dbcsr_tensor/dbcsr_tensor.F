@@ -35,9 +35,9 @@ MODULE dbcsr_tensor
         dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
    USE dbcsr_tensor_block,              ONLY: &
         block_buffer_add_anyd_block, block_buffer_blocks_left, block_buffer_create, &
-        block_buffer_get_next_anyd_block, block_buffer_type, block_nd, block_nd_c_dp, &
-        block_nd_c_sp, block_nd_r_dp, block_nd_r_sp, communicate_buffer, create_block, &
-        destroy_block, ndims_buffer, reshape_2d_to_nd_block, reshape_nd_to_2d_block
+        block_buffer_destroy, block_buffer_get_next_anyd_block, block_buffer_type, block_nd, &
+        block_nd_c_dp, block_nd_c_sp, block_nd_r_dp, block_nd_r_sp, communicate_buffer, &
+        create_block, destroy_block, ndims_buffer, reshape_2d_to_nd_block, reshape_nd_to_2d_block
    USE dbcsr_tensor_index,              ONLY: create_nd_to_2d_mapping,&
                                               destroy_nd_to_2d_mapping,&
                                               get_2d_indices,&
@@ -660,6 +660,8 @@ CONTAINS
                CALL dbcsr_t_put_anyd_block(tensor_out, index, blk_data)
                CALL destroy_block(blk_data)
             ENDDO
+            CALL block_buffer_destroy(buffer_recv(iproc))
+            CALL block_buffer_destroy(buffer_send(iproc))
          ENDDO
       ELSE
          CALL dbcsr_t_create(tensor_in, tensor_out)

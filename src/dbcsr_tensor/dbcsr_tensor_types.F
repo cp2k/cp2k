@@ -63,6 +63,7 @@ MODULE dbcsr_tensor_types
       TYPE(nd_to_2d_mapping)               :: nd_index
       TYPE(array_list)                     :: blk_sizes
       TYPE(array_list)                     :: blk_offsets
+      TYPE(array_list)                     :: nd_dist
       LOGICAL                              :: valid = .FALSE.
       CHARACTER(LEN=default_string_length) :: name
    END TYPE dbcsr_t_type
@@ -70,6 +71,7 @@ MODULE dbcsr_tensor_types
    TYPE dbcsr_t_distribution_type
       TYPE(dbcsr_distribution_obj) :: dist
       INTEGER                      :: comm_2d
+      TYPE(array_list)             :: nd_dist
    END TYPE
 
    INTERFACE dbcsr_t_create
@@ -170,6 +172,7 @@ CONTAINS
 
       CALL dbcsr_distribution_new(dist%dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
       dist%comm_2d = comm_2d
+      dist%nd_dist = nd_dist
 
       CALL dbcsr_mp_release(mp_env)
 
@@ -184,6 +187,7 @@ CONTAINS
 
       CALL dbcsr_distribution_release(dist%dist)
       CALL mp_comm_free(dist%comm_2d)
+      CALL destroy_array_list(dist%nd_dist)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -265,6 +269,7 @@ CONTAINS
       CALL create_nd_to_2d_mapping(map, sum_of_arrays(blk_size), map1_2d, map2_2d)
       tensor%nd_index = map
       tensor%blk_sizes = blk_size
+      tensor%nd_dist = dist%nd_dist
 
       CALL array_offsets(tensor%blk_sizes, tensor%blk_offsets)
 
@@ -289,6 +294,7 @@ CONTAINS
       tensor%nd_index = tensor_in%nd_index
       tensor%blk_sizes = tensor_in%blk_sizes
       tensor%blk_offsets = tensor_in%blk_offsets
+      tensor%nd_dist = tensor_in%nd_dist
       tensor%valid = .TRUE.
       IF (PRESENT(name)) THEN
          tensor%name = name
@@ -351,10 +357,11 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
 
       CALL dbcsr_release(tensor%matrix_rep)
-      CALL destroy_nd_to_2d_mapping(tensor%nd_index)
       CALL destroy_nd_to_2d_mapping(tensor%nd_index_blk)
+      CALL destroy_nd_to_2d_mapping(tensor%nd_index)
       CALL destroy_array_list(tensor%blk_sizes)
       CALL destroy_array_list(tensor%blk_offsets)
+      CALL destroy_array_list(tensor%nd_dist)
       tensor%valid = .FALSE.
       tensor%name = ""
    END SUBROUTINE

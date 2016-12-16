@@ -34,7 +34,8 @@ MODULE dbcsr_tensor
    USE dbcsr_tensor_block,              ONLY: &
         block_buffer_add_anyd_block, block_buffer_blocks_left, block_buffer_create, &
         block_buffer_get_next_anyd_block, block_buffer_type, block_nd, communicate_buffer, &
-        create_block, destroy_block, ndims_buffer, reshape_2d_to_nd_block, reshape_nd_to_2d_block
+        create_block, destroy_block, ndims_buffer, reshape_2d_to_nd_block, reshape_nd_to_2d_block, &
+        block_buffer_destroy
 #:for dparam, dtype, dsuffix in dtype_float_list
    USE dbcsr_tensor_block,              ONLY: block_nd_${dsuffix}$
 #:endfor
@@ -621,6 +622,8 @@ CONTAINS
                CALL dbcsr_t_put_anyd_block(tensor_out, index, blk_data)
                CALL destroy_block(blk_data)
             ENDDO
+            CALL block_buffer_destroy(buffer_recv(iproc))
+            CALL block_buffer_destroy(buffer_send(iproc))
          ENDDO
       ELSE
          CALL dbcsr_t_create(tensor_in, tensor_out)
