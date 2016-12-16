@@ -333,8 +333,8 @@ CONTAINS
       IF (PRESENT(accdrv_binning_nbins)) accdrv_binning_nbins = default_cfg%accdrv_binning_nbins
       IF (PRESENT(accdrv_binning_binsize)) accdrv_binning_binsize = default_cfg%accdrv_binning_binsize
 
-      CPASSERT(default_cfg%nm_stacks == dbcsr_cfg%nn_stacks)
-      CPASSERT(default_cfg%nm_stacks == dbcsr_cfg%nk_stacks)
+      CPASSERT(default_cfg%nm_stacks == default_cfg%nn_stacks)
+      CPASSERT(default_cfg%nm_stacks == default_cfg%nk_stacks)
       IF (PRESENT(nstacks)) nstacks = default_cfg%nm_stacks
 
    END SUBROUTINE dbcsr_get_default_config
