@@ -36,7 +36,7 @@ MODULE dbcsr_tensor_types
    USE kinds,                           ONLY: default_string_length
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_cart_rank,&
-                                              mp_comm_free,&
+                                              mp_dims_create,&
                                               mp_environ
 #include "../base/base_uses.f90"
 
@@ -45,14 +45,15 @@ MODULE dbcsr_tensor_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tensor_types'
 
    PUBLIC  :: &
-      dbcsr_t_blk_sizes, &
       dbcsr_t_blk_offsets, &
+      dbcsr_t_blk_sizes, &
       dbcsr_t_create, &
       dbcsr_t_destroy, &
       dbcsr_t_distribution_destroy, &
       dbcsr_t_distribution_new, &
       dbcsr_t_distribution_type, &
       dbcsr_t_get_data_type, &
+      dbcsr_t_nd_mp_comm, &
       dbcsr_t_type, &
       dims_tensor, &
       ndims_tensor
@@ -64,13 +65,14 @@ MODULE dbcsr_tensor_types
       TYPE(array_list)                     :: blk_sizes
       TYPE(array_list)                     :: blk_offsets
       TYPE(array_list)                     :: nd_dist
+      INTEGER                              :: comm_nd
       LOGICAL                              :: valid = .FALSE.
       CHARACTER(LEN=default_string_length) :: name
    END TYPE dbcsr_t_type
 
    TYPE dbcsr_t_distribution_type
       TYPE(dbcsr_distribution_obj) :: dist
-      INTEGER                      :: comm_2d
+      INTEGER                      :: comm_nd
       TYPE(array_list)             :: nd_dist
    END TYPE
 
@@ -82,9 +84,56 @@ MODULE dbcsr_tensor_types
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Create a default nd process topology that is consistent with a given 2d topology.
+!>        Purpose: a nd tensor defined on the returned process grid can be represented as a DBCSR
+!>        matrix with the given 2d topology.
+!>        This is needed to enable contraction of 2 tensors (must have the same 2d process grid).
+!> \param comm_2d communicator with 2-dimensional topology
+!> \param map1_2d which nd-indices map to first matrix index and in which order
+!> \param map2_2d which nd-indices map to second matrix index and in which order
+!> \retval communicator with nd cartesian grid
+! **************************************************************************************************
+   FUNCTION dbcsr_t_nd_mp_comm(comm_2d, map1_2d, map2_2d)
+      INTEGER, INTENT(IN)                                :: comm_2d
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
+      INTEGER                                            :: dbcsr_t_nd_mp_comm
+
+      INTEGER                                            :: i, ndim1, ndim2, numtask
+      INTEGER, DIMENSION(2)                              :: dims_2d, task_coor
+      INTEGER, DIMENSION(SIZE(map1_2d))                  :: dims1_nd
+      INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: dims_nd, pos
+      INTEGER, DIMENSION(SIZE(map2_2d))                  :: dims2_nd
+
+      ndim1 = SIZE(map1_2d); ndim2 = SIZE(map2_2d)
+
+      CALL mp_environ(numtask, dims_2d, task_coor, comm_2d)
+
+      dims1_nd(:) = 0; dims2_nd(:) = 0
+      CALL mp_dims_create(dims_2d(1), dims1_nd)
+      CALL mp_dims_create(dims_2d(2), dims2_nd)
+
+      DO i = 1, SIZE(map1_2d)
+         dims_nd(map1_2d(i)) = dims1_nd(i)
+      ENDDO
+
+      DO i = 1, SIZE(map2_2d)
+         dims_nd(map2_2d(i)) = dims2_nd(i)
+      ENDDO
+
+      CALL mp_cart_create(comm_2d, ndim1+ndim2, dims_nd, pos, dbcsr_t_nd_mp_comm)
+
+   END FUNCTION
+
+! **************************************************************************************************
 !> \brief Create a tensor distribution.
+!>
+!> comm_nd and comm_2d must be consistent (the nd process grid must map to the 2d process grid
+!> according to map1_2d and map2_2d).
+!> comm_2d is only needed for an early testing phase of tensor contraction and in the future,
+!> comm_2d should not be an input.
 !> \param dist ...
-!> \param comm communicator with n-dimensional Cartesian topology
+!> \param comm_nd communicator with n-dimensional Cartesian topology
+!> \param comm_2d communicator with 2-dimensional topology
 !> \param map1_2d which nd-indices map to first matrix index and in which order
 !> \param map2_2d which nd-indices map to second matrix index and in which order
 !> \param nd_dist_1 distribution vector for first dimension
@@ -92,21 +141,22 @@ CONTAINS
 !> \param nd_dist_3 ...
 !> \param nd_dist_4 ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_t_distribution_new(dist, comm, map1_2d, map2_2d, nd_dist_1, nd_dist_2, nd_dist_3, nd_dist_4)
+   SUBROUTINE dbcsr_t_distribution_new(dist, comm_nd, comm_2d, map1_2d, map2_2d, nd_dist_1, nd_dist_2, nd_dist_3, nd_dist_4)
 
       TYPE(dbcsr_t_distribution_type), INTENT(OUT)       :: dist
-      INTEGER, INTENT(IN)                                :: comm
+      INTEGER, INTENT(IN)                                :: comm_nd, comm_2d
       INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: nd_dist_1, nd_dist_2, nd_dist_3, &
                                                             nd_dist_4
 
-      INTEGER                                            :: bcol, brow, comm_2d, mynode, ndims, &
-                                                            numnodes, pcol, prow
+      INTEGER                                            :: bcol, brow, mynode, ndims, numnodes, &
+                                                            pcol, prow
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pgrid
-      INTEGER, DIMENSION(2)                              :: bdims_2d, coord, dist_2d, myploc, &
-                                                            pdims_2d
+      INTEGER, DIMENSION(2)                              :: bdims_2d, coord, dist_2d, pdims_2d, &
+                                                            pdims_2d_check, task_coor_2d
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, row_dist
       INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: dims, ind, nblks_nd, task_coor
+      LOGICAL, DIMENSION(2)                              :: periods_2d
       LOGICAL, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: periods
       TYPE(array_list)                                   :: nd_dist
       TYPE(dbcsr_mp_obj)                                 :: mp_env
@@ -119,10 +169,10 @@ CONTAINS
 
       nblks_nd(:) = sizes_of_arrays(nd_dist)
 
-      CALL mp_environ(numnodes, mynode, comm)
+      CALL mp_environ(numnodes, mynode, comm_nd)
 
-      ! create 2d topology from nd topology
-      CALL mp_environ(comm, ndims, dims, task_coor, periods)
+      ! check that 2d process topology is consistent with nd topology.
+      CALL mp_environ(comm_nd, ndims, dims, task_coor, periods)
 
       ! process grid index mapping
       CALL create_nd_to_2d_mapping(map_grid, dims, map1_2d, map2_2d, base=0, col_major=.FALSE.)
@@ -133,8 +183,10 @@ CONTAINS
       CALL get_mapping_info(map_grid, dims_2d=pdims_2d)
       CALL get_mapping_info(map_blks, dims_2d=bdims_2d)
 
-      ! Create new 2d topology
-      CALL mp_cart_create(comm, 2, pdims_2d, myploc, comm_2d)
+      CALL mp_environ(comm_2d, 2, pdims_2d_check, task_coor_2d, periods_2d)
+      IF (ANY(pdims_2d_check .NE. pdims_2d)) THEN
+         CPABORT("inconsistent process grid dimensions")
+      ENDIF
 
       ALLOCATE (pgrid(0:pdims_2d(1)-1, 0:pdims_2d(2)-1))
       DO prow = 0, pdims_2d(1)-1
@@ -148,7 +200,7 @@ CONTAINS
 
       ! setup the mp enviroment
       CALL dbcsr_mp_new(mp_env, pgrid, comm_2d, mynode, numnodes, &
-                        myprow=myploc(1), mypcol=myploc(2))
+                        myprow=task_coor_2d(1), mypcol=task_coor_2d(2))
 
       ! create 2d distribution from nd distribution
       ALLOCATE (row_dist(bdims_2d(1)), col_dist(bdims_2d(2)))
@@ -171,8 +223,8 @@ CONTAINS
       ENDDO
 
       CALL dbcsr_distribution_new(dist%dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
-      dist%comm_2d = comm_2d
       dist%nd_dist = nd_dist
+      dist%comm_nd = comm_nd
 
       CALL dbcsr_mp_release(mp_env)
 
@@ -186,7 +238,6 @@ CONTAINS
       TYPE(dbcsr_t_distribution_type), INTENT(INOUT)     :: dist
 
       CALL dbcsr_distribution_release(dist%dist)
-      CALL mp_comm_free(dist%comm_2d)
       CALL destroy_array_list(dist%nd_dist)
    END SUBROUTINE
 
@@ -270,6 +321,7 @@ CONTAINS
       tensor%nd_index = map
       tensor%blk_sizes = blk_size
       tensor%nd_dist = dist%nd_dist
+      tensor%comm_nd = dist%comm_nd
 
       CALL array_offsets(tensor%blk_sizes, tensor%blk_offsets)
 
@@ -295,6 +347,7 @@ CONTAINS
       tensor%blk_sizes = tensor_in%blk_sizes
       tensor%blk_offsets = tensor_in%blk_offsets
       tensor%nd_dist = tensor_in%nd_dist
+      tensor%comm_nd = tensor_in%comm_nd
       tensor%valid = .TRUE.
       IF (PRESENT(name)) THEN
          tensor%name = name
@@ -304,7 +357,7 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Create 2-rank tensor from matrix.
 !> \param matrix_in ...
 !> \param tensor ...
 !> \param order ...
@@ -317,6 +370,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
 
       CHARACTER(len=default_string_length)               :: name_in
+      INTEGER                                            :: comm_2d, comm_nd
       INTEGER, DIMENSION(2)                              :: order_in
       TYPE(dbcsr_distribution_obj)                       :: matrix_dist
       TYPE(dbcsr_t_distribution_type)                    :: dist
@@ -335,9 +389,12 @@ CONTAINS
 
       matrix_dist = dbcsr_distribution(matrix_in)
 
+      comm_2d = dbcsr_mp_group(dbcsr_distribution_mp(matrix_dist))
+      comm_nd = dbcsr_t_nd_mp_comm(comm_2d, [order_in(1)], [order_in(2)])
+
       CALL dbcsr_t_distribution_new( &
          dist, &
-         dbcsr_mp_group(dbcsr_distribution_mp(matrix_dist)), &
+         comm_nd, comm_2d, &
          [order_in(1)], [order_in(2)], &
          dbcsr_distribution_row_dist(matrix_dist), &
          dbcsr_distribution_col_dist(matrix_dist))

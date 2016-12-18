@@ -24,11 +24,13 @@ MODULE dbcsr_tensor_test
                                               dbcsr_t_distribution_type,&
                                               dbcsr_t_distribution_destroy,&
                                               dims_tensor,&
-                                              dbcsr_t_distribution_new
+                                              dbcsr_t_distribution_new,&
+                                              dbcsr_t_nd_mp_comm
    USE kinds,                           ONLY: ${uselist(dtype_float_prec)}$,&
                                               default_string_length
    USE message_passing,                 ONLY: mp_environ, &
-                                              mp_bcast
+                                              mp_bcast, &
+                                              mp_comm_free
    USE allocate_wrap,                   ONLY: allocate_any
    USE dbcsr_tensor_index,              ONLY: combine_index
 #include "../base/base_uses.f90"
@@ -150,28 +152,29 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Test equivalence of all tensor formats, using a random distribution.
 !> \param ndims tensor rank
-!> \param mp_comm communicator
+!> \param mp_comm_2d communicator
 !> \param unit_nr output unit, needs to be a valid unit number on all mpi ranks
 !> \param verbose if .TRUE., print all tensor blocks
 !> \param blk_size_1 block sizes along dimension 1
 !> \param blk_ind_1 index along dimension 1 of non-zero blocks
 ! **************************************************************************************************
-   SUBROUTINE test_tensor_formats(ndims, mp_comm, unit_nr, verbose, &
-                                   ${varlist("blk_size")}$, &
-                                   ${varlist("blk_ind")}$)
+   SUBROUTINE test_tensor_formats(ndims, mp_comm_2d, unit_nr, verbose, &
+                                  ${varlist("blk_size")}$, &
+                                  ${varlist("blk_ind")}$)
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("blk_size")}$
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: ${varlist("blk_ind")}$
       INTEGER, INTENT(IN)                         :: ndims
       INTEGER, INTENT(IN)                         :: unit_nr
       LOGICAL, INTENT(IN)                         :: verbose
-      INTEGER, INTENT(IN)                         :: mp_comm
+      INTEGER, INTENT(IN)                         :: mp_comm_2d
+      INTEGER                                     :: mp_comm_ref, mp_comm_test
       TYPE(dbcsr_t_distribution_type)             :: dist1, dist2
       TYPE(dbcsr_t_type)                          :: tensor1, tensor2
       INTEGER                                     :: isep, iblk
       INTEGER, DIMENSION(:), ALLOCATABLE          :: ${varlist("dist1")}$, &
                                                      ${varlist("dist2")}$
       INTEGER                                     :: nblks, imap
-      INTEGER, DIMENSION(ndims)                   :: pdims, myploc
+      INTEGER, DIMENSION(ndims)                   :: pdims_ref, pdims_test, myploc
       LOGICAL                                     :: eql
       INTEGER                                     :: iperm, idist, icount
       INTEGER, DIMENSION(:), ALLOCATABLE          :: map1, map2, map1_ref, map2_ref
@@ -181,21 +184,22 @@ CONTAINS
       INTEGER                                     :: mynode, numnodes
       CHARACTER(LEN=default_string_length)        :: tensor_name
 
-      CALL mp_environ(numnodes, mynode, mp_comm)
-      CALL mp_environ(mp_comm, ndims, pdims, myploc, periods)
+      CALL mp_environ(numnodes, mynode, mp_comm_2d)
 
       io_unit = 0
       IF (mynode .EQ. 0) io_unit = unit_nr
 
-#:for dim in range(1, maxdim+1)
-      IF (${dim}$ <= ndims) THEN
-         nblks = SIZE(blk_size_${dim}$)
-         CALL random_dist(dist1_${dim}$, nblks, pdims(${dim}$), mp_comm)
-         CALL random_dist(dist2_${dim}$, nblks, pdims(${dim}$), mp_comm)
-      ENDIF
-#:endfor
+      CALL permute(ndims, perm)
+      ALLOCATE(map1_ref(ndims/2), map2_ref(ndims-ndims/2))
+      map1_ref(:) = perm(1:ndims/2, 1)
+      map2_ref(:) = perm(ndims/2+1:ndims, 1)
+
+      mp_comm_ref = dbcsr_t_nd_mp_comm(mp_comm_2d, map1_ref, map2_ref)
+      CALL mp_environ(numnodes, mynode, mp_comm_ref)
+      CALL mp_environ(mp_comm_ref, ndims, pdims_ref, myploc, periods)
 
       IF(io_unit > 0) THEN
+         WRITE(io_unit, *)
          WRITE(io_unit, '(A)') repeat("-",80)
          WRITE(io_unit, '(A,1X,I1)') "Testing matrix representations of tensor rank", ndims
          WRITE(io_unit, '(A)') repeat("-",80)
@@ -203,7 +207,7 @@ CONTAINS
 
 #:for dim in range(1, maxdim+1)
          IF (ndims>=${dim}$) THEN
-            WRITE(io_unit,'(T3,A,1X,I1,A,1X)', advance='no') 'Dim', ${dim}$,':'
+            WRITE(io_unit,'(T4,A,1X,I1,A,1X)', advance='no') 'Dim', ${dim}$,':'
             DO iblk=1, SIZE(blk_size_${dim}$)
                WRITE(io_unit,'(I2,1X)', advance='no') blk_size_${dim}$(iblk)
             ENDDO
@@ -215,57 +219,15 @@ CONTAINS
          DO iblk=1,SIZE(blk_ind_1)
 #:for ndim in ndims
             IF (ndims==${ndim}$) THEN
-               WRITE(io_unit,'(T3,A, I3, A, ${ndim}$I3, 1X, A)') &
+               WRITE(io_unit,'(T4,A, I3, A, ${ndim}$I3, 1X, A)') &
                   'Block',iblk, ': (', ${varlist("blk_ind", nmax=ndim, suffix='(iblk)')}$, ')'
             ENDIF
 #:endfor
          ENDDO
-      ENDIF
 
-      CALL permute(ndims, perm)
-      ALLOCATE(map1_ref(ndims/2), map2_ref(ndims-ndims/2))
-      map1_ref(:) = perm(1:ndims/2, 1)
-      map2_ref(:) = perm(ndims/2+1:ndims, 1)
-
-      IF(io_unit > 0) THEN
-
-         WRITE(io_unit,'(A)') "Reference distribution:"
-#:for dim in range(1, maxdim+1)
-         IF (${dim}$ <= ndims) THEN
-            WRITE(io_unit, '(T3,A,1X)', advance='no') "Dist vec ${dim}$:"
-            DO idist = 1, SIZE(dist2_${dim}$)
-               WRITE(io_unit, '(I2,1X)', advance='no') dist2_${dim}$(idist)
-            ENDDO
-            WRITE(io_unit, *)
-         ENDIF
-#:endfor
-
-         WRITE(io_unit,'(A)') "Test distribution:"
-#:for dim in range(1, maxdim+1)
-         IF (${dim}$ <= ndims) THEN
-            WRITE(io_unit, '(T3,A,1X)', advance='no') "Dist vec ${dim}$:"
-            DO idist = 1, SIZE(dist2_${dim}$)
-               WRITE(io_unit, '(I2,1X)', advance='no') dist1_${dim}$(idist)
-            ENDDO
-            WRITE(io_unit, *)
-         ENDIF
-#:endfor
-      ENDIF
-
-#:for ndim in ndims
-      IF (ndims==${ndim}$) THEN
-         CALL dbcsr_t_distribution_new(dist2, mp_comm, map1_ref, map2_ref, ${varlist("dist2", nmax=ndim)}$)
-         CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
-                             dbcsr_type_real_8, ${varlist("blk_size", nmax=ndim)}$)
-         CALL allocate_and_fill_test_tensor(tensor2, mp_comm, ${varlist("blk_ind", nmax=ndim)}$)
-      ENDIF
-#:endfor
-
-      IF(verbose) CALL write_tensor_blocks(tensor2, io_unit, unit_nr)
-
-      IF(io_unit > 0) THEN
-         WRITE(io_unit,'(A)') "Reference representation:"
-         WRITE (io_unit, '(T3,A1,1X)', advance='no') "("
+         WRITE(io_unit, *)
+         WRITE(io_unit,'(A,1X)', advance='no') "Reference map:"
+         WRITE (io_unit, '(A1,1X)', advance='no') "("
          DO imap = 1, SIZE(map1_ref)
             WRITE (io_unit, '(I1,1X)', advance='no') map1_ref(imap)
          ENDDO
@@ -275,7 +237,6 @@ CONTAINS
          ENDDO
          WRITE (io_unit, '(A1)') ")"
 
-         WRITE(io_unit,'(A)') "Testing representations:"
       ENDIF
 
       icount = 0
@@ -287,22 +248,22 @@ CONTAINS
             map1(:) = perm(1:isep,iperm)
             map2(:) = perm(isep+1:ndims,iperm)
 
-#:for ndim in ndims
-            WRITE(tensor_name, '(A,1X,I3)') "Test", icount
-            IF (ndims==${ndim}$) THEN
-               CALL dbcsr_t_distribution_new(dist1, mp_comm, map1, map2, ${varlist("dist1", nmax=ndim)}$)
-               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
-                                   dbcsr_type_real_8, ${varlist("blk_size", nmax=ndim)}$)
-               CALL allocate_and_fill_test_tensor(tensor1, mp_comm, ${varlist("blk_ind", nmax=ndim)}$)
+            mp_comm_test = dbcsr_t_nd_mp_comm(mp_comm_2d, map1, map2)
+            CALL mp_environ(numnodes, mynode, mp_comm_test)
+            CALL mp_environ(mp_comm_test, ndims, pdims_test, myploc, periods)
+
+#:for dim in range(1, maxdim+1)
+            IF (${dim}$ <= ndims) THEN
+               nblks = SIZE(blk_size_${dim}$)
+               CALL random_dist(dist1_${dim}$, nblks, pdims_test(${dim}$), mp_comm_test)
+               CALL random_dist(dist2_${dim}$, nblks, pdims_ref(${dim}$), mp_comm_ref)
             ENDIF
 #:endfor
 
-            IF(verbose) CALL write_tensor_blocks(tensor1, io_unit, unit_nr)
-
-            eql = dbcsr_t_equal(tensor1, tensor2)
-
-            IF (io_unit > 0) THEN
-               WRITE(io_unit, '(T3,A,A,1X)', advance='no') TRIM(tensor_name),':'
+            IF(io_unit > 0) THEN
+               WRITE(io_unit, *)
+               WRITE(tensor_name, '(A,1X,I3,1X)') "Test", icount
+               WRITE(io_unit, '(A,A,1X)', advance='no') TRIM(tensor_name),':'
                WRITE (io_unit, '(A1,1X)', advance='no') "("
                DO imap = 1, SIZE(map1)
                   WRITE (io_unit, '(I1,1X)', advance='no') map1(imap)
@@ -311,24 +272,74 @@ CONTAINS
                DO imap = 1, SIZE(map2)
                   WRITE (io_unit, '(I1,1X)', advance='no') map2(imap)
                ENDDO
-               WRITE (io_unit, '(A1)', advance='no') ")"
+               WRITE (io_unit, '(A1)') ")"
+
+               WRITE(io_unit,'(T4,A)') "Reference distribution:"
+#:for dim in range(1, maxdim+1)
+               IF (${dim}$ <= ndims) THEN
+                  WRITE(io_unit, '(T7,A,1X)', advance='no') "Dist vec ${dim}$:"
+                  DO idist = 1, SIZE(dist2_${dim}$)
+                     WRITE(io_unit, '(I2,1X)', advance='no') dist2_${dim}$(idist)
+                  ENDDO
+                  WRITE(io_unit, *)
+               ENDIF
+#:endfor
+
+               WRITE(io_unit,'(T4,A)') "Test distribution:"
+#:for dim in range(1, maxdim+1)
+               IF (${dim}$ <= ndims) THEN
+                  WRITE(io_unit, '(T7,A,1X)', advance='no') "Dist vec ${dim}$:"
+                  DO idist = 1, SIZE(dist2_${dim}$)
+                     WRITE(io_unit, '(I2,1X)', advance='no') dist1_${dim}$(idist)
+                  ENDDO
+                  WRITE(io_unit, *)
+               ENDIF
+#:endfor
             ENDIF
 
+#:for ndim in ndims
+            IF (ndims==${ndim}$) THEN
+               CALL dbcsr_t_distribution_new(dist2, mp_comm_ref, mp_comm_2d, map1_ref, map2_ref, ${varlist("dist2", nmax=ndim)}$)
+               CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
+                                   dbcsr_type_real_8, ${varlist("blk_size", nmax=ndim)}$)
+               CALL allocate_and_fill_test_tensor(tensor2, mp_comm_ref, ${varlist("blk_ind", nmax=ndim)}$)
+            ENDIF
+#:endfor
+
+            IF(verbose) CALL write_tensor_blocks(tensor2, io_unit, unit_nr)
+
+#:for ndim in ndims
+            IF (ndims==${ndim}$) THEN
+               CALL dbcsr_t_distribution_new(dist1, mp_comm_test, mp_comm_2d, map1, map2, ${varlist("dist1", nmax=ndim)}$)
+               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
+                                   dbcsr_type_real_8, ${varlist("blk_size", nmax=ndim)}$)
+               CALL allocate_and_fill_test_tensor(tensor1, mp_comm_test, ${varlist("blk_ind", nmax=ndim)}$)
+            ENDIF
+#:endfor
+
+            IF(verbose) CALL write_tensor_blocks(tensor1, io_unit, unit_nr)
+
+            eql = dbcsr_t_equal(tensor1, tensor2)
+
+
             IF (.NOT. eql) THEN
-               IF (io_unit > 0) WRITE(io_unit,'(1X,A)') 'not ok'
-               CPABORT("Test failed!")
+               IF (io_unit > 0) WRITE(io_unit,'(A,1X,A)') TRIM(tensor_name), 'failed!'
+               CPABORT('')
             ELSE
-               IF (io_unit > 0) WRITE(io_unit,'(1X,A)') 'ok'
+               IF (io_unit > 0) WRITE(io_unit,'(A,1X,A)') TRIM(tensor_name), 'passed!'
             ENDIF
             DEALLOCATE(map1, map2)
 
             CALL dbcsr_t_destroy(tensor1)
             CALL dbcsr_t_distribution_destroy(dist1)
+
+            CALL mp_comm_free(mp_comm_test)
+            CALL dbcsr_t_destroy(tensor2)
+            CALL dbcsr_t_distribution_destroy(dist2)
+
          ENDDO
       ENDDO
-      CALL dbcsr_t_destroy(tensor2)
-      CALL dbcsr_t_distribution_destroy(dist2)
-
+      CALL mp_comm_free(mp_comm_ref)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -495,7 +506,7 @@ CONTAINS
       INTEGER                                            :: proc
 
       IF(io_unit_master > 0) THEN
-         WRITE (io_unit_master, '(T6,A)') "(block index) @ process: (array index) value"
+         WRITE (io_unit_master, '(T7,A)') "(block index) @ process: (array index) value"
       ENDIF
       CALL dbcsr_t_iterator_start(iterator, tensor)
       DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
@@ -544,7 +555,7 @@ CONTAINS
 #:for idim in range(ndim,0,-1)
             DO i_${idim}$ = 1, blk_size(${idim}$)
 #:endfor
-               WRITE (unit_nr, '(T6,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I7)') &
+               WRITE (unit_nr, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A,1X,A,${ndim}$I3,1X,A,1X,I7)') &
                   TRIM(name),"(", blk_index,") @", proc, ':', &
                   "(",${varlist("i", nmax=ndim)}$,")", &
                   INT(blk_values_${ndim}$(${varlist("i", nmax=ndim)}$))

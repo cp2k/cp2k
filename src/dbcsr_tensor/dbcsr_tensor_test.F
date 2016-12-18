@@ -29,12 +29,14 @@ MODULE dbcsr_tensor_test
                                               dbcsr_t_distribution_destroy,&
                                               dbcsr_t_distribution_new,&
                                               dbcsr_t_distribution_type,&
+                                              dbcsr_t_nd_mp_comm,&
                                               dbcsr_t_type,&
                                               dims_tensor
    USE kinds,                           ONLY: default_string_length,&
                                               real_4,&
                                               real_8
    USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_free,&
                                               mp_environ
 #include "../base/base_uses.f90"
 
@@ -167,7 +169,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Test equivalence of all tensor formats, using a random distribution.
 !> \param ndims tensor rank
-!> \param mp_comm communicator
+!> \param mp_comm_2d communicator
 !> \param unit_nr output unit, needs to be a valid unit number on all mpi ranks
 !> \param verbose if .TRUE., print all tensor blocks
 !> \param blk_size_1 block sizes along dimension 1
@@ -179,10 +181,10 @@ CONTAINS
 !> \param blk_ind_3 ...
 !> \param blk_ind_4 ...
 ! **************************************************************************************************
-   SUBROUTINE test_tensor_formats(ndims, mp_comm, unit_nr, verbose, &
+   SUBROUTINE test_tensor_formats(ndims, mp_comm_2d, unit_nr, verbose, &
                                   blk_size_1, blk_size_2, blk_size_3, blk_size_4, &
                                   blk_ind_1, blk_ind_2, blk_ind_3, blk_ind_4)
-      INTEGER, INTENT(IN)                                :: ndims, mp_comm, unit_nr
+      INTEGER, INTENT(IN)                                :: ndims, mp_comm_2d, unit_nr
       LOGICAL, INTENT(IN)                                :: verbose
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: blk_size_1, blk_size_2, blk_size_3, &
                                                             blk_size_4, blk_ind_1, blk_ind_2, &
@@ -190,73 +192,62 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: tensor_name
       INTEGER                                            :: iblk, icount, idist, imap, io_unit, &
-                                                            iperm, isep, mynode, nblks, numnodes
+                                                            iperm, isep, mp_comm_ref, &
+                                                            mp_comm_test, mynode, nblks, numnodes
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1_1, dist1_2, dist1_3, dist1_4, &
                                                             dist2_1, dist2_2, dist2_3, dist2_4, &
                                                             map1, map1_ref, map2, map2_ref
       INTEGER, DIMENSION(ndims, factorial(ndims))        :: perm
-      INTEGER, DIMENSION(ndims)                          :: myploc, pdims
+      INTEGER, DIMENSION(ndims)                          :: myploc, pdims_ref, pdims_test
       LOGICAL                                            :: eql
       LOGICAL, DIMENSION(ndims)                          :: periods
       TYPE(dbcsr_t_distribution_type)                    :: dist1, dist2
       TYPE(dbcsr_t_type)                                 :: tensor1, tensor2
 
-      CALL mp_environ(numnodes, mynode, mp_comm)
-      CALL mp_environ(mp_comm, ndims, pdims, myploc, periods)
+      CALL mp_environ(numnodes, mynode, mp_comm_2d)
 
       io_unit = 0
       IF (mynode .EQ. 0) io_unit = unit_nr
 
-      IF (1 <= ndims) THEN
-         nblks = SIZE(blk_size_1)
-         CALL random_dist(dist1_1, nblks, pdims(1), mp_comm)
-         CALL random_dist(dist2_1, nblks, pdims(1), mp_comm)
-      ENDIF
-      IF (2 <= ndims) THEN
-         nblks = SIZE(blk_size_2)
-         CALL random_dist(dist1_2, nblks, pdims(2), mp_comm)
-         CALL random_dist(dist2_2, nblks, pdims(2), mp_comm)
-      ENDIF
-      IF (3 <= ndims) THEN
-         nblks = SIZE(blk_size_3)
-         CALL random_dist(dist1_3, nblks, pdims(3), mp_comm)
-         CALL random_dist(dist2_3, nblks, pdims(3), mp_comm)
-      ENDIF
-      IF (4 <= ndims) THEN
-         nblks = SIZE(blk_size_4)
-         CALL random_dist(dist1_4, nblks, pdims(4), mp_comm)
-         CALL random_dist(dist2_4, nblks, pdims(4), mp_comm)
-      ENDIF
+      CALL permute(ndims, perm)
+      ALLOCATE (map1_ref(ndims/2), map2_ref(ndims-ndims/2))
+      map1_ref(:) = perm(1:ndims/2, 1)
+      map2_ref(:) = perm(ndims/2+1:ndims, 1)
+
+      mp_comm_ref = dbcsr_t_nd_mp_comm(mp_comm_2d, map1_ref, map2_ref)
+      CALL mp_environ(numnodes, mynode, mp_comm_ref)
+      CALL mp_environ(mp_comm_ref, ndims, pdims_ref, myploc, periods)
 
       IF (io_unit > 0) THEN
+         WRITE (io_unit, *)
          WRITE (io_unit, '(A)') REPEAT("-", 80)
          WRITE (io_unit, '(A,1X,I1)') "Testing matrix representations of tensor rank", ndims
          WRITE (io_unit, '(A)') REPEAT("-", 80)
          WRITE (io_unit, '(A)') "Block sizes:"
 
          IF (ndims >= 1) THEN
-            WRITE (io_unit, '(T3,A,1X,I1,A,1X)', advance='no') 'Dim', 1, ':'
+            WRITE (io_unit, '(T4,A,1X,I1,A,1X)', advance='no') 'Dim', 1, ':'
             DO iblk = 1, SIZE(blk_size_1)
                WRITE (io_unit, '(I2,1X)', advance='no') blk_size_1(iblk)
             ENDDO
             WRITE (io_unit, *)
          ENDIF
          IF (ndims >= 2) THEN
-            WRITE (io_unit, '(T3,A,1X,I1,A,1X)', advance='no') 'Dim', 2, ':'
+            WRITE (io_unit, '(T4,A,1X,I1,A,1X)', advance='no') 'Dim', 2, ':'
             DO iblk = 1, SIZE(blk_size_2)
                WRITE (io_unit, '(I2,1X)', advance='no') blk_size_2(iblk)
             ENDDO
             WRITE (io_unit, *)
          ENDIF
          IF (ndims >= 3) THEN
-            WRITE (io_unit, '(T3,A,1X,I1,A,1X)', advance='no') 'Dim', 3, ':'
+            WRITE (io_unit, '(T4,A,1X,I1,A,1X)', advance='no') 'Dim', 3, ':'
             DO iblk = 1, SIZE(blk_size_3)
                WRITE (io_unit, '(I2,1X)', advance='no') blk_size_3(iblk)
             ENDDO
             WRITE (io_unit, *)
          ENDIF
          IF (ndims >= 4) THEN
-            WRITE (io_unit, '(T3,A,1X,I1,A,1X)', advance='no') 'Dim', 4, ':'
+            WRITE (io_unit, '(T4,A,1X,I1,A,1X)', advance='no') 'Dim', 4, ':'
             DO iblk = 1, SIZE(blk_size_4)
                WRITE (io_unit, '(I2,1X)', advance='no') blk_size_4(iblk)
             ENDDO
@@ -266,112 +257,22 @@ CONTAINS
          WRITE (io_unit, '(A)') "Non-zero blocks:"
          DO iblk = 1, SIZE(blk_ind_1)
             IF (ndims == 2) THEN
-               WRITE (io_unit, '(T3,A, I3, A, 2I3, 1X, A)') &
+               WRITE (io_unit, '(T4,A, I3, A, 2I3, 1X, A)') &
                   'Block', iblk, ': (', blk_ind_1(iblk), blk_ind_2(iblk), ')'
             ENDIF
             IF (ndims == 3) THEN
-               WRITE (io_unit, '(T3,A, I3, A, 3I3, 1X, A)') &
+               WRITE (io_unit, '(T4,A, I3, A, 3I3, 1X, A)') &
                   'Block', iblk, ': (', blk_ind_1(iblk), blk_ind_2(iblk), blk_ind_3(iblk), ')'
             ENDIF
             IF (ndims == 4) THEN
-               WRITE (io_unit, '(T3,A, I3, A, 4I3, 1X, A)') &
+               WRITE (io_unit, '(T4,A, I3, A, 4I3, 1X, A)') &
                   'Block', iblk, ': (', blk_ind_1(iblk), blk_ind_2(iblk), blk_ind_3(iblk), blk_ind_4(iblk), ')'
             ENDIF
          ENDDO
-      ENDIF
 
-      CALL permute(ndims, perm)
-      ALLOCATE (map1_ref(ndims/2), map2_ref(ndims-ndims/2))
-      map1_ref(:) = perm(1:ndims/2, 1)
-      map2_ref(:) = perm(ndims/2+1:ndims, 1)
-
-      IF (io_unit > 0) THEN
-
-         WRITE (io_unit, '(A)') "Reference distribution:"
-         IF (1 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 1:"
-            DO idist = 1, SIZE(dist2_1)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist2_1(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-         IF (2 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 2:"
-            DO idist = 1, SIZE(dist2_2)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist2_2(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-         IF (3 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 3:"
-            DO idist = 1, SIZE(dist2_3)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist2_3(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-         IF (4 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 4:"
-            DO idist = 1, SIZE(dist2_4)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist2_4(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-
-         WRITE (io_unit, '(A)') "Test distribution:"
-         IF (1 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 1:"
-            DO idist = 1, SIZE(dist2_1)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist1_1(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-         IF (2 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 2:"
-            DO idist = 1, SIZE(dist2_2)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist1_2(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-         IF (3 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 3:"
-            DO idist = 1, SIZE(dist2_3)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist1_3(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-         IF (4 <= ndims) THEN
-            WRITE (io_unit, '(T3,A,1X)', advance='no') "Dist vec 4:"
-            DO idist = 1, SIZE(dist2_4)
-               WRITE (io_unit, '(I2,1X)', advance='no') dist1_4(idist)
-            ENDDO
-            WRITE (io_unit, *)
-         ENDIF
-      ENDIF
-
-      IF (ndims == 2) THEN
-         CALL dbcsr_t_distribution_new(dist2, mp_comm, map1_ref, map2_ref, dist2_1, dist2_2)
-         CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
-                             dbcsr_type_real_8, blk_size_1, blk_size_2)
-         CALL allocate_and_fill_test_tensor(tensor2, mp_comm, blk_ind_1, blk_ind_2)
-      ENDIF
-      IF (ndims == 3) THEN
-         CALL dbcsr_t_distribution_new(dist2, mp_comm, map1_ref, map2_ref, dist2_1, dist2_2, dist2_3)
-         CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
-                             dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3)
-         CALL allocate_and_fill_test_tensor(tensor2, mp_comm, blk_ind_1, blk_ind_2, blk_ind_3)
-      ENDIF
-      IF (ndims == 4) THEN
-         CALL dbcsr_t_distribution_new(dist2, mp_comm, map1_ref, map2_ref, dist2_1, dist2_2, dist2_3, dist2_4)
-         CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
-                             dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3, blk_size_4)
-         CALL allocate_and_fill_test_tensor(tensor2, mp_comm, blk_ind_1, blk_ind_2, blk_ind_3, blk_ind_4)
-      ENDIF
-
-      IF (verbose) CALL write_tensor_blocks(tensor2, io_unit, unit_nr)
-
-      IF (io_unit > 0) THEN
-         WRITE (io_unit, '(A)') "Reference representation:"
-         WRITE (io_unit, '(T3,A1,1X)', advance='no') "("
+         WRITE (io_unit, *)
+         WRITE (io_unit, '(A,1X)', advance='no') "Reference map:"
+         WRITE (io_unit, '(A1,1X)', advance='no') "("
          DO imap = 1, SIZE(map1_ref)
             WRITE (io_unit, '(I1,1X)', advance='no') map1_ref(imap)
          ENDDO
@@ -381,7 +282,6 @@ CONTAINS
          ENDDO
          WRITE (io_unit, '(A1)') ")"
 
-         WRITE (io_unit, '(A)') "Testing representations:"
       ENDIF
 
       icount = 0
@@ -393,34 +293,35 @@ CONTAINS
             map1(:) = perm(1:isep, iperm)
             map2(:) = perm(isep+1:ndims, iperm)
 
-            WRITE (tensor_name, '(A,1X,I3)') "Test", icount
-            IF (ndims == 2) THEN
-               CALL dbcsr_t_distribution_new(dist1, mp_comm, map1, map2, dist1_1, dist1_2)
-               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
-                                   dbcsr_type_real_8, blk_size_1, blk_size_2)
-               CALL allocate_and_fill_test_tensor(tensor1, mp_comm, blk_ind_1, blk_ind_2)
-            ENDIF
-            WRITE (tensor_name, '(A,1X,I3)') "Test", icount
-            IF (ndims == 3) THEN
-               CALL dbcsr_t_distribution_new(dist1, mp_comm, map1, map2, dist1_1, dist1_2, dist1_3)
-               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
-                                   dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3)
-               CALL allocate_and_fill_test_tensor(tensor1, mp_comm, blk_ind_1, blk_ind_2, blk_ind_3)
-            ENDIF
-            WRITE (tensor_name, '(A,1X,I3)') "Test", icount
-            IF (ndims == 4) THEN
-               CALL dbcsr_t_distribution_new(dist1, mp_comm, map1, map2, dist1_1, dist1_2, dist1_3, dist1_4)
-               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
-                                   dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3, blk_size_4)
-               CALL allocate_and_fill_test_tensor(tensor1, mp_comm, blk_ind_1, blk_ind_2, blk_ind_3, blk_ind_4)
-            ENDIF
+            mp_comm_test = dbcsr_t_nd_mp_comm(mp_comm_2d, map1, map2)
+            CALL mp_environ(numnodes, mynode, mp_comm_test)
+            CALL mp_environ(mp_comm_test, ndims, pdims_test, myploc, periods)
 
-            IF (verbose) CALL write_tensor_blocks(tensor1, io_unit, unit_nr)
-
-            eql = dbcsr_t_equal(tensor1, tensor2)
+            IF (1 <= ndims) THEN
+               nblks = SIZE(blk_size_1)
+               CALL random_dist(dist1_1, nblks, pdims_test(1), mp_comm_test)
+               CALL random_dist(dist2_1, nblks, pdims_ref(1), mp_comm_ref)
+            ENDIF
+            IF (2 <= ndims) THEN
+               nblks = SIZE(blk_size_2)
+               CALL random_dist(dist1_2, nblks, pdims_test(2), mp_comm_test)
+               CALL random_dist(dist2_2, nblks, pdims_ref(2), mp_comm_ref)
+            ENDIF
+            IF (3 <= ndims) THEN
+               nblks = SIZE(blk_size_3)
+               CALL random_dist(dist1_3, nblks, pdims_test(3), mp_comm_test)
+               CALL random_dist(dist2_3, nblks, pdims_ref(3), mp_comm_ref)
+            ENDIF
+            IF (4 <= ndims) THEN
+               nblks = SIZE(blk_size_4)
+               CALL random_dist(dist1_4, nblks, pdims_test(4), mp_comm_test)
+               CALL random_dist(dist2_4, nblks, pdims_ref(4), mp_comm_ref)
+            ENDIF
 
             IF (io_unit > 0) THEN
-               WRITE (io_unit, '(T3,A,A,1X)', advance='no') TRIM(tensor_name), ':'
+               WRITE (io_unit, *)
+               WRITE (tensor_name, '(A,1X,I3,1X)') "Test", icount
+               WRITE (io_unit, '(A,A,1X)', advance='no') TRIM(tensor_name), ':'
                WRITE (io_unit, '(A1,1X)', advance='no') "("
                DO imap = 1, SIZE(map1)
                   WRITE (io_unit, '(I1,1X)', advance='no') map1(imap)
@@ -429,24 +330,131 @@ CONTAINS
                DO imap = 1, SIZE(map2)
                   WRITE (io_unit, '(I1,1X)', advance='no') map2(imap)
                ENDDO
-               WRITE (io_unit, '(A1)', advance='no') ")"
+               WRITE (io_unit, '(A1)') ")"
+
+               WRITE (io_unit, '(T4,A)') "Reference distribution:"
+               IF (1 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 1:"
+                  DO idist = 1, SIZE(dist2_1)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist2_1(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
+               IF (2 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 2:"
+                  DO idist = 1, SIZE(dist2_2)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist2_2(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
+               IF (3 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 3:"
+                  DO idist = 1, SIZE(dist2_3)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist2_3(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
+               IF (4 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 4:"
+                  DO idist = 1, SIZE(dist2_4)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist2_4(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
+
+               WRITE (io_unit, '(T4,A)') "Test distribution:"
+               IF (1 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 1:"
+                  DO idist = 1, SIZE(dist2_1)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist1_1(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
+               IF (2 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 2:"
+                  DO idist = 1, SIZE(dist2_2)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist1_2(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
+               IF (3 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 3:"
+                  DO idist = 1, SIZE(dist2_3)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist1_3(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
+               IF (4 <= ndims) THEN
+                  WRITE (io_unit, '(T7,A,1X)', advance='no') "Dist vec 4:"
+                  DO idist = 1, SIZE(dist2_4)
+                     WRITE (io_unit, '(I2,1X)', advance='no') dist1_4(idist)
+                  ENDDO
+                  WRITE (io_unit, *)
+               ENDIF
             ENDIF
 
+            IF (ndims == 2) THEN
+               CALL dbcsr_t_distribution_new(dist2, mp_comm_ref, mp_comm_2d, map1_ref, map2_ref, dist2_1, dist2_2)
+               CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
+                                   dbcsr_type_real_8, blk_size_1, blk_size_2)
+               CALL allocate_and_fill_test_tensor(tensor2, mp_comm_ref, blk_ind_1, blk_ind_2)
+            ENDIF
+            IF (ndims == 3) THEN
+               CALL dbcsr_t_distribution_new(dist2, mp_comm_ref, mp_comm_2d, map1_ref, map2_ref, dist2_1, dist2_2, dist2_3)
+               CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
+                                   dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3)
+               CALL allocate_and_fill_test_tensor(tensor2, mp_comm_ref, blk_ind_1, blk_ind_2, blk_ind_3)
+            ENDIF
+            IF (ndims == 4) THEN
+               CALL dbcsr_t_distribution_new(dist2, mp_comm_ref, mp_comm_2d, map1_ref, map2_ref, dist2_1, dist2_2, dist2_3, dist2_4)
+               CALL dbcsr_t_create(tensor2, "Ref", dist2, map1_ref, map2_ref, &
+                                   dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3, blk_size_4)
+               CALL allocate_and_fill_test_tensor(tensor2, mp_comm_ref, blk_ind_1, blk_ind_2, blk_ind_3, blk_ind_4)
+            ENDIF
+
+            IF (verbose) CALL write_tensor_blocks(tensor2, io_unit, unit_nr)
+
+            IF (ndims == 2) THEN
+               CALL dbcsr_t_distribution_new(dist1, mp_comm_test, mp_comm_2d, map1, map2, dist1_1, dist1_2)
+               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
+                                   dbcsr_type_real_8, blk_size_1, blk_size_2)
+               CALL allocate_and_fill_test_tensor(tensor1, mp_comm_test, blk_ind_1, blk_ind_2)
+            ENDIF
+            IF (ndims == 3) THEN
+               CALL dbcsr_t_distribution_new(dist1, mp_comm_test, mp_comm_2d, map1, map2, dist1_1, dist1_2, dist1_3)
+               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
+                                   dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3)
+               CALL allocate_and_fill_test_tensor(tensor1, mp_comm_test, blk_ind_1, blk_ind_2, blk_ind_3)
+            ENDIF
+            IF (ndims == 4) THEN
+               CALL dbcsr_t_distribution_new(dist1, mp_comm_test, mp_comm_2d, map1, map2, dist1_1, dist1_2, dist1_3, dist1_4)
+               CALL dbcsr_t_create(tensor1, tensor_name, dist1, map1, map2, &
+                                   dbcsr_type_real_8, blk_size_1, blk_size_2, blk_size_3, blk_size_4)
+               CALL allocate_and_fill_test_tensor(tensor1, mp_comm_test, blk_ind_1, blk_ind_2, blk_ind_3, blk_ind_4)
+            ENDIF
+
+            IF (verbose) CALL write_tensor_blocks(tensor1, io_unit, unit_nr)
+
+            eql = dbcsr_t_equal(tensor1, tensor2)
+
             IF (.NOT. eql) THEN
-               IF (io_unit > 0) WRITE (io_unit, '(1X,A)') 'not ok'
-               CPABORT("Test failed!")
+               IF (io_unit > 0) WRITE (io_unit, '(A,1X,A)') TRIM(tensor_name), 'failed!'
+               CPABORT('')
             ELSE
-               IF (io_unit > 0) WRITE (io_unit, '(1X,A)') 'ok'
+               IF (io_unit > 0) WRITE (io_unit, '(A,1X,A)') TRIM(tensor_name), 'passed!'
             ENDIF
             DEALLOCATE (map1, map2)
 
             CALL dbcsr_t_destroy(tensor1)
             CALL dbcsr_t_distribution_destroy(dist1)
+
+            CALL mp_comm_free(mp_comm_test)
+            CALL dbcsr_t_destroy(tensor2)
+            CALL dbcsr_t_distribution_destroy(dist2)
+
          ENDDO
       ENDDO
-      CALL dbcsr_t_destroy(tensor2)
-      CALL dbcsr_t_distribution_destroy(dist2)
-
+      CALL mp_comm_free(mp_comm_ref)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -677,7 +685,7 @@ CONTAINS
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor))          :: blk_index, blk_size
 
       IF (io_unit_master > 0) THEN
-         WRITE (io_unit_master, '(T6,A)') "(block index) @ process: (array index) value"
+         WRITE (io_unit_master, '(T7,A)') "(block index) @ process: (array index) value"
       ENDIF
       CALL dbcsr_t_iterator_start(iterator, tensor)
       DO WHILE (dbcsr_t_iterator_blocks_left(iterator))
@@ -739,7 +747,7 @@ CONTAINS
          IF (ndim == 2) THEN
             DO i_2 = 1, blk_size(2)
             DO i_1 = 1, blk_size(1)
-               WRITE (unit_nr, '(T6,A,T16,A,2I3,1X,A,1X,I3,A,1X,A,2I3,1X,A,1X,I7)') &
+               WRITE (unit_nr, '(T7,A,T16,A,2I3,1X,A,1X,I3,A,1X,A,2I3,1X,A,1X,I7)') &
                   TRIM(name), "(", blk_index, ") @", proc, ':', &
                   "(", i_1, i_2, ")", &
                   INT(blk_values_2(i_1, i_2))
@@ -750,7 +758,7 @@ CONTAINS
             DO i_3 = 1, blk_size(3)
             DO i_2 = 1, blk_size(2)
             DO i_1 = 1, blk_size(1)
-               WRITE (unit_nr, '(T6,A,T16,A,3I3,1X,A,1X,I3,A,1X,A,3I3,1X,A,1X,I7)') &
+               WRITE (unit_nr, '(T7,A,T16,A,3I3,1X,A,1X,I3,A,1X,A,3I3,1X,A,1X,I7)') &
                   TRIM(name), "(", blk_index, ") @", proc, ':', &
                   "(", i_1, i_2, i_3, ")", &
                   INT(blk_values_3(i_1, i_2, i_3))
@@ -763,7 +771,7 @@ CONTAINS
             DO i_3 = 1, blk_size(3)
             DO i_2 = 1, blk_size(2)
             DO i_1 = 1, blk_size(1)
-               WRITE (unit_nr, '(T6,A,T16,A,4I3,1X,A,1X,I3,A,1X,A,4I3,1X,A,1X,I7)') &
+               WRITE (unit_nr, '(T7,A,T16,A,4I3,1X,A,1X,I3,A,1X,A,4I3,1X,A,1X,I7)') &
                   TRIM(name), "(", blk_index, ") @", proc, ':', &
                   "(", i_1, i_2, i_3, i_4, ")", &
                   INT(blk_values_4(i_1, i_2, i_3, i_4))

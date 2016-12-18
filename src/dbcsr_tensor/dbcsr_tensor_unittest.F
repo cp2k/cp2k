@@ -37,15 +37,16 @@ PROGRAM dbcsr_tensor_unittest
    ! initialize libdbcsr
    CALL dbcsr_init_lib()
 
+   ! Process grid
+   ALLOCATE (pdims(2), myploc(2))
+   pdims(:) = 0
+   CALL mp_cart_create(mp_comm, 2, pdims, myploc, group)
+   DEALLOCATE (pdims, myploc)
+
 !--------------------------------------------------------------------------------------------------!
 ! Test 1: Testing matrix representations of tensor rank 2                                                  !
 !--------------------------------------------------------------------------------------------------!
    ndims = 2
-
-   ! Process grid
-   ALLOCATE (pdims(ndims), myploc(ndims))
-   pdims(:) = 0
-   CALL mp_cart_create(mp_comm, ndims, pdims, myploc, group)
 
    ! Number of blocks in each dimension
    nblks_1 = 14
@@ -72,18 +73,11 @@ PROGRAM dbcsr_tensor_unittest
 
    DEALLOCATE (size_1, size_2)
    DEALLOCATE (blk_ind_1, blk_ind_2)
-   DEALLOCATE (pdims, myploc)
-   CALL mp_comm_free(group)
 
 !--------------------------------------------------------------------------------------------------!
 ! Test 2: Testing matrix representations of tensor rank 3                                                  !
 !--------------------------------------------------------------------------------------------------!
    ndims = 3
-
-   ! Process grid
-   ALLOCATE (pdims(ndims), myploc(ndims))
-   pdims(:) = 0
-   CALL mp_cart_create(mp_comm, ndims, pdims, myploc, group)
 
    ! Number of blocks in each dimension
    nblks_1 = 4
@@ -113,20 +107,11 @@ PROGRAM dbcsr_tensor_unittest
 
    DEALLOCATE (size_1, size_2, size_3)
    DEALLOCATE (blk_ind_1, blk_ind_2, blk_ind_3)
-   DEALLOCATE (pdims, myploc)
-
-   ! free comm
-   CALL mp_comm_free(group)
 
 !--------------------------------------------------------------------------------------------------!
 ! Test 3: Testing matrix representations of tensor rank 4                                                  !
 !--------------------------------------------------------------------------------------------------!
    ndims = 4
-
-   ! Process grid
-   ALLOCATE (pdims(ndims), myploc(ndims))
-   pdims(:) = 0
-   CALL mp_cart_create(mp_comm, ndims, pdims, myploc, group)
 
    ! Number of blocks in each dimension
    nblks_1 = 2
@@ -159,14 +144,12 @@ PROGRAM dbcsr_tensor_unittest
 
    DEALLOCATE (size_1, size_2, size_3, size_4)
    DEALLOCATE (blk_ind_1, blk_ind_2, blk_ind_3, blk_ind_4)
-   DEALLOCATE (pdims, myploc)
-
-   ! free comm
-   CALL mp_comm_free(group)
 
 !--------------------------------------------------------------------------------------------------!
 ! End tests                                                                                        !
 !--------------------------------------------------------------------------------------------------!
+
+   CALL mp_comm_free(group)
 
    ! finalize libdbcsr
    CALL dbcsr_finalize_lib(mp_comm, io_unit)
