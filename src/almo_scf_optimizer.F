@@ -878,8 +878,8 @@ CONTAINS
                                nspins=nspins, &
                                xalmo_history=almo_scf_env%xalmo_history, &
                                assume_t0_q0x=assume_t0_q0x, &
-                               !optimize_theta=optimize_theta, &
-                               !envelope_amplitude=almo_scf_env%envelope_amplitude, &
+                               optimize_theta=optimize_theta, &
+                               envelope_amplitude=almo_scf_env%envelope_amplitude, &
                                eps_filter=almo_scf_env%eps_filter, &
                                order_lanczos=almo_scf_env%order_lanczos, &
                                eps_lanczos=almo_scf_env%eps_lanczos, &
@@ -5032,7 +5032,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_gradient', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, nao
       REAL(KIND=dp)                                      :: energy_g_norm, penalty_occ_vol_g_norm
       TYPE(cp_dbcsr_type)                                :: m_tmp_no_1, m_tmp_no_2, m_tmp_no_3, &
                                                             m_tmp_oo_1, m_tmp_oo_2
@@ -5044,6 +5044,12 @@ CONTAINS
       IF (normalize_orbitals .AND. (.NOT. PRESENT(m_sig_sqrti_ii))) THEN
          CPABORT("Matrix must be present")
       ENDIF
+
+      ! use this otherways unused variables
+      CALL cp_dbcsr_get_info(matrix=m_ks, nfullrows_total=nao)
+      CALL cp_dbcsr_get_info(matrix=m_s, nfullrows_total=nao)
+      CALL cp_dbcsr_get_info(matrix=m_t, nfullrows_total=nao)
+      IF (perturbation_only) CPWARN("Unused option")
 
       CALL cp_dbcsr_init(m_tmp_no_1)
       CALL cp_dbcsr_create(m_tmp_no_1, &

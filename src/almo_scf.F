@@ -1420,7 +1420,8 @@ CONTAINS
       DEALLOCATE (matrix_t_orthogonal)
 
       ! calculate post scf properties
-      CALL almo_post_scf_compute_properties(qs_env, almo_scf_env)
+      ! CALL almo_post_scf_compute_properties(qs_env, almo_scf_env)
+      CALL almo_post_scf_compute_properties(qs_env)
 
       ! In normal scf procedure this is done by scf,
       ! but it's not called by ALMO
@@ -2116,20 +2117,21 @@ CONTAINS
 !>        WARNING: ALMO post scf calculation may not work for certain quantities,
 !>        like forces, since ALMO wave function is only 'partially' optimized
 !> \param qs_env ...
-!> \param almo_scf_env ...
 !> \par History
 !>       2016.12 created [Yifei Shi]
 !> \author Yifei Shi
 ! **************************************************************************************************
-   SUBROUTINE almo_post_scf_compute_properties(qs_env, almo_scf_env)
+   SUBROUTINE almo_post_scf_compute_properties(qs_env)
+      ! SUBROUTINE almo_post_scf_compute_properties(qs_env, almo_scf_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(almo_scf_env_type)                            :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_post_scf_compute_properties', &
          routineP = moduleN//':'//routineN
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: dft_section, input
+
+!TYPE(almo_scf_env_type)                            :: almo_scf_env
 
       CALL get_qs_env(qs_env, scf_env=scf_env, input=input)
       dft_section => section_vals_get_subs_vals(input, "DFT")
