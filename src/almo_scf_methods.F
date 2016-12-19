@@ -3773,8 +3773,6 @@ CONTAINS
 !> \param nspins ...
 !> \param xalmo_history ...
 !> \param assume_t0_q0x ...
-!> \param optimize_theta ...
-!> \param envelope_amplitude ...
 !> \param eps_filter ...
 !> \param order_lanczos ...
 !> \param eps_lanczos ...
@@ -3785,7 +3783,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xalmo_initial_guess(m_guess, m_t_in, m_t0, m_quench_t, &
                                   m_overlap, m_sigma_tmpl, nspins, xalmo_history, assume_t0_q0x, &
-                                  optimize_theta, envelope_amplitude, eps_filter, order_lanczos, eps_lanczos, &
+                                  eps_filter, order_lanczos, eps_lanczos, &
                                   max_iter_lanczos)
 
       TYPE(cp_dbcsr_type), DIMENSION(:), INTENT(INOUT)   :: m_guess
@@ -3794,8 +3792,8 @@ CONTAINS
       TYPE(cp_dbcsr_type), DIMENSION(:), INTENT(IN)      :: m_sigma_tmpl
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(almo_scf_history_type), INTENT(IN)            :: xalmo_history
-      LOGICAL, INTENT(IN)                                :: assume_t0_q0x, optimize_theta
-      REAL(KIND=dp), INTENT(IN)                          :: envelope_amplitude, eps_filter
+      LOGICAL, INTENT(IN)                                :: assume_t0_q0x
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: order_lanczos
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos

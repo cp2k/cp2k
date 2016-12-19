@@ -878,8 +878,8 @@ CONTAINS
                                nspins=nspins, &
                                xalmo_history=almo_scf_env%xalmo_history, &
                                assume_t0_q0x=assume_t0_q0x, &
-                               optimize_theta=optimize_theta, &
-                               envelope_amplitude=almo_scf_env%envelope_amplitude, &
+                               !optimize_theta=optimize_theta, &
+                               !envelope_amplitude=almo_scf_env%envelope_amplitude, &
                                eps_filter=almo_scf_env%eps_filter, &
                                order_lanczos=almo_scf_env%order_lanczos, &
                                eps_lanczos=almo_scf_env%eps_lanczos, &
