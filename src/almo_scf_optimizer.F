@@ -1623,7 +1623,7 @@ CONTAINS
                                  ENDIF
                               ENDDO
                               IF (unit_nr > 0) THEN
-                                 WRITE (*, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
+                                 WRITE (unit_nr, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
                               ENDIF
                               CALL cp_dbcsr_init(inv_eiv)
                               CALL cp_dbcsr_create(inv_eiv, &
@@ -5138,7 +5138,7 @@ CONTAINS
                             norm_scalar=penalty_occ_vol_g_norm)
          CALL cp_dbcsr_norm(m_tmp_no_2, dbcsr_norm_maxabsnorm, &
                             norm_scalar=energy_g_norm)
-         WRITE (*, "(A30,2F20.10)") "Energy/penalty g norms (no norm): ", energy_g_norm, penalty_occ_vol_g_norm
+         !WRITE (*, "(A30,2F20.10)") "Energy/penalty g norms (no norm): ", energy_g_norm, penalty_occ_vol_g_norm
          CALL cp_dbcsr_add(m_tmp_no_2, m_tmp_no_1, 1.0_dp, 1.0_dp)
       ENDIF
 
