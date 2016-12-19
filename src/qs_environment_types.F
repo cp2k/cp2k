@@ -13,6 +13,8 @@ MODULE qs_environment_types
    USE admm_dm_types,                   ONLY: admm_dm_type
    USE admm_types,                      ONLY: admm_env_release,&
                                               admm_type
+   USE almo_scf_types,                  ONLY: almo_scf_env_release,&
+                                              almo_scf_env_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_release,&
@@ -224,6 +226,7 @@ MODULE qs_environment_types
       INTEGER, DIMENSION(:), POINTER                        :: ipiv
       INTEGER                                               :: sim_step
       TYPE(ls_scf_env_type), POINTER                        :: ls_scf_env
+      TYPE(almo_scf_env_type), POINTER                      :: almo_scf_env
       TYPE(transport_env_type), POINTER                     :: transport_env
       TYPE(cell_type), POINTER                              :: super_cell
       TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
@@ -449,6 +452,7 @@ CONTAINS
 !> \param potential_changed ...
 !> \param forces_up_to_date ...
 !> \param mscfg_env ...
+!> \param almo_scf_env ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -478,7 +482,7 @@ CONTAINS
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, admm_dm, &
                          lri_env, lri_density, dispersion_env, vee, rho_external, external_vxc, mask, &
                          mp2_env, kg_env, WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
-                         s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env)
+                         s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -605,6 +609,7 @@ CONTAINS
                                                             potential_changed, forces_up_to_date
       TYPE(molecular_scf_guess_env_type), OPTIONAL, &
          POINTER                                         :: mscfg_env
+      TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', routineP = moduleN//':'//routineN
 
@@ -658,6 +663,7 @@ CONTAINS
       IF (PRESENT(run_rtp)) run_rtp = qs_env%run_rtp
       IF (PRESENT(rtp)) rtp => qs_env%rtp
       IF (PRESENT(ls_scf_env)) ls_scf_env => qs_env%ls_scf_env
+      IF (PRESENT(almo_scf_env)) almo_scf_env => qs_env%almo_scf_env
       IF (PRESENT(do_transport)) do_transport = qs_env%do_transport
       IF (PRESENT(transport_env)) transport_env => qs_env%transport_env
       IF (PRESENT(mscfg_env)) mscfg_env => qs_env%molecular_scf_guess_env
@@ -803,6 +809,7 @@ CONTAINS
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
 
       NULLIFY (qs_env%ls_scf_env)
+      NULLIFY (qs_env%almo_scf_env)
       NULLIFY (qs_env%transport_env)
       NULLIFY (qs_env%image_matrix)
       NULLIFY (qs_env%ipiv)
@@ -951,6 +958,7 @@ CONTAINS
 !> \param kg_env ...
 !> \param kpoints ...
 !> \param WannierCentres ...
+!> \param almo_scf_env ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -968,7 +976,7 @@ CONTAINS
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
                          do_transport, transport_env, lri_env, lri_density, dispersion_env, mp2_env, kg_env, &
-                         kpoints, WannierCentres)
+                         kpoints, WannierCentres, almo_scf_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1033,6 +1041,7 @@ CONTAINS
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(wannier_centres_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: WannierCentres
+      TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', routineP = moduleN//':'//routineN
 
@@ -1052,6 +1061,7 @@ CONTAINS
       IF (PRESENT(mos)) qs_env%mos => mos
       IF (PRESENT(mos_aux_fit)) qs_env%mos_aux_fit => mos_aux_fit
       IF (PRESENT(ls_scf_env)) qs_env%ls_scf_env => ls_scf_env
+      IF (PRESENT(almo_scf_env)) qs_env%almo_scf_env => almo_scf_env
       IF (PRESENT(do_transport)) qs_env%do_transport = do_transport
       IF (PRESENT(transport_env)) qs_env%transport_env => transport_env
       ! if intels checking (-C) complains here, you have rediscovered a bug in the intel
@@ -1307,6 +1317,14 @@ CONTAINS
             IF (ASSOCIATED(qs_env%linres_control)) THEN
                CALL linres_control_release(qs_env%linres_control)
             END IF
+
+            IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
+               CALL almo_scf_env_release(qs_env%almo_scf_env)
+            ENDIF
+
+            IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
+               CALL almo_scf_env_release(qs_env%almo_scf_env)
+            ENDIF
 
             IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
                CALL ls_scf_release(qs_env%ls_scf_env)

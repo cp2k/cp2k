@@ -301,6 +301,22 @@ CONTAINS
       ! Compute grid-based forces
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
 
+      ! ALMO Code (in the spirit of the MP2 modifications below)
+      IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
+         ! tell qs about the energy correction
+         NULLIFY (energy)
+         CALL get_qs_env(qs_env, energy=energy)
+         energy%total = energy%total+energy%singles_corr
+      END IF
+
+      ! ALMO Code (in the spirit of the MP2 modifications below)
+      IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
+         ! tell qs about the energy correction
+         NULLIFY (energy)
+         CALL get_qs_env(qs_env, energy=energy)
+         energy%total = energy%total+energy%singles_corr
+      END IF
+
       ! MP2 Code
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          NULLIFY (matrix_p_mp2, matrix_w_mp2, rho, ks_env, energy)

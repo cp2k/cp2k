@@ -65,7 +65,7 @@ CONTAINS
                           description="Settings for a class of efficient linear scaling methods based "// &
                           "on absolutely localized orbitals"// &
                           " (ALMOs). ALMO methods are currently restricted to closed-shell molecular systems.", &
-                          n_keywords=4, n_subsections=3, repeats=.FALSE., &
+                          n_keywords=7, n_subsections=3, repeats=.FALSE., &
                           citations=(/Khaliullin2013/))
 
       NULLIFY (keyword)
@@ -86,6 +86,20 @@ CONTAINS
                                         "and only recommended if ALMO SCF does not converge from the ATOMIC guess.", &
                                         "Superpoisiton of atomic densities."), &
                           enum_i_vals=(/molecular_guess, atomic_guess/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="ALMO_EXTRAPOLATION_ORDER", &
+                          description="Number of previous states used for the ASPC extrapolation of the ALMO "// &
+                          "initial guess. 0 implies that the guess is given by ALMO_SCF_GUESS at each step.", &
+                          usage="ALMO_EXTRAPOLATION_ORDER 3", default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="XALMO_EXTRAPOLATION_ORDER", &
+                          description="Number of previous states used for the ASPC extrapolation of the initial guess "// &
+                          "for the delocalization correction.", &
+                          usage="XALMO_EXTRAPOLATION_ORDER 1", default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
