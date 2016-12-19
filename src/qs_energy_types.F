@@ -59,6 +59,10 @@ MODULE qs_energy_types
                        efermi, & ! Fermi energy
                        dftb3, & ! DFTB 3rd order correction
                        mp2, &
+                       ! single excitations correction for all
+                       ! non-scf orbital(density) corrections
+                       ! for example, almo delocalization corrction
+                       singles_corr, &
                        total, &
                        tot_old, &
                        kinetic, & !total kinetic energy [rk]
@@ -187,6 +191,7 @@ CONTAINS
          qs_energy%kinetic = 0.0_dp
          qs_energy%surf_dipole = 0.0_dp
          qs_energy%total = 0.0_dp
+         qs_energy%singles_corr = 0.0_dp
          IF (.NOT. ASSOCIATED(qs_energy%ddapc_restraint)) THEN
             ALLOCATE (qs_energy%ddapc_restraint(1), STAT=istat)
             IF (istat /= 0) THEN
