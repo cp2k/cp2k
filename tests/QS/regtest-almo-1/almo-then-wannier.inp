@@ -20,7 +20,7 @@
 
       &ALMO_OPTIMIZER_DIIS
         MAX_ITER                 10
-        EPS_ERROR                5.0E-3
+        EPS_ERROR                5.0E-4
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
       
@@ -29,7 +29,7 @@
       
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
-        EPS_ERROR                5.0E-3
+        EPS_ERROR                5.0E-4
         CONJUGATOR               DAI_YUAN
         LIN_SEARCH_EPS_ERROR     0.1
         LIN_SEARCH_STEP_SIZE_GUESS 0.5
@@ -37,6 +37,20 @@
       &END XALMO_OPTIMIZER_PCG
       
     &END ALMO_SCF
+
+    &LOCALIZE
+       METHOD CRAZY
+       MAX_ITER 2000
+       &PRINT
+           &WANNIER_CENTERS
+             IONS+CENTERS
+             FILENAME =ICE-LC.xyz
+              &EACH
+                MD 1
+              &END EACH
+           &END WANNIER_CENTERS
+       &END PRINT
+     &END LOCALIZE
     
     &MGRID
       CUTOFF 200 ! 320

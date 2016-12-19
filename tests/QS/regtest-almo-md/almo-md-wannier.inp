@@ -1,8 +1,18 @@
 &GLOBAL
   PROJECT hex-ice 
-  RUN_TYPE ENERGY
+  RUN_TYPE MD
   PRINT_LEVEL LOW
 &END GLOBAL
+
+&MOTION
+  &MD
+     ENSEMBLE NVE
+     TIMESTEP 0.5
+     TEMPERATURE 300
+     STEPS 2
+  &END
+&END
+
 &FORCE_EVAL
   METHOD QS
   &DFT
@@ -20,16 +30,16 @@
 
       &ALMO_OPTIMIZER_DIIS
         MAX_ITER                 10
-        EPS_ERROR                5.0E-3
+        EPS_ERROR                5.0E-4
         N_DIIS                   5
       &END ALMO_OPTIMIZER_DIIS
       
-      DELOCALIZE_METHOD          XALMO_X
+      DELOCALIZE_METHOD          NONE
       XALMO_R_CUTOFF_FACTOR      1.4
       
       &XALMO_OPTIMIZER_PCG
         MAX_ITER                 100
-        EPS_ERROR                5.0E-3
+        EPS_ERROR                5.0E-4
         CONJUGATOR               DAI_YUAN
         LIN_SEARCH_EPS_ERROR     0.1
         LIN_SEARCH_STEP_SIZE_GUESS 0.5
@@ -37,6 +47,20 @@
       &END XALMO_OPTIMIZER_PCG
       
     &END ALMO_SCF
+
+    &LOCALIZE
+       METHOD CRAZY
+       MAX_ITER 2000
+       &PRINT
+           &WANNIER_CENTERS
+             IONS+CENTERS
+             FILENAME =ICE-LC.xyz
+              &EACH
+                MD 1
+              &END EACH
+           &END WANNIER_CENTERS
+       &END PRINT
+     &END LOCALIZE
     
     &MGRID
       CUTOFF 200 ! 320
@@ -49,21 +73,21 @@
   &END DFT
   &SUBSYS
     &CELL
-@INCLUDE 'ice.cell'
+@INCLUDE '../regtest-almo-1/ice.cell'
       MULTIPLE_UNIT_CELL 1 1 1 
     &END CELL
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
     &END
     &COORD
-@INCLUDE 'ice.xyz'
+@INCLUDE '../regtest-almo-1/ice.xyz'
     &END COORD
     &KIND H
-      BASIS_SET DZVP-GTH 
+      BASIS_SET SZV-GTH 
       POTENTIAL GTH-BLYP-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-GTH
+      BASIS_SET SZV-GTH
       POTENTIAL GTH-BLYP-q6
     &END KIND
   &END SUBSYS
