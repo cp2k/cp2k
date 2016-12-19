@@ -412,10 +412,6 @@ CONTAINS
          CALL almo_scf_env_create(qs_env)
       ENDIF
 
-      IF (dft_control%qs_control%do_almo_scf) THEN
-         CALL almo_scf_env_create(qs_env)
-      ENDIF
-
       ! see if we have atomic relativistic corrections
       CALL get_qs_env(qs_env, rel_control=rel_control)
       IF (rel_control%rel_method /= rel_none) THEN

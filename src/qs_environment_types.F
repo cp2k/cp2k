@@ -1322,10 +1322,6 @@ CONTAINS
                CALL almo_scf_env_release(qs_env%almo_scf_env)
             ENDIF
 
-            IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
-               CALL almo_scf_env_release(qs_env%almo_scf_env)
-            ENDIF
-
             IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
                CALL ls_scf_release(qs_env%ls_scf_env)
             ENDIF

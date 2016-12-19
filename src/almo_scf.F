@@ -1598,15 +1598,6 @@ CONTAINS
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)
-         ! create blocked inverse mo overlap matrix
-         CALL matrix_almo_create(matrix_new=almo_scf_env%matrix_sigma_inv_0deloc(ispin), &
-                                 matrix_qs=matrix_s0, &
-                                 almo_scf_env=almo_scf_env, &
-                                 name_new="SIGINV_BLK", &
-                                 size_keys=(/almo_mat_dim_occ, almo_mat_dim_occ/), &
-                                 symmetry_new=dbcsr_type_symmetric, &
-                                 spin_key=ispin, &
-                                 init_domains=.TRUE.)
          ! create inverse mo overlap matrix
          CALL matrix_almo_create( &
             matrix_new=almo_scf_env%matrix_sigma_inv(ispin), &
