@@ -411,6 +411,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, error_handle)
+      ! Check that the counter was initialised (or has not overflowed)
+      CPASSERT(randmat_counter .NE. 0)
       ! the counter goes into the seed. Every new call gives a new random matrix
       randmat_counter = randmat_counter+1
       ! Create the matrix
