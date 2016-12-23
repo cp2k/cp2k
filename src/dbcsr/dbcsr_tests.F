@@ -40,8 +40,7 @@ MODULE dbcsr_tests
                                               dbcsr_copy,&
                                               dbcsr_frobenius_norm
    USE dbcsr_test_methods,              ONLY: dbcsr_make_random_block_sizes,&
-                                              dbcsr_make_random_matrix,&
-                                              dbcsr_reset_randmat_seed
+                                              dbcsr_make_random_matrix
    USE dbcsr_transformations,           ONLY: dbcsr_redistribute
    USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                               dbcsr_mp_obj,&
@@ -159,7 +158,6 @@ CONTAINS
       ! Create dist
 
       ! Create the random matrices.
-      CALL dbcsr_reset_randmat_seed()
       CALL dbcsr_mp_make_env(mp_env, cart_group, mp_group)
       npdims(1) = dbcsr_mp_nprows(mp_env)
       npdims(2) = dbcsr_mp_npcols(mp_env)

@@ -23,6 +23,7 @@ PROGRAM dbcsr_unittest
                                               dbcsr_mp_obj,&
                                               dbcsr_mp_release
    USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
+   USE dbcsr_test_methods,              ONLY: dbcsr_reset_randmat_seed
    USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: default_output_unit
@@ -80,6 +81,8 @@ PROGRAM dbcsr_unittest
    IF (acc_get_ndevices() > 0) &
       CALL acc_set_active_device(MOD(mynode, acc_get_ndevices()))
    CALL dbcsr_init_lib()
+
+   CALL dbcsr_reset_randmat_seed()
 
    ! run tests
 

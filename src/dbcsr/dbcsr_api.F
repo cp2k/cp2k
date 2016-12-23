@@ -70,6 +70,7 @@ MODULE dbcsr_api
         dbcsr_hadamard_product, dbcsr_init_random, dbcsr_maxabs, dbcsr_norm, dbcsr_scale, &
         dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, &
         dbcsr_triu
+   USE dbcsr_test_methods,              ONLY: dbcsr_reset_randmat_seed
    USE dbcsr_tests,                     ONLY: dbcsr_run_tests,&
                                               dbcsr_test_binary_io,&
                                               dbcsr_test_mm
@@ -258,6 +259,7 @@ MODULE dbcsr_api
              create_replicated_col_vec_from_matrix, &
              create_row_vec_from_matrix, &
              create_col_vec_from_matrix, &
-             uppercase
+             uppercase, &
+             dbcsr_reset_randmat_seed
 
 END MODULE dbcsr_api

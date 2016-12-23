@@ -24,7 +24,8 @@ MODULE library_tests
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: dbcsr_run_tests
+   USE cp_dbcsr_interface,              ONLY: dbcsr_reset_randmat_seed,&
+                                              dbcsr_run_tests
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_perf_acc_test
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -1585,6 +1586,7 @@ CONTAINS
 
       NULLIFY (bs_m, bs_n, bs_k)
       CALL section_vals_get(input_section, n_repetition=n_rep)
+      CALL dbcsr_reset_randmat_seed()
       DO i_rep = 1, n_rep
          ! how often should we do the multiply
          CALL section_vals_val_get(input_section, "N_loop", i_rep_section=i_rep, i_val=N_loop)
