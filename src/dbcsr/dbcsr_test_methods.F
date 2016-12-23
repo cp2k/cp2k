@@ -74,13 +74,22 @@ MODULE dbcsr_test_methods
    PUBLIC :: dbcsr_to_dense_local, dbcsr_impose_sparsity
    PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix, &
              dbcsr_make_random_block_sizes, compx_to_dbcsr_scalar, &
-             dbcsr_test_read_args, atoi, atol, ator
+             dbcsr_test_read_args, dbcsr_reset_randmat_seed, &
+             atoi, atol, ator
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
 
-   INTEGER, PRIVATE, SAVE :: randmat_counter = 12341313
+   INTEGER, PRIVATE, SAVE :: randmat_counter = 0
+   INTEGER, PARAMETER, PRIVATE :: rand_seed_init = 12341313
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Reset the seed used for generating random matrices to default value
+! **************************************************************************************************
+   SUBROUTINE dbcsr_reset_randmat_seed()
+      randmat_counter = rand_seed_init
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...

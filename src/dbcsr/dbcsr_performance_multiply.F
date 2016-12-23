@@ -33,7 +33,8 @@ MODULE dbcsr_performance_multiply
                                               atol,&
                                               ator,&
                                               dbcsr_make_random_block_sizes,&
-                                              dbcsr_make_random_matrix
+                                              dbcsr_make_random_matrix,&
+                                              dbcsr_reset_randmat_seed
    USE dbcsr_transformations,           ONLY: dbcsr_redistribute
    USE dbcsr_types,                     ONLY: &
         dbcsr_conjugate_transpose, dbcsr_distribution_obj, dbcsr_mp_obj, dbcsr_no_transpose, &
@@ -263,6 +264,7 @@ CONTAINS
          WRITE (io_unit, *) 'bs_k', bs_k
       ENDIF
       !
+      CALL dbcsr_reset_randmat_seed()
       !
       a_symm = symmetries(1)
       b_symm = symmetries(2)

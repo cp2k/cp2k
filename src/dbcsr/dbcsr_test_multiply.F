@@ -37,6 +37,7 @@ MODULE dbcsr_test_multiply
                                               dbcsr_make_random_block_sizes,&
                                               dbcsr_make_random_matrix,&
                                               dbcsr_random_dist,&
+                                              dbcsr_reset_randmat_seed,&
                                               dbcsr_to_dense_local
    USE dbcsr_transformations,           ONLY: dbcsr_redistribute,&
                                               dbcsr_replicate_all
@@ -151,6 +152,7 @@ CONTAINS
          WRITE (io_unit, *) 'bs_k', bs_k
       END IF
       !
+      CALL dbcsr_reset_randmat_seed()
       !
       ! loop over symmetry
       DO isymm = 1, SIZE(symmetries, 2)
