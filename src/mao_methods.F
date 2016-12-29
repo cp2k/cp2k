@@ -112,6 +112,8 @@ CONTAINS
       END DO
       CALL cp_dbcsr_iterator_stop(dbcsr_iter)
 
+      CALL mao_orthogonalization(mao_coef, smat)
+
    END SUBROUTINE mao_initialization
 
 ! **************************************************************************************************

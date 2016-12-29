@@ -78,7 +78,7 @@ MODULE bibliography
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
-                            Bates2013, Andermatt2016, Zhu2016, Schuett2016
+                            Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004
 
 CONTAINS
 
@@ -3546,6 +3546,34 @@ CONTAINS
                          "PY 2016", &
                          "ER "), &
                          DOI="10.1002/9781118670712.ch8")
+
+      CALL add_reference(key=Lu2004, ISI_record=s2a( &
+                         "PT J", &
+                         "AU Lu, WC", &
+                         "   Wang, CZ", &
+                         "   Schmidt, MW", &
+                         "   Bytautas, L", &
+                         "   Ho, KM", &
+                         "   Ruedenberg, K", &
+                         "AF Lu, WC", &
+                         "   Wang, CZ", &
+                         "   Schmidt, MW", &
+                         "   Bytautas, L", &
+                         "   Ho, KM", &
+                         "   Ruedenberg, K", &
+                         "TI Molecule intrinsic minimal basis sets. I. Exact resolution of ab initio", &
+                         "   optimized molecular orbitals in terms of deformed atomic minimal-basis", &
+                         "   orbitals", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "SN 0021-9606", &
+                         "EI 1089-7690", &
+                         "PD FEB 8", &
+                         "VL 120", &
+                         "IS 6", &
+                         "BP 2629", &
+                         "EP 2637", &
+                         "PY 2004"), &
+                         DOI="10.1063/1.1638731")
 
    END SUBROUTINE add_all_references
 

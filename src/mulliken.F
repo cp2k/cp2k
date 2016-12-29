@@ -30,10 +30,11 @@ MODULE mulliken
 
 ! *** Public subroutines ***
 
-   PUBLIC :: mulliken_charges, mulliken_restraint
+   PUBLIC :: mulliken_charges, mulliken_restraint, compute_bond_order
 
    INTERFACE mulliken_charges
       MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b, mulliken_charges_c, &
+         mulliken_charges_s, &
          mulliken_charges_akp, mulliken_charges_bkp, mulliken_charges_ckp
    END INTERFACE
 
@@ -254,6 +255,52 @@ CONTAINS
    END SUBROUTINE compute_charges
 
 ! **************************************************************************************************
+!> \brief compute the mulliken charges for single matrices
+!> \param p_matrix , s_matrix, para_env ...
+!> \param s_matrix ...
+!> \param charges previously allocated with the right size (natom,nspin)
+!> \param para_env ...
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+! **************************************************************************************************
+   SUBROUTINE compute_charges_single(p_matrix, s_matrix, charges, para_env)
+      TYPE(cp_dbcsr_type)                                :: p_matrix, s_matrix
+      REAL(KIND=dp), DIMENSION(:)                        :: charges
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: blk, iblock_col, iblock_row
+      LOGICAL                                            :: found
+      REAL(kind=dp)                                      :: mult
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
+      TYPE(cp_dbcsr_iterator)                            :: iter
+
+      charges = 0.0_dp
+      CALL cp_dbcsr_iterator_start(iter, s_matrix)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         NULLIFY (s_block, p_block)
+         CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+         CALL cp_dbcsr_get_block_p(matrix=p_matrix, &
+                                   row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
+
+         ! we can cycle if a block is not present
+         IF (.NOT. found) CYCLE
+         IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) CYCLE
+
+         IF (iblock_row .EQ. iblock_col) THEN
+            mult = 0.5_dp ! avoid double counting of diagonal blocks
+         ELSE
+            mult = 1.0_dp
+         ENDIF
+         charges(iblock_row) = charges(iblock_row)+mult*SUM(p_block*s_block)
+         charges(iblock_col) = charges(iblock_col)+mult*SUM(p_block*s_block)
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      CALL mp_sum(charges, para_env%group)
+
+   END SUBROUTINE compute_charges_single
+
+! **************************************************************************************************
 !> \brief compute the mulliken charge derivatives
 !> \param p_matrix , s_matrix, para_env ...
 !> \param s_matrix ...
@@ -420,6 +467,32 @@ CONTAINS
    END SUBROUTINE mulliken_charges_c
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param p_matrix ...
+!> \param s_matrix ...
+!> \param para_env ...
+!> \param mcharge ...
+! **************************************************************************************************
+   SUBROUTINE mulliken_charges_s(p_matrix, s_matrix, para_env, mcharge)
+
+      TYPE(cp_dbcsr_type)                                :: p_matrix, s_matrix
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), DIMENSION(:)                        :: mcharge
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_s', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL compute_charges_single(p_matrix, s_matrix, mcharge, para_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE mulliken_charges_s
+
+! **************************************************************************************************
 !> \brief print the mulliken charges to scr on ionode
 !> \param p_matrix_kp ...
 !> \param s_matrix_kp ...
@@ -575,6 +648,39 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mulliken_charges_ckp
+
+! **************************************************************************************************
+!> \brief compute Mayer bond orders for a single spin channel
+!>        for complete result sum up over all spins and multiply by Nspin
+!> \param psmat ...
+!> \param spmat ...
+!> \param bond_order ...
+!> \par History
+!>      12.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE compute_bond_order(psmat, spmat, bond_order)
+      TYPE(cp_dbcsr_type)                                :: psmat, spmat
+      REAL(KIND=dp), DIMENSION(:, :)                     :: bond_order
+
+      INTEGER                                            :: blk, iat, jat
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ps, sp
+      TYPE(cp_dbcsr_iterator)                            :: iter
+
+      CALL cp_dbcsr_iterator_start(iter, psmat)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         NULLIFY (ps, sp)
+         CALL cp_dbcsr_iterator_next_block(iter, iat, jat, ps, blk)
+         CALL cp_dbcsr_get_block_p(matrix=spmat, &
+                                   row=iat, col=jat, BLOCK=sp, found=found)
+         IF (.NOT. found) CYCLE
+         IF (.NOT. (ASSOCIATED(sp) .AND. ASSOCIATED(ps))) CYCLE
+
+         bond_order(iat, jat) = bond_order(iat, jat)+SUM(ps*sp)
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+   END SUBROUTINE compute_bond_order
 
 ! **************************************************************************************************
 

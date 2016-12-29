@@ -49,15 +49,15 @@ CONTAINS
 !> \param mos the set of MOs (both spins, if UKS)
 !> \param qs_kind_set for basis set info
 !> \param particle_set particles data structure, for positions and kinds
-!> \param dft_section input section containing relevant print key
+!> \param print_section input section containing relevant print key
 !> \author MattW, IainB
 ! **************************************************************************************************
-   SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, dft_section)
+   SUBROUTINE write_mos_molden(mos, qs_kind_set, particle_set, print_section)
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(section_vals_type), POINTER                   :: dft_section
+      TYPE(section_vals_type), POINTER                   :: print_section
 
       CHARACTER(LEN=1)                                   :: angmom
       CHARACTER(LEN=12), DIMENSION(15)                   :: shell_symbol
@@ -79,10 +79,10 @@ CONTAINS
       NULLIFY (bcgf_symbol)
 
       logger => cp_get_default_logger()
-      iw = cp_print_key_unit_nr(logger, dft_section, "SCF%PRINT%MOS_MOLDEN", &
+      iw = cp_print_key_unit_nr(logger, print_section, "MOS_MOLDEN", &
                                 extension=".molden", file_status='REPLACE')
 
-      CALL section_vals_val_get(dft_section, "SCF%PRINT%MOS_MOLDEN%NDIGITS", i_val=digits)
+      CALL section_vals_val_get(print_section, "MOS_MOLDEN%NDIGITS", i_val=digits)
       fmtstr1 = "(I6,1X,ES  .  )"
       WRITE (UNIT=fmtstr1(10:11), FMT="(I2)") digits+7
       WRITE (UNIT=fmtstr1(13:14), FMT="(I2)") digits

@@ -23,7 +23,7 @@ MODULE atomic_charges
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_charges'
 
-   PUBLIC :: print_atomic_charges
+   PUBLIC :: print_atomic_charges, print_bond_orders
 
 CONTAINS
 
@@ -44,12 +44,13 @@ CONTAINS
    SUBROUTINE print_atomic_charges(particle_set, qs_kind_set, scr, title, electronic_charges, &
                                    atomic_charges)
 
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER                                            :: scr
-      CHARACTER(LEN=*)                                   :: title
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: electronic_charges
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atomic_charges
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN)       :: qs_kind_set
+      INTEGER, INTENT(IN)                                :: scr
+      CHARACTER(LEN=*), INTENT(IN)                       :: title
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: electronic_charges
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: atomic_charges
 
       CHARACTER(len=*), PARAMETER :: routineN = 'print_atomic_charges', &
          routineP = moduleN//':'//routineN
@@ -64,11 +65,15 @@ CONTAINS
          nspin = SIZE(electronic_charges, 2)
          natom = SIZE(electronic_charges, 1)
       ELSE
+         CPASSERT(PRESENT(atomic_charges))
          natom = SIZE(atomic_charges, 1)
          nspin = 0
       ENDIF
 
       IF (scr > 0) THEN
+         IF (SIZE(particle_set) /= natom) THEN
+            CPABORT("Unexpected number of atoms/charges")
+         END IF
          WRITE (scr, '(T2,A)') title
          SELECT CASE (nspin)
          CASE (0, 1)
@@ -81,9 +86,6 @@ CONTAINS
             WRITE (scr, '(A)') "  Atom     |    Charge | Spin diff charge"
          END SELECT
          total_charge = 0.0_dp
-         IF (SIZE(particle_set) /= natom) THEN
-            CPABORT("Unexpected number of atoms/charges")
-         END IF
          WRITE (scr, '(A)') ""
          DO iatom = 1, natom
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
@@ -132,12 +134,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_multipoles(particle_set, qs_kind_set, scr, charge, dipole, quadrupole)
 
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER                                            :: scr
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: charge
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL           :: dipole
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL        :: quadrupole
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN)       :: qs_kind_set
+      INTEGER, INTENT(IN)                                :: scr
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: charge
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: dipole
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         OPTIONAL                                        :: quadrupole
 
       CHARACTER(len=*), PARAMETER :: routineN = 'print_multipoles', &
          routineP = moduleN//':'//routineN
@@ -180,5 +184,45 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE print_multipoles
+
+! **************************************************************************************************
+!> \brief Print Mayer bond orders
+!> \param particle_set ...
+!> \param scr ...
+!> \param bond_orders (natom,natom)
+!> \par History
+!>      12.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE print_bond_orders(particle_set, scr, bond_orders)
+
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      INTEGER, INTENT(IN)                                :: scr
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: bond_orders
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_bond_orders', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=2)                                   :: el1, el2
+      INTEGER                                            :: iatom, jatom, natom
+
+      IF (scr > 0) THEN
+         natom = SIZE(bond_orders, 1)
+         IF (SIZE(particle_set) /= natom) THEN
+            CPABORT("Unexpected number of atoms/charges")
+         END IF
+         WRITE (scr, '(/,T2,A)') "Mayer Bond Orders"
+         WRITE (scr, '(T2,A,T20,A,T40,A)') "  Type  Atom 1  ", "  Type  Atom 2  ", " Bond Order "
+         DO iatom = 1, natom
+            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, element_symbol=el1)
+            DO jatom = iatom+1, natom
+               CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, element_symbol=el2)
+               IF (bond_orders(iatom, jatom) > 0.1_dp) THEN
+                  WRITE (scr, '(T6,A2,I6,T24,A2,I6,T40,F12.6)') el1, iatom, el2, jatom, bond_orders(iatom, jatom)
+               END IF
+            ENDDO
+         ENDDO
+      ENDIF
+
+   END SUBROUTINE print_bond_orders
 
 END MODULE atomic_charges

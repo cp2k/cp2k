@@ -15,7 +15,7 @@ MODULE input_cp2k_dft
         Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Ehrhardt1985, Elstner1998, &
         Fattebert2002, Guidon2010, Heinzmann1976, Hu2007, Hunt2003, Iannuzzi2005, Iannuzzi2006, &
         Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kunert2003, Lippert1997, Lippert1999, &
-        Perdew1981, Porezag1995, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
+        Lu2004, Perdew1981, Porezag1995, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
         Seifert1996, Souza2002, Stengel2009, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
         Tozer1996, Umari2002, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
         VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
@@ -1689,6 +1689,69 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      !Minimal localized basis analysis
+      CALL cp_print_key_section_create(print_key, "MINBAS_ANALYSIS", &
+                                       description="Controls the printing of the minimal localized basis analysis", &
+                                       print_level=debug_print_level, filename="__STD_OUT__", &
+                                       common_iter_levels=1, &
+                                       citations=(/Lu2004/))
+      CALL keyword_create(keyword=keyword, name="EPS_FILTER", &
+                          description="Threshold for matrix elements in basis determination.", &
+                          usage="EPS_FILTER reps", repeats=.FALSE., n_var=1, &
+                          default_r_val=1.e-8_dp, type_of_var=real_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="FULL_ORTHOGONALIZATION", &
+                          description="Orthogonalize the localized minimal basis.", &
+                          usage="FULL_ORTHOGONALIZATION {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword=keyword, name="BOND_ORDER", &
+                          description="Calculate Mayer Bond Orders.", &
+                          usage="BOND_ORDER {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, "MINBAS_CUBE", &
+                                       description="Write the minimal basis on Cube files.", &
+                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MINBAS")
+      CALL keyword_create(keyword, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="ATOM_LIST", &
+                          description="Indexes of the atoms minimal basis to be printed as cube files"// &
+                          "This keyword can be repeated several times"// &
+                          "(useful if you have to specify many indexes).", &
+                          usage="CUBES_LIST 1 2", &
+                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
+      NULLIFY (sub_print_key)
+      CALL cp_print_key_section_create(sub_print_key, "MOS_MOLDEN", &
+                                       description="Write the minimal basis in Molden file format, for visualisation.", &
+                                       print_level=debug_print_level+1, add_last=add_last_numeric, filename="MINBAS")
+      CALL keyword_create(keyword, name="NDIGITS", &
+                          description="Specifies the number of signficiant digits retained. 3 is OK for visualization.", &
+                          usage="NDIGITS {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(sub_print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, sub_print_key)
+      CALL section_release(sub_print_key)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

@@ -95,6 +95,7 @@ MODULE qs_scf_post_gpw
    USE mathconstants,                   ONLY: pi,&
                                               twopi
    USE message_passing,                 ONLY: mp_sum
+   USE minbas_wfn_analysis,             ONLY: minbas_analysis
    USE molden_utils,                    ONLY: write_mos_molden
    USE molecular_states,                ONLY: construct_molecular_states
    USE molecule_types_new,              ONLY: molecule_type
@@ -1986,7 +1987,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, input
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, sprint_section
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, mo_coeff, &
@@ -2032,7 +2033,8 @@ CONTAINS
             END IF
             CALL get_qs_env(qs_env, matrix_ks=ks_rmpv)
             CALL write_dm_binary_restart(mos, dft_section, ks_rmpv)
-            CALL write_mos_molden(mos, qs_kind_set, particle_set, dft_section)
+            sprint_section => section_vals_get_subs_vals(dft_section, "SCF%PRINT")
+            CALL write_mos_molden(mos, qs_kind_set, particle_set, sprint_section)
          ELSE ! *** if we have k points, let's print the eigenvalues at each of them
             CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
 
@@ -2802,6 +2804,15 @@ CONTAINS
                                         middle_name="", log_filename=.FALSE.)
          CALL mao_analysis(qs_env, print_key, unit_nr)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MAO_ANALYSIS")
+      END IF
+
+      ! MINBAS analysis
+      print_key => section_vals_get_subs_vals(input, "DFT%PRINT%MINBAS_ANALYSIS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MINBAS_ANALYSIS", extension=".mao", &
+                                        middle_name="", log_filename=.FALSE.)
+         CALL minbas_analysis(qs_env, print_key, unit_nr)
+         CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MINBAS_ANALYSIS")
       END IF
 
       CALL timestop(handle)
