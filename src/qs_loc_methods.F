@@ -23,7 +23,6 @@ MODULE qs_loc_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -46,6 +45,7 @@ MODULE qs_loc_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: &
         do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, dump_dcd, &
         dump_dcd_aligned_cell, dump_xmol, op_loc_berry, op_loc_boys, op_loc_pipek, state_loc_list
@@ -145,7 +145,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(cp_fm_type), POINTER                          :: vectors
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_sm_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cell_type), POINTER                           :: cell
@@ -288,10 +288,10 @@ CONTAINS
       INTEGER                                            :: handle, iatom, isgf, ldz, nao, natom, &
                                                             ncol, nmoloc, output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_type), POINTER                          :: opvec, ov_fm
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -613,12 +613,12 @@ CONTAINS
       REAL(dp), DIMENSION(6)                             :: weights
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: centers, vecbuffer
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos

@@ -11,13 +11,6 @@
 MODULE rt_make_propagators
 
    USE cp_control_types,                ONLY: rtp_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_create,&
-                                              cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_scale,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
@@ -26,6 +19,13 @@ MODULE rt_make_propagators
                                               cp_fm_p_type,&
                                               cp_fm_to_fm
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_scale,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: do_etrs,&
                                               do_pade,&
                                               do_taylor
@@ -76,8 +76,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, im, nmo, re
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: exp_H_new, exp_H_old, propagator_matrix
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_next, mos_old
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: exp_H_new, exp_H_old, propagator_matrix
 
       CALL timeset(routineN, handle)
 
@@ -141,9 +141,9 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, i, im, re
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: exp_H_new, exp_H_old, propagator_matrix, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: exp_H_new, exp_H_old, propagator_matrix, &
                                                             rho_new, rho_next, rho_old
-      TYPE(cp_dbcsr_type), POINTER                       :: tmp_im, tmp_re
+      TYPE(dbcsr_type), POINTER                          :: tmp_im, tmp_re
 
       CALL timeset(routineN, handle)
 
@@ -155,12 +155,12 @@ CONTAINS
       !I could store these matrices in the type
       NULLIFY (tmp_re)
       ALLOCATE (tmp_re)
-      CALL cp_dbcsr_init(tmp_re)
-      CALL cp_dbcsr_create(tmp_re, template=propagator_matrix(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(tmp_re)
+      CALL dbcsr_create(tmp_re, template=propagator_matrix(1)%matrix, matrix_type="N")
       NULLIFY (tmp_im)
       ALLOCATE (tmp_im)
-      CALL cp_dbcsr_init(tmp_im)
-      CALL cp_dbcsr_create(tmp_im, template=propagator_matrix(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(tmp_im)
+      CALL dbcsr_create(tmp_im, template=propagator_matrix(1)%matrix, matrix_type="N")
 
       DO i = 1, SIZE(exp_H_new)/2
          re = 2*i-1
@@ -174,8 +174,8 @@ CONTAINS
                CALL cp_complex_dbcsr_gemm_3("N", "C", one, tmp_re, tmp_im, exp_H_old(re)%matrix, exp_H_old(im)%matrix, &
                                             zero, rho_next(re)%matrix, rho_next(im)%matrix, filter_eps=rtp%filter_eps)
             ELSE
-               CALL cp_dbcsr_copy(rho_next(re)%matrix, rho_old(re)%matrix)
-               CALL cp_dbcsr_copy(rho_next(im)%matrix, rho_old(im)%matrix)
+               CALL dbcsr_copy(rho_next(re)%matrix, rho_old(re)%matrix)
+               CALL dbcsr_copy(rho_next(im)%matrix, rho_old(im)%matrix)
             ENDIF
          END IF
          CALL cp_complex_dbcsr_gemm_3("N", "N", one, exp_H_new(re)%matrix, exp_H_new(im)%matrix, &
@@ -184,8 +184,8 @@ CONTAINS
                                       zero, rho_new(re)%matrix, rho_new(im)%matrix, filter_eps=rtp%filter_eps)
       END DO
 
-      CALL cp_dbcsr_deallocate_matrix(tmp_re)
-      CALL cp_dbcsr_deallocate_matrix(tmp_im)
+      CALL dbcsr_deallocate_matrix(tmp_re)
+      CALL dbcsr_deallocate_matrix(tmp_im)
 
       CALL timestop(handle)
 
@@ -207,9 +207,9 @@ CONTAINS
 
       INTEGER                                            :: handle, i, im, ispin, nspin, re
       REAL(dp)                                           :: eps_arnoldi, t
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: propagator_matrix
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_next, mos_old, &
                                                             propagator_matrix_fm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: propagator_matrix
 
       CALL timeset(routineN, handle)
 
@@ -278,7 +278,7 @@ CONTAINS
       INTEGER                                            :: handle, im, ispin, re
       REAL(dp)                                           :: dt
       REAL(KIND=dp)                                      :: prefac
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: exp_H_old, propagator_matrix, rho_new, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: exp_H_old, propagator_matrix, rho_new, &
                                                             rho_next, rho_old
 
       CALL timeset(routineN, handle)
@@ -293,27 +293,27 @@ CONTAINS
          IF (rtp%iter == 1) THEN
             ! For EM I have to copy rho_old onto rho_next and for ETRS,
             ! this is the first term of the series of commutators that result in rho_next
-            CALL cp_dbcsr_copy(rho_next(re)%matrix, rho_old(re)%matrix)
-            CALL cp_dbcsr_copy(rho_next(im)%matrix, rho_old(im)%matrix)
+            CALL dbcsr_copy(rho_next(re)%matrix, rho_old(re)%matrix)
+            CALL dbcsr_copy(rho_next(im)%matrix, rho_old(im)%matrix)
             IF (rtp_control%propagator == do_etrs) THEN
                !since we never calculated the matrix exponential the old matrix exponential stores the unscalled propagator
                CALL get_rtp(rtp=rtp, exp_H_old=exp_H_old, dt=dt)
                prefac = -0.5_dp*dt
-               CALL cp_dbcsr_scale(exp_H_old(im)%matrix, prefac)
+               CALL dbcsr_scale(exp_H_old(im)%matrix, prefac)
                IF (.NOT. rtp%do_hfx .AND. rtp_control%fixed_ions) THEN
                   CALL bch_expansion_imaginary_propagator( &
                      exp_H_old(im)%matrix, rho_next(re)%matrix, rho_next(im)%matrix, &
                      rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
                ELSE
-                  CALL cp_dbcsr_scale(exp_H_old(re)%matrix, prefac)
+                  CALL dbcsr_scale(exp_H_old(re)%matrix, prefac)
                   CALL bch_expansion_complex_propagator( &
                      exp_H_old(re)%matrix, exp_H_old(im)%matrix, rho_next(re)%matrix, rho_next(im)%matrix, &
                      rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
                ENDIF
             END IF
          END IF
-         CALL cp_dbcsr_copy(rho_new(re)%matrix, rho_next(re)%matrix)
-         CALL cp_dbcsr_copy(rho_new(im)%matrix, rho_next(im)%matrix)
+         CALL dbcsr_copy(rho_new(re)%matrix, rho_next(re)%matrix)
+         CALL dbcsr_copy(rho_new(im)%matrix, rho_next(im)%matrix)
          IF (.NOT. rtp%do_hfx .AND. rtp_control%fixed_ions) THEN
             CALL bch_expansion_imaginary_propagator( &
                propagator_matrix(im)%matrix, rho_new(re)%matrix, rho_new(im)%matrix, &
@@ -340,7 +340,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE compute_exponential(propagator, propagator_matrix, rtp_control, rtp)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: propagator, propagator_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: propagator, propagator_matrix
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(rt_prop_type), POINTER                        :: rtp
 
@@ -409,7 +409,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE compute_exponential_sparse(propagator, propagator_matrix, rtp_control, rtp)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: propagator, propagator_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: propagator, propagator_matrix
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(rt_prop_type), POINTER                        :: rtp
 

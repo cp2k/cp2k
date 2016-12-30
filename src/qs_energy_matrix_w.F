@@ -11,8 +11,6 @@
 ! *****************************************************************************
 MODULE qs_energy_matrix_w
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -20,6 +18,8 @@ MODULE qs_energy_matrix_w
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_set
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform
@@ -67,12 +67,12 @@ CONTAINS
 
       INTEGER                                            :: handle, is, ispin, nao, nspin
       LOGICAL                                            :: do_kpoints, has_unit_metric
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, matrix_w, &
-                                                            matrix_w_mp2, mo_derivs, rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s_kp, matrix_w_kp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_w, &
+                                                            matrix_w_mp2, mo_derivs, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -144,7 +144,7 @@ CONTAINS
                   IF (scf_control%use_ot) THEN
                      IF (ispin > 1) THEN
                         ! not very elegant, indeed ...
-                        CALL cp_dbcsr_set(matrix_w(ispin)%matrix, 0.0_dp)
+                        CALL dbcsr_set(matrix_w(ispin)%matrix, 0.0_dp)
                      ELSE
                         CALL calculate_w_matrix_ot(mo_set, mo_derivs(ispin)%matrix, &
                                                    matrix_w(ispin)%matrix, matrix_s(1)%matrix)

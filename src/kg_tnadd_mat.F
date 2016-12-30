@@ -15,10 +15,10 @@ MODULE kg_tnadd_mat
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_set, dbcsr_distribution_obj, dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, &
+        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, &
+        dbcsr_set, dbcsr_type_symmetric
    USE external_potential_types,        ONLY: get_potential,&
                                               local_potential_type
    USE kg_environment_types,            ONLY: kg_environment_type
@@ -76,7 +76,7 @@ CONTAINS
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, dbcsr_dist)
 
       TYPE(kg_environment_type), POINTER                 :: kg_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -111,7 +111,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha, set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ccval, cval, h_block, p_block, rpgfa, &
                                                             rpgfb, sphi_a, sphi_b, zeta, zetb
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_kg
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_kg
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(local_potential_type), POINTER                :: tnadd_potential
@@ -128,7 +128,7 @@ CONTAINS
 
       NULLIFY (matrix_kg)
       IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
+         CALL dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
       ENDIF
       sac_kin => kg_env%sac_kin
       atom_to_molecule => kg_env%atom_to_molecule
@@ -143,10 +143,10 @@ CONTAINS
          nder = 1
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, SIZE(matrix_p, 2)
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
-                                 alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                              alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
       ELSE
@@ -180,17 +180,17 @@ CONTAINS
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes)
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes)
 
-      CALL cp_dbcsr_allocate_matrix_set(matrix_kg, 1)
+      CALL dbcsr_allocate_matrix_set(matrix_kg, 1)
 
       ALLOCATE (matrix_kg(1)%matrix)
-      CALL cp_dbcsr_init(matrix_kg(1)%matrix)
-      CALL cp_dbcsr_create(matrix=matrix_kg(1)%matrix, &
-                           name="Nonadditive kinetic energy potential", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                           nze=0, reuse_arrays=.TRUE.)
+      CALL dbcsr_init(matrix_kg(1)%matrix)
+      CALL dbcsr_create(matrix=matrix_kg(1)%matrix, &
+                        name="Nonadditive kinetic energy potential", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                        row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+                        nze=0, reuse_arrays=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_kg(1)%matrix, sab_orb)
-      CALL cp_dbcsr_set(matrix_kg(1)%matrix, 0.0_dp)
+      CALL dbcsr_set(matrix_kg(1)%matrix, 0.0_dp)
 
       nthread = 1
 !$    nthread = omp_get_max_threads()
@@ -297,12 +297,12 @@ CONTAINS
                icol = iatom
             END IF
             NULLIFY (h_block)
-            CALL cp_dbcsr_get_block_p(matrix_kg(1)%matrix, irow, icol, h_block, found)
+            CALL dbcsr_get_block_p(matrix_kg(1)%matrix, irow, icol, h_block, found)
             IF (ASSOCIATED(h_block)) THEN
             IF (calculate_forces) THEN
                CPASSERT(SIZE(matrix_p, 2) == 1)
                NULLIFY (p_block)
-               CALL cp_dbcsr_get_block_p(matrix_p(1, 1)%matrix, irow, icol, p_block, found)
+               CALL dbcsr_get_block_p(matrix_p(1, 1)%matrix, irow, icol, p_block, found)
                IF (ASSOCIATED(p_block)) THEN
                   DO iset = 1, nseta
                      ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -471,7 +471,7 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       DO i = 1, SIZE(matrix_kg)
-         CALL cp_dbcsr_finalize(matrix_kg(i)%matrix)
+         CALL dbcsr_finalize(matrix_kg(i)%matrix)
       ENDDO
       kg_env%tnadd_mat => matrix_kg
 
@@ -482,10 +482,10 @@ CONTAINS
          ! *** from the total density (1) and the spin density (2)     ***
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, SIZE(matrix_p, 2)
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
-               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
-                                 alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+               CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                              alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
       END IF

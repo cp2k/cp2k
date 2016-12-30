@@ -17,7 +17,6 @@ MODULE qs_linres_polar_utils
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                               cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -41,6 +40,7 @@ MODULE qs_linres_polar_utils
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -395,10 +395,10 @@ CONTAINS
 
       INTEGER                                            :: handle, idir, ispin, m, nao, nmo, &
                                                             nspins, output_unit
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos

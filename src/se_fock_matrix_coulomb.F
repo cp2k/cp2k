@@ -21,15 +21,15 @@ MODULE se_fock_matrix_coulomb
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               semi_empirical_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, &
-        cp_dbcsr_distribute, cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_distribute, &
+        dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, dbcsr_replicate_all, &
+        dbcsr_set, dbcsr_sum_replicated
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
@@ -112,7 +112,7 @@ CONTAINS
                                         store_int_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
@@ -138,8 +138,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: diagmat_ks, diagmat_p
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: diagmat_ks, diagmat_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
@@ -198,19 +198,19 @@ CONTAINS
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
       END IF
 
-      CALL cp_dbcsr_allocate_matrix_set(diagmat_ks, nspins)
-      CALL cp_dbcsr_allocate_matrix_set(diagmat_p, nspins)
+      CALL dbcsr_allocate_matrix_set(diagmat_ks, nspins)
+      CALL dbcsr_allocate_matrix_set(diagmat_p, nspins)
 
       DO ispin = 1, nspins
          ! Allocate diagonal block matrices
          ALLOCATE (diagmat_p(ispin)%matrix, diagmat_ks(ispin)%matrix) !sm->dbcsr
-         CALL cp_dbcsr_init(diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_init(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
-         CALL cp_dbcsr_replicate_all(diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_init(diagmat_p(ispin)%matrix)
+         CALL dbcsr_init(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
+         CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
+         CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
+         CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
       END DO
 
       ecore2 = 0.0_dp
@@ -237,24 +237,24 @@ CONTAINS
          natorb_b2 = natorb_b**2
 
          IF (inode == 1) THEN
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
-                                      row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
+                                   row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
             CPASSERT(ASSOCIATED(pa_block_a))
             check = (SIZE(pa_block_a, 1) == natorb_a) .AND. (SIZE(pa_block_a, 2) == natorb_a)
             CPASSERT(check)
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
-                                      row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
+                                   row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
             CPASSERT(ASSOCIATED(ksa_block_a))
             p_block_tot_a(1:natorb_a, 1:natorb_a) = 2.0_dp*pa_block_a
             pa_a(1:natorb_a2) = RESHAPE(pa_block_a, (/natorb_a2/))
             IF (nspins == 2) THEN
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
                CPASSERT(ASSOCIATED(pa_block_b))
                check = (SIZE(pa_block_b, 1) == natorb_a) .AND. (SIZE(pa_block_b, 2) == natorb_a)
                CPASSERT(check)
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
                p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a+pa_block_b
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
@@ -271,25 +271,25 @@ CONTAINS
                switch = .TRUE.
             END IF
             ! Retrieve blocks for KS and P
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
-                                      row=jatom, col=jatom, BLOCK=pb_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
+                                   row=jatom, col=jatom, BLOCK=pb_block_a, found=found)
             CPASSERT(ASSOCIATED(pb_block_a))
             check = (SIZE(pb_block_a, 1) == natorb_b) .AND. (SIZE(pb_block_a, 2) == natorb_b)
             CPASSERT(check)
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
-                                      row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
+                                   row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
             CPASSERT(ASSOCIATED(ksb_block_a))
             p_block_tot_b(1:natorb_b, 1:natorb_b) = 2.0_dp*pb_block_a
             pb_a(1:natorb_b2) = RESHAPE(pb_block_a, (/natorb_b2/))
             ! Handle more than one configuration
             IF (nspins == 2) THEN
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
-                                         row=jatom, col=jatom, BLOCK=pb_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
+                                      row=jatom, col=jatom, BLOCK=pb_block_b, found=found)
                CPASSERT(ASSOCIATED(pb_block_b))
                check = (SIZE(pb_block_b, 1) == natorb_b) .AND. (SIZE(pb_block_b, 2) == natorb_b)
                CPASSERT(check)
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
-                                         row=jatom, col=jatom, BLOCK=ksb_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
+                                      row=jatom, col=jatom, BLOCK=ksb_block_b, found=found)
                CPASSERT(ASSOCIATED(ksb_block_b))
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
@@ -442,13 +442,13 @@ CONTAINS
       DEALLOCATE (se_kind_list, se_defined, se_natorb)
 
       DO ispin = 1, nspins
-         CALL cp_dbcsr_sum_replicated(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, &
-                           1.0_dp, 1.0_dp)
+         CALL dbcsr_sum_replicated(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, &
+                        1.0_dp, 1.0_dp)
       END DO
-      CALL cp_dbcsr_deallocate_matrix_set(diagmat_p)
-      CALL cp_dbcsr_deallocate_matrix_set(diagmat_ks)
+      CALL dbcsr_deallocate_matrix_set(diagmat_p)
+      CALL dbcsr_deallocate_matrix_set(diagmat_ks)
 
       IF (calculate_forces) THEN
          DEALLOCATE (atom_of_kind)
@@ -479,7 +479,7 @@ CONTAINS
                                            calculate_forces, store_int_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
@@ -503,9 +503,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: diagmat_ks, diagmat_p
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: diagmat_ks, diagmat_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -555,20 +555,20 @@ CONTAINS
       CPASSERT(ASSOCIATED(matrix_p))
       CPASSERT(SIZE(ks_matrix) > 0)
 
-      CALL cp_dbcsr_allocate_matrix_set(diagmat_ks, nspins)
-      CALL cp_dbcsr_allocate_matrix_set(diagmat_p, nspins)
+      CALL dbcsr_allocate_matrix_set(diagmat_ks, nspins)
+      CALL dbcsr_allocate_matrix_set(diagmat_p, nspins)
 
       nkind = SIZE(atomic_kind_set)
       DO ispin = 1, nspins
          ! Allocate diagonal block matrices
          ALLOCATE (diagmat_p(ispin)%matrix, diagmat_ks(ispin)%matrix) !sm->dbcsr
-         CALL cp_dbcsr_init(diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_init(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
-         CALL cp_dbcsr_replicate_all(diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_init(diagmat_p(ispin)%matrix)
+         CALL dbcsr_init(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
+         CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
+         CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
+         CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
       END DO
 
       ! Check for implemented SE methods
@@ -621,8 +621,8 @@ CONTAINS
             nparticle_local = local_particles%n_el(ikind)
             DO ilist = 1, nparticle_local
                iatom = local_particles%list(ikind)%array(ilist)
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_p(ispin)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_p(ispin)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
                CPASSERT(ASSOCIATED(pa_block_a))
                ! Nuclei
                IF (task(1) .AND. ispin == 1) se_nddo_mpole%charge(iatom) = se_kind_a%zeff
@@ -744,8 +744,8 @@ CONTAINS
             node = node+1
             iatom = local_particles%list(ikind)%array(ilist)
             DO ispin = 1, nspins
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(ispin)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_ks(ispin)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
                CPASSERT(ASSOCIATED(ksa_block_a))
 
                ! Modify Hamiltonian Matrix accordingly potential, field and electric field gradient
@@ -800,13 +800,13 @@ CONTAINS
       END IF
 
       DO ispin = 1, nspins
-         CALL cp_dbcsr_sum_replicated(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, &
-                           1.0_dp, 1.0_dp)
+         CALL dbcsr_sum_replicated(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, &
+                        1.0_dp, 1.0_dp)
       END DO
-      CALL cp_dbcsr_deallocate_matrix_set(diagmat_p)
-      CALL cp_dbcsr_deallocate_matrix_set(diagmat_ks)
+      CALL dbcsr_deallocate_matrix_set(diagmat_p)
+      CALL dbcsr_deallocate_matrix_set(diagmat_ks)
 
       ! Set the Fock matrix contribution to SCP
       IF (calculate_forces) THEN
@@ -841,13 +841,13 @@ CONTAINS
                                          virial, pv_glob)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
       TYPE(nddo_mpole_type), POINTER                     :: se_nddo_mpole
       LOGICAL, DIMENSION(3), INTENT(IN)                  :: task
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: diagmat_p, diagmat_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: diagmat_p, diagmat_ks
       TYPE(virial_type), POINTER                         :: virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: pv_glob
 
@@ -973,24 +973,24 @@ CONTAINS
          natorb_b2 = natorb_b**2
 
          IF (inode == 1) THEN
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
-                                      row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
+                                   row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
             CPASSERT(ASSOCIATED(pa_block_a))
             check = (SIZE(pa_block_a, 1) == natorb_a) .AND. (SIZE(pa_block_a, 2) == natorb_a)
             CPASSERT(check)
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
-                                      row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
+                                   row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
             CPASSERT(ASSOCIATED(ksa_block_a))
             p_block_tot_a(1:natorb_a, 1:natorb_a) = 2.0_dp*pa_block_a
             pa_a(1:natorb_a2) = RESHAPE(pa_block_a, (/natorb_a2/))
             IF (nspins == 2) THEN
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
                CPASSERT(ASSOCIATED(pa_block_b))
                check = (SIZE(pa_block_b, 1) == natorb_a) .AND. (SIZE(pa_block_b, 2) == natorb_a)
                CPASSERT(check)
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
                p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a+pa_block_b
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
@@ -1017,25 +1017,25 @@ CONTAINS
                                            ptens32=ptens32, ptens33=ptens33)
 
             ! Retrieve blocks for KS and P
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
-                                      row=jatom, col=jatom, BLOCK=pb_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
+                                   row=jatom, col=jatom, BLOCK=pb_block_a, found=found)
             CPASSERT(ASSOCIATED(pb_block_a))
             check = (SIZE(pb_block_a, 1) == natorb_b) .AND. (SIZE(pb_block_a, 2) == natorb_b)
             CPASSERT(check)
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
-                                      row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
+                                   row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
             CPASSERT(ASSOCIATED(ksb_block_a))
             p_block_tot_b(1:natorb_b, 1:natorb_b) = 2.0_dp*pb_block_a
             pb_a(1:natorb_b2) = RESHAPE(pb_block_a, (/natorb_b2/))
             ! Handle more than one configuration
             IF (nspins == 2) THEN
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
-                                         row=jatom, col=jatom, BLOCK=pb_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
+                                      row=jatom, col=jatom, BLOCK=pb_block_b, found=found)
                CPASSERT(ASSOCIATED(pb_block_b))
                check = (SIZE(pb_block_b, 1) == natorb_b) .AND. (SIZE(pb_block_b, 2) == natorb_b)
                CPASSERT(check)
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
-                                         row=jatom, col=jatom, BLOCK=ksb_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
+                                      row=jatom, col=jatom, BLOCK=ksb_block_b, found=found)
                CPASSERT(ASSOCIATED(ksb_block_b))
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
@@ -1213,7 +1213,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_fock_matrix_coul_lr_r3(qs_env, ks_matrix, matrix_p, energy, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
 
@@ -1238,9 +1238,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: diagmat_ks, diagmat_p
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: diagmat_ks, diagmat_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -1294,20 +1294,20 @@ CONTAINS
       CPASSERT(ASSOCIATED(matrix_p))
       CPASSERT(SIZE(ks_matrix) > 0)
 
-      CALL cp_dbcsr_allocate_matrix_set(diagmat_ks, nspins)
-      CALL cp_dbcsr_allocate_matrix_set(diagmat_p, nspins)
+      CALL dbcsr_allocate_matrix_set(diagmat_ks, nspins)
+      CALL dbcsr_allocate_matrix_set(diagmat_p, nspins)
 
       nkind = SIZE(atomic_kind_set)
       DO ispin = 1, nspins
          ! Allocate diagonal block matrices
          ALLOCATE (diagmat_p(ispin)%matrix, diagmat_ks(ispin)%matrix) !sm->dbcsr
-         CALL cp_dbcsr_init(diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_init(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
-         CALL cp_dbcsr_replicate_all(diagmat_p(ispin)%matrix)
-         CALL cp_dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_init(diagmat_p(ispin)%matrix)
+         CALL dbcsr_init(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
+         CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
+         CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
+         CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
       END DO
 
       ! Possibly compute forces
@@ -1342,24 +1342,24 @@ CONTAINS
          natorb_b2 = natorb_b**2
 
          IF (inode == 1) THEN
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
-                                      row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
+                                   row=iatom, col=iatom, BLOCK=pa_block_a, found=found)
             CPASSERT(ASSOCIATED(pa_block_a))
             check = (SIZE(pa_block_a, 1) == natorb_a) .AND. (SIZE(pa_block_a, 2) == natorb_a)
             CPASSERT(check)
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
-                                      row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
+                                   row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
             CPASSERT(ASSOCIATED(ksa_block_a))
             p_block_tot_a(1:natorb_a, 1:natorb_a) = 2.0_dp*pa_block_a
             pa_a(1:natorb_a2) = RESHAPE(pa_block_a, (/natorb_a2/))
             IF (nspins == 2) THEN
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
                CPASSERT(ASSOCIATED(pa_block_b))
                check = (SIZE(pa_block_b, 1) == natorb_a) .AND. (SIZE(pa_block_b, 2) == natorb_a)
                CPASSERT(check)
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
                p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a+pa_block_b
                pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
@@ -1375,25 +1375,25 @@ CONTAINS
                switch = .TRUE.
             END IF
             ! Retrieve blocks for KS and P
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
-                                      row=jatom, col=jatom, BLOCK=pb_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix, &
+                                   row=jatom, col=jatom, BLOCK=pb_block_a, found=found)
             CPASSERT(ASSOCIATED(pb_block_a))
             check = (SIZE(pb_block_a, 1) == natorb_b) .AND. (SIZE(pb_block_a, 2) == natorb_b)
             CPASSERT(check)
-            CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
-                                      row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
+            CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix, &
+                                   row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
             CPASSERT(ASSOCIATED(ksb_block_a))
             p_block_tot_b(1:natorb_b, 1:natorb_b) = 2.0_dp*pb_block_a
             pb_a(1:natorb_b2) = RESHAPE(pb_block_a, (/natorb_b2/))
             ! Handle more than one configuration
             IF (nspins == 2) THEN
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
-                                         row=jatom, col=jatom, BLOCK=pb_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
+                                      row=jatom, col=jatom, BLOCK=pb_block_b, found=found)
                CPASSERT(ASSOCIATED(pb_block_b))
                check = (SIZE(pb_block_b, 1) == natorb_b) .AND. (SIZE(pb_block_b, 2) == natorb_b)
                CPASSERT(check)
-               CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
-                                         row=jatom, col=jatom, BLOCK=ksb_block_b, found=found)
+               CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix, &
+                                      row=jatom, col=jatom, BLOCK=ksb_block_b, found=found)
                CPASSERT(ASSOCIATED(ksb_block_b))
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
@@ -1506,13 +1506,13 @@ CONTAINS
       DEALLOCATE (se_kind_list, se_defined, se_natorb)
 
       DO ispin = 1, nspins
-         CALL cp_dbcsr_sum_replicated(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix)
-         CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, &
-                           1.0_dp, 1.0_dp)
+         CALL dbcsr_sum_replicated(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+         CALL dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, &
+                        1.0_dp, 1.0_dp)
       END DO
-      CALL cp_dbcsr_deallocate_matrix_set(diagmat_p)
-      CALL cp_dbcsr_deallocate_matrix_set(diagmat_ks)
+      CALL dbcsr_deallocate_matrix_set(diagmat_p)
+      CALL dbcsr_deallocate_matrix_set(diagmat_ks)
 
       IF (calculate_forces) THEN
          DEALLOCATE (atom_of_kind)

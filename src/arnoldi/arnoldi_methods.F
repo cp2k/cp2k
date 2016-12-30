@@ -18,11 +18,10 @@ MODULE arnoldi_methods
         arnoldi_control_type, arnoldi_data_c_type, arnoldi_data_d_type, arnoldi_data_s_type, &
         arnoldi_data_type, arnoldi_data_z_type, get_control, get_data_c, get_data_d, get_data_s, &
         get_data_z, has_d_cmplx, has_d_real, has_s_cmplx, has_s_real, m_x_v_vectors_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_data_p, cp_dbcsr_get_info, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_matrix_colvec_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, &
-        cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_get_data_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_matrix_colvec_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_type
    USE kinds,                           ONLY: real_4,&
                                               real_8
    USE message_passing,                 ONLY: mp_bcast,&
@@ -101,7 +100,7 @@ CONTAINS
 !> \param arnoldi_data all data concerning the subspace
 ! **************************************************************************************************
    SUBROUTINE arnoldi_init(matrix, vectors, arnoldi_data)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
       TYPE(m_x_v_vectors_type)                           :: vectors
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
@@ -129,7 +128,7 @@ CONTAINS
 !> \param arnoldi_data all data concerning the subspace
 ! **************************************************************************************************
    SUBROUTINE gev_arnoldi_init(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix, matrix_arnoldi
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix, matrix_arnoldi
       TYPE(m_x_v_vectors_type)                           :: vectors
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
@@ -156,7 +155,7 @@ CONTAINS
 !> \param arnoldi_data see above
 ! **************************************************************************************************
    SUBROUTINE build_subspace(matrix, vectors, arnoldi_data)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
       TYPE(m_x_v_vectors_type)                           :: vectors
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
@@ -183,7 +182,7 @@ CONTAINS
 !> \param arnoldi_data see above
 ! **************************************************************************************************
    SUBROUTINE gev_build_subspace(matrix, vectors, arnoldi_data)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
       TYPE(m_x_v_vectors_type)                           :: vectors
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 
@@ -213,7 +212,7 @@ CONTAINS
 !> \param arnoldi_data see above
 ! **************************************************************************************************
    SUBROUTINE gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_data)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix, matrix_arnoldi
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix, matrix_arnoldi
       TYPE(m_x_v_vectors_type)                           :: vectors
       TYPE(arnoldi_data_type)                            :: arnoldi_data
 

@@ -14,10 +14,6 @@ MODULE mp2_cphf
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
@@ -33,6 +29,10 @@ MODULE mp2_cphf
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_distribution, dbcsr_init, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, &
+        dbcsr_scale, dbcsr_set, dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
@@ -152,13 +152,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_deb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type)                              :: P_mu_nu
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_mu_nu, matrix_ks, matrix_p_mp2, &
-                                                            matrix_s, matrix_w_mp2, rho_ao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER :: fm_back, fm_G_mu_nu, L_jb, L_jb_beta, mo_coeff_o, &
          mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta, P_ia, P_ia_beta, P_mo, P_mo_beta, W_mo, &
          W_mo_beta
+      TYPE(dbcsr_p_type)                                 :: P_mu_nu
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_mu_nu, matrix_ks, matrix_p_mp2, &
+                                                            matrix_s, matrix_w_mp2, rho_ao
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
@@ -252,26 +252,26 @@ CONTAINS
 
       ! create work array
       NULLIFY (mat_mu_nu)
-      CALL cp_dbcsr_allocate_matrix_set(mat_mu_nu, dft_control%nspins)
+      CALL dbcsr_allocate_matrix_set(mat_mu_nu, dft_control%nspins)
       DO ispin = 1, dft_control%nspins
          ALLOCATE (mat_mu_nu(ispin)%matrix)
-         CALL cp_dbcsr_init(mat_mu_nu(ispin)%matrix)
-         CALL cp_dbcsr_create(matrix=mat_mu_nu(ispin)%matrix, &
-                              name="T_mu_nu", &
-                              dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                              col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                              nze=0)
+         CALL dbcsr_init(mat_mu_nu(ispin)%matrix)
+         CALL dbcsr_create(matrix=mat_mu_nu(ispin)%matrix, &
+                           name="T_mu_nu", &
+                           dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric, &
+                           row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+                           col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+                           nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix, sab_orb)
-         CALL cp_dbcsr_set(mat_mu_nu(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(mat_mu_nu(ispin)%matrix, 0.0_dp)
       END DO
 
       ALLOCATE (P_mu_nu%matrix)
-      CALL cp_dbcsr_init(P_mu_nu%matrix)
-      ! CALL cp_dbcsr_create(P_mu_nu%matrix,template=mat_mu_nu(1)%matrix)
-      ! CALL cp_dbcsr_copy(P_mu_nu%matrix,mat_mu_nu(1)%matrix,name="P_mu_nu")
-      CALL cp_dbcsr_copy(P_mu_nu%matrix, rho_ao(1)%matrix, name="P_mu_nu")
-      CALL cp_dbcsr_set(P_mu_nu%matrix, 0.0_dp)
+      CALL dbcsr_init(P_mu_nu%matrix)
+      ! CALL dbcsr_create(P_mu_nu%matrix,template=mat_mu_nu(1)%matrix)
+      ! CALL dbcsr_copy(P_mu_nu%matrix,mat_mu_nu(1)%matrix,name="P_mu_nu")
+      CALL dbcsr_copy(P_mu_nu%matrix, rho_ao(1)%matrix, name="P_mu_nu")
+      CALL dbcsr_set(P_mu_nu%matrix, 0.0_dp)
 
       NULLIFY (fm_G_mu_nu, fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
@@ -643,11 +643,11 @@ CONTAINS
 
       ! release DBCSR stuff
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_release(mat_mu_nu(ispin)%matrix)
+         CALL dbcsr_release(mat_mu_nu(ispin)%matrix)
          DEALLOCATE (mat_mu_nu(ispin)%matrix)
       END DO
       DEALLOCATE (mat_mu_nu)
-      CALL cp_dbcsr_release(P_mu_nu%matrix)
+      CALL dbcsr_release(P_mu_nu%matrix)
       DEALLOCATE (P_mu_nu%matrix)
       ! release fm stuff
       CALL cp_fm_release(fm_G_mu_nu)
@@ -816,13 +816,13 @@ CONTAINS
       ENDIF
 
       ! create mp2 DBCSR density
-      CALL cp_dbcsr_allocate_matrix_set(matrix_p_mp2, dft_control%nspins)
+      CALL dbcsr_allocate_matrix_set(matrix_p_mp2, dft_control%nspins)
       DO ispin = 1, dft_control%nspins
          ALLOCATE (matrix_p_mp2(ispin)%matrix)
-         CALL cp_dbcsr_init(matrix_p_mp2(ispin)%matrix)
-         CALL cp_dbcsr_copy(matrix_p_mp2(ispin)%matrix, rho_ao(ispin)%matrix, &
-                            name="P MATRIX MP2")
-         CALL cp_dbcsr_set(matrix_p_mp2(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_init(matrix_p_mp2(ispin)%matrix)
+         CALL dbcsr_copy(matrix_p_mp2(ispin)%matrix, rho_ao(ispin)%matrix, &
+                         name="P MATRIX MP2")
+         CALL dbcsr_set(matrix_p_mp2(ispin)%matrix, 0.0_dp)
          IF (ispin == 1) &
             CALL copy_fm_to_dbcsr(P_mo, matrix_p_mp2(ispin)%matrix, keep_sparsity=.TRUE.)
          IF (ispin == 2) &
@@ -843,7 +843,7 @@ CONTAINS
       ! update the core-forces with the MP2-density contribution
       ! put MP2 density on the grid
       IF (alpha_beta) THEN ! In alpha_beta case, get the joint density
-         CALL cp_dbcsr_add(matrix_p_mp2(1)%matrix, matrix_p_mp2(2)%matrix, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(matrix_p_mp2(1)%matrix, matrix_p_mp2(2)%matrix, 1.0_dp, 1.0_dp)
       ENDIF
       CALL calculate_rho_elec(matrix_p=matrix_p_mp2(1)%matrix, &
                               rho=rho_r, &
@@ -865,8 +865,8 @@ CONTAINS
       ENDDO
       ! right contribution
       IF (alpha_beta) THEN ! In alpha_beta case, get the joint density
-         CALL cp_dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, 1.0_dp)
-         CALL cp_dbcsr_add(matrix_ks(1)%matrix, matrix_ks(2)%matrix, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(matrix_ks(1)%matrix, matrix_ks(2)%matrix, 1.0_dp, 1.0_dp)
       ENDIF
       CALL integrate_v_rspace(v_rspace=rho_r, pmat=rho_ao(1), hmat=matrix_ks(1), &
                               qs_env=qs_env, calculate_forces=.TRUE.)
@@ -935,13 +935,13 @@ CONTAINS
       END IF
 
       IF (alpha_beta) THEN ! In alpha_beta case, get the initial densities back
-         CALL cp_dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, -1.0_dp)
-         CALL cp_dbcsr_add(matrix_p_mp2(1)%matrix, matrix_p_mp2(2)%matrix, 1.0_dp, -1.0_dp)
-         CALL cp_dbcsr_add(matrix_ks(1)%matrix, matrix_ks(2)%matrix, 1.0_dp, -1.0_dp)
+         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, -1.0_dp)
+         CALL dbcsr_add(matrix_p_mp2(1)%matrix, matrix_p_mp2(2)%matrix, 1.0_dp, -1.0_dp)
+         CALL dbcsr_add(matrix_ks(1)%matrix, matrix_ks(2)%matrix, 1.0_dp, -1.0_dp)
       ENDIF
 
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
       END DO
       ! We will need one more hfx calculation for HF gradient part
       mp2_env%not_last_hfx = .FALSE.
@@ -1021,8 +1021,8 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(qs_rho_type), POINTER                         :: rho_work
       TYPE(pw_p_type)                                    :: pot_g, rho_g, rho_r
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_mu_nu
-      TYPE(cp_dbcsr_p_type)                              :: P_mu_nu
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_mu_nu
+      TYPE(dbcsr_p_type)                                 :: P_mu_nu
       TYPE(cp_fm_type), POINTER                          :: fm_mo, fm_ao, fm_back
       INTEGER                                            :: transf_type_in
       REAL(KIND=dp)                                      :: out_alpha
@@ -1042,8 +1042,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, my_recalc_hfx_integrals
       REAL(KIND=dp)                                      :: ex_energy, pair_energy, total_rho
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_work_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: mat_2d, rho_ao_2d
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_work_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       alpha_beta = .FALSE.
@@ -1282,7 +1282,7 @@ CONTAINS
       END SELECT
 
       ! copy fm into DBCSR
-      CALL cp_dbcsr_set(P_mu_nu%matrix, 0.0_dp)
+      CALL dbcsr_set(P_mu_nu%matrix, 0.0_dp)
       CALL copy_fm_to_dbcsr(fm_ao, P_mu_nu%matrix, keep_sparsity=.TRUE.)
 
       ! calculate associated density
@@ -1296,7 +1296,7 @@ CONTAINS
       CALL pw_transfer(pot_g%pw, rho_r%pw)
       CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
       ! integrate the potential
-      CALL cp_dbcsr_set(mat_mu_nu(1)%matrix, 0.0_dp)
+      CALL dbcsr_set(mat_mu_nu(1)%matrix, 0.0_dp)
       CALL integrate_v_rspace(rho_r, hmat=mat_mu_nu(1), &
                               qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE.)
 
@@ -1306,8 +1306,8 @@ CONTAINS
       ! Only for alpha-alpha and beta-beta
       IF (.NOT. alpha_beta) THEN
          CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
-         CALL cp_dbcsr_set(rho_work_ao(1)%matrix, 0.0_dp)
-         CALL cp_dbcsr_copy(rho_work_ao(1)%matrix, P_mu_nu%matrix)
+         CALL dbcsr_set(rho_work_ao(1)%matrix, 0.0_dp)
+         CALL dbcsr_copy(rho_work_ao(1)%matrix, P_mu_nu%matrix)
          ! save old EX energy
          ex_energy = energy%ex
          DO irep = 1, n_rep_hf
@@ -1324,7 +1324,7 @@ CONTAINS
       ENDIF
 
       ! scale by a factor 4.0 (closed shell) or 2.0 (open-shell)
-      CALL cp_dbcsr_scale(mat_mu_nu(1)%matrix, factor)
+      CALL dbcsr_scale(mat_mu_nu(1)%matrix, factor)
 
       ! copy back to fm
       CALL cp_fm_set_all(fm_ao, 0.0_dp)
@@ -1443,8 +1443,8 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(qs_rho_type), POINTER                         :: rho_work
       TYPE(pw_p_type)                                    :: pot_g, rho_g, rho_r
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_mu_nu
-      TYPE(cp_dbcsr_p_type)                              :: P_mu_nu
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_mu_nu
+      TYPE(dbcsr_p_type)                                 :: P_mu_nu
       TYPE(cp_fm_type), POINTER                          :: L_jb, fm_G_mu_nu, fm_back, P_ia
       INTEGER, OPTIONAL                                  :: homo_beta
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: Eigenval_beta

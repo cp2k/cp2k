@@ -44,12 +44,6 @@
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_name,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
@@ -66,6 +60,12 @@ MODULE qs_scf
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_name,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: history_guess,&
                                               ot_precond_full_all,&
                                               ot_precond_full_single,&
@@ -255,10 +255,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -435,8 +435,8 @@ CONTAINS
             IF (scf_env%mixing_method > 0) THEN
                DO ic = 1, SIZE(rho_ao_kp, 2)
                   DO ispin = 1, dft_control%nspins
-                     CALL cp_dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
-                                        name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+                     CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
+                                     name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
                   END DO
                END DO
             END IF
@@ -507,9 +507,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nmo, number_of_OT_envs
       LOGICAL                                            :: do_rotation, has_unit_metric, is_full_all
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: orthogonality_metric
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -754,21 +754,21 @@ CONTAINS
       IF (ASSOCIATED(scf_env%ortho_m1)) CALL cp_fm_release(scf_env%ortho_m1)
 
       IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
-         CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
+         CALL dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
       END IF
       IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
-         CALL cp_dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
+         CALL dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
       END IF
       IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
-         CALL cp_dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
+         CALL dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
       END IF
 
       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
+         CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
       END IF
 
       IF (ASSOCIATED(scf_env%p_delta)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta)
+         CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
       END IF
 
 ! *** method dependent cleanup

@@ -16,8 +16,6 @@ MODULE qs_elec_field
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -26,6 +24,8 @@ MODULE qs_elec_field
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
@@ -75,7 +75,7 @@ CONTAINS
    SUBROUTINE build_efg_matrix(qs_env, matrix_efg, rc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_efg
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_efg
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_efg_matrix', &
@@ -227,8 +227,8 @@ CONTAINS
 
             DO i = 1, 6
                NULLIFY (efgint(i)%block)
-               CALL cp_dbcsr_get_block_p(matrix=matrix_efg(i)%matrix, &
-                                         row=irow, col=icol, BLOCK=efgint(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_efg(i)%matrix, &
+                                      row=irow, col=icol, BLOCK=efgint(i)%block, found=found)
             ENDDO
          ENDIF
 

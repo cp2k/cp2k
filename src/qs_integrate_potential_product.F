@@ -35,13 +35,12 @@ MODULE qs_integrate_potential_product
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add_block_node, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create, &
-        dbcsr_distribution_has_threads
    USE cube_utils,                      ONLY: cube_info_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add_block_node, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_distribution_has_threads, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_data_size, dbcsr_get_matrix_type, dbcsr_init, &
+        dbcsr_p_type, dbcsr_row_block_sizes, dbcsr_type, dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&
@@ -130,11 +129,11 @@ CONTAINS
                                  compute_tau, gapw, basis_type, pw_env_external, task_list_external)
 
       TYPE(pw_p_type)                                    :: v_rspace
-      TYPE(cp_dbcsr_p_type), INTENT(INOUT), OPTIONAL     :: hmat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: hmat
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: hmat_kp
-      TYPE(cp_dbcsr_p_type), INTENT(IN), OPTIONAL        :: pmat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), INTENT(IN), OPTIONAL           :: pmat
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: pmat_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -177,9 +176,9 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: deltap, dhmat, htemp
-      TYPE(cp_dbcsr_type), POINTER                       :: href
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat, htemp
+      TYPE(dbcsr_type), POINTER                          :: href
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -348,11 +347,11 @@ CONTAINS
          DO img = 1, nimages
             NULLIFY (dhmat(img)%matrix)
             ALLOCATE (dhmat(img)%matrix)
-            CALL cp_dbcsr_init(dhmat(img)%matrix)
-            CALL cp_dbcsr_create(dhmat(img)%matrix, 'LocalH', &
-                                 cp_dbcsr_distribution(href), &
-                                 cp_dbcsr_get_matrix_type(href), cp_dbcsr_row_block_sizes(href), &
-                                 cp_dbcsr_col_block_sizes(href), cp_dbcsr_get_data_size(href))
+            CALL dbcsr_init(dhmat(img)%matrix)
+            CALL dbcsr_create(dhmat(img)%matrix, 'LocalH', &
+                              dbcsr_distribution(href), &
+                              dbcsr_get_matrix_type(href), dbcsr_row_block_sizes(href), &
+                              dbcsr_col_block_sizes(href), dbcsr_get_data_size(href))
          END DO
       END IF
 
@@ -372,14 +371,14 @@ CONTAINS
             DO img = 1, nimages
                NULLIFY (deltap(img)%matrix)
                ALLOCATE (deltap(img)%matrix)
-               CALL cp_dbcsr_init(deltap(img)%matrix)
+               CALL dbcsr_init(deltap(img)%matrix)
             END DO
             IF (do_kp) THEN
                DO img = 1, nimages
-                  CALL cp_dbcsr_copy(deltap(img)%matrix, pmat_kp(img)%matrix, name="LocalP")
+                  CALL dbcsr_copy(deltap(img)%matrix, pmat_kp(img)%matrix, name="LocalP")
                END DO
             ELSE
-               CALL cp_dbcsr_copy(deltap(1)%matrix, pmat%matrix, name="LocalP")
+               CALL dbcsr_copy(deltap(1)%matrix, pmat%matrix, name="LocalP")
             END IF
          END IF
       END IF
@@ -462,8 +461,8 @@ CONTAINS
       loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
          DO img = 1, nimages
-            CALL cp_dbcsr_work_create(dhmat(img)%matrix, work_mutable=.TRUE., n=nthread)
-!$          IF (.NOT. dbcsr_distribution_has_threads(cp_dbcsr_distribution(dhmat(img)%matrix))) &
+            CALL dbcsr_work_create(dhmat(img)%matrix, work_mutable=.TRUE., n=nthread)
+!$          IF (.NOT. dbcsr_distribution_has_threads(dbcsr_distribution(dhmat(img)%matrix))) &
 !$             CPABORT("No thread distribution defined.")
          END DO
 !$OMP BARRIER
@@ -545,14 +544,14 @@ CONTAINS
                END IF
 
                NULLIFY (h_block)
-               CALL cp_dbcsr_get_block_p(dhmat(img)%matrix, brow, bcol, h_block, found)
+               CALL dbcsr_get_block_p(dhmat(img)%matrix, brow, bcol, h_block, found)
                IF (.NOT. ASSOCIATED(h_block)) THEN
-                  CALL cp_dbcsr_add_block_node(dhmat(img)%matrix, brow, bcol, h_block)
+                  CALL dbcsr_add_block_node(dhmat(img)%matrix, brow, bcol, h_block)
                END IF
 
                IF (pab_required) THEN
-                  CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix, &
-                                            row=brow, col=bcol, BLOCK=p_block, found=found)
+                  CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
+                                         row=brow, col=bcol, BLOCK=p_block, found=found)
                   CPASSERT(found)
                END IF
 
@@ -765,7 +764,7 @@ CONTAINS
 !$OMP END DO
 
          DO img = 1, nimages
-            CALL cp_dbcsr_finalize(dhmat(img)%matrix)
+            CALL dbcsr_finalize(dhmat(img)%matrix)
          END DO
 
       END DO loop_gridlevels
@@ -793,7 +792,7 @@ CONTAINS
             NULLIFY (htemp(1)%matrix)
             DEALLOCATE (htemp)
          END IF
-         CALL cp_dbcsr_deallocate_matrix_set(dhmat)
+         CALL dbcsr_deallocate_matrix_set(dhmat)
       ELSE
          DO img = 1, nimages
             NULLIFY (dhmat(img)%matrix)
@@ -803,7 +802,7 @@ CONTAINS
 
       IF (pab_required) THEN
          IF (p_duplicated) THEN
-            CALL cp_dbcsr_deallocate_matrix_set(deltap)
+            CALL dbcsr_deallocate_matrix_set(deltap)
          ELSE
             DO img = 1, nimages
                NULLIFY (deltap(img)%matrix)

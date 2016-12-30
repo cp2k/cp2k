@@ -11,16 +11,16 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_apply
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_type
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_release, dbcsr_type
    USE input_constants,                 ONLY: ot_precond_full_all,&
                                               ot_precond_full_kinetic,&
                                               ot_precond_full_single,&
@@ -93,7 +93,7 @@ CONTAINS
    SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type)                                :: matrix_in, matrix_out
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_dbcsr', &
          routineP = moduleN//':'//routineN
@@ -161,7 +161,7 @@ CONTAINS
    SUBROUTINE apply_single(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type)                                :: matrix_in, matrix_out
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_single', routineP = moduleN//':'//routineN
 
@@ -171,8 +171,8 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(preconditioner_env%dbcsr_matrix)) &
          CPABORT("NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
-      CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, matrix_in, &
-                             0.0_dp, matrix_out)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, matrix_in, &
+                          0.0_dp, matrix_out)
 
       CALL timestop(handle)
 
@@ -271,7 +271,7 @@ CONTAINS
    SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type)                                :: matrix_in, matrix_out
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_all', routineP = moduleN//':'//routineN
 
@@ -279,21 +279,21 @@ CONTAINS
                                                             row, row_offset, row_size
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: DATA
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
 
-      CALL cp_dbcsr_init(matrix_tmp)
-      CALL cp_dbcsr_copy(matrix_tmp, matrix_in, name="apply_full_all")
-      CALL cp_dbcsr_multiply('T', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
-                             matrix_in, 0.0_dp, matrix_tmp)
+      CALL dbcsr_init(matrix_tmp)
+      CALL dbcsr_copy(matrix_tmp, matrix_in, name="apply_full_all")
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
+                          matrix_in, 0.0_dp, matrix_tmp)
       ! do the right scaling
-      CALL cp_dbcsr_iterator_start(iter, matrix_tmp)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, &
-                                           row_size=row_size, col_size=col_size, &
-                                           row_offset=row_offset, col_offset=col_offset)
+      CALL dbcsr_iterator_start(iter, matrix_tmp)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, DATA, &
+                                        row_size=row_size, col_size=col_size, &
+                                        row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
          DO i = 1, row_size
             dum = 1.0_dp/MAX(preconditioner_env%energy_gap, &
@@ -303,12 +303,12 @@ CONTAINS
          ENDDO
          ENDDO
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       ! mult back
-      CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
-                             matrix_tmp, 0.0_dp, matrix_out)
-      CALL cp_dbcsr_release(matrix_tmp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
+                          matrix_tmp, 0.0_dp, matrix_out)
+      CALL dbcsr_release(matrix_tmp)
       CALL timestop(handle)
 
    END SUBROUTINE apply_all

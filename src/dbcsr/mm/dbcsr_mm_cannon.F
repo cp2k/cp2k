@@ -82,11 +82,11 @@ MODULE dbcsr_mm_cannon
    USE dbcsr_transformations,           ONLY: dbcsr_make_dense_low
    USE dbcsr_types,                     ONLY: &
         dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
-        dbcsr_iterator, dbcsr_memtype_type, dbcsr_meta_size, dbcsr_mp_obj, dbcsr_obj, &
-        dbcsr_scalar_type, dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
-        dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, dbcsr_slot_size, &
-        dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_int_4, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8
+        dbcsr_iterator, dbcsr_memtype_type, dbcsr_meta_size, dbcsr_mp_obj, dbcsr_scalar_type, &
+        dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, &
+        dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, dbcsr_slot_size, dbcsr_type, &
+        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_int_4, dbcsr_type_no_symmetry, &
+        dbcsr_type_real_4, dbcsr_type_real_8
    USE dbcsr_util,                      ONLY: count_bins,&
                                               dbcsr_checksum
    USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -157,7 +157,7 @@ CONTAINS
                        row_blk_size, col_blk_size, &
                        k_vmap, m_map, n_map, &
                        alpha)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_2d_array_type), INTENT(OUT), POINTER    :: m2s
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: rdist, dense_rdist
       LOGICAL, INTENT(IN)                                :: use_dense_mult, ab_dense
@@ -173,7 +173,7 @@ CONTAINS
       INTEGER, DIMENSION(4)                              :: f_crop
       LOGICAL                                            :: do_scale, thread_redist
       TYPE(array_i1d_obj)                                :: col_map, row_map
-      TYPE(dbcsr_obj)                                    :: dense_template, matrix_tmp
+      TYPE(dbcsr_type)                                   :: dense_template, matrix_tmp
 
       CALL timeset(routineN, handle)
       ALLOCATE (m2s)
@@ -216,7 +216,7 @@ CONTAINS
             CALL dbcsr_reset_vlocals(m2s%mats(i, j), rdist)
             ! Crop if necessary
             IF (ANY(f_crop .NE. 0)) THEN
-               matrix_tmp = dbcsr_obj()
+               matrix_tmp = dbcsr_type()
                CALL dbcsr_crop_matrix(matrix_tmp, m2s%mats(i, j), &
                                       full_row_bounds=f_crop(1:2), &
                                       full_column_bounds=f_crop(3:4), &
@@ -230,7 +230,7 @@ CONTAINS
       ENDDO
 
       IF (ab_dense) THEN
-         dense_template = dbcsr_obj()
+         dense_template = dbcsr_type()
          CALL dbcsr_create(dense_template, template=matrix, &
                            dist=dense_rdist%i%main, &
                            row_blk_size=array_data(row_blk_size), col_blk_size=array_data(col_blk_size))
@@ -276,7 +276,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_make_images(source, normalized, target_image_dist, &
                                 predistribute, no_copy_data, scale_value)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: source
+      TYPE(dbcsr_type), INTENT(IN)                       :: source
       TYPE(dbcsr_2d_array_type), INTENT(OUT)             :: normalized
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: target_image_dist
       CHARACTER, INTENT(IN), OPTIONAL                    :: predistribute
@@ -310,7 +310,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_images(ism, ums, target_imgdist, desymmetrize, predistribute, &
                           no_copy_data, scale_value)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: ism
+      TYPE(dbcsr_type), INTENT(IN)                       :: ism
       TYPE(dbcsr_2d_array_type), INTENT(OUT)             :: ums
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: target_imgdist
       LOGICAL, INTENT(IN), OPTIONAL                      :: desymmetrize
@@ -356,7 +356,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       nocopy = .FALSE.
       IF (PRESENT(no_copy_data)) nocopy = no_copy_data
-      sm = ism%m
+      sm = ism
       nsymmetries = 1
       IF (PRESENT(desymmetrize)) THEN
          IF (desymmetrize .AND. sm%symmetry) THEN
@@ -445,7 +445,7 @@ CONTAINS
       data_memory_type = memtype_abpanel_1
       DO row_img = 1, nrow_images
          DO col_img = 1, ncol_images
-            ums%mats(row_img, col_img) = dbcsr_obj()
+            ums%mats(row_img, col_img) = dbcsr_type()
             CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name, &
                               target_dist, &
                               dbcsr_type_no_symmetry, array_data(sm%row_blk_size), array_data(sm%col_blk_size), &
@@ -456,8 +456,8 @@ CONTAINS
                               thread_dist=sm%dist, &
                               data_memory_type=data_memory_type, &
                               index_memory_type=memtype_mpi_buffer)
-            ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
-            ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
+            ums%mats(row_img, col_img)%negate_real = sm%negate_real
+            ums%mats(row_img, col_img)%negate_imaginary = sm%negate_imaginary
          ENDDO
       ENDDO
 
@@ -602,8 +602,8 @@ CONTAINS
                CALL dbcsr_work_create(ums%mats(row_img, col_img), &
                                       SUM(recv_count(1, row_img, col_img, :)), n=1)
                CALL dbcsr_data_hold(received_data_area)
-               CALL dbcsr_data_release(ums%mats(row_img, col_img)%m%wms(1)%data_area)
-               ums%mats(row_img, col_img)%m%wms(1)%data_area = received_data_area
+               CALL dbcsr_data_release(ums%mats(row_img, col_img)%wms(1)%data_area)
+               ums%mats(row_img, col_img)%wms(1)%data_area = received_data_area
             ENDDO
          ENDDO
       ENDIF
@@ -723,9 +723,9 @@ CONTAINS
                blk_p = prev_blk_p
             ENDIF
             blk_ps(row_img, col_img) = blk_ps(row_img, col_img)+nze
-            ums%mats(row_img, col_img)%m%wms(1)%row_i(blk) = ABS(stored_row)
-            ums%mats(row_img, col_img)%m%wms(1)%col_i(blk) = ABS(stored_col)
-            ums%mats(row_img, col_img)%m%wms(1)%blk_p(blk) = &
+            ums%mats(row_img, col_img)%wms(1)%row_i(blk) = ABS(stored_row)
+            ums%mats(row_img, col_img)%wms(1)%col_i(blk) = ABS(stored_col)
+            ums%mats(row_img, col_img)%wms(1)%blk_p(blk) = &
                SIGN(rd_disp(src_p)+ABS(stored_blk_p)-1, stored_blk_p)
             prev_blk_p = blk_p
          ENDDO
@@ -735,12 +735,12 @@ CONTAINS
       !
       DO row_img = 1, nrow_images
          DO col_img = 1, ncol_images
-            ums%mats(row_img, col_img)%m%wms(1)%lastblk = blks(row_img, col_img)-1
-            ums%mats(row_img, col_img)%m%wms(1)%datasize = blk_ps(row_img, col_img)-1
+            ums%mats(row_img, col_img)%wms(1)%lastblk = blks(row_img, col_img)-1
+            ums%mats(row_img, col_img)%wms(1)%datasize = blk_ps(row_img, col_img)-1
             !
             CALL dbcsr_data_set_size_referenced( &
-               ums%mats(row_img, col_img)%m%wms(1)%data_area, &
-               ums%mats(row_img, col_img)%m%wms(1)%datasize)
+               ums%mats(row_img, col_img)%wms(1)%data_area, &
+               ums%mats(row_img, col_img)%wms(1)%datasize)
             IF (nrow_images .EQ. 1 .AND. ncol_images .EQ. 1 .OR. nocopy) THEN
                CALL dbcsr_special_finalize(ums%mats(row_img, col_img), reshuffle=.FALSE.)
             ELSE
@@ -749,12 +749,12 @@ CONTAINS
 
             ! Save the home process and image row and column
             CALL image_calculator(target_imgdist, &
-                                  ums%mats(row_img, col_img)%m%index(dbcsr_slot_home_prow), &
-                                  ums%mats(row_img, col_img)%m%index(dbcsr_slot_home_rowi), &
-                                  ums%mats(row_img, col_img)%m%index(dbcsr_slot_home_pcol), &
-                                  ums%mats(row_img, col_img)%m%index(dbcsr_slot_home_coli), &
-                                  vprow=ums%mats(row_img, col_img)%m%index(dbcsr_slot_home_vprow), &
-                                  vpcol=ums%mats(row_img, col_img)%m%index(dbcsr_slot_home_vpcol), &
+                                  ums%mats(row_img, col_img)%index(dbcsr_slot_home_prow), &
+                                  ums%mats(row_img, col_img)%index(dbcsr_slot_home_rowi), &
+                                  ums%mats(row_img, col_img)%index(dbcsr_slot_home_pcol), &
+                                  ums%mats(row_img, col_img)%index(dbcsr_slot_home_coli), &
+                                  vprow=ums%mats(row_img, col_img)%index(dbcsr_slot_home_vprow), &
+                                  vpcol=ums%mats(row_img, col_img)%index(dbcsr_slot_home_vpcol), &
                                   myrowi=row_img, mycoli=col_img, &
                                   shifting=predist_type)
          ENDDO
@@ -798,7 +798,7 @@ CONTAINS
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: new_rdist
       TYPE(array_i1d_obj), INTENT(IN)                    :: row_map, col_map
       LOGICAL, INTENT(IN)                                :: join_cols, join_rows
-      TYPE(dbcsr_obj), INTENT(IN)                        :: new_template
+      TYPE(dbcsr_type), INTENT(IN)                       :: new_template
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_images_dense', &
          routineP = moduleN//':'//routineN
@@ -812,7 +812,7 @@ CONTAINS
       TYPE(array_i1d_obj)                                :: dense_local_vcols, dense_local_vrows, &
                                                             und_local_vcols, und_local_vrows
       TYPE(dbcsr_imagedistribution_obj)                  :: old_rdist
-      TYPE(dbcsr_obj)                                    :: tmp_mat
+      TYPE(dbcsr_type)                                   :: tmp_mat
 
 !   ---------------------------------------------------------------------------
 
@@ -825,10 +825,10 @@ CONTAINS
                cs = dbcsr_checksum(images%mats(mat_row, mat_col))
                WRITE (*, *) routineN//" cs pre", cs
             ENDIF
-            mat_vprow = images%mats(mat_row, mat_col)%m%index(dbcsr_slot_home_vprow)
-            mat_vpcol = images%mats(mat_row, mat_col)%m%index(dbcsr_slot_home_vpcol)
-            und_row_blk_offsets => array_data(images%mats(mat_row, mat_col)%m%row_blk_offset)
-            und_col_blk_offsets => array_data(images%mats(mat_row, mat_col)%m%col_blk_offset)
+            mat_vprow = images%mats(mat_row, mat_col)%index(dbcsr_slot_home_vprow)
+            mat_vpcol = images%mats(mat_row, mat_col)%index(dbcsr_slot_home_vpcol)
+            und_row_blk_offsets => array_data(images%mats(mat_row, mat_col)%row_blk_offset)
+            und_col_blk_offsets => array_data(images%mats(mat_row, mat_col)%col_blk_offset)
             CALL dbcsr_get_local_vrows(old_rdist, und_local_vrows, mat_vprow)
             CALL dbcsr_get_local_vcols(old_rdist, und_local_vcols, mat_vpcol)
 
@@ -836,21 +836,21 @@ CONTAINS
             CALL dbcsr_get_local_vcols(new_rdist, dense_local_vcols, mat_vpcol)
             ! The old matrix has to be remembered so it is copied to
             ! tmp_mat.
-            old_meta(:) = images%mats(mat_row, mat_col)%m%index(1:dbcsr_meta_size)
-            tmp_mat = dbcsr_obj()
+            old_meta(:) = images%mats(mat_row, mat_col)%index(1:dbcsr_meta_size)
+            tmp_mat = dbcsr_type()
             tmp_mat = images%mats(mat_row, mat_col)
-            images%mats(mat_row, mat_col) = dbcsr_obj()
+            images%mats(mat_row, mat_col) = dbcsr_type()
             CALL dbcsr_create(images%mats(mat_row, mat_col), template=new_template)
-            images%mats(mat_row, mat_col)%m%index(dbcsr_slot_home_prow &
-                                                  :dbcsr_slot_home_vpcol) = &
+            images%mats(mat_row, mat_col)%index(dbcsr_slot_home_prow &
+                                                :dbcsr_slot_home_vpcol) = &
                old_meta(dbcsr_slot_home_prow:dbcsr_slot_home_vpcol)
             CALL dbcsr_make_dense_low(tmp_mat, images%mats(mat_row, mat_col), &
                                       array_data(und_local_vrows), array_data(und_local_vcols), &
                                       und_row_blk_offsets, und_col_blk_offsets, &
                                       array_data(dense_local_vrows), &
                                       array_data(dense_local_vcols), &
-                                      array_data(new_template%m%row_blk_offset), &
-                                      array_data(new_template%m%col_blk_offset), &
+                                      array_data(new_template%row_blk_offset), &
+                                      array_data(new_template%col_blk_offset), &
                                       array_data(row_map), array_data(col_map), join_rows, join_cols)
             !
             CALL dbcsr_index_prune_deleted(images%mats(mat_row, mat_col))
@@ -883,7 +883,7 @@ CONTAINS
                               retain_sparsity, &
                               filter_eps, flop)
       TYPE(dbcsr_2d_array_type), POINTER                 :: left_set, right_set
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: product_matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: product_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
       REAL(kind=real_8), INTENT(in), OPTIONAL            :: filter_eps
       INTEGER(KIND=int_8), INTENT(OUT)                   :: flop
@@ -960,9 +960,9 @@ CONTAINS
 !$OMP MASTER
       nthreads = 1
 !$    nthreads = OMP_GET_NUM_THREADS()
-      IF (.NOT. ASSOCIATED(product_matrix%m%wms)) &
+      IF (.NOT. ASSOCIATED(product_matrix%wms)) &
          CPABORT("Work matrices do not exist")
-      IF (SIZE(product_matrix%m%wms) .NE. nthreads) &
+      IF (SIZE(product_matrix%wms) .NE. nthreads) &
          CPABORT("Work matrices not correctly sized.")
       ALLOCATE (multrec(0:nthreads-1))
 !$OMP END MASTER
@@ -983,7 +983,7 @@ CONTAINS
       right_col_mult = right_set%image_dist%i%col_multiplicity
       left_mp_obj = dbcsr_distribution_mp(left_set%image_dist%i%main)
       right_mp_obj = dbcsr_distribution_mp(right_set%image_dist%i%main)
-      product_mp_obj = dbcsr_distribution_mp(product_matrix%m%dist)
+      product_mp_obj = dbcsr_distribution_mp(product_matrix%dist)
       numnodes = dbcsr_mp_numnodes(product_mp_obj)
       mynode = dbcsr_mp_mynode(product_mp_obj)
       left_nprows = dbcsr_mp_nprows(left_mp_obj)
@@ -1053,9 +1053,9 @@ CONTAINS
          DO left_col_image = 1, left_col_nimages
             my_sizes(idata+ileft, left_row_image, left_col_image) &
                = dbcsr_data_get_size_referenced( &
-                 left_set%mats(left_row_image, left_col_image)%m%data_area)
+                 left_set%mats(left_row_image, left_col_image)%data_area)
             my_sizes(imeta+ileft, left_row_image, left_col_image) = &
-               left_set%mats(left_row_image, left_col_image)%m%index &
+               left_set%mats(left_row_image, left_col_image)%index &
                (dbcsr_slot_size)
          ENDDO
       ENDDO
@@ -1064,9 +1064,9 @@ CONTAINS
          DO right_col_image = 1, right_col_nimages
             my_sizes(idata+iright, right_row_image, right_col_image) &
                = dbcsr_data_get_size_referenced( &
-                 right_set%mats(right_row_image, right_col_image)%m%data_area)
+                 right_set%mats(right_row_image, right_col_image)%data_area)
             my_sizes(imeta+iright, right_row_image, right_col_image) = &
-               right_set%mats(right_row_image, right_col_image)%m%index &
+               right_set%mats(right_row_image, right_col_image)%index &
                (dbcsr_slot_size)
          ENDDO
       ENDDO
@@ -1084,7 +1084,7 @@ CONTAINS
             CPABORT("Could not allocate memory")
       ELSE
          IF (careful_mod) THEN
-            IF (left_set%mats(1, 1)%m%bcsc) &
+            IF (left_set%mats(1, 1)%bcsc) &
                CPABORT("Can not do on-the-fly filtering with CSC-indexed matrices.")
          ENDIF
          IF (dbcsr_has_local_row_index(left_set%mats(1, 1))) THEN
@@ -1110,29 +1110,29 @@ CONTAINS
          DO left_row_image = 1, left_row_nimages
             DO left_col_image = 1, left_col_nimages
                list_indexing = &
-                  left_set%mats(left_row_image, left_col_image)%m%list_indexing
+                  left_set%mats(left_row_image, left_col_image)%list_indexing
                IF (careful_mod) THEN
                   IF (list_indexing) THEN
-                     IF ((left_set%mats(left_row_image, left_col_image)%m%nblks)*3 .NE. &
-                         SIZE(left_set%mats(left_row_image, left_col_image)%m%coo_l)) &
+                     IF ((left_set%mats(left_row_image, left_col_image)%nblks)*3 .NE. &
+                         SIZE(left_set%mats(left_row_image, left_col_image)%coo_l)) &
                         CPABORT("Row count mismatch")
                   ELSE
-                     IF (nblkrows_used+1 .NE. SIZE(left_set%mats(left_row_image, left_col_image)%m%row_p)) &
+                     IF (nblkrows_used+1 .NE. SIZE(left_set%mats(left_row_image, left_col_image)%row_p)) &
                         CPABORT("Row count mismatch")
                   ENDIF
                ENDIF
                IF (list_indexing) THEN
                   CALL count_bins( &
-                     left_set%mats(left_row_image, left_col_image)%m%nblks, &
-                     left_set%mats(left_row_image, left_col_image)%m%coo_l(1::3), &
+                     left_set%mats(left_row_image, left_col_image)%nblks, &
+                     left_set%mats(left_row_image, left_col_image)%coo_l(1::3), &
                      nblkrows_used, row_counts)
                ELSE
                   CALL dbcsr_count_row_index( &
-                     left_set%mats(left_row_image, left_col_image)%m%row_p, &
+                     left_set%mats(left_row_image, left_col_image)%row_p, &
                      row_counts, nblkrows_used)
                ENDIF
                IF (dbcsr_has_local_row_index(left_set%mats(left_row_image, left_col_image))) THEN
-                  local_rows => array_data(left_set%mats(left_row_image, left_col_image)%m%local_rows)
+                  local_rows => array_data(left_set%mats(left_row_image, left_col_image)%local_rows)
                   IF (SIZE(local_rows) .NE. SIZE(row_counts)) &
                      CPABORT("Mismatch in number of local rows.")
                   total_row_counts(local_rows) = total_row_counts(local_rows) &
@@ -1236,19 +1236,19 @@ CONTAINS
 !$    ithread = OMP_GET_THREAD_NUM()
       ! The work arrays have to be setup (actually, not quite sure).
       i = ithread+1
-      size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
+      size_guess = product_matrix%wms(i)%datasize ! Should be minimal
       IF (.NOT. keep_sparsity) THEN
          size_guess = MAX(size_guess, size_guess_init)
       ENDIF
-      CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area, &
+      CALL dbcsr_data_ensure_size(product_matrix%wms(i)%data_area, &
                                   size_guess)
-      CALL dbcsr_data_set_size_referenced(product_matrix%m%wms(i)%data_area, &
-                                          product_matrix%m%wms(i)%datasize)
+      CALL dbcsr_data_set_size_referenced(product_matrix%wms(i)%data_area, &
+                                          product_matrix%wms(i)%datasize)
       ! XXXXXXX a quick fix right now, allocation with size 1 might actually not be needed at all,
       !         but something expects this to be associated
-      CALL ensure_array_size(product_matrix%m%wms(i)%row_i, ub=1)
-      CALL ensure_array_size(product_matrix%m%wms(i)%col_i, ub=1)
-      CALL ensure_array_size(product_matrix%m%wms(i)%blk_p, ub=1)
+      CALL ensure_array_size(product_matrix%wms(i)%row_i, ub=1)
+      CALL ensure_array_size(product_matrix%wms(i)%col_i, ub=1)
+      CALL ensure_array_size(product_matrix%wms(i)%blk_p, ub=1)
 !$OMP END PARALLEL
 
       ! update capacity of memory-pools
@@ -1319,16 +1319,16 @@ CONTAINS
 !$    ithread = OMP_GET_THREAD_NUM()
       ALLOCATE (multrec(ithread)%p)
       CALL dbcsr_mm_multrec_init(multrec(ithread)%p, &
-                                 left_buffer_comm%mats(1, 1)%m, &
-                                 right_buffer_comm%mats(1, 1)%m, &
-                                 product_matrix%m, &
+                                 left_buffer_comm%mats(1, 1), &
+                                 right_buffer_comm%mats(1, 1), &
+                                 product_matrix, &
                                  keep_sparsity=keep_sparsity, &
                                  eps=filter_eps, &
                                  row_max_epss=row_max_epss, &
-                                 block_estimate=MAX(product_matrix%m%nblks, &
-                                                    left_buffer_comm%mats(1, 1)%m%nblks, &
-                                                    right_buffer_comm%mats(1, 1)%m%nblks)/nthreads, &
-                                 right_row_blk_size=array_data(right_buffer_comm%mats(1, 1)%m%row_blk_size))
+                                 block_estimate=MAX(product_matrix%nblks, &
+                                                    left_buffer_comm%mats(1, 1)%nblks, &
+                                                    right_buffer_comm%mats(1, 1)%nblks)/nthreads, &
+                                 right_row_blk_size=array_data(right_buffer_comm%mats(1, 1)%row_blk_size))
 !$OMP END PARALLEL
       !
       ! Setup indexing
@@ -1415,11 +1415,11 @@ CONTAINS
                   area=right_data_sp, &
                   rsize=right_sizes(idata, right_dst_vrow, right_dst_vcol), &
                   csize=1, &
-                  pointee=right_buffer_calc%mats(v_ki+1, 1)%m%data_area)
+                  pointee=right_buffer_calc%mats(v_ki+1, 1)%data_area)
                right_index_sp => right_buffer_calc%mats( &
                                  v_ki+1, 1 &
-                                 )%m%index(1: &
-                                           right_sizes(imeta, right_dst_vrow, right_dst_vcol))
+                                 )%index(1: &
+                                         right_sizes(imeta, right_dst_vrow, right_dst_vcol))
                !
                ! Calculate the process to receive from
                CALL image_calculator(right_set%image_dist, &
@@ -1443,7 +1443,7 @@ CONTAINS
                !
                IF (has_acc) THEN
                   CALL timeset(routineN//"_acc_sync_right", handle3)
-                  CALL acc_event_synchronize(right_buffer_comm%mats(v_ki+1, 1)%m%data_area%d%acc_ready)
+                  CALL acc_event_synchronize(right_buffer_comm%mats(v_ki+1, 1)%data_area%d%acc_ready)
                   CALL timestop(handle3)
                ENDIF
 
@@ -1452,11 +1452,11 @@ CONTAINS
                   area=right_data_rp, &
                   rsize=right_sizes(idata, right_src_vrow, right_src_vcol), &
                   csize=1, &
-                  pointee=right_buffer_comm%mats(v_ki+1, 1)%m%data_area)
+                  pointee=right_buffer_comm%mats(v_ki+1, 1)%data_area)
                right_index_rp => right_buffer_comm%mats( &
                                  v_ki+1, 1 &
-                                 )%m%index(1: &
-                                           right_sizes(imeta, right_src_vrow, right_src_vcol))
+                                 )%index(1: &
+                                         right_sizes(imeta, right_src_vrow, right_src_vcol))
                !
                right_send_p = right_pgrid(right_send_prow, right_send_pcol)
                right_recv_p = right_pgrid(right_recv_prow, right_recv_pcol)
@@ -1489,8 +1489,8 @@ CONTAINS
          ! Repoint indices of right matrices
          calc_case_right: IF (metronome .GT. 1) THEN
             DO v_ki = 0, right_row_nimages-1
-               CALL dbcsr_repoint_index(right_buffer_calc%mats(v_ki+1, 1)%m)
-               right_buffer_calc%mats(v_ki+1, 1)%m%valid = .TRUE.
+               CALL dbcsr_repoint_index(right_buffer_calc%mats(v_ki+1, 1))
+               right_buffer_calc%mats(v_ki+1, 1)%valid = .TRUE.
             ENDDO
          ENDIF calc_case_right
          !
@@ -1540,11 +1540,11 @@ CONTAINS
                   area=left_data_sp, &
                   rsize=left_sizes(idata, left_dst_vrow, left_dst_vcol), &
                   csize=1, &
-                  pointee=left_buffer_calc%mats(1, v_ki+1)%m%data_area)
+                  pointee=left_buffer_calc%mats(1, v_ki+1)%data_area)
                left_index_sp => left_buffer_calc%mats( &
                                 1, v_ki+1 &
-                                )%m%index(1: &
-                                          left_sizes(imeta, left_dst_vrow, left_dst_vcol))
+                                )%index(1: &
+                                        left_sizes(imeta, left_dst_vrow, left_dst_vcol))
                !
                ! Calculate the process to receive from
                CALL image_calculator(left_set%image_dist, &
@@ -1568,7 +1568,7 @@ CONTAINS
                !
                IF (has_acc) THEN
                   CALL timeset(routineN//"_acc_sync_left", handle3)
-                  CALL acc_event_synchronize(left_buffer_comm%mats(1, v_ki+1)%m%data_area%d%acc_ready)
+                  CALL acc_event_synchronize(left_buffer_comm%mats(1, v_ki+1)%data_area%d%acc_ready)
                   CALL timestop(handle3)
                ENDIF
 
@@ -1577,11 +1577,11 @@ CONTAINS
                   area=left_data_rp, &
                   rsize=left_sizes(idata, left_src_vrow, left_src_vcol), &
                   csize=1, &
-                  pointee=left_buffer_comm%mats(1, v_ki+1)%m%data_area)
+                  pointee=left_buffer_comm%mats(1, v_ki+1)%data_area)
                left_index_rp => left_buffer_comm%mats( &
                                 1, v_ki+1 &
-                                )%m%index(1: &
-                                          left_sizes(imeta, left_src_vrow, left_src_vcol))
+                                )%index(1: &
+                                        left_sizes(imeta, left_src_vrow, left_src_vcol))
                !
                left_send_p = left_pgrid(left_send_prow, left_send_pcol)
                left_recv_p = left_pgrid(left_recv_prow, left_recv_pcol)
@@ -1614,8 +1614,8 @@ CONTAINS
          ! Repoint indices of left matrices and do the multiplications.
          calc_case_left: IF (metronome .GT. 1) THEN
             DO v_ki = 0, left_col_nimages-1
-               CALL dbcsr_repoint_index(left_buffer_calc%mats(1, v_ki+1)%m)
-               left_buffer_calc%mats(1, v_ki+1)%m%valid = .TRUE.
+               CALL dbcsr_repoint_index(left_buffer_calc%mats(1, v_ki+1))
+               left_buffer_calc%mats(1, v_ki+1)%valid = .TRUE.
             ENDDO
          ENDIF calc_case_left
 
@@ -1639,8 +1639,8 @@ CONTAINS
                                      left_set%image_dist)
 
             IF (has_acc) THEN
-               CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area)
-               CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area)
+               CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%data_area)
+               CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%data_area)
                CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc)
             END IF
 
@@ -1676,8 +1676,8 @@ CONTAINS
                CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p)
 
             CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p, &
-                                           left=left_buffer_calc%mats(1, v_ki+1)%m, &
-                                           right=right_buffer_calc%mats(v_ki+1, 1)%m, &
+                                           left=left_buffer_calc%mats(1, v_ki+1), &
+                                           right=right_buffer_calc%mats(v_ki+1, 1), &
                                            flop=flop_single, &
                                            a_norms=left_norms, b_norms=right_norms)
 
@@ -1754,11 +1754,11 @@ CONTAINS
       !
       IF (debug_mod) THEN
          v_ki = 0
-         DO i = 1, SIZE(product_matrix%m%blk_p)
-            v_ki = MAX(v_ki, ABS(product_matrix%m%blk_p(i)))
+         DO i = 1, SIZE(product_matrix%blk_p)
+            v_ki = MAX(v_ki, ABS(product_matrix%blk_p(i)))
          ENDDO
          WRITE (*, *) routineN//" Actual final size", &
-            LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0), &
+            LOG(REAL(dbcsr_data_get_size(product_matrix%data_area)))/LOG(10.0), &
             LOG(REAL(v_ki))/LOG(10.0)
       ENDIF
       !
@@ -1781,7 +1781,7 @@ CONTAINS
                                     source_matrix, index_size, data_size)
       TYPE(dbcsr_2d_array_type), INTENT(OUT)             :: buffer_set
       INTEGER, INTENT(IN)                                :: buff_nrows, buff_ncols
-      TYPE(dbcsr_obj), INTENT(IN)                        :: source_matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: source_matrix
       INTEGER, INTENT(IN)                                :: index_size
       INTEGER, INTENT(IN), OPTIONAL                      :: data_size
 
@@ -1803,15 +1803,15 @@ CONTAINS
                                      data_memory_type=memtype_abpanel_2)
          ENDDO
       ENDDO
-      IF (source_matrix%m%local_indexing .AND. careful_mod) THEN
-         IF (.NOT. array_exists(source_matrix%m%local_rows)) &
+      IF (source_matrix%local_indexing .AND. careful_mod) THEN
+         IF (.NOT. array_exists(source_matrix%local_rows)) &
             CPABORT("Local rows should exist.")
-         IF (.NOT. array_exists(source_matrix%m%global_rows)) &
+         IF (.NOT. array_exists(source_matrix%global_rows)) &
             CPABORT("Global rows should exist.")
          !
-         IF (.NOT. array_exists(source_matrix%m%local_cols)) &
+         IF (.NOT. array_exists(source_matrix%local_cols)) &
             CPABORT("Local cols should exist.")
-         IF (.NOT. array_exists(source_matrix%m%global_cols)) &
+         IF (.NOT. array_exists(source_matrix%global_cols)) &
             CPABORT("Global cols should exist.")
       ENDIF
       CALL timestop(handle)
@@ -1846,12 +1846,12 @@ CONTAINS
 
       DO row_image = 1, SIZE(buffer_set%mats, 1)
          DO col_image = 1, SIZE(buffer_set%mats, 2)
-            CALL dbcsr_data_ensure_size(buffer_set%mats(row_image, col_image)%m%data_area, &
+            CALL dbcsr_data_ensure_size(buffer_set%mats(row_image, col_image)%data_area, &
                                         data_size)
-            CALL ensure_array_size(buffer_set%mats(row_image, col_image)%m%index, &
+            CALL ensure_array_size(buffer_set%mats(row_image, col_image)%index, &
                                    ub=index_size, &
                                    memory_type=dbcsr_get_index_memory_type(buffer_set%mats(row_image, col_image)))
-            CALL dbcsr_repoint_index(buffer_set%mats(row_image, col_image)%m)
+            CALL dbcsr_repoint_index(buffer_set%mats(row_image, col_image))
          ENDDO
       ENDDO
       CALL timestop(handle)
@@ -1886,17 +1886,17 @@ CONTAINS
                                         matrix_set%image_dist)
             IF (dbg) THEN
                WRITE (*, *) routineN//" m, n, size", &
-                  SIZE(matrix_set%mats(i_row, i_col)%m%coo_l), &
+                  SIZE(matrix_set%mats(i_row, i_col)%coo_l), &
                   dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)), &
                   dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col))
-               WRITE (*, '(3(1X,I7))') matrix_set%mats(i_row, i_col)%m%coo_l
+               WRITE (*, '(3(1X,I7))') matrix_set%mats(i_row, i_col)%coo_l
             ENDIF
             IF (careful_mod) THEN
-               IF (SIZE(matrix_set%mats(i_row, i_col)%m%coo_l) .NE. matrix_set%mats(i_row, i_col)%m%nblks*3) &
+               IF (SIZE(matrix_set%mats(i_row, i_col)%coo_l) .NE. matrix_set%mats(i_row, i_col)%nblks*3) &
                   CPABORT("Block count mismatch.")
             ENDIF
-            thread_redist = ASSOCIATED(matrix_set%mats(i_row, i_col)%m%thr_c)
-            t_size = SIZE(matrix_set%mats(i_row, i_col)%m%coo_l)/3
+            thread_redist = ASSOCIATED(matrix_set%mats(i_row, i_col)%thr_c)
+            t_size = SIZE(matrix_set%mats(i_row, i_col)%coo_l)/3
             t_f = 1
             t_l = t_size
 !$OMP       PARALLEL IF (thread_redist) DEFAULT (NONE) &
@@ -1905,8 +1905,8 @@ CONTAINS
 !$OMP       SHARED (matrix_set, i_row, i_col, thread_redist)
 !$          ithread = OMP_GET_THREAD_NUM()
 !$          IF (thread_redist) THEN
-!$             t_f = matrix_set%mats(i_row, i_col)%m%thr_c(ithread+1)+1
-!$             t_l = matrix_set%mats(i_row, i_col)%m%thr_c(ithread+2)
+!$             t_f = matrix_set%mats(i_row, i_col)%thr_c(ithread+1)+1
+!$             t_l = matrix_set%mats(i_row, i_col)%thr_c(ithread+2)
 !$          ENDIF
             t_size = t_l-t_f+1
 !$OMP       BARRIER
@@ -1915,7 +1915,7 @@ CONTAINS
                   dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)), &
                   dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col)), &
                   t_size, &
-                  matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)))
+                  matrix_set%mats(i_row, i_col)%coo_l((t_f*3-2):(t_l*3)))
             ENDIF
 !$OMP       END PARALLEL
          ENDDO
@@ -1988,7 +1988,7 @@ CONTAINS
 !> \param[out] norms         Block norms
 ! **************************************************************************************************
    SUBROUTINE calculate_norms(matrix, norms)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       REAL(kind=sp), DIMENSION(:), INTENT(OUT)           :: norms
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
@@ -2004,43 +2004,43 @@ CONTAINS
       IF (.NOT. dbcsr_valid_index(matrix)) &
          CPABORT("The matrix must be valid.")
       data_type = dbcsr_get_data_type(matrix)
-      IF (careful_mod .AND. .NOT. array_exists(matrix%m%local_rows)) &
+      IF (careful_mod .AND. .NOT. array_exists(matrix%local_rows)) &
          CPABORT("Global row mapping should exist")
-      local_rows => array_data(matrix%m%local_rows)
+      local_rows => array_data(matrix%local_rows)
       nrows = SIZE(local_rows)
-      local_cols => array_data(matrix%m%local_cols)
-      nblks = matrix%m%nblks
+      local_cols => array_data(matrix%local_cols)
+      nblks = matrix%nblks
       SELECT CASE (data_type)
       CASE (dbcsr_type_real_4)
          CALL calc_norms_list_s(norms, nblks, &
-                                matrix%m%coo_l, &
-                                array_data(matrix%m%row_blk_size), &
-                                array_data(matrix%m%col_blk_size), &
-                                dbcsr_get_data_p_s(matrix%m%data_area), &
+                                matrix%coo_l, &
+                                array_data(matrix%row_blk_size), &
+                                array_data(matrix%col_blk_size), &
+                                dbcsr_get_data_p_s(matrix%data_area), &
                                 local2global_rows=local_rows, &
                                 local2global_cols=local_cols)
       CASE (dbcsr_type_real_8)
          CALL calc_norms_list_d(norms, nblks, &
-                                matrix%m%coo_l, &
-                                array_data(matrix%m%row_blk_size), &
-                                array_data(matrix%m%col_blk_size), &
-                                dbcsr_get_data_p_d(matrix%m%data_area), &
+                                matrix%coo_l, &
+                                array_data(matrix%row_blk_size), &
+                                array_data(matrix%col_blk_size), &
+                                dbcsr_get_data_p_d(matrix%data_area), &
                                 local2global_rows=local_rows, &
                                 local2global_cols=local_cols)
       CASE (dbcsr_type_complex_4)
          CALL calc_norms_list_c(norms, nblks, &
-                                matrix%m%coo_l, &
-                                array_data(matrix%m%row_blk_size), &
-                                array_data(matrix%m%col_blk_size), &
-                                dbcsr_get_data_p_c(matrix%m%data_area), &
+                                matrix%coo_l, &
+                                array_data(matrix%row_blk_size), &
+                                array_data(matrix%col_blk_size), &
+                                dbcsr_get_data_p_c(matrix%data_area), &
                                 local2global_rows=local_rows, &
                                 local2global_cols=local_cols)
       CASE (dbcsr_type_complex_8)
          CALL calc_norms_list_z(norms, nblks, &
-                                matrix%m%coo_l, &
-                                array_data(matrix%m%row_blk_size), &
-                                array_data(matrix%m%col_blk_size), &
-                                dbcsr_get_data_p_z(matrix%m%data_area), &
+                                matrix%coo_l, &
+                                array_data(matrix%row_blk_size), &
+                                array_data(matrix%col_blk_size), &
+                                dbcsr_get_data_p_z(matrix%data_area), &
                                 local2global_rows=local_rows, &
                                 local2global_cols=local_cols)
       CASE DEFAULT

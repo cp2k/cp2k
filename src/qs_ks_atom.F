@@ -18,9 +18,9 @@ MODULE qs_ks_atom
                                               gto_basis_set_type
    USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -100,8 +100,7 @@ CONTAINS
    SUBROUTINE update_ks_atom(qs_env, ksmat, pmat, forces, tddft, p_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: ksmat, pmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: ksmat, pmat
       LOGICAL, INTENT(IN)                                :: forces
       LOGICAL, INTENT(IN), OPTIONAL                      :: tddft
       TYPE(qs_p_env_type), OPTIONAL, POINTER             :: p_env
@@ -355,24 +354,24 @@ CONTAINS
                   NULLIFY (mat_h(ispin)%array, mat_p(ispin)%array)
 
                   IF (iatom <= jatom) THEN
-                     CALL cp_dbcsr_get_block_p(matrix=ksmat(ispin, img)%matrix, &
-                                               row=iatom, col=jatom, &
-                                               BLOCK=mat_h(ispin)%array, found=found)
+                     CALL dbcsr_get_block_p(matrix=ksmat(ispin, img)%matrix, &
+                                            row=iatom, col=jatom, &
+                                            BLOCK=mat_h(ispin)%array, found=found)
                   ELSE
-                     CALL cp_dbcsr_get_block_p(matrix=ksmat(ispin, img)%matrix, &
-                                               row=jatom, col=iatom, &
-                                               BLOCK=mat_h(ispin)%array, found=found)
+                     CALL dbcsr_get_block_p(matrix=ksmat(ispin, img)%matrix, &
+                                            row=jatom, col=iatom, &
+                                            BLOCK=mat_h(ispin)%array, found=found)
                   END IF
 
                   IF (forces) THEN
                      IF (iatom <= jatom) THEN
-                        CALL cp_dbcsr_get_block_p(matrix=pmat(ispin, img)%matrix, &
-                                                  row=iatom, col=jatom, &
-                                                  BLOCK=mat_p(ispin)%array, found=found)
+                        CALL dbcsr_get_block_p(matrix=pmat(ispin, img)%matrix, &
+                                               row=iatom, col=jatom, &
+                                               BLOCK=mat_p(ispin)%array, found=found)
                      ELSE
-                        CALL cp_dbcsr_get_block_p(matrix=pmat(ispin, img)%matrix, &
-                                                  row=jatom, col=iatom, &
-                                                  BLOCK=mat_p(ispin)%array, found=found)
+                        CALL dbcsr_get_block_p(matrix=pmat(ispin, img)%matrix, &
+                                               row=jatom, col=iatom, &
+                                               BLOCK=mat_p(ispin)%array, found=found)
                      END IF
                   END IF
                END DO

@@ -41,13 +41,6 @@ MODULE qs_collocate_density
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_type
@@ -56,6 +49,13 @@ MODULE qs_collocate_density
                                               return_cube,&
                                               return_cube_nonortho
    USE d3_poly,                         ONLY: poly_cp2k2d3
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type
    USE gauss_colloc,                    ONLY: collocGauss
@@ -1436,8 +1436,8 @@ CONTAINS
                                  ks_env, soft_valid, compute_tau, compute_grad, &
                                  basis_type, der_type, idir, task_list_external, pw_env_external)
 
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_p
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
       REAL(KIND=dp), INTENT(OUT)                         :: total_rho
@@ -1471,8 +1471,8 @@ CONTAINS
                                                             work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: deltap
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -1663,21 +1663,21 @@ CONTAINS
       ! distributed rs grids require a matrix that will be changed
       ! whereas this is not the case for replicated grids
       NULLIFY (deltap)
-      CALL cp_dbcsr_allocate_matrix_set(deltap, nimages)
+      CALL dbcsr_allocate_matrix_set(deltap, nimages)
       IF (distributed_rs_grids) THEN
          DO img = 1, nimages
             ALLOCATE (deltap(img)%matrix)
-            CALL cp_dbcsr_init(deltap(img)%matrix)
+            CALL dbcsr_init(deltap(img)%matrix)
          END DO
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1
          IF (do_kp) THEN
             DO img = 1, nimages
-               CALL cp_dbcsr_copy(deltap(img)%matrix, matrix_p_kp(img)%matrix, &
-                                  name="DeltaP")
+               CALL dbcsr_copy(deltap(img)%matrix, matrix_p_kp(img)%matrix, &
+                               name="DeltaP")
             END DO
          ELSE
-            CALL cp_dbcsr_copy(deltap(1)%matrix, matrix_p, name="DeltaP")
+            CALL dbcsr_copy(deltap(1)%matrix, matrix_p, name="DeltaP")
          END IF
       ELSE
          IF (do_kp) THEN
@@ -1777,8 +1777,8 @@ CONTAINS
                                          zet=zetb)
                ENDIF
 
-               CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix, &
-                                         row=brow, col=bcol, BLOCK=p_block, found=found)
+               CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
+                                      row=brow, col=bcol, BLOCK=p_block, found=found)
                CPASSERT(found)
 
                iatom_old = iatom
@@ -1962,7 +1962,7 @@ CONTAINS
       !   *** Release work storage ***
 
       IF (distributed_rs_grids) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(deltap)
+         CALL dbcsr_deallocate_matrix_set(deltap)
       ELSE
          DO img = 1, nimages
             NULLIFY (deltap(img)%matrix)
@@ -1995,8 +1995,8 @@ CONTAINS
    SUBROUTINE calculate_drho_elec(matrix_p, matrix_p_kp, drho, drho_gspace, qs_env, &
                                   soft_valid, basis_type)
 
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_p
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
       TYPE(pw_p_type), DIMENSION(:), INTENT(INOUT)       :: drho, drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -2025,8 +2025,8 @@ CONTAINS
                                                             work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: deltap
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
@@ -2152,17 +2152,17 @@ CONTAINS
       ALLOCATE (deltap(nimages))
       IF (distributed_rs_grids) THEN
          DO img = 1, nimages
-            CALL cp_dbcsr_init(deltap(img)%matrix)
+            CALL dbcsr_init(deltap(img)%matrix)
          END DO
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1
          IF (do_kp) THEN
             DO img = 1, nimages
-               CALL cp_dbcsr_copy(deltap(img)%matrix, matrix_p_kp(img)%matrix, &
-                                  name="DeltaP")
+               CALL dbcsr_copy(deltap(img)%matrix, matrix_p_kp(img)%matrix, &
+                               name="DeltaP")
             END DO
          ELSE
-            CALL cp_dbcsr_copy(deltap(1)%matrix, matrix_p, name="DeltaP")
+            CALL dbcsr_copy(deltap(1)%matrix, matrix_p, name="DeltaP")
          END IF
       ELSE
          IF (do_kp) THEN
@@ -2243,8 +2243,8 @@ CONTAINS
                                          zet=zetb)
                ENDIF
 
-               CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix, &
-                                         row=brow, col=bcol, BLOCK=p_block, found=found)
+               CALL dbcsr_get_block_p(matrix=deltap(img)%matrix, &
+                                      row=brow, col=bcol, BLOCK=p_block, found=found)
                CPASSERT(found)
 
                iatom_old = iatom
@@ -2359,7 +2359,7 @@ CONTAINS
       END IF
 
       IF (distributed_rs_grids) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(deltap)
+         CALL dbcsr_deallocate_matrix_set(deltap)
       ELSE
          DO img = 1, nimages
             NULLIFY (deltap(img)%matrix)

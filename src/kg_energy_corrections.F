@@ -21,12 +21,6 @@ MODULE kg_energy_corrections
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_get_info, &
-        cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_obj, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -44,6 +38,11 @@ MODULE kg_energy_corrections
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE external_potential_types,        ONLY: get_potential,&
@@ -175,7 +174,7 @@ CONTAINS
          CALL ec_build_ks_matrix(qs_env, ec_env)
          ! MAO basis
          IF (ec_env%mao) THEN
-            IF (ASSOCIATED(ec_env%mao_coef)) CALL cp_dbcsr_deallocate_matrix_set(ec_env%mao_coef)
+            IF (ASSOCIATED(ec_env%mao_coef)) CALL dbcsr_deallocate_matrix_set(ec_env%mao_coef)
             NULLIFY (ec_env%mao_coef)
             CALL mao_generate_basis(qs_env, ec_env%mao_coef, ref_basis_set="HARRIS", molecular=.TRUE., &
                                     max_iter=ec_env%mao_max_iter, eps_grad=ec_env%mao_eps_grad, unit_nr=unit_nr)
@@ -216,7 +215,7 @@ CONTAINS
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
@@ -268,15 +267,15 @@ CONTAINS
                                 eps_filter=eps_filter)
 
       ! initialize H matrix
-      CALL cp_dbcsr_allocate_matrix_set(ec_env%matrix_h, 1, 1)
+      CALL dbcsr_allocate_matrix_set(ec_env%matrix_h, 1, 1)
       ALLOCATE (ec_env%matrix_h(1, 1)%matrix)
-      CALL cp_dbcsr_init(ec_env%matrix_h(1, 1)%matrix)
-      CALL cp_dbcsr_create(ec_env%matrix_h(1, 1)%matrix, template=ec_env%matrix_s(1, 1)%matrix)
+      CALL dbcsr_init(ec_env%matrix_h(1, 1)%matrix)
+      CALL dbcsr_create(ec_env%matrix_h(1, 1)%matrix, template=ec_env%matrix_s(1, 1)%matrix)
       CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_h(1, 1)%matrix, sab_orb)
 
       ! add kinetic energy
-      CALL cp_dbcsr_copy(ec_env%matrix_h(1, 1)%matrix, ec_env%matrix_t(1, 1)%matrix, &
-                         keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
+      CALL dbcsr_copy(ec_env%matrix_h(1, 1)%matrix, ec_env%matrix_t(1, 1)%matrix, &
+                      keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
 
       ! compute the ppl contribution to the core hamiltonian
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
@@ -345,17 +344,17 @@ CONTAINS
       CPASSERT(.NOT. use_virial)
 
       ! Kohn-Sham matrix
-      IF (ASSOCIATED(ec_env%matrix_ks)) CALL cp_dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
+      IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
 
-      CALL cp_dbcsr_allocate_matrix_set(ec_env%matrix_ks, nspins, 1)
+      CALL dbcsr_allocate_matrix_set(ec_env%matrix_ks, nspins, 1)
       DO ispin = 1, nspins
          headline = "KOHN-SHAM MATRIX"
          ALLOCATE (ec_env%matrix_ks(ispin, 1)%matrix)
-         CALL cp_dbcsr_init(ec_env%matrix_ks(ispin, 1)%matrix)
-         CALL cp_dbcsr_create(ec_env%matrix_ks(ispin, 1)%matrix, name=TRIM(headline), &
-                              template=ec_env%matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_init(ec_env%matrix_ks(ispin, 1)%matrix)
+         CALL dbcsr_create(ec_env%matrix_ks(ispin, 1)%matrix, name=TRIM(headline), &
+                           template=ec_env%matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%sab_orb)
-         CALL cp_dbcsr_set(ec_env%matrix_ks(ispin, 1)%matrix, 0.0_dp)
+         CALL dbcsr_set(ec_env%matrix_ks(ispin, 1)%matrix, 0.0_dp)
       ENDDO
 
       NULLIFY (pw_env)
@@ -450,14 +449,14 @@ CONTAINS
 
       ! add the core matrix
       DO ispin = 1, nspins
-         CALL cp_dbcsr_add(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%matrix_h(1, 1)%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL dbcsr_add(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%matrix_h(1, 1)%matrix, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       END DO
 
       ! At this point the ks matrix is up to date, filter it if requested
       DO ispin = 1, nspins
-         CALL cp_dbcsr_filter(ec_env%matrix_ks(ispin, 1)%matrix, &
-                              dft_control%qs_control%eps_filter_matrix)
+         CALL dbcsr_filter(ec_env%matrix_ks(ispin, 1)%matrix, &
+                           dft_control%qs_control%eps_filter_matrix)
       ENDDO
 
       DEALLOCATE (v_rspace)
@@ -484,7 +483,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, ispin, nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ksmat, pmat, smat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, pmat, smat
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -495,12 +494,12 @@ CONTAINS
       ! create density matrix
       IF (.NOT. ASSOCIATED(ec_env%matrix_p)) THEN
          headline = "DENSITY MATRIX"
-         CALL cp_dbcsr_allocate_matrix_set(ec_env%matrix_p, nspins, 1)
+         CALL dbcsr_allocate_matrix_set(ec_env%matrix_p, nspins, 1)
          DO ispin = 1, nspins
             ALLOCATE (ec_env%matrix_p(ispin, 1)%matrix)
-            CALL cp_dbcsr_init(ec_env%matrix_p(ispin, 1)%matrix)
-            CALL cp_dbcsr_create(ec_env%matrix_p(ispin, 1)%matrix, name=TRIM(headline), &
-                                 template=ec_env%matrix_s(1, 1)%matrix)
+            CALL dbcsr_init(ec_env%matrix_p(ispin, 1)%matrix)
+            CALL dbcsr_create(ec_env%matrix_p(ispin, 1)%matrix, name=TRIM(headline), &
+                              template=ec_env%matrix_s(1, 1)%matrix)
             CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_p(ispin, 1)%matrix, ec_env%sab_orb)
          END DO
       END IF
@@ -542,16 +541,16 @@ CONTAINS
    SUBROUTINE mao_create_matrices(ec_env, ksmat, smat, pmat)
 
       TYPE(energy_correction_type), POINTER              :: ec_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ksmat, smat, pmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, smat, pmat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mao_create_matrices', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef
-      TYPE(cp_dbcsr_type)                                :: cgmat
       TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
+      TYPE(dbcsr_type)                                   :: cgmat
 
       CALL timeset(routineN, handle)
 
@@ -559,39 +558,39 @@ CONTAINS
 
       NULLIFY (ksmat, smat, pmat)
       nspins = SIZE(ec_env%matrix_ks, 1)
-      CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-      CALL cp_dbcsr_allocate_matrix_set(ksmat, nspins, 1)
-      CALL cp_dbcsr_allocate_matrix_set(smat, nspins, 1)
+      CALL dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+      CALL dbcsr_allocate_matrix_set(ksmat, nspins, 1)
+      CALL dbcsr_allocate_matrix_set(smat, nspins, 1)
       DO ispin = 1, nspins
          ALLOCATE (ksmat(ispin, 1)%matrix)
-         CALL cp_dbcsr_init(ksmat(ispin, 1)%matrix)
-         CALL cp_dbcsr_create(ksmat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO KS mat", &
-                              matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                              col_blk_size=col_blk_sizes, nze=0)
+         CALL dbcsr_init(ksmat(ispin, 1)%matrix)
+         CALL dbcsr_create(ksmat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO KS mat", &
+                           matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
+                           col_blk_size=col_blk_sizes, nze=0)
          ALLOCATE (smat(ispin, 1)%matrix)
-         CALL cp_dbcsr_init(smat(ispin, 1)%matrix)
-         CALL cp_dbcsr_create(smat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO S mat", &
-                              matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                              col_blk_size=col_blk_sizes, nze=0)
+         CALL dbcsr_init(smat(ispin, 1)%matrix)
+         CALL dbcsr_create(smat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO S mat", &
+                           matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
+                           col_blk_size=col_blk_sizes, nze=0)
       END DO
       !
-      CALL cp_dbcsr_init(cgmat)
-      CALL cp_dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
+      CALL dbcsr_init(cgmat)
+      CALL dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
       DO ispin = 1, nspins
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ec_env%matrix_s(1, 1)%matrix, mao_coef(ispin)%matrix, &
-                                0.0_dp, cgmat)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, smat(ispin, 1)%matrix)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ec_env%matrix_ks(1, 1)%matrix, mao_coef(ispin)%matrix, &
-                                0.0_dp, cgmat)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, ksmat(ispin, 1)%matrix)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, ec_env%matrix_s(1, 1)%matrix, mao_coef(ispin)%matrix, &
+                             0.0_dp, cgmat)
+         CALL dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, smat(ispin, 1)%matrix)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, ec_env%matrix_ks(1, 1)%matrix, mao_coef(ispin)%matrix, &
+                             0.0_dp, cgmat)
+         CALL dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, ksmat(ispin, 1)%matrix)
       END DO
-      CALL cp_dbcsr_release(cgmat)
+      CALL dbcsr_release(cgmat)
 
-      CALL cp_dbcsr_allocate_matrix_set(pmat, nspins, 1)
+      CALL dbcsr_allocate_matrix_set(pmat, nspins, 1)
       DO ispin = 1, nspins
          ALLOCATE (pmat(ispin, 1)%matrix)
-         CALL cp_dbcsr_init(pmat(ispin, 1)%matrix)
-         CALL cp_dbcsr_create(pmat(ispin, 1)%matrix, template=smat(1, 1)%matrix)
+         CALL dbcsr_init(pmat(ispin, 1)%matrix)
+         CALL dbcsr_create(pmat(ispin, 1)%matrix, template=smat(1, 1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(pmat(ispin, 1)%matrix, ec_env%sab_orb)
       END DO
 
@@ -613,14 +612,14 @@ CONTAINS
    SUBROUTINE mao_release_matrices(ec_env, ksmat, smat, pmat)
 
       TYPE(energy_correction_type), POINTER              :: ec_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ksmat, smat, pmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, smat, pmat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mao_release_matrices', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef
-      TYPE(cp_dbcsr_type)                                :: cgmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
+      TYPE(dbcsr_type)                                   :: cgmat
 
       CALL timeset(routineN, handle)
 
@@ -628,18 +627,18 @@ CONTAINS
       nspins = SIZE(mao_coef, 1)
 
       ! save pmat in full basis format
-      CALL cp_dbcsr_init(cgmat)
-      CALL cp_dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
+      CALL dbcsr_init(cgmat)
+      CALL dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
       DO ispin = 1, nspins
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mao_coef(ispin)%matrix, pmat(ispin, 1)%matrix, 0.0_dp, cgmat)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, &
-                                ec_env%matrix_p(ispin, 1)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mao_coef(ispin)%matrix, pmat(ispin, 1)%matrix, 0.0_dp, cgmat)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, &
+                             ec_env%matrix_p(ispin, 1)%matrix, retain_sparsity=.TRUE.)
       END DO
-      CALL cp_dbcsr_release(cgmat)
+      CALL dbcsr_release(cgmat)
 
-      CALL cp_dbcsr_deallocate_matrix_set(ksmat)
-      CALL cp_dbcsr_deallocate_matrix_set(smat)
-      CALL cp_dbcsr_deallocate_matrix_set(pmat)
+      CALL dbcsr_deallocate_matrix_set(ksmat)
+      CALL dbcsr_deallocate_matrix_set(smat)
+      CALL dbcsr_deallocate_matrix_set(pmat)
 
       CALL timestop(handle)
 
@@ -659,7 +658,7 @@ CONTAINS
    SUBROUTINE ec_diag_solver(qs_env, matrix_ks, matrix_s, matrix_p)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_p
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_diag_solver', routineP = moduleN//':'//routineN
 
@@ -668,11 +667,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter, focc(2)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_type), POINTER                       :: buf1_dbcsr, buf2_dbcsr, ortho_dbcsr, &
-                                                            ref_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_ks, fm_mo, fm_ortho
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_type), POINTER                          :: buf1_dbcsr, buf2_dbcsr, ortho_dbcsr, &
+                                                            ref_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -692,7 +691,7 @@ CONTAINS
          nmo(1) = nmo(1)/2
       END IF
 
-      CALL cp_dbcsr_get_info(matrix_ks(1, 1)%matrix, nfullrows_total=nsize)
+      CALL dbcsr_get_info(matrix_ks(1, 1)%matrix, nfullrows_total=nsize)
       ALLOCATE (eigenvalues(nsize))
 
       NULLIFY (fm_ortho, fm_ks, fm_mo, fm_struct, ref_matrix)
@@ -706,15 +705,15 @@ CONTAINS
       ! factorization
       ref_matrix => matrix_s(1, 1)%matrix
       NULLIFY (ortho_dbcsr, buf1_dbcsr, buf2_dbcsr)
-      CALL cp_dbcsr_init_p(ortho_dbcsr)
-      CALL cp_dbcsr_create(ortho_dbcsr, template=ref_matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_init_p(buf1_dbcsr)
-      CALL cp_dbcsr_create(buf1_dbcsr, template=ref_matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_init_p(buf2_dbcsr)
-      CALL cp_dbcsr_create(buf2_dbcsr, template=ref_matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(ortho_dbcsr)
+      CALL dbcsr_create(ortho_dbcsr, template=ref_matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(buf1_dbcsr)
+      CALL dbcsr_create(buf1_dbcsr, template=ref_matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(buf2_dbcsr)
+      CALL dbcsr_create(buf2_dbcsr, template=ref_matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
 
       DO ispin = 1, nspins
          ref_matrix => matrix_s(ispin, 1)%matrix
@@ -728,31 +727,31 @@ CONTAINS
 
          ! calculate ZHZ(T)
          ! calculate Z(T)HZ
-         CALL cp_dbcsr_desymmetrize(matrix_ks(ispin, 1)%matrix, buf1_dbcsr)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, buf1_dbcsr, ortho_dbcsr, &
-                                0.0_dp, buf2_dbcsr, filter_eps=eps_filter)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, ortho_dbcsr, buf2_dbcsr, &
-                                0.0_dp, buf1_dbcsr, filter_eps=eps_filter)
+         CALL dbcsr_desymmetrize(matrix_ks(ispin, 1)%matrix, buf1_dbcsr)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, buf1_dbcsr, ortho_dbcsr, &
+                             0.0_dp, buf2_dbcsr, filter_eps=eps_filter)
+         CALL dbcsr_multiply("T", "N", 1.0_dp, ortho_dbcsr, buf2_dbcsr, &
+                             0.0_dp, buf1_dbcsr, filter_eps=eps_filter)
          ! copy to fm format
          CALL copy_dbcsr_to_fm(buf1_dbcsr, fm_ks)
          CALL choose_eigv_solver(fm_ks, fm_mo, eigenvalues, info)
          CPASSERT(info == 0)
          ! back transform of mos c = Z(T)*c
          CALL copy_fm_to_dbcsr(fm_mo, buf1_dbcsr)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ortho_dbcsr, buf1_dbcsr, &
-                                0.0_dp, buf2_dbcsr, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, ortho_dbcsr, buf1_dbcsr, &
+                             0.0_dp, buf2_dbcsr, filter_eps=eps_filter)
          ! density matrix
-         CALL cp_dbcsr_set(matrix_p(ispin, 1)%matrix, 0.0_dp)
-         CALL cp_dbcsr_multiply("N", "T", focc(ispin), buf2_dbcsr, buf2_dbcsr, &
-                                1.0_dp, matrix_p(ispin, 1)%matrix, retain_sparsity=.TRUE., last_k=nmo(ispin))
+         CALL dbcsr_set(matrix_p(ispin, 1)%matrix, 0.0_dp)
+         CALL dbcsr_multiply("N", "T", focc(ispin), buf2_dbcsr, buf2_dbcsr, &
+                             1.0_dp, matrix_p(ispin, 1)%matrix, retain_sparsity=.TRUE., last_k=nmo(ispin))
       END DO
 
       CALL cp_fm_release(fm_ks)
       CALL cp_fm_release(fm_mo)
       CALL cp_fm_release(fm_ortho)
-      CALL cp_dbcsr_release(ortho_dbcsr)
-      CALL cp_dbcsr_release(buf1_dbcsr)
-      CALL cp_dbcsr_release(buf2_dbcsr)
+      CALL dbcsr_release(ortho_dbcsr)
+      CALL dbcsr_release(buf1_dbcsr)
+      CALL dbcsr_release(buf2_dbcsr)
       DEALLOCATE (ortho_dbcsr, buf1_dbcsr, buf2_dbcsr)
       DEALLOCATE (eigenvalues)
 
@@ -792,10 +791,10 @@ CONTAINS
          eband = 0.0_dp
          DO ispin = 1, nspins
 !dbg
-            CALL cp_dbcsr_trace(ec_env%matrix_p(ispin, 1)%matrix, ec_env%matrix_s(1, 1)%matrix, trace)
+            CALL dbcsr_trace(ec_env%matrix_p(ispin, 1)%matrix, ec_env%matrix_s(1, 1)%matrix, trace)
             IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,T16,F16.10)') 'Tr[PS] ', trace
 !dbg
-            CALL cp_dbcsr_trace(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%matrix_p(ispin, 1)%matrix, trace)
+            CALL dbcsr_trace(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%matrix_p(ispin, 1)%matrix, trace)
             eband = eband+trace
          END DO
          ec_env%eband = eband

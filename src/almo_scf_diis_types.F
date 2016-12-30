@@ -10,17 +10,17 @@
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
 MODULE almo_scf_diis_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_create,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_release,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_trace,&
-                                              cp_dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_init,&
+                                              dbcsr_release,&
+                                              dbcsr_set,&
+                                              dbcsr_trace,&
+                                              dbcsr_type
    USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                               copy_submatrices,&
                                               init_submatrices,&
@@ -58,8 +58,8 @@ MODULE almo_scf_diis_types
       INTEGER :: max_buffer_length
       !INTEGER, DIMENSION(:), ALLOCATABLE :: history_index
 
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: m_var
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: m_err
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: m_var
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: m_err
 
       ! first dimension is history index, second - domain index
       TYPE(domain_submatrix_type), DIMENSION(:, :), ALLOCATABLE :: d_var
@@ -95,7 +95,7 @@ CONTAINS
                                        max_length)
 
       TYPE(almo_scf_diis_type), INTENT(INOUT)            :: diis_env
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: sample_err, sample_var
+      TYPE(dbcsr_type), INTENT(IN)                       :: sample_err, sample_var
       INTEGER, INTENT(IN)                                :: error_type, max_length
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_init_dbcsr', &
@@ -121,12 +121,12 @@ CONTAINS
 
       ! create matrices
       DO im = 1, diis_env%max_buffer_length
-         CALL cp_dbcsr_init(diis_env%m_err(im))
-         CALL cp_dbcsr_create(diis_env%m_err(im), &
-                              template=sample_err)
-         CALL cp_dbcsr_init(diis_env%m_var(im))
-         CALL cp_dbcsr_create(diis_env%m_var(im), &
-                              template=sample_var)
+         CALL dbcsr_init(diis_env%m_err(im))
+         CALL dbcsr_create(diis_env%m_err(im), &
+                           template=sample_err)
+         CALL dbcsr_init(diis_env%m_var(im))
+         CALL dbcsr_create(diis_env%m_var(im), &
+                           template=sample_var)
       ENDDO
 
       ! current B matrices are only 1-by-1, they will be expanded on-the-fly
@@ -222,7 +222,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_diis_push(diis_env, var, err, d_var, d_err)
       TYPE(almo_scf_diis_type), INTENT(INOUT)            :: diis_env
-      TYPE(cp_dbcsr_type), INTENT(IN), OPTIONAL          :: var, err
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: var, err
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN), OPTIONAL                            :: d_var, d_err
 
@@ -252,8 +252,8 @@ CONTAINS
 
       ! store a var-error pair
       IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
-         CALL cp_dbcsr_copy(diis_env%m_var(in_point), var)
-         CALL cp_dbcsr_copy(diis_env%m_err(in_point), err)
+         CALL dbcsr_copy(diis_env%m_var(in_point), var)
+         CALL dbcsr_copy(diis_env%m_err(in_point), err)
       ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
          CALL copy_submatrices(d_var, diis_env%d_var(in_point, :), copy_data=.TRUE.)
          CALL copy_submatrices(d_err, diis_env%d_err(in_point, :), copy_data=.TRUE.)
@@ -342,7 +342,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE almo_scf_diis_extrapolate(diis_env, extr_var, d_extr_var)
       TYPE(almo_scf_diis_type), INTENT(INOUT)            :: diis_env
-      TYPE(cp_dbcsr_type), INTENT(INOUT), OPTIONAL       :: extr_var
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: extr_var
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT), OPTIONAL                         :: d_extr_var
 
@@ -430,10 +430,10 @@ CONTAINS
             ! extrapolate the variable
             checksum = 0.0_dp
             IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
-               CALL cp_dbcsr_set(extr_var, 0.0_dp)
+               CALL dbcsr_set(extr_var, 0.0_dp)
                DO im = 1, diis_env%buffer_length
-                  CALL cp_dbcsr_add(extr_var, diis_env%m_var(im), &
-                                    1.0_dp, coeff(im+1))
+                  CALL dbcsr_add(extr_var, diis_env%m_var(im), &
+                                 1.0_dp, coeff(im+1))
                   checksum = checksum+coeff(im+1)
                ENDDO
             ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
@@ -478,7 +478,7 @@ CONTAINS
    FUNCTION almo_scf_diis_error_overlap(diis_env, A, B, d_A, d_B)
 
       TYPE(almo_scf_diis_type), INTENT(INOUT)            :: diis_env
-      TYPE(cp_dbcsr_type), INTENT(INOUT), OPTIONAL       :: A, B
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: A, B
       TYPE(domain_submatrix_type), INTENT(INOUT), &
          OPTIONAL                                        :: d_A, d_B
       REAL(KIND=dp)                                      :: almo_scf_diis_error_overlap
@@ -506,7 +506,7 @@ CONTAINS
       SELECT CASE (diis_env%error_type)
       CASE (diis_error_orthogonal)
          IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
-            CALL cp_dbcsr_trace(A, B, trace)
+            CALL dbcsr_trace(A, B, trace)
          ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
             CPASSERT(SIZE(d_A%mdata, 1) .EQ. SIZE(d_B%mdata, 1))
             CPASSERT(SIZE(d_A%mdata, 2) .EQ. SIZE(d_B%mdata, 2))
@@ -545,8 +545,8 @@ CONTAINS
       ! release matrices
       DO im = 1, diis_env%max_buffer_length
          IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
-            CALL cp_dbcsr_release(diis_env%m_err(im))
-            CALL cp_dbcsr_release(diis_env%m_var(im))
+            CALL dbcsr_release(diis_env%m_err(im))
+            CALL dbcsr_release(diis_env%m_var(im))
          ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
             CALL release_submatrices(diis_env%d_var(im, :))
             CALL release_submatrices(diis_env%d_err(im, :))

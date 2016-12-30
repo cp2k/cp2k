@@ -15,7 +15,6 @@ MODULE qs_band_structure
    USE cp_blacs_env,                    ONLY: cp_blacs_env_retain,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
@@ -23,6 +22,7 @@ MODULE qs_band_structure
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -288,10 +288,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &

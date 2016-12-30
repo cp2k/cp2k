@@ -9,16 +9,16 @@
 MODULE qs_ks_apply_restraints
    USE cp_control_types,                ONLY: becke_restraint_type,&
                                               dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
    USE et_coupling,                     ONLY: becke_restraint
    USE kinds,                           ONLY: dp
    USE mulliken,                        ONLY: mulliken_restraint
@@ -61,7 +61,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       LOGICAL, INTENT(in)                                :: calculate_forces
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(becke_restraint_type), POINTER                :: becke
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_becke_restraint', &
@@ -98,10 +98,10 @@ CONTAINS
                IF (qs_env%et_coupling%first_run) THEN
                   NULLIFY (qs_env%et_coupling%rest_mat(1)%matrix)
                   ALLOCATE (qs_env%et_coupling%rest_mat(1)%matrix)
-                  CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
-                  CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1, 1)%matrix, &
-                                     name="ET_RESTRAINT_MATRIX_A")
-                  CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
+                  CALL dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
+                  CALL dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1, 1)%matrix, &
+                                  name="ET_RESTRAINT_MATRIX_A")
+                  CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
                   CALL integrate_v_rspace(becke%becke_pot, &
                                           hmat=qs_env%et_coupling%rest_mat(1), &
                                           qs_env=qs_env, calculate_forces=.FALSE.)
@@ -111,10 +111,10 @@ CONTAINS
                ELSE
                   NULLIFY (qs_env%et_coupling%rest_mat(2)%matrix)
                   ALLOCATE (qs_env%et_coupling%rest_mat(2)%matrix)
-                  CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
-                  CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1, 1)%matrix, &
-                                     name="ET_RESTRAINT_MATRIX_B")
-                  CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)
+                  CALL dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
+                  CALL dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1, 1)%matrix, &
+                                  name="ET_RESTRAINT_MATRIX_B")
+                  CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)
                   CALL integrate_v_rspace(becke%becke_pot, &
                                           hmat=qs_env%et_coupling%rest_mat(2), &
                                           qs_env=qs_env, calculate_forces=.FALSE.)
@@ -143,14 +143,14 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       LOGICAL, INTENT(in)                                :: just_energy
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_s
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(KIND=dp)                                      :: mulliken_order_p
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_mulliken_restraint', &
          routineP = moduleN//':'//routineN
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ksmat, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, rho_ao
 
       energy%mulliken = 0.0_dp
 
@@ -190,7 +190,7 @@ CONTAINS
 
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
@@ -198,9 +198,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mo_derivs, smat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_mo_derivs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, smat
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
 
       NULLIFY (fm_mo_derivs, mo_array, mo_coeff, mo_derivs)

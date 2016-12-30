@@ -16,10 +16,6 @@ MODULE mp2_ri_grad
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_init, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_transposed, &
-        cp_dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -36,6 +32,10 @@ MODULE mp2_ri_grad
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_init, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
@@ -149,7 +149,7 @@ CONTAINS
       INTEGER                                            :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
       TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu
+      TYPE(dbcsr_p_type)                                 :: mat_munu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -180,14 +180,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
-      TYPE(cp_dbcsr_p_type) :: Lag_mu_i_1, Lag_mu_i_1_beta, Lag_nu_a_2, Lag_nu_a_2_beta, &
-         matrix_P_inu, matrix_P_inu_beta, matrix_P_munu, matrix_P_munu_nosym
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: G_P_ia, G_P_ia_beta
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
-                                                            mo_coeff_v_beta
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L1_mu_i_beta, L2_nu_a, &
                                                             L2_nu_a_beta
+      TYPE(dbcsr_p_type) :: Lag_mu_i_1, Lag_mu_i_1_beta, Lag_nu_a_2, Lag_nu_a_2_beta, &
+         matrix_P_inu, matrix_P_inu_beta, matrix_P_munu, matrix_P_munu_nosym
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: G_P_ia, G_P_ia_beta
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
+                                                            mo_coeff_v_beta
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -255,54 +255,54 @@ CONTAINS
 
       ! create matrix holding the back transformation (G_P_inu)
       ALLOCATE (matrix_P_inu%matrix)
-      CALL cp_dbcsr_init(matrix_P_inu%matrix)
-      CALL cp_dbcsr_create(matrix_P_inu%matrix, template=mo_coeff_o)
+      CALL dbcsr_init(matrix_P_inu%matrix)
+      CALL dbcsr_create(matrix_P_inu%matrix, template=mo_coeff_o)
       IF (alpha_beta) THEN
          ALLOCATE (matrix_P_inu_beta%matrix)
-         CALL cp_dbcsr_init(matrix_P_inu_beta%matrix)
-         CALL cp_dbcsr_create(matrix_P_inu_beta%matrix, template=mo_coeff_o_beta)
+         CALL dbcsr_init(matrix_P_inu_beta%matrix)
+         CALL dbcsr_create(matrix_P_inu_beta%matrix, template=mo_coeff_o_beta)
       ENDIF
 
       ! non symmetric matrix
       ALLOCATE (matrix_P_munu_nosym%matrix)
-      CALL cp_dbcsr_init(matrix_P_munu_nosym%matrix)
-      CALL cp_dbcsr_create(matrix_P_munu_nosym%matrix, template=mat_munu%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-      ! CALL cp_dbcsr_create(matrix_P_munu_nosym%matrix,template=mat_munu%matrix)
-      ! CALL cp_dbcsr_copy(matrix_P_munu_nosym%matrix,mat_munu%matrix,&
+      CALL dbcsr_init(matrix_P_munu_nosym%matrix)
+      CALL dbcsr_create(matrix_P_munu_nosym%matrix, template=mat_munu%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      ! CALL dbcsr_create(matrix_P_munu_nosym%matrix,template=mat_munu%matrix)
+      ! CALL dbcsr_copy(matrix_P_munu_nosym%matrix,mat_munu%matrix,&
       !                    name="matrix_P_munu_nosym")
       !XXXXXX
-      ! CALL cp_dbcsr_desymmetrize(mat_munu%matrix,matrix_P_munu_nosym%matrix)
+      ! CALL dbcsr_desymmetrize(mat_munu%matrix,matrix_P_munu_nosym%matrix)
 
       ! create Lagrangian matrices in mixed AO/MO formalism
       ALLOCATE (Lag_mu_i_1%matrix)
-      CALL cp_dbcsr_init(Lag_mu_i_1%matrix)
-      CALL cp_dbcsr_create(Lag_mu_i_1%matrix, template=mo_coeff_o)
-      CALL cp_dbcsr_set(Lag_mu_i_1%matrix, 0.0_dp)
+      CALL dbcsr_init(Lag_mu_i_1%matrix)
+      CALL dbcsr_create(Lag_mu_i_1%matrix, template=mo_coeff_o)
+      CALL dbcsr_set(Lag_mu_i_1%matrix, 0.0_dp)
       IF (alpha_beta) THEN
          ALLOCATE (Lag_mu_i_1_beta%matrix)
-         CALL cp_dbcsr_init(Lag_mu_i_1_beta%matrix)
-         CALL cp_dbcsr_create(Lag_mu_i_1_beta%matrix, template=mo_coeff_o_beta)
-         CALL cp_dbcsr_set(Lag_mu_i_1_beta%matrix, 0.0_dp)
+         CALL dbcsr_init(Lag_mu_i_1_beta%matrix)
+         CALL dbcsr_create(Lag_mu_i_1_beta%matrix, template=mo_coeff_o_beta)
+         CALL dbcsr_set(Lag_mu_i_1_beta%matrix, 0.0_dp)
       ENDIF
 
       ALLOCATE (Lag_nu_a_2%matrix)
-      CALL cp_dbcsr_init(Lag_nu_a_2%matrix)
-      CALL cp_dbcsr_create(Lag_nu_a_2%matrix, template=mo_coeff_v)
-      CALL cp_dbcsr_set(Lag_nu_a_2%matrix, 0.0_dp)
+      CALL dbcsr_init(Lag_nu_a_2%matrix)
+      CALL dbcsr_create(Lag_nu_a_2%matrix, template=mo_coeff_v)
+      CALL dbcsr_set(Lag_nu_a_2%matrix, 0.0_dp)
       IF (alpha_beta) THEN
          ALLOCATE (Lag_nu_a_2_beta%matrix)
-         CALL cp_dbcsr_init(Lag_nu_a_2_beta%matrix)
-         CALL cp_dbcsr_create(Lag_nu_a_2_beta%matrix, template=mo_coeff_v_beta)
-         CALL cp_dbcsr_set(Lag_nu_a_2_beta%matrix, 0.0_dp)
+         CALL dbcsr_init(Lag_nu_a_2_beta%matrix)
+         CALL dbcsr_create(Lag_nu_a_2_beta%matrix, template=mo_coeff_v_beta)
+         CALL dbcsr_set(Lag_nu_a_2_beta%matrix, 0.0_dp)
       ENDIF
 
       ALLOCATE (matrix_P_munu%matrix)
-      CALL cp_dbcsr_init(matrix_P_munu%matrix)
-      CALL cp_dbcsr_create(matrix_P_munu%matrix, template=mat_munu%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-      ! CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp)
-      ! CALL cp_dbcsr_copy(matrix_P_munu%matrix,mat_munu%matrix,&
+      CALL dbcsr_init(matrix_P_munu%matrix)
+      CALL dbcsr_create(matrix_P_munu%matrix, template=mat_munu%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      ! CALL dbcsr_set(mat_munu%matrix,0.0_dp)
+      ! CALL dbcsr_copy(matrix_P_munu%matrix,mat_munu%matrix,&
       !                    name="matrix_P_munu")
 
       ! wave function vector and supporting stuff
@@ -349,47 +349,47 @@ CONTAINS
 
          ! first back-transformation a->nu
          CALL timeset(routineN//"_back_v", handle3)
-         CALL cp_dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
-                                0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
+         CALL dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
+                             0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
          IF (alpha_beta) THEN
-            CALL cp_dbcsr_set(matrix_P_inu_beta%matrix, 0.0_dp)
-            CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
-                                   0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
+            CALL dbcsr_set(matrix_P_inu_beta%matrix, 0.0_dp)
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
+                                0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
          ENDIF
          CALL timestop(handle3)
 
          ! second back-transformation i->mu
          CALL timeset(routineN//"_back_o", handle3)
-         CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix, 0.0_dp)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_P_inu%matrix, mo_coeff_o, &
-                                0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
+         CALL dbcsr_set(matrix_P_munu_nosym%matrix, 0.0_dp)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_P_inu%matrix, mo_coeff_o, &
+                             0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
          IF (alpha_beta) THEN
-            !CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp)
-            CALL cp_dbcsr_multiply("N", "T", 0.5_dp, matrix_P_inu_beta%matrix, mo_coeff_o_beta, &
-                                   0.5_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
+            !CALL dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp)
+            CALL dbcsr_multiply("N", "T", 0.5_dp, matrix_P_inu_beta%matrix, mo_coeff_o_beta, &
+                                0.5_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
          ENDIF
 
          ! ! first back-transformation a->nu
          ! CALL timeset(routineN//"_back_v",handle3)
-         ! CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp)
-         ! CALL cp_dbcsr_multiply("N", "T", 1.0_dp, G_P_ia(L_counter)%matrix, mo_coeff_v, &
+         ! CALL dbcsr_set(matrix_P_inu%matrix,0.0_dp)
+         ! CALL dbcsr_multiply("N", "T", 1.0_dp, G_P_ia(L_counter)%matrix, mo_coeff_v, &
          !                         0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
          ! CALL timestop(handle3)
 
          ! ! second back-transformation i->mu
          ! CALL timeset(routineN//"_back_o",handle3)
-         ! CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp)
-         ! CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mo_coeff_o, matrix_P_inu%matrix, &
+         ! CALL dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp)
+         ! CALL dbcsr_multiply("N", "N", 1.0_dp, mo_coeff_o, matrix_P_inu%matrix, &
          !                         0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter)
          ! symmetrize
-         CALL cp_dbcsr_set(matrix_P_munu%matrix, 0.0_dp)
-         CALL cp_dbcsr_transposed(matrix_P_munu%matrix, matrix_P_munu_nosym%matrix)
-         CALL cp_dbcsr_add(matrix_P_munu%matrix, matrix_P_munu_nosym%matrix, &
-                           alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
+         CALL dbcsr_set(matrix_P_munu%matrix, 0.0_dp)
+         CALL dbcsr_transposed(matrix_P_munu%matrix, matrix_P_munu_nosym%matrix)
+         CALL dbcsr_add(matrix_P_munu%matrix, matrix_P_munu_nosym%matrix, &
+                        alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
          ! this is a trick to avoid that integrate_v_rspace starts to cry
-         CALL cp_dbcsr_copy_into_existing(mat_munu%matrix, matrix_P_munu%matrix)
-         CALL cp_dbcsr_copy(matrix_P_munu%matrix, mat_munu%matrix)
+         CALL dbcsr_copy_into_existing(mat_munu%matrix, matrix_P_munu%matrix)
+         CALL dbcsr_copy(matrix_P_munu%matrix, mat_munu%matrix)
 
          CALL timestop(handle3)
 
@@ -576,7 +576,7 @@ CONTAINS
          ! integrate the potential of the single gaussian and update
          ! 3-center forces
          CALL timeset(routineN//"_int", handle3)
-         CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
+         CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
          CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
                                  qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
                                  pw_env_external=pw_env_sub, &
@@ -587,41 +587,41 @@ CONTAINS
          CALL timeset(routineN//"_Lag", handle3)
          ! first contract mat_munu with the half back transformed Gamma_i_nu
          ! in order to update Lag_mu_i_1
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &
-                                1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &
+                             1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter)
 
          IF (alpha_beta) THEN
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu_beta%matrix, &
-                                   1.0_dp, Lag_mu_i_1_beta%matrix, filter_eps=eps_filter)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu_beta%matrix, &
+                                1.0_dp, Lag_mu_i_1_beta%matrix, filter_eps=eps_filter)
          ENDIF
 
          ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL cp_dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                                0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
+         CALL dbcsr_set(matrix_P_inu%matrix, 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
+                             0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter)
 
          IF (alpha_beta) THEN
-            CALL cp_dbcsr_set(matrix_P_inu_beta%matrix, 0.0_dp)
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
-                                   0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
+            CALL dbcsr_set(matrix_P_inu_beta%matrix, 0.0_dp)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
+                                0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter)
          ENDIF
 
          ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
          ! in order to update Lag_nu_a_2
-         CALL cp_dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu%matrix, G_P_ia(L_counter)%matrix, &
-                                1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu%matrix, G_P_ia(L_counter)%matrix, &
+                             1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter)
 
          IF (alpha_beta) THEN
-            CALL cp_dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu_beta%matrix, &
-                                   G_P_ia_beta(L_counter)%matrix, 1.0_dp, Lag_nu_a_2_beta%matrix, &
-                                   filter_eps=eps_filter)
+            CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu_beta%matrix, &
+                                G_P_ia_beta(L_counter)%matrix, 1.0_dp, Lag_nu_a_2_beta%matrix, &
+                                filter_eps=eps_filter)
          ENDIF
 
          ! release the actual gamma_P_ia
-         CALL cp_dbcsr_release(G_P_ia(L_counter)%matrix)
+         CALL dbcsr_release(G_P_ia(L_counter)%matrix)
          DEALLOCATE (G_P_ia(L_counter)%matrix)
          IF (alpha_beta) THEN
-            CALL cp_dbcsr_release(G_P_ia_beta(L_counter)%matrix)
+            CALL dbcsr_release(G_P_ia_beta(L_counter)%matrix)
             DEALLOCATE (G_P_ia_beta(L_counter)%matrix)
          ENDIF
          CALL timestop(handle3)
@@ -868,13 +868,13 @@ CONTAINS
          END DO
       END IF
 
-      CALL cp_dbcsr_release(matrix_P_inu%matrix)
+      CALL dbcsr_release(matrix_P_inu%matrix)
       DEALLOCATE (matrix_P_inu%matrix)
 
-      CALL cp_dbcsr_release(matrix_P_munu_nosym%matrix)
+      CALL dbcsr_release(matrix_P_munu_nosym%matrix)
       DEALLOCATE (matrix_P_munu_nosym%matrix)
 
-      CALL cp_dbcsr_release(matrix_P_munu%matrix)
+      CALL dbcsr_release(matrix_P_munu%matrix)
       DEALLOCATE (matrix_P_munu%matrix)
 
       ! release the full gamma_P_ia structure
@@ -882,7 +882,7 @@ CONTAINS
 
       ! Release G_P_ia_beta and and matrix_P_inu_beta
       IF (alpha_beta) THEN
-         CALL cp_dbcsr_release(matrix_P_inu_beta%matrix)
+         CALL dbcsr_release(matrix_P_inu_beta%matrix)
          DEALLOCATE (matrix_P_inu_beta%matrix)
          DEALLOCATE (G_P_ia_beta)
       ENDIF
@@ -908,7 +908,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1%matrix, fm=L1_mu_i)
 
       ! release Lag_mu_i_1
-      CALL cp_dbcsr_release(Lag_mu_i_1%matrix)
+      CALL dbcsr_release(Lag_mu_i_1%matrix)
       DEALLOCATE (Lag_mu_i_1%matrix)
 
       NULLIFY (L2_nu_a, fm_struct_tmp)
@@ -920,7 +920,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2%matrix, fm=L2_nu_a)
 
       ! release Lag_nu_a_2
-      CALL cp_dbcsr_release(Lag_nu_a_2%matrix)
+      CALL dbcsr_release(Lag_nu_a_2%matrix)
       DEALLOCATE (Lag_nu_a_2%matrix)
 
       ! The same for the beta Lagrangians
@@ -937,7 +937,7 @@ CONTAINS
          CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1_beta%matrix, fm=L1_mu_i_beta)
 
          ! release Lag_mu_i_1
-         CALL cp_dbcsr_release(Lag_mu_i_1_beta%matrix)
+         CALL dbcsr_release(Lag_mu_i_1_beta%matrix)
          DEALLOCATE (Lag_mu_i_1_beta%matrix)
 
          NULLIFY (L2_nu_a_beta, fm_struct_tmp)
@@ -949,7 +949,7 @@ CONTAINS
          CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2_beta%matrix, fm=L2_nu_a_beta)
 
          ! release Lag_nu_a_2
-         CALL cp_dbcsr_release(Lag_nu_a_2_beta%matrix)
+         CALL dbcsr_release(Lag_nu_a_2_beta%matrix)
          DEALLOCATE (Lag_nu_a_2_beta%matrix)
       ENDIF
 

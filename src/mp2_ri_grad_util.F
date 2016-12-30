@@ -13,14 +13,6 @@ MODULE mp2_ri_grad_util
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_iterator,&
-                                              cp_dbcsr_iterator_blocks_left,&
-                                              cp_dbcsr_iterator_next_block,&
-                                              cp_dbcsr_iterator_start,&
-                                              cp_dbcsr_iterator_stop,&
-                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -36,6 +28,14 @@ MODULE mp2_ri_grad_util
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_init,&
+                                              dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop,&
+                                              dbcsr_iterator_type,&
+                                              dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_irecv,&
                                               mp_isend,&
@@ -121,10 +121,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_temp, &
                                                             fm_ia_P, fm_Y, PQ_half
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
@@ -543,14 +543,14 @@ CONTAINS
          BIb_C_rec = 0.0_dp
          DO kkB = 1, my_group_L_size
             IF (alpha_case) THEN
-               CALL cp_dbcsr_iterator_start(iter, mp2_env%ri_grad%G_P_ia(kkB)%matrix)
+               CALL dbcsr_iterator_start(iter, mp2_env%ri_grad%G_P_ia(kkB)%matrix)
             ELSE
-               CALL cp_dbcsr_iterator_start(iter, mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
+               CALL dbcsr_iterator_start(iter, mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
             ENDIF
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
-                                                 row_size=row_size, col_size=col_size, &
-                                                 row_offset=row_offset, col_offset=col_offset)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
+                                              row_size=row_size, col_size=col_size, &
+                                              row_offset=row_offset, col_offset=col_offset)
                DO iiB = 1, row_size
                   i_global = row_offset+iiB-1
                   DO jjB = 1, col_size
@@ -561,7 +561,7 @@ CONTAINS
                   ENDDO
                ENDDO
             ENDDO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
          END DO
          CALL mp_sum(Gamma_2D, para_env%group)
          CALL mp_sum(BIb_C_rec, para_env%group)
@@ -1418,19 +1418,19 @@ CONTAINS
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
-! TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia
+! TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia
 
       CALL timeset(routineN, handle)
 
       ! allocate G_P_ia (DBCSR)
       IF (alpha_case) THEN
          NULLIFY (mp2_env%ri_grad%G_P_ia)
-         CALL cp_dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia, &
-                                           my_group_L_size)
+         CALL dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia, &
+                                        my_group_L_size)
       ELSE
          NULLIFY (mp2_env%ri_grad%G_P_ia_beta)
-         CALL cp_dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia_beta, &
-                                           my_group_L_size)
+         CALL dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia_beta, &
+                                        my_group_L_size)
       ENDIF
 
       ! create sub blacs env
@@ -1696,14 +1696,14 @@ CONTAINS
          ! now create the DBCSR matrix and copy fm_ia into it
          IF (alpha_case) THEN
             ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB)%matrix)
-            CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
+            CALL dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
             CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB)%matrix, &
                                                template=mp2_env%ri_grad%mo_coeff_o, &
                                                m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
             CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia(kkB)%matrix, keep_sparsity=.FALSE.)
          ELSE
             ALLOCATE (mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
-            CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
+            CALL dbcsr_init(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
             CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix, &
                                                template=mp2_env%ri_grad%mo_coeff_o_beta, &
                                                m=homo, n=virtual, sym=dbcsr_type_no_symmetry)

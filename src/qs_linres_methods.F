@@ -12,13 +12,6 @@
 ! **************************************************************************************************
 MODULE qs_linres_methods
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_checksum,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
@@ -48,6 +41,13 @@ MODULE qs_linres_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_checksum,&
+                                              dbcsr_copy,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE input_constants,                 ONLY: do_loc_none,&
                                               op_loc_berry,&
@@ -265,12 +265,12 @@ CONTAINS
       REAL(dp)                                           :: norm_res, t1, t2
       REAL(dp), DIMENSION(:), POINTER                    :: alpha, beta, tr_pAp, tr_rz0, tr_rz00, &
                                                             tr_rz1
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, matrix_t
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, mo_coeff_array, p, r, Sc, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_t
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -649,7 +649,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(dp)                                           :: chksum
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho1_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -689,7 +689,7 @@ CONTAINS
 
          chksum = 0.0_dp
          DO ispin = 1, nspins
-            chksum = chksum+cp_dbcsr_checksum(p_env%p1(ispin)%matrix)
+            chksum = chksum+dbcsr_checksum(p_env%p1(ispin)%matrix)
          ENDDO
 
          !
@@ -700,7 +700,7 @@ CONTAINS
 
             CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
             DO ispin = 1, nspins
-               CALL cp_dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
+               CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
             ENDDO
 
             CALL qs_rho_update_rho(rho_struct=p_env%rho1, local_rho_set=p_env%local_rho_set, &
@@ -741,7 +741,7 @@ CONTAINS
    SUBROUTINE build_dm_response(c0, c1, dm)
       !
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, c1
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dm_response', &
          routineP = moduleN//':'//routineN
@@ -758,7 +758,7 @@ CONTAINS
       nspins = SIZE(dm, 1)
 
       DO ispin = 1, nspins
-         CALL cp_dbcsr_set(dm(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(dm(ispin)%matrix, 0.0_dp)
          CALL cp_fm_get_info(c0(ispin)%matrix, ncol_global=ncol)
          CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix, &
                                     matrix_v=c0(ispin)%matrix, &
@@ -785,7 +785,7 @@ CONTAINS
    SUBROUTINE apply_op_1(v, Av, matrix_ks, matrix_s, chc, buf)
       !
       TYPE(cp_fm_type), POINTER                          :: v, Av
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_ks, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
       TYPE(cp_fm_type), POINTER                          :: chc, buf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op_1', routineP = moduleN//':'//routineN
@@ -840,9 +840,9 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lsd
       REAL(KIND=dp)                                      :: energy_hartree, energy_hartree_1c, fac
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho1_ao, rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ksmat, psmat
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1058,7 +1058,7 @@ CONTAINS
                END IF
                CALL qs_rho_get(rho1, rho_ao=rho1_ao)
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                        pmat=rho1_ao(ispin), &
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
@@ -1079,7 +1079,7 @@ CONTAINS
                END IF
             ELSE
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                        pmat=rho_ao(ispin), &
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
@@ -1128,7 +1128,7 @@ CONTAINS
             END IF
 
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-            CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
 
             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                     pmat=rho_ao(ispin), &
@@ -1138,7 +1138,7 @@ CONTAINS
 
          END IF
 
-         CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix, p_env%kpp1_env%v_ao(ispin)%matrix)
+         CALL dbcsr_copy(p_env%kpp1(ispin)%matrix, p_env%kpp1_env%v_ao(ispin)%matrix)
       END DO
 
       IF (gapw) THEN
@@ -1199,7 +1199,7 @@ CONTAINS
       CHARACTER(len=25)                                  :: name
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: gapw_xc
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -1214,15 +1214,15 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          nspins = dft_control%nspins
 
-         CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1, nspins)
+         CALL dbcsr_allocate_matrix_set(p_env%kpp1, nspins)
          name = "p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
          !CALL compress(name,full=.TRUE.)
          DO ispin = 1, nspins
             ALLOCATE (p_env%kpp1(ispin)%matrix)
-            CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix)
-            CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix, matrix_s(1)%matrix, &
-                               name=TRIM(name)//ADJUSTL(cp_to_string(ispin)))
-            CALL cp_dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_init(p_env%kpp1(ispin)%matrix)
+            CALL dbcsr_copy(p_env%kpp1(ispin)%matrix, matrix_s(1)%matrix, &
+                            name=TRIM(name)//ADJUSTL(cp_to_string(ispin)))
+            CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
          END DO
 
          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env)
@@ -1257,7 +1257,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin, nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1289,12 +1289,12 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(kpp1_env%v_ao)) THEN
-         CALL cp_dbcsr_allocate_matrix_set(kpp1_env%v_ao, nspins)
+         CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao, nspins)
          DO ispin = 1, nspins
             ALLOCATE (kpp1_env%v_ao(ispin)%matrix)
-            CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
-            CALL cp_dbcsr_copy(kpp1_env%v_ao(ispin)%matrix, matrix_s(1)%matrix, &
-                               name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
+            CALL dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
+            CALL dbcsr_copy(kpp1_env%v_ao(ispin)%matrix, matrix_s(1)%matrix, &
+                            name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
          END DO
       END IF
 

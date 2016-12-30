@@ -8,9 +8,9 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_fock
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_row_block_sizes
+   USE dbcsr_api,                       ONLY: dbcsr_col_block_sizes,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_row_block_sizes
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_types,                       ONLY: pao_env_type
@@ -60,15 +60,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=H0, found=found)
+      CALL dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=H0, found=found)
       CPASSERT(ASSOCIATED(H0))
-      CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
+      CALL dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
       CPASSERT(ASSOCIATED(block_N))
       IF (MAXVAL(ABS(V-TRANSPOSE(V))) > 1e-14_dp) CPABORT("Expect symmetric matrix")
 
       ! figure out basis sizes
-      blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
-      blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+      blk_sizes_pri => dbcsr_row_block_sizes(pao%matrix_Y)
+      blk_sizes_pao => dbcsr_col_block_sizes(pao%matrix_Y)
       n = blk_sizes_pri(iatom) ! size of primary basis
       m = blk_sizes_pao(iatom) ! size of pao basis
 

@@ -6,15 +6,15 @@
 MODULE qs_fb_distribution_methods
 
    USE cell_types,                      ONLY: cell_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_get_info, cp_dbcsr_nblkcols_total, cp_dbcsr_p_type, cp_dbcsr_type, &
-        dbcsr_distribution_mp, dbcsr_distribution_obj, dbcsr_mp_get_process, dbcsr_mp_npcols, &
-        dbcsr_mp_nprows, dbcsr_mp_obj
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_distribution_mp, dbcsr_distribution_obj, dbcsr_get_info, dbcsr_mp_get_process, &
+        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj, dbcsr_nblkcols_total, dbcsr_p_type, &
+        dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE particle_types,                  ONLY: particle_type
@@ -133,8 +133,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pair_radii
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rcut
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_ks
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_ks
       TYPE(fb_atomic_halo_obj)                           :: atomic_halo
       TYPE(fb_distribution_element)                      :: element
       TYPE(fb_distribution_list), ALLOCATABLE, &
@@ -447,7 +447,7 @@ CONTAINS
                                        preferred_procs_set, &
                                        common_set_ids, &
                                        n_common_sets)
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       INTEGER, INTENT(IN)                                :: natoms
       TYPE(fb_preferred_procs_list), DIMENSION(:), &
          INTENT(INOUT)                                   :: preferred_procs_set
@@ -463,14 +463,14 @@ CONTAINS
       TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
       TYPE(dbcsr_mp_obj)                                 :: dbcsr_mp
 
-      check_ok = natoms .LE. cp_dbcsr_nblkcols_total(dbcsr_mat)
+      check_ok = natoms .LE. dbcsr_nblkcols_total(dbcsr_mat)
       CPASSERT(check_ok)
       check_ok = SIZE(preferred_procs_set) .GE. natoms
       CPASSERT(check_ok)
       check_ok = SIZE(common_set_ids) .GE. natoms
       CPASSERT(check_ok)
 
-      CALL cp_dbcsr_get_info(dbcsr_mat, distribution=dbcsr_dist, proc_col_dist=col_dist)
+      CALL dbcsr_get_info(dbcsr_mat, distribution=dbcsr_dist, proc_col_dist=col_dist)
       dbcsr_mp = dbcsr_distribution_mp(dbcsr_dist)
       nprows = dbcsr_mp_nprows(dbcsr_mp)
 

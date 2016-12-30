@@ -18,11 +18,6 @@ MODULE hfx_energy_potential
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_get_matrix_type,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_trace,&
-                                              dbcsr_type_antisymmetric
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -32,6 +27,11 @@ MODULE hfx_energy_potential
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_get_matrix_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_trace,&
+                                              dbcsr_type_antisymmetric
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_communication,               ONLY: distribute_ks_matrix,&
                                               get_atomic_block_maps,&
@@ -134,9 +134,9 @@ CONTAINS
                                     ispin, do_exx, axk_x_data)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: geometry_did_change
@@ -208,8 +208,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: coeffs_kind_max0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit_hfx
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
@@ -258,7 +258,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      is_anti_symmetric = cp_dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
+      is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
 
       IF (geometry_did_change) THEN
          CALL m_memory(memsize_before)
@@ -1903,29 +1903,29 @@ CONTAINS
          !! ** Calculate the exchange energy
          ene_x_aa = 0.0_dp
          DO img = 1, nkimages
-            CALL cp_dbcsr_trace(ks_matrix(ispin, img)%matrix, rho_ao(ispin, img)%matrix, &
-                                etmp)
+            CALL dbcsr_trace(ks_matrix(ispin, img)%matrix, rho_ao(ispin, img)%matrix, &
+                             etmp)
             ene_x_aa = ene_x_aa+etmp
          END DO
          !for ADMMS, we need the exchange matrix k(d) for both spins
          IF (dft_control%do_admm) THEN
             CPASSERT(nkimages == 1)
-            CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin, 1)%matrix, &
-                               name="HF exch. part of matrix_ks_aux_fit for ADMMS")
+            CALL dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin, 1)%matrix, &
+                            name="HF exch. part of matrix_ks_aux_fit for ADMMS")
          END IF
 
          IF (nspins == 2 .AND. .NOT. treat_lsd_in_core) THEN
             ene_x_bb = 0.0_dp
             DO img = 1, nkimages
-               CALL cp_dbcsr_trace(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
-                                   etmp)
+               CALL dbcsr_trace(ks_matrix(2, img)%matrix, rho_ao(2, img)%matrix, &
+                                etmp)
                ene_x_bb = ene_x_bb+etmp
             END DO
             !for ADMMS, we need the exchange matrix k(d) for both spins
             IF (dft_control%do_admm) THEN
                CPASSERT(nkimages == 1)
-               CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2, 1)%matrix, &
-                                  name="HF exch. part of matrix_ks_aux_fit for ADMMS")
+               CALL dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2, 1)%matrix, &
+                               name="HF exch. part of matrix_ks_aux_fit for ADMMS")
             END IF
          END IF
 

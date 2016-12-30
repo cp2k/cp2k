@@ -16,16 +16,16 @@ MODULE scptb_core_matrix
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_should_output
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -93,10 +93,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: force_ab, rij
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, h_block, p_block, s_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p, matrix_s, matrix_t, &
-                                                            matrix_w
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_t, &
+                                                            matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_iterator_p_type), &
@@ -161,12 +161,12 @@ CONTAINS
 
          IF (nspins == 2) THEN
             DO ic = 1, nimg
-               CALL cp_dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-               CALL cp_dbcsr_add(matrix_p(2, ic)%matrix, matrix_p(1, ic)%matrix, &
-                                 alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
-               CALL cp_dbcsr_add(matrix_w(1, ic)%matrix, matrix_w(2, ic)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(2, ic)%matrix, matrix_p(1, ic)%matrix, &
+                              alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_w(1, ic)%matrix, matrix_w(2, ic)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
 
@@ -209,12 +209,12 @@ CONTAINS
       CALL set_ks_env(ks_env, matrix_s_kp=matrix_s, kinetic_kp=matrix_t)
 
       ! initialize H matrix
-      CALL cp_dbcsr_allocate_matrix_set(matrix_h, 1, nimg)
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimg)
       DO ic = 1, nimg
          ALLOCATE (matrix_h(1, ic)%matrix)
-         CALL cp_dbcsr_init(matrix_h(1, ic)%matrix)
-         CALL cp_dbcsr_copy(matrix_h(1, ic)%matrix, matrix_t(1, ic)%matrix, &
-                            name="CORE HAMILTONIAN MATRIX")
+         CALL dbcsr_init(matrix_h(1, ic)%matrix)
+         CALL dbcsr_copy(matrix_h(1, ic)%matrix, matrix_t(1, ic)%matrix, &
+                         name="CORE HAMILTONIAN MATRIX")
       END DO
 
       !The band energy elements will be added to the kinetic energy.
@@ -264,7 +264,7 @@ CONTAINS
             irow = jatom
             icol = iatom
          END IF
-         CALL cp_dbcsr_get_block_p(matrix_h(1, ic)%matrix, irow, icol, h_block, found)
+         CALL dbcsr_get_block_p(matrix_h(1, ic)%matrix, irow, icol, h_block, found)
          CPASSERT(ASSOCIATED(h_block))
 
          dr = SUM(rij(:)**2)
@@ -275,7 +275,7 @@ CONTAINS
             END DO
          ELSE
             NULLIFY (s_block) !s_block is overlap [sub]matrix ???
-            CALL cp_dbcsr_get_block_p(matrix_s(1, ic)%matrix, irow, icol, s_block, found)
+            CALL dbcsr_get_block_p(matrix_s(1, ic)%matrix, irow, icol, s_block, found)
             CPASSERT(ASSOCIATED(s_block))
             IF (irow == iatom) THEN
                DO i = 1, SIZE(h_block, 1)
@@ -295,11 +295,11 @@ CONTAINS
             IF (calculate_forces) THEN
                atom_a = atom_of_kind(iatom)
                atom_b = atom_of_kind(jatom)
-               CALL cp_dbcsr_get_block_p(matrix_p(1, ic)%matrix, irow, icol, p_block, found)
+               CALL dbcsr_get_block_p(matrix_p(1, ic)%matrix, irow, icol, p_block, found)
                CPASSERT(ASSOCIATED(p_block))
                DO icor = 1, 3
                   force_ab(icor) = 0._dp
-                  CALL cp_dbcsr_get_block_p(matrix_s(icor+1, ic)%matrix, irow, icol, ds_block, found)
+                  CALL dbcsr_get_block_p(matrix_s(icor+1, ic)%matrix, irow, icol, ds_block, found)
                   CPASSERT(ASSOCIATED(ds_block))
                   IF (irow == iatom) THEN
                      DO i = 1, SIZE(h_block, 1)
@@ -339,10 +339,10 @@ CONTAINS
          DEALLOCATE (atom_of_kind)
          IF (nspins == 2) THEN
             DO ic = 1, nimg
-               CALL cp_dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
-                                 alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
-               CALL cp_dbcsr_add(matrix_p(2, ic)%matrix, matrix_p(1, ic)%matrix, &
-                                 alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
+                              alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+               CALL dbcsr_add(matrix_p(2, ic)%matrix, matrix_p(1, ic)%matrix, &
+                              alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
       END IF

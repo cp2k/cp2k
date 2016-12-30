@@ -19,9 +19,9 @@ MODULE core_ppl
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type
    USE kinds,                           ONLY: dp
@@ -81,7 +81,7 @@ CONTAINS
                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
                              nimages, cell_to_index, basis_type)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -144,10 +144,10 @@ CONTAINS
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimages
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
-                                 alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                              alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
       END IF
@@ -273,11 +273,11 @@ CONTAINS
             icol = iatom
          END IF
          NULLIFY (h_block)
-         CALL cp_dbcsr_get_block_p(matrix_h(1, img)%matrix, irow, icol, h_block, found)
+         CALL dbcsr_get_block_p(matrix_h(1, img)%matrix, irow, icol, h_block, found)
          CPASSERT(found)
          IF (calculate_forces) THEN
             NULLIFY (p_block)
-            CALL cp_dbcsr_get_block_p(matrix_p(1, img)%matrix, irow, icol, p_block, found)
+            CALL dbcsr_get_block_p(matrix_p(1, img)%matrix, irow, icol, p_block, found)
             IF (ASSOCIATED(p_block)) THEN
                DO iset = 1, nseta
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -458,10 +458,10 @@ CONTAINS
          ! *** from the total density (1) and the spin density (2)     ***
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimages
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
-               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
-                                 alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+               CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                              alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
       END IF

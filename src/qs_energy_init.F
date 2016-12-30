@@ -11,13 +11,13 @@
 ! **************************************************************************************************
 MODULE qs_energy_init
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed
@@ -86,9 +86,9 @@ CONTAINS
 
       INTEGER                                            :: img, ispin, nimg, nspin
       LOGICAL                                            :: has_unit_metric, molecule_only
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_w_mp2
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s, matrix_w
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_w_mp2
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_w
+      TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
@@ -108,25 +108,25 @@ CONTAINS
          nspin = dft_control%nspins
          nimg = dft_control%nimages
          matrix => matrix_s(1, 1)%matrix
-         CALL cp_dbcsr_allocate_matrix_set(matrix_w, nspin, nimg)
+         CALL dbcsr_allocate_matrix_set(matrix_w, nspin, nimg)
          DO ispin = 1, nspin
             DO img = 1, nimg
                ALLOCATE (matrix_w(ispin, img)%matrix)
-               CALL cp_dbcsr_init(matrix_w(ispin, img)%matrix)
-               CALL cp_dbcsr_copy(matrix_w(ispin, img)%matrix, matrix, name="W MATRIX")
-               CALL cp_dbcsr_set(matrix_w(ispin, img)%matrix, 0.0_dp)
+               CALL dbcsr_init(matrix_w(ispin, img)%matrix)
+               CALL dbcsr_copy(matrix_w(ispin, img)%matrix, matrix, name="W MATRIX")
+               CALL dbcsr_set(matrix_w(ispin, img)%matrix, 0.0_dp)
             END DO
          END DO
          CALL set_ks_env(ks_env, matrix_w_kp=matrix_w)
          IF (ASSOCIATED(qs_env%mp2_env)) THEN
             ! create the MP2 energy weighted density matrix
-            CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2, dft_control%nspins)
+            CALL dbcsr_allocate_matrix_set(matrix_w_mp2, dft_control%nspins)
             DO ispin = 1, nspin
                ALLOCATE (matrix_w_mp2(ispin)%matrix)
-               CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix)
-               CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix, matrix, &
-                                  name="W MATRIX MP2")
-               CALL cp_dbcsr_set(matrix_w_mp2(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_init(matrix_w_mp2(ispin)%matrix)
+               CALL dbcsr_copy(matrix_w_mp2(ispin)%matrix, matrix, &
+                               name="W MATRIX MP2")
+               CALL dbcsr_set(matrix_w_mp2(ispin)%matrix, 0.0_dp)
             END DO
             CALL set_ks_env(ks_env, matrix_w_mp2=matrix_w_mp2)
          END IF

@@ -13,15 +13,15 @@ MODULE preconditioner_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_retain,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_release_p,&
-                                              cp_dbcsr_type
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: cholesky_reduce,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
@@ -41,12 +41,12 @@ MODULE preconditioner_types
 ! **************************************************************************************************
    TYPE preconditioner_type
 !    PRIVATE
-      TYPE(cp_dbcsr_type), POINTER :: sparse_matrix
+      TYPE(dbcsr_type), POINTER :: sparse_matrix
       TYPE(cp_fm_type), POINTER :: fm
-      TYPE(cp_dbcsr_type), POINTER           :: dbcsr_matrix
-      TYPE(cp_dbcsr_type), POINTER           :: max_ev_vector
-      TYPE(cp_dbcsr_type), POINTER           :: min_ev_vector
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history
+      TYPE(dbcsr_type), POINTER           :: dbcsr_matrix
+      TYPE(dbcsr_type), POINTER           :: max_ev_vector
+      TYPE(dbcsr_type), POINTER           :: min_ev_vector
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: inverse_history
       TYPE(cp_para_env_type), POINTER   :: para_env
       TYPE(cp_blacs_env_type), POINTER   :: ctxt
       INTEGER :: in_use, solver, ihistory, cholesky_use
@@ -125,7 +125,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-         CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix)
+         CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix)
          NULLIFY (preconditioner_env%sparse_matrix)
       ENDIF
 
@@ -133,13 +133,13 @@ CONTAINS
          CALL cp_fm_release(preconditioner_env%fm)
       ENDIF
       IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
-         CALL cp_dbcsr_release_p(preconditioner_env%dbcsr_matrix)
+         CALL dbcsr_release_p(preconditioner_env%dbcsr_matrix)
       ENDIF
       IF (ASSOCIATED(preconditioner_env%max_ev_vector)) THEN
-         CALL cp_dbcsr_release_p(preconditioner_env%max_ev_vector)
+         CALL dbcsr_release_p(preconditioner_env%max_ev_vector)
       ENDIF
       IF (ASSOCIATED(preconditioner_env%min_ev_vector)) THEN
-         CALL cp_dbcsr_release_p(preconditioner_env%min_ev_vector)
+         CALL dbcsr_release_p(preconditioner_env%min_ev_vector)
       ENDIF
       IF (ASSOCIATED(preconditioner_env%occ_evals)) THEN
          DEALLOCATE (preconditioner_env%occ_evals)
@@ -149,7 +149,7 @@ CONTAINS
       ENDIF
       IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN
          DO i = 1, SIZE(preconditioner_env%inverse_history)
-            CALL cp_dbcsr_release_p(preconditioner_env%inverse_history(i)%matrix)
+            CALL dbcsr_release_p(preconditioner_env%inverse_history(i)%matrix)
          END DO
          DEALLOCATE (preconditioner_env%inverse_history)
       ENDIF

@@ -42,7 +42,7 @@ MODULE dbcsr_test_multiply
                                               dbcsr_replicate_all
    USE dbcsr_types,                     ONLY: &
         dbcsr_conjugate_transpose, dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_mp_obj, &
-        dbcsr_no_transpose, dbcsr_obj, dbcsr_scalar_type, dbcsr_transpose, &
+        dbcsr_no_transpose, dbcsr_scalar_type, dbcsr_transpose, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
         dbcsr_type_complex_8, dbcsr_type_complex_8_2d, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
         dbcsr_type_real_4_2d, dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric
@@ -126,8 +126,8 @@ CONTAINS
                                                             sizes_k, sizes_m, sizes_n
       LOGICAL                                            :: do_complex
       TYPE(dbcsr_data_obj)                               :: data_a, data_b, data_c, data_c_dbcsr
-      TYPE(dbcsr_obj)                                    :: matrix_a, matrix_b, matrix_c
       TYPE(dbcsr_scalar_type)                            :: alpha_obj, beta_obj
+      TYPE(dbcsr_type)                                   :: matrix_a, matrix_b, matrix_c
 
 !   ---------------------------------------------------------------------------
 
@@ -372,7 +372,7 @@ CONTAINS
       TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
       INTEGER, DIMENSION(2), INTENT(in)                  :: npdims
       INTEGER, INTENT(IN)                                :: io_unit
-      TYPE(dbcsr_obj), INTENT(in)                        :: matrix_a, matrix_b, matrix_c
+      TYPE(dbcsr_type), INTENT(in)                       :: matrix_a, matrix_b, matrix_c
       TYPE(dbcsr_data_obj)                               :: data_a, data_b, data_c, data_c_dbcsr
       CHARACTER, INTENT(in)                              :: transa, transb
       TYPE(dbcsr_scalar_type), INTENT(in)                :: alpha, beta
@@ -388,7 +388,7 @@ CONTAINS
       LOGICAL                                            :: success
       REAL(real_8)                                       :: occ_a, occ_b, occ_c_in, occ_c_out
       TYPE(dbcsr_distribution_obj)                       :: dist_a, dist_b, dist_c
-      TYPE(dbcsr_obj)                                    :: m_a, m_b, m_c
+      TYPE(dbcsr_type)                                   :: m_a, m_b, m_c
 
 !   ---------------------------------------------------------------------------
 
@@ -552,7 +552,7 @@ CONTAINS
                                    transa, transb, alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
                                    success)
       CHARACTER(len=*), INTENT(IN)                       :: test_name
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_c
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_c
       TYPE(dbcsr_data_obj), INTENT(inout)                :: dense_c_dbcsr, dense_a, dense_b, dense_c
       CHARACTER, INTENT(in)                              :: transa, transb
       TYPE(dbcsr_scalar_type), INTENT(in)                :: alpha, beta

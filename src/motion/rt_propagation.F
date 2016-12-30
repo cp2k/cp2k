@@ -13,8 +13,6 @@ MODULE rt_propagation
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_p_type
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -27,6 +25,8 @@ MODULE rt_propagation
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
                                               cp_rm_iter_level
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_p_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_get,&
@@ -179,8 +179,8 @@ CONTAINS
 
       INTEGER                                            :: i, ispin, re
       INTEGER, DIMENSION(2)                              :: nelectron_spin
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_new, rho_old
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_old
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_new, rho_old
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -234,8 +234,8 @@ CONTAINS
                CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
                DO ispin = 1, SIZE(rho_old)/2
                   re = 2*ispin-1
-                  CALL cp_dbcsr_copy(rho_old(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
-                  CALL cp_dbcsr_copy(rho_new(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
+                  CALL dbcsr_copy(rho_old(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
+                  CALL dbcsr_copy(rho_new(re)%matrix, qs_env%ls_scf_env%matrix_p(ispin))
                END DO
             ENDIF
          ENDIF
@@ -387,9 +387,9 @@ CONTAINS
 
       INTEGER                                            :: homo, ispin
       LOGICAL                                            :: energy_consistency
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools_aux_fit
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       NULLIFY (matrix_s, dft_control)

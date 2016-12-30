@@ -12,9 +12,6 @@ MODULE optbas_fenv_manipulation
                                               init_orb_basis_set
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -29,6 +26,9 @@ MODULE optbas_fenv_manipulation
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_output_handling,              ONLY: debug_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_mo_diag
    USE input_section_types,             ONLY: section_vals_add_values,&
@@ -223,7 +223,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ispin
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -254,7 +254,7 @@ CONTAINS
 !> \param context ...
 ! **************************************************************************************************
    SUBROUTINE calculate_overlap_inverse(matrix_s, matrix_s_inv, para_env, context)
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_type), POINTER                          :: matrix_s_inv
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -266,7 +266,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: work1
 
-      CALL cp_dbcsr_get_info(matrix_s, nfullrows_total=nao)
+      CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao, &
                                para_env=para_env, context=context)
 
@@ -294,7 +294,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_overlap', &
          routineP = moduleN//':'//routineN
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, matrix_s_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit, sab_aux_fit_vs_orb, sab_orb

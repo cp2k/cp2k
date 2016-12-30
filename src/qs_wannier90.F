@@ -17,10 +17,6 @@ MODULE qs_wannier90
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
-        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -39,6 +35,9 @@ MODULE qs_wannier90
                                               cp_logger_type
    USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_init, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -82,7 +81,7 @@ MODULE qs_wannier90
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wannier90'
 
    TYPE berry_matrix_type
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER      :: sinmat, cosmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER      :: sinmat, cosmat
    END TYPE berry_matrix_type
 
    PUBLIC :: wannier90_interface
@@ -179,14 +178,14 @@ CONTAINS
       TYPE(berry_matrix_type), DIMENSION(:), POINTER     :: berry_matrix
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: cmatrix, rmatrix
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmk1, fmk2
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_mmn, matrix_struct_work
       TYPE(cp_fm_type), POINTER                          :: fm_tmp, fmdummy, fmi, fmr, mmn_imag, &
                                                             mmn_real, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint
@@ -456,12 +455,12 @@ CONTAINS
       CALL cp_fm_create(mmn_imag, matrix_struct_mmn)
       ! allocate some work matrices
       ALLOCATE (rmatrix, cmatrix)
-      CALL cp_dbcsr_init(rmatrix)
-      CALL cp_dbcsr_init(cmatrix)
-      CALL cp_dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-      CALL cp_dbcsr_create(cmatrix, template=matrix_s(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_init(rmatrix)
+      CALL dbcsr_init(cmatrix)
+      CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmatrix, template=matrix_s(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
       !
@@ -509,8 +508,8 @@ CONTAINS
                ibs = nblist(ik, i)
                ksign = SIGN(1.0_dp, REAL(ibs, KIND=dp))
                ibs = ABS(ibs)
-               CALL cp_dbcsr_set(rmatrix, 0.0_dp)
-               CALL cp_dbcsr_set(cmatrix, 0.0_dp)
+               CALL dbcsr_set(rmatrix, 0.0_dp)
+               CALL dbcsr_set(cmatrix, 0.0_dp)
                CALL rskp_transform(rmatrix, cmatrix, rsmat=berry_matrix(ibs)%cosmat, ispin=1, &
                                    xkp=kpoint%xkp(1:3, ik2), cell_to_index=cell_to_index, sab_nl=sab_nl, &
                                    is_complex=.FALSE., rs_sign=ksign)
@@ -550,8 +549,8 @@ CONTAINS
          END DO
       END DO
       DO i = 1, nbs
-         CALL cp_dbcsr_deallocate_matrix_set(berry_matrix(i)%cosmat)
-         CALL cp_dbcsr_deallocate_matrix_set(berry_matrix(i)%sinmat)
+         CALL dbcsr_deallocate_matrix_set(berry_matrix(i)%cosmat)
+         CALL dbcsr_deallocate_matrix_set(berry_matrix(i)%sinmat)
       END DO
       DEALLOCATE (berry_matrix)
       CALL cp_fm_struct_release(matrix_struct_work)
@@ -564,8 +563,8 @@ CONTAINS
       CALL cp_fm_release(mmn_real)
       CALL cp_fm_release(mmn_imag)
       DEALLOCATE (fmk1, fmk2)
-      CALL cp_dbcsr_deallocate_matrix(rmatrix)
-      CALL cp_dbcsr_deallocate_matrix(cmatrix)
+      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL dbcsr_deallocate_matrix(cmatrix)
       !
       IF (para_env%ionode) THEN
          CALL close_file(iunit)

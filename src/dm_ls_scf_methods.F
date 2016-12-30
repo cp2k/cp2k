@@ -11,16 +11,15 @@
 ! **************************************************************************************************
 MODULE dm_ls_scf_methods
    USE arnoldi_api,                     ONLY: arnoldi_extremal
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-        cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_data_type, &
-        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_multiply, cp_dbcsr_put_block, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_4
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_frobenius_norm, dbcsr_get_data_type, dbcsr_get_occupation, &
+        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_put_block, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_4
    USE dm_ls_scf_qs,                    ONLY: matrix_qs_to_ls
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_mstruct_type,&
@@ -63,7 +62,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE ls_scf_init_matrix_S(matrix_s, ls_scf_env)
-      TYPE(cp_dbcsr_type)                                :: matrix_s
+      TYPE(dbcsr_type)                                   :: matrix_s
       TYPE(ls_scf_env_type)                              :: ls_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_matrix_S', &
@@ -71,8 +70,8 @@ CONTAINS
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: frob_matrix, frob_matrix_base
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp1, matrix_tmp2
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: matrix_tmp1, matrix_tmp2
 
       CALL timeset(routineN, handle)
 
@@ -86,22 +85,22 @@ CONTAINS
 
       ! make our own copy of S
       IF (ls_scf_env%has_unit_metric) THEN
-         CALL cp_dbcsr_set(ls_scf_env%matrix_s, 0.0_dp)
-         CALL cp_dbcsr_add_on_diag(ls_scf_env%matrix_s, 1.0_dp)
+         CALL dbcsr_set(ls_scf_env%matrix_s, 0.0_dp)
+         CALL dbcsr_add_on_diag(ls_scf_env%matrix_s, 1.0_dp)
       ELSE
          CALL matrix_qs_to_ls(ls_scf_env%matrix_s, matrix_s, ls_scf_env%ls_mstruct, covariant=.TRUE.)
       ENDIF
 
-      CALL cp_dbcsr_filter(ls_scf_env%matrix_s, ls_scf_env%eps_filter)
+      CALL dbcsr_filter(ls_scf_env%matrix_s, ls_scf_env%eps_filter)
 
       ! needs a preconditioner for S
       IF (ls_scf_env%has_s_preconditioner) THEN
-         CALL cp_dbcsr_init(ls_scf_env%matrix_bs_sqrt)
-         CALL cp_dbcsr_create(ls_scf_env%matrix_bs_sqrt, template=ls_scf_env%matrix_s, &
-                              matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_init(ls_scf_env%matrix_bs_sqrt_inv)
-         CALL cp_dbcsr_create(ls_scf_env%matrix_bs_sqrt_inv, template=ls_scf_env%matrix_s, &
-                              matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_init(ls_scf_env%matrix_bs_sqrt)
+         CALL dbcsr_create(ls_scf_env%matrix_bs_sqrt, template=ls_scf_env%matrix_s, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_init(ls_scf_env%matrix_bs_sqrt_inv)
+         CALL dbcsr_create(ls_scf_env%matrix_bs_sqrt_inv, template=ls_scf_env%matrix_s, &
+                           matrix_type=dbcsr_type_no_symmetry)
          CALL compute_matrix_preconditioner(ls_scf_env%matrix_s, &
                                             ls_scf_env%s_preconditioner_type, ls_scf_env%ls_mstruct, &
                                             ls_scf_env%matrix_bs_sqrt, ls_scf_env%matrix_bs_sqrt_inv, &
@@ -117,12 +116,12 @@ CONTAINS
 
       ! compute sqrt(S) and inv(sqrt(S))
       IF (ls_scf_env%use_s_sqrt) THEN
-         CALL cp_dbcsr_init(ls_scf_env%matrix_s_sqrt)
-         CALL cp_dbcsr_init(ls_scf_env%matrix_s_sqrt_inv)
-         CALL cp_dbcsr_create(ls_scf_env%matrix_s_sqrt, template=ls_scf_env%matrix_s, &
-                              matrix_type=dbcsr_type_no_symmetry)
-         CALL cp_dbcsr_create(ls_scf_env%matrix_s_sqrt_inv, template=ls_scf_env%matrix_s, &
-                              matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_init(ls_scf_env%matrix_s_sqrt)
+         CALL dbcsr_init(ls_scf_env%matrix_s_sqrt_inv)
+         CALL dbcsr_create(ls_scf_env%matrix_s_sqrt, template=ls_scf_env%matrix_s, &
+                           matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_create(ls_scf_env%matrix_s_sqrt_inv, template=ls_scf_env%matrix_s, &
+                           matrix_type=dbcsr_type_no_symmetry)
 
          CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt, ls_scf_env%matrix_s_sqrt_inv, &
                                         ls_scf_env%matrix_s, ls_scf_env%eps_filter, &
@@ -130,55 +129,55 @@ CONTAINS
                                         ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
 
          IF (ls_scf_env%check_s_inv) THEN
-            CALL cp_dbcsr_init(matrix_tmp1)
-            CALL cp_dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
-                                 matrix_type=dbcsr_type_no_symmetry)
-            CALL cp_dbcsr_init(matrix_tmp2)
-            CALL cp_dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, &
-                                 matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_init(matrix_tmp1)
+            CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_init(matrix_tmp2)
+            CALL dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, &
+                              matrix_type=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s, &
-                                   0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s, &
+                                0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
 
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
-                                   0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
+                                0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
 
-            frob_matrix_base = cp_dbcsr_frobenius_norm(matrix_tmp2)
-            CALL cp_dbcsr_add_on_diag(matrix_tmp2, -1.0_dp)
-            frob_matrix = cp_dbcsr_frobenius_norm(matrix_tmp2)
+            frob_matrix_base = dbcsr_frobenius_norm(matrix_tmp2)
+            CALL dbcsr_add_on_diag(matrix_tmp2, -1.0_dp)
+            frob_matrix = dbcsr_frobenius_norm(matrix_tmp2)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) "Error for (inv(sqrt(S))*S*inv(sqrt(S))-I)", frob_matrix/frob_matrix_base
             ENDIF
 
-            CALL cp_dbcsr_release(matrix_tmp1)
-            CALL cp_dbcsr_release(matrix_tmp2)
+            CALL dbcsr_release(matrix_tmp1)
+            CALL dbcsr_release(matrix_tmp2)
          ENDIF
       ENDIF
 
       ! compute the inverse of S
       IF (ls_scf_env%needs_s_inv) THEN
-         CALL cp_dbcsr_init(ls_scf_env%matrix_s_inv)
-         CALL cp_dbcsr_create(ls_scf_env%matrix_s_inv, template=ls_scf_env%matrix_s, &
-                              matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_init(ls_scf_env%matrix_s_inv)
+         CALL dbcsr_create(ls_scf_env%matrix_s_inv, template=ls_scf_env%matrix_s, &
+                           matrix_type=dbcsr_type_no_symmetry)
          IF (.NOT. ls_scf_env%use_s_sqrt) THEN
             CALL invert_Hotelling(ls_scf_env%matrix_s_inv, ls_scf_env%matrix_s, ls_scf_env%eps_filter)
          ELSE
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s_sqrt_inv, &
-                                   0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s_sqrt_inv, &
+                                0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter)
          ENDIF
          IF (ls_scf_env%check_s_inv) THEN
-            CALL cp_dbcsr_init(matrix_tmp1)
-            CALL cp_dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
-                                 matrix_type=dbcsr_type_no_symmetry)
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_inv, ls_scf_env%matrix_s, &
-                                   0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
-            frob_matrix_base = cp_dbcsr_frobenius_norm(matrix_tmp1)
-            CALL cp_dbcsr_add_on_diag(matrix_tmp1, -1.0_dp)
-            frob_matrix = cp_dbcsr_frobenius_norm(matrix_tmp1)
+            CALL dbcsr_init(matrix_tmp1)
+            CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_inv, ls_scf_env%matrix_s, &
+                                0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
+            frob_matrix_base = dbcsr_frobenius_norm(matrix_tmp1)
+            CALL dbcsr_add_on_diag(matrix_tmp1, -1.0_dp)
+            frob_matrix = dbcsr_frobenius_norm(matrix_tmp1)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) "Error for (inv(S)*S-I)", frob_matrix/frob_matrix_base
             ENDIF
-            CALL cp_dbcsr_release(matrix_tmp1)
+            CALL dbcsr_release(matrix_tmp1)
          ENDIF
       ENDIF
 
@@ -205,10 +204,10 @@ CONTAINS
    SUBROUTINE compute_matrix_preconditioner(matrix_s, preconditioner_type, ls_mstruct, &
                                             matrix_bs_sqrt, matrix_bs_sqrt_inv, threshold, order, eps_lanczos, max_iter_lanczos)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       INTEGER                                            :: preconditioner_type
       TYPE(ls_mstruct_type)                              :: ls_mstruct
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_bs_sqrt, matrix_bs_sqrt_inv
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_bs_sqrt, matrix_bs_sqrt_inv
       REAL(KIND=dp)                                      :: threshold
       INTEGER                                            :: order
       REAL(KIND=dp)                                      :: eps_lanczos
@@ -221,26 +220,26 @@ CONTAINS
       LOGICAL                                            :: block_needed
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_dp
       REAL(sp), DIMENSION(:, :), POINTER                 :: block_sp
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_type)                                :: matrix_bs
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type)                                   :: matrix_bs
 
       CALL timeset(routineN, handle)
 
-      datatype = cp_dbcsr_get_data_type(matrix_s) ! could be single or double precision
+      datatype = dbcsr_get_data_type(matrix_s) ! could be single or double precision
 
       ! first generate a block diagonal copy of s
-      CALL cp_dbcsr_init(matrix_bs)
-      CALL cp_dbcsr_create(matrix_bs, template=matrix_s)
+      CALL dbcsr_init(matrix_bs)
+      CALL dbcsr_create(matrix_bs, template=matrix_s)
 
       SELECT CASE (preconditioner_type)
       CASE (ls_s_preconditioner_none)
       CASE (ls_s_preconditioner_atomic, ls_s_preconditioner_molecular)
-         CALL cp_dbcsr_iterator_start(iter, matrix_s)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_start(iter, matrix_s)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
             IF (datatype == dbcsr_type_real_4) THEN
-               CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_sp)
+               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_sp)
             ELSE
-               CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_dp)
+               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_dp)
             ENDIF
 
             ! do we need the block ?
@@ -262,32 +261,32 @@ CONTAINS
             ! add it
             IF (block_needed) THEN
                IF (datatype == dbcsr_type_real_4) THEN
-                  CALL cp_dbcsr_put_block(matrix=matrix_bs, row=iblock_row, col=iblock_col, block=block_sp)
+                  CALL dbcsr_put_block(matrix=matrix_bs, row=iblock_row, col=iblock_col, block=block_sp)
                ELSE
-                  CALL cp_dbcsr_put_block(matrix=matrix_bs, row=iblock_row, col=iblock_col, block=block_dp)
+                  CALL dbcsr_put_block(matrix=matrix_bs, row=iblock_row, col=iblock_col, block=block_dp)
                ENDIF
             ENDIF
 
          ENDDO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
       END SELECT
 
-      CALL cp_dbcsr_finalize(matrix_bs)
+      CALL dbcsr_finalize(matrix_bs)
 
       SELECT CASE (preconditioner_type)
       CASE (ls_s_preconditioner_none)
          ! for now make it a simple identity matrix
-         CALL cp_dbcsr_copy(matrix_bs_sqrt, matrix_bs)
-         CALL cp_dbcsr_set(matrix_bs_sqrt, 0.0_dp)
-         CALL cp_dbcsr_add_on_diag(matrix_bs_sqrt, 1.0_dp)
+         CALL dbcsr_copy(matrix_bs_sqrt, matrix_bs)
+         CALL dbcsr_set(matrix_bs_sqrt, 0.0_dp)
+         CALL dbcsr_add_on_diag(matrix_bs_sqrt, 1.0_dp)
 
          ! for now make it a simple identity matrix
-         CALL cp_dbcsr_copy(matrix_bs_sqrt_inv, matrix_bs)
-         CALL cp_dbcsr_set(matrix_bs_sqrt_inv, 0.0_dp)
-         CALL cp_dbcsr_add_on_diag(matrix_bs_sqrt_inv, 1.0_dp)
+         CALL dbcsr_copy(matrix_bs_sqrt_inv, matrix_bs)
+         CALL dbcsr_set(matrix_bs_sqrt_inv, 0.0_dp)
+         CALL dbcsr_add_on_diag(matrix_bs_sqrt_inv, 1.0_dp)
       CASE (ls_s_preconditioner_atomic, ls_s_preconditioner_molecular)
-         CALL cp_dbcsr_copy(matrix_bs_sqrt, matrix_bs)
-         CALL cp_dbcsr_copy(matrix_bs_sqrt_inv, matrix_bs)
+         CALL dbcsr_copy(matrix_bs_sqrt, matrix_bs)
+         CALL dbcsr_copy(matrix_bs_sqrt_inv, matrix_bs)
          ! XXXXXXXXXXX
          ! XXXXXXXXXXX the threshold here could be done differently,
          ! XXXXXXXXXXX using eps_filter is reducing accuracy for no good reason, this is cheap
@@ -297,7 +296,7 @@ CONTAINS
                                         eps_lanczos=eps_lanczos, max_iter_lanczos=max_iter_lanczos)
       END SELECT
 
-      CALL cp_dbcsr_release(matrix_bs)
+      CALL dbcsr_release(matrix_bs)
 
       CALL timestop(handle)
 
@@ -317,36 +316,36 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_matrix_preconditioner(matrix, direction, matrix_bs_sqrt, matrix_bs_sqrt_inv)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(LEN=*)                                   :: direction
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_bs_sqrt, matrix_bs_sqrt_inv
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_bs_sqrt, matrix_bs_sqrt_inv
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_matrix_preconditioner', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp
+      TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
-      CALL cp_dbcsr_init(matrix_tmp)
-      CALL cp_dbcsr_create(matrix_tmp, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_tmp)
+      CALL dbcsr_create(matrix_tmp, template=matrix, matrix_type=dbcsr_type_no_symmetry)
 
       SELECT CASE (direction)
       CASE ("forward")
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_bs_sqrt_inv, &
-                                0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_bs_sqrt_inv, matrix_tmp, &
-                                0.0_dp, matrix)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_bs_sqrt_inv, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_bs_sqrt_inv, matrix_tmp, &
+                             0.0_dp, matrix)
       CASE ("backward")
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_bs_sqrt, &
-                                0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_bs_sqrt, matrix_tmp, &
-                                0.0_dp, matrix)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_bs_sqrt, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_bs_sqrt, matrix_tmp, &
+                             0.0_dp, matrix)
       CASE DEFAULT
          CPABORT("")
       END SELECT
 
-      CALL cp_dbcsr_release(matrix_tmp)
+      CALL dbcsr_release(matrix_tmp)
 
       CALL timestop(handle)
 
@@ -369,10 +368,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE density_matrix_sign(matrix_p, mu, fixed_mu, matrix_ks, matrix_s, matrix_s_inv, nelectron, threshold)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(INOUT)                       :: mu
       LOGICAL                                            :: fixed_mu
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_ks, matrix_s, matrix_s_inv
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ks, matrix_s, matrix_s_inv
       INTEGER, INTENT(IN)                                :: nelectron
       REAL(KIND=dp), INTENT(IN)                          :: threshold
 
@@ -446,10 +445,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE density_matrix_sign_fixed_mu(matrix_p, trace, mu, matrix_ks, matrix_s, matrix_s_inv, threshold)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       REAL(KIND=dp), INTENT(OUT)                         :: trace
       REAL(KIND=dp), INTENT(INOUT)                       :: mu
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_ks, matrix_s, matrix_s_inv
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_ks, matrix_s, matrix_s_inv
       REAL(KIND=dp), INTENT(IN)                          :: threshold
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_sign_fixed_mu', &
@@ -457,9 +456,9 @@ CONTAINS
 
       INTEGER                                            :: handle, unit_nr
       REAL(KIND=dp)                                      :: frob_matrix
-      TYPE(cp_dbcsr_type)                                :: matrix_p_ud, matrix_sign, &
-                                                            matrix_sinv_ks, matrix_tmp
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: matrix_p_ud, matrix_sign, &
+                                                            matrix_sinv_ks, matrix_tmp
 
       CALL timeset(routineN, handle)
 
@@ -471,43 +470,43 @@ CONTAINS
       ENDIF
 
       ! get inv(S)*H-I*mu
-      CALL cp_dbcsr_init(matrix_sinv_ks)
-      CALL cp_dbcsr_create(matrix_sinv_ks, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_inv, matrix_ks, &
-                             0.0_dp, matrix_sinv_ks, filter_eps=threshold)
-      CALL cp_dbcsr_add_on_diag(matrix_sinv_ks, -mu)
+      CALL dbcsr_init(matrix_sinv_ks)
+      CALL dbcsr_create(matrix_sinv_ks, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_inv, matrix_ks, &
+                          0.0_dp, matrix_sinv_ks, filter_eps=threshold)
+      CALL dbcsr_add_on_diag(matrix_sinv_ks, -mu)
 
       ! compute sign(inv(S)*H-I*mu)
-      CALL cp_dbcsr_init(matrix_sign)
-      CALL cp_dbcsr_create(matrix_sign, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_sign)
+      CALL dbcsr_create(matrix_sign, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
       CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold)
-      CALL cp_dbcsr_release(matrix_sinv_ks)
+      CALL dbcsr_release(matrix_sinv_ks)
 
       ! now construct the density matrix PS=0.5*(I-sign(inv(S)H-I*mu))
-      CALL cp_dbcsr_init(matrix_p_ud)
-      CALL cp_dbcsr_create(matrix_p_ud, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_copy(matrix_p_ud, matrix_sign)
-      CALL cp_dbcsr_scale(matrix_p_ud, -0.5_dp)
-      CALL cp_dbcsr_add_on_diag(matrix_p_ud, 0.5_dp)
-      CALL cp_dbcsr_release(matrix_sign)
+      CALL dbcsr_init(matrix_p_ud)
+      CALL dbcsr_create(matrix_p_ud, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_copy(matrix_p_ud, matrix_sign)
+      CALL dbcsr_scale(matrix_p_ud, -0.5_dp)
+      CALL dbcsr_add_on_diag(matrix_p_ud, 0.5_dp)
+      CALL dbcsr_release(matrix_sign)
 
       ! we now have PS, lets get its trace
-      CALL cp_dbcsr_trace(matrix_p_ud, trace)
+      CALL dbcsr_trace(matrix_p_ud, trace)
 
       ! we can also check it is idempotent PS*PS=PS
-      CALL cp_dbcsr_init(matrix_tmp)
-      CALL cp_dbcsr_create(matrix_tmp, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p_ud, matrix_p_ud, &
-                             0.0_dp, matrix_tmp, filter_eps=threshold)
-      CALL cp_dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
-      frob_matrix = cp_dbcsr_frobenius_norm(matrix_tmp)
-      CALL cp_dbcsr_release(matrix_tmp)
+      CALL dbcsr_init(matrix_tmp)
+      CALL dbcsr_create(matrix_tmp, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p_ud, matrix_p_ud, &
+                          0.0_dp, matrix_tmp, filter_eps=threshold)
+      CALL dbcsr_add(matrix_tmp, matrix_p_ud, 1.0_dp, -1.0_dp)
+      frob_matrix = dbcsr_frobenius_norm(matrix_tmp)
+      CALL dbcsr_release(matrix_tmp)
       IF (unit_nr > 0) WRITE (unit_nr, '(T2,A,F20.12)') "Deviation from idempotency: ", frob_matrix
 
       ! get P=PS*inv(S)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p_ud, matrix_s_inv, &
-                             0.0_dp, matrix_p, filter_eps=threshold)
-      CALL cp_dbcsr_release(matrix_p_ud)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p_ud, matrix_s_inv, &
+                          0.0_dp, matrix_p, filter_eps=threshold)
+      CALL dbcsr_release(matrix_p_ud)
 
       CALL timestop(handle)
 
@@ -537,13 +536,13 @@ CONTAINS
                                   dynamic_threshold, matrix_ks_deviation, &
                                   max_iter_lanczos, eps_lanczos, converged)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix_ks, matrix_s_sqrt_inv
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_s_sqrt_inv
       INTEGER, INTENT(IN)                                :: nelectron
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       REAL(KIND=dp), INTENT(INOUT)                       :: e_homo, e_lumo, e_mu
       LOGICAL, INTENT(IN), OPTIONAL                      :: dynamic_threshold
-      TYPE(cp_dbcsr_type), INTENT(INOUT), OPTIONAL       :: matrix_ks_deviation
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: matrix_ks_deviation
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       LOGICAL, INTENT(OUT), OPTIONAL                     :: converged
@@ -562,12 +561,12 @@ CONTAINS
          mu_a, mu_b, mu_c, mu_fa, mu_fc, occ_matrix, scaled_homo_bound, scaled_lumo_bound, t1, t2, &
          trace_fx, trace_gx, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gamma_values
-      TYPE(cp_dbcsr_type)                                :: matrix_k0, matrix_x, matrix_x_nosym, &
-                                                            matrix_xidsq, matrix_xsq, tmp_gx
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: matrix_k0, matrix_x, matrix_x_nosym, &
+                                                            matrix_xidsq, matrix_xsq, tmp_gx
 
       IF (nelectron == 0) THEN
-         CALL cp_dbcsr_set(matrix_p, 0.0_dp)
+         CALL dbcsr_set(matrix_p, 0.0_dp)
          RETURN
       ENDIF
 
@@ -586,27 +585,27 @@ CONTAINS
       IF (PRESENT(converged)) converged = .FALSE.
 
       ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
-      CALL cp_dbcsr_init(matrix_x)
-      CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type="S")
+      CALL dbcsr_init(matrix_x)
+      CALL dbcsr_create(matrix_x, template=matrix_ks, matrix_type="S")
 
       ! at some points the non-symmetric version of x is required
-      CALL cp_dbcsr_init(matrix_x_nosym)
-      CALL cp_dbcsr_create(matrix_x_nosym, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_x_nosym)
+      CALL dbcsr_create(matrix_x_nosym, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
 
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks, &
-                             0.0_dp, matrix_x_nosym, filter_eps=threshold)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x_nosym, matrix_s_sqrt_inv, &
-                             0.0_dp, matrix_x, filter_eps=threshold)
-      CALL cp_dbcsr_desymmetrize(matrix_x, matrix_x_nosym)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks, &
+                          0.0_dp, matrix_x_nosym, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x_nosym, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_x, filter_eps=threshold)
+      CALL dbcsr_desymmetrize(matrix_x, matrix_x_nosym)
 
-      CALL cp_dbcsr_init(matrix_k0)
-      CALL cp_dbcsr_create(matrix_k0, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_copy(matrix_k0, matrix_x_nosym)
+      CALL dbcsr_init(matrix_k0)
+      CALL dbcsr_create(matrix_k0, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_copy(matrix_k0, matrix_x_nosym)
 
       ! compute the deviation in the mixed matrix, as seen in the ortho basis
       IF (do_dyn_threshold) THEN
          CPASSERT(PRESENT(matrix_ks_deviation))
-         CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x_nosym, -1.0_dp, 1.0_dp)
+         CALL dbcsr_add(matrix_ks_deviation, matrix_x_nosym, -1.0_dp, 1.0_dp)
          CALL arnoldi_extremal(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
                                converged=arnoldi_converged)
          maxdev = MAX(ABS(maxev), ABS(minev))
@@ -618,7 +617,7 @@ CONTAINS
             WRITE (unit_nr, '(T6,A,1X,L12)') "Predicts a gap ?        ", ((e_lumo-maxdev)-(e_homo+maxdev)) > 0
          ENDIF
          ! save the old mixed matrix
-         CALL cp_dbcsr_copy(matrix_ks_deviation, matrix_x_nosym)
+         CALL dbcsr_copy(matrix_ks_deviation, matrix_x_nosym)
 
       ENDIF
 
@@ -632,10 +631,10 @@ CONTAINS
 
       ! scale KS matrix
       IF (eps_max == eps_min) THEN
-         CALL cp_dbcsr_scale(matrix_x, 1.0_dp/eps_max)
+         CALL dbcsr_scale(matrix_x, 1.0_dp/eps_max)
       ELSE
-         CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max)
-         CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+         CALL dbcsr_add_on_diag(matrix_x, -eps_max)
+         CALL dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
       ENDIF
 
       current_threshold = threshold
@@ -645,14 +644,14 @@ CONTAINS
          scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
       ENDIF
 
-      CALL cp_dbcsr_init(matrix_xsq)
-      CALL cp_dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type="S")
+      CALL dbcsr_init(matrix_xsq)
+      CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type="S")
 
-      CALL cp_dbcsr_init(matrix_xidsq)
-      CALL cp_dbcsr_create(matrix_xidsq, template=matrix_ks, matrix_type="S")
+      CALL dbcsr_init(matrix_xidsq)
+      CALL dbcsr_create(matrix_xidsq, template=matrix_ks, matrix_type="S")
 
-      CALL cp_dbcsr_init(tmp_gx)
-      CALL cp_dbcsr_create(tmp_gx, template=matrix_ks, matrix_type="S")
+      CALL dbcsr_init(tmp_gx)
+      CALL dbcsr_create(tmp_gx, template=matrix_ks, matrix_type="S")
 
       ALLOCATE (gamma_values(max_iter))
 
@@ -661,30 +660,30 @@ CONTAINS
          flop1 = 0; flop2 = 0
 
          ! get X*X
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
-                                0.0_dp, matrix_xsq, &
-                                filter_eps=current_threshold, flop=flop1)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
+                             0.0_dp, matrix_xsq, &
+                             filter_eps=current_threshold, flop=flop1)
 
          ! intermediate use matrix_xidsq to compute = X*X-X
-         CALL cp_dbcsr_copy(matrix_xidsq, matrix_x)
-         CALL cp_dbcsr_add(matrix_xidsq, matrix_xsq, -1.0_dp, 1.0_dp)
-         frob_id = cp_dbcsr_frobenius_norm(matrix_xidsq)
-         frob_x = cp_dbcsr_frobenius_norm(matrix_x)
+         CALL dbcsr_copy(matrix_xidsq, matrix_x)
+         CALL dbcsr_add(matrix_xidsq, matrix_xsq, -1.0_dp, 1.0_dp)
+         frob_id = dbcsr_frobenius_norm(matrix_xidsq)
+         frob_x = dbcsr_frobenius_norm(matrix_x)
 
          ! xidsq = (1-X)*(1-X)
          ! use (1-x)*(1-x) = 1 + x*x - 2*x
-         CALL cp_dbcsr_copy(matrix_xidsq, matrix_x)
-         CALL cp_dbcsr_add(matrix_xidsq, matrix_xsq, -2.0_dp, 1.0_dp)
-         CALL cp_dbcsr_add_on_diag(matrix_xidsq, 1.0_dp)
+         CALL dbcsr_copy(matrix_xidsq, matrix_x)
+         CALL dbcsr_add(matrix_xidsq, matrix_xsq, -2.0_dp, 1.0_dp)
+         CALL dbcsr_add_on_diag(matrix_xidsq, 1.0_dp)
 
          ! tmp_gx = 4X-3X*X
-         CALL cp_dbcsr_copy(tmp_gx, matrix_x)
-         CALL cp_dbcsr_add(tmp_gx, matrix_xsq, 4.0_dp, -3.0_dp)
+         CALL dbcsr_copy(tmp_gx, matrix_x)
+         CALL dbcsr_add(tmp_gx, matrix_xsq, 4.0_dp, -3.0_dp)
 
          ! get gamma
          ! Tr(F) = Tr(XX*tmp_gx) Tr(G) is equivalent
-         CALL cp_dbcsr_trace(matrix_xsq, matrix_xidsq, trace_gx)
-         CALL cp_dbcsr_trace(matrix_xsq, tmp_gx, trace_fx)
+         CALL dbcsr_trace(matrix_xsq, matrix_xidsq, trace_gx)
+         CALL dbcsr_trace(matrix_xsq, tmp_gx, trace_fx)
 
          ! if converged, and gam becomes noisy, fix it to 3, which results in a final McWeeny step.
          ! do this only if the electron count is reasonable.
@@ -727,23 +726,23 @@ CONTAINS
 
          IF (gam > gamma_max) THEN
             ! Xn+1 = 2X-X*X
-            CALL cp_dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp)
-            CALL cp_dbcsr_filter(matrix_x, current_threshold)
+            CALL dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp)
+            CALL dbcsr_filter(matrix_x, current_threshold)
             branch = 1
          ELSE IF (gam < gamma_min) THEN
             ! Xn+1 = X*X
-            CALL cp_dbcsr_copy(matrix_x, matrix_xsq)
+            CALL dbcsr_copy(matrix_x, matrix_xsq)
             branch = 2
          ELSE
             ! Xn+1 = F(X) + gam*G(X)
-            CALL cp_dbcsr_add(tmp_gx, matrix_xidsq, 1.0_dp, gam)
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_xsq, tmp_gx, &
-                                   0.0_dp, matrix_x, &
-                                   flop=flop2, filter_eps=current_threshold)
+            CALL dbcsr_add(tmp_gx, matrix_xidsq, 1.0_dp, gam)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_xsq, tmp_gx, &
+                                0.0_dp, matrix_x, &
+                                flop=flop2, filter_eps=current_threshold)
             branch = 3
          ENDIF
 
-         occ_matrix = cp_dbcsr_get_occupation(matrix_x)
+         occ_matrix = dbcsr_get_occupation(matrix_x)
          t2 = m_walltime()
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, &
@@ -765,19 +764,19 @@ CONTAINS
 
       END DO
 
-      occ_matrix = cp_dbcsr_get_occupation(matrix_x)
+      occ_matrix = dbcsr_get_occupation(matrix_x)
       IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,I3,1X,F10.8,E12.3)') 'Final TRS4 iteration  ', i, occ_matrix, ABS(trace_gx)
 
       ! free some memory
-      CALL cp_dbcsr_release(tmp_gx)
-      CALL cp_dbcsr_release(matrix_xsq)
-      CALL cp_dbcsr_release(matrix_xidsq)
+      CALL dbcsr_release(tmp_gx)
+      CALL dbcsr_release(matrix_xsq)
+      CALL dbcsr_release(matrix_xidsq)
 
       ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
-                             0.0_dp, matrix_x_nosym, filter_eps=threshold)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_x_nosym, &
-                             0.0_dp, matrix_p, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_x_nosym, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_x_nosym, &
+                          0.0_dp, matrix_p, filter_eps=threshold)
 
       ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
       ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
@@ -803,16 +802,16 @@ CONTAINS
       e_mu = mu
 
       IF (do_dyn_threshold) THEN
-         CALL cp_dbcsr_desymmetrize(matrix_x, matrix_x_nosym)
+         CALL dbcsr_desymmetrize(matrix_x, matrix_x_nosym)
          CALL compute_homo_lumo(matrix_k0, matrix_x_nosym, eps_min, eps_max, &
                                 threshold, max_iter_lanczos, eps_lanczos, homo, lumo, unit_nr)
          e_homo = homo
          e_lumo = lumo
       ENDIF
 
-      CALL cp_dbcsr_release(matrix_x)
-      CALL cp_dbcsr_release(matrix_x_nosym)
-      CALL cp_dbcsr_release(matrix_k0)
+      CALL dbcsr_release(matrix_x)
+      CALL dbcsr_release(matrix_x_nosym)
+      CALL dbcsr_release(matrix_k0)
       CALL timestop(handle)
 
    END SUBROUTINE density_matrix_trs4
@@ -837,8 +836,8 @@ CONTAINS
                                  nelectron, threshold, e_homo, e_lumo, &
                                  non_monotonic, eps_lanczos, max_iter_lanczos)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix_ks, matrix_s_sqrt_inv
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_s_sqrt_inv
       INTEGER, INTENT(IN)                                :: nelectron
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       REAL(KIND=dp), INTENT(INOUT)                       :: e_homo, e_lumo
@@ -857,8 +856,8 @@ CONTAINS
                                                             max_eig, min_eig, occ_matrix, t1, t2, &
                                                             trace_fx, trace_gx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, lambda, nu, poly, wu, X, Y
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp, matrix_x, matrix_xsq
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_x, matrix_xsq
 
       CALL timeset(routineN, handle)
 
@@ -873,13 +872,13 @@ CONTAINS
       IF (PRESENT(non_monotonic)) do_non_monotonic = non_monotonic
 
       ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
-      CALL cp_dbcsr_init(matrix_x)
-      CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_x)
+      CALL dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
 
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks, &
-                             0.0_dp, matrix_x, filter_eps=threshold)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
-                             0.0_dp, matrix_x, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks, &
+                          0.0_dp, matrix_x, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_x, filter_eps=threshold)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo
@@ -897,16 +896,16 @@ CONTAINS
       eps_min = min_eig
 
       ! scale KS matrix
-      CALL cp_dbcsr_scale(matrix_x, -1.0_dp)
-      CALL cp_dbcsr_add_on_diag(matrix_x, eps_max)
-      CALL cp_dbcsr_scale(matrix_x, 1/(eps_max-eps_min))
+      CALL dbcsr_scale(matrix_x, -1.0_dp)
+      CALL dbcsr_add_on_diag(matrix_x, eps_max)
+      CALL dbcsr_scale(matrix_x, 1/(eps_max-eps_min))
 
-      CALL cp_dbcsr_init(matrix_xsq)
-      CALL cp_dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_copy(matrix_xsq, matrix_x)
+      CALL dbcsr_init(matrix_xsq)
+      CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_copy(matrix_xsq, matrix_x)
 
-      CALL cp_dbcsr_init(matrix_tmp)
-      CALL cp_dbcsr_create(matrix_tmp, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_tmp)
+      CALL dbcsr_create(matrix_tmp, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
 
       ALLOCATE (poly(max_iter))
       ALLOCATE (nu(max_iter))
@@ -948,16 +947,16 @@ CONTAINS
             poly(i) = 1.0_dp
             alpha(i) = 2.0_dp/(2.0_dp-beta)
 
-            CALL cp_dbcsr_scale(matrix_x, alpha(i))
-            CALL cp_dbcsr_add_on_diag(matrix_x, 1.0_dp-alpha(i))
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
-                                   0.0_dp, matrix_xsq, &
-                                   filter_eps=threshold, flop=flop1)
+            CALL dbcsr_scale(matrix_x, alpha(i))
+            CALL dbcsr_add_on_diag(matrix_x, 1.0_dp-alpha(i))
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
+                                0.0_dp, matrix_xsq, &
+                                filter_eps=threshold, flop=flop1)
 
 !save X for control variables
-            CALL cp_dbcsr_copy(matrix_tmp, matrix_x)
+            CALL dbcsr_copy(matrix_tmp, matrix_x)
 
-            CALL cp_dbcsr_copy(matrix_x, matrix_xsq)
+            CALL dbcsr_copy(matrix_x, matrix_xsq)
 
             beta = (1.0_dp-alpha(i))+alpha(i)*beta
             beta = beta*beta
@@ -968,15 +967,15 @@ CONTAINS
             poly(i) = 0.0_dp
             alpha(i) = 2.0_dp/(1.0_dp+betaB)
 
-            CALL cp_dbcsr_scale(matrix_x, alpha(i))
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
-                                   0.0_dp, matrix_xsq, &
-                                   filter_eps=threshold, flop=flop1)
+            CALL dbcsr_scale(matrix_x, alpha(i))
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_x, &
+                                0.0_dp, matrix_xsq, &
+                                filter_eps=threshold, flop=flop1)
 
 !save X for control variables
-            CALL cp_dbcsr_copy(matrix_tmp, matrix_x)
+            CALL dbcsr_copy(matrix_tmp, matrix_x)
 !
-            CALL cp_dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp)
+            CALL dbcsr_add(matrix_x, matrix_xsq, 2.0_dp, -1.0_dp)
 
             beta = alpha(i)*beta
             beta = 2.0_dp*beta-beta*beta
@@ -984,7 +983,7 @@ CONTAINS
             betaB = 2.0_dp*betaB-betaB*betaB
 
          ENDIF
-         occ_matrix = cp_dbcsr_get_occupation(matrix_x)
+         occ_matrix = dbcsr_get_occupation(matrix_x)
          t2 = m_walltime()
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, &
@@ -995,32 +994,32 @@ CONTAINS
          ENDIF
 
 ! calculate control terms
-         CALL cp_dbcsr_trace(matrix_xsq, trace_fx)
+         CALL dbcsr_trace(matrix_xsq, trace_fx)
 
 ! intermediate use matrix_xsq compute X- X*X , temorarily use trace_gx
-         CALL cp_dbcsr_add(matrix_xsq, matrix_tmp, -1.0_dp, 1.0_dp)
-         CALL cp_dbcsr_trace(matrix_xsq, trace_gx)
-         nu(i) = cp_dbcsr_frobenius_norm(matrix_xsq)
+         CALL dbcsr_add(matrix_xsq, matrix_tmp, -1.0_dp, 1.0_dp)
+         CALL dbcsr_trace(matrix_xsq, trace_gx)
+         nu(i) = dbcsr_frobenius_norm(matrix_xsq)
          wu(i) = trace_gx
 
 ! intermediate use matrix_xsq to compute = 2X - X*X
-         CALL cp_dbcsr_add(matrix_xsq, matrix_tmp, 1.0_dp, 1.0_dp)
-         CALL cp_dbcsr_trace(matrix_xsq, trace_gx)
+         CALL dbcsr_add(matrix_xsq, matrix_tmp, 1.0_dp, 1.0_dp)
+         CALL dbcsr_trace(matrix_xsq, trace_gx)
 ! TC2 has quadratic convergence, using the frobeniums norm as an idempotency deviation test.
          IF (ABS(nu(i)) < (threshold)) EXIT
       END DO
 
-      occ_matrix = cp_dbcsr_get_occupation(matrix_x)
+      occ_matrix = dbcsr_get_occupation(matrix_x)
       IF (unit_nr > 0) WRITE (unit_nr, '(T6,A,I3,1X,1F10.8,1X,1F10.8)') 'Final TC2 iteration  ', i, occ_matrix, ABS(nu(i))
 
-      CALL cp_dbcsr_release(matrix_xsq)
-      CALL cp_dbcsr_release(matrix_tmp)
+      CALL dbcsr_release(matrix_xsq)
+      CALL dbcsr_release(matrix_tmp)
 
       ! output to matrix_p, P = inv(S)^0.5 X inv(S)^0.5
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
-                             0.0_dp, matrix_p, filter_eps=threshold)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p, &
-                             0.0_dp, matrix_p, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_x, matrix_s_sqrt_inv, &
+                          0.0_dp, matrix_p, filter_eps=threshold)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_p, &
+                          0.0_dp, matrix_p, filter_eps=threshold)
 
       ! ALGO 3 from. SIAM DOI. 10.1137/130911585
       X(1) = 1.0_dp
@@ -1072,7 +1071,7 @@ CONTAINS
       DEALLOCATE (Y)
       DEALLOCATE (lambda)
 
-      CALL cp_dbcsr_release(matrix_x)
+      CALL dbcsr_release(matrix_x)
       CALL timestop(handle)
 
    END SUBROUTINE density_matrix_tc2
@@ -1095,7 +1094,7 @@ CONTAINS
 !> \author Florian Thoele
 ! **************************************************************************************************
    SUBROUTINE compute_homo_lumo(matrix_k, matrix_p, eps_min, eps_max, threshold, max_iter_lanczos, eps_lanczos, homo, lumo, unit_nr)
-      TYPE(cp_dbcsr_type)                                :: matrix_k, matrix_p
+      TYPE(dbcsr_type)                                   :: matrix_k, matrix_p
       REAL(KIND=dp)                                      :: eps_min, eps_max, threshold
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
@@ -1107,27 +1106,27 @@ CONTAINS
 
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: max_eig, min_eig, shift1, shift2
-      TYPE(cp_dbcsr_type)                                :: tmp1, tmp2, tmp3
+      TYPE(dbcsr_type)                                   :: tmp1, tmp2, tmp3
 
 ! temporary matrices used for HOMO/LUMO calculation
 
-      CALL cp_dbcsr_init(tmp1)
-      CALL cp_dbcsr_create(tmp1, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(tmp1)
+      CALL dbcsr_create(tmp1, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
 
-      CALL cp_dbcsr_init(tmp2)
-      CALL cp_dbcsr_create(tmp2, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(tmp2)
+      CALL dbcsr_create(tmp2, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
 
-      CALL cp_dbcsr_init(tmp3)
-      CALL cp_dbcsr_create(tmp3, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(tmp3)
+      CALL dbcsr_create(tmp3, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
 
       shift1 = -eps_min
       shift2 = eps_max
 
       ! find largest ev of P*(K+shift*1), where shift is the neg. val. of the smallest ev of K
-      CALL cp_dbcsr_copy(tmp2, matrix_k)
-      CALL cp_dbcsr_add_on_diag(tmp2, shift1)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p, tmp2, &
-                             0.0_dp, tmp1, filter_eps=threshold)
+      CALL dbcsr_copy(tmp2, matrix_k)
+      CALL dbcsr_add_on_diag(tmp2, shift1)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p, tmp2, &
+                          0.0_dp, tmp1, filter_eps=threshold)
       CALL arnoldi_extremal(tmp1, max_eig, min_eig, converged=converged, &
                             threshold=eps_lanczos, max_iter=max_iter_lanczos)
       homo = max_eig-shift1
@@ -1136,13 +1135,13 @@ CONTAINS
       ENDIF
 
       ! -(1-P)*(K-shift*1) = (1-P)*(shift*1 - K), where shift is the largest ev of K
-      CALL cp_dbcsr_copy(tmp3, matrix_p)
-      CALL cp_dbcsr_scale(tmp3, -1.0_dp)
-      CALL cp_dbcsr_add_on_diag(tmp3, 1.0_dp) !tmp3 = 1-P
-      CALL cp_dbcsr_copy(tmp2, matrix_k)
-      CALL cp_dbcsr_add_on_diag(tmp2, -shift2)
-      CALL cp_dbcsr_multiply("N", "N", -1.0_dp, tmp3, tmp2, &
-                             0.0_dp, tmp1, filter_eps=threshold)
+      CALL dbcsr_copy(tmp3, matrix_p)
+      CALL dbcsr_scale(tmp3, -1.0_dp)
+      CALL dbcsr_add_on_diag(tmp3, 1.0_dp) !tmp3 = 1-P
+      CALL dbcsr_copy(tmp2, matrix_k)
+      CALL dbcsr_add_on_diag(tmp2, -shift2)
+      CALL dbcsr_multiply("N", "N", -1.0_dp, tmp3, tmp2, &
+                          0.0_dp, tmp1, filter_eps=threshold)
       CALL arnoldi_extremal(tmp1, max_eig, min_eig, converged=converged, &
                             threshold=eps_lanczos, max_iter=max_iter_lanczos)
       lumo = -max_eig+shift2
@@ -1151,9 +1150,9 @@ CONTAINS
          WRITE (unit_nr, '(T6,A,1X,L12)') "Lanczos converged:      ", converged
          WRITE (unit_nr, '(T6,A,1X,3F12.5)') 'HOMO/LUMO/gap', homo, lumo, lumo-homo
       ENDIF
-      CALL cp_dbcsr_release(tmp1)
-      CALL cp_dbcsr_release(tmp2)
-      CALL cp_dbcsr_release(tmp3)
+      CALL dbcsr_release(tmp1)
+      CALL dbcsr_release(tmp2)
+      CALL dbcsr_release(tmp3)
 
    END SUBROUTINE compute_homo_lumo
 

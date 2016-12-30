@@ -13,15 +13,15 @@ MODULE hfx_communication
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_iterator,&
-                                              cp_dbcsr_iterator_blocks_left,&
-                                              cp_dbcsr_iterator_next_block,&
-                                              cp_dbcsr_iterator_start,&
-                                              cp_dbcsr_iterator_stop,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop,&
+                                              dbcsr_iterator_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE hfx_types,                       ONLY: hfx_2D_map,&
                                               hfx_basis_type,&
                                               hfx_type
@@ -77,13 +77,13 @@ CONTAINS
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(dp), DIMENSION(:)                             :: full_density
-      TYPE(cp_dbcsr_type), POINTER                       :: rho
+      TYPE(dbcsr_type), POINTER                          :: rho
       INTEGER, INTENT(IN)                                :: number_of_p_entries
       INTEGER, DIMENSION(:), POINTER                     :: block_offset
       INTEGER                                            :: kind_of(*)
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       LOGICAL, INTENT(IN)                                :: get_max_vals_spin
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: rho_beta
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: rho_beta
       LOGICAL, INTENT(IN)                                :: antisymmetric
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
@@ -96,7 +96,7 @@ CONTAINS
       REAL(dp)                                           :: symmfac
       REAL(dp), DIMENSION(:), POINTER                    :: recbuffer, sendbuffer, swapbuffer
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block, sparse_block_beta
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
 !debREAL(dp), DIMENSION(:), POINTER          :: full_density
 
@@ -105,9 +105,9 @@ CONTAINS
       ALLOCATE (recbuffer(number_of_p_entries))
 
       i = 1
-      CALL cp_dbcsr_iterator_start(iter, rho, shared=.FALSE.)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+      CALL dbcsr_iterator_start(iter, rho, shared=.FALSE.)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
          ! the resulting vector will eb only the upper triangle.
          ! in case of antisymmetry take care to change signs if a lower block gets copied
          symmfac = 1.0_dp
@@ -119,8 +119,8 @@ CONTAINS
          nsetb = basis_parameter(jkind)%nset
          nsgfb => basis_parameter(jkind)%nsgf
          IF (get_max_vals_spin) THEN
-            CALL cp_dbcsr_get_block_p(rho_beta, &
-                                      row=iatom, col=jatom, BLOCK=sparse_block_beta, found=found)
+            CALL dbcsr_get_block_p(rho_beta, &
+                                   row=iatom, col=jatom, BLOCK=sparse_block_beta, found=found)
             pa = 0
             DO iset = 1, nseta
                pb = 0
@@ -152,7 +152,7 @@ CONTAINS
             END DO
          END IF
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       ! sync before/after a ring of isendrecv
       CALL mp_sync(para_env%group)
@@ -206,7 +206,7 @@ CONTAINS
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(dp), DIMENSION(:)                             :: full_ks
-      TYPE(cp_dbcsr_type), POINTER                       :: ks_matrix
+      TYPE(dbcsr_type), POINTER                          :: ks_matrix
       INTEGER, INTENT(IN)                                :: number_of_p_entries
       INTEGER, DIMENSION(:), POINTER                     :: block_offset
       INTEGER                                            :: kind_of(*)
@@ -222,7 +222,7 @@ CONTAINS
       REAL(dp)                                           :: my_fac, myd_fac
       REAL(dp), DIMENSION(:), POINTER                    :: recbuffer, sendbuffer, swapbuffer
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       my_fac = 1.0_dp; myd_fac = 1.0_dp
       IF (PRESENT(off_diag_fac)) my_fac = off_diag_fac
@@ -259,9 +259,9 @@ CONTAINS
       CALL mp_sync(para_env%group)
 
       i = 1
-      CALL cp_dbcsr_iterator_start(iter, ks_matrix, shared=.FALSE.)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+      CALL dbcsr_iterator_start(iter, ks_matrix, shared=.FALSE.)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
 
          ikind = kind_of(iatom)
          nseta = basis_parameter(ikind)%nset
@@ -288,7 +288,7 @@ CONTAINS
             pa = pa+nsgfa(iset)
          END DO
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       DEALLOCATE (sendbuffer, recbuffer)
 
@@ -314,7 +314,7 @@ CONTAINS
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       INTEGER, INTENT(IN)                                :: irep
       REAL(dp), INTENT(IN)                               :: scaling_factor
 
@@ -436,7 +436,7 @@ CONTAINS
                                     para_env, atomic_block_offset, set_offset, &
                                     block_offset, map_atoms_to_cpus, nkind)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix
+      TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(hfx_basis_type), DIMENSION(:)                 :: basis_parameter
       INTEGER, DIMENSION(:)                              :: kind_of
       INTEGER, DIMENSION(:, :), INTENT(OUT)              :: is_assoc_atomic_block
@@ -457,7 +457,7 @@ CONTAINS
                                                             rdispl
       INTEGER, DIMENSION(:), POINTER                     :: iatom_list, jatom_list, nsgfa, nsgfb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sparse_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
@@ -468,16 +468,16 @@ CONTAINS
       !
       ! count number_of_p_blocks and number_of_p_entries
       !
-      CALL cp_dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+      CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
          ikind = kind_of(iatom)
          jkind = kind_of(jatom)
          number_of_p_blocks = number_of_p_blocks+1
          number_of_p_entries = number_of_p_entries+ &
                                basis_parameter(ikind)%nsgf_total*basis_parameter(jkind)%nsgf_total
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       tmp = (/number_of_p_entries, number_of_p_blocks/)
       CALL mp_max(tmp, para_env%group)
@@ -494,16 +494,16 @@ CONTAINS
       buffer_in = 0
       ibuf = 0
 
-      CALL cp_dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+      CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
 
          buffer_in(ibuf+1) = iatom
          buffer_in(ibuf+2) = jatom
          buffer_in(ibuf+3) = para_env%mepos+1
          ibuf = ibuf+3
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       rcount = SIZE(buffer_in)
       rdispl(1) = 0

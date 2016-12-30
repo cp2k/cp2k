@@ -15,21 +15,21 @@ MODULE rt_propagation_forces
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-        cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
-        cp_dbcsr_get_data_type, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_create_dist_r_unrot,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_create_dist_r_unrot
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_distribution, dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_get_block_p, &
+        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: one,&
                                               zero
@@ -96,12 +96,12 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size
       REAL(KIND=dp)                                      :: alpha
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: C_mat, S_der, SinvB, SinvH
-      TYPE(cp_dbcsr_type)                                :: db_mo_tmp1, db_mo_tmp2, db_mos_im, &
-                                                            db_mos_re
-      TYPE(cp_dbcsr_type), POINTER                       :: rho_im_sparse, tmp_dbcsr
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, S_der, SinvB, SinvH
+      TYPE(dbcsr_type)                                   :: db_mo_tmp1, db_mo_tmp2, db_mos_im, &
+                                                            db_mos_re
+      TYPE(dbcsr_type), POINTER                          :: rho_im_sparse, tmp_dbcsr
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -119,10 +119,10 @@ CONTAINS
 
       ALLOCATE (tmp_dbcsr)
       ALLOCATE (rho_im_sparse)
-      CALL cp_dbcsr_init(tmp_dbcsr)
-      CALL cp_dbcsr_create(tmp_dbcsr, template=SinvH(1)%matrix)
-      CALL cp_dbcsr_init(rho_im_sparse)
-      CALL cp_dbcsr_create(rho_im_sparse, template=SinvH(1)%matrix)
+      CALL dbcsr_init(tmp_dbcsr)
+      CALL dbcsr_create(tmp_dbcsr, template=SinvH(1)%matrix)
+      CALL dbcsr_init(rho_im_sparse)
+      CALL dbcsr_create(rho_im_sparse, template=SinvH(1)%matrix)
 
       natom = SIZE(particle_set)
       ALLOCATE (atom_of_kind(natom))
@@ -138,38 +138,38 @@ CONTAINS
          CALL get_mo_set(mos(ispin)%mo_set, nao=nao, nmo=nmo)
 
          NULLIFY (col_blk_size)
-         CALL cp_dbcsr_create_dist_r_unrot(dist, cp_dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
+         CALL dbcsr_create_dist_r_unrot(dist, dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
 
-         CALL cp_dbcsr_init(db_mos_re)
-         CALL cp_dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
-                              cp_dbcsr_row_block_sizes(SinvB(ispin)%matrix), col_blk_size, &
-                              nze=0)
-         CALL cp_dbcsr_init(db_mos_im)
-         CALL cp_dbcsr_create(db_mos_im, template=db_mos_re)
-         CALL cp_dbcsr_init(db_mo_tmp1)
-         CALL cp_dbcsr_create(db_mo_tmp1, template=db_mos_re)
-         CALL cp_dbcsr_init(db_mo_tmp2)
-         CALL cp_dbcsr_create(db_mo_tmp2, template=db_mos_re)
+         CALL dbcsr_init(db_mos_re)
+         CALL dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
+                           dbcsr_row_block_sizes(SinvB(ispin)%matrix), col_blk_size, &
+                           nze=0)
+         CALL dbcsr_init(db_mos_im)
+         CALL dbcsr_create(db_mos_im, template=db_mos_re)
+         CALL dbcsr_init(db_mo_tmp1)
+         CALL dbcsr_create(db_mo_tmp1, template=db_mos_re)
+         CALL dbcsr_init(db_mo_tmp2)
+         CALL dbcsr_create(db_mo_tmp2, template=db_mos_re)
 
          CALL copy_fm_to_dbcsr(mos_new(im)%matrix, db_mos_im)
          CALL copy_fm_to_dbcsr(mos_new(re)%matrix, db_mos_re)
 
-         CALL cp_dbcsr_multiply("N", "N", alpha, SinvB(ispin)%matrix, db_mos_im, 0.0_dp, db_mo_tmp1)
-         CALL cp_dbcsr_multiply("N", "N", alpha, SinvH(ispin)%matrix, db_mos_re, 1.0_dp, db_mo_tmp1)
-         CALL cp_dbcsr_multiply("N", "N", -alpha, SinvB(ispin)%matrix, db_mos_re, 0.0_dp, db_mo_tmp2)
-         CALL cp_dbcsr_multiply("N", "N", alpha, SinvH(ispin)%matrix, db_mos_im, 1.0_dp, db_mo_tmp2)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, db_mo_tmp1, db_mos_re, 0.0_dp, tmp_dbcsr)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, db_mo_tmp2, db_mos_im, 1.0_dp, tmp_dbcsr)
+         CALL dbcsr_multiply("N", "N", alpha, SinvB(ispin)%matrix, db_mos_im, 0.0_dp, db_mo_tmp1)
+         CALL dbcsr_multiply("N", "N", alpha, SinvH(ispin)%matrix, db_mos_re, 1.0_dp, db_mo_tmp1)
+         CALL dbcsr_multiply("N", "N", -alpha, SinvB(ispin)%matrix, db_mos_re, 0.0_dp, db_mo_tmp2)
+         CALL dbcsr_multiply("N", "N", alpha, SinvH(ispin)%matrix, db_mos_im, 1.0_dp, db_mo_tmp2)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, db_mo_tmp1, db_mos_re, 0.0_dp, tmp_dbcsr)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, db_mo_tmp2, db_mos_im, 1.0_dp, tmp_dbcsr)
 
-         CALL cp_dbcsr_multiply("N", "T", alpha, db_mos_re, db_mos_im, 0.0_dp, rho_im_sparse)
-         CALL cp_dbcsr_multiply("N", "T", -alpha, db_mos_im, db_mos_re, 1.0_dp, rho_im_sparse)
+         CALL dbcsr_multiply("N", "T", alpha, db_mos_re, db_mos_im, 0.0_dp, rho_im_sparse)
+         CALL dbcsr_multiply("N", "T", -alpha, db_mos_im, db_mos_re, 1.0_dp, rho_im_sparse)
 
          CALL compute_forces(force, tmp_dbcsr, S_der, rho_im_sparse, C_mat, kind_of, atom_of_kind)
 
-         CALL cp_dbcsr_release(db_mos_re)
-         CALL cp_dbcsr_release(db_mos_im)
-         CALL cp_dbcsr_release(db_mo_tmp1)
-         CALL cp_dbcsr_release(db_mo_tmp2)
+         CALL dbcsr_release(db_mos_re)
+         CALL dbcsr_release(db_mos_im)
+         CALL dbcsr_release(db_mo_tmp1)
+         CALL dbcsr_release(db_mo_tmp2)
 
          DEALLOCATE (col_blk_size)
          CALL dbcsr_distribution_release(dist)
@@ -180,8 +180,8 @@ CONTAINS
          force(i)%ehrenfest(:, :) = -force(i)%ehrenfest(:, :)
       END DO
 
-      CALL cp_dbcsr_release(tmp_dbcsr)
-      CALL cp_dbcsr_release(rho_im_sparse)
+      CALL dbcsr_release(tmp_dbcsr)
+      CALL dbcsr_release(rho_im_sparse)
       DEALLOCATE (atom_of_kind)
       DEALLOCATE (kind_of)
       DEALLOCATE (tmp_dbcsr)
@@ -210,8 +210,8 @@ CONTAINS
       INTEGER                                            :: handle, i, im, ispin, natom, re
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: C_mat, rho_new, S_der, SinvB, SinvH
-      TYPE(cp_dbcsr_type), POINTER                       :: S_inv, S_minus_half, tmp, tmp2, tmp3
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, rho_new, S_der, SinvB, SinvH
+      TYPE(dbcsr_type), POINTER                          :: S_inv, S_minus_half, tmp, tmp2, tmp3
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -240,26 +240,26 @@ CONTAINS
 
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=SinvB(1)%matrix)
+      CALL dbcsr_init(tmp)
+      CALL dbcsr_create(tmp, template=SinvB(1)%matrix)
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL cp_dbcsr_init(tmp2)
-      CALL cp_dbcsr_create(tmp2, template=SinvB(1)%matrix)
+      CALL dbcsr_init(tmp2)
+      CALL dbcsr_create(tmp2, template=SinvB(1)%matrix)
       NULLIFY (tmp3)
       ALLOCATE (tmp3)
-      CALL cp_dbcsr_init(tmp3)
-      CALL cp_dbcsr_create(tmp3, template=SinvB(1)%matrix)
+      CALL dbcsr_init(tmp3)
+      CALL dbcsr_create(tmp3, template=SinvB(1)%matrix)
 
       CALL get_rtp(rtp=rtp, rho_new=rho_new, S_minus_half=S_minus_half)
 
       DO ispin = 1, SIZE(SinvH)
          re = 2*ispin-1
          im = 2*ispin
-         CALL cp_dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
-                                filter_eps=rtp%filter_eps)
-         CALL cp_dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
-                                filter_eps=rtp%filter_eps)
+         CALL dbcsr_multiply("N", "N", one, SinvH(ispin)%matrix, rho_new(re)%matrix, zero, tmp, &
+                             filter_eps=rtp%filter_eps)
+         CALL dbcsr_multiply("N", "N", one, SinvB(ispin)%matrix, rho_new(im)%matrix, one, tmp, &
+                             filter_eps=rtp%filter_eps)
 
          CALL compute_forces(force, tmp, S_der, rho_new(im)%matrix, C_mat, kind_of, atom_of_kind)
 
@@ -270,9 +270,9 @@ CONTAINS
          force(i)%ehrenfest(:, :) = -force(i)%ehrenfest(:, :)
       END DO
 
-      CALL cp_dbcsr_deallocate_matrix(tmp)
-      CALL cp_dbcsr_deallocate_matrix(tmp2)
-      CALL cp_dbcsr_deallocate_matrix(tmp3)
+      CALL dbcsr_deallocate_matrix(tmp)
+      CALL dbcsr_deallocate_matrix(tmp2)
+      CALL dbcsr_deallocate_matrix(tmp3)
 
       DEALLOCATE (atom_of_kind)
       DEALLOCATE (kind_of)
@@ -293,10 +293,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_forces(force, tmp, S_der, rho_im, C_mat, kind_of, atom_of_kind)
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(cp_dbcsr_type), POINTER                       :: tmp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: S_der
-      TYPE(cp_dbcsr_type), POINTER                       :: rho_im
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: C_mat
+      TYPE(dbcsr_type), POINTER                          :: tmp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: S_der
+      TYPE(dbcsr_type), POINTER                          :: rho_im
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, atom_of_kind
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_forces', routineP = moduleN//':'//routineN
@@ -304,16 +304,16 @@ CONTAINS
       INTEGER                                            :: col_atom, i, ikind, kind_atom, row_atom
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:), POINTER                    :: block_values, block_values2
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       DO i = 1, 3
          !Calculate the sum over the hadmard product
          !S_der part
 
-         CALL cp_dbcsr_iterator_start(iter, tmp)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-            CALL cp_dbcsr_get_block_p(S_der(i)%matrix, row_atom, col_atom, block_values2, found=found)
+         CALL dbcsr_iterator_start(iter, tmp)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+            CALL dbcsr_get_block_p(S_der(i)%matrix, row_atom, col_atom, block_values2, found=found)
             IF (found) THEN
                ikind = kind_of(col_atom)
                kind_atom = atom_of_kind(col_atom)
@@ -323,14 +323,14 @@ CONTAINS
                                                       2.0_dp*DOT_PRODUCT(block_values, block_values2)
             ENDIF
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
 
          !C_mat part
 
-         CALL cp_dbcsr_iterator_start(iter, rho_im)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
-            CALL cp_dbcsr_get_block_p(C_mat(i)%matrix, row_atom, col_atom, block_values2, found=found)
+         CALL dbcsr_iterator_start(iter, rho_im)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+            CALL dbcsr_get_block_p(C_mat(i)%matrix, row_atom, col_atom, block_values2, found=found)
             IF (found) THEN
                ikind = kind_of(col_atom)
                kind_atom = atom_of_kind(col_atom)
@@ -340,7 +340,7 @@ CONTAINS
                                                       2.0_dp*DOT_PRODUCT(block_values, block_values2)
             ENDIF
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
       END DO
 
    END SUBROUTINE compute_forces
@@ -355,9 +355,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_admm_force', routineP = moduleN//':'//routineN
 
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: KS_aux_im, KS_aux_re, matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos, mos_admm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_im, KS_aux_re, matrix_s_aux_fit, &
+                                                            matrix_s_aux_fit_vs_orb
       TYPE(rt_prop_type), POINTER                        :: rtp
 
       CALL get_qs_env(qs_env, &
@@ -390,7 +390,7 @@ CONTAINS
    SUBROUTINE rt_admm_forces_none(qs_env, admm_env, KS_aux_re, KS_aux_im, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, mos_admm, mos)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: KS_aux_re, KS_aux_im, matrix_s_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: KS_aux_re, KS_aux_im, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_admm, mos
 
@@ -400,10 +400,10 @@ CONTAINS
       INTEGER                                            :: im, ispin, nao, natom, naux, nmo, re
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_w_q, matrix_w_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: tmp_aux_aux, tmp_aux_mo, tmp_aux_mo1, &
                                                             tmp_aux_nao
       TYPE(cp_fm_struct_type), POINTER                   :: mstruct
+      TYPE(dbcsr_type), POINTER                          :: matrix_w_q, matrix_w_s
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit_asymm, sab_aux_fit_vs_orb
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -418,19 +418,19 @@ CONTAINS
                       ks_env=ks_env)
 
       ALLOCATE (matrix_w_s)
-      CALL cp_dbcsr_init(matrix_w_s)
-      CALL cp_dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
-                           cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
-                           cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                           cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                           cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
-                           cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
+      CALL dbcsr_init(matrix_w_s)
+      CALL dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
+                        dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
+                        dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                        dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                        dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
+                        dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s, sab_aux_fit_asymm)
 
       ALLOCATE (matrix_w_q)
-      CALL cp_dbcsr_init(matrix_w_q)
-      CALL cp_dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
-                         "W MATRIX AUX Q")
+      CALL dbcsr_init(matrix_w_q)
+      CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
+                      "W MATRIX AUX Q")
 
       DO ispin = 1, SIZE(KS_aux_re)
          re = 2*ispin-1; im = 2*ispin
@@ -496,8 +496,8 @@ CONTAINS
          DEALLOCATE (admm_force)
 
          ! *** Deallocated weighted density matrices
-         CALL cp_dbcsr_deallocate_matrix(matrix_w_s)
-         CALL cp_dbcsr_deallocate_matrix(matrix_w_q)
+         CALL dbcsr_deallocate_matrix(matrix_w_s)
+         CALL dbcsr_deallocate_matrix(matrix_w_q)
          CALL cp_fm_vect_dealloc(tmp_aux_aux)
          CALL cp_fm_vect_dealloc(tmp_aux_nao)
          CALL cp_fm_vect_dealloc(tmp_aux_mo)

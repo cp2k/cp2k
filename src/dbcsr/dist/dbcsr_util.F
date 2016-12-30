@@ -35,7 +35,7 @@ MODULE dbcsr_util
    USE dbcsr_toollib,                   ONLY: sort,&
                                               swap
    USE dbcsr_types,                     ONLY: &
-        dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, &
+        dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_slot_blk_p, &
         dbcsr_slot_col_i, dbcsr_slot_dense, dbcsr_slot_home_coli, dbcsr_slot_home_pcol, &
         dbcsr_slot_home_prow, dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
         dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
@@ -496,7 +496,7 @@ CONTAINS
 !> \retval checksum calculated checksum
 ! **************************************************************************************************
   FUNCTION dbcsr_checksum(matrix, local, pos) RESULT(checksum)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, pos
       REAL(KIND=dp)                                      :: checksum
 
@@ -524,20 +524,20 @@ CONTAINS
     ELSE
        pd = .FALSE.
     ENDIF
-    row_blk_size => array_data (matrix%m%row_blk_size)
-    col_blk_size => array_data (matrix%m%col_blk_size)
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
     local_cs = 0.0_dp
-    SELECT CASE (matrix%m%data_type)
+    SELECT CASE (matrix%data_type)
     CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
+       CALL dbcsr_get_data (matrix%data_area, r_dp)
     CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
+       CALL dbcsr_get_data (matrix%data_area, r_sp)
     CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
+       CALL dbcsr_get_data (matrix%data_area, c_dp)
     CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
+       CALL dbcsr_get_data (matrix%data_area, c_sp)
     END SELECT
-    DO br = 1, matrix%m%nblkrows_total
+    DO br = 1, matrix%nblkrows_total
        m = row_blk_size(br)
        ro = dbcsr_blk_row_offset (matrix, br)
        local_cs_row=0
@@ -545,19 +545,19 @@ CONTAINS
        !$OMP          PRIVATE(bc,m,n,mn,blk_p,blk_cs,tr,co) &
        !$OMP          SHARED(pd,br,matrix,ro,row_blk_size,col_blk_size,r_dp, r_sp, c_dp,c_sp) &
        !$OMP           REDUCTION(+:local_cs_row)
-       DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
-          bc = matrix%m%col_i(blk)
+       DO blk = matrix%row_p(br)+1, matrix%row_p(br+1)
+          bc = matrix%col_i(blk)
           m = row_blk_size(br)
           n = col_blk_size(bc)
           mn = m*n
-          blk_p = ABS(matrix%m%blk_p(blk))
-          tr = matrix%m%blk_p(blk) .LT. 0
+          blk_p = ABS(matrix%blk_p(blk))
+          tr = matrix%blk_p(blk) .LT. 0
           IF (blk_p .NE. 0) THEN
              IF (mn .GT. 0) THEN
                 IF (tr) CALL swap (m, n)
                 co = dbcsr_blk_col_offset (matrix, bc)
                 ! Calculate DDOT
-                SELECT CASE (matrix%m%data_type)
+                SELECT CASE (matrix%data_type)
                 CASE (dbcsr_type_real_8)
                    IF (pd) THEN
                       blk_cs = pd_blk_cs (m, n, r_dp(blk_p:blk_p+mn-1),&
@@ -604,7 +604,7 @@ CONTAINS
     checksum = local_cs
     IF (.NOT. nocomm) THEN
        CALL mp_sum(local_cs, dbcsr_mp_group (dbcsr_distribution_mp (&
-            matrix%m%dist)))
+            matrix%dist)))
        checksum = local_cs
     ENDIF
     CALL timestop(handle)
@@ -658,7 +658,7 @@ CONTAINS
 !> \param[in] local         (optional) no global communication
 ! **************************************************************************************************
   SUBROUTINE dbcsr_verify_matrix(m, verbosity, local)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: m
+      TYPE(dbcsr_type), INTENT(IN)                       :: m
       INTEGER, INTENT(IN), OPTIONAL                      :: verbosity
       LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
@@ -680,111 +680,111 @@ CONTAINS
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
     IF (PRESENT (verbosity)) dbg = verbosity
-    IF (dbg.GE.3) WRITE(*,'(1X,A,A,A,3(L1))')r//'Matrix name: ', m%m%name,&
-         " of types ", m%m%symmetry, m%m%negate_real,&
-         m%m%negate_imaginary
+    IF (dbg.GE.3) WRITE(*,'(1X,A,A,A,3(L1))')r//'Matrix name: ', m%name,&
+         " of types ", m%symmetry, m%negate_real,&
+         m%negate_imaginary
     IF (dbg.GE.3) THEN
        WRITE(*,'(1X,A,I5,"x",I5,A,I5,"x",I5)')r//' Size blocked',&
-            m%m%nblkrows_total, m%m%nblkcols_total, ", full ",&
-            m%m%nfullrows_total, m%m%nfullcols_total
+            m%nblkrows_total, m%nblkcols_total, ", full ",&
+            m%nfullrows_total, m%nfullcols_total
     ENDIF
-    row_blk_size => array_data (m%m%row_blk_size)
-    col_blk_size => array_data (m%m%col_blk_size)
+    row_blk_size => array_data (m%row_blk_size)
+    col_blk_size => array_data (m%col_blk_size)
     !
     IF(.NOT.dbcsr_has_symmetry (m)) THEN
-       n_full_blocks_total = INT(m%m%nblkrows_total,KIND=int_8) * INT(m%m%nblkcols_total,KIND=int_8)
+       n_full_blocks_total = INT(m%nblkrows_total,KIND=int_8) * INT(m%nblkcols_total,KIND=int_8)
     ELSE
-       IF(m%m%nblkrows_total /= m%m%nblkcols_total)&
+       IF(m%nblkrows_total /= m%nblkcols_total)&
           CPABORT('Symmetric matrix is not square')
-       n_full_blocks_total = INT(m%m%nblkrows_total,KIND=int_8) * (m%m%nblkrows_total+1)/2
+       n_full_blocks_total = INT(m%nblkrows_total,KIND=int_8) * (m%nblkrows_total+1)/2
     ENDIF
-    n_have_blocks_local = m%m%nblks
+    n_have_blocks_local = m%nblks
 2045 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
 2047 FORMAT (I7,1X,I7,1X,I7,1X,I7,1X,I7,1X,I7,1X,I7,1X,I7,1X,I7,1X,I7)
     IF (dbg.GE.4) THEN
        WRITE(*,'(1X,A)')r//' index='
-       WRITE(*,2045)m%m%index(:dbcsr_num_slots)
+       WRITE(*,2045)m%index(:dbcsr_num_slots)
     ENDIF
-    IF(m%m%index(1) .LE. 0) &
+    IF(m%index(1) .LE. 0) &
        CPABORT('Index size 0')
     DO i = dbcsr_slot_row_p, dbcsr_num_slots
-       !IF(m%m%index(i) .LE. 0) &
+       !IF(m%index(i) .LE. 0) &
        !   CPABORT('Index member is 0')
        IF (.NOT. (i.EQ.dbcsr_slot_col_i.OR.i.EQ.dbcsr_slot_blk_p)) THEN
-            IF(m%m%index(i) > m%m%index(1)) &
+            IF(m%index(i) > m%index(1)) &
                CPABORT('Index member is greater than size')
          ENDIF
     ENDDO
     !
-    IF(dbg.GE.4) WRITE(*,*)r//' row_p extents',m%m%index(dbcsr_slot_row_p+1),&
-         m%m%index(dbcsr_slot_row_p), SIZE(m%m%row_p)
-    IF(m%m%index(dbcsr_slot_row_p+1)-m%m%index(dbcsr_slot_row_p)+1 /= m%m%nblkrows_total+1) &
+    IF(dbg.GE.4) WRITE(*,*)r//' row_p extents',m%index(dbcsr_slot_row_p+1),&
+         m%index(dbcsr_slot_row_p), SIZE(m%row_p)
+    IF(m%index(dbcsr_slot_row_p+1)-m%index(dbcsr_slot_row_p)+1 /= m%nblkrows_total+1) &
          CPABORT('Size of row_p index inconsistent with number of rows')
-    IF(SIZE(m%m%row_p) /= m%m%nblkrows_total+1) &
+    IF(SIZE(m%row_p) /= m%nblkrows_total+1) &
          CPABORT('Size of row_p inconsistent with number of rows')
     !
-    IF(dbg.GE.4) WRITE(*,*)r//' col_i extents',m%m%index(dbcsr_slot_col_i+1),&
-         m%m%index(dbcsr_slot_col_i), SIZE(m%m%col_i)
-    IF(m%m%index(dbcsr_slot_col_i+1)-m%m%index(dbcsr_slot_col_i)+1 /= m%m%nblks) &
+    IF(dbg.GE.4) WRITE(*,*)r//' col_i extents',m%index(dbcsr_slot_col_i+1),&
+         m%index(dbcsr_slot_col_i), SIZE(m%col_i)
+    IF(m%index(dbcsr_slot_col_i+1)-m%index(dbcsr_slot_col_i)+1 /= m%nblks) &
          CPABORT('Size of col_i index inconsistent with number of blocks')
-    IF(SIZE(m%m%col_i) /= m%m%nblks) &
+    IF(SIZE(m%col_i) /= m%nblks) &
          CPABORT('Size of col inconsistent with number of blocks')
     !
-    IF(dbg.GE.4) WRITE(*,*)r//' blk_p extents',m%m%index(dbcsr_slot_blk_p+1),&
-         m%m%index(dbcsr_slot_blk_p), SIZE(m%m%blk_p)
-    IF(m%m%index(dbcsr_slot_blk_p+1)-m%m%index(dbcsr_slot_blk_p)+1 /= m%m%nblks) &
+    IF(dbg.GE.4) WRITE(*,*)r//' blk_p extents',m%index(dbcsr_slot_blk_p+1),&
+         m%index(dbcsr_slot_blk_p), SIZE(m%blk_p)
+    IF(m%index(dbcsr_slot_blk_p+1)-m%index(dbcsr_slot_blk_p)+1 /= m%nblks) &
          CPABORT('Size of blk_p index inconsistent with number of blocks')
-    IF(SIZE(m%m%col_i) /= m%m%nblks) &
+    IF(SIZE(m%col_i) /= m%nblks) &
          CPABORT('Size of blk_p inconsistent with number of blocks')
     !
-    IF(SIZE(row_blk_size) /= m%m%nblkrows_total) &
+    IF(SIZE(row_blk_size) /= m%nblkrows_total) &
          CPABORT('Row block size array inconsistent with number of blocked rows')
-    IF(SIZE(col_blk_size) /= m%m%nblkcols_total) &
+    IF(SIZE(col_blk_size) /= m%nblkcols_total) &
          CPABORT('Column block size array inconsistent with number of blocked columns')
     !
     IF(dbg.GE.4) THEN
-       WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%m%nze,'data size',&
-            dbcsr_data_get_size(m%m%data_area)
+       WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%nze,'data size',&
+            dbcsr_data_get_size(m%data_area)
     ENDIF
-    data_size_referenced = dbcsr_data_get_size_referenced(m%m%data_area)
+    data_size_referenced = dbcsr_data_get_size_referenced(m%data_area)
     !This tends to be too verbose and usually untrue for symmetric
     !matrices.
-    !IF(dbcsr_get_data_size(m%m%data_area) < m%m%nze) &
+    !IF(dbcsr_get_data_size(m%data_area) < m%nze) &
     !   CPABORT('Data storage may be too small.')
     IF (dbg.GE.5) THEN
-       WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%m%row_p),' row_p='
-       WRITE (*,2047) m%m%row_p(1:m%m%nblkrows_total+1)
+       WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%row_p),' row_p='
+       WRITE (*,2047) m%row_p(1:m%nblkrows_total+1)
        WRITE (*,'(1X,A)') r//' col_i='
-       WRITE (*,2047) m%m%col_i(1:m%m%nblks)
+       WRITE (*,2047) m%col_i(1:m%nblks)
        WRITE (*,'(1X,A)') r//' blk_p='
-       WRITE (*,2047) m%m%blk_p(1:m%m%nblks)
+       WRITE (*,2047) m%blk_p(1:m%nblks)
     ENDIF
     prev_br = 0
-    DO br = 1, m%m%nblkrows_total
-       IF(m%m%row_p(br) < 0) CPABORT('row_p less than zero')
+    DO br = 1, m%nblkrows_total
+       IF(m%row_p(br) < 0) CPABORT('row_p less than zero')
        IF( br.GT.1) THEN
-          IF(m%m%row_p(br) < m%m%row_p(prev_br)) CPABORT('row_p decreases')
+          IF(m%row_p(br) < m%row_p(prev_br)) CPABORT('row_p decreases')
        ENDIF
        mb = row_blk_size(br)
        IF(mb < 0) &
           CPABORT('Row blocked size is negative')
-       DO blk = m%m%row_p(br)+1, m%m%row_p(br+1)
+       DO blk = m%row_p(br)+1, m%row_p(br+1)
           IF(blk < 0) CPABORT('Block number is zero')
-          IF(blk > m%m%nblks) CPABORT('Block number too high')
-          bc = m%m%col_i(blk)
+          IF(blk > m%nblks) CPABORT('Block number too high')
+          bc = m%col_i(blk)
           IF (dbg.GE.5) THEN
              WRITE(*,'(1X,A,I7,"(",I5,",",I5,")")')r//' block',blk,br,bc
           ENDIF
           IF(bc .LE. 0) CPABORT('col_i is zero')
-          IF(bc > m%m%nblkcols_total) CPABORT('col_i too high')
+          IF(bc > m%nblkcols_total) CPABORT('col_i too high')
           n = col_blk_size(bc)
           IF(n < 0) CPABORT('Column blocked size is negative')
-          blk_p = m%m%blk_p(blk)
+          blk_p = m%blk_p(blk)
           mn = mb*n
           !IF(blk_p.LE.0) CPABORT('Block pointer is negative')
-          !IF(blk_p > m%m%nze) &
+          !IF(blk_p > m%nze) &
           !   CPABORT('Block pointer too large')
-          !IF(blk_p+mn-1 > m%m%nze) &
+          !IF(blk_p+mn-1 > m%nze) &
           !   CPABORT('Block extends too far')
           IF (mn .GT. 0 .AND. ABS(blk_p) > data_size_referenced) &
              CPABORT("Block pointer pointso outside of declared referenced area")
@@ -795,7 +795,7 @@ CONTAINS
     ENDDO
     IF (dbg.GE.3.AND..NOT.nocomm) THEN
        CALL mp_sum(n_have_blocks_local, dbcsr_mp_group (dbcsr_distribution_mp (&
-            m%m%dist)))
+            m%dist)))
        n_have_blocks_total = n_have_blocks_local
        sparsity_total = REAL(n_have_blocks_total, KIND=dp)&
             / REAL(n_full_blocks_total, KIND=dp)*100.0_dp

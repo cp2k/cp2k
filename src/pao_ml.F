@@ -13,13 +13,13 @@ MODULE pao_ml
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_create,&
                                               cell_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_iterator,&
-                                              cp_dbcsr_iterator_blocks_left,&
-                                              cp_dbcsr_iterator_next_block,&
-                                              cp_dbcsr_iterator_start,&
-                                              cp_dbcsr_iterator_stop,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop,&
+                                              dbcsr_iterator_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -510,8 +510,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_X
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -530,9 +530,9 @@ CONTAINS
       variances(:) = 0.0_dp
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env,particle_set,qs_kind_set,cell,variances) &
 !$OMP PRIVATE(iter,arow,acol,iatom,ikind,descriptor,block_X)
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+      CALL dbcsr_iterator_start(iter, pao%matrix_X)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          IF (SIZE(block_X) == 0) CYCLE ! pao disabled for iatom
@@ -556,7 +556,7 @@ CONTAINS
          !add prior
          block_X(:, 1) = block_X(:, 1)+pao%ml_training_matrices(ikind)%prior
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
       ! print variances
@@ -620,7 +620,7 @@ CONTAINS
    SUBROUTINE pao_ml_forces(pao, qs_env, matrix_G, forces)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_type)                                :: matrix_G
+      TYPE(dbcsr_type)                                   :: matrix_G
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: forces
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_ml_forces'
@@ -630,8 +630,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -647,9 +647,9 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_G,particle_set,qs_kind_set,cell) &
 !$OMP REDUCTION(+:forces) &
 !$OMP PRIVATE(iter,arow,acol,iatom,ikind,block_G,descriptor,descr_grad)
-      CALL cp_dbcsr_iterator_start(iter, matrix_G)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_G)
+      CALL dbcsr_iterator_start(iter, matrix_G)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_G)
          iatom = arow; CPASSERT(arow == acol)
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
          IF (SIZE(block_G) == 0) CYCLE ! pao disabled for iatom
@@ -679,7 +679,7 @@ CONTAINS
 
          DEALLOCATE (descriptor, descr_grad)
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
       CALL timestop(handle)

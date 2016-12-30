@@ -15,8 +15,8 @@ MODULE qs_linres_types
                                               gto_basis_set_type
    USE cp_array_utils_i,                ONLY: cp_2d_i_p_type
    USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
@@ -139,7 +139,7 @@ MODULE qs_linres_types
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER :: psi1_efg, psi1_pso, efg_psi0, pso_psi0, dso_psi0, psi1_dso !last two not needed
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1_fc
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: fc_psi0
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg, matrix_pso, matrix_dso, matrix_fc
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_efg, matrix_pso, matrix_dso, matrix_fc
    END TYPE issc_env_type
 
 ! *********************************************************************************************************
@@ -620,7 +620,7 @@ CONTAINS
          POINTER                                         :: efg_psi0, pso_psi0, dso_psi0
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: fc_psi0
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_efg, matrix_pso, matrix_dso, &
                                                             matrix_fc
 

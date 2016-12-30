@@ -21,13 +21,6 @@ MODULE qs_wf_history_methods
                                               VandeVondele2005a,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
@@ -50,6 +43,13 @@ MODULE qs_wf_history_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: &
         wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
         wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
@@ -147,10 +147,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, img, ispin, nimg, nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_pools
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -238,51 +238,51 @@ CONTAINS
 
       IF (ASSOCIATED(snapshot%rho_ao)) THEN ! the sparsity might be different
          ! (future struct:check)
-         CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao)
+         CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao)
       END IF
       IF (wf_history%store_rho_ao) THEN
          CALL qs_rho_get(rho, rho_ao=rho_ao)
          CPASSERT(ASSOCIATED(rho_ao))
 
-         CALL cp_dbcsr_allocate_matrix_set(snapshot%rho_ao, nspins)
+         CALL dbcsr_allocate_matrix_set(snapshot%rho_ao, nspins)
          DO ispin = 1, nspins
             ALLOCATE (snapshot%rho_ao(ispin)%matrix)
-            CALL cp_dbcsr_init(snapshot%rho_ao(ispin)%matrix)
-            CALL cp_dbcsr_copy(snapshot%rho_ao(ispin)%matrix, rho_ao(ispin)%matrix)
+            CALL dbcsr_init(snapshot%rho_ao(ispin)%matrix)
+            CALL dbcsr_copy(snapshot%rho_ao(ispin)%matrix, rho_ao(ispin)%matrix)
          END DO
       END IF
 
       IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN ! the sparsity might be different
          ! (future struct:check)
-         CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
+         CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
       END IF
       IF (wf_history%store_rho_ao_kp) THEN
          CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
          CPASSERT(ASSOCIATED(rho_ao_kp))
 
          nimg = dft_control%nimages
-         CALL cp_dbcsr_allocate_matrix_set(snapshot%rho_ao_kp, nspins, nimg)
+         CALL dbcsr_allocate_matrix_set(snapshot%rho_ao_kp, nspins, nimg)
          DO ispin = 1, nspins
             DO img = 1, nimg
                ALLOCATE (snapshot%rho_ao_kp(ispin, img)%matrix)
-               CALL cp_dbcsr_init(snapshot%rho_ao_kp(ispin, img)%matrix)
-               CALL cp_dbcsr_copy(snapshot%rho_ao_kp(ispin, img)%matrix, &
-                                  rho_ao_kp(ispin, img)%matrix)
+               CALL dbcsr_init(snapshot%rho_ao_kp(ispin, img)%matrix)
+               CALL dbcsr_copy(snapshot%rho_ao_kp(ispin, img)%matrix, &
+                               rho_ao_kp(ispin, img)%matrix)
             END DO
          END DO
       END IF
 
       IF (ASSOCIATED(snapshot%overlap)) THEN ! the sparsity might be different
          ! (future struct:check)
-         CALL cp_dbcsr_deallocate_matrix(snapshot%overlap)
+         CALL dbcsr_deallocate_matrix(snapshot%overlap)
       END IF
       IF (wf_history%store_overlap) THEN
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CPASSERT(ASSOCIATED(matrix_s))
          CPASSERT(ASSOCIATED(matrix_s(1)%matrix))
          ALLOCATE (snapshot%overlap)
-         CALL cp_dbcsr_init(snapshot%overlap)
-         CALL cp_dbcsr_copy(snapshot%overlap, matrix_s(1)%matrix)
+         CALL dbcsr_init(snapshot%overlap)
+         CALL dbcsr_copy(snapshot%overlap, matrix_s(1)%matrix)
       END IF
 
       IF (wf_history%store_frozen_density) THEN
@@ -490,12 +490,12 @@ CONTAINS
                                                             output_unit, print_level
       LOGICAL                                            :: do_kpoints, my_orthogonal_wf, use_overlap
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao, rho_frozen_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
       TYPE(cp_fm_type), POINTER                          :: csc, fm_tmp, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_frozen_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
@@ -559,9 +559,9 @@ CONTAINS
          CALL qs_rho_get(t0_state%rho_frozen, rho_ao=rho_frozen_ao)
          CALL qs_rho_get(rho, rho_ao=rho_ao)
          DO ispin = 1, SIZE(rho_frozen_ao)
-            CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, &
-                               rho_frozen_ao(ispin)%matrix, &
-                               keep_sparsity=.TRUE.)
+            CALL dbcsr_copy(rho_ao(ispin)%matrix, &
+                            rho_frozen_ao(ispin)%matrix, &
+                            keep_sparsity=.TRUE.)
          END DO
          !FM updating rho_ao directly with t0_state%rho_ao would have the
          !FM wrong matrix structure
@@ -578,18 +578,18 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, SIZE(t0_state%rho_ao_kp, 1)
                DO img = 1, SIZE(t0_state%rho_ao_kp, 2)
-                  CALL cp_dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
-                                     t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                     keep_sparsity=.TRUE.)
+                  CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
+                                  t0_state%rho_ao_kp(ispin, img)%matrix, &
+                                  keep_sparsity=.TRUE.)
                END DO
             END DO
          ELSE
             CPASSERT(ASSOCIATED(t0_state%rho_ao))
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO ispin = 1, SIZE(t0_state%rho_ao)
-               CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, &
-                                  t0_state%rho_ao(ispin)%matrix, &
-                                  keep_sparsity=.TRUE.)
+               CALL dbcsr_copy(rho_ao(ispin)%matrix, &
+                               t0_state%rho_ao(ispin)%matrix, &
+                               keep_sparsity=.TRUE.)
             END DO
          END IF
          ! Why is rho_g valid at this point ?
@@ -624,18 +624,18 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, SIZE(t0_state%rho_ao_kp, 1)
                DO img = 1, SIZE(t0_state%rho_ao_kp, 2)
-                  CALL cp_dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
-                                     t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                     keep_sparsity=.TRUE.)
+                  CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
+                                  t0_state%rho_ao_kp(ispin, img)%matrix, &
+                                  keep_sparsity=.TRUE.)
                END DO
             END DO
          ELSE
             CPASSERT(ASSOCIATED(t0_state%rho_ao))
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO ispin = 1, SIZE(t0_state%rho_ao)
-               CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, &
-                                  t0_state%rho_ao(ispin)%matrix, &
-                                  keep_sparsity=.TRUE.)
+               CALL dbcsr_copy(rho_ao(ispin)%matrix, &
+                               t0_state%rho_ao(ispin)%matrix, &
+                               keep_sparsity=.TRUE.)
             END DO
          END IF
          !FM updating rho_ao directly with t0_state%rho_ao would have the
@@ -710,19 +710,19 @@ CONTAINS
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, SIZE(rho_ao_kp, 1)
                DO img = 1, SIZE(rho_ao_kp, 2)
-                  CALL cp_dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao_kp(ispin, img)%matrix, &
-                                    alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
-                  CALL cp_dbcsr_add(rho_ao_kp(ispin, img)%matrix, t0_state%rho_ao_kp(ispin, img)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
+                  CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao_kp(ispin, img)%matrix, &
+                                 alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
+                  CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t0_state%rho_ao_kp(ispin, img)%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
                END DO
             END DO
          ELSE
             CALL qs_rho_get(rho, rho_ao=rho_ao)
             DO ispin = 1, SIZE(rho_ao)
-               CALL cp_dbcsr_add(rho_ao(ispin)%matrix, t1_state%rho_ao(ispin)%matrix, &
-                                 alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
-               CALL cp_dbcsr_add(rho_ao(ispin)%matrix, t0_state%rho_ao(ispin)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
+               CALL dbcsr_add(rho_ao(ispin)%matrix, t1_state%rho_ao(ispin)%matrix, &
+                              alpha_scalar=0.0_dp, beta_scalar=(t2-t0)/(t1-t0)) ! this copy should be unnecessary
+               CALL dbcsr_add(rho_ao(ispin)%matrix, t0_state%rho_ao(ispin)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=(t1-t2)/(t1-t0))
             END DO
          END IF
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
@@ -1031,8 +1031,8 @@ CONTAINS
       LOGICAL                                            :: has_unit_metric, &
                                                             ortho_contains_cholesky, &
                                                             smearing_is_used
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_pool_type), POINTER                     :: maxao_maxmo_fm_pool
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_scf_env_type), POINTER                     :: scf_env

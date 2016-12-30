@@ -22,14 +22,6 @@ MODULE rt_propagation_types
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_create,&
-                                              cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_init_p,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -41,6 +33,14 @@ MODULE rt_propagation_types
                                               cp_fm_release
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_init,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE qs_matrix_pools,                 ONLY: mpools_get,&
                                               qs_matrix_pools_type
@@ -55,14 +55,14 @@ MODULE rt_propagation_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_types'
 
    TYPE rtp_rho_type
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: new
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: old
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: next
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: new
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: old
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: next
    END TYPE rtp_rho_type
 
    TYPE rtp_history_type
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:, :)               :: rho_history
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)                 :: s_history
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:, :)               :: rho_history
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)                 :: s_history
       TYPE(cp_fm_p_type), POINTER, DIMENSION(:, :)                :: mo_history
    END TYPE rtp_history_type
 
@@ -74,18 +74,18 @@ MODULE rt_propagation_types
    END TYPE rtp_mos_type
 
    TYPE rt_prop_type
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)  :: exp_H_old
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)  :: exp_H_new
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)  :: H_last_iter
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)  :: propagator_matrix
-      TYPE(cp_dbcsr_type), POINTER                 :: S_inv
-      TYPE(cp_dbcsr_type), POINTER                 :: S_half
-      TYPE(cp_dbcsr_type), POINTER                 :: S_minus_half
-      TYPE(cp_dbcsr_type), POINTER                 :: B_mat
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)  :: C_mat
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)  :: S_der
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:)  :: SinvH
-      TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: SinvB
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: exp_H_old
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: exp_H_new
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: H_last_iter
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: propagator_matrix
+      TYPE(dbcsr_type), POINTER                 :: S_inv
+      TYPE(dbcsr_type), POINTER                 :: S_half
+      TYPE(dbcsr_type), POINTER                 :: S_minus_half
+      TYPE(dbcsr_type), POINTER                 :: B_mat
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: C_mat
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: S_der
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:)  :: SinvH
+      TYPE(dbcsr_p_type), POINTER, DIMENSION(:) :: SinvB
       TYPE(rtp_rho_type), POINTER                  :: rho
       TYPE(rtp_mos_type), POINTER                  :: mos
       REAL(KIND=dp)                               :: energy_old
@@ -141,7 +141,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(cp_dbcsr_type), POINTER                       :: template
+      TYPE(dbcsr_type), POINTER                          :: template
       LOGICAL                                            :: linear_scaling
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_aux
 
@@ -166,18 +166,18 @@ CONTAINS
       IF (rtp%linear_scaling) THEN
          ALLOCATE (rtp%rho)
          NULLIFY (rtp%rho%old)
-         CALL cp_dbcsr_allocate_matrix_set(rtp%rho%old, 2*nspin)
+         CALL dbcsr_allocate_matrix_set(rtp%rho%old, 2*nspin)
          NULLIFY (rtp%rho%next)
-         CALL cp_dbcsr_allocate_matrix_set(rtp%rho%next, 2*nspin)
+         CALL dbcsr_allocate_matrix_set(rtp%rho%next, 2*nspin)
          NULLIFY (rtp%rho%new)
-         CALL cp_dbcsr_allocate_matrix_set(rtp%rho%new, 2*nspin)
+         CALL dbcsr_allocate_matrix_set(rtp%rho%new, 2*nspin)
          DO i = 1, 2*nspin
-            CALL cp_dbcsr_init_p(rtp%rho%old(i)%matrix)
-            CALL cp_dbcsr_create(rtp%rho%old(i)%matrix, template=template, matrix_type="N")
-            CALL cp_dbcsr_init_p(rtp%rho%next(i)%matrix)
-            CALL cp_dbcsr_create(rtp%rho%next(i)%matrix, template=template, matrix_type="N")
-            CALL cp_dbcsr_init_p(rtp%rho%new(i)%matrix)
-            CALL cp_dbcsr_create(rtp%rho%new(i)%matrix, template=template, matrix_type="N")
+            CALL dbcsr_init_p(rtp%rho%old(i)%matrix)
+            CALL dbcsr_create(rtp%rho%old(i)%matrix, template=template, matrix_type="N")
+            CALL dbcsr_init_p(rtp%rho%next(i)%matrix)
+            CALL dbcsr_create(rtp%rho%next(i)%matrix, template=template, matrix_type="N")
+            CALL dbcsr_init_p(rtp%rho%new(i)%matrix)
+            CALL dbcsr_create(rtp%rho%new(i)%matrix, template=template, matrix_type="N")
          END DO
       ELSE
          CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools)
@@ -226,32 +226,32 @@ CONTAINS
       NULLIFY (rtp%exp_H_new)
       NULLIFY (rtp%H_last_iter)
       NULLIFY (rtp%propagator_matrix)
-      CALL cp_dbcsr_allocate_matrix_set(rtp%exp_H_old, 2*nspin)
-      CALL cp_dbcsr_allocate_matrix_set(rtp%exp_H_new, 2*nspin)
-      CALL cp_dbcsr_allocate_matrix_set(rtp%H_last_iter, 2*nspin)
-      CALL cp_dbcsr_allocate_matrix_set(rtp%propagator_matrix, 2*nspin)
+      CALL dbcsr_allocate_matrix_set(rtp%exp_H_old, 2*nspin)
+      CALL dbcsr_allocate_matrix_set(rtp%exp_H_new, 2*nspin)
+      CALL dbcsr_allocate_matrix_set(rtp%H_last_iter, 2*nspin)
+      CALL dbcsr_allocate_matrix_set(rtp%propagator_matrix, 2*nspin)
       DO i = 1, 2*nspin
-         CALL cp_dbcsr_init_p(rtp%exp_H_old(i)%matrix)
-         CALL cp_dbcsr_create(rtp%exp_H_old(i)%matrix, template=template, matrix_type="N")
-         CALL cp_dbcsr_init_p(rtp%exp_H_new(i)%matrix)
-         CALL cp_dbcsr_create(rtp%exp_H_new(i)%matrix, template=template, matrix_type="N")
-         CALL cp_dbcsr_init_p(rtp%H_last_iter(i)%matrix)
-         CALL cp_dbcsr_create(rtp%H_last_iter(i)%matrix, template=template, matrix_type="N")
-         CALL cp_dbcsr_init_p(rtp%propagator_matrix(i)%matrix)
-         CALL cp_dbcsr_create(rtp%propagator_matrix(i)%matrix, template=template, matrix_type="N")
+         CALL dbcsr_init_p(rtp%exp_H_old(i)%matrix)
+         CALL dbcsr_create(rtp%exp_H_old(i)%matrix, template=template, matrix_type="N")
+         CALL dbcsr_init_p(rtp%exp_H_new(i)%matrix)
+         CALL dbcsr_create(rtp%exp_H_new(i)%matrix, template=template, matrix_type="N")
+         CALL dbcsr_init_p(rtp%H_last_iter(i)%matrix)
+         CALL dbcsr_create(rtp%H_last_iter(i)%matrix, template=template, matrix_type="N")
+         CALL dbcsr_init_p(rtp%propagator_matrix(i)%matrix)
+         CALL dbcsr_create(rtp%propagator_matrix(i)%matrix, template=template, matrix_type="N")
       END DO
       NULLIFY (rtp%S_inv)
       ALLOCATE (rtp%S_inv)
-      CALL cp_dbcsr_init(rtp%S_inv)
-      CALL cp_dbcsr_create(rtp%S_inv, template=template, matrix_type="S")
+      CALL dbcsr_init(rtp%S_inv)
+      CALL dbcsr_create(rtp%S_inv, template=template, matrix_type="S")
       NULLIFY (rtp%S_half)
       ALLOCATE (rtp%S_half)
-      CALL cp_dbcsr_init(rtp%S_half)
-      CALL cp_dbcsr_create(rtp%S_half, template=template, matrix_type="S")
+      CALL dbcsr_init(rtp%S_half)
+      CALL dbcsr_create(rtp%S_half, template=template, matrix_type="S")
       NULLIFY (rtp%S_minus_half)
       ALLOCATE (rtp%S_minus_half)
-      CALL cp_dbcsr_init(rtp%S_minus_half)
-      CALL cp_dbcsr_create(rtp%S_minus_half, template=template, matrix_type="S")
+      CALL dbcsr_init(rtp%S_minus_half)
+      CALL dbcsr_create(rtp%S_minus_half, template=template, matrix_type="S")
       NULLIFY (rtp%B_mat)
       NULLIFY (rtp%C_mat)
       NULLIFY (rtp%S_der)
@@ -259,25 +259,25 @@ CONTAINS
       NULLIFY (rtp%SinvB)
       IF (.NOT. rtp_control%fixed_ions) THEN
          ALLOCATE (rtp%B_mat)
-         CALL cp_dbcsr_init(rtp%B_mat)
-         CALL cp_dbcsr_create(rtp%B_mat, template=template, matrix_type="N")
-         CALL cp_dbcsr_allocate_matrix_set(rtp%C_mat, 3)
-         CALL cp_dbcsr_allocate_matrix_set(rtp%S_der, 9)
-         CALL cp_dbcsr_allocate_matrix_set(rtp%SinvH, nspin)
-         CALL cp_dbcsr_allocate_matrix_set(rtp%SinvB, nspin)
+         CALL dbcsr_init(rtp%B_mat)
+         CALL dbcsr_create(rtp%B_mat, template=template, matrix_type="N")
+         CALL dbcsr_allocate_matrix_set(rtp%C_mat, 3)
+         CALL dbcsr_allocate_matrix_set(rtp%S_der, 9)
+         CALL dbcsr_allocate_matrix_set(rtp%SinvH, nspin)
+         CALL dbcsr_allocate_matrix_set(rtp%SinvB, nspin)
          DO i = 1, nspin
-            CALL cp_dbcsr_init_p(rtp%SinvH(i)%matrix)
-            CALL cp_dbcsr_create(rtp%SinvH(i)%matrix, template=template, matrix_type="N")
-            CALL cp_dbcsr_init_p(rtp%SinvB(i)%matrix)
-            CALL cp_dbcsr_create(rtp%SinvB(i)%matrix, template=template, matrix_type="N")
+            CALL dbcsr_init_p(rtp%SinvH(i)%matrix)
+            CALL dbcsr_create(rtp%SinvH(i)%matrix, template=template, matrix_type="N")
+            CALL dbcsr_init_p(rtp%SinvB(i)%matrix)
+            CALL dbcsr_create(rtp%SinvB(i)%matrix, template=template, matrix_type="N")
          END DO
          DO i = 1, 3
-            CALL cp_dbcsr_init_p(rtp%C_mat(i)%matrix)
-            CALL cp_dbcsr_create(rtp%C_mat(i)%matrix, template=template, matrix_type="N")
+            CALL dbcsr_init_p(rtp%C_mat(i)%matrix)
+            CALL dbcsr_create(rtp%C_mat(i)%matrix, template=template, matrix_type="N")
          END DO
          DO i = 1, 9
-            CALL cp_dbcsr_init_p(rtp%S_der(i)%matrix)
-            CALL cp_dbcsr_create(rtp%S_der(i)%matrix, template=template, matrix_type="N")
+            CALL dbcsr_init_p(rtp%S_der(i)%matrix)
+            CALL dbcsr_create(rtp%S_der(i)%matrix, template=template, matrix_type="N")
          END DO
       END IF
       ALLOCATE (rtp%orders(2, nspin))
@@ -323,22 +323,22 @@ CONTAINS
                       S_der, dt, nsteps, SinvH, SinvB, admm_mos)
 
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: exp_H_old, exp_H_new, H_last_iter, &
                                                             rho_old, rho_next, rho_new
       TYPE(rtp_mos_type), OPTIONAL, POINTER              :: mos
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos_new, mos_old, mos_next
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: S_inv, S_half, S_minus_half, B_mat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: S_inv, S_half, S_minus_half, B_mat
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: C_mat, propagator_matrix
       LOGICAL, OPTIONAL                                  :: mixing
       REAL(dp), INTENT(out), OPTIONAL                    :: mixing_factor
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: S_der
       REAL(dp), INTENT(out), OPTIONAL                    :: dt
       INTEGER, INTENT(out), OPTIONAL                     :: nsteps
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: SinvH, SinvB
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: admm_mos
@@ -386,17 +386,17 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_release', &
          routineP = moduleN//':'//routineN
 
-      CALL cp_dbcsr_deallocate_matrix_set(rtp%exp_H_old)
-      CALL cp_dbcsr_deallocate_matrix_set(rtp%exp_H_new)
-      CALL cp_dbcsr_deallocate_matrix_set(rtp%H_last_iter)
-      CALL cp_dbcsr_deallocate_matrix_set(rtp%propagator_matrix)
+      CALL dbcsr_deallocate_matrix_set(rtp%exp_H_old)
+      CALL dbcsr_deallocate_matrix_set(rtp%exp_H_new)
+      CALL dbcsr_deallocate_matrix_set(rtp%H_last_iter)
+      CALL dbcsr_deallocate_matrix_set(rtp%propagator_matrix)
       IF (ASSOCIATED(rtp%rho)) THEN
          IF (ASSOCIATED(rtp%rho%old)) &
-            CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%old)
+            CALL dbcsr_deallocate_matrix_set(rtp%rho%old)
          IF (ASSOCIATED(rtp%rho%next)) &
-            CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%next)
+            CALL dbcsr_deallocate_matrix_set(rtp%rho%next)
          IF (ASSOCIATED(rtp%rho%new)) &
-            CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%new)
+            CALL dbcsr_deallocate_matrix_set(rtp%rho%new)
          DEALLOCATE (rtp%rho)
       ENDIF
       IF (ASSOCIATED(rtp%mos)) THEN
@@ -410,19 +410,19 @@ CONTAINS
             CALL cp_fm_vect_dealloc(rtp%mos%admm)
          DEALLOCATE (rtp%mos)
       END IF
-      CALL cp_dbcsr_deallocate_matrix(rtp%S_inv)
-      CALL cp_dbcsr_deallocate_matrix(rtp%S_half)
-      CALL cp_dbcsr_deallocate_matrix(rtp%S_minus_half)
+      CALL dbcsr_deallocate_matrix(rtp%S_inv)
+      CALL dbcsr_deallocate_matrix(rtp%S_half)
+      CALL dbcsr_deallocate_matrix(rtp%S_minus_half)
       IF (ASSOCIATED(rtp%B_mat)) &
-         CALL cp_dbcsr_deallocate_matrix(rtp%B_mat)
+         CALL dbcsr_deallocate_matrix(rtp%B_mat)
       IF (ASSOCIATED(rtp%C_mat)) &
-         CALL cp_dbcsr_deallocate_matrix_set(rtp%C_mat)
+         CALL dbcsr_deallocate_matrix_set(rtp%C_mat)
       IF (ASSOCIATED(rtp%S_der)) &
-         CALL cp_dbcsr_deallocate_matrix_set(rtp%S_der)
+         CALL dbcsr_deallocate_matrix_set(rtp%S_der)
       IF (ASSOCIATED(rtp%SinvH)) &
-         CALL cp_dbcsr_deallocate_matrix_set(rtp%SinvH)
+         CALL dbcsr_deallocate_matrix_set(rtp%SinvH)
       IF (ASSOCIATED(rtp%SinvB)) &
-         CALL cp_dbcsr_deallocate_matrix_set(rtp%SinvB)
+         CALL dbcsr_deallocate_matrix_set(rtp%SinvB)
       IF (ASSOCIATED(rtp%history)) &
          CALL rtp_history_release(rtp)
       DEALLOCATE (rtp%orders)
@@ -452,13 +452,13 @@ CONTAINS
       IF (aspc_order .GT. 0) THEN
          IF (rtp%linear_scaling) THEN
             nmat = SIZE(rtp%rho%new)
-            CALL cp_dbcsr_allocate_matrix_set(history%rho_history, nmat, aspc_order)
+            CALL dbcsr_allocate_matrix_set(history%rho_history, nmat, aspc_order)
             DO i = 1, nmat
                DO j = 1, aspc_order
-                  CALL cp_dbcsr_init_p(history%rho_history(i, j)%matrix)
-                  CALL cp_dbcsr_create(history%rho_history(i, j)%matrix, &
-                                       name="rho_hist"//TRIM(ADJUSTL(cp_to_string(i))), &
-                                       template=rtp%rho%new(1)%matrix)
+                  CALL dbcsr_init_p(history%rho_history(i, j)%matrix)
+                  CALL dbcsr_create(history%rho_history(i, j)%matrix, &
+                                    name="rho_hist"//TRIM(ADJUSTL(cp_to_string(i))), &
+                                    template=rtp%rho%new(1)%matrix)
                END DO
             END DO
          ELSE
@@ -494,7 +494,7 @@ CONTAINS
       INTEGER                                            :: i, j
 
       IF (ASSOCIATED(rtp%history%rho_history)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(rtp%history%rho_history)
+         CALL dbcsr_deallocate_matrix_set(rtp%history%rho_history)
       END IF
 
       IF (ASSOCIATED(rtp%history%mo_history)) THEN
@@ -508,7 +508,7 @@ CONTAINS
       IF (ASSOCIATED(rtp%history%s_history)) THEN
          DO i = 1, SIZE(rtp%history%s_history)
             IF (ASSOCIATED(rtp%history%s_history(i)%matrix)) &
-               CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(i)%matrix)
+               CALL dbcsr_deallocate_matrix(rtp%history%s_history(i)%matrix)
          END DO
          DEALLOCATE (rtp%history%s_history)
       END IF

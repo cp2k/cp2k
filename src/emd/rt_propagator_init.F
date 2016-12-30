@@ -12,10 +12,6 @@ MODULE rt_propagator_init
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_filter, &
-        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, &
-        cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t
@@ -34,6 +30,9 @@ MODULE rt_propagator_init
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_init, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: do_arnoldi,&
                                               do_bch,&
                                               do_cn,&
@@ -83,11 +82,11 @@ CONTAINS
 
       INTEGER                                            :: i, imat, unit_nr
       REAL(KIND=dp)                                      :: dt, prefac
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: exp_H_new, exp_H_old, matrix_ks, &
-                                                            matrix_ks_im, propagator_matrix, &
-                                                            rho_old, s_mat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_next, mos_old
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: exp_H_new, exp_H_old, matrix_ks, &
+                                                            matrix_ks_im, propagator_matrix, &
+                                                            rho_old, s_mat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
@@ -105,7 +104,7 @@ CONTAINS
       CALL s_matrices_create(s_mat, rtp)
       CALL calc_SinvH(rtp, matrix_ks, matrix_ks_im, rtp_control)
       DO i = 1, SIZE(exp_H_old)
-         CALL cp_dbcsr_copy(exp_H_old(i)%matrix, exp_H_new(i)%matrix)
+         CALL dbcsr_copy(exp_H_old(i)%matrix, exp_H_new(i)%matrix)
       END DO
       ! use the fact that CN propagator is a first order pade approximation on the EM propagator
       IF (rtp_control%propagator == do_cn) THEN
@@ -135,8 +134,8 @@ CONTAINS
          prefac = -1.0_dp*dt
       END SELECT
       DO imat = 1, SIZE(exp_H_new)
-         CALL cp_dbcsr_copy(propagator_matrix(imat)%matrix, exp_H_new(imat)%matrix)
-         CALL cp_dbcsr_scale(propagator_matrix(imat)%matrix, prefac)
+         CALL dbcsr_copy(propagator_matrix(imat)%matrix, exp_H_new(imat)%matrix)
+         CALL dbcsr_scale(propagator_matrix(imat)%matrix, prefac)
       END DO
 
       ! For ETRS this bit could be avoided but it drastically simplifies the workflow afterwards.
@@ -159,7 +158,7 @@ CONTAINS
                CALL compute_exponential(exp_H_new, propagator_matrix, rtp_control, rtp)
             END IF
             DO imat = 1, SIZE(exp_H_new)
-               CALL cp_dbcsr_copy(exp_H_old(imat)%matrix, exp_H_new(imat)%matrix)
+               CALL dbcsr_copy(exp_H_old(imat)%matrix, exp_H_new(imat)%matrix)
             END DO
          END IF
       END IF
@@ -186,7 +185,7 @@ CONTAINS
 
    SUBROUTINE get_maxabs_eigval(rtp, s_mat, matrix_ks, rtp_control)
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: s_mat, matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_mat, matrix_ks
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_maxabs_eigval', &
@@ -197,9 +196,9 @@ CONTAINS
       LOGICAL                                            :: emd
       REAL(dp)                                           :: max_eval, min_eval, norm2, scale, t
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: eigval_H
-      TYPE(cp_dbcsr_type), POINTER                       :: S_inv
       TYPE(cp_fm_type), POINTER                          :: eigvec_H, H_fm, S_half, S_inv_fm, &
                                                             S_minus_half, tmp, tmp_mat_H
+      TYPE(dbcsr_type), POINTER                          :: S_inv
 
       CALL timeset(routineN, handle)
 
@@ -305,7 +304,7 @@ CONTAINS
 
    SUBROUTINE get_maxabs_eigval_sparse(rtp, s_mat, matrix_ks, rtp_control)
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: s_mat, matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_mat, matrix_ks
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_maxabs_eigval_sparse', &
@@ -315,7 +314,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, method
       LOGICAL                                            :: converged, emd
       REAL(dp)                                           :: max_ev, min_ev, norm2, scale, t
-      TYPE(cp_dbcsr_type), POINTER                       :: s_half, s_minus_half, tmp, tmp2
+      TYPE(dbcsr_type), POINTER                          :: s_half, s_minus_half, tmp, tmp2
 
       CALL timeset(routineN, handle)
 
@@ -323,20 +322,20 @@ CONTAINS
 
       NULLIFY (s_half)
       ALLOCATE (s_half)
-      CALL cp_dbcsr_init(s_half)
-      CALL cp_dbcsr_create(s_half, template=s_mat(1)%matrix)
+      CALL dbcsr_init(s_half)
+      CALL dbcsr_create(s_half, template=s_mat(1)%matrix)
       NULLIFY (s_minus_half)
       ALLOCATE (s_minus_half)
-      CALL cp_dbcsr_init(s_minus_half)
-      CALL cp_dbcsr_create(s_minus_half, template=s_mat(1)%matrix)
+      CALL dbcsr_init(s_minus_half)
+      CALL dbcsr_create(s_minus_half, template=s_mat(1)%matrix)
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=s_mat(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(tmp)
+      CALL dbcsr_create(tmp, template=s_mat(1)%matrix, matrix_type="N")
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL cp_dbcsr_init(tmp2)
-      CALL cp_dbcsr_create(tmp2, template=s_mat(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(tmp2)
+      CALL dbcsr_create(tmp2, template=s_mat(1)%matrix, matrix_type="N")
       scale = 1.0_dp
       IF (rtp_control%propagator == do_etrs) scale = 2.0_dp
       t = -t/scale
@@ -347,10 +346,10 @@ CONTAINS
       CALL matrix_sqrt_Newton_Schulz(s_half, s_minus_half, s_mat(1)%matrix, rtp%filter_eps, &
                                      rtp%newton_schulz_order, rtp%lanzcos_threshold, rtp%lanzcos_max_iter)
       DO ispin = 1, SIZE(matrix_ks)
-         CALL cp_dbcsr_multiply("N", "N", t, matrix_ks(ispin)%matrix, s_minus_half, zero, tmp, &
-                                filter_eps=rtp%filter_eps)
-         CALL cp_dbcsr_multiply("N", "N", one, s_minus_half, tmp, zero, tmp2, &
-                                filter_eps=rtp%filter_eps)
+         CALL dbcsr_multiply("N", "N", t, matrix_ks(ispin)%matrix, s_minus_half, zero, tmp, &
+                             filter_eps=rtp%filter_eps)
+         CALL dbcsr_multiply("N", "N", one, s_minus_half, tmp, zero, tmp2, &
+                             filter_eps=rtp%filter_eps)
          CALL arnoldi_extremal(tmp2, max_ev, min_ev, threshold=rtp%lanzcos_threshold, &
                                max_iter=rtp%lanzcos_max_iter, converged=converged)
          norm2 = 2.0_dp*MAX(ABS(min_ev), ABS(max_ev))
@@ -358,10 +357,10 @@ CONTAINS
                                  rtp_control%eps_exp, method, emd)
       END DO
 
-      CALL cp_dbcsr_deallocate_matrix(s_half)
-      CALL cp_dbcsr_deallocate_matrix(s_minus_half)
-      CALL cp_dbcsr_deallocate_matrix(tmp)
-      CALL cp_dbcsr_deallocate_matrix(tmp2)
+      CALL dbcsr_deallocate_matrix(s_half)
+      CALL dbcsr_deallocate_matrix(s_minus_half)
+      CALL dbcsr_deallocate_matrix(tmp)
+      CALL dbcsr_deallocate_matrix(tmp2)
 
       CALL timestop(handle)
 
@@ -431,20 +430,20 @@ CONTAINS
 
       INTEGER                                            :: ispin, ncol, re
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_new, rho_old
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new, rho_old
 
       CALL get_rtp(rtp=rtp, rho_old=rho_old, rho_new=rho_new)
 
       DO ispin = 1, SIZE(mos)
          re = 2*ispin-1
          alpha = 3.0_dp-REAL(SIZE(mos), dp)
-         CALL cp_dbcsr_set(rho_old(re)%matrix, 0.0_dp)
+         CALL dbcsr_set(rho_old(re)%matrix, 0.0_dp)
          CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, ncol_global=ncol)
          CALL cp_fm_column_scale(mos(ispin)%mo_set%mo_coeff, mos(ispin)%mo_set%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
                                     matrix_v=mos(ispin)%mo_set%mo_coeff, ncol=ncol, alpha=alpha, keep_sparsity=.FALSE.)
-         CALL cp_dbcsr_filter(rho_old(re)%matrix, eps=rtp%filter_eps)
-         CALL cp_dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
+         CALL dbcsr_filter(rho_old(re)%matrix, eps=rtp%filter_eps)
+         CALL dbcsr_copy(rho_new(re)%matrix, rho_old(re)%matrix)
       END DO
 
    END SUBROUTINE rt_initialize_rho_from_mos

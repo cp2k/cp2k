@@ -10,7 +10,6 @@
 !> \author Joost VandeVondele (10.2003)
 ! **************************************************************************************************
 MODULE qs_scf_wfn_mix
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -21,6 +20,7 @@ MODULE qs_scf_wfn_mix
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -67,7 +67,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: unoccupied_orbs
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER                                            :: output_unit
       INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: marked_states
 

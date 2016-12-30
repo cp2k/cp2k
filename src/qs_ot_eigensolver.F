@@ -11,16 +11,16 @@
 MODULE qs_ot_eigensolver
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release_p, &
-        cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_copy_columns_hack,&
                                               cp_dbcsr_m_by_n_from_template,&
-                                              cp_fm_to_dbcsr_row_template
+                                              cp_fm_to_dbcsr_row_template,&
+                                              dbcsr_copy_columns_hack
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, &
+        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: preconditioner_in_use,&
                                               preconditioner_type
@@ -69,7 +69,7 @@ CONTAINS
                              matrix_c_fm, preconditioner, eps_gradient, &
                              iter_max, size_ortho_space, silent, ot_settings)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: matrix_orthogonal_space_fm
       TYPE(cp_fm_type), POINTER                          :: matrix_c_fm
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
@@ -87,8 +87,8 @@ CONTAINS
                                                             ortho_k, ortho_space_k, output_unit
       LOGICAL                                            :: energy_only, my_silent, ortho
       REAL(KIND=dp)                                      :: delta, energy
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_hc
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_buf1_ortho, matrix_buf2_ortho, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
+      TYPE(dbcsr_type), POINTER                          :: matrix_buf1_ortho, matrix_buf2_ortho, &
                                                             matrix_c, matrix_orthogonal_space, &
                                                             matrix_os_ortho, matrix_s_ortho
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
@@ -125,8 +125,8 @@ CONTAINS
          ALLOCATE (qs_ot_env(1))
          ALLOCATE (matrix_hc(1))
          NULLIFY (matrix_hc(1)%matrix)
-         CALL cp_dbcsr_init_p(matrix_hc(1)%matrix)
-         CALL cp_dbcsr_copy(matrix_hc(1)%matrix, matrix_c, 'matrix_hc')
+         CALL dbcsr_init_p(matrix_hc(1)%matrix)
+         CALL dbcsr_copy(matrix_hc(1)%matrix, matrix_c, 'matrix_hc')
 
          ortho = .FALSE.
          IF (PRESENT(matrix_orthogonal_space_fm)) ortho = .TRUE.
@@ -157,25 +157,25 @@ CONTAINS
          IF (ortho) THEN
             ! construct an initial guess that is orthogonal to matrix_orthogonal_space
 
-            CALL cp_dbcsr_init_p(matrix_s_ortho)
-            CALL cp_dbcsr_copy(matrix_s_ortho, matrix_orthogonal_space, name="matrix_s_ortho")
+            CALL dbcsr_init_p(matrix_s_ortho)
+            CALL dbcsr_copy(matrix_s_ortho, matrix_orthogonal_space, name="matrix_s_ortho")
 
-            CALL cp_dbcsr_init_p(matrix_os_ortho)
+            CALL dbcsr_init_p(matrix_os_ortho)
             CALL cp_dbcsr_m_by_n_from_template(matrix_os_ortho, template=matrix_h, m=ortho_space_k, n=ortho_space_k, &
                                                sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_init_p(matrix_buf1_ortho)
+            CALL dbcsr_init_p(matrix_buf1_ortho)
             CALL cp_dbcsr_m_by_n_from_template(matrix_buf1_ortho, template=matrix_h, m=ortho_space_k, n=k, &
                                                sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_init_p(matrix_buf2_ortho)
+            CALL dbcsr_init_p(matrix_buf2_ortho)
             CALL cp_dbcsr_m_by_n_from_template(matrix_buf2_ortho, template=matrix_h, m=ortho_space_k, n=k, &
                                                sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, matrix_orthogonal_space, &
-                                   0.0_dp, matrix_s_ortho)
-            CALL cp_dbcsr_multiply('T', 'N', rone, matrix_s_ortho, matrix_s_ortho, &
-                                   rzero, matrix_os_ortho)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, matrix_orthogonal_space, &
+                                0.0_dp, matrix_s_ortho)
+            CALL dbcsr_multiply('T', 'N', rone, matrix_s_ortho, matrix_s_ortho, &
+                                rzero, matrix_os_ortho)
 
             CALL cp_dbcsr_cholesky_decompose(matrix_os_ortho, &
                                              para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
@@ -183,40 +183,40 @@ CONTAINS
                                           para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env, &
                                           upper_to_full=.TRUE.)
 
-            CALL cp_dbcsr_multiply('T', 'N', rone, matrix_s_ortho, matrix_c, &
-                                   rzero, matrix_buf1_ortho)
-            CALL cp_dbcsr_multiply('N', 'N', rone, matrix_os_ortho, matrix_buf1_ortho, &
-                                   rzero, matrix_buf2_ortho)
-            CALL cp_dbcsr_multiply('N', 'N', -rone, matrix_s_ortho, matrix_buf2_ortho, &
-                                   rone, matrix_c)
+            CALL dbcsr_multiply('T', 'N', rone, matrix_s_ortho, matrix_c, &
+                                rzero, matrix_buf1_ortho)
+            CALL dbcsr_multiply('N', 'N', rone, matrix_os_ortho, matrix_buf1_ortho, &
+                                rzero, matrix_buf2_ortho)
+            CALL dbcsr_multiply('N', 'N', -rone, matrix_s_ortho, matrix_buf2_ortho, &
+                                rone, matrix_c)
 
             ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
-            CALL cp_dbcsr_copy(qs_ot_env(1)%matrix_c0, matrix_c)
-            CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_c0, &
-                                   0.0_dp, matrix_c)
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_c0, matrix_c)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_c0, &
+                                0.0_dp, matrix_c)
 
             CALL make_basis_sv(qs_ot_env(1)%matrix_c0, k, matrix_c, &
                                qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env)
 
             ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
-            !CALL cp_dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_s_ortho,ortho_space_k,1,1)
-            CALL cp_dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0, matrix_s_ortho, ortho_space_k, 1, 1, &
-                                            para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
-            !CALL cp_dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1)
-            CALL cp_dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0, matrix_c, k, 1, ortho_space_k+1, &
-                                            para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
+            !CALL dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_s_ortho,ortho_space_k,1,1)
+            CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0, matrix_s_ortho, ortho_space_k, 1, 1, &
+                                         para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
+            !CALL dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1)
+            CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0, matrix_c, k, 1, ortho_space_k+1, &
+                                         para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
 
-            CALL cp_dbcsr_release_p(matrix_buf1_ortho)
-            CALL cp_dbcsr_release_p(matrix_buf2_ortho)
-            CALL cp_dbcsr_release_p(matrix_os_ortho)
-            CALL cp_dbcsr_release_p(matrix_s_ortho)
+            CALL dbcsr_release_p(matrix_buf1_ortho)
+            CALL dbcsr_release_p(matrix_buf2_ortho)
+            CALL dbcsr_release_p(matrix_os_ortho)
+            CALL dbcsr_release_p(matrix_s_ortho)
 
          ELSE
 
             ! set c0,sc0
-            CALL cp_dbcsr_copy(qs_ot_env(1)%matrix_c0, matrix_c)
-            CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_c0, &
-                                   0.0_dp, qs_ot_env(1)%matrix_sc0)
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_c0, matrix_c)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_c0, &
+                                0.0_dp, qs_ot_env(1)%matrix_sc0)
 
             CALL make_basis_sv(qs_ot_env(1)%matrix_c0, k, qs_ot_env(1)%matrix_sc0, &
                                qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env)
@@ -227,8 +227,8 @@ CONTAINS
          energy_only = qs_ot_env(1)%energy_only
 
          ! set x
-         CALL cp_dbcsr_set(qs_ot_env(1)%matrix_x, 0.0_dp)
-         CALL cp_dbcsr_set(qs_ot_env(1)%matrix_sx, 0.0_dp)
+         CALL dbcsr_set(qs_ot_env(1)%matrix_x, 0.0_dp)
+         CALL dbcsr_set(qs_ot_env(1)%matrix_sx, 0.0_dp)
 
          ! get c
          CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
@@ -254,11 +254,11 @@ CONTAINS
             iter_total = iter_total+1
 
             ! the energy is cHc, the gradient is 2*H*c
-            CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, matrix_h, matrix_c, &
-                                   0.0_dp, matrix_hc(1)%matrix)
-            CALL cp_dbcsr_trace(matrix_c, matrix_hc(1)%matrix, energy)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_h, matrix_c, &
+                                0.0_dp, matrix_hc(1)%matrix)
+            CALL dbcsr_trace(matrix_c, matrix_hc(1)%matrix, energy)
             IF (.NOT. energy_only) THEN
-               CALL cp_dbcsr_scale(matrix_hc(1)%matrix, 2.0_dp)
+               CALL dbcsr_scale(matrix_hc(1)%matrix, 2.0_dp)
             ENDIF
 
             qs_ot_env(1)%etotal = energy
@@ -266,8 +266,8 @@ CONTAINS
             delta = qs_ot_env(1)%delta
             energy_only = qs_ot_env(1)%energy_only
 
-            CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_x, &
-                                   0.0_dp, qs_ot_env(1)%matrix_sx)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_x, &
+                                0.0_dp, qs_ot_env(1)%matrix_sx)
 
             CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
             CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
@@ -281,9 +281,9 @@ CONTAINS
 
          CALL qs_ot_destroy(qs_ot_env(1))
          DEALLOCATE (qs_ot_env)
-         CALL cp_dbcsr_release_p(matrix_hc(1)%matrix)
+         CALL dbcsr_release_p(matrix_hc(1)%matrix)
          DEALLOCATE (matrix_hc)
-         CALL cp_dbcsr_release_p(matrix_orthogonal_space)
+         CALL dbcsr_release_p(matrix_orthogonal_space)
 
          IF (delta < eps_gradient) THEN
             IF ((output_unit > 0) .AND. .NOT. my_silent) THEN
@@ -307,7 +307,7 @@ CONTAINS
       ENDDO outer_scf
 
       CALL copy_dbcsr_to_fm(matrix_c, matrix_c_fm) ! fm->dbcsr
-      CALL cp_dbcsr_release_p(matrix_c) ! fm->dbcsr
+      CALL dbcsr_release_p(matrix_c) ! fm->dbcsr
 
       CALL timestop(handle)
 

@@ -18,11 +18,6 @@ MODULE qs_tddfpt2_methods
                                               qs_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_distribution_release, &
-        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_dist2d_to_dist,&
@@ -65,6 +60,11 @@ MODULE qs_tddfpt2_methods
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_obj, &
+        dbcsr_distribution_release, dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
@@ -299,9 +299,6 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_last, evals_prev
       REAL(kind=dp), DIMENSION(3)                        :: reference_point
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global, blacs_env_sub
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: dipole_op_xyz_sub, matrix_ks_global, &
-         matrix_ks_sub, matrix_s_aux_fit_global, matrix_s_global, rho_ij_ao, rRc_xyz
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_aux_fit_sub, matrix_s_sub
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_C0_C0T_sub, S_C0_sub
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Aop_evects, Aop_ritz, evects, ritz_vects
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
@@ -313,6 +310,9 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env_global, para_env_sub
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist_sub
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: dipole_op_xyz_sub, matrix_ks_global, &
+         matrix_ks_sub, matrix_s_aux_fit_global, matrix_s_global, rho_ij_ao, rRc_xyz
+      TYPE(dbcsr_type), POINTER                          :: matrix_s_aux_fit_sub, matrix_s_sub
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: dist_2d_sub
       TYPE(mgrid_saved_parameters)                       :: mgrid_saved
@@ -375,11 +375,11 @@ CONTAINS
       ! compute components of the dipole operator in the length form
       IF (tddfpt_control%dipole_form == xas_dip_len) THEN
          NULLIFY (rRc_xyz)
-         CALL cp_dbcsr_allocate_matrix_set(rRc_xyz, nderivs)
+         CALL dbcsr_allocate_matrix_set(rRc_xyz, nderivs)
 
          DO ispin = 1, nderivs
-            CALL cp_dbcsr_init_p(rRc_xyz(ispin)%matrix)
-            CALL cp_dbcsr_copy(rRc_xyz(ispin)%matrix, matrix_s_global(1)%matrix)
+            CALL dbcsr_init_p(rRc_xyz(ispin)%matrix)
+            CALL dbcsr_copy(rRc_xyz(ispin)%matrix, matrix_s_global(1)%matrix)
          END DO
 
          ! get the reference point
@@ -527,7 +527,7 @@ CONTAINS
       CALL cp_fm_create(work_fm_sub, fm_struct)
 
       NULLIFY (matrix_ks_sub)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_ks_sub, nspins)
+      CALL dbcsr_allocate_matrix_set(matrix_ks_sub, nspins)
       DO ispin = 1, nspins
          CALL tddfpt_dbcsr_create_by_dist(matrix_ks_sub(ispin)%matrix, &
                                           template=matrix_ks_global(ispin)%matrix, &
@@ -541,7 +541,7 @@ CONTAINS
 
       ! overlap matrix
       NULLIFY (matrix_s_sub)
-      CALL cp_dbcsr_init_p(matrix_s_sub)
+      CALL dbcsr_init_p(matrix_s_sub)
 
       CALL tddfpt_dbcsr_create_by_dist(matrix_s_sub, &
                                        template=matrix_s_global(1)%matrix, &
@@ -554,7 +554,7 @@ CONTAINS
 
       ! components of the dipole operator
       NULLIFY (dipole_op_xyz_sub)
-      CALL cp_dbcsr_allocate_matrix_set(dipole_op_xyz_sub, nderivs)
+      CALL dbcsr_allocate_matrix_set(dipole_op_xyz_sub, nderivs)
       DO istate = 1, nderivs
          SELECT CASE (tddfpt_control%dipole_form)
          CASE (xas_dip_len)
@@ -582,11 +582,11 @@ CONTAINS
 
       CALL cp_fm_release(work_fm_global)
       IF (tddfpt_control%dipole_form == xas_dip_len) &
-         CALL cp_dbcsr_deallocate_matrix_set(rRc_xyz)
+         CALL dbcsr_deallocate_matrix_set(rRc_xyz)
 
       NULLIFY (matrix_s_aux_fit_sub)
       IF (dft_control%do_admm) THEN
-         CALL cp_dbcsr_get_info(matrix_s_aux_fit_global(1)%matrix, nfullrows_total=nao_aux)
+         CALL dbcsr_get_info(matrix_s_aux_fit_global(1)%matrix, nfullrows_total=nao_aux)
          CALL tddfpt_dbcsr_create_by_dist(matrix_s_aux_fit_sub, &
                                           template=matrix_s_aux_fit_global(1)%matrix, &
                                           dbcsr_dist=dbcsr_dist_sub, &
@@ -633,10 +633,10 @@ CONTAINS
 
       ! rho_ij_struct
       NULLIFY (rho_ij_ao)
-      CALL cp_dbcsr_allocate_matrix_set(rho_ij_ao, nspins)
+      CALL dbcsr_allocate_matrix_set(rho_ij_ao, nspins)
       DO ispin = 1, nspins
-         CALL cp_dbcsr_init_p(rho_ij_ao(ispin)%matrix)
-         CALL cp_dbcsr_copy(rho_ij_ao(ispin)%matrix, matrix_s_sub)
+         CALL dbcsr_init_p(rho_ij_ao(ispin)%matrix)
+         CALL dbcsr_copy(rho_ij_ao(ispin)%matrix, matrix_s_sub)
       END DO
 
       NULLIFY (rho_ij_struct)
@@ -1052,9 +1052,9 @@ CONTAINS
       END DO
       DEALLOCATE (S_C0_C0T_sub, S_C0_sub)
 
-      CALL cp_dbcsr_deallocate_matrix_set(dipole_op_xyz_sub)
-      CALL cp_dbcsr_deallocate_matrix(matrix_s_sub)
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_ks_sub)
+      CALL dbcsr_deallocate_matrix_set(dipole_op_xyz_sub)
+      CALL dbcsr_deallocate_matrix(matrix_s_sub)
+      CALL dbcsr_deallocate_matrix_set(matrix_ks_sub)
 
       DEALLOCATE (fm_struct_evects)
 
@@ -1066,7 +1066,7 @@ CONTAINS
       DEALLOCATE (gs_mos)
 
       IF (ASSOCIATED(matrix_s_aux_fit_sub)) &
-         CALL cp_dbcsr_deallocate_matrix(matrix_s_aux_fit_sub)
+         CALL dbcsr_deallocate_matrix(matrix_s_aux_fit_sub)
 
       IF (ASSOCIATED(task_list_aux_fit_sub)) &
          CALL deallocate_task_list(task_list_aux_fit_sub)
@@ -1084,7 +1084,7 @@ CONTAINS
       END DO
       DEALLOCATE (sab_orb_sub)
 
-      CALL cp_dbcsr_distribution_release(dbcsr_dist_sub)
+      CALL dbcsr_distribution_release(dbcsr_dist_sub)
       DEALLOCATE (dbcsr_dist_sub)
       CALL distribution_2d_release(dist_2d_sub)
 
@@ -1353,7 +1353,7 @@ CONTAINS
 !> \param sab        list of neighbours
 ! **************************************************************************************************
    SUBROUTINE tddfpt_dbcsr_create_by_dist(matrix, template, dbcsr_dist, sab)
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix, template
+      TYPE(dbcsr_type), POINTER                          :: matrix, template
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
@@ -1369,17 +1369,17 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(template))
-      CALL cp_dbcsr_get_info(template, row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                             name=matrix_name, matrix_type=matrix_type)
+      CALL dbcsr_get_info(template, row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+                          name=matrix_name, matrix_type=matrix_type)
 
       IF (ASSOCIATED(matrix)) THEN
-         CALL cp_dbcsr_release(matrix)
+         CALL dbcsr_release(matrix)
       ELSE
          ALLOCATE (matrix)
       END IF
-      CALL cp_dbcsr_init(matrix)
+      CALL dbcsr_init(matrix)
 
-      CALL cp_dbcsr_create(matrix, matrix_name, dbcsr_dist, matrix_type, row_blk_sizes, col_blk_sizes, nze=0)
+      CALL dbcsr_create(matrix, matrix_name, dbcsr_dist, matrix_type, row_blk_sizes, col_blk_sizes, nze=0)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix, sab)
 
       CALL timestop(handle)
@@ -1545,7 +1545,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global, blacs_env_sub
       INTEGER, INTENT(in)                                :: cholesky_method
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_ks_global, matrix_s_global
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks_global, matrix_s_global
       INTEGER, INTENT(in)                                :: nsubgroups
       INTEGER, DIMENSION(0:), INTENT(in)                 :: subgroup
 
@@ -2215,7 +2215,7 @@ CONTAINS
    SUBROUTINE tddfpt_orthonormalize_psi1_psi1(evects, nvects_new, matrix_s)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
       INTEGER, INTENT(in)                                :: nvects_new
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_orthonormalize_psi1_psi1', &
          routineP = moduleN//':'//routineN
@@ -2307,8 +2307,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), INTENT(in)    :: matrix_ks
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_by_energy_diff', &
          routineP = moduleN//':'//routineN
@@ -2382,7 +2382,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -2394,10 +2394,10 @@ CONTAINS
       INTEGER                                            :: handle, ispin, ivect, nao, nspins, nvects
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmo_occ
       REAL(kind=dp)                                      :: alpha, pair_energy
-      TYPE(cp_dbcsr_p_type)                              :: J_ia_munu
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ia_ao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: rho_ia_fm
+      TYPE(dbcsr_p_type)                                 :: J_ia_munu
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ia_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type)                                    :: v_gspace, v_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g
@@ -2433,9 +2433,9 @@ CONTAINS
 
       ! alpha-spin electron density
       NULLIFY (rho_ia_ao)
-      CALL cp_dbcsr_allocate_matrix_set(rho_ia_ao, 1)
-      CALL cp_dbcsr_init_p(rho_ia_ao(1)%matrix)
-      CALL cp_dbcsr_copy(rho_ia_ao(1)%matrix, matrix_s)
+      CALL dbcsr_allocate_matrix_set(rho_ia_ao, 1)
+      CALL dbcsr_init_p(rho_ia_ao(1)%matrix)
+      CALL dbcsr_copy(rho_ia_ao(1)%matrix, matrix_s)
 
       NULLIFY (rho_ia_struct)
       CALL qs_rho_create(rho_ia_struct)
@@ -2445,8 +2445,8 @@ CONTAINS
       CALL qs_rho_get(rho_ia_struct, rho_g=rho_ia_g)
 
       NULLIFY (J_ia_munu%matrix)
-      CALL cp_dbcsr_init_p(J_ia_munu%matrix)
-      CALL cp_dbcsr_copy(J_ia_munu%matrix, matrix_s)
+      CALL dbcsr_init_p(J_ia_munu%matrix)
+      CALL dbcsr_copy(J_ia_munu%matrix, matrix_s)
 
       NULLIFY (fm_struct, rho_ia_fm)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
@@ -2483,7 +2483,7 @@ CONTAINS
             CALL copy_fm_to_dbcsr(rho_ia_fm, rho_ia_ao(1)%matrix, keep_sparsity=.TRUE.)
             CALL qs_rho_update_rho(rho_ia_struct, qs_env, pw_env_external=pw_env, task_list_external=task_list)
 
-            CALL cp_dbcsr_set(J_ia_munu%matrix, 0.0_dp)
+            CALL dbcsr_set(J_ia_munu%matrix, 0.0_dp)
 
             CALL pw_poisson_solve(poisson_env, rho_ia_g(1)%pw, pair_energy, v_gspace%pw)
             CALL pw_transfer(v_gspace%pw, v_rspace%pw)
@@ -2511,7 +2511,7 @@ CONTAINS
 
       CALL cp_fm_release(rho_ia_fm)
 
-      CALL cp_dbcsr_deallocate_matrix(J_ia_munu%matrix)
+      CALL dbcsr_deallocate_matrix(J_ia_munu%matrix)
       CALL qs_rho_release(rho_ia_struct)
 
       DEALLOCATE (nmo_occ)
@@ -2546,7 +2546,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: is_rks_triplets
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set
       TYPE(xc_derivative_set_type), POINTER              :: xc_deriv_set
@@ -2564,10 +2564,10 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nmo_occ
       LOGICAL                                            :: lsd
       REAL(kind=dp)                                      :: alpha, tddfpt_fac
-      TYPE(cp_dbcsr_p_type)                              :: F_ia_munu
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ia_ao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: rho_ia_fm
+      TYPE(dbcsr_p_type)                                 :: F_ia_munu
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ia_ao
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g2, rho_ia_r, &
                                                             rho_ia_r2, tau_ia_r, tau_ia_r2, v_xc
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -2592,10 +2592,10 @@ CONTAINS
       END DO
 
       NULLIFY (rho_ia_ao)
-      CALL cp_dbcsr_allocate_matrix_set(rho_ia_ao, nspins)
+      CALL dbcsr_allocate_matrix_set(rho_ia_ao, nspins)
       DO ispin = 1, nspins
-         CALL cp_dbcsr_init_p(rho_ia_ao(ispin)%matrix)
-         CALL cp_dbcsr_copy(rho_ia_ao(ispin)%matrix, matrix_s)
+         CALL dbcsr_init_p(rho_ia_ao(ispin)%matrix)
+         CALL dbcsr_copy(rho_ia_ao(ispin)%matrix, matrix_s)
       END DO
 
       NULLIFY (rho_ia_struct, rho_ia_r, rho_ia_g)
@@ -2606,8 +2606,8 @@ CONTAINS
       CALL qs_rho_get(rho_ia_struct, rho_r=rho_ia_r, rho_g=rho_ia_g, tau_r=tau_ia_r)
 
       NULLIFY (F_ia_munu%matrix)
-      CALL cp_dbcsr_init_p(F_ia_munu%matrix)
-      CALL cp_dbcsr_copy(F_ia_munu%matrix, matrix_s)
+      CALL dbcsr_init_p(F_ia_munu%matrix)
+      CALL dbcsr_copy(F_ia_munu%matrix, matrix_s)
 
       NULLIFY (fm_struct, rho_ia_fm)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
@@ -2709,7 +2709,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
 
-               CALL cp_dbcsr_set(F_ia_munu%matrix, 0.0_dp)
+               CALL dbcsr_set(F_ia_munu%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=F_ia_munu, qs_env=qs_env, &
                                        calculate_forces=.FALSE., gapw=.FALSE., &
                                        pw_env_external=pw_env, task_list_external=task_list)
@@ -2734,7 +2734,7 @@ CONTAINS
 
       CALL cp_fm_release(rho_ia_fm)
 
-      CALL cp_dbcsr_deallocate_matrix(F_ia_munu%matrix)
+      CALL dbcsr_deallocate_matrix(F_ia_munu%matrix)
       CALL qs_rho_release(rho_ia_struct)
 
       DEALLOCATE (nmo_occ)
@@ -2773,7 +2773,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in)                                :: do_admm
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s, matrix_s_aux_fit
+      TYPE(dbcsr_type), POINTER                          :: matrix_s, matrix_s_aux_fit
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(task_list_type), POINTER                      :: task_list_orb, task_list_aux_fit
       INTEGER, INTENT(in)                                :: nsubgroups
@@ -2789,13 +2789,13 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: tot_rho_aux_fit_r
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: hmat_aux_fit, hmat_global, hmat_orb, &
-         matrix_s_aux_fit_global, matrix_s_global, rho_ia_aux_fit, rho_ia_global, rho_ia_orb
-      TYPE(cp_dbcsr_type), POINTER                       :: hmat_nosym_global
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: rho_ia_aux_fit_fm, rho_ia_orb_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: admm_A_sub, rho_ia_fm_global, &
                                                             work_aux_orb_sub
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: hmat_aux_fit, hmat_global, hmat_orb, &
+         matrix_s_aux_fit_global, matrix_s_global, rho_ia_aux_fit, rho_ia_global, rho_ia_orb
+      TYPE(dbcsr_type), POINTER                          :: hmat_nosym_global
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_aux_fit_g, rho_aux_fit_r, vxc_rho, &
                                                             vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -2846,28 +2846,28 @@ CONTAINS
       IF (do_admm) THEN
          NULLIFY (hmat_orb, hmat_aux_fit, rho_ia_orb, rho_ia_aux_fit, rho_orb_struct, rho_aux_fit_struct)
 
-         CALL cp_dbcsr_allocate_matrix_set(hmat_orb, nspins)
+         CALL dbcsr_allocate_matrix_set(hmat_orb, nspins)
          DO ispin = 1, nspins
-            CALL cp_dbcsr_init_p(hmat_orb(ispin)%matrix)
-            CALL cp_dbcsr_copy(hmat_orb(ispin)%matrix, matrix_s)
+            CALL dbcsr_init_p(hmat_orb(ispin)%matrix)
+            CALL dbcsr_copy(hmat_orb(ispin)%matrix, matrix_s)
          END DO
 
-         CALL cp_dbcsr_allocate_matrix_set(hmat_aux_fit, nspins)
+         CALL dbcsr_allocate_matrix_set(hmat_aux_fit, nspins)
          DO ispin = 1, nspins
-            CALL cp_dbcsr_init_p(hmat_aux_fit(ispin)%matrix)
-            CALL cp_dbcsr_copy(hmat_aux_fit(ispin)%matrix, matrix_s_aux_fit)
+            CALL dbcsr_init_p(hmat_aux_fit(ispin)%matrix)
+            CALL dbcsr_copy(hmat_aux_fit(ispin)%matrix, matrix_s_aux_fit)
          END DO
 
-         CALL cp_dbcsr_allocate_matrix_set(rho_ia_orb, nspins)
+         CALL dbcsr_allocate_matrix_set(rho_ia_orb, nspins)
          DO ispin = 1, nspins
-            CALL cp_dbcsr_init_p(rho_ia_orb(ispin)%matrix)
-            CALL cp_dbcsr_copy(rho_ia_orb(ispin)%matrix, matrix_s)
+            CALL dbcsr_init_p(rho_ia_orb(ispin)%matrix)
+            CALL dbcsr_copy(rho_ia_orb(ispin)%matrix, matrix_s)
          END DO
 
-         CALL cp_dbcsr_allocate_matrix_set(rho_ia_aux_fit, nspins)
+         CALL dbcsr_allocate_matrix_set(rho_ia_aux_fit, nspins)
          DO ispin = 1, nspins
-            CALL cp_dbcsr_init_p(rho_ia_aux_fit(ispin)%matrix)
-            CALL cp_dbcsr_copy(rho_ia_aux_fit(ispin)%matrix, matrix_s_aux_fit)
+            CALL dbcsr_init_p(rho_ia_aux_fit(ispin)%matrix)
+            CALL dbcsr_copy(rho_ia_aux_fit(ispin)%matrix, matrix_s_aux_fit)
          END DO
 
          CALL qs_rho_create(rho_orb_struct)
@@ -2958,7 +2958,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL pw_scale(vxc_rho(ispin)%pw, vxc_rho(ispin)%pw%pw_grid%dvol)
 
-                     CALL cp_dbcsr_set(hmat_orb(ispin)%matrix, 0.0_dp)
+                     CALL dbcsr_set(hmat_orb(ispin)%matrix, 0.0_dp)
                      CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), pmat=rho_ia_orb(ispin), hmat=hmat_orb(ispin), &
                                              qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
                                              pw_env_external=pw_env, task_list_external=task_list_orb)
@@ -2975,7 +2975,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL pw_scale(vxc_tau(ispin)%pw, vxc_tau(ispin)%pw%pw_grid%dvol)
 
-                     CALL cp_dbcsr_set(hmat_orb(ispin)%matrix, 0.0_dp)
+                     CALL dbcsr_set(hmat_orb(ispin)%matrix, 0.0_dp)
                      CALL integrate_v_rspace(v_rspace=vxc_tau(ispin), pmat=rho_ia_orb(ispin), hmat=hmat_orb(ispin), &
                                              qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.TRUE., gapw=.FALSE., &
                                              pw_env_external=pw_env, task_list_external=task_list_orb)
@@ -2996,7 +2996,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL pw_scale(vxc_rho(ispin)%pw, vxc_rho(ispin)%pw%pw_grid%dvol)
 
-                     CALL cp_dbcsr_set(hmat_aux_fit(ispin)%matrix, 0.0_dp)
+                     CALL dbcsr_set(hmat_aux_fit(ispin)%matrix, 0.0_dp)
                      CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), pmat=rho_ia_aux_fit(ispin), &
                                              hmat=hmat_aux_fit(ispin), qs_env=qs_env, calculate_forces=.FALSE., &
                                              force_adm=.TRUE., ispin=ispin, gapw=.FALSE., basis_type="AUX_FIT", &
@@ -3018,7 +3018,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL pw_scale(vxc_tau(ispin)%pw, vxc_tau(ispin)%pw%pw_grid%dvol)
 
-                     CALL cp_dbcsr_set(hmat_aux_fit(ispin)%matrix, 0.0_dp)
+                     CALL dbcsr_set(hmat_aux_fit(ispin)%matrix, 0.0_dp)
                      CALL integrate_v_rspace(v_rspace=vxc_tau(ispin), pmat=rho_ia_aux_fit(ispin), &
                                              hmat=hmat_aux_fit(ispin), qs_env=qs_env, calculate_forces=.FALSE., &
                                              force_adm=.TRUE., ispin=ispin, compute_tau=.TRUE., gapw=.FALSE., &
@@ -3040,31 +3040,31 @@ CONTAINS
 
          CALL qs_rho_release(rho_aux_fit_struct)
          CALL qs_rho_release(rho_orb_struct)
-         CALL cp_dbcsr_deallocate_matrix_set(hmat_aux_fit)
-         CALL cp_dbcsr_deallocate_matrix_set(hmat_orb)
+         CALL dbcsr_deallocate_matrix_set(hmat_aux_fit)
+         CALL dbcsr_deallocate_matrix_set(hmat_orb)
       END IF
 
       ! E_{x}^{HFX}[\rho] and E_{x}^{HFX}[\hat{\rho}]
       ! create globally distributed sparse matrices to store electron density as well as
       ! exact-exchange contributions to the Hamiltonian
       NULLIFY (hmat_global, rho_ia_global)
-      CALL cp_dbcsr_allocate_matrix_set(hmat_global, nspins)
-      CALL cp_dbcsr_allocate_matrix_set(rho_ia_global, nspins)
+      CALL dbcsr_allocate_matrix_set(hmat_global, nspins)
+      CALL dbcsr_allocate_matrix_set(rho_ia_global, nspins)
       DO ispin = 1, nspins
-         CALL cp_dbcsr_init_p(hmat_global(ispin)%matrix)
-         CALL cp_dbcsr_init_p(rho_ia_global(ispin)%matrix)
+         CALL dbcsr_init_p(hmat_global(ispin)%matrix)
+         CALL dbcsr_init_p(rho_ia_global(ispin)%matrix)
          IF (do_admm) THEN
-            CALL cp_dbcsr_copy(hmat_global(ispin)%matrix, matrix_s_aux_fit_global(1)%matrix)
-            CALL cp_dbcsr_copy(rho_ia_global(ispin)%matrix, matrix_s_aux_fit_global(1)%matrix)
+            CALL dbcsr_copy(hmat_global(ispin)%matrix, matrix_s_aux_fit_global(1)%matrix)
+            CALL dbcsr_copy(rho_ia_global(ispin)%matrix, matrix_s_aux_fit_global(1)%matrix)
          ELSE
-            CALL cp_dbcsr_copy(hmat_global(ispin)%matrix, matrix_s_global(1)%matrix)
-            CALL cp_dbcsr_copy(rho_ia_global(ispin)%matrix, matrix_s_global(1)%matrix)
+            CALL dbcsr_copy(hmat_global(ispin)%matrix, matrix_s_global(1)%matrix)
+            CALL dbcsr_copy(rho_ia_global(ispin)%matrix, matrix_s_global(1)%matrix)
          END IF
       END DO
 
       NULLIFY (hmat_nosym_global)
-      CALL cp_dbcsr_init_p(hmat_nosym_global)
-      CALL cp_dbcsr_create(hmat_nosym_global, template=hmat_global(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(hmat_nosym_global)
+      CALL dbcsr_create(hmat_nosym_global, template=hmat_global(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
 
       IF (do_admm) THEN
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao_aux, context=blacs_env_global)
@@ -3087,13 +3087,13 @@ CONTAINS
             END IF
 
             CALL copy_fm_to_dbcsr(rho_ia_fm_global, rho_ia_global(ispin)%matrix, keep_sparsity=.TRUE.)
-            CALL cp_dbcsr_set(hmat_global(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(hmat_global(ispin)%matrix, 0.0_dp)
          END DO
 
          CALL tddft_hfx_matrix(hmat_global, rho_ia_global, qs_env)
 
          DO ispin = 1, nspins
-            CALL cp_dbcsr_desymmetrize(hmat_global(ispin)%matrix, hmat_nosym_global)
+            CALL dbcsr_desymmetrize(hmat_global(ispin)%matrix, hmat_nosym_global)
             CALL copy_dbcsr_to_fm(hmat_nosym_global, rho_ia_fm_global)
 
             IF (do_admm) THEN
@@ -3109,9 +3109,9 @@ CONTAINS
       END DO
 
       CALL cp_fm_release(rho_ia_fm_global)
-      CALL cp_dbcsr_deallocate_matrix_set(rho_ia_global)
-      CALL cp_dbcsr_deallocate_matrix(hmat_nosym_global)
-      CALL cp_dbcsr_deallocate_matrix_set(hmat_global)
+      CALL dbcsr_deallocate_matrix_set(rho_ia_global)
+      CALL dbcsr_deallocate_matrix(hmat_nosym_global)
+      CALL dbcsr_deallocate_matrix_set(hmat_global)
 
       IF (do_admm) THEN
          DO istate = 1, nstates
@@ -3198,14 +3198,14 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: is_rks_triplets
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), INTENT(in)    :: matrix_ks_sub
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_sub
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks_sub
+      TYPE(dbcsr_type), POINTER                          :: matrix_s_sub
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set
       TYPE(xc_derivative_set_type), POINTER              :: xc_deriv_set
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(in)                                :: do_hfx, do_admm
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_aux_fit_sub
+      TYPE(dbcsr_type), POINTER                          :: matrix_s_aux_fit_sub
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_orb_sub, task_list_aux_fit_sub
@@ -3435,7 +3435,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(tddfpt_guess_vectors), INTENT(in)             :: guess_vectors
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_compute_residual_vects', &
          routineP = moduleN//':'//routineN
@@ -3609,8 +3609,8 @@ CONTAINS
          INTENT(in)                                      :: fm_struct_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dipole_op_xyz
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipole_op_xyz
       INTEGER, INTENT(in)                                :: dipole_form
       REAL(kind=dp), INTENT(in)                          :: min_amplitude
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global

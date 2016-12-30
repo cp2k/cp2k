@@ -23,11 +23,6 @@ MODULE qs_scf_post_gpw
    USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_frobenius_norm, &
-        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -61,6 +56,10 @@ MODULE qs_scf_post_gpw
                                               get_results,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_frobenius_norm, dbcsr_get_info, &
+        dbcsr_init, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
@@ -253,12 +252,12 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals, unoccupied_evals, &
                                                             unoccupied_evals_stm
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_rmpv, matrix_s, mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: kinetic_m, rho_ao
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, lumo_localized, lumo_ptr, &
          mo_loc_history, occupied_orbs, unoccupied_orbs, unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: kinetic_m, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
@@ -757,8 +756,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
       LOGICAL                                            :: do_homo
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scenter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_rmpv, matrix_s
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
@@ -880,11 +879,11 @@ CONTAINS
                                                             output_unit
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_rmpv, matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
@@ -1663,8 +1662,8 @@ CONTAINS
       LOGICAL                                            :: deriv_pw, drho_r_valid, tau_r_valid
       REAL(kind=dp)                                      :: cfermi, dum, elf_kernel, norm_drho, &
                                                             rho_53, udvol
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_struct_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_struct_r, rho_r, &
                                                             rho_struct_r, tau_g, tau_r, &
@@ -1831,9 +1830,9 @@ CONTAINS
       INTEGER                                            :: handle, nao, unit_nr
       REAL(KIND=dp)                                      :: S_cond_number
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s, fm_work, mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -1966,10 +1965,10 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_rmpv, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_deriv
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -2191,10 +2190,10 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_hr
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_rmpv, matrix_vxc, rho_ao
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hr
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_rmpv, matrix_vxc, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(particle_list_type), POINTER                  :: particles
@@ -2763,7 +2762,7 @@ CONTAINS
             CALL cp_dbcsr_write_sparse_matrix(matrix_hr(img)%matrix, 4, after, qs_env, &
                                               para_env, output_unit=iw, omit_headers=omit_headers)
          END DO
-         CALL cp_dbcsr_deallocate_matrix_set(matrix_hr)
+         CALL dbcsr_deallocate_matrix_set(matrix_hr)
          CALL cp_print_key_finished_output(iw, logger, input, &
                                            "DFT%PRINT%AO_MATRICES/COMMUTATOR_HR")
       END IF
@@ -2841,8 +2840,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p, matrix_s
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
@@ -3217,16 +3216,16 @@ CONTAINS
          filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, total_rho, upper_bound
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
-      TYPE(cp_dbcsr_type)                                :: matrix_ks_nosym, S_half, S_minus_half, &
-                                                            tmp
-      TYPE(cp_dbcsr_type), POINTER                       :: rho_ao_ortho, window
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, window_fm_struct
       TYPE(cp_fm_type), POINTER                          :: eigenvectors, eigenvectors_nonorth, &
                                                             matrix_ks_fm, P_window_fm, &
                                                             rho_ao_ortho_fm, S_minus_half_fm, &
                                                             window_fm
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
+      TYPE(dbcsr_type)                                   :: matrix_ks_nosym, S_half, S_minus_half, &
+                                                            tmp
+      TYPE(dbcsr_type), POINTER                          :: rho_ao_ortho, window
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), POINTER                           :: rho_g, rho_r
@@ -3265,19 +3264,19 @@ CONTAINS
 
       !Initialize data
       ALLOCATE (window, rho_ao_ortho)
-      CALL cp_dbcsr_get_info(matrix=matrix_ks(1)%matrix, nfullrows_total=nao)
+      CALL dbcsr_get_info(matrix=matrix_ks(1)%matrix, nfullrows_total=nao)
       ALLOCATE (eigenvalues(nao))
-      CALL cp_dbcsr_init(matrix_ks_nosym)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_dbcsr_init(S_minus_half)
-      CALL cp_dbcsr_create(S_minus_half, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_dbcsr_init(S_half)
-      CALL cp_dbcsr_create(S_half, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_dbcsr_init(window)
-      CALL cp_dbcsr_create(window, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL cp_dbcsr_init(rho_ao_ortho)
-      CALL cp_dbcsr_create(rho_ao_ortho, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(matrix_ks_nosym)
+      CALL dbcsr_init(tmp)
+      CALL dbcsr_create(tmp, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(S_minus_half)
+      CALL dbcsr_create(S_minus_half, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(S_half)
+      CALL dbcsr_create(S_half, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(window)
+      CALL dbcsr_create(window, template=matrix_s(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(rho_ao_ortho)
+      CALL dbcsr_create(rho_ao_ortho, template=matrix_s(1)%matrix, matrix_type="N")
       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, context=blacs_env, nrow_global=nao, ncol_global=nao)
       CALL cp_fm_create(P_window_fm, ao_ao_fmstruct)
       CALL cp_fm_create(matrix_ks_fm, ao_ao_fmstruct)
@@ -3296,14 +3295,14 @@ CONTAINS
                                      newton_schulz_order, lanzcos_threshold, lanzcos_max_iter)
 
       !get the full ks matrix
-      CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix, matrix_ks_nosym)
+      CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, matrix_ks_nosym)
 
       !switching to orthonormal basis
-      CALL cp_dbcsr_multiply("N", "N", one, S_minus_half, matrix_ks_nosym, zero, tmp, filter_eps=filter_eps)
-      CALL cp_dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, matrix_ks_nosym, filter_eps=filter_eps)
+      CALL dbcsr_multiply("N", "N", one, S_minus_half, matrix_ks_nosym, zero, tmp, filter_eps=filter_eps)
+      CALL dbcsr_multiply("N", "N", one, tmp, S_minus_half, zero, matrix_ks_nosym, filter_eps=filter_eps)
       CALL copy_dbcsr_to_fm(matrix_ks_nosym, matrix_ks_fm)
-      CALL cp_dbcsr_multiply("N", "N", one, S_half, rho_ao(1)%matrix, zero, tmp, filter_eps=filter_eps)
-      CALL cp_dbcsr_multiply("N", "N", one, tmp, S_half, zero, rho_ao_ortho, filter_eps=filter_eps)
+      CALL dbcsr_multiply("N", "N", one, S_half, rho_ao(1)%matrix, zero, tmp, filter_eps=filter_eps)
+      CALL dbcsr_multiply("N", "N", one, tmp, S_half, zero, rho_ao_ortho, filter_eps=filter_eps)
       CALL copy_dbcsr_to_fm(rho_ao_ortho, rho_ao_ortho_fm)
 
       !diagonalize the full ks matrix
@@ -3332,8 +3331,8 @@ CONTAINS
          CALL cp_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
          !ensure the correct sparsity
          CALL copy_fm_to_dbcsr(P_window_fm, tmp)
-         CALL cp_dbcsr_copy(window, matrix_ks(1)%matrix)
-         CALL cp_dbcsr_copy_into_existing(window, tmp)
+         CALL dbcsr_copy(window, matrix_ks(1)%matrix)
+         CALL dbcsr_copy_into_existing(window, tmp)
          CALL calculate_rho_elec(matrix_p=window, &
                                  rho=rho_r, &
                                  rho_gspace=rho_g, &
@@ -3341,12 +3340,12 @@ CONTAINS
                                  ks_env=ks_env)
          density_total = pw_integrate_function(rho_r%pw)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Ground-state density: ", density_total
-         frob_norm = cp_dbcsr_frobenius_norm(window)
+         frob_norm = dbcsr_frobenius_norm(window)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Frob norm of calculated ground-state density matrix: ", frob_norm
-         CALL cp_dbcsr_add(window, rho_ao(1)%matrix, one, -one)
-         frob_norm = cp_dbcsr_frobenius_norm(rho_ao(1)%matrix)
+         CALL dbcsr_add(window, rho_ao(1)%matrix, one, -one)
+         frob_norm = dbcsr_frobenius_norm(rho_ao(1)%matrix)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Frob norm of current density matrix: ", frob_norm
-         frob_norm = cp_dbcsr_frobenius_norm(window)
+         frob_norm = dbcsr_frobenius_norm(window)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Difference between calculated ground-state density and current density: ", frob_norm
          CALL cp_fm_release(window_fm)
          CALL cp_fm_struct_release(window_fm_struct)
@@ -3379,8 +3378,8 @@ CONTAINS
             CALL cp_gemm("N", "T", nao, nao, next-last, 2*one, window_fm, window_fm, zero, P_window_fm) !calculate the density caused by the mos in the energy window
             CALL copy_fm_to_dbcsr(P_window_fm, tmp)
             !ensure the correct sparsity
-            CALL cp_dbcsr_copy(window, matrix_ks(1)%matrix)
-            CALL cp_dbcsr_copy_into_existing(window, tmp)
+            CALL dbcsr_copy(window, matrix_ks(1)%matrix)
+            CALL dbcsr_copy_into_existing(window, tmp)
             CALL calculate_rho_elec(matrix_p=window, &
                                     rho=rho_r, &
                                     rho_gspace=rho_g, &
@@ -3409,12 +3408,12 @@ CONTAINS
       END DO
 
       !clean up
-      CALL cp_dbcsr_release(matrix_ks_nosym)
-      CALL cp_dbcsr_release(tmp)
-      CALL cp_dbcsr_release(window)
-      CALL cp_dbcsr_release(S_minus_half)
-      CALL cp_dbcsr_release(S_half)
-      CALL cp_dbcsr_release(rho_ao_ortho)
+      CALL dbcsr_release(matrix_ks_nosym)
+      CALL dbcsr_release(tmp)
+      CALL dbcsr_release(window)
+      CALL dbcsr_release(S_minus_half)
+      CALL dbcsr_release(S_half)
+      CALL dbcsr_release(rho_ao_ortho)
       DEALLOCATE (window, rho_ao_ortho)
       CALL cp_fm_struct_release(ao_ao_fmstruct)
       CALL cp_fm_release(matrix_ks_fm)

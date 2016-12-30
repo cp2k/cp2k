@@ -22,8 +22,6 @@ MODULE f77_interface
    USE cell_types,                      ONLY: cell_type,&
                                               init_cell
    USE cp2k_info,                       ONLY: get_runtime_info
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
-                                              cp_dbcsr_init_lib
    USE cp_error_handling,               ONLY: cp_error_handling_setup
    USE cp_files,                        ONLY: init_preconnection_list,&
                                               open_file
@@ -43,6 +41,8 @@ MODULE f77_interface
                                               cp_subsys_set,&
                                               cp_subsys_type,&
                                               unpack_subsys_particles
+   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
+                                              dbcsr_init_lib
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_env_release,&
@@ -260,7 +260,7 @@ CONTAINS
          CALL pw_cuda_init()
 
          ! Initialize the DBCSR configuration
-         CALL cp_dbcsr_init_lib()
+         CALL dbcsr_init_lib()
 
       ELSE
          ierr = cp_failure_level
@@ -293,7 +293,7 @@ CONTAINS
          ierr = cp_failure_level
       ELSE
          ! Finalize the DBCSR configuration
-         CALL cp_dbcsr_finalize_lib(group=default_para_env%group, output_unit=0)
+         CALL dbcsr_finalize_lib(group=default_para_env%group, output_unit=0)
          CALL pw_cuda_finalize()
          DO ienv = n_f_envs, 1, -1
             CALL destroy_force_env(f_envs(ienv)%f_env%id_nr, ierr=ierr)

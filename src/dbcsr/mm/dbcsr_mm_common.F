@@ -30,7 +30,7 @@ MODULE dbcsr_mm_common
                                               dbcsr_memtype_type,&
                                               dbcsr_mpi_size_limits,&
                                               dbcsr_mpi_statistics_type,&
-                                              dbcsr_obj,&
+                                              dbcsr_type,&
                                               dbcsr_type_int_4
    USE dbcsr_work_operations,           ONLY: dbcsr_create
    USE kinds,                           ONLY: int_4,&
@@ -143,55 +143,55 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_buffer_matrix(matrix, source_matrix, &
                                   index_size, data_size, data_buffer, data_memory_type)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
-      TYPE(dbcsr_obj), INTENT(IN)                        :: source_matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: source_matrix
       INTEGER, INTENT(IN), OPTIONAL                      :: index_size, data_size
       TYPE(dbcsr_data_obj), INTENT(IN), OPTIONAL         :: data_buffer
       TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL     :: data_memory_type
 
-      matrix = dbcsr_obj()
+      matrix = dbcsr_type()
       CALL dbcsr_create(matrix, &
                         template=source_matrix, &
-                        name=TRIM("Buffer of "//TRIM(source_matrix%m%name)), &
+                        name=TRIM("Buffer of "//TRIM(source_matrix%name)), &
                         nze=data_size, &
                         data_buffer=data_buffer, &
                         data_memory_type=data_memory_type, &
                         index_memory_type=memtype_mpi_buffer)
       IF (PRESENT(data_size)) THEN
          CALL dbcsr_data_ensure_size( &
-            matrix%m%data_area, &
+            matrix%data_area, &
             data_size, nocopy=.TRUE.)
       ENDIF
       IF (PRESENT(index_size)) THEN
          CALL ensure_array_size( &
-            matrix%m%index, &
+            matrix%index, &
             ub=index_size, nocopy=.TRUE., &
             memory_type=dbcsr_get_index_memory_type(matrix))
       ENDIF
-      matrix%m%negate_real = source_matrix%m%negate_real
-      matrix%m%negate_imaginary = source_matrix%m%negate_imaginary
-      matrix%m%local_indexing = source_matrix%m%local_indexing
-      matrix%m%list_indexing = source_matrix%m%list_indexing
+      matrix%negate_real = source_matrix%negate_real
+      matrix%negate_imaginary = source_matrix%negate_imaginary
+      matrix%local_indexing = source_matrix%local_indexing
+      matrix%list_indexing = source_matrix%list_indexing
       !
-      IF (source_matrix%m%has_local_rows) THEN
-         matrix%m%local_rows = source_matrix%m%local_rows
-         CALL array_hold(matrix%m%local_rows)
-         matrix%m%has_local_rows = .TRUE.
+      IF (source_matrix%has_local_rows) THEN
+         matrix%local_rows = source_matrix%local_rows
+         CALL array_hold(matrix%local_rows)
+         matrix%has_local_rows = .TRUE.
       ENDIF
-      IF (source_matrix%m%has_global_rows) THEN
-         matrix%m%global_rows = source_matrix%m%global_rows
-         CALL array_hold(matrix%m%global_rows)
-         matrix%m%has_global_rows = .TRUE.
+      IF (source_matrix%has_global_rows) THEN
+         matrix%global_rows = source_matrix%global_rows
+         CALL array_hold(matrix%global_rows)
+         matrix%has_global_rows = .TRUE.
       ENDIF
-      IF (source_matrix%m%has_local_cols) THEN
-         matrix%m%local_cols = source_matrix%m%local_cols
-         CALL array_hold(matrix%m%local_cols)
-         matrix%m%has_local_cols = .TRUE.
+      IF (source_matrix%has_local_cols) THEN
+         matrix%local_cols = source_matrix%local_cols
+         CALL array_hold(matrix%local_cols)
+         matrix%has_local_cols = .TRUE.
       ENDIF
-      IF (source_matrix%m%has_global_cols) THEN
-         matrix%m%global_cols = source_matrix%m%global_cols
-         CALL array_hold(matrix%m%global_cols)
-         matrix%m%has_global_cols = .TRUE.
+      IF (source_matrix%has_global_cols) THEN
+         matrix%global_cols = source_matrix%global_cols
+         CALL array_hold(matrix%global_cols)
+         matrix%has_global_cols = .TRUE.
       ENDIF
 
    END SUBROUTINE setup_buffer_matrix
@@ -305,7 +305,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE acc_transpose_blocks(matrix, trs_stackbuf)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: trs_stackbuf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'acc_transpose_blocks', &
@@ -318,7 +318,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER :: blk_index, col_blk_sizes, col_blk_sizes2enum, &
          enum2col_blk_sizes, enum2row_blk_sizes, local2global_cols, local2global_rows, &
          row_blk_sizes, row_blk_sizes2enum, trs_stack
-      INTEGER, DIMENSION(3, matrix%m%nblks)              :: tmp_stack
+      INTEGER, DIMENSION(3, matrix%nblks)                :: tmp_stack
 
       CALL timeset(routineN, handle)
 
@@ -326,17 +326,17 @@ CONTAINS
       NULLIFY (col_blk_sizes2enum, enum2col_blk_sizes)
       NULLIFY (local2global_rows, local2global_cols, trs_stack)
 
-      IF (.NOT. matrix%m%list_indexing) &
+      IF (.NOT. matrix%list_indexing) &
          CPABORT("build_trs_stack: only list_indexing supported.")
       IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4) &
          CPABORT("build_trs_stack: stac_buf has wrong datatype")
-      blk_index => matrix%m%coo_l
-      row_blk_sizes => array_data(matrix%m%row_blk_size)
-      col_blk_sizes => array_data(matrix%m%col_blk_size)
-      local = matrix%m%local_indexing
-      local2global_rows => array_data(matrix%m%local_rows)
-      local2global_cols => array_data(matrix%m%local_cols)
-      nblks = matrix%m%nblks
+      blk_index => matrix%coo_l
+      row_blk_sizes => array_data(matrix%row_blk_size)
+      col_blk_sizes => array_data(matrix%col_blk_size)
+      local = matrix%local_indexing
+      local2global_rows => array_data(matrix%local_rows)
+      local2global_cols => array_data(matrix%local_cols)
+      nblks = matrix%nblks
 
       ! enumerate the blocksizes to keep the following 2D-arrays small.
       CALL enumerate_blk_sizes(row_blk_sizes, row_blk_sizes2enum, enum2row_blk_sizes)
@@ -403,7 +403,7 @@ CONTAINS
       CALL dbcsr_data_host2dev(trs_stackbuf)
 
       ! make sure block-buffer is uploaded befor running the kernels
-      CALL acc_stream_wait_event(trs_stackbuf%d%memory_type%acc_stream, matrix%m%data_area%d%acc_ready)
+      CALL acc_stream_wait_event(trs_stackbuf%d%memory_type%acc_stream, matrix%data_area%d%acc_ready)
 
       ! launch kernels
       DO mi = 1, mi_max
@@ -415,8 +415,8 @@ CONTAINS
                   trs_stack=trs_stackbuf%d%acc_devmem, &
                   offset=offsets(mi, ni), &
                   nblks=counters(mi, ni), &
-                  datatype=matrix%m%data_type, &
-                  buffer=matrix%m%data_area%d%acc_devmem, &
+                  datatype=matrix%data_type, &
+                  buffer=matrix%data_area%d%acc_devmem, &
                   m=m, n=n, &
                   stream=trs_stackbuf%d%memory_type%acc_stream)
             END IF
@@ -425,8 +425,8 @@ CONTAINS
 
       ! make sure block-buffer are not used until transpose kernels finnished
       CALL acc_event_record(trs_stackbuf%d%acc_ready, trs_stackbuf%d%memory_type%acc_stream)
-      CALL acc_stream_wait_event(matrix%m%data_area%d%memory_type%acc_stream, trs_stackbuf%d%acc_ready)
-      CALL acc_event_record(matrix%m%data_area%d%acc_ready, matrix%m%data_area%d%memory_type%acc_stream)
+      CALL acc_stream_wait_event(matrix%data_area%d%memory_type%acc_stream, trs_stackbuf%d%acc_ready)
+      CALL acc_event_record(matrix%data_area%d%acc_ready, matrix%data_area%d%memory_type%acc_stream)
 
       DEALLOCATE (row_blk_sizes2enum, enum2row_blk_sizes)
       DEALLOCATE (col_blk_sizes2enum, enum2col_blk_sizes)
@@ -483,7 +483,7 @@ CONTAINS
                                       left_data_size, right_data_size, &
                                       left_col_nimages, right_row_nimages, &
                                       nthreads) RESULT(size_guess)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_left, matrix_right, product_matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_left, matrix_right, product_matrix
       INTEGER, INTENT(IN)                                :: left_data_size, right_data_size, &
                                                             left_col_nimages, right_row_nimages, &
                                                             nthreads

@@ -14,8 +14,8 @@ MODULE commutator_rpnl
    USE ai_overlap,                      ONLY: overlap
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE external_potential_types,        ONLY: gth_potential_p_type,&
                                               gth_potential_type
    USE kinds,                           ONLY: dp
@@ -62,7 +62,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_com_rpnl(matrix_rv, qs_kind_set, sab_orb, sap_ppnl, eps_ppnl)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_rv
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_rv
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
@@ -300,9 +300,9 @@ CONTAINS
                irow = jatom
                icol = iatom
             END IF
-            CALL cp_dbcsr_get_block_p(matrix_rv(1)%matrix, irow, icol, x_block, found)
-            CALL cp_dbcsr_get_block_p(matrix_rv(2)%matrix, irow, icol, y_block, found)
-            CALL cp_dbcsr_get_block_p(matrix_rv(3)%matrix, irow, icol, z_block, found)
+            CALL dbcsr_get_block_p(matrix_rv(1)%matrix, irow, icol, x_block, found)
+            CALL dbcsr_get_block_p(matrix_rv(2)%matrix, irow, icol, y_block, found)
+            CALL dbcsr_get_block_p(matrix_rv(3)%matrix, irow, icol, z_block, found)
 
             ! loop over all kinds for projector atom
             IF (ASSOCIATED(x_block) .AND. ASSOCIATED(y_block) .AND. ASSOCIATED(z_block)) THEN

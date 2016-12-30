@@ -18,10 +18,6 @@ MODULE preconditioner_makes
                                               get_selected_ritz_vector,&
                                               set_arnoldi_initial_vector,&
                                               setup_arnoldi_data
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_get_info, &
-        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type, &
-        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -44,6 +40,9 @@ MODULE preconditioner_makes
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
    USE input_constants,                 ONLY: &
         cholesky_inverse, cholesky_reduce, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
@@ -78,8 +77,8 @@ CONTAINS
                                          energy_homo, eigenvalues_ot, energy_gap, &
                                          my_solver_type)
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s, matrix_t
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s, matrix_t
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       REAL(KIND=dp)                                      :: energy_homo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_ot
@@ -144,7 +143,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_s)
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_s_inverse', &
          routineP = moduleN//':'//routineN
@@ -157,9 +156,9 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
          ALLOCATE (preconditioner_env%sparse_matrix)
-         CALL cp_dbcsr_init(preconditioner_env%sparse_matrix)
+         CALL dbcsr_init(preconditioner_env%sparse_matrix)
       END IF
-      CALL cp_dbcsr_copy(preconditioner_env%sparse_matrix, matrix_s, name="full_kinetic")
+      CALL dbcsr_copy(preconditioner_env%sparse_matrix, matrix_s, name="full_kinetic")
 
       CALL timestop(handle)
 
@@ -176,7 +175,7 @@ CONTAINS
    SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
                                 energy_gap)
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_t, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_t, matrix_s
       REAL(KIND=dp)                                      :: energy_gap
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic', &
@@ -192,14 +191,14 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
          ALLOCATE (preconditioner_env%sparse_matrix)
-         CALL cp_dbcsr_init(preconditioner_env%sparse_matrix)
+         CALL dbcsr_init(preconditioner_env%sparse_matrix)
       END IF
-      CALL cp_dbcsr_copy(preconditioner_env%sparse_matrix, matrix_t, name="full_kinetic")
+      CALL dbcsr_copy(preconditioner_env%sparse_matrix, matrix_t, name="full_kinetic")
 
       shift = MAX(0.0_dp, energy_gap)
 
-      CALL cp_dbcsr_add(preconditioner_env%sparse_matrix, matrix_s, &
-                        alpha_scalar=1.0_dp, beta_scalar=shift)
+      CALL dbcsr_add(preconditioner_env%sparse_matrix, matrix_s, &
+                     alpha_scalar=1.0_dp, beta_scalar=shift)
 
       CALL timestop(handle)
 
@@ -218,7 +217,7 @@ CONTAINS
                                energy_homo, energy_gap)
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_fm_type), POINTER                          :: fm
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       REAL(KIND=dp)                                      :: energy_homo, energy_gap
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_single', &
@@ -236,7 +235,7 @@ CONTAINS
       IF (ASSOCIATED(fm)) THEN
          CALL cp_fm_release(fm)
       ENDIF
-      CALL cp_dbcsr_get_info(matrix_h, nfullrows_total=n)
+      CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
@@ -309,7 +308,7 @@ CONTAINS
                                      energy_homo, energy_gap)
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_fm_type), POINTER                          :: fm
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
       REAL(KIND=dp)                                      :: energy_homo, energy_gap
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_single_ortho', &
@@ -326,7 +325,7 @@ CONTAINS
       IF (ASSOCIATED(fm)) THEN
          CALL cp_fm_release(fm)
       ENDIF
-      CALL cp_dbcsr_get_info(matrix_h, nfullrows_total=n)
+      CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
@@ -378,7 +377,7 @@ CONTAINS
    SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, energy_gap)
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_fm_type), POINTER                          :: matrix_c0
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       REAL(KIND=dp), DIMENSION(:), POINTER               :: c0_evals
       REAL(KIND=dp)                                      :: energy_gap
 
@@ -547,7 +546,7 @@ CONTAINS
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_fm_type), POINTER                          :: matrix_c0
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
       REAL(KIND=dp), DIMENSION(:), POINTER               :: c0_evals
       REAL(KIND=dp)                                      :: energy_gap
 
@@ -687,9 +686,9 @@ CONTAINS
    SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, energy_gap, matrix_s)
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_fm_type), POINTER                          :: matrix_c0
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
       REAL(KIND=dp)                                      :: energy_gap
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_single_inverse', &
          routineP = moduleN//':'//routineN
@@ -697,45 +696,45 @@ CONTAINS
       INTEGER                                            :: handle, k, n
       REAL(KIND=dp)                                      :: max_ev, min_ev, pre_shift
       TYPE(arnoldi_data_type)                            :: my_arnoldi
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrices
-      TYPE(cp_dbcsr_type), TARGET                        :: dbcsr_cThc, dbcsr_hc, dbcsr_sc, mo_dbcsr
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices
+      TYPE(dbcsr_type), TARGET                           :: dbcsr_cThc, dbcsr_hc, dbcsr_sc, mo_dbcsr
 
       CALL timeset(routineN, handle)
 
       ! Allocate all working matrices needed
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
-      CALL cp_dbcsr_init(mo_dbcsr)
+      CALL dbcsr_init(mo_dbcsr)
       ! copy the fm MO's to a sparse matrix, can be solved better if the sparse version is already present
       ! but for the time beeing this will do
       CALL cp_fm_to_dbcsr_row_template(mo_dbcsr, matrix_c0, matrix_h)
-      CALL cp_dbcsr_init(dbcsr_sc)
-      CALL cp_dbcsr_create(dbcsr_sc, template=mo_dbcsr)
-      CALL cp_dbcsr_init(dbcsr_hc)
-      CALL cp_dbcsr_create(dbcsr_hc, template=mo_dbcsr)
-      CALL cp_dbcsr_init(dbcsr_cThc)
+      CALL dbcsr_init(dbcsr_sc)
+      CALL dbcsr_create(dbcsr_sc, template=mo_dbcsr)
+      CALL dbcsr_init(dbcsr_hc)
+      CALL dbcsr_create(dbcsr_hc, template=mo_dbcsr)
+      CALL dbcsr_init(dbcsr_cThc)
       CALL cp_dbcsr_m_by_n_from_template(dbcsr_cThc, matrix_h, k, k, sym=dbcsr_type_symmetric)
 
       ! Check whether the output matrix was already created, if not do it now
       IF (.NOT. ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
          ALLOCATE (preconditioner_env%sparse_matrix)
-         CALL cp_dbcsr_init(preconditioner_env%sparse_matrix)
+         CALL dbcsr_init(preconditioner_env%sparse_matrix)
       END IF
 
       ! Put the first term of the preconditioner (H) into the output matrix
-      CALL cp_dbcsr_copy(preconditioner_env%sparse_matrix, matrix_h)
+      CALL dbcsr_copy(preconditioner_env%sparse_matrix, matrix_h)
 
       ! Precompute some matrices
       ! S*C, if orthonormal this will be simply C so a copy will do
       IF (PRESENT(matrix_s)) THEN
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s, mo_dbcsr, 0.0_dp, dbcsr_sc)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s, mo_dbcsr, 0.0_dp, dbcsr_sc)
       ELSE
-         CALL cp_dbcsr_copy(dbcsr_sc, mo_dbcsr)
+         CALL dbcsr_copy(dbcsr_sc, mo_dbcsr)
       END IF
 
 !----------------------------compute the occupied subspace and shift it ------------------------------------
       ! cT*H*C which will be used to shift the occupied states to 0
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_h, mo_dbcsr, 0.0_dp, dbcsr_hc)
-      CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mo_dbcsr, dbcsr_hc, 0.0_dp, dbcsr_cThc)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_h, mo_dbcsr, 0.0_dp, dbcsr_hc)
+      CALL dbcsr_multiply("T", "N", 1.0_dp, mo_dbcsr, dbcsr_hc, 0.0_dp, dbcsr_cThc)
 
       ! Compute the Energy of the HOMO. We will use this as a reference energy
       ALLOCATE (matrices(1))
@@ -754,10 +753,10 @@ CONTAINS
       DEALLOCATE (matrices)
 
       ! Lets shift the occupied states a bit further up, -1.0 because we gonna subtract it from H
-      CALL cp_dbcsr_add_on_diag(dbcsr_cThc, -0.5_dp)
+      CALL dbcsr_add_on_diag(dbcsr_cThc, -0.5_dp)
       ! Get the AO representation of the shift (see above why S is needed), W-matrix like object
-      CALL cp_dbcsr_multiply("N", "N", 2.0_dp, dbcsr_sc, dbcsr_cThc, 0.0_dp, dbcsr_hc)
-      CALL cp_dbcsr_multiply("N", "T", -1.0_dp, dbcsr_hc, dbcsr_sc, 1.0_dp, preconditioner_env%sparse_matrix)
+      CALL dbcsr_multiply("N", "N", 2.0_dp, dbcsr_sc, dbcsr_cThc, 0.0_dp, dbcsr_hc)
+      CALL dbcsr_multiply("N", "T", -1.0_dp, dbcsr_hc, dbcsr_sc, 1.0_dp, preconditioner_env%sparse_matrix)
 
 !-------------------------------------compute eigenvalues of H ----------------------------------------------
       ! Setup the arnoldi procedure to compute the lowest ev. if S is present this has to be the generalized ev
@@ -796,15 +795,15 @@ CONTAINS
          pre_shift = 0.0_dp
       END IF
       IF (PRESENT(matrix_s)) THEN
-         CALL cp_dbcsr_add(preconditioner_env%sparse_matrix, matrix_s, 1.0_dp, pre_shift)
+         CALL dbcsr_add(preconditioner_env%sparse_matrix, matrix_s, 1.0_dp, pre_shift)
       ELSE
-         CALL cp_dbcsr_add_on_diag(preconditioner_env%sparse_matrix, pre_shift)
+         CALL dbcsr_add_on_diag(preconditioner_env%sparse_matrix, pre_shift)
       END IF
 
-      CALL cp_dbcsr_release(mo_dbcsr)
-      CALL cp_dbcsr_release(dbcsr_hc)
-      CALL cp_dbcsr_release(dbcsr_sc)
-      CALL cp_dbcsr_release(dbcsr_cThc)
+      CALL dbcsr_release(mo_dbcsr)
+      CALL dbcsr_release(dbcsr_hc)
+      CALL dbcsr_release(dbcsr_sc)
+      CALL dbcsr_release(dbcsr_cThc)
 
       CALL timestop(handle)
 

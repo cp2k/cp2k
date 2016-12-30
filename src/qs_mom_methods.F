@@ -9,7 +9,6 @@
 MODULE qs_mom_methods
    USE bibliography,                    ONLY: Gilbert2008,&
                                               cite_reference
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -22,6 +21,7 @@ MODULE qs_mom_methods
                                               cp_fm_vectorsnorm,&
                                               cp_fm_vectorssum
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: momproj_norm,&
                                               momproj_sum
    USE input_section_types,             ONLY: section_vals_type
@@ -238,7 +238,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: nspins
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_rmpv
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
 
       CHARACTER(len=*), PARAMETER :: routineN = 'do_mom_guess', routineP = moduleN//':'//routineN
 
@@ -369,7 +369,7 @@ CONTAINS
                           diis_step)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step

@@ -19,8 +19,6 @@ MODULE qs_scf_post_se
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -30,6 +28,8 @@ MODULE qs_scf_post_se
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -225,7 +225,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -273,8 +273,8 @@ CONTAINS
                iat = atomic_kind_set(ikind)%atom_list(iatom)
                tcharge = 0.0_dp
                DO i = 1, nspin
-                  CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix, row=iat, col=iat, &
-                                            block=pblock, found=found)
+                  CALL dbcsr_get_block_p(matrix=matrix_p(i)%matrix, row=iat, col=iat, &
+                                         block=pblock, found=found)
                   IF (found) THEN
                      DO j = 1, natorb
                         tcharge(i) = tcharge(i)+pblock(j, j)
@@ -354,8 +354,8 @@ CONTAINS
             DO iatom = 1, nat
                iat = atomic_kind_set(ikind)%atom_list(iatom)
                DO i = 1, nspin
-                  CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix, row=iat, col=iat, &
-                                            block=pblock, found=found)
+                  CALL dbcsr_get_block_p(matrix=matrix_p(i)%matrix, row=iat, col=iat, &
+                                         block=pblock, found=found)
                   IF (found) THEN
                      CPASSERT(natorb == SIZE(pblock, 1))
                      ix = coset(1, 0, 0)-1
@@ -469,7 +469,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -503,8 +503,8 @@ CONTAINS
             DO iatom = 1, nat
                iat = atomic_kind_set(ikind)%atom_list(iatom)
                DO i = 1, nspin
-                  CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix, row=iat, col=iat, &
-                                            block=pblock, found=found)
+                  CALL dbcsr_get_block_p(matrix=matrix_p(i)%matrix, row=iat, col=iat, &
+                                         block=pblock, found=found)
                   IF (found) THEN
                      DO j = 1, natorb
                         charges(iat, i) = charges(iat, i)+pblock(j, j)
@@ -598,9 +598,9 @@ CONTAINS
       LOGICAL                                            :: omit_headers
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_rmpv, rho_ao
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_list_type), POINTER                  :: particles

@@ -12,12 +12,12 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE qs_wf_history_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type
    USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -58,9 +58,9 @@ MODULE qs_wf_history_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
       TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
       TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp
-      TYPE(cp_dbcsr_type), POINTER :: overlap
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp
+      TYPE(dbcsr_type), POINTER :: overlap
       TYPE(qs_rho_type), POINTER :: rho_frozen
       REAL(KIND=dp) :: dt
       INTEGER :: id_nr, ref_count
@@ -143,13 +143,13 @@ CONTAINS
             ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
             ! of qs_wf_history_methods, in case you wonder about it.
             IF (ASSOCIATED(snapshot%rho_ao)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao)
+               CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao)
             END IF
             IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
+               CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp)
             END IF
             IF (ASSOCIATED(snapshot%overlap)) THEN
-               CALL cp_dbcsr_deallocate_matrix(snapshot%overlap)
+               CALL dbcsr_deallocate_matrix(snapshot%overlap)
             END IF
             IF (ASSOCIATED(snapshot%rho_frozen)) THEN
                CALL qs_rho_release(snapshot%rho_frozen)

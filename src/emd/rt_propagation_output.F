@@ -11,14 +11,6 @@
 MODULE rt_propagation_output
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_binary_write, cp_dbcsr_checksum, &
-        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-        cp_dbcsr_filter, cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, &
-        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -42,6 +34,13 @@ MODULE rt_propagation_output
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
+        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_get_occupation, dbcsr_init, &
+        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_p_type, dbcsr_set, &
+        dbcsr_type
    USE input_constants,                 ONLY: ehrenfest,&
                                               real_time_propagation
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -116,9 +115,9 @@ CONTAINS
       REAL(dp)                                           :: orthonormality, tot_rho_r
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, P_im, rho_new
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, P_im, rho_new
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -226,16 +225,16 @@ CONTAINS
                                                     dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT"), cp_p_file)) THEN
                   NULLIFY (P_im)
                   nspin = SIZE(mos_new)/2
-                  CALL cp_dbcsr_allocate_matrix_set(P_im, nspin)
+                  CALL dbcsr_allocate_matrix_set(P_im, nspin)
                   DO spin = 1, nspin
-                     CALL cp_dbcsr_init_p(P_im(spin)%matrix)
-                     CALL cp_dbcsr_create(P_im(spin)%matrix, template=matrix_s(1)%matrix, matrix_type="N")
+                     CALL dbcsr_init_p(P_im(spin)%matrix)
+                     CALL dbcsr_create(P_im(spin)%matrix, template=matrix_s(1)%matrix, matrix_type="N")
                   END DO
                   CALL calculate_P_imaginary(qs_env, rtp, P_im)
                   DO spin = 1, nspin
                      CALL rt_current(qs_env, P_im(spin)%matrix, dft_section, spin)
                   END DO
-                  CALL cp_dbcsr_deallocate_matrix_set(P_im)
+                  CALL dbcsr_deallocate_matrix_set(P_im)
                ENDIF
             ENDIF
             CALL write_rt_mos_to_restart(qs_env%mos, mos_new, particle_set, &
@@ -262,7 +261,7 @@ CONTAINS
    SUBROUTINE rt_calculate_orthonormality(orthonormality, mos_new, matrix_s)
       REAL(KIND=dp), INTENT(out)                         :: orthonormality
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_calculate_orthonormality', &
          routineP = moduleN//':'//routineN
@@ -341,7 +340,7 @@ CONTAINS
    SUBROUTINE rt_convergence(rtp, matrix_s, delta_mos, delta_eps)
 
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: delta_mos
       REAL(dp), INTENT(out)                              :: delta_eps
 
@@ -453,7 +452,7 @@ CONTAINS
    SUBROUTINE rt_convergence_density(rtp, delta_P, delta_eps)
 
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: delta_P
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: delta_P
       REAL(dp), INTENT(out)                              :: delta_eps
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density', &
@@ -463,49 +462,49 @@ CONTAINS
       INTEGER                                            :: col_atom, handle, i, ispin, row_atom
       REAL(dp)                                           :: alpha, max_alpha
       REAL(dp), DIMENSION(:), POINTER                    :: block_values
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_new
-      TYPE(cp_dbcsr_type), POINTER                       :: tmp
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new
+      TYPE(dbcsr_type), POINTER                          :: tmp
 
       CALL timeset(routineN, handle)
 
       CALL get_rtp(rtp=rtp, rho_new=rho_new)
 
       DO i = 1, SIZE(rho_new)
-         CALL cp_dbcsr_add(delta_P(i)%matrix, rho_new(i)%matrix, one, -one)
+         CALL dbcsr_add(delta_P(i)%matrix, rho_new(i)%matrix, one, -one)
       ENDDO
       !get the maximum value of delta_P
       DO i = 1, SIZE(delta_P)
          !square all entries of both matrices
-         CALL cp_dbcsr_iterator_start(iter, delta_P(i)%matrix)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+         CALL dbcsr_iterator_start(iter, delta_P(i)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
             block_values = block_values*block_values
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
       END DO
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=delta_P(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(tmp)
+      CALL dbcsr_create(tmp, template=delta_P(1)%matrix, matrix_type="N")
       DO ispin = 1, SIZE(delta_P)/2
-         CALL cp_dbcsr_desymmetrize(delta_P(2*ispin-1)%matrix, tmp)
-         CALL cp_dbcsr_add(delta_P(2*ispin)%matrix, tmp, one, one)
+         CALL dbcsr_desymmetrize(delta_P(2*ispin-1)%matrix, tmp)
+         CALL dbcsr_add(delta_P(2*ispin)%matrix, tmp, one, one)
       END DO
       !the absolute values are now in the even entries of delta_P
       max_alpha = zero
       DO ispin = 1, SIZE(delta_P)/2
-         CALL cp_dbcsr_iterator_start(iter, delta_P(2*ispin)%matrix)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+         CALL dbcsr_iterator_start(iter, delta_P(2*ispin)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
             alpha = MAXVAL(block_values)
             IF (alpha > max_alpha) max_alpha = alpha
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL mp_max(max_alpha, dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(delta_P(1)%matrix))))
+      CALL mp_max(max_alpha, dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(delta_P(1)%matrix))))
       delta_eps = SQRT(max_alpha)
-      CALL cp_dbcsr_deallocate_matrix(tmp)
+      CALL dbcsr_deallocate_matrix(tmp)
       CALL timestop(handle)
 
    END SUBROUTINE rt_convergence_density
@@ -554,48 +553,48 @@ CONTAINS
    SUBROUTINE report_density_occupation(filter_eps, rho)
 
       REAL(KIND=dp)                                      :: filter_eps
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho
 
       CHARACTER(len=*), PARAMETER :: routineN = 'report_density_occupation', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, im, ispin, re, unit_nr
       REAL(KIND=dp)                                      :: eps, occ
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: tmp
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: tmp
 
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
       unit_nr = cp_logger_get_default_io_unit(logger)
       NULLIFY (tmp)
-      CALL cp_dbcsr_allocate_matrix_set(tmp, SIZE(rho))
+      CALL dbcsr_allocate_matrix_set(tmp, SIZE(rho))
       DO i = 1, SIZE(rho)
-         CALL cp_dbcsr_init_p(tmp(i)%matrix)
-         CALL cp_dbcsr_create(tmp(i)%matrix, template=rho(i)%matrix)
-         CALL cp_dbcsr_copy(tmp(i)%matrix, rho(i)%matrix)
+         CALL dbcsr_init_p(tmp(i)%matrix)
+         CALL dbcsr_create(tmp(i)%matrix, template=rho(i)%matrix)
+         CALL dbcsr_copy(tmp(i)%matrix, rho(i)%matrix)
       ENDDO
       DO ispin = 1, SIZE(rho)/2
          re = 2*ispin-1
          im = 2*ispin
          eps = MAX(filter_eps, 10E-12_dp)
          DO WHILE (eps < 1.1_dp)
-            CALL cp_dbcsr_filter(tmp(re)%matrix, eps)
-            occ = cp_dbcsr_get_occupation(tmp(re)%matrix)
+            CALL dbcsr_filter(tmp(re)%matrix, eps)
+            occ = dbcsr_get_occupation(tmp(re)%matrix)
             IF (unit_nr > 0) WRITE (unit_nr, FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ", &
                ispin, " eps ", eps, " real: ", occ
             eps = eps*10
          ENDDO
          eps = MAX(filter_eps, 10E-12_dp)
          DO WHILE (eps < 1.1_dp)
-            CALL cp_dbcsr_filter(tmp(im)%matrix, eps)
-            occ = cp_dbcsr_get_occupation(tmp(im)%matrix)
+            CALL dbcsr_filter(tmp(im)%matrix, eps)
+            occ = dbcsr_get_occupation(tmp(im)%matrix)
             IF (unit_nr > 0) WRITE (unit_nr, FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ", &
                ispin, " eps ", eps, " imag: ", occ
             eps = eps*10
          ENDDO
       ENDDO
-      CALL cp_dbcsr_deallocate_matrix_set(tmp)
+      CALL dbcsr_deallocate_matrix_set(tmp)
       CALL timestop(handle)
 
    END SUBROUTINE report_density_occupation
@@ -609,7 +608,7 @@ CONTAINS
 
    SUBROUTINE write_rt_p_to_restart(rho_new, history)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_new
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new
       LOGICAL                                            :: history
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart', &
@@ -638,22 +637,22 @@ CONTAINS
          ELSE
             WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE", ispin, "_RESTART.dm"
          ENDIF
-         cs_pos = cp_dbcsr_checksum(rho_new(re)%matrix, pos=.TRUE.)
+         cs_pos = dbcsr_checksum(rho_new(re)%matrix, pos=.TRUE.)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
          ENDIF
-         CALL cp_dbcsr_binary_write(rho_new(re)%matrix, file_name)
+         CALL dbcsr_binary_write(rho_new(re)%matrix, file_name)
          IF (history) THEN
             WRITE (file_name, '(A,I0,A)') &
                TRIM(project_name)//"_LS_DM_SPIN_IM", ispin, "_"//TRIM(cp_iter_string(logger%iter_info))//"_RESTART.dm"
          ELSE
             WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM", ispin, "_RESTART.dm"
          ENDIF
-         cs_pos = cp_dbcsr_checksum(rho_new(im)%matrix, pos=.TRUE.)
+         cs_pos = dbcsr_checksum(rho_new(im)%matrix, pos=.TRUE.)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
          ENDIF
-         CALL cp_dbcsr_binary_write(rho_new(im)%matrix, file_name)
+         CALL dbcsr_binary_write(rho_new(im)%matrix, file_name)
       ENDDO
 
       CALL timestop(handle)
@@ -670,7 +669,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rt_current(qs_env, P_im, dft_section, spin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_type), POINTER                       :: P_im
+      TYPE(dbcsr_type), POINTER                          :: P_im
       TYPE(section_vals_type), POINTER                   :: dft_section
       INTEGER                                            :: spin
 
@@ -681,9 +680,9 @@ CONTAINS
       CHARACTER(len=2)                                   :: sdir
       INTEGER                                            :: dir, handle, print_unit
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
-      TYPE(cp_dbcsr_type), POINTER                       :: zero
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(current_env_type)                             :: current_env
+      TYPE(dbcsr_type), POINTER                          :: zero
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), POINTER                           :: gs, rs
@@ -701,10 +700,10 @@ CONTAINS
       ALLOCATE (rs, gs)
       NULLIFY (rs%pw, gs%pw)
       ALLOCATE (zero)
-      CALL cp_dbcsr_init(zero)
-      CALL cp_dbcsr_create(zero, template=P_im)
-      CALL cp_dbcsr_copy(zero, P_im)
-      CALL cp_dbcsr_set(zero, 0.0_dp)
+      CALL dbcsr_init(zero)
+      CALL dbcsr_create(zero, template=P_im)
+      CALL dbcsr_copy(zero, P_im)
+      CALL dbcsr_set(zero, 0.0_dp)
       current_env%gauge = -1
       current_env%gauge_init = .FALSE.
       CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
@@ -749,7 +748,7 @@ CONTAINS
       DEALLOCATE (rs)
       DEALLOCATE (gs)
 
-      CALL cp_dbcsr_deallocate_matrix(zero)
+      CALL dbcsr_deallocate_matrix(zero)
 
       DEALLOCATE (stride)
 

@@ -14,12 +14,6 @@ MODULE qmmm_se_energy
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -28,6 +22,12 @@ MODULE qmmm_se_energy
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, do_qmmm_coulomb, &
@@ -102,8 +102,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: enuclear
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block_a
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
@@ -160,14 +160,14 @@ CONTAINS
          max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
       ! Allocate the core Hamiltonian matrix
-      CALL cp_dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h, 1)
+      CALL dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h, 1)
       ALLOCATE (ks_qmmm_env_loc%matrix_h(1)%matrix)
 
-      CALL cp_dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix)
+      CALL dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix)
 
-      CALL cp_dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix, matrix_s(1)%matrix, &
-                         name="QMMM HAMILTONIAN MATRIX")
-      CALL cp_dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix, 0.0_dp)
+      CALL dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix, matrix_s(1)%matrix, &
+                      name="QMMM HAMILTONIAN MATRIX")
+      CALL dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix, 0.0_dp)
 
       SELECT CASE (qmmm_env%qmmm_coupl_type)
       CASE (do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave, do_qmmm_pcharge)
@@ -188,8 +188,8 @@ CONTAINS
                iatom = list(i)
                ! Give back block
                NULLIFY (h_block_a)
-               CALL cp_dbcsr_get_block_p(matrix=ks_qmmm_env_loc%matrix_h(1)%matrix, &
-                                         row=iatom, col=iatom, BLOCK=h_block_a, found=found)
+               CALL dbcsr_get_block_p(matrix=ks_qmmm_env_loc%matrix_h(1)%matrix, &
+                                      row=iatom, col=iatom, BLOCK=h_block_a, found=found)
 
                IF (ASSOCIATED(h_block_a)) THEN
                   h_block_a = 0.0_dp
@@ -237,7 +237,7 @@ CONTAINS
          CALL semi_empirical_release(se_kind_mm)
       CASE (do_qmmm_none)
          ! Zero Matrix
-         CALL cp_dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix, 0.0_dp)
+         CALL dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix, 0.0_dp)
       END SELECT
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                            qs_env%input, "QMMM%PRINT%QMMM_MATRIX"), cp_p_file)) THEN

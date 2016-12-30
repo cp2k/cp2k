@@ -13,12 +13,12 @@
 MODULE preconditioner
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: cholesky_reduce,&
                                               ot_precond_full_all,&
                                               ot_precond_full_kinetic,&
@@ -96,8 +96,8 @@ CONTAINS
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       INTEGER, INTENT(IN)                                :: precon_type, solver_type
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s, matrix_t
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s, matrix_t
       TYPE(mo_set_type), POINTER                         :: mo_set
       REAL(KIND=dp)                                      :: energy_gap
       LOGICAL, INTENT(IN), OPTIONAL                      :: convert_precond_to_dbcsr
@@ -112,8 +112,8 @@ CONTAINS
                                                             use_mo_coeff_b
       REAL(KIND=dp)                                      :: energy_homo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_ot
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_b
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
 
       CALL timeset(routineN, handle)
 
@@ -293,7 +293,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
       INTEGER, INTENT(IN)                                :: prec_type, solver_type
       REAL(dp), INTENT(IN)                               :: energy_gap
@@ -309,10 +309,10 @@ CONTAINS
       LOGICAL                                            :: do_co_rotate, my_convert_to_dbcsr, &
                                                             my_has_unit_metric, use_mo_coeff_b
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: kinetic
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_t, mo_coeff_b
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic
+      TYPE(dbcsr_type), POINTER                          :: matrix_t, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)

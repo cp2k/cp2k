@@ -23,13 +23,6 @@ MODULE qs_mo_io
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_binary_write,&
-                                              cp_dbcsr_checksum,&
-                                              cp_dbcsr_create,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_release,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_files,                        ONLY: close_file,&
@@ -51,6 +44,13 @@ MODULE qs_mo_io
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_binary_write,&
+                                              dbcsr_checksum,&
+                                              dbcsr_create,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -177,7 +177,7 @@ CONTAINS
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(section_vals_type), POINTER                   :: dft_section
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: tmpl_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: tmpl_matrix
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dm_binary_restart', &
          routineP = moduleN//':'//routineN
@@ -186,8 +186,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, unit_nr
       LOGICAL                                            :: do_dm_restart
       REAL(KIND=dp)                                      :: cs_pos
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_p_tmp
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type), POINTER                          :: matrix_p_tmp
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -204,8 +204,8 @@ CONTAINS
       IF (do_dm_restart) THEN
          ALLOCATE (matrix_p_tmp)
          DO ispin = 1, SIZE(mo_array)
-            CALL cp_dbcsr_init(matrix_p_tmp)
-            CALL cp_dbcsr_create(matrix_p_tmp, template=tmpl_matrix(ispin)%matrix, name="DM RESTART")
+            CALL dbcsr_init(matrix_p_tmp)
+            CALL dbcsr_create(matrix_p_tmp, template=tmpl_matrix(ispin)%matrix, name="DM RESTART")
 
             IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) CPABORT("mo_coeff_b NOT ASSOCIATED")
 
@@ -214,13 +214,13 @@ CONTAINS
                                           use_dbcsr=.TRUE., retain_sparsity=.FALSE.)
 
             WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_SCF_DM_SPIN_", ispin, "_RESTART.dm"
-            cs_pos = cp_dbcsr_checksum(matrix_p_tmp, pos=.TRUE.)
+            cs_pos = dbcsr_checksum(matrix_p_tmp, pos=.TRUE.)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
             ENDIF
-            CALL cp_dbcsr_binary_write(matrix_p_tmp, file_name)
+            CALL dbcsr_binary_write(matrix_p_tmp, file_name)
 
-            CALL cp_dbcsr_release(matrix_p_tmp)
+            CALL dbcsr_release(matrix_p_tmp)
          ENDDO
          DEALLOCATE (matrix_p_tmp)
       END IF

@@ -1,4 +1,4 @@
 {
 "description": "Methods for Ehrenfest molecular dynamics",
-'requires': ["../","../common","../base","../input","../subsys","../aobasis","../dbcsrwrap","../mpiwrap","../fm","../pw","../arnoldi"],
+'requires': ["../","../common","../base","../input","../subsys","../aobasis","../dbcsr","../mpiwrap","../fm","../pw","../arnoldi"],
 }

@@ -17,12 +17,6 @@ MODULE kpoint_methods
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
-        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_numnodes, &
-        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -43,6 +37,12 @@ MODULE kpoint_methods
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                               cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution, &
+        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_mp_numnodes, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_symmetric
    USE fermi_utils,                     ONLY: fermikp,&
                                               fermikp2
    USE input_constants,                 ONLY: smear_fermi_dirac
@@ -689,9 +689,9 @@ CONTAINS
    SUBROUTINE rskp_transform(rmatrix, cmatrix, rsmat, ispin, &
                              xkp, cell_to_index, sab_nl, is_complex, rs_sign)
 
-      TYPE(cp_dbcsr_type)                                :: rmatrix
-      TYPE(cp_dbcsr_type), OPTIONAL                      :: cmatrix
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rsmat
+      TYPE(dbcsr_type)                                   :: rmatrix
+      TYPE(dbcsr_type), OPTIONAL                         :: cmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
       INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -750,21 +750,21 @@ CONTAINS
          IF (.NOT. do_symmetric .AND. ic < 1) ic = cell_to_index(-cell(1), -cell(2), -cell(3))
          CPASSERT(ic > 0)
 
-         CALL cp_dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
-                                   block=rsblock, found=found)
+         CALL dbcsr_get_block_p(matrix=rsmat(ispin, ic)%matrix, row=irow, col=icol, &
+                                block=rsblock, found=found)
          CPASSERT(found)
 
          IF (wfn_real_only) THEN
-            CALL cp_dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
-                                      block=rblock, found=found)
+            CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
+                                   block=rblock, found=found)
             CPASSERT(found)
             rblock = rblock+coskl*rsblock
          ELSE
-            CALL cp_dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
-                                      block=rblock, found=found)
+            CALL dbcsr_get_block_p(matrix=rmatrix, row=irow, col=icol, &
+                                   block=rblock, found=found)
             CPASSERT(found)
-            CALL cp_dbcsr_get_block_p(matrix=cmatrix, row=irow, col=icol, &
-                                      block=cblock, found=found)
+            CALL dbcsr_get_block_p(matrix=cmatrix, row=irow, col=icol, &
+                                   block=cblock, found=found)
             CPASSERT(found)
             rblock = rblock+coskl*rsblock
             cblock = cblock+sinkl*rsblock
@@ -1005,9 +1005,9 @@ CONTAINS
    SUBROUTINE kpoint_density_transform(kpoint, denmat, wtype, tempmat, sab_nl, fmwork)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: denmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       LOGICAL, INTENT(IN)                                :: wtype
-      TYPE(cp_dbcsr_type), POINTER                       :: tempmat
+      TYPE(dbcsr_type), POINTER                          :: tempmat
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
@@ -1022,9 +1022,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: wkpx
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(cp_dbcsr_type), POINTER                       :: cpmat, rpmat, scpmat, srpmat
       TYPE(cp_fm_type), POINTER                          :: fmdummy
       TYPE(cp_para_env_type), POINTER                    :: para_env_inter_kp
+      TYPE(dbcsr_type), POINTER                          :: cpmat, rpmat, scpmat, srpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
@@ -1032,21 +1032,21 @@ CONTAINS
 
       ! work storage
       ALLOCATE (rpmat)
-      CALL cp_dbcsr_init(rpmat)
-      CALL cp_dbcsr_create(rpmat, template=tempmat, matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_init(rpmat)
+      CALL dbcsr_create(rpmat, template=tempmat, matrix_type=dbcsr_type_symmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(rpmat, sab_nl)
       ALLOCATE (cpmat)
-      CALL cp_dbcsr_init(cpmat)
-      CALL cp_dbcsr_create(cpmat, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_init(cpmat)
+      CALL dbcsr_create(cpmat, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(cpmat, sab_nl)
       IF (.NOT. kpoint%full_grid) THEN
          ALLOCATE (srpmat)
-         CALL cp_dbcsr_init(srpmat)
-         CALL cp_dbcsr_create(srpmat, template=rpmat)
+         CALL dbcsr_init(srpmat)
+         CALL dbcsr_create(srpmat, template=rpmat)
          CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
          ALLOCATE (scpmat)
-         CALL cp_dbcsr_init(scpmat)
-         CALL cp_dbcsr_create(scpmat, template=cpmat)
+         CALL dbcsr_init(scpmat)
+         CALL dbcsr_create(scpmat, template=cpmat)
          CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
       END IF
 
@@ -1063,7 +1063,7 @@ CONTAINS
       NULLIFY (fmdummy)
       DO ispin = 1, nspin
          DO ic = 1, nimg
-            CALL cp_dbcsr_set(denmat(ispin, ic)%matrix, 0.0_dp)
+            CALL dbcsr_set(denmat(ispin, ic)%matrix, 0.0_dp)
          END DO
          !
          DO ik = 1, nkp
@@ -1122,11 +1122,11 @@ CONTAINS
          END DO
       END DO
 
-      CALL cp_dbcsr_deallocate_matrix(rpmat)
-      CALL cp_dbcsr_deallocate_matrix(cpmat)
+      CALL dbcsr_deallocate_matrix(rpmat)
+      CALL dbcsr_deallocate_matrix(cpmat)
       IF (.NOT. kpoint%full_grid) THEN
-         CALL cp_dbcsr_deallocate_matrix(srpmat)
-         CALL cp_dbcsr_deallocate_matrix(scpmat)
+         CALL dbcsr_deallocate_matrix(srpmat)
+         CALL dbcsr_deallocate_matrix(scpmat)
       END IF
 
       CALL timestop(handle)
@@ -1147,8 +1147,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transform_dmat(denmat, rpmat, cpmat, ispin, real_only, sab_nl, cell_to_index, xkp, wkp)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: denmat
-      TYPE(cp_dbcsr_type), POINTER                       :: rpmat, cpmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
+      TYPE(dbcsr_type), POINTER                          :: rpmat, cpmat
       INTEGER, INTENT(IN)                                :: ispin
       LOGICAL, INTENT(IN)                                :: real_only
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1190,18 +1190,18 @@ CONTAINS
          coskl = wkp*COS(twopi*arg)
          sinkl = wkp*fc*SIN(twopi*arg)
 
-         CALL cp_dbcsr_get_block_p(matrix=denmat(ispin, icell)%matrix, row=irow, col=icol, &
-                                   block=dblock, found=found)
+         CALL dbcsr_get_block_p(matrix=denmat(ispin, icell)%matrix, row=irow, col=icol, &
+                                block=dblock, found=found)
          CPASSERT(found)
 
          IF (real_only) THEN
-            CALL cp_dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
+            CALL dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
             CPASSERT(found)
             dblock = dblock+coskl*rblock
          ELSE
-            CALL cp_dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
+            CALL dbcsr_get_block_p(matrix=rpmat, row=irow, col=icol, block=rblock, found=found)
             CPASSERT(found)
-            CALL cp_dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
+            CALL dbcsr_get_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
             CPASSERT(found)
             dblock = dblock+coskl*rblock
             dblock = dblock+sinkl*cblock
@@ -1223,7 +1223,7 @@ CONTAINS
 !> \param antisymmetric Anti-Symmetric matrix
 ! **************************************************************************************************
    SUBROUTINE symtrans(smat, pmat, rot, f0, symmetric, antisymmetric)
-      TYPE(cp_dbcsr_type), POINTER                       :: smat, pmat
+      TYPE(dbcsr_type), POINTER                          :: smat, pmat
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
       INTEGER, DIMENSION(:), INTENT(IN)                  :: f0
       LOGICAL, INTENT(IN), OPTIONAL                      :: symmetric, antisymmetric
@@ -1235,7 +1235,7 @@ CONTAINS
       LOGICAL                                            :: asym, dorot, found, perm, sym, trans
       REAL(KIND=dp)                                      :: dr, fsign
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, sblock
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
@@ -1267,14 +1267,14 @@ CONTAINS
       IF (asym) fsign = -1.0_dp
 
       IF (dorot .OR. perm) THEN
-         CALL cp_dbcsr_set(smat, 0.0_dp)
+         CALL dbcsr_set(smat, 0.0_dp)
          IF (perm) THEN
-            numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(cp_dbcsr_distribution(pmat)))
+            numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(dbcsr_distribution(pmat)))
             IF (numnodes == 1) THEN
                ! the matrices are local to this process
-               CALL cp_dbcsr_iterator_start(iter, pmat)
-               DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-                  CALL cp_dbcsr_iterator_next_block(iter, irow, icol, pblock)
+               CALL dbcsr_iterator_start(iter, pmat)
+               DO WHILE (dbcsr_iterator_blocks_left(iter))
+                  CALL dbcsr_iterator_next_block(iter, irow, icol, pblock)
                   ip = f0(irow)
                   jp = f0(icol)
                   IF (ip <= jp) THEN
@@ -1286,7 +1286,7 @@ CONTAINS
                      jcol = ip
                      trans = .TRUE.
                   END IF
-                  CALL cp_dbcsr_get_block_p(matrix=smat, row=jrow, col=jcol, BLOCK=sblock, found=found)
+                  CALL dbcsr_get_block_p(matrix=smat, row=jrow, col=jcol, BLOCK=sblock, found=found)
                   CPASSERT(found)
                   IF (trans) THEN
                      sblock = fsign*TRANSPOSE(pblock)
@@ -1294,20 +1294,20 @@ CONTAINS
                      sblock = pblock
                   END IF
                END DO
-               CALL cp_dbcsr_iterator_stop(iter)
+               CALL dbcsr_iterator_stop(iter)
                !
             ELSE
                ! distributed matrices, most general code needed
-               ! CALL cp_dbcsr_get_stored_coordinates(pmat, row, col, pos)
+               ! CALL dbcsr_get_stored_coordinates(pmat, row, col, pos)
             END IF
          ELSE
             ! no atom permutations, this is always local
             ! ignore rotations for now
-            CALL cp_dbcsr_copy(smat, pmat)
+            CALL dbcsr_copy(smat, pmat)
          END IF
       ELSE
          ! this is the identity operation, just copy the matrix
-         CALL cp_dbcsr_copy(smat, pmat)
+         CALL dbcsr_copy(smat, pmat)
       END IF
 
       CALL timestop(handle)

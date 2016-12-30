@@ -21,12 +21,12 @@ MODULE qs_kinetic
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_filter,&
-                                              cp_dbcsr_finalize,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_filter,&
+                                              dbcsr_finalize,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -91,17 +91,17 @@ CONTAINS
                                    eps_filter)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_t
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_t
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_p
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
 
@@ -176,11 +176,11 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list, basis_type, qs_kind_set)
 
       IF (dokp) THEN
-         CALL cp_dbcsr_allocate_matrix_set(matrixkp_t, 1, nimg)
+         CALL dbcsr_allocate_matrix_set(matrixkp_t, 1, nimg)
          CALL create_sab_matrix(ks_env, matrixkp_t, matrix_name, basis_set_list, basis_set_list, &
                                 sab_nl, do_symmetric)
       ELSE
-         CALL cp_dbcsr_allocate_matrix_set(matrix_t, 1)
+         CALL dbcsr_allocate_matrix_set(matrix_t, 1)
          CALL create_sab_matrix(ks_env, matrix_t, matrix_name, basis_set_list, basis_set_list, &
                                 sab_nl, do_symmetric)
       END IF
@@ -279,24 +279,24 @@ CONTAINS
          END IF
          NULLIFY (k_block)
          IF (dokp) THEN
-            CALL cp_dbcsr_get_block_p(matrix=matrixkp_t(1, ic)%matrix, &
-                                      row=irow, col=icol, BLOCK=k_block, found=found)
+            CALL dbcsr_get_block_p(matrix=matrixkp_t(1, ic)%matrix, &
+                                   row=irow, col=icol, BLOCK=k_block, found=found)
             CPASSERT(found)
          ELSE
-            CALL cp_dbcsr_get_block_p(matrix=matrix_t(1)%matrix, &
-                                      row=irow, col=icol, BLOCK=k_block, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_t(1)%matrix, &
+                                   row=irow, col=icol, BLOCK=k_block, found=found)
             CPASSERT(found)
          END IF
 
          IF (do_forces) THEN
             NULLIFY (p_block)
             IF (dokp) THEN
-               CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(1, ic)%matrix, &
-                                         row=irow, col=icol, block=p_block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrixkp_p(1, ic)%matrix, &
+                                      row=irow, col=icol, block=p_block, found=found)
                CPASSERT(found)
             ELSE
-               CALL cp_dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
-                                         block=p_block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
+                                      block=p_block, found=found)
                CPASSERT(found)
             END IF
          END IF
@@ -360,15 +360,15 @@ CONTAINS
 
       IF (dokp) THEN
          DO ic = 1, nimg
-            CALL cp_dbcsr_finalize(matrixkp_t(1, ic)%matrix)
+            CALL dbcsr_finalize(matrixkp_t(1, ic)%matrix)
             IF (PRESENT(eps_filter)) THEN
-               CALL cp_dbcsr_filter(matrixkp_t(1, ic)%matrix, eps_filter)
+               CALL dbcsr_filter(matrixkp_t(1, ic)%matrix, eps_filter)
             END IF
          END DO
       ELSE
-         CALL cp_dbcsr_finalize(matrix_t(1)%matrix)
+         CALL dbcsr_finalize(matrix_t(1)%matrix)
          IF (PRESENT(eps_filter)) THEN
-            CALL cp_dbcsr_filter(matrix_t(1)%matrix, eps_filter)
+            CALL dbcsr_filter(matrix_t(1)%matrix, eps_filter)
          END IF
       END IF
 

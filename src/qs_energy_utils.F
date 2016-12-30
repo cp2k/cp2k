@@ -15,10 +15,6 @@ MODULE qs_energy_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_control_utils,                ONLY: read_becke_section,&
                                               read_ddapc_section
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -27,6 +23,10 @@ MODULE qs_energy_utils
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type
    USE et_coupling,                     ONLY: calc_et_coupling
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -92,12 +92,12 @@ CONTAINS
 
       INTEGER                                            :: handle, is, ispin, nao, nspin
       LOGICAL                                            :: do_kpoints, has_unit_metric
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, matrix_w, &
-                                                            matrix_w_mp2, mo_derivs, rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s_kp, matrix_w_kp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_w, &
+                                                            matrix_w_mp2, mo_derivs, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -169,7 +169,7 @@ CONTAINS
                   IF (scf_control%use_ot) THEN
                      IF (ispin > 1) THEN
                         ! not very elegant, indeed ...
-                        CALL cp_dbcsr_set(matrix_w(ispin)%matrix, 0.0_dp)
+                        CALL dbcsr_set(matrix_w(ispin)%matrix, 0.0_dp)
                      ELSE
                         CALL calculate_w_matrix_ot(mo_set, mo_derivs(ispin)%matrix, &
                                                    matrix_w(ispin)%matrix, matrix_s(1)%matrix)
@@ -190,7 +190,7 @@ CONTAINS
                END IF
                ! if MP2 time to update the W matrix with the MP2 contribution
                IF (ASSOCIATED(qs_env%mp2_env)) THEN
-                  CALL cp_dbcsr_add(matrix_w(ispin)%matrix, matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+                  CALL dbcsr_add(matrix_w(ispin)%matrix, matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
                END IF
             END DO
 
@@ -322,7 +322,7 @@ CONTAINS
 
       INTEGER                                            :: ispin
       TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_h, matrix_ks, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, rho_ao
       TYPE(qs_rho_type), POINTER                         :: rho
 
       NULLIFY (atprop, matrix_h, matrix_ks, rho, rho_ao)
@@ -356,7 +356,7 @@ CONTAINS
 !>      charges are computed per spin in the LSD case
 ! **************************************************************************************************
    SUBROUTINE atom_trace(amat, bmat, factor, atrace)
-      TYPE(cp_dbcsr_type), POINTER                       :: amat, bmat
+      TYPE(dbcsr_type), POINTER                          :: amat, bmat
       REAL(kind=dp), INTENT(IN)                          :: factor
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atrace
 
@@ -366,16 +366,16 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: btr, mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a_block, b_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
-      CALL cp_dbcsr_get_info(bmat, nblkrows_total=nblock)
+      CALL dbcsr_get_info(bmat, nblkrows_total=nblock)
       CPASSERT(nblock == SIZE(atrace))
 
-      CALL cp_dbcsr_iterator_start(iter, bmat)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, b_block, blk)
-         CALL cp_dbcsr_get_block_p(matrix=amat, &
-                                   row=iblock_row, col=iblock_col, BLOCK=a_block, found=found)
+      CALL dbcsr_iterator_start(iter, bmat)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, b_block, blk)
+         CALL dbcsr_get_block_p(matrix=amat, &
+                                row=iblock_row, col=iblock_col, BLOCK=a_block, found=found)
 
          ! we can cycle if a block is not present
          IF (.NOT. (ASSOCIATED(b_block) .AND. ASSOCIATED(a_block))) CYCLE
@@ -390,7 +390,7 @@ CONTAINS
          atrace(iblock_col) = atrace(iblock_col)+btr
 
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
    END SUBROUTINE atom_trace
 

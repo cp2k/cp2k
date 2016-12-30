@@ -16,8 +16,6 @@ MODULE qs_fermi_contact
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -26,6 +24,8 @@ MODULE qs_fermi_contact
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
@@ -75,7 +75,7 @@ CONTAINS
    SUBROUTINE build_fermi_contact_matrix(qs_env, matrix_fc, rc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_fc
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_fc
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_fermi_contact_matrix', &
@@ -219,8 +219,8 @@ CONTAINS
             END IF
 
             NULLIFY (fcint(1)%block)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_fc(1)%matrix, &
-                                      row=irow, col=icol, BLOCK=fcint(1)%block, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_fc(1)%matrix, &
+                                   row=irow, col=icol, BLOCK=fcint(1)%block, found=found)
          ENDIF
 
          DO iset = 1, nseta

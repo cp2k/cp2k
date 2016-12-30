@@ -10,18 +10,18 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k
-   USE cp_dbcsr_interface,              ONLY: dbcsr_test_binary_io,&
-                                              dbcsr_test_mm,&
-                                              dbcsr_type_complex_4,&
-                                              dbcsr_type_complex_8,&
-                                              dbcsr_type_real_4,&
-                                              dbcsr_type_real_8
    USE cp_eri_mme_types,                ONLY: create_eri_mme_test_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
+   USE dbcsr_api,                       ONLY: dbcsr_test_binary_io,&
+                                              dbcsr_test_mm,&
+                                              dbcsr_type_complex_4,&
+                                              dbcsr_type_complex_8,&
+                                              dbcsr_type_real_4,&
+                                              dbcsr_type_real_8
    USE input_constants,                 ONLY: &
         do_diag_syevd, do_diag_syevx, do_mat_random, do_mat_read, do_pwgrid_ns_fullspace, &
         do_pwgrid_ns_halfspace, do_pwgrid_spherical, ehrenfest, numerical

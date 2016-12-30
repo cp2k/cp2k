@@ -16,10 +16,6 @@ MODULE cp_ddapc
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: ddapc_restraint_type,&
                                               dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set
    USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                               reset_ch_pulay,&
                                               restraint_functional_force,&
@@ -31,6 +27,10 @@ MODULE cp_ddapc
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
    USE input_constants,                 ONLY: do_spin_density
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -90,7 +90,7 @@ CONTAINS
                                                             v_spin_ddapc_rest_r
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       LOGICAL, INTENT(in)                                :: just_energy
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_ddapc', routineP = moduleN//':'//routineN
@@ -176,10 +176,10 @@ CONTAINS
                   IF (qs_env%et_coupling%first_run) THEN
                      NULLIFY (qs_env%et_coupling%rest_mat(1)%matrix)
                      ALLOCATE (qs_env%et_coupling%rest_mat(1)%matrix)
-                     CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
-                     CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1, 1)%matrix, &
-                                        name="ET_RESTRAINT_MATRIX_B")
-                     CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
+                     CALL dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
+                     CALL dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1, 1)%matrix, &
+                                     name="ET_RESTRAINT_MATRIX_B")
+                     CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
                      CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
                                              hmat=qs_env%et_coupling%rest_mat(1), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
@@ -190,10 +190,10 @@ CONTAINS
                   ELSE
                      NULLIFY (qs_env%et_coupling%rest_mat(2)%matrix)
                      ALLOCATE (qs_env%et_coupling%rest_mat(2)%matrix)
-                     CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
-                     CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1, 1)%matrix, &
-                                        name="ET_RESTRAINT_MATRIX_B")
-                     CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)
+                     CALL dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
+                     CALL dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1, 1)%matrix, &
+                                     name="ET_RESTRAINT_MATRIX_B")
+                     CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)
                      CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
                                              hmat=qs_env%et_coupling%rest_mat(2), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)

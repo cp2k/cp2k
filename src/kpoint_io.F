@@ -13,8 +13,6 @@ MODULE kpoint_io
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
-                                              cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_files,                        ONLY: close_file,&
@@ -31,6 +29,8 @@ MODULE kpoint_io
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_info,&
+                                              dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -73,7 +73,7 @@ CONTAINS
    SUBROUTINE write_kpoints_restart(denmat, kpoints, scf_env, dft_section, &
                                     particle_set, qs_kind_set)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: denmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -297,7 +297,7 @@ CONTAINS
    SUBROUTINE read_kpoints_restart(denmat, kpoints, fmwork, natom, &
                                    para_env, id_nr, dft_section, natom_mismatch)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: denmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       INTEGER, INTENT(IN)                                :: natom
@@ -370,7 +370,7 @@ CONTAINS
    SUBROUTINE read_kpoints_restart_low(denmat, kpoints, fmat, para_env, &
                                        natom, rst_unit, natom_mismatch)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: denmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_type), POINTER                          :: fmat
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -390,7 +390,7 @@ CONTAINS
       source = para_env%source
 
       CPASSERT(ASSOCIATED(denmat))
-      CALL cp_dbcsr_get_info(denmat(1, 1)%matrix, nfullrows_total=nao)
+      CALL dbcsr_get_info(denmat(1, 1)%matrix, nfullrows_total=nao)
 
       nspin = SIZE(denmat, 1)
       nimages = SIZE(denmat, 2)

@@ -15,7 +15,7 @@ MODULE dbcsr_multiply_api
                                               dbcsr_multiply_generic,&
                                               dbcsr_multiply_lib_finalize,&
                                               dbcsr_multiply_lib_init
-   USE dbcsr_types,                     ONLY: dbcsr_obj,&
+   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                               dbcsr_type_real_4,&
                                               dbcsr_type_real_8
    USE kinds,                           ONLY: int_8,&
@@ -69,9 +69,9 @@ CONTAINS
                                flop)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       REAL(KIND=real_4), INTENT(IN)                      :: alpha
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
       REAL(KIND=real_4), INTENT(IN)                      :: beta
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_c
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_column, &
                                                             last_column, first_k, last_k
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
@@ -112,9 +112,9 @@ CONTAINS
                                flop)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       REAL(KIND=real_8), INTENT(IN)                      :: alpha
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
       REAL(KIND=real_8), INTENT(IN)                      :: beta
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_c
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_column, &
                                                             last_column, first_k, last_k
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
@@ -174,9 +174,9 @@ CONTAINS
                                flop)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       COMPLEX(KIND=real_4), INTENT(IN)                   :: alpha
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
       COMPLEX(KIND=real_4), INTENT(IN)                   :: beta
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_c
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_column, &
                                                             last_column, first_k, last_k
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
@@ -217,9 +217,9 @@ CONTAINS
                                flop)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       COMPLEX(KIND=real_8), INTENT(IN)                   :: alpha
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
       COMPLEX(KIND=real_8), INTENT(IN)                   :: beta
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_c
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_column, &
                                                             last_column, first_k, last_k
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity

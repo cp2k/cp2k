@@ -25,10 +25,6 @@ MODULE qs_linres_current_utils
    USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        convert_offsets_to_sizes, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
-        dbcsr_distribution_obj, dbcsr_type_antisymmetric
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale_and_add
@@ -49,6 +45,10 @@ MODULE qs_linres_current_utils
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_init, dbcsr_p_type, dbcsr_set, &
+        dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: current_gauge_atom,&
                                               current_gauge_r,&
                                               current_gauge_r_and_step_func,&
@@ -148,7 +148,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op_p_ao
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fm_work_ii, fm_work_iii, h1_psi0, &
                                                             hpsi0_ptr, psi0_order, psi1, psi1_ptr
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, psi1_D, psi1_p, psi1_rxp, &
@@ -158,6 +157,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_p_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -241,27 +241,27 @@ CONTAINS
          DEALLOCATE (first_sgf, last_sgf)
          !
          ! rebuild the linear momentum matrices
-         CALL cp_dbcsr_allocate_matrix_set(op_p_ao, 3)
+         CALL dbcsr_allocate_matrix_set(op_p_ao, 3)
          ALLOCATE (op_p_ao(1)%matrix)
-         CALL cp_dbcsr_init(op_p_ao(1)%matrix)
-         CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
-                              name="OP_P", &
-                              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0, mutable_work=.TRUE.)
+         CALL dbcsr_init(op_p_ao(1)%matrix)
+         CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+                           name="OP_P", &
+                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                           nze=0, mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
          !
          !
          DEALLOCATE (row_blk_sizes)
          !
          !
-         CALL cp_dbcsr_set(op_p_ao(1)%matrix, 0.0_dp)
+         CALL dbcsr_set(op_p_ao(1)%matrix, 0.0_dp)
          DO idir = 2, 3
             ALLOCATE (op_p_ao(idir)%matrix)
-            CALL cp_dbcsr_init(op_p_ao(idir)%matrix)
-            CALL cp_dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
-                               "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
-            CALL cp_dbcsr_set(op_p_ao(idir)%matrix, 0.0_dp)
+            CALL dbcsr_init(op_p_ao(idir)%matrix)
+            CALL dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
+                            "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+            CALL dbcsr_set(op_p_ao(idir)%matrix, 0.0_dp)
          ENDDO
          !
          !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.)
@@ -557,7 +557,7 @@ CONTAINS
       !
       ! clean up
       IF (current_env%full) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(op_p_ao)
+         CALL dbcsr_deallocate_matrix_set(op_p_ao)
          DO ispin = 1, nspins
             CALL cp_fm_release(psi1(ispin)%matrix)
             CALL cp_fm_release(h1_psi0(ispin)%matrix)

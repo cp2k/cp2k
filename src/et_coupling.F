@@ -13,8 +13,6 @@ MODULE et_coupling
                                               get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                               cp_fm_transpose
@@ -33,6 +31,8 @@ MODULE et_coupling
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: do_spin_density
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -84,13 +84,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a, b, S_det
       REAL(KIND=dp), DIMENSION(2)                        :: eigenv
       REAL(KIND=dp), DIMENSION(2, 2)                     :: S_mat, tmp_mat, U, W_mat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rest_MO
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: mo_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
       TYPE(cp_fm_type), POINTER                          :: inverse_mat, SMO, Tinverse, tmp2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: et_coupling_section
@@ -275,7 +275,7 @@ CONTAINS
 
       ENDIF
 
-      CALL cp_dbcsr_deallocate_matrix_set(qs_env%et_coupling%rest_mat)
+      CALL dbcsr_deallocate_matrix_set(qs_env%et_coupling%rest_mat)
 
       CALL cp_print_key_finished_output(iw, logger, et_coupling_section, &
                                         "PROGRAM_RUN_INFO")

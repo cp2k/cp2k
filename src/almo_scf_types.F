@@ -11,9 +11,9 @@
 ! **************************************************************************************************
 MODULE almo_scf_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_release,&
+                                              dbcsr_type
    USE domain_submatrix_types,          ONLY: domain_map_type,&
                                               domain_submatrix_type
    USE input_constants,                 ONLY: &
@@ -82,9 +82,9 @@ MODULE almo_scf_types
 
    TYPE almo_scf_history_type
       INTEGER :: istore, nstore
-      TYPE(cp_dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_p_up_down
-      !TYPE(cp_dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_x
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t
+      TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_p_up_down
+      !TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_x
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t
    END TYPE
 
    ! the structure contains general info about the system
@@ -152,8 +152,8 @@ MODULE almo_scf_types
       ! Rows denote basis function, columns denote electrons.
       ! Non-zero (j,i) entry means that electron j can delocalize over
       ! basis function i. 0.0 means no delocalization
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE   :: quench_t
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE   :: quench_t_blk
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE   :: quench_t
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE   :: quench_t_blk
       ! Local array for a compact description of quench_t
       TYPE(domain_map_type), DIMENSION(:), ALLOCATABLE :: domain_map
 
@@ -240,81 +240,81 @@ MODULE almo_scf_types
       !!!!!!!!!!!!!!!!!!!!!!!
 
       ! AO overlap NxN
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_inv
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_sqrt
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_sqrt_inv
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s_inv
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s_sqrt
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s_sqrt_inv
       ! block-diagonal AO overlap NxN
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk_inv
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk_sqrt
-      TYPE(cp_dbcsr_type), DIMENSION(1)   :: matrix_s_blk_sqrt_inv
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s_blk
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s_blk_inv
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s_blk_sqrt
+      TYPE(dbcsr_type), DIMENSION(1)   :: matrix_s_blk_sqrt_inv
 
       ! occupied ALMO coeff NxOCC (alpha,beta - if necessary)
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t_blk
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t_blk
       ! occupied MO coeff NxOCC (alpha,beta - if necessary)
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t_tr
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t_tr
       ! MO overlap OCCxOCC and its inverse (alpha, beta - if necessary)
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_sigma, &
-                                                        matrix_sigma_inv, &
-                                                        matrix_sigma_sqrt, &
-                                                        matrix_sigma_sqrt_inv, &
-                                                        matrix_sigma_blk, &
-                                                        matrix_sigma_inv_0deloc
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_sigma, &
+                                                     matrix_sigma_inv, &
+                                                     matrix_sigma_sqrt, &
+                                                     matrix_sigma_sqrt_inv, &
+                                                     matrix_sigma_blk, &
+                                                     matrix_sigma_inv_0deloc
 
       ! error vector (alpha,beta - if necessary)
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_err_blk
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_err_xx
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_err_blk
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_err_xx
 
       ! MO overlap VIRTxVIRT and its derivatives
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_sigma_vv, &
-                                                        matrix_sigma_vv_blk, &
-                                                        matrix_sigma_vv_sqrt, &
-                                                        matrix_sigma_vv_sqrt_inv
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_sigma_vv, &
+                                                     matrix_sigma_vv_blk, &
+                                                     matrix_sigma_vv_sqrt, &
+                                                     matrix_sigma_vv_sqrt_inv
 
       ! template of various VIRT x VIR matrices
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_vv_full_blk, &
-                                                        matrix_vv_disc_blk, &
-                                                        matrix_vv_disc
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_vv_full_blk, &
+                                                     matrix_vv_disc_blk, &
+                                                     matrix_vv_disc
 
       ! VIRT-OCC MO overlap
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_vo, matrix_ov
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ov_full, &
-                                                        matrix_ov_disc
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_x
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_vo, matrix_ov
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ov_full, &
+                                                     matrix_ov_disc
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_x
 
       ! VIRT_DISC x VIRT_RETAINED
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_blk
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_tr
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_blk
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_tr
       ! matrix_k_blk_ones is blocked with all elements equal to 1.0
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_blk_ones
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_k_blk_ones
 
       ! virtual ALMO coeff NxV
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_v_blk, &
-                                                        matrix_v, &
-                                                        matrix_v_full_blk, &
-                                                        matrix_v_disc, &
-                                                        matrix_v_disc_blk
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_v_blk, &
+                                                     matrix_v, &
+                                                     matrix_v_full_blk, &
+                                                     matrix_v_disc, &
+                                                     matrix_v_disc_blk
 
       ! kohn-sham matrix (alpha,beta - if necessary)
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks
       ! the diff between ks_blk and ks_0deloc is that blk is a blocked matrix
       ! 0deloc stores the matrix that correponds to zero-delocalization state
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks_blk
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks_0deloc
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks_blk
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks_0deloc
       ! density NxN (alpha,beta - if necessary)
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p_blk
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p_blk
 
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_eoo
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_evv_full
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_eoo
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_evv_full
 
       ! preconditioner for k-optimization
       ! RZK-warning: do they have to be stored?
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: opt_k_t_rr, &
-                                                        opt_k_t_dd, &
-                                                        opt_k_denom
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: opt_k_t_rr, &
+                                                     opt_k_t_dd, &
+                                                     opt_k_denom
 
       ! second dimension is spin
       TYPE(domain_submatrix_type), DIMENSION(:, :), ALLOCATABLE :: domain_preconditioner
@@ -486,21 +486,21 @@ CONTAINS
       ! delete history
       DO ispin = 1, SIZE(almo_scf_env%almo_history%matrix_t)
          DO istore = 1, MIN(almo_scf_env%almo_history%istore, almo_scf_env%almo_history%nstore)
-            CALL cp_dbcsr_release(almo_scf_env%almo_history%matrix_p_up_down(ispin, istore))
+            CALL dbcsr_release(almo_scf_env%almo_history%matrix_p_up_down(ispin, istore))
          ENDDO
          IF (almo_scf_env%almo_history%istore .GT. 0) &
-            CALL cp_dbcsr_release(almo_scf_env%almo_history%matrix_t(ispin))
+            CALL dbcsr_release(almo_scf_env%almo_history%matrix_t(ispin))
       ENDDO
       DEALLOCATE (almo_scf_env%almo_history%matrix_p_up_down)
       DEALLOCATE (almo_scf_env%almo_history%matrix_t)
       ! delete xalmo history
       DO ispin = 1, SIZE(almo_scf_env%xalmo_history%matrix_t)
          DO istore = 1, MIN(almo_scf_env%xalmo_history%istore, almo_scf_env%xalmo_history%nstore)
-            CALL cp_dbcsr_release(almo_scf_env%xalmo_history%matrix_p_up_down(ispin, istore))
-            !CALL cp_dbcsr_release(almo_scf_env%xalmo_history%matrix_x(ispin, istore))
+            CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_p_up_down(ispin, istore))
+            !CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_x(ispin, istore))
          ENDDO
          IF (almo_scf_env%xalmo_history%istore .GT. 0) &
-            CALL cp_dbcsr_release(almo_scf_env%xalmo_history%matrix_t(ispin))
+            CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_t(ispin))
       ENDDO
       DEALLOCATE (almo_scf_env%xalmo_history%matrix_p_up_down)
       !DEALLOCATE (almo_scf_env%xalmo_history%matrix_x)

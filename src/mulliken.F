@@ -11,11 +11,10 @@
 MODULE mulliken
    USE atomic_charges,                  ONLY: print_atomic_charges
    USE cp_control_types,                ONLY: mulliken_restraint_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
@@ -67,10 +66,10 @@ CONTAINS
                                  s_matrix, p_matrix, energy, order_p, ks_matrix, w_matrix)
       TYPE(mulliken_restraint_type), INTENT(IN)          :: mulliken_restraint_control
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_type), POINTER                       :: s_matrix
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
       REAL(KIND=dp), OPTIONAL                            :: energy, order_p
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ks_matrix, w_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_restraint', &
@@ -82,12 +81,12 @@ CONTAINS
       REAL(kind=dp)                                      :: mult, my_energy, my_order_p
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, charges_deriv, ks_block, &
                                                             p_block, s_block, w_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
 ! here we get the numbers for charges
 
       nspin = SIZE(p_matrix)
-      CALL cp_dbcsr_get_info(s_matrix, nblkrows_total=nblock)
+      CALL dbcsr_get_info(s_matrix, nblkrows_total=nblock)
 
       ALLOCATE (charges(nblock, nspin))
       ALLOCATE (charges_deriv(nblock, nspin))
@@ -109,11 +108,11 @@ CONTAINS
       IF (PRESENT(ks_matrix)) THEN
 
          DO ispin = 1, nspin
-            CALL cp_dbcsr_iterator_start(iter, s_matrix)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
-               CALL cp_dbcsr_get_block_p(matrix=ks_matrix(ispin)%matrix, &
-                                         row=iblock_row, col=iblock_col, BLOCK=ks_block, found=found)
+            CALL dbcsr_iterator_start(iter, s_matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+               CALL dbcsr_get_block_p(matrix=ks_matrix(ispin)%matrix, &
+                                      row=iblock_row, col=iblock_col, BLOCK=ks_block, found=found)
 
                IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block))) THEN
                   CPABORT("Unexpected s / ks structure")
@@ -124,7 +123,7 @@ CONTAINS
                ks_block = ks_block+mult*s_block
 
             ENDDO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
          ENDDO
 
       ENDIF
@@ -132,11 +131,11 @@ CONTAINS
       IF (PRESENT(w_matrix)) THEN
 
          DO ispin = 1, nspin
-            CALL cp_dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, blk)
-               CALL cp_dbcsr_get_block_p(matrix=w_matrix(ispin)%matrix, &
-                                         row=iblock_row, col=iblock_col, BLOCK=w_block, found=found)
+            CALL dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, blk)
+               CALL dbcsr_get_block_p(matrix=w_matrix(ispin)%matrix, &
+                                      row=iblock_row, col=iblock_col, BLOCK=w_block, found=found)
 
                ! we can cycle if a block is not present
                IF (.NOT. (ASSOCIATED(w_block) .AND. ASSOCIATED(p_block))) CYCLE
@@ -148,7 +147,7 @@ CONTAINS
                w_block = w_block+mult*p_block
 
             END DO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
          ENDDO
 
       ENDIF
@@ -211,8 +210,8 @@ CONTAINS
 !>      charges are computed per spin in the LSD case
 ! **************************************************************************************************
    SUBROUTINE compute_charges(p_matrix, s_matrix, charges, para_env)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix
-      TYPE(cp_dbcsr_type), POINTER                       :: s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -220,18 +219,18 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       nspin = SIZE(p_matrix)
 
       charges = 0.0_dp
       DO ispin = 1, nspin
-         CALL cp_dbcsr_iterator_start(iter, s_matrix)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_start(iter, s_matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, p_block)
-            CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
-            CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
-                                      row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+            CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
+                                   row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
             ! we can cycle if a block is not present
             IF (.NOT. found) CYCLE
@@ -248,7 +247,7 @@ CONTAINS
                                          mult*SUM(p_block*s_block)
 
          ENDDO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
       ENDDO
       CALL mp_sum(charges, para_env%group)
 
@@ -264,7 +263,7 @@ CONTAINS
 !>      06.2004 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE compute_charges_single(p_matrix, s_matrix, charges, para_env)
-      TYPE(cp_dbcsr_type)                                :: p_matrix, s_matrix
+      TYPE(dbcsr_type)                                   :: p_matrix, s_matrix
       REAL(KIND=dp), DIMENSION(:)                        :: charges
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -272,15 +271,15 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       charges = 0.0_dp
-      CALL cp_dbcsr_iterator_start(iter, s_matrix)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+      CALL dbcsr_iterator_start(iter, s_matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
          NULLIFY (s_block, p_block)
-         CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
-         CALL cp_dbcsr_get_block_p(matrix=p_matrix, &
-                                   row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+         CALL dbcsr_get_block_p(matrix=p_matrix, &
+                                row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
          ! we can cycle if a block is not present
          IF (.NOT. found) CYCLE
@@ -294,7 +293,7 @@ CONTAINS
          charges(iblock_row) = charges(iblock_row)+mult*SUM(p_block*s_block)
          charges(iblock_col) = charges(iblock_col)+mult*SUM(p_block*s_block)
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       CALL mp_sum(charges, para_env%group)
 
@@ -311,7 +310,7 @@ CONTAINS
 !>      01.2012 created [JHU]
 ! **************************************************************************************************
    SUBROUTINE compute_dcharges(p_matrix, s_matrix, charges, dcharges, para_env)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix, s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix, s_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, dcharges
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -320,19 +319,19 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, p_block, s_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       nspin = SIZE(p_matrix)
 
       charges = 0.0_dp
       dcharges = 0.0_dp
       DO ispin = 1, nspin
-         CALL cp_dbcsr_iterator_start(iter, s_matrix(1)%matrix)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_start(iter, s_matrix(1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, p_block)
-            CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
-            CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
-                                      row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+            CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
+                                   row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
             ! we can cycle if a block is not present
             IF (.NOT. found) CYCLE
@@ -346,14 +345,14 @@ CONTAINS
             charges(iblock_row, ispin) = charges(iblock_row, ispin)+mult*SUM(p_block*s_block)
             charges(iblock_col, ispin) = charges(iblock_col, ispin)+mult*SUM(p_block*s_block)
             DO ider = 1, 3
-               CALL cp_dbcsr_get_block_p(matrix=s_matrix(ider+1)%matrix, &
-                                         row=iblock_row, col=iblock_col, BLOCK=ds_block, found=found)
+               CALL dbcsr_get_block_p(matrix=s_matrix(ider+1)%matrix, &
+                                      row=iblock_row, col=iblock_col, BLOCK=ds_block, found=found)
                dcharges(iblock_row, ider) = dcharges(iblock_row, ider)+mult*SUM(p_block*ds_block)
                dcharges(iblock_col, ider) = dcharges(iblock_col, ider)+mult*SUM(p_block*ds_block)
             END DO
 
          ENDDO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
       ENDDO
       CALL mp_sum(charges, para_env%group)
       CALL mp_sum(dcharges, para_env%group)
@@ -375,8 +374,8 @@ CONTAINS
    SUBROUTINE mulliken_charges_a(p_matrix, s_matrix, para_env, particle_set, &
                                  qs_kind_set, scr, title)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix
-      TYPE(cp_dbcsr_type), POINTER                       :: s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -395,7 +394,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(s_matrix))
       ! here we get the numbers for charges
       nspin = SIZE(p_matrix)
-      CALL cp_dbcsr_get_info(s_matrix, nblkrows_total=nblock)
+      CALL dbcsr_get_info(s_matrix, nblkrows_total=nblock)
       ALLOCATE (charges(nblock, nspin))
 
       CALL compute_charges(p_matrix, s_matrix, charges, para_env)
@@ -417,8 +416,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mulliken_charges_b(p_matrix, s_matrix, para_env, mcharge)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix
-      TYPE(cp_dbcsr_type), POINTER                       :: s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mcharge
 
@@ -447,7 +446,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mulliken_charges_c(p_matrix, s_matrix, para_env, mcharge, dmcharge)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix, s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix, s_matrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mcharge, dmcharge
 
@@ -475,7 +474,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mulliken_charges_s(p_matrix, s_matrix, para_env, mcharge)
 
-      TYPE(cp_dbcsr_type)                                :: p_matrix, s_matrix
+      TYPE(dbcsr_type)                                   :: p_matrix, s_matrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:)                        :: mcharge
 
@@ -507,7 +506,7 @@ CONTAINS
    SUBROUTINE mulliken_charges_akp(p_matrix_kp, s_matrix_kp, para_env, particle_set, &
                                    qs_kind_set, scr, title)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: p_matrix_kp, s_matrix_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix_kp, s_matrix_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -519,8 +518,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ic, nblock, nspin
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, charges_im
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix
-      TYPE(cp_dbcsr_type), POINTER                       :: s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
 
       CALL timeset(routineN, handle)
 
@@ -528,7 +527,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(s_matrix_kp))
 
       nspin = SIZE(p_matrix)
-      CALL cp_dbcsr_get_info(s_matrix, nblkrows_total=nblock)
+      CALL dbcsr_get_info(s_matrix, nblkrows_total=nblock)
       ALLOCATE (charges(nblock, nspin), charges_im(nblock, nspin))
       charges = 0.0_dp
 
@@ -558,7 +557,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mulliken_charges_bkp(p_matrix_kp, s_matrix_kp, para_env, mcharge)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: p_matrix_kp, s_matrix_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix_kp, s_matrix_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mcharge
 
@@ -567,8 +566,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ic, natom, nspin
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mcharge_im
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix
-      TYPE(cp_dbcsr_type), POINTER                       :: s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
+      TYPE(dbcsr_type), POINTER                          :: s_matrix
 
       CALL timeset(routineN, handle)
 
@@ -608,7 +607,7 @@ CONTAINS
    SUBROUTINE mulliken_charges_ckp(p_matrix_kp, s_matrix_kp, para_env, &
                                    mcharge, dmcharge)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: p_matrix_kp, s_matrix_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_matrix_kp, s_matrix_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mcharge, dmcharge
 
@@ -617,7 +616,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ic, natom, nder, nspin
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dmcharge_im, mcharge_im
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_matrix, s_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix, s_matrix
 
       CALL timeset(routineN, handle)
 
@@ -659,26 +658,26 @@ CONTAINS
 !>      12.2016 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE compute_bond_order(psmat, spmat, bond_order)
-      TYPE(cp_dbcsr_type)                                :: psmat, spmat
+      TYPE(dbcsr_type)                                   :: psmat, spmat
       REAL(KIND=dp), DIMENSION(:, :)                     :: bond_order
 
       INTEGER                                            :: blk, iat, jat
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ps, sp
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
-      CALL cp_dbcsr_iterator_start(iter, psmat)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+      CALL dbcsr_iterator_start(iter, psmat)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
          NULLIFY (ps, sp)
-         CALL cp_dbcsr_iterator_next_block(iter, iat, jat, ps, blk)
-         CALL cp_dbcsr_get_block_p(matrix=spmat, &
-                                   row=iat, col=jat, BLOCK=sp, found=found)
+         CALL dbcsr_iterator_next_block(iter, iat, jat, ps, blk)
+         CALL dbcsr_get_block_p(matrix=spmat, &
+                                row=iat, col=jat, BLOCK=sp, found=found)
          IF (.NOT. found) CYCLE
          IF (.NOT. (ASSOCIATED(sp) .AND. ASSOCIATED(ps))) CYCLE
 
          bond_order(iat, jat) = bond_order(iat, jat)+SUM(ps*sp)
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
    END SUBROUTINE compute_bond_order
 

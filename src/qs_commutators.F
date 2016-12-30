@@ -14,11 +14,11 @@ MODULE qs_commutators
    USE commutator_rpnl,                 ONLY: build_com_rpnl
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_create,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_create,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
    USE kinds,                           ONLY: dp
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -54,7 +54,7 @@ CONTAINS
    SUBROUTINE build_com_hr_matrix(qs_env, matrix_hr)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_com_hr_matrix', &
@@ -62,7 +62,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ir
       REAL(KIND=dp)                                      :: eps_ppnl
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_ppnl
@@ -78,14 +78,14 @@ CONTAINS
       !
       CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
       CPASSERT(.NOT. ASSOCIATED(matrix_hr))
-      CALL cp_dbcsr_allocate_matrix_set(matrix_hr, 3)
+      CALL dbcsr_allocate_matrix_set(matrix_hr, 3)
       DO ir = 1, 3
          ALLOCATE (matrix_hr(ir)%matrix)
-         CALL cp_dbcsr_init(matrix_hr(ir)%matrix)
-         CALL cp_dbcsr_create(matrix_hr(ir)%matrix, template=matrix_s(1, 1)%matrix, &
-                              name="COMMUTATOR")
+         CALL dbcsr_init(matrix_hr(ir)%matrix)
+         CALL dbcsr_create(matrix_hr(ir)%matrix, template=matrix_s(1, 1)%matrix, &
+                           name="COMMUTATOR")
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_hr(ir)%matrix, sab_orb)
-         CALL cp_dbcsr_set(matrix_hr(ir)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_hr(ir)%matrix, 0.0_dp)
       END DO
 
       CALL build_com_tr_matrix(matrix_hr, qs_kind_set, "ORB", sab_orb)

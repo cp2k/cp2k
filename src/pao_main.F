@@ -8,10 +8,10 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_main
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type
    USE cp_external_control,             ONLY: external_control
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_init, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -67,7 +67,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_init'
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(section_vals_type), POINTER                   :: input
 
@@ -100,7 +100,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_optimization_start'
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(section_vals_type), POINTER                   :: input, section
@@ -154,25 +154,25 @@ CONTAINS
       CALL linesearch_init(pao%linesearch, section, "PAO|")
 
       ! create some more matrices
-      CALL cp_dbcsr_init(pao%matrix_X_orig)
-      CALL cp_dbcsr_init(pao%matrix_G)
-      CALL cp_dbcsr_copy(pao%matrix_G, pao%matrix_X)
-      CALL cp_dbcsr_set(pao%matrix_G, 0.0_dp)
+      CALL dbcsr_init(pao%matrix_X_orig)
+      CALL dbcsr_init(pao%matrix_G)
+      CALL dbcsr_copy(pao%matrix_G, pao%matrix_X)
+      CALL dbcsr_set(pao%matrix_G, 0.0_dp)
 
-      CALL cp_dbcsr_init(pao%matrix_U)
-      CALL cp_dbcsr_create(pao%matrix_U, &
-                           name="PAO matrix_U", &
-                           matrix_type="N", &
-                           dist=pao%diag_distribution, &
-                           template=matrix_s(1)%matrix)
-      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U)
+      CALL dbcsr_init(pao%matrix_U)
+      CALL dbcsr_create(pao%matrix_U, &
+                        name="PAO matrix_U", &
+                        matrix_type="N", &
+                        dist=pao%diag_distribution, &
+                        template=matrix_s(1)%matrix)
+      CALL dbcsr_reserve_diag_blocks(pao%matrix_U)
 
-      CALL cp_dbcsr_init(ls_mstruct%matrix_A)
-      CALL cp_dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
-      CALL cp_dbcsr_reserve_diag_blocks(ls_mstruct%matrix_A)
-      CALL cp_dbcsr_init(ls_mstruct%matrix_B)
-      CALL cp_dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
-      CALL cp_dbcsr_reserve_diag_blocks(ls_mstruct%matrix_B)
+      CALL dbcsr_init(ls_mstruct%matrix_A)
+      CALL dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
+      CALL dbcsr_reserve_diag_blocks(ls_mstruct%matrix_A)
+      CALL dbcsr_init(ls_mstruct%matrix_B)
+      CALL dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
+      CALL dbcsr_reserve_diag_blocks(ls_mstruct%matrix_B)
 
       ! fill PAO transformation matrices
       CALL pao_update_AB(pao, qs_env, ls_mstruct)
@@ -196,7 +196,7 @@ CONTAINS
       INTEGER                                            :: handle, icycle
       LOGICAL                                            :: cycle_converged, do_mixing, should_stop
       REAL(KIND=dp)                                      :: energy, penalty
-      TYPE(cp_dbcsr_type)                                :: matrix_M, matrix_X_mixing
+      TYPE(dbcsr_type)                                   :: matrix_M, matrix_X_mixing
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
 
@@ -230,8 +230,8 @@ CONTAINS
       ! perform mixing once we are well into the optimization
       do_mixing = pao%mixing /= 1.0_dp .AND. pao%istep > 1
       IF (do_mixing) THEN
-         CALL cp_dbcsr_init(matrix_X_mixing)
-         CALL cp_dbcsr_copy(matrix_X_mixing, pao%matrix_X)
+         CALL dbcsr_init(matrix_X_mixing)
+         CALL dbcsr_copy(matrix_X_mixing, pao%matrix_X)
       ENDIF
 
       cycle_converged = .FALSE.
@@ -254,14 +254,14 @@ CONTAINS
             ! calc new gradient including penalty terms
             CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
             CALL pao_calc_U(pao, qs_env, matrix_M=matrix_M, matrix_G=pao%matrix_G, penalty=penalty)
-            CALL cp_dbcsr_release(matrix_M)
+            CALL dbcsr_release(matrix_M)
             CALL pao_check_grad(pao, qs_env, ls_scf_env)
 
             ! calculate new direction for line-search
             CALL pao_opt_new_dir(pao, icycle)
 
             !backup X
-            CALL cp_dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
+            CALL dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
 
             ! print info and convergence test
             CALL pao_test_convergence(pao, ls_scf_env, energy, cycle_converged)
@@ -296,14 +296,14 @@ CONTAINS
 
          IF (pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
 
-         CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
-         CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, pao%linesearch%step_size)
+         CALL dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
+         CALL dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, pao%linesearch%step_size)
       ENDDO
 
       ! perform mixing of matrix_X
       IF (do_mixing) THEN
-         CALL cp_dbcsr_add(pao%matrix_X, matrix_X_mixing, pao%mixing, 1.0_dp-pao%mixing)
-         CALL cp_dbcsr_release(matrix_X_mixing)
+         CALL dbcsr_add(pao%matrix_X, matrix_X_mixing, pao%mixing, 1.0_dp-pao%mixing)
+         CALL dbcsr_release(matrix_X_mixing)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Recalculating energy after mixing."
          CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
       ENDIF
@@ -363,11 +363,11 @@ CONTAINS
       CALL pao_param_finalize(pao)
 
       ! We keep pao%matrix_X for next scf-run, e.g. during MD or GEO-OPT
-      CALL cp_dbcsr_release(pao%matrix_X_orig)
-      CALL cp_dbcsr_release(pao%matrix_G)
-      CALL cp_dbcsr_release(pao%matrix_U)
-      CALL cp_dbcsr_release(ls_mstruct%matrix_A)
-      CALL cp_dbcsr_release(ls_mstruct%matrix_B)
+      CALL dbcsr_release(pao%matrix_X_orig)
+      CALL dbcsr_release(pao%matrix_G)
+      CALL dbcsr_release(pao%matrix_U)
+      CALL dbcsr_release(ls_mstruct%matrix_A)
+      CALL dbcsr_release(ls_mstruct%matrix_B)
 
       CALL linesearch_finalize(pao%linesearch)
 

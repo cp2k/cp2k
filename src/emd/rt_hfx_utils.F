@@ -13,10 +13,10 @@
 MODULE rt_hfx_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, &
-        cp_dbcsr_row_block_sizes, cp_dbcsr_set, dbcsr_type_antisymmetric
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_init, dbcsr_p_type, &
+        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type_antisymmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -50,7 +50,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_hfx_rebuild', &
          routineP = moduleN//':'//routineN
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_im, matrix_ks_im, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_im, matrix_ks_im, &
                                                             matrix_s, matrix_s_aux, rho_ao_im, &
                                                             rho_aux_ao_im
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -104,10 +104,10 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE rebuild_matrices(matrix_p, matrix_ks, sab_orb, matrix_s, nspins)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p, matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_ks
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(in)                                :: nspins
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_matrices', &
@@ -117,41 +117,41 @@ CONTAINS
       INTEGER                                            :: i
 
       IF (ASSOCIATED(matrix_p)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(matrix_p)
+         CALL dbcsr_deallocate_matrix_set(matrix_p)
       END IF
       ! Create a new density matrix set
-      CALL cp_dbcsr_allocate_matrix_set(matrix_p, nspins)
+      CALL dbcsr_allocate_matrix_set(matrix_p, nspins)
       DO i = 1, nspins
          headline = "Imaginary density matrix"
          ALLOCATE (matrix_p(i)%matrix)
-         CALL cp_dbcsr_init(matrix_p(i)%matrix)
-         CALL cp_dbcsr_create(matrix=matrix_p(i)%matrix, &
-                              name=TRIM(headline), &
-                              dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric, &
-                              row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                              col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                              nze=0)
+         CALL dbcsr_init(matrix_p(i)%matrix)
+         CALL dbcsr_create(matrix=matrix_p(i)%matrix, &
+                           name=TRIM(headline), &
+                           dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric, &
+                           row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+                           col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+                           nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_p(i)%matrix, sab_orb)
-         CALL cp_dbcsr_set(matrix_p(i)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_p(i)%matrix, 0.0_dp)
       END DO
 
       IF (ASSOCIATED(matrix_ks)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(matrix_ks)
+         CALL dbcsr_deallocate_matrix_set(matrix_ks)
       END IF
       ! Create a new density matrix set
-      CALL cp_dbcsr_allocate_matrix_set(matrix_ks, nspins)
+      CALL dbcsr_allocate_matrix_set(matrix_ks, nspins)
       DO i = 1, nspins
          headline = "Imaginary Kohn-Sham matrix"
          ALLOCATE (matrix_ks(i)%matrix)
-         CALL cp_dbcsr_init(matrix_ks(i)%matrix)
-         CALL cp_dbcsr_create(matrix=matrix_ks(i)%matrix, &
-                              name=TRIM(headline), &
-                              dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric, &
-                              row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                              col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                              nze=0)
+         CALL dbcsr_init(matrix_ks(i)%matrix)
+         CALL dbcsr_create(matrix=matrix_ks(i)%matrix, &
+                           name=TRIM(headline), &
+                           dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric, &
+                           row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+                           col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+                           nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(i)%matrix, sab_orb)
-         CALL cp_dbcsr_set(matrix_ks(i)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_ks(i)%matrix, 0.0_dp)
       END DO
 
    END SUBROUTINE rebuild_matrices

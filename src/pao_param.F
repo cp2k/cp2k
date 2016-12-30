@@ -8,14 +8,13 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_distribution, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
-        dbcsr_distribution_mp, dbcsr_mp_group
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_col_block_sizes, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_frobenius_norm, dbcsr_get_block_p, &
+        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
@@ -73,9 +72,9 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_A, block_B, block_N, block_N_inv, &
                                                             block_U, block_Y
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type)                                :: matrix_U
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_type)                                   :: matrix_U
 
       CALL timeset(routineN, handle)
 
@@ -83,38 +82,38 @@ CONTAINS
 
       ! pao%matrix_U uses pao%diag_distribution, need to redistribute using distribution of matrix_s
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
-      CALL cp_dbcsr_init(matrix_U)
-      CALL cp_dbcsr_create(matrix_U, matrix_type="N", template=matrix_s(1)%matrix)
-      CALL cp_dbcsr_reserve_diag_blocks(matrix_U)
-      CALL cp_dbcsr_complete_redistribute(pao%matrix_U, matrix_U)
+      CALL dbcsr_init(matrix_U)
+      CALL dbcsr_create(matrix_U, matrix_type="N", template=matrix_s(1)%matrix)
+      CALL dbcsr_reserve_diag_blocks(matrix_U)
+      CALL dbcsr_complete_redistribute(pao%matrix_U, matrix_U)
 
       ! Multiplying diagonal matrices is a local operation.
       ! To take advantage of this we're using an iterator instead of calling dbcsr_multiply().
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,ls_mstruct,matrix_U) &
 !$OMP PRIVATE(iter,arow,acol,iatom,block_U,block_Y,block_A,block_B,block_N,block_N_inv,found)
-      CALL cp_dbcsr_iterator_start(iter, matrix_U)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U)
+      CALL dbcsr_iterator_start(iter, matrix_U)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_U)
          iatom = arow; CPASSERT(arow == acol)
 
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=block_Y, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=block_Y, found=found)
          CPASSERT(ASSOCIATED(block_Y))
 
-         CALL cp_dbcsr_get_block_p(matrix=ls_mstruct%matrix_A, row=iatom, col=iatom, block=block_A, found=found)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_inv, row=iatom, col=iatom, block=block_N_inv, found=found)
+         CALL dbcsr_get_block_p(matrix=ls_mstruct%matrix_A, row=iatom, col=iatom, block=block_A, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_N_inv, row=iatom, col=iatom, block=block_N_inv, found=found)
          CPASSERT(ASSOCIATED(block_A) .AND. ASSOCIATED(block_N_inv))
 
-         CALL cp_dbcsr_get_block_p(matrix=ls_mstruct%matrix_B, row=iatom, col=iatom, block=block_B, found=found)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
+         CALL dbcsr_get_block_p(matrix=ls_mstruct%matrix_B, row=iatom, col=iatom, block=block_B, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
          CPASSERT(ASSOCIATED(block_B) .AND. ASSOCIATED(block_N))
 
          block_A = MATMUL(MATMUL(block_N_inv, block_U), block_Y)
          block_B = MATMUL(MATMUL(block_N, block_U), block_Y)
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-      CALL cp_dbcsr_release(matrix_U)
+      CALL dbcsr_release(matrix_U)
 
       CALL timestop(handle)
    END SUBROUTINE pao_update_AB
@@ -227,7 +226,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(dp)                                           :: norm
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp
+      TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
 
@@ -242,16 +241,16 @@ CONTAINS
          CPABORT("PAO: unkown parametrization")
       END SELECT
 
-      norm = cp_dbcsr_frobenius_norm(pao%matrix_X)
+      norm = dbcsr_frobenius_norm(pao%matrix_X)
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Made initial guess for matrix_X with norm:", norm
 
       IF (pao%precondition) THEN
          !TODO: multiplying a matrix into itself while retaining sparsity seems to be broken
-         CALL cp_dbcsr_init(matrix_tmp)
-         CALL cp_dbcsr_copy(matrix_tmp, pao%matrix_X)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, matrix_tmp, &
-                                0.0_dp, pao%matrix_X, retain_sparsity=.TRUE.)
-         CALL cp_dbcsr_release(matrix_tmp)
+         CALL dbcsr_init(matrix_tmp)
+         CALL dbcsr_copy(matrix_tmp, pao%matrix_X)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, matrix_tmp, &
+                             0.0_dp, pao%matrix_X, retain_sparsity=.TRUE.)
+         CALL dbcsr_release(matrix_tmp)
       ENDIF
 
       CALL timestop(handle)
@@ -270,7 +269,7 @@ CONTAINS
    SUBROUTINE pao_calc_U(pao, qs_env, matrix_M, matrix_G, penalty, forces)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M, matrix_G
+      TYPE(dbcsr_type), OPTIONAL                         :: matrix_M, matrix_G
       REAL(dp), INTENT(OUT), OPTIONAL                    :: penalty
       REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
@@ -311,21 +310,21 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pao, blk_sizes_pri
       REAL(dp)                                           :: delta_max
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_test, tmp1, tmp2
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       IF (pao%check_unitary_tol < 0.0_dp) RETURN ! no checking
 
       CALL timeset(routineN, handle)
       delta_max = 0.0_dp
 
-      blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
-      blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+      blk_sizes_pri => dbcsr_row_block_sizes(pao%matrix_Y)
+      blk_sizes_pao => dbcsr_col_block_sizes(pao%matrix_Y)
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,blk_sizes_pri,blk_sizes_pao,delta_max) &
 !$OMP PRIVATE(iter,arow,acol,iatom,N,M,block_test,tmp1,tmp2)
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_U)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_test)
+      CALL dbcsr_iterator_start(iter, pao%matrix_U)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_test)
          iatom = arow; CPASSERT(arow == acol)
          N = blk_sizes_pri(iatom) ! size of primary basis
          M = blk_sizes_pao(iatom) ! size of pao basis
@@ -343,10 +342,10 @@ CONTAINS
 
          DEALLOCATE (tmp1, tmp2)
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-      group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
+      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(pao%matrix_U)))
       CALL mp_max(delta_max, group)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked unitaryness, max delta:', delta_max
       IF (delta_max > pao%check_unitary_tol) &

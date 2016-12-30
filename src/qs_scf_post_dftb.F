@@ -15,7 +15,6 @@ MODULE qs_scf_post_dftb
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_reduce,&
@@ -37,6 +36,7 @@ MODULE qs_scf_post_dftb
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -101,9 +101,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p, matrix_s
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_kind
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -442,11 +442,11 @@ CONTAINS
       INTEGER                                            :: ispin, nao, nmo, output_unit
       REAL(dp), DIMENSION(:), POINTER                    :: mo_eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: lumos
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, ao_lumo_struct
       TYPE(cp_fm_type), POINTER                          :: KS_tmp, mo_coeff, MO_tmp, S_tmp, work
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

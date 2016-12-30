@@ -27,11 +27,10 @@ MODULE qs_overlap
    USE block_p_types,                   ONLY: block_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_finalize, &
-        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_type, &
-        dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_distribution_obj, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -117,9 +116,9 @@ CONTAINS
                                    matrix_p, matrixkp_p)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_s
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_s
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
       INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
@@ -127,8 +126,8 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_p
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_p
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
@@ -220,11 +219,11 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list_b, basis_type_b, qs_kind_set)
 
       IF (dokp) THEN
-         CALL cp_dbcsr_allocate_matrix_set(matrixkp_s, maxder, nimg)
+         CALL dbcsr_allocate_matrix_set(matrixkp_s, maxder, nimg)
          CALL create_sab_matrix(ks_env, matrixkp_s, matrix_name, basis_set_list_a, basis_set_list_b, &
                                 sab_nl, do_symmetric)
       ELSE
-         CALL cp_dbcsr_allocate_matrix_set(matrix_s, maxder)
+         CALL dbcsr_allocate_matrix_set(matrix_s, maxder)
          CALL create_sab_matrix(ks_env, matrix_s, matrix_name, basis_set_list_a, basis_set_list_b, &
                                 sab_nl, do_symmetric)
       END IF
@@ -329,24 +328,24 @@ CONTAINS
          DO i = 1, maxs
             NULLIFY (sint(i)%block)
             IF (dokp) THEN
-               CALL cp_dbcsr_get_block_p(matrix=matrixkp_s(i, ic)%matrix, &
-                                         row=irow, col=icol, BLOCK=sint(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrixkp_s(i, ic)%matrix, &
+                                      row=irow, col=icol, BLOCK=sint(i)%block, found=found)
                CPASSERT(found)
             ELSE
-               CALL cp_dbcsr_get_block_p(matrix=matrix_s(i)%matrix, &
-                                         row=irow, col=icol, BLOCK=sint(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_s(i)%matrix, &
+                                      row=irow, col=icol, BLOCK=sint(i)%block, found=found)
                CPASSERT(found)
             END IF
          END DO
          IF (do_forces) THEN
             NULLIFY (p_block)
             IF (dokp) THEN
-               CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(1, ic)%matrix, &
-                                         row=irow, col=icol, block=p_block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrixkp_p(1, ic)%matrix, &
+                                      row=irow, col=icol, block=p_block, found=found)
                CPASSERT(found)
             ELSE
-               CALL cp_dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
-                                         block=p_block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
+                                      block=p_block, found=found)
                CPASSERT(found)
             END IF
          END IF
@@ -426,16 +425,16 @@ CONTAINS
       IF (dokp) THEN
          DO i = 1, maxs
             DO ic = 1, nimg
-               CALL cp_dbcsr_finalize(matrixkp_s(i, ic)%matrix)
-               CALL cp_dbcsr_filter(matrixkp_s(i, ic)%matrix, &
-                                    dft_control%qs_control%eps_filter_matrix)
+               CALL dbcsr_finalize(matrixkp_s(i, ic)%matrix)
+               CALL dbcsr_filter(matrixkp_s(i, ic)%matrix, &
+                                 dft_control%qs_control%eps_filter_matrix)
             ENDDO
          ENDDO
       ELSE
          DO i = 1, maxs
-            CALL cp_dbcsr_finalize(matrix_s(i)%matrix)
-            CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
-                                 dft_control%qs_control%eps_filter_matrix)
+            CALL dbcsr_finalize(matrix_s(i)%matrix)
+            CALL dbcsr_filter(matrix_s(i)%matrix, &
+                              dft_control%qs_control%eps_filter_matrix)
          ENDDO
       END IF
 
@@ -464,7 +463,7 @@ CONTAINS
                                           basis_set_list_a, basis_set_list_b, sab_nl)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -513,7 +512,7 @@ CONTAINS
       ALLOCATE (atom_of_kind(natom))
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
 
-      CALL cp_dbcsr_allocate_matrix_set(matrix_s, 1)
+      CALL dbcsr_allocate_matrix_set(matrix_s, 1)
       CALL create_sab_matrix(ks_env, matrix_s, "Matrix", basis_set_list_a, basis_set_list_b, &
                              sab_nl, do_symmetric)
 
@@ -592,8 +591,8 @@ CONTAINS
          END IF
 
          NULLIFY (sint(1)%block)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix, &
-                                   row=irow, col=icol, BLOCK=sint(1)%block, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_s(1)%matrix, &
+                                row=irow, col=icol, BLOCK=sint(1)%block, found=found)
          CPASSERT(found)
          trans = do_symmetric .AND. (iatom > jatom)
 
@@ -635,8 +634,8 @@ CONTAINS
 !$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      CALL cp_dbcsr_finalize(matrix_s(1)%matrix)
-      CALL cp_dbcsr_filter(matrix_s(1)%matrix, dft_control%qs_control%eps_filter_matrix)
+      CALL dbcsr_finalize(matrix_s(1)%matrix)
+      CALL dbcsr_filter(matrix_s(1)%matrix, dft_control%qs_control%eps_filter_matrix)
 
       ! *** Release work storage ***
       DEALLOCATE (atom_of_kind)
@@ -675,7 +674,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_p
+      TYPE(dbcsr_type), POINTER                          :: matrix_p
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_force', &
          routineP = moduleN//':'//routineN
@@ -786,8 +785,8 @@ CONTAINS
                ff = 1.0_dp
             END IF
             NULLIFY (p_block)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
-                                      block=p_block, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
+                                   block=p_block, found=found)
          END IF
          trans = do_symmetric .AND. (iatom > jatom)
 
@@ -855,7 +854,7 @@ CONTAINS
                                    basis_set_list_a, basis_set_list_b, sab_nl, symmetric)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -922,12 +921,12 @@ CONTAINS
          CALL compress(name)
          CALL uppercase(name)
          ALLOCATE (matrix_s(i)%matrix)
-         CALL cp_dbcsr_init(matrix_s(i)%matrix)
-         CALL cp_dbcsr_create(matrix=matrix_s(i)%matrix, &
-                              name=TRIM(name), &
-                              dist=dbcsr_dist, matrix_type=symmetry_string, &
-                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                              nze=0)
+         CALL dbcsr_init(matrix_s(i)%matrix)
+         CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
+                           name=TRIM(name), &
+                           dist=dbcsr_dist, matrix_type=symmetry_string, &
+                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+                           nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i)%matrix, sab_nl)
       END DO
 
@@ -950,7 +949,7 @@ CONTAINS
                                    basis_set_list_a, basis_set_list_b, sab_nl, symmetric)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1016,12 +1015,12 @@ CONTAINS
             CALL compress(name)
             CALL uppercase(name)
             ALLOCATE (matrix_s(i1, i2)%matrix)
-            CALL cp_dbcsr_init(matrix_s(i1, i2)%matrix)
-            CALL cp_dbcsr_create(matrix=matrix_s(i1, i2)%matrix, &
-                                 name=TRIM(name), &
-                                 dist=dbcsr_dist, matrix_type=symmetry_string, &
-                                 row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                                 nze=0)
+            CALL dbcsr_init(matrix_s(i1, i2)%matrix)
+            CALL dbcsr_create(matrix=matrix_s(i1, i2)%matrix, &
+                              name=TRIM(name), &
+                              dist=dbcsr_dist, matrix_type=symmetry_string, &
+                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
+                              nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i1, i2)%matrix, sab_nl)
          END DO
       END DO

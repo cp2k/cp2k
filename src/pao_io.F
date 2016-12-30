@@ -12,10 +12,6 @@ MODULE pao_io
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_row_block_sizes,&
-                                              cp_dbcsr_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -23,6 +19,10 @@ MODULE pao_io
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_col_block_sizes,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_row_block_sizes,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -145,8 +145,8 @@ CONTAINS
 
       ! scatter xblocks across ranks to fill pao%matrix_X
       ! this could probably be done more efficiently
-      row_blk_sizes => cp_dbcsr_row_block_sizes(pao%matrix_X)
-      col_blk_sizes => cp_dbcsr_col_block_sizes(pao%matrix_X)
+      row_blk_sizes => dbcsr_row_block_sizes(pao%matrix_X)
+      col_blk_sizes => dbcsr_col_block_sizes(pao%matrix_X)
       DO iatom = 1, natoms
          ALLOCATE (buffer(row_blk_sizes(iatom), col_blk_sizes(iatom)))
          IF (para_env%mepos == para_env%source) THEN
@@ -155,7 +155,7 @@ CONTAINS
             buffer = xblocks(iatom)%p
          ENDIF
          CALL mp_bcast(buffer, para_env%source, para_env%group)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
          IF (ASSOCIATED(block_X)) &
             block_X = buffer
          DEALLOCATE (buffer)
@@ -428,7 +428,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pao_write_diagonal_blocks(para_env, matrix, label, unit_nr)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_type)                                :: matrix
+      TYPE(dbcsr_type)                                   :: matrix
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -438,15 +438,15 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: local_block, mpi_buffer
 
       !TODO: this is a serial algorithm
-      row_blk_sizes => cp_dbcsr_row_block_sizes(matrix)
-      col_blk_sizes => cp_dbcsr_col_block_sizes(matrix)
+      row_blk_sizes => dbcsr_row_block_sizes(matrix)
+      col_blk_sizes => dbcsr_col_block_sizes(matrix)
       CPASSERT(SIZE(row_blk_sizes) == SIZE(col_blk_sizes))
       natoms = SIZE(row_blk_sizes)
 
       DO iatom = 1, natoms
          ALLOCATE (mpi_buffer(row_blk_sizes(iatom), col_blk_sizes(iatom)))
          NULLIFY (local_block)
-         CALL cp_dbcsr_get_block_p(matrix=matrix, row=iatom, col=iatom, block=local_block, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix, row=iatom, col=iatom, block=local_block, found=found)
          IF (ASSOCIATED(local_block)) THEN
             IF (SIZE(local_block) > 0) & ! catch corner-case
                mpi_buffer(:, :) = local_block(:, :)

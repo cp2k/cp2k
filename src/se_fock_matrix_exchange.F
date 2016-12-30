@@ -17,9 +17,9 @@ MODULE se_fock_matrix_exchange
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               semi_empirical_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: do_se_IS_kdso,&
                                               do_se_IS_kdso_d
    USE kinds,                           ONLY: dp
@@ -76,7 +76,7 @@ CONTAINS
                                          store_int_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
@@ -177,11 +177,11 @@ CONTAINS
             switch = .TRUE.
          END IF
          ! Retrieve blocks for KS and P
-         CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix, &
-                                   row=irow, col=icol, BLOCK=ks_block_a, found=found)
+         CALL dbcsr_get_block_p(matrix=ks_matrix(1)%matrix, &
+                                row=irow, col=icol, BLOCK=ks_block_a, found=found)
          CPASSERT(ASSOCIATED(ks_block_a))
-         CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix, &
-                                   row=irow, col=icol, BLOCK=p_block_a, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix, &
+                                row=irow, col=icol, BLOCK=p_block_a, found=found)
          CPASSERT(ASSOCIATED(p_block_a))
          size_p_block_a(1) = SIZE(p_block_a, 1)
          size_p_block_a(2) = SIZE(p_block_a, 2)
@@ -189,11 +189,11 @@ CONTAINS
 
          ! Handle more configurations
          IF (nspins == 2) THEN
-            CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix, &
-                                      row=irow, col=icol, BLOCK=ks_block_b, found=found)
+            CALL dbcsr_get_block_p(matrix=ks_matrix(2)%matrix, &
+                                   row=irow, col=icol, BLOCK=ks_block_b, found=found)
             CPASSERT(ASSOCIATED(ks_block_b))
-            CALL cp_dbcsr_get_block_p(matrix=matrix_p(2)%matrix, &
-                                      row=irow, col=icol, BLOCK=p_block_b, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_p(2)%matrix, &
+                                   row=irow, col=icol, BLOCK=p_block_b, found=found)
             CPASSERT(ASSOCIATED(p_block_b))
             check = (size_p_block_a(1) == SIZE(p_block_b, 1)) .AND. (size_p_block_a(2) == SIZE(p_block_b, 2))
             CPASSERT(check)

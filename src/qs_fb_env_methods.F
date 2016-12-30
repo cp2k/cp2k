@@ -13,14 +13,6 @@ MODULE qs_fb_env_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-        cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullcols_total, &
-        cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_blocks, &
-        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                               cp_fm_symm,&
@@ -47,6 +39,13 @@ MODULE qs_fb_env_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_finalize, dbcsr_get_info, &
+        dbcsr_get_matrix_type, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_blocks, dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&
                                               cholesky_off,&
@@ -135,7 +134,7 @@ CONTAINS
                              diis_step)
       TYPE(fb_env_obj), INTENT(INOUT)                    :: fb_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
@@ -153,14 +152,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, eigenvalues_filtered, occ, &
                                                             occ_filtered
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_filter
-      TYPE(cp_dbcsr_type)                                :: matrix_filtered_ks, matrix_filtered_s, &
-                                                            matrix_tmp
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_filtered_p
       TYPE(cp_fm_struct_type), POINTER                   :: filter_fm_struct, fm_struct
       TYPE(cp_fm_type), POINTER :: fm_matrix_filter, fm_matrix_filtered_ks, fm_matrix_filtered_s, &
          fm_matrix_ortho, fm_matrix_work, mo_coeff, mo_coeff_filtered
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_filter
+      TYPE(dbcsr_type)                                   :: matrix_filtered_ks, matrix_filtered_s, &
+                                                            matrix_tmp
+      TYPE(dbcsr_type), POINTER                          :: matrix_filtered_p
       TYPE(fb_atomic_halo_list_obj)                      :: atomic_halos
       TYPE(fb_trial_fns_obj)                             :: trial_fns
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_filtered
@@ -250,8 +249,8 @@ CONTAINS
                       trial_fns=trial_fns)
 
       ! allocate filter matrix (matrix_filter(ispin)%matrix are
-      ! nullified by cp_dbcsr_allocate_matrix_set)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_filter, nspin)
+      ! nullified by dbcsr_allocate_matrix_set)
+      CALL dbcsr_allocate_matrix_set(matrix_filter, nspin)
       DO ispin = 1, nspin
          ! get system-wide fermi energy and occupancy, we use this to
          ! define the filter function used for the filter matrix
@@ -305,10 +304,10 @@ CONTAINS
       ! and col_block_sizes equal to that of the filtered.  We assume
       ! also that the matrix dimensions are identical for both spin
       ! channels.
-      original_rowORcol_block_sizes => cp_dbcsr_row_block_sizes(matrix_ks(1)%matrix)
-      filtered_rowORcol_block_sizes => cp_dbcsr_col_block_sizes(matrix_filter(1)%matrix)
-      original_nfullrowsORcols_total = cp_dbcsr_nfullrows_total(matrix_ks(1)%matrix)
-      filtered_nfullrowsORcols_total = cp_dbcsr_nfullcols_total(matrix_filter(1)%matrix)
+      original_rowORcol_block_sizes => dbcsr_row_block_sizes(matrix_ks(1)%matrix)
+      filtered_rowORcol_block_sizes => dbcsr_col_block_sizes(matrix_filter(1)%matrix)
+      original_nfullrowsORcols_total = dbcsr_nfullrows_total(matrix_ks(1)%matrix)
+      filtered_nfullrowsORcols_total = dbcsr_nfullcols_total(matrix_filter(1)%matrix)
 
       ! filter diagonalisation works on a smaller basis set, and thus
       ! requires a new mo_set (molecular orbitals | eigenvectors) and
@@ -336,17 +335,17 @@ CONTAINS
 
       ! create DBCSR filtered KS matrix, this is reused for each spin
       ! channel
-      CALL cp_dbcsr_init(matrix_filtered_ks)
+      CALL dbcsr_init(matrix_filtered_ks)
       ! both row_blk_size and col_blk_size should be that of
       ! col_blk_size of the filter matrix
-      CALL cp_dbcsr_create(matrix=matrix_filtered_ks, &
-                           name=TRIM("FILTERED_KS_MATRIX"), &
-                           dist=cp_dbcsr_distribution(matrix_ks(1)%matrix), &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=filtered_rowORcol_block_sizes, &
-                           col_blk_size=filtered_rowORcol_block_sizes, &
-                           nze=0)
-      CALL cp_dbcsr_finalize(matrix_filtered_ks)
+      CALL dbcsr_create(matrix=matrix_filtered_ks, &
+                        name=TRIM("FILTERED_KS_MATRIX"), &
+                        dist=dbcsr_distribution(matrix_ks(1)%matrix), &
+                        matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=filtered_rowORcol_block_sizes, &
+                        col_blk_size=filtered_rowORcol_block_sizes, &
+                        nze=0)
+      CALL dbcsr_finalize(matrix_filtered_ks)
 
       ! create DBCSR filtered S (overlap) matrix. Note that
       ! matrix_s(1)%matrix is the orginal overlap matrix---the rest in
@@ -355,29 +354,29 @@ CONTAINS
       ! matrix, and does depend on spin, the filtered S also becomes
       ! spin dependent. Nevertheless this matrix is reused for each spin
       ! channel
-      CALL cp_dbcsr_init(matrix_filtered_s)
+      CALL dbcsr_init(matrix_filtered_s)
       ! both row_blk_size and col_blk_size should be that of
       ! col_blk_size of the filter matrix
-      CALL cp_dbcsr_create(matrix=matrix_filtered_s, &
-                           name=TRIM("FILTERED_S_MATRIX"), &
-                           dist=cp_dbcsr_distribution(matrix_s(1)%matrix), &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=filtered_rowORcol_block_sizes, &
-                           col_blk_size=filtered_rowORcol_block_sizes, &
-                           nze=0)
-      CALL cp_dbcsr_finalize(matrix_filtered_s)
+      CALL dbcsr_create(matrix=matrix_filtered_s, &
+                        name=TRIM("FILTERED_S_MATRIX"), &
+                        dist=dbcsr_distribution(matrix_s(1)%matrix), &
+                        matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=filtered_rowORcol_block_sizes, &
+                        col_blk_size=filtered_rowORcol_block_sizes, &
+                        nze=0)
+      CALL dbcsr_finalize(matrix_filtered_s)
 
       ! create temporary matrix for constructing filtered KS and S
-      CALL cp_dbcsr_init(matrix_tmp)
+      CALL dbcsr_init(matrix_tmp)
       ! the temporary matrix won't be square
-      CALL cp_dbcsr_create(matrix=matrix_tmp, &
-                           name=TRIM("TEMPORARY_MATRIX"), &
-                           dist=cp_dbcsr_distribution(matrix_s(1)%matrix), &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=original_rowORcol_block_sizes, &
-                           col_blk_size=filtered_rowORcol_block_sizes, &
-                           nze=0)
-      CALL cp_dbcsr_finalize(matrix_tmp)
+      CALL dbcsr_create(matrix=matrix_tmp, &
+                        name=TRIM("TEMPORARY_MATRIX"), &
+                        dist=dbcsr_distribution(matrix_s(1)%matrix), &
+                        matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=original_rowORcol_block_sizes, &
+                        col_blk_size=filtered_rowORcol_block_sizes, &
+                        nze=0)
+      CALL dbcsr_finalize(matrix_tmp)
 
       ! create fm format matrices used for diagonalisation
       CALL cp_fm_struct_create(fmstruct=fm_struct, &
@@ -403,19 +402,19 @@ CONTAINS
       DO ispin = 1, nspin
 
          ! construct filtered KS matrix
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
-                                matrix_ks(ispin)%matrix, matrix_filter(ispin)%matrix, &
-                                0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, &
-                                matrix_filter(ispin)%matrix, matrix_tmp, &
-                                0.0_dp, matrix_filtered_ks)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                             matrix_ks(ispin)%matrix, matrix_filter(ispin)%matrix, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_multiply("T", "N", 1.0_dp, &
+                             matrix_filter(ispin)%matrix, matrix_tmp, &
+                             0.0_dp, matrix_filtered_ks)
          ! construct filtered S_matrix
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
-                                matrix_s(1)%matrix, matrix_filter(ispin)%matrix, &
-                                0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, &
-                                matrix_filter(ispin)%matrix, matrix_tmp, &
-                                0.0_dp, matrix_filtered_s)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                             matrix_s(1)%matrix, matrix_filter(ispin)%matrix, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_multiply("T", "N", 1.0_dp, &
+                             matrix_filter(ispin)%matrix, matrix_tmp, &
+                             0.0_dp, matrix_filtered_s)
 
          ! now that we have the filtered KS and S matrices for this spin
          ! channel, perform ordinary diagonalisation
@@ -441,8 +440,8 @@ CONTAINS
       END DO ! ispin
 
       ! release temporary matrices
-      CALL cp_dbcsr_release(matrix_filtered_s)
-      CALL cp_dbcsr_release(matrix_filtered_ks)
+      CALL dbcsr_release(matrix_filtered_s)
+      CALL dbcsr_release(matrix_filtered_ks)
       CALL cp_fm_release(fm_matrix_filtered_s)
       CALL cp_fm_release(fm_matrix_filtered_ks)
       CALL cp_fm_release(fm_matrix_work)
@@ -461,7 +460,7 @@ CONTAINS
       ! full basis version in scf_env ready to be used outside this
       ! subroutine
       ALLOCATE (matrix_filtered_p)
-      CALL cp_dbcsr_init(matrix_filtered_p)
+      CALL dbcsr_init(matrix_filtered_p)
       ! the filtered density matrix should have the same sparse
       ! structure as the original density matrix, we must copy the
       ! sparse structure here, since construction of the density matrix
@@ -469,40 +468,40 @@ CONTAINS
       ! have its blocks allocated here now. We assume the original
       ! density matrix scf_env%p_mix_new has the same sparse structure
       ! in both spin channels.
-      CALL cp_dbcsr_create(matrix=matrix_filtered_p, &
-                           name=TRIM("FILTERED_MATRIX_P"), &
-                           dist=cp_dbcsr_distribution(scf_env%p_mix_new(1, 1)%matrix), &
-                           matrix_type=cp_dbcsr_get_matrix_type(scf_env%p_mix_new(1, 1)%matrix), &
-                           row_blk_size=filtered_rowORcol_block_sizes, &
-                           col_blk_size=filtered_rowORcol_block_sizes, &
-                           nze=0)
-      CALL cp_dbcsr_finalize(matrix_filtered_p)
+      CALL dbcsr_create(matrix=matrix_filtered_p, &
+                        name=TRIM("FILTERED_MATRIX_P"), &
+                        dist=dbcsr_distribution(scf_env%p_mix_new(1, 1)%matrix), &
+                        matrix_type=dbcsr_get_matrix_type(scf_env%p_mix_new(1, 1)%matrix), &
+                        row_blk_size=filtered_rowORcol_block_sizes, &
+                        col_blk_size=filtered_rowORcol_block_sizes, &
+                        nze=0)
+      CALL dbcsr_finalize(matrix_filtered_p)
       CALL fb_dbcsr_copy_sparse_struct(matrix_filtered_p, &
                                        scf_env%p_mix_new(1, 1)%matrix)
       ! old implementation, using sab_orb to allocate the blocks in matrix_filtered_p
       ! CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb)
       ! CALL cp_dbcsr_alloc_block_from_nbl(matrix_filtered_p, sab_orb)
-      CALL cp_dbcsr_set(matrix_filtered_p, 0.0_dp)
+      CALL dbcsr_set(matrix_filtered_p, 0.0_dp)
 
       DO ispin = 1, nspin
          ! calculate matrix_filtered_p
          CALL calculate_density_matrix(mos_filtered(ispin)%mo_set, &
                                        matrix_filtered_p)
          ! convert back to full basis p
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
-                                matrix_filter(ispin)%matrix, matrix_filtered_p, &
-                                0.0_dp, matrix_tmp)
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, &
-                                matrix_tmp, matrix_filter(ispin)%matrix, &
-                                0.0_dp, scf_env%p_mix_new(ispin, 1)%matrix, &
-                                retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, &
+                             matrix_filter(ispin)%matrix, matrix_filtered_p, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, &
+                             matrix_tmp, matrix_filter(ispin)%matrix, &
+                             0.0_dp, scf_env%p_mix_new(ispin, 1)%matrix, &
+                             retain_sparsity=.TRUE.)
          ! note that we want to retain the sparse structure of
          ! scf_env%p_mix_new
       END DO ! ispin
 
       ! release temporary matrices
-      CALL cp_dbcsr_release(matrix_tmp)
-      CALL cp_dbcsr_release(matrix_filtered_p)
+      CALL dbcsr_release(matrix_tmp)
+      CALL dbcsr_release(matrix_filtered_p)
       DEALLOCATE (matrix_filtered_p)
 
       ! ----------------------------------------------------------------------
@@ -592,7 +591,7 @@ CONTAINS
          CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set)
       END DO
       DEALLOCATE (mos_filtered)
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_filter)
+      CALL dbcsr_deallocate_matrix_set(matrix_filter)
 
       CALL timestop(handle)
 
@@ -1143,8 +1142,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_dbcsr_copy_sparse_struct(matrix_out, matrix_in)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_out
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix_in
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
 
       CHARACTER(len=*), PARAMETER :: routineN = 'fb_dbcsr_copy_sparse_struct', &
          routineP = moduleN//':'//routineN
@@ -1153,11 +1152,11 @@ CONTAINS
                                                             nblkrows_total, nblks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows
       REAL(dp), DIMENSION(:, :), POINTER                 :: mat_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
-      CALL cp_dbcsr_get_info(matrix=matrix_in, &
-                             nblkrows_total=nblkrows_total, &
-                             nblkcols_total=nblkcols_total)
+      CALL dbcsr_get_info(matrix=matrix_in, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total)
 
       nblks = nblkrows_total*nblkcols_total
       ALLOCATE (rows(nblks))
@@ -1166,16 +1165,16 @@ CONTAINS
       cols(:) = 0
       iblk = 0
       nblks = 0
-      CALL cp_dbcsr_iterator_start(iter, matrix_in)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, mat_block, iblk)
+      CALL dbcsr_iterator_start(iter, matrix_in)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, mat_block, iblk)
          rows(iblk) = iatom
          cols(iblk) = jatom
          nblks = nblks+1
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
-      CALL cp_dbcsr_reserve_blocks(matrix_out, rows(1:nblks), cols(1:nblks))
-      CALL cp_dbcsr_finalize(matrix_out)
+      CALL dbcsr_iterator_stop(iter)
+      CALL dbcsr_reserve_blocks(matrix_out, rows(1:nblks), cols(1:nblks))
+      CALL dbcsr_finalize(matrix_out)
 
       ! cleanup
       DEALLOCATE (rows)

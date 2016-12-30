@@ -10,10 +10,10 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_p_env_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE hartree_local_types,             ONLY: hartree_local_release,&
                                               hartree_local_type
    USE kinds,                           ONLY: dp
@@ -60,7 +60,7 @@ MODULE qs_p_env_types
 
       LOGICAL :: orthogonal_orbitals
       INTEGER :: id_nr, ref_count, iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, p1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, p1
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon, &
                                                    psi0d, S_psi0, Smo_inv
       TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
@@ -147,8 +147,8 @@ CONTAINS
                CALL qs_rho_release(p_env%rho1_xc)
             ENDIF
             CALL qs_rho_release(p_env%rho1)
-            IF (ASSOCIATED(p_env%kpp1)) CALL cp_dbcsr_deallocate_matrix_set(p_env%kpp1)
-            IF (ASSOCIATED(p_env%p1)) CALL cp_dbcsr_deallocate_matrix_set(p_env%p1)
+            IF (ASSOCIATED(p_env%kpp1)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1)
+            IF (ASSOCIATED(p_env%p1)) CALL dbcsr_deallocate_matrix_set(p_env%p1)
             IF (ASSOCIATED(p_env%local_rho_set)) THEN
                CALL local_rho_set_release(p_env%local_rho_set)
             END IF

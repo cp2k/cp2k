@@ -8,7 +8,6 @@
 !> \author Alin M Elena
 ! **************************************************************************************************
 MODULE wannier_states
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -27,6 +26,7 @@ MODULE wannier_states
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE dbcsr_api,                       ONLY: dbcsr_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -68,7 +68,7 @@ CONTAINS
                                        Hks, qs_env, loc_print_section, WannierCentres, ns, states)
 
       TYPE(cp_fm_type), INTENT(in), POINTER              :: mo_localized
-      TYPE(cp_dbcsr_type), POINTER                       :: Hks
+      TYPE(dbcsr_type), POINTER                          :: Hks
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: loc_print_section
       TYPE(wannier_centres_type), INTENT(INOUT)          :: WannierCentres

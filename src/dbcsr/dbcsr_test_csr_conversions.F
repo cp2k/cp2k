@@ -11,14 +11,15 @@
 ! **************************************************************************************************
 PROGRAM dbcsr_test_csr_conversions
    USE dbcsr_api,                       ONLY: &
-        csr_destroy, csr_type, dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, &
-        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+        convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_destroy, &
+        csr_eqrow_ceil_dist, csr_type, dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
         dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
         dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
         dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_obj, dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8
-   USE dbcsr_csr_conversions,           ONLY: csr_conversion_test
+        dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_put_block, dbcsr_release, &
+        dbcsr_row_block_sizes, dbcsr_to_csr_filter, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_real_8
    USE kinds,                           ONLY: dp,&
                                               real_8
    USE machine,                         ONLY: default_output_unit
@@ -32,7 +33,7 @@ PROGRAM dbcsr_test_csr_conversions
 
    IMPLICIT NONE
 
-   TYPE(dbcsr_obj)              :: matrix_a
+   TYPE(dbcsr_type)              :: matrix_a
    TYPE(csr_type)               :: matrix_b
 
    INTEGER, DIMENSION(:), POINTER :: col_blk_sizes, row_blk_sizes
@@ -153,6 +154,43 @@ PROGRAM dbcsr_test_csr_conversions
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Test the conversion by converting to CSR format and converting back,
+!>        where the CSR sparsity is defined by some filtering threshold eps.
+!>        The maximum norm of the differences between the original and the
+!>        back-converted matrix is calculated.
+!> \param[in] dbcsr_mat ...
+!> \param[out] csr_mat ...
+!> \param[out] norm ...
+!> \param eps ...
+!> \par History
+!>      10.2014 created [Patrick Seewald]
+!> \author Patrick Seewald
+! **************************************************************************************************
+   SUBROUTINE csr_conversion_test(dbcsr_mat, csr_mat, norm, eps)
+      TYPE(dbcsr_type), INTENT(IN)                       :: dbcsr_mat
+      TYPE(csr_type), INTENT(OUT)                        :: csr_mat
+      REAL(KIND=real_8), INTENT(OUT)                     :: norm
+      REAL(KIND=real_8), INTENT(IN)                      :: eps
+
+      TYPE(dbcsr_type)                                   :: csr_sparsity, dbcsr_mat_conv
+
+      CALL dbcsr_to_csr_filter(dbcsr_mat, csr_sparsity, eps)
+
+      CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, csr_eqrow_ceil_dist, csr_sparsity)
+      CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
+
+      CALL dbcsr_copy(dbcsr_mat_conv, dbcsr_mat)
+
+      CALL convert_csr_to_dbcsr(dbcsr_mat_conv, csr_mat)
+
+      CALL dbcsr_add(dbcsr_mat_conv, dbcsr_mat, 1.0_dp, -1.0_dp)
+      CALL dbcsr_norm(dbcsr_mat_conv, dbcsr_norm_maxabsnorm, norm_scalar=norm)
+
+      CALL dbcsr_release(dbcsr_mat_conv)
+      CALL dbcsr_release(csr_sparsity)
+   END SUBROUTINE csr_conversion_test
+
+! **************************************************************************************************
 !> \brief Create a DBCSR matrix with random values and random blocks
 !> \param matrix_a ...
 !> \param mp_env ...
@@ -164,7 +202,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_random_dbcsr_matrix(matrix_a, mp_env, &
                                        col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity)
-      TYPE(dbcsr_obj), INTENT(OUT)                       :: matrix_a
+      TYPE(dbcsr_type), INTENT(OUT)                      :: matrix_a
       TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes, col_dist, &
                                                             row_dist

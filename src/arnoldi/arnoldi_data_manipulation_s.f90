@@ -6,7 +6,7 @@
 ! **************************************************************************************************
   SUBROUTINE setup_arnoldi_data_s (arnoldi_data, matrix, max_iter)
     TYPE(arnoldi_data_type)                 :: arnoldi_data
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
     INTEGER                                 :: max_iter
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_arnoldi_data_s', &
@@ -16,7 +16,7 @@
     TYPE(arnoldi_data_s_type), POINTER      :: ar_data
 
     ALLOCATE(ar_data)
-    CALL cp_dbcsr_get_info(matrix=matrix(1)%matrix, nfullrows_local=nrow_local)
+    CALL dbcsr_get_info(matrix=matrix(1)%matrix, nfullrows_local=nrow_local)
     ALLOCATE(ar_data%f_vec(nrow_local))
     ALLOCATE(ar_data%x_vec(nrow_local))
     ALLOCATE(ar_data%Hessenberg(max_iter+1, max_iter))
@@ -62,8 +62,8 @@
   SUBROUTINE get_selected_ritz_vector_s(arnoldi_data,ind,matrix,vector)
     TYPE(arnoldi_data_type)                 :: arnoldi_data
     INTEGER                                  :: ind
-    TYPE(cp_dbcsr_type)                          :: matrix
-    TYPE(cp_dbcsr_type)                          :: vector
+    TYPE(dbcsr_type)                          :: matrix
+    TYPE(dbcsr_type)                          :: vector
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector_s', &
       routineP = moduleN//':'//routineN
@@ -84,13 +84,13 @@
     ALLOCATE(ritz_v(vsize))
     ritz_v=CMPLX(0.0,0.0,real_4)
 
-    CALL cp_dbcsr_release(vector)
-    CALL cp_create_col_vec_from_matrix(vector,matrix,1)
+    CALL dbcsr_release(vector)
+    CALL create_col_vec_from_matrix(vector,matrix,1)
     IF(control%local_comp)THEN
        DO i=1,sspace_size
           ritz_v(:)=ritz_v(:)+ar_data%local_history(:,i)*ar_data%revec(i,myind)
        END DO
-       data_vec => cp_dbcsr_get_data_p (vector, select_data_type=0.0_real_4)
+       data_vec => dbcsr_get_data_p (vector, select_data_type=0.0_real_4)
        ! is a bit odd but ritz_v is always complex and matrix type determines where it goes
        ! again I hope the user knows what is required
        data_vec(1:vsize) =REAL(ritz_v(1:vsize),KIND=real_4)
@@ -108,7 +108,7 @@
 ! **************************************************************************************************
   SUBROUTINE set_initial_vector_s(arnoldi_data,vector)
     TYPE(arnoldi_data_type)                 :: arnoldi_data
-    TYPE(cp_dbcsr_type)                          :: vector
+    TYPE(dbcsr_type)                          :: vector
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_initial_vector_s', &
       routineP = moduleN//':'//routineN
@@ -120,9 +120,9 @@
 
     control=>get_control(arnoldi_data)
 
-    CALL cp_dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ar_data=>get_data_s(arnoldi_data)
-    data_vec => cp_dbcsr_get_data_p (vector, select_data_type=0.0_real_4)
+    data_vec => dbcsr_get_data_p (vector, select_data_type=0.0_real_4)
     IF(nrow_local*ncol_local>0)ar_data%f_vec(1:nrow_local)=data_vec(1:nrow_local)
 
   END SUBROUTINE set_initial_vector_s  

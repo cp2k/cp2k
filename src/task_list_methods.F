@@ -17,14 +17,14 @@ MODULE task_list_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        convert_sizes_to_offsets, cp_dbcsr_col_block_sizes, cp_dbcsr_finalize, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_p_type, cp_dbcsr_put_block, &
-        cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create
    USE cube_utils,                      ONLY: compute_cube_center,&
                                               cube_info_type,&
                                               return_cube,&
                                               return_cube_nonortho
+   USE dbcsr_api,                       ONLY: &
+        convert_sizes_to_offsets, dbcsr_col_block_sizes, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_p_type, dbcsr_put_block, dbcsr_row_block_sizes, dbcsr_type, &
+        dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
    USE kinds,                           ONLY: default_string_length,&
@@ -2201,11 +2201,11 @@ CONTAINS
 
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmats
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmats
       INTEGER(KIND=int_8), DIMENSION(:), POINTER         :: atom_pair_send, atom_pair_recv
       INTEGER                                            :: natoms, nimages
       LOGICAL                                            :: scatter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: hmats
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_distribute_matrix', &
@@ -2221,7 +2221,7 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf_r, send_buf_r
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block
-      TYPE(cp_dbcsr_type), POINTER                       :: hmat, pmat
+      TYPE(dbcsr_type), POINTER                          :: hmat, pmat
       TYPE(realspace_grid_desc_type), POINTER            :: desc
 
 !$    INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
@@ -2246,13 +2246,13 @@ CONTAINS
       ALLOCATE (recv_pair_disps(desc%group_size))
 
       pmat => pmats(1)%matrix
-      CALL cp_dbcsr_get_info(pmat, &
-                             nblkrows_total=nblkrows_total, &
-                             nblkcols_total=nblkcols_total)
+      CALL dbcsr_get_info(pmat, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total)
       ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total), &
                 first_col(nblkcols_total), last_col(nblkcols_total))
-      CALL convert_sizes_to_offsets(cp_dbcsr_row_block_sizes(pmat), first_row, last_row)
-      CALL convert_sizes_to_offsets(cp_dbcsr_col_block_sizes(pmat), first_col, last_col)
+      CALL convert_sizes_to_offsets(dbcsr_row_block_sizes(pmat), first_row, last_row)
+      CALL convert_sizes_to_offsets(dbcsr_col_block_sizes(pmat), first_col, last_col)
       ! set up send buffer sizes
       natom8 = natoms
       nim8 = nimages
@@ -2347,8 +2347,8 @@ CONTAINS
             ncol = last_col(acol)-first_col(acol)+1
 
             pmat => pmats(img)%matrix
-            CALL cp_dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
-                                      block=p_block, found=found)
+            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
+                                   block=p_block, found=found)
             CPASSERT(found)
 
             DO k = 1, ncol
@@ -2398,11 +2398,11 @@ CONTAINS
 
             hmat => hmats(img)%matrix
             pmat => pmats(img)%matrix
-            CALL cp_dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
-                                      BLOCK=h_block, found=found)
+            CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
+                                   BLOCK=h_block, found=found)
             CPASSERT(found)
-            CALL cp_dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
-                                      BLOCK=p_block, found=found)
+            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
+                                   BLOCK=p_block, found=found)
             CPASSERT(found)
 
 !$          call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
@@ -2418,9 +2418,9 @@ CONTAINS
          ! We will insert new blocks into P, so create mutable work matrices
          DO img = 1, nimages
             pmat => pmats(img)%matrix
-            CALL cp_dbcsr_work_create(pmat, work_mutable=.TRUE., &
-                                      nblks_guess=SIZE(atom_pair_recv)/nthread, sizedata_guess=SIZE(recv_buf_r)/nthread, &
-                                      n=nthread)
+            CALL dbcsr_work_create(pmat, work_mutable=.TRUE., &
+                                   nblks_guess=SIZE(atom_pair_recv)/nthread, sizedata_guess=SIZE(recv_buf_r)/nthread, &
+                                   n=nthread)
          END DO
       END IF
 
@@ -2444,19 +2444,19 @@ CONTAINS
 
             pmat => pmats(img)%matrix
             NULLIFY (p_block)
-            CALL cp_dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
-                                      BLOCK=p_block, found=found)
+            CALL dbcsr_get_block_p(matrix=pmat, row=arow, col=acol, &
+                                   BLOCK=p_block, found=found)
 
             IF (PRESENT(hmats)) THEN
                hmat => hmats(img)%matrix
-               CALL cp_dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
-                                         BLOCK=h_block, found=found)
+               CALL dbcsr_get_block_p(matrix=hmat, row=arow, col=acol, &
+                                      BLOCK=h_block, found=found)
                CPASSERT(found)
             ENDIF
 
             IF (scatter .AND. .NOT. ASSOCIATED(p_block)) THEN
-               CALL cp_dbcsr_put_block(pmat, arow, acol, &
-                                       block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol))
+               CALL dbcsr_put_block(pmat, arow, acol, &
+                                    block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol))
             END IF
             IF (.NOT. scatter) THEN
 !$             call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
@@ -2490,7 +2490,7 @@ CONTAINS
          ! Blocks were added to P
          DO img = 1, nimages
             pmat => pmats(img)%matrix
-            CALL cp_dbcsr_finalize(pmat)
+            CALL dbcsr_finalize(pmat)
          END DO
       END IF
 !$OMP END PARALLEL

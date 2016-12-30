@@ -26,11 +26,6 @@ MODULE qs_linres_op
                                               cp_cfm_set_all
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        convert_offsets_to_sizes, cp_dbcsr_allocate_matrix_set, cp_dbcsr_checksum, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
-        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_obj, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -46,6 +41,11 @@ MODULE qs_linres_op
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_checksum, dbcsr_copy, &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
+        dbcsr_distribution_obj, dbcsr_init, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -124,7 +124,6 @@ CONTAINS
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(3)                 :: vecbuf_RmdC0
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op_ao
       TYPE(cp_fm_p_type), DIMENSION(3)                   :: fm_Rmd_mos
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, rxp_psi0
@@ -133,6 +132,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -218,24 +218,24 @@ CONTAINS
       CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
       !
       !
-      CALL cp_dbcsr_allocate_matrix_set(op_ao, 3)
+      CALL dbcsr_allocate_matrix_set(op_ao, 3)
       ALLOCATE (op_ao(1)%matrix, op_ao(2)%matrix, op_ao(3)%matrix)
-      CALL cp_dbcsr_init(op_ao(1)%matrix)
-      CALL cp_dbcsr_init(op_ao(2)%matrix)
-      CALL cp_dbcsr_init(op_ao(3)%matrix)
+      CALL dbcsr_init(op_ao(1)%matrix)
+      CALL dbcsr_init(op_ao(2)%matrix)
+      CALL dbcsr_init(op_ao(3)%matrix)
 
-      CALL cp_dbcsr_create(matrix=op_ao(1)%matrix, &
-                           name="op_ao", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+      CALL dbcsr_create(matrix=op_ao(1)%matrix, &
+                        name="op_ao", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                        nze=0, mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_ao(1)%matrix, sab_all)
-      CALL cp_dbcsr_set(op_ao(1)%matrix, 0.0_dp)
+      CALL dbcsr_set(op_ao(1)%matrix, 0.0_dp)
 
       DO idir = 2, 3
-         CALL cp_dbcsr_copy(op_ao(idir)%matrix, op_ao(1)%matrix, &
-                            "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
-         CALL cp_dbcsr_set(op_ao(idir)%matrix, 0.0_dp)
+         CALL dbcsr_copy(op_ao(idir)%matrix, op_ao(1)%matrix, &
+                         "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+         CALL dbcsr_set(op_ao(idir)%matrix, 0.0_dp)
       ENDDO
 
       chk(:) = 0.0_dp
@@ -246,18 +246,18 @@ CONTAINS
          CALL cp_fm_set_all(p_psi0(ispin, 2)%matrix, 0.0_dp)
          CALL cp_fm_set_all(p_psi0(ispin, 3)%matrix, 0.0_dp)
          DO icenter = 1, nbr_center(ispin)
-            CALL cp_dbcsr_set(op_ao(1)%matrix, 0.0_dp)
-            CALL cp_dbcsr_set(op_ao(2)%matrix, 0.0_dp)
-            CALL cp_dbcsr_set(op_ao(3)%matrix, 0.0_dp)
+            CALL dbcsr_set(op_ao(1)%matrix, 0.0_dp)
+            CALL dbcsr_set(op_ao(2)%matrix, 0.0_dp)
+            CALL dbcsr_set(op_ao(3)%matrix, 0.0_dp)
             !CALL rmc_x_p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,&
             !     &              wancen=centers_set(ispin)%array(1:3,icenter))
             !     &
             CALL build_ang_mom_matrix(qs_env, op_ao, centers_set(ispin)%array(1:3, icenter))
             !
             ! accumulate checksums
-            chk(1) = chk(1)+cp_dbcsr_checksum(op_ao(1)%matrix)
-            chk(2) = chk(2)+cp_dbcsr_checksum(op_ao(2)%matrix)
-            chk(3) = chk(3)+cp_dbcsr_checksum(op_ao(3)%matrix)
+            chk(1) = chk(1)+dbcsr_checksum(op_ao(1)%matrix)
+            chk(2) = chk(2)+dbcsr_checksum(op_ao(2)%matrix)
+            chk(3) = chk(3)+dbcsr_checksum(op_ao(3)%matrix)
             DO idir = 1, 3
                CALL cp_fm_set_all(rxp_psi0(ispin, idir)%matrix, 0.0_dp)
                CALL cp_dbcsr_sm_fm_multiply(op_ao(idir)%matrix, mo_coeff, &
@@ -276,7 +276,7 @@ CONTAINS
          CALL cp_fm_to_fm(p_psi0(ispin, 3)%matrix, rxp_psi0(ispin, 3)%matrix)
       ENDDO
       !
-      CALL cp_dbcsr_deallocate_matrix_set(op_ao)
+      CALL dbcsr_deallocate_matrix_set(op_ao)
       !
       ! print checksums
       IF (output_unit > 0) THEN
@@ -286,33 +286,33 @@ CONTAINS
       ENDIF
       !
       ! Calculate the px py pz operators
-      CALL cp_dbcsr_allocate_matrix_set(op_ao, 3)
+      CALL dbcsr_allocate_matrix_set(op_ao, 3)
       ALLOCATE (op_ao(1)%matrix, op_ao(2)%matrix, op_ao(3)%matrix)
-      CALL cp_dbcsr_init(op_ao(1)%matrix)
-      CALL cp_dbcsr_init(op_ao(2)%matrix)
-      CALL cp_dbcsr_init(op_ao(3)%matrix)
+      CALL dbcsr_init(op_ao(1)%matrix)
+      CALL dbcsr_init(op_ao(2)%matrix)
+      CALL dbcsr_init(op_ao(3)%matrix)
 
-      CALL cp_dbcsr_create(matrix=op_ao(1)%matrix, &
-                           name="op_ao", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+      CALL dbcsr_create(matrix=op_ao(1)%matrix, &
+                        name="op_ao", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
+                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                        nze=0, mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_ao(1)%matrix, sab_orb)
-      CALL cp_dbcsr_set(op_ao(1)%matrix, 0.0_dp)
+      CALL dbcsr_set(op_ao(1)%matrix, 0.0_dp)
 
       DO idir = 2, 3
-         CALL cp_dbcsr_copy(op_ao(idir)%matrix, op_ao(1)%matrix, &
-                            "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
-         CALL cp_dbcsr_set(op_ao(idir)%matrix, 0.0_dp)
+         CALL dbcsr_copy(op_ao(idir)%matrix, op_ao(1)%matrix, &
+                         "op_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+         CALL dbcsr_set(op_ao(idir)%matrix, 0.0_dp)
       ENDDO
       !
       CALL build_lin_mom_matrix(qs_env, op_ao)
       !CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.)
       !
       ! print checksums
-      chk(1) = cp_dbcsr_checksum(op_ao(1)%matrix)
-      chk(2) = cp_dbcsr_checksum(op_ao(2)%matrix)
-      chk(3) = cp_dbcsr_checksum(op_ao(3)%matrix)
+      chk(1) = dbcsr_checksum(op_ao(1)%matrix)
+      chk(2) = dbcsr_checksum(op_ao(2)%matrix)
+      chk(3) = dbcsr_checksum(op_ao(3)%matrix)
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_x =', chk(1)
          WRITE (output_unit, '(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_y =', chk(2)
@@ -330,7 +330,7 @@ CONTAINS
          END DO
       END DO
       !
-      CALL cp_dbcsr_deallocate_matrix_set(op_ao)
+      CALL dbcsr_deallocate_matrix_set(op_ao)
       !
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -449,13 +449,13 @@ CONTAINS
       LOGICAL                                            :: do_dso, do_fc, do_pso, do_sd
       REAL(dp)                                           :: chk(20), r_i(3)
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_dso, matrix_efg, matrix_fc, &
-                                                            matrix_pso
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fc_psi0
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dso_psi0, efg_psi0, pso_psi0
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dso, matrix_efg, matrix_fc, &
+                                                            matrix_pso
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -510,10 +510,10 @@ CONTAINS
       ! Fermi contact integral
       !IF(do_fc) THEN
       IF (.TRUE.) THEN ! for the moment we build it (regs)
-         CALL cp_dbcsr_set(matrix_fc(1)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_fc(1)%matrix, 0.0_dp)
          CALL build_fermi_contact_matrix(qs_env, matrix_fc, r_i)
 
-         chk(1) = cp_dbcsr_checksum(matrix_fc(1)%matrix)
+         chk(1) = dbcsr_checksum(matrix_fc(1)%matrix)
 
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| fermi_contact: CheckSum =', chk(1)
@@ -523,14 +523,14 @@ CONTAINS
       ! spin-orbit integral
       !IF(do_pso) THEN
       IF (.TRUE.) THEN ! for the moment we build it (regs)
-         CALL cp_dbcsr_set(matrix_pso(1)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_pso(2)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_pso(3)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_pso(1)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_pso(2)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_pso(3)%matrix, 0.0_dp)
          CALL build_pso_matrix(qs_env, matrix_pso, r_i)
 
-         chk(2) = cp_dbcsr_checksum(matrix_pso(1)%matrix)
-         chk(3) = cp_dbcsr_checksum(matrix_pso(2)%matrix)
-         chk(4) = cp_dbcsr_checksum(matrix_pso(3)%matrix)
+         chk(2) = dbcsr_checksum(matrix_pso(1)%matrix)
+         chk(3) = dbcsr_checksum(matrix_pso(2)%matrix)
+         chk(4) = dbcsr_checksum(matrix_pso(3)%matrix)
 
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| pso_x: CheckSum =', chk(2)
@@ -542,20 +542,20 @@ CONTAINS
       ! electric field integral
       !IF(do_sd) THEN
       IF (.TRUE.) THEN ! for the moment we build it (regs)
-         CALL cp_dbcsr_set(matrix_efg(1)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_efg(2)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_efg(3)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_efg(4)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_efg(5)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_efg(6)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_efg(1)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_efg(2)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_efg(3)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_efg(4)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_efg(5)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_efg(6)%matrix, 0.0_dp)
          CALL build_efg_matrix(qs_env, matrix_efg, r_i)
 
-         chk(5) = cp_dbcsr_checksum(matrix_efg(1)%matrix)
-         chk(6) = cp_dbcsr_checksum(matrix_efg(2)%matrix)
-         chk(7) = cp_dbcsr_checksum(matrix_efg(3)%matrix)
-         chk(8) = cp_dbcsr_checksum(matrix_efg(4)%matrix)
-         chk(9) = cp_dbcsr_checksum(matrix_efg(5)%matrix)
-         chk(10) = cp_dbcsr_checksum(matrix_efg(6)%matrix)
+         chk(5) = dbcsr_checksum(matrix_efg(1)%matrix)
+         chk(6) = dbcsr_checksum(matrix_efg(2)%matrix)
+         chk(7) = dbcsr_checksum(matrix_efg(3)%matrix)
+         chk(8) = dbcsr_checksum(matrix_efg(4)%matrix)
+         chk(9) = dbcsr_checksum(matrix_efg(5)%matrix)
+         chk(10) = dbcsr_checksum(matrix_efg(6)%matrix)
 
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T2,A,E23.16)') 'ISSC| efg (3xx-rr)/3: CheckSum =', chk(5)
@@ -574,9 +574,9 @@ CONTAINS
       !
       !>>> debugging only  here we build the dipole matrix... debugging the kernel...
       IF (do_dso) THEN
-         CALL cp_dbcsr_set(matrix_dso(1)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_dso(2)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_dso(3)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_dso(1)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_dso(2)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_dso(3)%matrix, 0.0_dp)
          CALL rRc_xyz_ao(matrix_dso, qs_env, (/0.0_dp, 0.0_dp, 0.0_dp/), 1)
       ENDIF
       !
@@ -660,14 +660,14 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat
       TYPE(cp_cfm_p_type), DIMENSION(:, :), POINTER      :: inv_mat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, sinmat
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dBerry_psi0, mo_derivs, op_fm_set, opvec
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), POINTER    :: inv_work
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(section_vals_type), POINTER                   :: lr_section
@@ -741,17 +741,17 @@ CONTAINS
          !
          NULLIFY (cosmat, sinmat)
          ALLOCATE (cosmat, sinmat)
-         CALL cp_dbcsr_init(cosmat)
-         CALL cp_dbcsr_init(sinmat)
-         CALL cp_dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
-         CALL cp_dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
-         CALL cp_dbcsr_set(cosmat, 0.0_dp)
-         CALL cp_dbcsr_set(sinmat, 0.0_dp)
+         CALL dbcsr_init(cosmat)
+         CALL dbcsr_init(sinmat)
+         CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
+         CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
+         CALL dbcsr_set(cosmat, 0.0_dp)
+         CALL dbcsr_set(sinmat, 0.0_dp)
 
          DO i = 1, 3
             kvec(:) = twopi*cell%h_inv(i, :)
-            CALL cp_dbcsr_set(cosmat, 0.0_dp)
-            CALL cp_dbcsr_set(sinmat, 0.0_dp)
+            CALL dbcsr_set(cosmat, 0.0_dp)
+            CALL dbcsr_set(sinmat, 0.0_dp)
             CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
 
             DO ispin = 1, dft_control%nspins ! spin
@@ -815,8 +815,8 @@ CONTAINS
             CALL cp_fm_release(op_fm_set(1, ispin)%matrix)
          END DO
 
-         CALL cp_dbcsr_deallocate_matrix(cosmat)
-         CALL cp_dbcsr_deallocate_matrix(sinmat)
+         CALL dbcsr_deallocate_matrix(cosmat)
+         CALL dbcsr_deallocate_matrix(sinmat)
 
          DEALLOCATE (inv_work)
          DEALLOCATE (opvec)

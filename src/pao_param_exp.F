@@ -9,11 +9,11 @@
 ! **************************************************************************************************
 MODULE pao_param_exp
    USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_col_block_sizes, dbcsr_create, dbcsr_get_block_p, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_potentials,                  ONLY: pao_guess_initial_potential
@@ -52,31 +52,31 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: H_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_H, block_H0, block_N, block_U0, &
                                                             block_V0, H_evecs
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
 
       ! allocate matrix_U0
-      CALL cp_dbcsr_init(pao%matrix_U0)
-      CALL cp_dbcsr_create(pao%matrix_U0, &
-                           name="PAO matrix_U0", &
-                           matrix_type="N", &
-                           dist=pao%diag_distribution, &
-                           template=matrix_s(1)%matrix)
-      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
+      CALL dbcsr_init(pao%matrix_U0)
+      CALL dbcsr_create(pao%matrix_U0, &
+                        name="PAO matrix_U0", &
+                        matrix_type="N", &
+                        dist=pao%diag_distribution, &
+                        template=matrix_s(1)%matrix)
+      CALL dbcsr_reserve_diag_blocks(pao%matrix_U0)
 
       ! diagonalize each block of H0 and store eigenvectors in U0
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env) &
 !$OMP PRIVATE(iter,arow,acol,iatom,N,found,block_H0,block_V0,block_N,block_H,block_U0,H_evecs,H_evals)
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
+      CALL dbcsr_iterator_start(iter, pao%matrix_U0)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_U0)
          iatom = arow; CPASSERT(arow == acol)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=block_H0, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_N_diag, row=iatom, col=iatom, block=block_N, found=found)
          CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_N))
          N = SIZE(block_U0, 1)
 
@@ -97,7 +97,7 @@ CONTAINS
 
          DEALLOCATE (block_H, H_evecs, H_evals, block_V0)
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
       IF (pao%precondition) &
@@ -113,7 +113,7 @@ CONTAINS
    SUBROUTINE pao_param_finalize_exp(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CALL cp_dbcsr_release(pao%matrix_U0)
+      CALL dbcsr_release(pao%matrix_U0)
 
    END SUBROUTINE pao_param_finalize_exp
 
@@ -159,7 +159,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_exp', &
          routineP = moduleN//':'//routineN
 
-      CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp) ! actual initial guess is matrix_U0
+      CALL dbcsr_set(pao%matrix_X, 0.0_dp) ! actual initial guess is matrix_U0
 
    END SUBROUTINE pao_param_initguess_exp
 
@@ -171,7 +171,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pao_calc_U_exp(pao, matrix_M, matrix_G)
       TYPE(pao_env_type), POINTER                        :: pao
-      TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M, matrix_G
+      TYPE(dbcsr_type), OPTIONAL                         :: matrix_M, matrix_G
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_exp', routineP = moduleN//':'//routineN
 
@@ -185,24 +185,24 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_G_full, block_M, &
                                                             block_tmp, block_U, block_U0, block_X, &
                                                             block_X_full
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
-      blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
-      blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+      blk_sizes_pri => dbcsr_row_block_sizes(pao%matrix_Y)
+      blk_sizes_pao => dbcsr_col_block_sizes(pao%matrix_Y)
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_M,matrix_G,blk_sizes_pri,blk_sizes_pao) &
 !$OMP PRIVATE(iter,arow,acol,iatom,N,M,nparams,i,j,k,found) &
 !$OMP PRIVATE(block_X,block_U,block_U0,block_X_full,evals,evecs) &
 !$OMP PRIVATE(block_M,block_G,block_D,block_tmp,block_G_full,denom)
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+      CALL dbcsr_iterator_start(iter, pao%matrix_X)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
          CPASSERT(ASSOCIATED(block_U))
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
          CPASSERT(ASSOCIATED(block_U0))
 
          N = blk_sizes_pri(iatom) ! size of primary basis
@@ -238,9 +238,9 @@ CONTAINS
          IF (PRESENT(matrix_G)) THEN
             CPASSERT(PRESENT(matrix_M))
 
-            CALL cp_dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
+            CALL dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
             CPASSERT(ASSOCIATED(block_G))
-            CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M, found=found)
             ! don't check ASSOCIATED(block_M), it might have been filtered out.
 
             ALLOCATE (block_D(N, N), block_tmp(N, N), block_G_full(N, N))
@@ -275,7 +275,7 @@ CONTAINS
          DEALLOCATE (block_X_full, evals, evecs)
 
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
       CALL timestop(handle)

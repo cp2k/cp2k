@@ -12,10 +12,10 @@ MODULE qs_dftb3_methods
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -66,7 +66,7 @@ CONTAINS
                                    calculate_forces, just_energy)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:)                             :: mcharge
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -88,8 +88,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p, matrix_s
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_iterator_p_type), &
@@ -142,8 +142,8 @@ CONTAINS
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO ic = 1, SIZE(matrix_p, 2)
-               CALL cp_dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
          !
@@ -186,13 +186,13 @@ CONTAINS
             gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
             !
             NULLIFY (pblock)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
-                                      row=irow, col=icol, block=pblock, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                   row=irow, col=icol, block=pblock, found=found)
             CPASSERT(found)
             DO i = 1, 3
                NULLIFY (dsblock)
-               CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
-                                         row=irow, col=icol, block=dsblock, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1+i, ic)%matrix, &
+                                      row=irow, col=icol, block=dsblock, found=found)
                CPASSERT(found)
                IF (irow == iatom) THEN
                   fi = -gmij*SUM(pblock*dsblock)
@@ -217,8 +217,8 @@ CONTAINS
          DEALLOCATE (atom_of_kind, kind_of)
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO ic = 1, SIZE(matrix_p, 2)
-               CALL cp_dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+               CALL dbcsr_add(matrix_p(1, ic)%matrix, matrix_p(2, ic)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
             END DO
          END IF
       END IF
@@ -263,13 +263,13 @@ CONTAINS
             gmij = -0.5_dp*(ui*mcharge(iatom)**2+uj*mcharge(jatom)**2)
             !
             NULLIFY (sblock)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
-                                      row=irow, col=icol, block=sblock, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                   row=irow, col=icol, block=sblock, found=found)
             CPASSERT(found)
             DO is = 1, SIZE(ks_matrix, 1)
                NULLIFY (ksblock)
-               CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
-                                         row=irow, col=icol, block=ksblock, found=found)
+               CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
+                                      row=irow, col=icol, block=ksblock, found=found)
                CPASSERT(found)
                ksblock = ksblock-0.5_dp*gmij*sblock
             END DO

@@ -11,10 +11,10 @@
 ! **************************************************************************************************
 MODULE qs_density_mixing_types
    USE ao_util,                         ONLY: exp_radius
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: broy_mix,&
                                               broy_mix_new,&
                                               direct_p_mix,&
@@ -74,10 +74,10 @@ MODULE qs_density_mixing_types
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER :: delta_res, u_vec, z_vec
       TYPE(cp_1d_z_p_type), DIMENSION(:, :), POINTER ::drho_buffer, rhoin_buffer, &
                                                         res_buffer
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_in_buffer
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_res_buffer
-      TYPE(cp_dbcsr_type), POINTER :: rho_ao_mix, rho_ao_res
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_in, rho_ao_in_old, rho_ao_lastres
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_in_buffer
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER :: rho_ao_res_buffer
+      TYPE(dbcsr_type), POINTER :: rho_ao_mix, rho_ao_res
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_lastres, cpc_s_lastres
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_in, cpc_s_in
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER :: cpc_h_old, cpc_s_old
@@ -411,25 +411,25 @@ CONTAINS
             END IF
 
             IF (ASSOCIATED(mixing_store%rho_ao_in)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in)
+               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in)
             END IF
             IF (ASSOCIATED(mixing_store%rho_ao_in_old)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_old)
+               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_old)
             END IF
             IF (ASSOCIATED(mixing_store%rho_ao_lastres)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_lastres)
+               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_lastres)
             END IF
             IF (ASSOCIATED(mixing_store%rho_ao_in_buffer)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_buffer)
+               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_in_buffer)
             END IF
             IF (ASSOCIATED(mixing_store%rho_ao_res_buffer)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(mixing_store%rho_ao_res_buffer)
+               CALL dbcsr_deallocate_matrix_set(mixing_store%rho_ao_res_buffer)
             END IF
             IF (ASSOCIATED(mixing_store%rho_ao_mix)) THEN
-               CALL cp_dbcsr_deallocate_matrix(mixing_store%rho_ao_mix)
+               CALL dbcsr_deallocate_matrix(mixing_store%rho_ao_mix)
             END IF
             IF (ASSOCIATED(mixing_store%rho_ao_res)) THEN
-               CALL cp_dbcsr_deallocate_matrix(mixing_store%rho_ao_res)
+               CALL dbcsr_deallocate_matrix(mixing_store%rho_ao_res)
             END IF
 
             DEALLOCATE (mixing_store)

@@ -18,13 +18,6 @@ MODULE qs_active_space_methods
         srules, sto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_csr_create,&
-                                              cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type,&
-                                              csr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
@@ -48,6 +41,13 @@ MODULE qs_active_space_methods
         silent_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE dbcsr_api,                       ONLY: csr_create,&
+                                              csr_type,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: &
         casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
         eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
@@ -169,12 +169,12 @@ CONTAINS
       TYPE(active_space_type), POINTER                   :: active_space_env
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, rho_ao
-      TYPE(cp_dbcsr_type), POINTER                       :: denmat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       TYPE(cp_fm_type), POINTER                          :: fm_ref, fm_target, fmat, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(csr_type), POINTER                            :: eri_mat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao
+      TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: pro_basis_set
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -552,11 +552,11 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       CPASSERT(ASSOCIATED(rho_ao))
-      CALL cp_dbcsr_allocate_matrix_set(active_space_env%pmat_inactive, nspins)
+      CALL dbcsr_allocate_matrix_set(active_space_env%pmat_inactive, nspins)
       DO ispin = 1, nspins
          ALLOCATE (denmat)
-         CALL cp_dbcsr_init(denmat)
-         CALL cp_dbcsr_copy(denmat, rho_ao(ispin)%matrix)
+         CALL dbcsr_init(denmat)
+         CALL dbcsr_copy(denmat, rho_ao(ispin)%matrix)
          mo_set => active_space_env%mos_inactive(ispin)%mo_set
          CALL calculate_density_matrix(mo_set, denmat)
          active_space_env%pmat_inactive(ispin)%matrix => denmat
@@ -660,7 +660,7 @@ CONTAINS
          END IF
          nn1 = (n1*(n1+1))/2
          nn2 = (n2*(n2+1))/2
-         CALL cp_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group)
+         CALL csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%group)
       END DO
 
       SELECT CASE (eri_method)
@@ -765,9 +765,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, is, nmo, nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_vxc
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: h_matrix, ks_matrix
       TYPE(cp_fm_type), POINTER                          :: hmat, ksmat, mo_coeff, vxcmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: h_matrix, ks_matrix
 
       CALL timeset(routineN, handle)
 
@@ -848,7 +848,7 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                          :: orbitals
       INTEGER, INTENT(IN)                                :: nmo
-      TYPE(cp_dbcsr_type), POINTER                       :: op_matrix
+      TYPE(dbcsr_type), POINTER                          :: op_matrix
       TYPE(cp_fm_type), POINTER                          :: op_sub
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_operator', &
@@ -1881,10 +1881,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nao, nmo, nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
-      TYPE(cp_dbcsr_type), POINTER                       :: pinact
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_ref
       TYPE(cp_fm_type), POINTER                          :: fm_active, lmat, pmat, vec
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_type), POINTER                          :: pinact
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1900,7 +1900,7 @@ CONTAINS
       mos => active_space_env%mos_active
       DO ispin = 1, nspins
          pinact => active_space_env%pmat_inactive(ispin)%matrix
-         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, pinact)
+         CALL dbcsr_copy(rho_ao(ispin)%matrix, pinact)
          ! create active density matrix in AO basis
          pmat => p_ref(ispin)%matrix
          CALL cp_fm_create(lmat, pmat%matrix_struct)

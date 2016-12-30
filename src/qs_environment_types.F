@@ -22,9 +22,6 @@ MODULE qs_environment_types
                                               cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_release_p,&
-                                              dbcsr_distribution_obj
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
                                               cp_ddapc_ewald_type,&
                                               cp_ddapc_release,&
@@ -35,6 +32,9 @@ MODULE qs_environment_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
@@ -232,7 +232,7 @@ MODULE qs_environment_types
       TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_loc_history
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(scf_control_type), POINTER                       :: scf_control
       TYPE(rel_control_type), POINTER                       :: rel_control
       ! ZMP adding variables
@@ -507,16 +507,16 @@ CONTAINS
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
       TYPE(qs_force_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: force
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_ks, matrix_ks_im, &
                                                             matrix_vxc
       LOGICAL, OPTIONAL                                  :: run_rtp
       TYPE(rt_prop_type), OPTIONAL, POINTER              :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_ks_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_ks_aux_fit, &
          matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_s, &
          matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, &
          matrix_p_mp2, gamma_matrix
@@ -532,7 +532,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
       TYPE(rel_control_type), OPTIONAL, POINTER          :: rel_control
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kinetic
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g
@@ -564,7 +564,7 @@ CONTAINS
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho0_s_rs, rho0_s_gs
       LOGICAL, OPTIONAL                                  :: do_kpoints, has_unit_metric, &
                                                             requires_mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs_aux_fit, mo_loc_history
@@ -1010,7 +1010,7 @@ CONTAINS
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
       LOGICAL, OPTIONAL                                  :: has_unit_metric, requires_mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs_aux_fit, mo_loc_history
@@ -1278,7 +1278,7 @@ CONTAINS
 
             IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                DO I = 1, SIZE(qs_env%mo_derivs)
-                  CALL cp_dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
+                  CALL dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
                ENDDO
                DEALLOCATE (qs_env%mo_derivs)
             ENDIF

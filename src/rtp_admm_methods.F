@@ -15,12 +15,6 @@ MODULE rtp_admm_methods
                                               admm_type
    USE cp_control_types,                ONLY: admm_control_type,&
                                               dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-        cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t
@@ -33,6 +27,11 @@ MODULE rtp_admm_methods
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_desymmetrize, dbcsr_distribution, dbcsr_get_data_size, dbcsr_get_data_type, &
+        dbcsr_get_matrix_type, dbcsr_init, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_none
@@ -85,11 +84,11 @@ CONTAINS
       LOGICAL                                            :: s_mstruct_changed
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_aux
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p_aux, matrix_p_aux_im, &
-                                                            matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_aux, matrix_p_aux_im, &
+                                                            matrix_s_aux_fit, &
+                                                            matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
@@ -163,7 +162,7 @@ CONTAINS
                                     density_matrix_aux_im, ispin)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
-      TYPE(cp_dbcsr_type), POINTER                       :: density_matrix_aux, density_matrix_aux_im
+      TYPE(dbcsr_type), POINTER                          :: density_matrix_aux, density_matrix_aux_im
       INTEGER, INTENT(in)                                :: ispin
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rtp_admm_calculate_dm', &
@@ -206,7 +205,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_mixed
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
@@ -277,7 +276,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_mixed
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
@@ -366,7 +365,7 @@ CONTAINS
    SUBROUTINE calculate_rtp_admm_density(density_matrix_aux, density_matrix_aux_im, &
                                          rtp_coeff_aux_fit, ispin)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: density_matrix_aux, density_matrix_aux_im
+      TYPE(dbcsr_type), POINTER                          :: density_matrix_aux, density_matrix_aux_im
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rtp_coeff_aux_fit
       INTEGER, INTENT(in)                                :: ispin
 
@@ -381,7 +380,7 @@ CONTAINS
 
       re = 2*ispin-1; im = 2*ispin
       alpha = 3*one-REAL(SIZE(rtp_coeff_aux_fit)/2, dp)
-      CALL cp_dbcsr_set(density_matrix_aux, zero)
+      CALL dbcsr_set(density_matrix_aux, zero)
       CALL cp_fm_get_info(rtp_coeff_aux_fit(re)%matrix, ncol_global=ncol)
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux, &
                                  matrix_v=rtp_coeff_aux_fit(re)%matrix, &
@@ -397,7 +396,7 @@ CONTAINS
                                  alpha=alpha)
 
 !   compute the imaginary part of the dm
-      CALL cp_dbcsr_set(density_matrix_aux_im, zero)
+      CALL dbcsr_set(density_matrix_aux_im, zero)
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_aux_im, &
                                  matrix_v=rtp_coeff_aux_fit(im)%matrix, &
                                  matrix_g=rtp_coeff_aux_fit(re)%matrix, &
@@ -426,7 +425,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_ks_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_im, matrix_ks_im
       TYPE(dft_control_type), POINTER                    :: dft_control
 
@@ -470,15 +469,15 @@ CONTAINS
                                       matrix_ks, matrix_ks_aux_fit)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_ks_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_merge_ks_matrix_none', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, nao_aux_fit, nao_orb, nmo
       INTEGER, SAVE                                      :: counter = 0
-      TYPE(cp_dbcsr_type)                                :: matrix_ks_nosym
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_k_tilde
+      TYPE(dbcsr_type)                                   :: matrix_ks_nosym
+      TYPE(dbcsr_type), POINTER                          :: matrix_k_tilde
 
       CALL timeset(routineN, handle)
 
@@ -486,11 +485,11 @@ CONTAINS
       nao_aux_fit = admm_env%nao_aux_fit
       nao_orb = admm_env%nao_orb
       nmo = admm_env%nmo(ispin)
-      CALL cp_dbcsr_init(matrix_ks_nosym)
-      CALL cp_dbcsr_create(matrix_ks_nosym, template=matrix_ks_aux_fit(ispin)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_set(matrix_ks_nosym, 0.0_dp)
-      CALL cp_dbcsr_desymmetrize(matrix_ks_aux_fit(ispin)%matrix, matrix_ks_nosym)
+      CALL dbcsr_init(matrix_ks_nosym)
+      CALL dbcsr_create(matrix_ks_nosym, template=matrix_ks_aux_fit(ispin)%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
+      CALL dbcsr_desymmetrize(matrix_ks_aux_fit(ispin)%matrix, matrix_ks_nosym)
 
       CALL copy_dbcsr_to_fm(matrix_ks_nosym, admm_env%K(ispin)%matrix)
 
@@ -505,23 +504,23 @@ CONTAINS
 
       NULLIFY (matrix_k_tilde)
       ALLOCATE (matrix_k_tilde)
-      CALL cp_dbcsr_init(matrix_k_tilde)
-      CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-                           cp_dbcsr_distribution(matrix_ks(ispin)%matrix), &
-                           cp_dbcsr_get_matrix_type(matrix_ks_aux_fit(ispin)%matrix), &
-                           cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
-                           cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
-                           cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix), &
-                           cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix))
+      CALL dbcsr_init(matrix_k_tilde)
+      CALL dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
+                        dbcsr_distribution(matrix_ks(ispin)%matrix), &
+                        dbcsr_get_matrix_type(matrix_ks_aux_fit(ispin)%matrix), &
+                        dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
+                        dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
+                        dbcsr_get_data_size(matrix_ks(ispin)%matrix), &
+                        dbcsr_get_data_type(matrix_ks(ispin)%matrix))
 
-      CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
-      CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp)
+      CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
+      CALL dbcsr_set(matrix_k_tilde, 0.0_dp)
       CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
-      CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
+      CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
-      CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde)
-      CALL cp_dbcsr_release(matrix_ks_nosym)
+      CALL dbcsr_deallocate_matrix(matrix_k_tilde)
+      CALL dbcsr_release(matrix_ks_nosym)
 
       CALL timestop(handle)
 

@@ -14,8 +14,8 @@
 MODULE xc_adiabatic_utils
 
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hfx_communication,               ONLY: scale_and_add_fock_to_ks_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE input_constants,                 ONLY: do_adiabatic_hybrid_mcy3,&
@@ -66,7 +66,7 @@ CONTAINS
                                    hf_energy, just_energy, calculate_forces, use_virial)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_tau_rspace
@@ -83,8 +83,8 @@ CONTAINS
       REAL(dp)                                           :: adiabatic_lambda, adiabatic_omega, &
                                                             scale_dDFA, scale_ddW0, scale_dEx1, &
                                                             scale_dEx2, total_energy_xc
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_xc

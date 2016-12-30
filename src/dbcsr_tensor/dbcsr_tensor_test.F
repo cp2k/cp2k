@@ -19,9 +19,10 @@ MODULE dbcsr_tensor_test
                                               dbcsr_type_real_4,&
                                               dbcsr_type_real_8
    USE dbcsr_tensor,                    ONLY: &
-        dbcsr_t_copy, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, dbcsr_t_iterator, &
+        dbcsr_t_copy, dbcsr_t_get_block, dbcsr_t_get_stored_coordinates, &
         dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, &
-        dbcsr_t_iterator_stop, dbcsr_t_ndims, dbcsr_t_put_block, dbcsr_t_reserve_blocks
+        dbcsr_t_iterator_stop, dbcsr_t_iterator_type, dbcsr_t_ndims, dbcsr_t_put_block, &
+        dbcsr_t_reserve_blocks
    USE dbcsr_tensor_block,              ONLY: block_nd
    USE dbcsr_tensor_index,              ONLY: combine_index
    USE dbcsr_tensor_types,              ONLY: dbcsr_t_create,&
@@ -61,7 +62,7 @@ CONTAINS
 
       INTEGER                                            :: blk
       TYPE(dbcsr_t_type)                                 :: tensor2_tmp
-      TYPE(dbcsr_t_iterator)                             :: iter
+      TYPE(dbcsr_t_iterator_type)                        :: iter
       TYPE(block_nd)                                     :: blk_data1, blk_data2
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor1))         :: blk_size, ind_nd
 
@@ -505,7 +506,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_blk_ind_1, my_blk_ind_2, &
                                                             my_blk_ind_3, my_blk_ind_4
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ind_nd
-      TYPE(dbcsr_t_iterator)                             :: iterator
+      TYPE(dbcsr_t_iterator_type)                        :: iterator
       REAL(KIND=real_8), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: blk_values_4
       REAL(KIND=real_8), ALLOCATABLE, DIMENSION(:, :, :) :: blk_values_3
@@ -677,7 +678,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: io_unit_master, io_unit_all
 
       INTEGER                                            :: blk, proc
-      TYPE(dbcsr_t_iterator)                             :: iterator
+      TYPE(dbcsr_t_iterator_type)                        :: iterator
       REAL(KIND=real_8), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: blk_values_4
       REAL(KIND=real_8), ALLOCATABLE, DIMENSION(:, :, :) :: blk_values_3

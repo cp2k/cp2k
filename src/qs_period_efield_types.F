@@ -13,8 +13,8 @@
 
 MODULE qs_period_efield_types
 
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -30,9 +30,9 @@ MODULE qs_period_efield_types
    TYPE efield_berry_type
       REAL(KIND=dp)                                          :: field_energy
       REAL(KIND=dp), DIMENSION(3)                            :: polarisation
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER           :: cosmat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER           :: sinmat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER           :: dipmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER           :: cosmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER           :: sinmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER           :: dipmat
    END TYPE efield_berry_type
 
 CONTAINS
@@ -81,7 +81,7 @@ CONTAINS
    SUBROUTINE set_efield_matrices(efield, sinmat, cosmat, dipmat)
 
       TYPE(efield_berry_type), POINTER                   :: efield
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: sinmat, cosmat, dipmat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_efield_matrices', &
@@ -105,11 +105,11 @@ CONTAINS
 
       IF (ASSOCIATED(efield)) THEN
          IF (ASSOCIATED(efield%sinmat) .AND. ASSOCIATED(efield%cosmat)) THEN
-            CALL cp_dbcsr_deallocate_matrix_set(efield%cosmat)
-            CALL cp_dbcsr_deallocate_matrix_set(efield%sinmat)
+            CALL dbcsr_deallocate_matrix_set(efield%cosmat)
+            CALL dbcsr_deallocate_matrix_set(efield%sinmat)
          END IF
          IF (ASSOCIATED(efield%dipmat)) THEN
-            CALL cp_dbcsr_deallocate_matrix_set(efield%dipmat)
+            CALL dbcsr_deallocate_matrix_set(efield%dipmat)
          END IF
          DEALLOCATE (efield)
       END IF

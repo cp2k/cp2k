@@ -44,8 +44,8 @@ MODULE dbcsr_tests
    USE dbcsr_transformations,           ONLY: dbcsr_redistribute
    USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                               dbcsr_mp_obj,&
-                                              dbcsr_obj,&
                                               dbcsr_scalar_type,&
+                                              dbcsr_type,&
                                               dbcsr_type_no_symmetry
    USE dbcsr_util,                      ONLY: dbcsr_checksum
    USE dbcsr_work_operations,           ONLY: dbcsr_create
@@ -124,7 +124,7 @@ CONTAINS
       LOGICAL                                            :: pgiven
       TYPE(dbcsr_distribution_obj)                       :: dist_a, dist_b, dist_c
       TYPE(dbcsr_mp_obj)                                 :: mp_env
-      TYPE(dbcsr_obj), TARGET                            :: matrix_a, matrix_b, matrix_c
+      TYPE(dbcsr_type), TARGET                           :: matrix_a, matrix_b, matrix_c
 
 !   ---------------------------------------------------------------------------
 
@@ -261,14 +261,14 @@ CONTAINS
 !> \param io_unit unit for status updates
 ! **************************************************************************************************
    SUBROUTINE test_binary_io(matrix_a, io_unit)
-      TYPE(dbcsr_obj)                                    :: matrix_a
+      TYPE(dbcsr_type)                                   :: matrix_a
       INTEGER                                            :: io_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'test_binary_io', routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=100)                                 :: file_name
       REAL(kind=real_8)                                  :: norm, post, pre
-      TYPE(dbcsr_obj)                                    :: matrix_a_read
+      TYPE(dbcsr_type)                                   :: matrix_a_read
 
       file_name = "test_dbcsr_binary_io.dat"
 
@@ -320,7 +320,7 @@ CONTAINS
                                         n_loops, eps, &
                                         io_unit, always_checksum)
       INTEGER, DIMENSION(:, :)                           :: group_sizes
-      TYPE(dbcsr_obj), INTENT(in)                        :: matrix_a, matrix_b, matrix_c
+      TYPE(dbcsr_type), INTENT(in)                       :: matrix_a, matrix_b, matrix_c
       CHARACTER, INTENT(in)                              :: transa, transb
       TYPE(dbcsr_scalar_type), INTENT(in)                :: alpha, beta
       INTEGER, DIMENSION(6), INTENT(in), OPTIONAL        :: limits
@@ -343,7 +343,7 @@ CONTAINS
       REAL(kind=real_8)                                  :: cs, cs_pos, flops_all, t1, t2
       TYPE(dbcsr_distribution_obj)                       :: dist_a, dist_b, dist_c
       TYPE(dbcsr_mp_obj)                                 :: mp_env
-      TYPE(dbcsr_obj)                                    :: m_a, m_b, m_c, m_c_reserve
+      TYPE(dbcsr_type)                                   :: m_a, m_b, m_c, m_c_reserve
 
 !   ---------------------------------------------------------------------------
 

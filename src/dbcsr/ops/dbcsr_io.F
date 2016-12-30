@@ -31,7 +31,7 @@ MODULE dbcsr_io
    USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                               dbcsr_distribution_obj,&
                                               dbcsr_mp_obj,&
-                                              dbcsr_obj,&
+                                              dbcsr_type,&
                                               dbcsr_type_complex_4,&
                                               dbcsr_type_complex_8,&
                                               dbcsr_type_real_4,&
@@ -88,7 +88,7 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_print(matrix, nodata, matlab_format, variable_name, unit_nr)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata, matlab_format
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: variable_name
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
@@ -121,39 +121,39 @@ CONTAINS
       IF (PRESENT(matlab_format)) my_matlab_format = matlab_format
       yesprint = .TRUE.
       IF (PRESENT(nodata)) yesprint = .NOT. nodata
-      WRITE (iunit, *) routineP//' Contents of matrix named ', matrix%m%name
-      WRITE (iunit, *) routineP//' Flags ', matrix%m%symmetry, &
-         matrix%m%negate_real, matrix%m%negate_imaginary, "type", &
-         dbcsr_get_data_type(matrix), "serial", matrix%m%serial_number
-      WRITE (iunit, '(1X,A,3(1X,I9,1X,A))') routineP, matrix%m%nblks, "blocks", &
-         matrix%m%nze, "nzes,", dbcsr_get_data_size(matrix), "data els", &
-         dbcsr_data_get_size_referenced(matrix%m%data_area), "used"
+      WRITE (iunit, *) routineP//' Contents of matrix named ', matrix%name
+      WRITE (iunit, *) routineP//' Flags ', matrix%symmetry, &
+         matrix%negate_real, matrix%negate_imaginary, "type", &
+         dbcsr_get_data_type(matrix), "serial", matrix%serial_number
+      WRITE (iunit, '(1X,A,3(1X,I9,1X,A))') routineP, matrix%nblks, "blocks", &
+         matrix%nze, "nzes,", dbcsr_get_data_size(matrix), "data els", &
+         dbcsr_data_get_size_referenced(matrix%data_area), "used"
       WRITE (iunit, '(1X,A,I5,A,I5)') routineP//" Full size", &
-         matrix%m%nfullrows_total, "x", matrix%m%nfullcols_total
+         matrix%nfullrows_total, "x", matrix%nfullcols_total
       WRITE (iunit, '(1X,A,I5,A,I5)') routineP//" Blocked size", &
-         matrix%m%nblkrows_total, "x", matrix%m%nblkcols_total
-      SELECT CASE (matrix%m%data_type)
+         matrix%nblkrows_total, "x", matrix%nblkcols_total
+      SELECT CASE (matrix%data_type)
       CASE (dbcsr_type_real_8)
-         CALL dbcsr_get_data(matrix%m%data_area, r_dp)
+         CALL dbcsr_get_data(matrix%data_area, r_dp)
       CASE (dbcsr_type_real_4)
-         CALL dbcsr_get_data(matrix%m%data_area, r_sp)
+         CALL dbcsr_get_data(matrix%data_area, r_sp)
       CASE (dbcsr_type_complex_8)
-         CALL dbcsr_get_data(matrix%m%data_area, c_dp)
+         CALL dbcsr_get_data(matrix%data_area, c_dp)
       CASE (dbcsr_type_complex_4)
-         CALL dbcsr_get_data(matrix%m%data_area, c_sp)
+         CALL dbcsr_get_data(matrix%data_area, c_sp)
       END SELECT
-      row_blk_size => array_data(matrix%m%row_blk_size)
-      col_blk_size => array_data(matrix%m%col_blk_size)
-      row_blk_offset => array_data(matrix%m%row_blk_offset)
-      col_blk_offset => array_data(matrix%m%col_blk_offset)
+      row_blk_size => array_data(matrix%row_blk_size)
+      col_blk_size => array_data(matrix%col_blk_size)
+      row_blk_offset => array_data(matrix%row_blk_offset)
+      col_blk_offset => array_data(matrix%col_blk_offset)
 
-      IF (matrix%m%nblks .GT. 0) THEN
-         IF (matrix%m%list_indexing) THEN
-            IF (SIZE(matrix%m%coo_l) .NE. 3*matrix%m%nblks) &
+      IF (matrix%nblks .GT. 0) THEN
+         IF (matrix%list_indexing) THEN
+            IF (SIZE(matrix%coo_l) .NE. 3*matrix%nblks) &
                CPABORT("Wrong list")
-            IF (matrix%m%local_indexing) THEN
-               local_rows => array_data(matrix%m%local_rows)
-               local_cols => array_data(matrix%m%local_cols)
+            IF (matrix%local_indexing) THEN
+               local_rows => array_data(matrix%local_rows)
+               local_cols => array_data(matrix%local_cols)
             ELSE
                NULLIFY (local_rows)
                NULLIFY (local_cols)
@@ -161,32 +161,32 @@ CONTAINS
             ebr = 1
             sblk = 3
          ELSE
-            ebr = matrix%m%nblkrows_total
+            ebr = matrix%nblkrows_total
             sblk = 1
          ENDIF
          DO ibr = 1, ebr
-            IF (matrix%m%list_indexing) THEN
+            IF (matrix%list_indexing) THEN
                fblk = 1
-               lblk = SIZE(matrix%m%coo_l)
+               lblk = SIZE(matrix%coo_l)
             ELSE
                br = ibr
-               fblk = matrix%m%row_p(br)+1
-               lblk = matrix%m%row_p(br+1)
+               fblk = matrix%row_p(br)+1
+               lblk = matrix%row_p(br+1)
                m = row_blk_size(br)
             ENDIF
             DO blk = fblk, lblk, sblk
-               IF (matrix%m%list_indexing) THEN
-                  br = matrix%m%coo_l(blk)
-                  bc = matrix%m%coo_l(blk+1)
-                  IF (matrix%m%local_indexing) THEN
+               IF (matrix%list_indexing) THEN
+                  br = matrix%coo_l(blk)
+                  bc = matrix%coo_l(blk+1)
+                  IF (matrix%local_indexing) THEN
                      br = local_rows(br)
                      bc = local_cols(bc)
                   ENDIF
                   m = row_blk_size(br)
-                  ablk_p = matrix%m%coo_l(blk+2)
+                  ablk_p = matrix%coo_l(blk+2)
                ELSE
-                  bc = matrix%m%col_i(blk)
-                  ablk_p = matrix%m%blk_p(blk)
+                  bc = matrix%col_i(blk)
+                  ablk_p = matrix%blk_p(blk)
                ENDIF
                n = col_blk_size(bc)
                mn = m*n
@@ -194,7 +194,7 @@ CONTAINS
                tr = ablk_p .LT. 0
                block_exists: IF (blk_p .NE. 0) THEN
                   IF (mn .GT. 0) THEN
-                     SELECT CASE (matrix%m%data_type)
+                     SELECT CASE (matrix%data_type)
                      CASE (dbcsr_type_real_8)
                         blk_cs = REAL(DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1), &
                                                   r_dp(blk_p:blk_p+mn-1)), KIND=dp)
@@ -227,7 +227,7 @@ CONTAINS
                      " checksum=", blk_cs
                   IF (yesprint .AND. blk_p .NE. 0) THEN
                      IF (mn .GT. 0) THEN
-                        SELECT CASE (matrix%m%data_type)
+                        SELECT CASE (matrix%data_type)
                         CASE (dbcsr_type_real_8)
                            !WRITE(iunit,'(10(1X,F7.2))')r_dp(blk_p:blk_p+mn-1)
                            IF (my_matlab_format) THEN
@@ -687,7 +687,7 @@ CONTAINS
 
       IMPLICIT NONE
 
-      TYPE(dbcsr_obj), INTENT(IN)           :: matrix
+      TYPE(dbcsr_type), INTENT(IN)           :: matrix
       CHARACTER(len=*), INTENT(IN)         :: filepath
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_binary_write', &
@@ -732,17 +732,17 @@ CONTAINS
       nblkcols_total = dbcsr_nblkcols_total(matrix)
       distribution = dbcsr_distribution(matrix)
       matrix_name = dbcsr_name(matrix)
-      data_area = dbcsr_data_area(matrix%m)
+      data_area = dbcsr_data_area(matrix)
       matrix_type = dbcsr_get_matrix_type(matrix)
       data_type = dbcsr_get_data_type(matrix)
       mp_env = dbcsr_distribution_mp(distribution)
       mp_group = dbcsr_mp_group(mp_env)
       nblks = dbcsr_get_num_blocks(matrix)
-      row_p => matrix%m%row_p
-      col_i => matrix%m%col_i
-      blk_p => matrix%m%blk_p
-      row_blk_size => array_data(matrix%m%row_blk_size)
-      col_blk_size => array_data(matrix%m%col_blk_size)
+      row_p => matrix%row_p
+      col_i => matrix%col_i
+      blk_p => matrix%blk_p
+      row_blk_size => array_data(matrix%row_blk_size)
+      col_blk_size => array_data(matrix%col_blk_size)
       pgrid => dbcsr_mp_pgrid(mp_env)
       size_of_pgrid = SIZE(pgrid)
 
@@ -770,7 +770,7 @@ CONTAINS
       subh3_disps(:) = CSHIFT(subh3_disps, shift=-1)+ginfo_size+2*numnodes
       subh3_disps(1) = ginfo_size+2*numnodes
 
-      data_area_size = dbcsr_data_get_size_referenced(matrix%m%data_area)
+      data_area_size = dbcsr_data_get_size_referenced(matrix%data_area)
       sendbuf = data_area_size
       CALL mp_allgather(sendbuf, da_sizes, mp_group)
       CALL cumsum_l(INT(da_sizes, kind=file_offset), bdata_disps)
@@ -868,7 +868,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                :: filepath
       TYPE(dbcsr_distribution_obj), INTENT(IN)     :: distribution
       INTEGER, INTENT(IN), OPTIONAL                :: groupid
-      TYPE(dbcsr_obj), INTENT(INOUT)               :: matrix_new
+      TYPE(dbcsr_type), INTENT(INOUT)               :: matrix_new
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_binary_read', &
                                      routineP = moduleN//':'//routineN
@@ -1196,7 +1196,7 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_print_block_sum(matrix, unit_nr)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print_block_sum', &
@@ -1226,32 +1226,32 @@ CONTAINS
 
       IF (iunit > 0) THEN
 
-         SELECT CASE (matrix%m%data_type)
+         SELECT CASE (matrix%data_type)
          CASE (dbcsr_type_real_8)
-            CALL dbcsr_get_data(matrix%m%data_area, r_dp)
+            CALL dbcsr_get_data(matrix%data_area, r_dp)
          CASE (dbcsr_type_real_4)
-            CALL dbcsr_get_data(matrix%m%data_area, r_sp)
+            CALL dbcsr_get_data(matrix%data_area, r_sp)
          CASE (dbcsr_type_complex_8)
-            CALL dbcsr_get_data(matrix%m%data_area, c_dp)
+            CALL dbcsr_get_data(matrix%data_area, c_dp)
          CASE (dbcsr_type_complex_4)
-            CALL dbcsr_get_data(matrix%m%data_area, c_sp)
+            CALL dbcsr_get_data(matrix%data_area, c_sp)
          END SELECT
-         row_blk_size => array_data(matrix%m%row_blk_size)
-         col_blk_size => array_data(matrix%m%col_blk_size)
-         row_blk_offset => array_data(matrix%m%row_blk_offset)
-         col_blk_offset => array_data(matrix%m%col_blk_offset)
+         row_blk_size => array_data(matrix%row_blk_size)
+         col_blk_size => array_data(matrix%col_blk_size)
+         row_blk_offset => array_data(matrix%row_blk_offset)
+         col_blk_offset => array_data(matrix%col_blk_offset)
 
-         IF (matrix%m%nblks .GT. 0) THEN
-            DO br = 1, matrix%m%nblkrows_total
+         IF (matrix%nblks .GT. 0) THEN
+            DO br = 1, matrix%nblkrows_total
                m = row_blk_size(br)
-               DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
-                  bc = matrix%m%col_i(blk)
+               DO blk = matrix%row_p(br)+1, matrix%row_p(br+1)
+                  bc = matrix%col_i(blk)
                   n = col_blk_size(bc)
                   mn = m*n
-                  blk_p = ABS(matrix%m%blk_p(blk))
+                  blk_p = ABS(matrix%blk_p(blk))
                   block_exists: IF (blk_p .NE. 0) THEN
                      IF (mn .GT. 0) THEN
-                        SELECT CASE (matrix%m%data_type)
+                        SELECT CASE (matrix%data_type)
                         CASE (dbcsr_type_real_8)
                            blk_sum_r_dp = SUM(r_dp(blk_p:blk_p+mn-1))
                            WRITE (iunit, '(I6,I6,ES18.9)') &

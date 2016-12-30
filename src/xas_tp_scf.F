@@ -18,8 +18,6 @@ MODULE xas_tp_scf
    USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_p_type
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
                                               cp_fm_init_random,&
@@ -38,6 +36,8 @@ MODULE xas_tp_scf
                                               cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: ot_precond_full_kinetic,&
                                               ot_precond_solver_default,&
                                               xas_dscf
@@ -147,10 +147,10 @@ CONTAINS
       LOGICAL                                            :: diis_step, energy_only, exit_loop, gapw
       REAL(KIND=dp)                                      :: t1, t2
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -328,7 +328,7 @@ CONTAINS
          IF (scf_env%mixing_method > 0) THEN
             DO ispin = 1, nspin
                ! does not yet handle k-points
-               CALL cp_dbcsr_copy(rho_ao_kp(ispin, 1)%matrix, scf_env%p_mix_new(ispin, 1)%matrix)
+               CALL dbcsr_copy(rho_ao_kp(ispin, 1)%matrix, scf_env%p_mix_new(ispin, 1)%matrix)
             END DO
          ENDIF
 
@@ -405,10 +405,10 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: stogto_overlap
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: kinetic, matrix_ks, matrix_s
       TYPE(cp_fm_type), POINTER                          :: all_vectors, excvec_coeff, &
                                                             excvec_overlap, mo_coeff, uno_orbs
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic, matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -633,10 +633,10 @@ CONTAINS
       INTEGER                                            :: handle, ispin, istate, nmo, nvirtual, &
                                                             nvirtual2, output_unit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: all_evals, eigenvalues
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
       TYPE(cp_fm_type), POINTER                          :: all_vectors, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env

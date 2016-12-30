@@ -14,10 +14,6 @@ MODULE lri_ks_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add_block_node,&
-                                              cp_dbcsr_finalize,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -26,6 +22,10 @@ MODULE lri_ks_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE dbcsr_api,                       ONLY: dbcsr_add_block_node,&
+                                              dbcsr_finalize,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_get_lval,&
                                               section_vals_get_subs_vals,&
@@ -82,7 +82,7 @@ CONTAINS
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
-      TYPE(cp_dbcsr_type), POINTER                       :: h_matrix
+      TYPE(dbcsr_type), POINTER                          :: h_matrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
       CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &
@@ -147,9 +147,9 @@ CONTAINS
             END IF
 
             NULLIFY (h_block)
-            CALL cp_dbcsr_get_block_p(h_matrix, row, col, h_block, found)
+            CALL dbcsr_get_block_p(h_matrix, row, col, h_block, found)
             IF (.NOT. ASSOCIATED(h_block)) THEN
-               CALL cp_dbcsr_add_block_node(h_matrix, row, col, h_block)
+               CALL dbcsr_add_block_node(h_matrix, row, col, h_block)
             END IF
 
             atom_a = atom_of_kind(iatom)
@@ -180,7 +180,7 @@ CONTAINS
             DEALLOCATE (h_work)
          END DO
 
-         CALL cp_dbcsr_finalize(h_matrix)
+         CALL dbcsr_finalize(h_matrix)
 
          CALL neighbor_list_iterator_release(nl_iterator)
          DEALLOCATE (atom_of_kind)

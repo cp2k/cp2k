@@ -21,15 +21,14 @@ MODULE mao_wfn_analysis
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_restore
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_get_block_diag, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_replicate_all, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_trace, cp_dbcsr_type, &
-        dbcsr_distribution_obj, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
+        dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_get_block_diag, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_trace, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -108,15 +107,15 @@ CONTAINS
                                                             rblkl, rblku, sblk, sblka, sblkb, sblkc
       TYPE(block_type), ALLOCATABLE, DIMENSION(:)        :: rowblock
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef, mao_dmat, mao_qmat, mao_smat, &
-                                                            matrix_q, matrix_smm, matrix_smo
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_p, matrix_s
-      TYPE(cp_dbcsr_type)                                :: amat, axmat, cgmat, cholmat, crumat, &
-                                                            qmat, qmat_diag, rumat, smat_diag, &
-                                                            sumat, tmat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef, mao_dmat, mao_qmat, mao_smat, &
+                                                            matrix_q, matrix_smm, matrix_smo
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_p, matrix_s
+      TYPE(dbcsr_type)                                   :: amat, axmat, cgmat, cholmat, crumat, &
+                                                            qmat, qmat_diag, rumat, smat_diag, &
+                                                            sumat, tmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list, orb_basis_set_list
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -211,8 +210,8 @@ CONTAINS
             irow = jatom
             icol = iatom
          END IF
-         CALL cp_dbcsr_get_block_p(matrix=matrix_p(1, 1)%matrix, &
-                                   row=irow, col=icol, block=block, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_p(1, 1)%matrix, &
+                                row=irow, col=icol, block=block, found=found)
          IF (.NOT. found) fall = fall+1
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
@@ -229,7 +228,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, natom=natom)
       CALL get_ks_env(ks_env=ks_env, particle_set=particle_set, dbcsr_dist=dbcsr_dist)
       NULLIFY (mao_coef)
-      CALL cp_dbcsr_allocate_matrix_set(mao_coef, nspin)
+      CALL dbcsr_allocate_matrix_set(mao_coef, nspin)
       ALLOCATE (row_blk_sizes(natom), col_blk_sizes(natom))
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
                             basis=mao_basis_set_list)
@@ -242,11 +241,11 @@ CONTAINS
       DO ispin = 1, nspin
          ! coeficients
          ALLOCATE (mao_coef(ispin)%matrix)
-         CALL cp_dbcsr_init(mao_coef(ispin)%matrix)
-         CALL cp_dbcsr_create(matrix=mao_coef(ispin)%matrix, &
-                              name="MAO_COEF", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
-         CALL cp_dbcsr_reserve_diag_blocks(matrix=mao_coef(ispin)%matrix)
+         CALL dbcsr_init(mao_coef(ispin)%matrix)
+         CALL dbcsr_create(matrix=mao_coef(ispin)%matrix, &
+                           name="MAO_COEF", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+         CALL dbcsr_reserve_diag_blocks(matrix=mao_coef(ispin)%matrix)
       END DO
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
@@ -259,66 +258,66 @@ CONTAINS
 
       ! Calculate the overlap and density matrix in the new MAO basis
       NULLIFY (mao_dmat, mao_smat, mao_qmat)
-      CALL cp_dbcsr_allocate_matrix_set(mao_qmat, nspin)
-      CALL cp_dbcsr_allocate_matrix_set(mao_dmat, nspin)
-      CALL cp_dbcsr_allocate_matrix_set(mao_smat, nspin)
-      CALL cp_dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+      CALL dbcsr_allocate_matrix_set(mao_qmat, nspin)
+      CALL dbcsr_allocate_matrix_set(mao_dmat, nspin)
+      CALL dbcsr_allocate_matrix_set(mao_smat, nspin)
+      CALL dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
       DO ispin = 1, nspin
          ALLOCATE (mao_dmat(ispin)%matrix)
-         CALL cp_dbcsr_init(mao_dmat(ispin)%matrix)
-         CALL cp_dbcsr_create(mao_dmat(ispin)%matrix, name="MAO density", dist=dbcsr_dist, &
-                              matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                              col_blk_size=col_blk_sizes, nze=0)
+         CALL dbcsr_init(mao_dmat(ispin)%matrix)
+         CALL dbcsr_create(mao_dmat(ispin)%matrix, name="MAO density", dist=dbcsr_dist, &
+                           matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
+                           col_blk_size=col_blk_sizes, nze=0)
          ALLOCATE (mao_smat(ispin)%matrix)
-         CALL cp_dbcsr_init(mao_smat(ispin)%matrix)
-         CALL cp_dbcsr_create(mao_smat(ispin)%matrix, name="MAO overlap", dist=dbcsr_dist, &
-                              matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                              col_blk_size=col_blk_sizes, nze=0)
+         CALL dbcsr_init(mao_smat(ispin)%matrix)
+         CALL dbcsr_create(mao_smat(ispin)%matrix, name="MAO overlap", dist=dbcsr_dist, &
+                           matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
+                           col_blk_size=col_blk_sizes, nze=0)
          ALLOCATE (mao_qmat(ispin)%matrix)
-         CALL cp_dbcsr_init(mao_qmat(ispin)%matrix)
-         CALL cp_dbcsr_create(mao_qmat(ispin)%matrix, name="MAO covar density", dist=dbcsr_dist, &
-                              matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                              col_blk_size=col_blk_sizes, nze=0)
+         CALL dbcsr_init(mao_qmat(ispin)%matrix)
+         CALL dbcsr_create(mao_qmat(ispin)%matrix, name="MAO covar density", dist=dbcsr_dist, &
+                           matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
+                           col_blk_size=col_blk_sizes, nze=0)
       END DO
-      CALL cp_dbcsr_init(amat)
-      CALL cp_dbcsr_create(amat, name="MAO overlap", template=mao_dmat(1)%matrix)
-      CALL cp_dbcsr_init(tmat)
-      CALL cp_dbcsr_create(tmat, name="MAO Overlap Inverse", template=amat)
-      CALL cp_dbcsr_init(qmat)
-      CALL cp_dbcsr_create(qmat, name="MAO covar density", template=amat)
-      CALL cp_dbcsr_init(cgmat)
-      CALL cp_dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
-      CALL cp_dbcsr_init(axmat)
-      CALL cp_dbcsr_create(axmat, name="TEMP", template=amat, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(amat)
+      CALL dbcsr_create(amat, name="MAO overlap", template=mao_dmat(1)%matrix)
+      CALL dbcsr_init(tmat)
+      CALL dbcsr_create(tmat, name="MAO Overlap Inverse", template=amat)
+      CALL dbcsr_init(qmat)
+      CALL dbcsr_create(qmat, name="MAO covar density", template=amat)
+      CALL dbcsr_init(cgmat)
+      CALL dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
+      CALL dbcsr_init(axmat)
+      CALL dbcsr_create(axmat, name="TEMP", template=amat, matrix_type=dbcsr_type_no_symmetry)
       DO ispin = 1, nspin
          ! calculate MAO overlap matrix
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_smm(1)%matrix, mao_coef(ispin)%matrix, &
-                                0.0_dp, cgmat)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, amat)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_smm(1)%matrix, mao_coef(ispin)%matrix, &
+                             0.0_dp, cgmat)
+         CALL dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, 0.0_dp, amat)
          ! calculate inverse of MAO overlap
          threshold = 1.e-8_dp
          CALL invert_Hotelling(tmat, amat, threshold, norm_convergence=1.e-4_dp, silent=.TRUE.)
-         CALL cp_dbcsr_copy(mao_smat(ispin)%matrix, amat)
+         CALL dbcsr_copy(mao_smat(ispin)%matrix, amat)
          ! calculate q-matrix q = C*Q*C
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_q(ispin)%matrix, mao_coef(ispin)%matrix, &
-                                0.0_dp, cgmat, filter_eps=eps_filter)
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, &
-                                0.0_dp, qmat, filter_eps=eps_filter)
-         CALL cp_dbcsr_copy(mao_qmat(ispin)%matrix, qmat)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_q(ispin)%matrix, mao_coef(ispin)%matrix, &
+                             0.0_dp, cgmat, filter_eps=eps_filter)
+         CALL dbcsr_multiply("T", "N", 1.0_dp, mao_coef(ispin)%matrix, cgmat, &
+                             0.0_dp, qmat, filter_eps=eps_filter)
+         CALL dbcsr_copy(mao_qmat(ispin)%matrix, qmat)
          ! calculate density matrix
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, qmat, tmat, 0.0_dp, axmat, filter_eps=eps_filter)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmat, axmat, 0.0_dp, mao_dmat(ispin)%matrix, &
-                                filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, qmat, tmat, 0.0_dp, axmat, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, tmat, axmat, 0.0_dp, mao_dmat(ispin)%matrix, &
+                             filter_eps=eps_filter)
       END DO
-      CALL cp_dbcsr_release(amat)
-      CALL cp_dbcsr_release(tmat)
-      CALL cp_dbcsr_release(qmat)
-      CALL cp_dbcsr_release(cgmat)
-      CALL cp_dbcsr_release(axmat)
+      CALL dbcsr_release(amat)
+      CALL dbcsr_release(tmat)
+      CALL dbcsr_release(qmat)
+      CALL dbcsr_release(cgmat)
+      CALL dbcsr_release(axmat)
 
       ! calculate unassigned charge : n - Tr PS
       DO ispin = 1, nspin
-         CALL cp_dbcsr_trace(mao_dmat(ispin)%matrix, mao_smat(ispin)%matrix, ua_charge(ispin))
+         CALL dbcsr_trace(mao_dmat(ispin)%matrix, mao_smat(ispin)%matrix, ua_charge(ispin))
          ua_charge(ispin) = electra(ispin)-ua_charge(ispin)
       END DO
       IF (unit_nr > 0) THEN
@@ -337,8 +336,8 @@ CONTAINS
       occnumA = 0.0_dp
       DO ispin = 1, nspin
          DO iatom = 1, natom
-            CALL cp_dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, &
-                                      row=iatom, col=iatom, block=block, found=found)
+            CALL dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, &
+                                   row=iatom, col=iatom, block=block, found=found)
             IF (found) THEN
                DO iab = 1, SIZE(block, 1)
                   occnumA(iatom, ispin) = occnumA(iatom, ispin)+block(iab, iab)
@@ -352,20 +351,20 @@ CONTAINS
       ALLOCATE (occnumAB(natom, natom, nspin))
       occnumAB = 0.0_dp
       DO ispin = 1, nspin
-         CALL cp_dbcsr_init(qmat_diag)
-         CALL cp_dbcsr_create(qmat_diag, name="MAO diagonal density", template=mao_dmat(1)%matrix)
-         CALL cp_dbcsr_init(smat_diag)
-         CALL cp_dbcsr_create(smat_diag, name="MAO diagonal overlap", template=mao_dmat(1)%matrix)
+         CALL dbcsr_init(qmat_diag)
+         CALL dbcsr_create(qmat_diag, name="MAO diagonal density", template=mao_dmat(1)%matrix)
+         CALL dbcsr_init(smat_diag)
+         CALL dbcsr_create(smat_diag, name="MAO diagonal overlap", template=mao_dmat(1)%matrix)
          ! replicate the diagonal blocks of the density and overlap matrices
-         CALL cp_dbcsr_get_block_diag(mao_qmat(ispin)%matrix, qmat_diag)
-         CALL cp_dbcsr_replicate_all(qmat_diag)
-         CALL cp_dbcsr_get_block_diag(mao_smat(ispin)%matrix, smat_diag)
-         CALL cp_dbcsr_replicate_all(smat_diag)
+         CALL dbcsr_get_block_diag(mao_qmat(ispin)%matrix, qmat_diag)
+         CALL dbcsr_replicate_all(qmat_diag)
+         CALL dbcsr_get_block_diag(mao_smat(ispin)%matrix, smat_diag)
+         CALL dbcsr_replicate_all(smat_diag)
          DO ia = 1, natom
             DO ib = ia+1, natom
                iab = 0
-               CALL cp_dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, &
-                                         row=ia, col=ib, block=block, found=found)
+               CALL dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, &
+                                      row=ia, col=ib, block=block, found=found)
                IF (found) iab = 1
                CALL mp_sum(iab, para_env%group)
                CPASSERT(iab <= 1)
@@ -383,22 +382,22 @@ CONTAINS
                   ! qmat
                   qab(1:na, na+1:nab) = block(1:na, 1:nb)
                   qab(na+1:nab, 1:na) = TRANSPOSE(block(1:na, 1:nb))
-                  CALL cp_dbcsr_get_block_p(matrix=qmat_diag, row=ia, col=ia, block=diag, found=fo)
+                  CALL dbcsr_get_block_p(matrix=qmat_diag, row=ia, col=ia, block=diag, found=fo)
                   CPASSERT(fo)
                   qab(1:na, 1:na) = diag(1:na, 1:na)
-                  CALL cp_dbcsr_get_block_p(matrix=qmat_diag, row=ib, col=ib, block=diag, found=fo)
+                  CALL dbcsr_get_block_p(matrix=qmat_diag, row=ib, col=ib, block=diag, found=fo)
                   CPASSERT(fo)
                   qab(na+1:nab, na+1:nab) = diag(1:nb, 1:nb)
                   ! smat
-                  CALL cp_dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, &
-                                            row=ia, col=ib, block=block, found=fo)
+                  CALL dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, &
+                                         row=ia, col=ib, block=block, found=fo)
                   CPASSERT(fo)
                   sab(1:na, na+1:nab) = block(1:na, 1:nb)
                   sab(na+1:nab, 1:na) = TRANSPOSE(block(1:na, 1:nb))
-                  CALL cp_dbcsr_get_block_p(matrix=smat_diag, row=ia, col=ia, block=diag, found=fo)
+                  CALL dbcsr_get_block_p(matrix=smat_diag, row=ia, col=ia, block=diag, found=fo)
                   CPASSERT(fo)
                   sab(1:na, 1:na) = diag(1:na, 1:na)
-                  CALL cp_dbcsr_get_block_p(matrix=smat_diag, row=ib, col=ib, block=diag, found=fo)
+                  CALL dbcsr_get_block_p(matrix=smat_diag, row=ib, col=ib, block=diag, found=fo)
                   CPASSERT(fo)
                   sab(na+1:nab, na+1:nab) = diag(1:nb, 1:nb)
                   ! inv smat
@@ -412,8 +411,8 @@ CONTAINS
                END IF
             END DO
          END DO
-         CALL cp_dbcsr_release(qmat_diag)
-         CALL cp_dbcsr_release(smat_diag)
+         CALL dbcsr_release(qmat_diag)
+         CALL dbcsr_release(smat_diag)
       END DO
       CALL mp_sum(occnumAB, para_env%group)
 
@@ -435,20 +434,20 @@ CONTAINS
          ALLOCATE (occnumABC(nabc, nspin))
          occnumABC = -1.0_dp
          DO ispin = 1, nspin
-            CALL cp_dbcsr_init(qmat_diag)
-            CALL cp_dbcsr_create(qmat_diag, name="MAO diagonal density", template=mao_dmat(1)%matrix)
-            CALL cp_dbcsr_init(smat_diag)
-            CALL cp_dbcsr_create(smat_diag, name="MAO diagonal overlap", template=mao_dmat(1)%matrix)
+            CALL dbcsr_init(qmat_diag)
+            CALL dbcsr_create(qmat_diag, name="MAO diagonal density", template=mao_dmat(1)%matrix)
+            CALL dbcsr_init(smat_diag)
+            CALL dbcsr_create(smat_diag, name="MAO diagonal overlap", template=mao_dmat(1)%matrix)
             ! replicate the diagonal blocks of the density and overlap matrices
-            CALL cp_dbcsr_get_block_diag(mao_qmat(ispin)%matrix, qmat_diag)
-            CALL cp_dbcsr_replicate_all(qmat_diag)
-            CALL cp_dbcsr_get_block_diag(mao_smat(ispin)%matrix, smat_diag)
-            CALL cp_dbcsr_replicate_all(smat_diag)
+            CALL dbcsr_get_block_diag(mao_qmat(ispin)%matrix, qmat_diag)
+            CALL dbcsr_replicate_all(qmat_diag)
+            CALL dbcsr_get_block_diag(mao_smat(ispin)%matrix, smat_diag)
+            CALL dbcsr_replicate_all(smat_diag)
             iabc = 0
             DO ia = 1, natom
-               CALL cp_dbcsr_get_block_p(matrix=qmat_diag, row=ia, col=ia, block=qblka, found=fo)
+               CALL dbcsr_get_block_p(matrix=qmat_diag, row=ia, col=ia, block=qblka, found=fo)
                CPASSERT(fo)
-               CALL cp_dbcsr_get_block_p(matrix=smat_diag, row=ia, col=ia, block=sblka, found=fo)
+               CALL dbcsr_get_block_p(matrix=smat_diag, row=ia, col=ia, block=sblka, found=fo)
                CPASSERT(fo)
                na = SIZE(qblka, 1)
                DO ib = ia+1, natom
@@ -457,20 +456,20 @@ CONTAINS
                      iabc = iabc+(natom-ib)
                      CYCLE
                   END IF
-                  CALL cp_dbcsr_get_block_p(matrix=qmat_diag, row=ib, col=ib, block=qblkb, found=fo)
+                  CALL dbcsr_get_block_p(matrix=qmat_diag, row=ib, col=ib, block=qblkb, found=fo)
                   CPASSERT(fo)
-                  CALL cp_dbcsr_get_block_p(matrix=smat_diag, row=ib, col=ib, block=sblkb, found=fo)
+                  CALL dbcsr_get_block_p(matrix=smat_diag, row=ib, col=ib, block=sblkb, found=fo)
                   CPASSERT(fo)
                   nb = SIZE(qblkb, 1)
                   nab = na+nb
                   ALLOCATE (qmatab(na, nb), smatab(na, nb))
-                  CALL cp_dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, row=ia, col=ib, &
-                                            block=block, found=found)
+                  CALL dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, row=ia, col=ib, &
+                                         block=block, found=found)
                   qmatab = 0.0_dp
                   IF (found) qmatab(1:na, 1:nb) = block(1:na, 1:nb)
                   CALL mp_sum(qmatab, para_env%group)
-                  CALL cp_dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ia, col=ib, &
-                                            block=block, found=found)
+                  CALL dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ia, col=ib, &
+                                         block=block, found=found)
                   smatab = 0.0_dp
                   IF (found) smatab(1:na, 1:nb) = block(1:na, 1:nb)
                   CALL mp_sum(smatab, para_env%group)
@@ -480,30 +479,30 @@ CONTAINS
                         iabc = iabc+1
                         CYCLE
                      END IF
-                     CALL cp_dbcsr_get_block_p(matrix=qmat_diag, row=ic, col=ic, block=qblkc, found=fo)
+                     CALL dbcsr_get_block_p(matrix=qmat_diag, row=ic, col=ic, block=qblkc, found=fo)
                      CPASSERT(fo)
-                     CALL cp_dbcsr_get_block_p(matrix=smat_diag, row=ic, col=ic, block=sblkc, found=fo)
+                     CALL dbcsr_get_block_p(matrix=smat_diag, row=ic, col=ic, block=sblkc, found=fo)
                      CPASSERT(fo)
                      nc = SIZE(qblkc, 1)
                      ALLOCATE (qmatac(na, nc), smatac(na, nc))
-                     CALL cp_dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, row=ia, col=ic, &
-                                               block=block, found=found)
+                     CALL dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, row=ia, col=ic, &
+                                            block=block, found=found)
                      qmatac = 0.0_dp
                      IF (found) qmatac(1:na, 1:nc) = block(1:na, 1:nc)
                      CALL mp_sum(qmatac, para_env%group)
-                     CALL cp_dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ia, col=ic, &
-                                               block=block, found=found)
+                     CALL dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ia, col=ic, &
+                                            block=block, found=found)
                      smatac = 0.0_dp
                      IF (found) smatac(1:na, 1:nc) = block(1:na, 1:nc)
                      CALL mp_sum(smatac, para_env%group)
                      ALLOCATE (qmatbc(nb, nc), smatbc(nb, nc))
-                     CALL cp_dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, row=ib, col=ic, &
-                                               block=block, found=found)
+                     CALL dbcsr_get_block_p(matrix=mao_qmat(ispin)%matrix, row=ib, col=ic, &
+                                            block=block, found=found)
                      qmatbc = 0.0_dp
                      IF (found) qmatbc(1:nb, 1:nc) = block(1:nb, 1:nc)
                      CALL mp_sum(qmatbc, para_env%group)
-                     CALL cp_dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ib, col=ic, &
-                                               block=block, found=found)
+                     CALL dbcsr_get_block_p(matrix=mao_smat(ispin)%matrix, row=ib, col=ic, &
+                                            block=block, found=found)
                      smatbc = 0.0_dp
                      IF (found) smatbc(1:nb, 1:nc) = block(1:nb, 1:nc)
                      CALL mp_sum(smatbc, para_env%group)
@@ -549,8 +548,8 @@ CONTAINS
                   DEALLOCATE (qmatab, smatab)
                END DO
             END DO
-            CALL cp_dbcsr_release(qmat_diag)
-            CALL cp_dbcsr_release(smat_diag)
+            CALL dbcsr_release(qmat_diag)
+            CALL dbcsr_release(smat_diag)
          END DO
          CALL mp_sum(occnumABC, para_env%group)
       END IF
@@ -617,37 +616,37 @@ CONTAINS
       IF (analyze_ua) THEN
          CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
          CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, sab_all=sab_all)
-         CALL cp_dbcsr_get_info(mao_coef(1)%matrix, row_blk_size=mao_blk_sizes, &
-                                col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-         CALL cp_dbcsr_get_info(matrix_s(1, 1)%matrix, row_blk_size=row_blk_sizes)
-         CALL cp_dbcsr_init(amat)
-         CALL cp_dbcsr_create(amat, name="temp", template=matrix_s(1, 1)%matrix)
-         CALL cp_dbcsr_init(tmat)
-         CALL cp_dbcsr_create(tmat, name="temp", template=mao_coef(1)%matrix)
+         CALL dbcsr_get_info(mao_coef(1)%matrix, row_blk_size=mao_blk_sizes, &
+                             col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
+         CALL dbcsr_get_info(matrix_s(1, 1)%matrix, row_blk_size=row_blk_sizes)
+         CALL dbcsr_init(amat)
+         CALL dbcsr_create(amat, name="temp", template=matrix_s(1, 1)%matrix)
+         CALL dbcsr_init(tmat)
+         CALL dbcsr_create(tmat, name="temp", template=mao_coef(1)%matrix)
          ! replicate diagonal of smm matrix
-         CALL cp_dbcsr_init(smat_diag)
-         CALL cp_dbcsr_get_block_diag(matrix_smm(1)%matrix, smat_diag)
-         CALL cp_dbcsr_replicate_all(smat_diag)
+         CALL dbcsr_init(smat_diag)
+         CALL dbcsr_get_block_diag(matrix_smm(1)%matrix, smat_diag)
+         CALL dbcsr_replicate_all(smat_diag)
 
          ALLOCATE (orb_blk(natom), mao_blk(natom))
          DO ia = 1, natom
             orb_blk = row_blk_sizes
             mao_blk = row_blk_sizes
             mao_blk(ia) = col_blk_sizes(ia)
-            CALL cp_dbcsr_init(sumat)
-            CALL cp_dbcsr_create(sumat, name="Smat", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
+            CALL dbcsr_init(sumat)
+            CALL dbcsr_create(sumat, name="Smat", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(sumat, sab_orb)
-            CALL cp_dbcsr_init(cholmat)
-            CALL cp_dbcsr_create(cholmat, name="Cholesky matrix", dist=dbcsr_dist, &
-                                 matrix_type=dbcsr_type_no_symmetry, row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
-            CALL cp_dbcsr_init(rumat)
-            CALL cp_dbcsr_create(rumat, name="Rmat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                                 row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
+            CALL dbcsr_init(cholmat)
+            CALL dbcsr_create(cholmat, name="Cholesky matrix", dist=dbcsr_dist, &
+                              matrix_type=dbcsr_type_no_symmetry, row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
+            CALL dbcsr_init(rumat)
+            CALL dbcsr_create(rumat, name="Rmat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                              row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(rumat, sab_orb, .TRUE.)
-            CALL cp_dbcsr_init(crumat)
-            CALL cp_dbcsr_create(crumat, name="Rmat*Umat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                                 row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
+            CALL dbcsr_init(crumat)
+            CALL dbcsr_create(crumat, name="Rmat*Umat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                              row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
             ! replicate row and col of smo matrix
             ALLOCATE (rowblock(natom))
             DO ib = 1, natom
@@ -655,25 +654,25 @@ CONTAINS
                nb = row_blk_sizes(ib)
                ALLOCATE (rowblock(ib)%mat(na, nb))
                rowblock(ib)%mat = 0.0_dp
-               CALL cp_dbcsr_get_block_p(matrix=matrix_smo(1)%matrix, row=ia, col=ib, &
-                                         block=block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_smo(1)%matrix, row=ia, col=ib, &
+                                      block=block, found=found)
                IF (found) rowblock(ib)%mat(1:na, 1:nb) = block(1:na, 1:nb)
                CALL mp_sum(rowblock(ib)%mat, para_env%group)
             END DO
             !
             DO ispin = 1, nspin
-               CALL cp_dbcsr_copy(tmat, mao_coef(ispin)%matrix)
-               CALL cp_dbcsr_replicate_all(tmat)
-               CALL cp_dbcsr_iterator_start(dbcsr_iter, matrix_s(1, 1)%matrix)
-               DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
-                  CALL cp_dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, block)
-                  CALL cp_dbcsr_get_block_p(matrix=sumat, row=iatom, col=jatom, block=sblk, found=fos)
+               CALL dbcsr_copy(tmat, mao_coef(ispin)%matrix)
+               CALL dbcsr_replicate_all(tmat)
+               CALL dbcsr_iterator_start(dbcsr_iter, matrix_s(1, 1)%matrix)
+               DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+                  CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, block)
+                  CALL dbcsr_get_block_p(matrix=sumat, row=iatom, col=jatom, block=sblk, found=fos)
                   CPASSERT(fos)
-                  CALL cp_dbcsr_get_block_p(matrix=rumat, row=iatom, col=jatom, block=rblku, found=for)
+                  CALL dbcsr_get_block_p(matrix=rumat, row=iatom, col=jatom, block=rblku, found=for)
                   CPASSERT(for)
-                  CALL cp_dbcsr_get_block_p(matrix=rumat, row=jatom, col=iatom, block=rblkl, found=for)
+                  CALL dbcsr_get_block_p(matrix=rumat, row=jatom, col=iatom, block=rblkl, found=for)
                   CPASSERT(for)
-                  CALL cp_dbcsr_get_block_p(matrix=tmat, row=ia, col=ia, block=cmao, found=found)
+                  CALL dbcsr_get_block_p(matrix=tmat, row=ia, col=ia, block=cmao, found=found)
                   CPASSERT(found)
                   IF (iatom /= ia .AND. jatom /= ia) THEN
                      ! copy original overlap matrix
@@ -689,41 +688,41 @@ CONTAINS
                      sblk = MATMUL(TRANSPOSE(cmao), rowblock(jatom)%mat)
                      rblkl = TRANSPOSE(sblk)
                   ELSE
-                     CALL cp_dbcsr_get_block_p(matrix=smat_diag, row=ia, col=ia, block=block, found=found)
+                     CALL dbcsr_get_block_p(matrix=smat_diag, row=ia, col=ia, block=block, found=found)
                      CPASSERT(found)
                      sblk = MATMUL(TRANSPOSE(cmao), MATMUL(block, cmao))
                      rblku = MATMUL(TRANSPOSE(rowblock(ia)%mat), cmao)
                   END IF
                END DO
-               CALL cp_dbcsr_iterator_stop(dbcsr_iter)
+               CALL dbcsr_iterator_stop(dbcsr_iter)
                ! Cholesky decomposition of SUMAT = U'U
-               CALL cp_dbcsr_desymmetrize(sumat, cholmat)
+               CALL dbcsr_desymmetrize(sumat, cholmat)
                CALL cp_dbcsr_cholesky_decompose(cholmat, para_env=para_env, blacs_env=blacs_env)
                ! T = R*inv(U)
                ssize = SUM(mao_blk)
                CALL cp_dbcsr_cholesky_restore(rumat, ssize, cholmat, crumat, op="SOLVE", pos="RIGHT", &
                                               transa="N", para_env=para_env, blacs_env=blacs_env)
                ! A = T*transpose(T)
-               CALL cp_dbcsr_multiply("N", "T", 1.0_dp, crumat, crumat, 0.0_dp, amat, &
-                                      filter_eps=eps_filter)
+               CALL dbcsr_multiply("N", "T", 1.0_dp, crumat, crumat, 0.0_dp, amat, &
+                                   filter_eps=eps_filter)
                ! Tr(P*A)
-               CALL cp_dbcsr_trace(matrix_p(ispin, 1)%matrix, amat, uaq(ia, ispin))
+               CALL dbcsr_trace(matrix_p(ispin, 1)%matrix, amat, uaq(ia, ispin))
                uaq(ia, ispin) = uaq(ia, ispin)-electra(ispin)
             END DO
             !
-            CALL cp_dbcsr_release(sumat)
-            CALL cp_dbcsr_release(cholmat)
-            CALL cp_dbcsr_release(rumat)
-            CALL cp_dbcsr_release(crumat)
+            CALL dbcsr_release(sumat)
+            CALL dbcsr_release(cholmat)
+            CALL dbcsr_release(rumat)
+            CALL dbcsr_release(crumat)
             !
             DO ib = 1, natom
                DEALLOCATE (rowblock(ib)%mat)
             END DO
             DEALLOCATE (rowblock)
          END DO
-         CALL cp_dbcsr_release(smat_diag)
-         CALL cp_dbcsr_release(amat)
-         CALL cp_dbcsr_release(tmat)
+         CALL dbcsr_release(smat_diag)
+         CALL dbcsr_release(amat)
+         CALL dbcsr_release(tmat)
          DEALLOCATE (orb_blk, mao_blk)
       END IF
       !
@@ -883,14 +882,14 @@ CONTAINS
 
       DEALLOCATE (mao_basis_set_list, orb_basis_set_list)
 
-      IF (ASSOCIATED(matrix_smm)) CALL cp_dbcsr_deallocate_matrix_set(matrix_smm)
-      IF (ASSOCIATED(matrix_smo)) CALL cp_dbcsr_deallocate_matrix_set(matrix_smo)
-      IF (ASSOCIATED(matrix_q)) CALL cp_dbcsr_deallocate_matrix_set(matrix_q)
+      IF (ASSOCIATED(matrix_smm)) CALL dbcsr_deallocate_matrix_set(matrix_smm)
+      IF (ASSOCIATED(matrix_smo)) CALL dbcsr_deallocate_matrix_set(matrix_smo)
+      IF (ASSOCIATED(matrix_q)) CALL dbcsr_deallocate_matrix_set(matrix_q)
 
-      IF (ASSOCIATED(mao_coef)) CALL cp_dbcsr_deallocate_matrix_set(mao_coef)
-      IF (ASSOCIATED(mao_dmat)) CALL cp_dbcsr_deallocate_matrix_set(mao_dmat)
-      IF (ASSOCIATED(mao_smat)) CALL cp_dbcsr_deallocate_matrix_set(mao_smat)
-      IF (ASSOCIATED(mao_qmat)) CALL cp_dbcsr_deallocate_matrix_set(mao_qmat)
+      IF (ASSOCIATED(mao_coef)) CALL dbcsr_deallocate_matrix_set(mao_coef)
+      IF (ASSOCIATED(mao_dmat)) CALL dbcsr_deallocate_matrix_set(mao_dmat)
+      IF (ASSOCIATED(mao_smat)) CALL dbcsr_deallocate_matrix_set(mao_smat)
+      IF (ASSOCIATED(mao_qmat)) CALL dbcsr_deallocate_matrix_set(mao_qmat)
 
       CALL timestop(handle)
 

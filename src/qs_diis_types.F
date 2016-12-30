@@ -10,10 +10,10 @@
 !> \author Matthias Krack
 ! **************************************************************************************************
 MODULE qs_diis_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_release
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_release
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -62,7 +62,7 @@ MODULE qs_diis_types
    TYPE qs_diis_buffer_type_sparse
       INTEGER                                          :: nbuffer, ncall, &
                                                           id_nr, ref_count
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER   :: error, PARAMETER
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER   :: error, PARAMETER
       REAL(KIND=dp), DIMENSION(:, :), POINTER         :: b_matrix
    END TYPE qs_diis_buffer_type_sparse
 
@@ -156,7 +156,7 @@ CONTAINS
          IF (ASSOCIATED(diis_buffer%error)) THEN
             DO j = 1, SIZE(diis_buffer%error, 2)
                DO i = 1, SIZE(diis_buffer%error, 1)
-                  CALL cp_dbcsr_release(diis_buffer%error(i, j)%matrix)
+                  CALL dbcsr_release(diis_buffer%error(i, j)%matrix)
                   DEALLOCATE (diis_buffer%error(i, j)%matrix)
                END DO
             END DO
@@ -165,7 +165,7 @@ CONTAINS
          IF (ASSOCIATED(diis_buffer%parameter)) THEN
             DO j = 1, SIZE(diis_buffer%parameter, 2)
                DO i = 1, SIZE(diis_buffer%parameter, 1)
-                  CALL cp_dbcsr_release(diis_buffer%parameter(i, j)%matrix)
+                  CALL dbcsr_release(diis_buffer%parameter(i, j)%matrix)
                   DEALLOCATE (diis_buffer%parameter(i, j)%matrix)
                END DO
             END DO

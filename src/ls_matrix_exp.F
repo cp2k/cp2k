@@ -11,12 +11,11 @@
 
 MODULE ls_matrix_exp
 
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_init, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_transposed, &
-        cp_dbcsr_type, dbcsr_type_complex_8
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_filter, dbcsr_frobenius_norm, dbcsr_init, dbcsr_multiply, dbcsr_p_type, dbcsr_scale, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_complex_8
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -63,9 +62,9 @@ CONTAINS
                                       B_re, B_im, beta, C_re, C_im, filter_eps)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: A_re, A_im, B_re, B_im
+      TYPE(dbcsr_type), INTENT(IN)                       :: A_re, A_im, B_re, B_im
       REAL(KIND=dp), INTENT(IN)                          :: beta
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: C_re, C_im
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: C_re, C_im
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: filter_eps
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_dbcsr_gemm_3', &
@@ -75,7 +74,7 @@ CONTAINS
       CHARACTER(LEN=1)                                   :: transa2, transb2
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: alpha2, alpha3, alpha4
-      TYPE(cp_dbcsr_type), POINTER                       :: a_plus_b, ac, bd, c_plus_d
+      TYPE(dbcsr_type), POINTER                          :: a_plus_b, ac, bd, c_plus_d
 
       CALL timeset(routineN, handle)
       !A complex matrix matrix multiplication can be done with only three multiplications
@@ -104,50 +103,50 @@ CONTAINS
       !create the work matrices
       NULLIFY (ac)
       ALLOCATE (ac)
-      CALL cp_dbcsr_init(ac)
-      CALL cp_dbcsr_create(ac, template=A_re, matrix_type="N")
+      CALL dbcsr_init(ac)
+      CALL dbcsr_create(ac, template=A_re, matrix_type="N")
       NULLIFY (bd)
       ALLOCATE (bd)
-      CALL cp_dbcsr_init(bd)
-      CALL cp_dbcsr_create(bd, template=A_re, matrix_type="N")
+      CALL dbcsr_init(bd)
+      CALL dbcsr_create(bd, template=A_re, matrix_type="N")
       NULLIFY (a_plus_b)
       ALLOCATE (a_plus_b)
-      CALL cp_dbcsr_init(a_plus_b)
-      CALL cp_dbcsr_create(a_plus_b, template=A_re, matrix_type="N")
+      CALL dbcsr_init(a_plus_b)
+      CALL dbcsr_create(a_plus_b, template=A_re, matrix_type="N")
       NULLIFY (c_plus_d)
       ALLOCATE (c_plus_d)
-      CALL cp_dbcsr_init(c_plus_d)
-      CALL cp_dbcsr_create(c_plus_d, template=A_re, matrix_type="N")
+      CALL dbcsr_init(c_plus_d)
+      CALL dbcsr_create(c_plus_d, template=A_re, matrix_type="N")
 
       !Do the neccesarry multiplications
-      CALL cp_dbcsr_multiply(transa2, transb2, alpha, A_re, B_re, zero, ac, filter_eps=filter_eps)
-      CALL cp_dbcsr_multiply(transa2, transb2, alpha2, A_im, B_im, zero, bd, filter_eps=filter_eps)
+      CALL dbcsr_multiply(transa2, transb2, alpha, A_re, B_re, zero, ac, filter_eps=filter_eps)
+      CALL dbcsr_multiply(transa2, transb2, alpha2, A_im, B_im, zero, bd, filter_eps=filter_eps)
 
-      CALL cp_dbcsr_add(a_plus_b, A_re, zero, alpha)
-      CALL cp_dbcsr_add(a_plus_b, A_im, one, alpha3)
-      CALL cp_dbcsr_add(c_plus_d, B_re, zero, alpha)
-      CALL cp_dbcsr_add(c_plus_d, B_im, one, alpha4)
+      CALL dbcsr_add(a_plus_b, A_re, zero, alpha)
+      CALL dbcsr_add(a_plus_b, A_im, one, alpha3)
+      CALL dbcsr_add(c_plus_d, B_re, zero, alpha)
+      CALL dbcsr_add(c_plus_d, B_im, one, alpha4)
 
       !this can already be written into C_im
       !now both matrixes have been scaled which means we currently multiplied by alpha squared
-      CALL cp_dbcsr_multiply(transa2, transb2, one/alpha, a_plus_b, c_plus_d, beta, C_im, filter_eps=filter_eps)
+      CALL dbcsr_multiply(transa2, transb2, one/alpha, a_plus_b, c_plus_d, beta, C_im, filter_eps=filter_eps)
 
       !now add up all the terms into the result
-      CALL cp_dbcsr_add(C_re, ac, beta, one)
+      CALL dbcsr_add(C_re, ac, beta, one)
       !the minus sign was already taken care of at the definition of alpha2
-      CALL cp_dbcsr_add(C_re, bd, one, one)
-      CALL cp_dbcsr_filter(C_re, filter_eps)
+      CALL dbcsr_add(C_re, bd, one, one)
+      CALL dbcsr_filter(C_re, filter_eps)
 
-      CALL cp_dbcsr_add(C_im, ac, one, -one)
+      CALL dbcsr_add(C_im, ac, one, -one)
       !the minus sign was already taken care of at the definition of alpha2
-      CALL cp_dbcsr_add(C_im, bd, one, one)
-      CALL cp_dbcsr_filter(C_im, filter_eps)
+      CALL dbcsr_add(C_im, bd, one, one)
+      CALL dbcsr_filter(C_im, filter_eps)
 
       !Deallocate the work matrices
-      CALL cp_dbcsr_deallocate_matrix(ac)
-      CALL cp_dbcsr_deallocate_matrix(bd)
-      CALL cp_dbcsr_deallocate_matrix(a_plus_b)
-      CALL cp_dbcsr_deallocate_matrix(c_plus_d)
+      CALL dbcsr_deallocate_matrix(ac)
+      CALL dbcsr_deallocate_matrix(bd)
+      CALL dbcsr_deallocate_matrix(a_plus_b)
+      CALL dbcsr_deallocate_matrix(c_plus_d)
 
       CALL timestop(handle)
 
@@ -165,8 +164,8 @@ CONTAINS
 
    SUBROUTINE taylor_only_imaginary_dbcsr(exp_H, im_matrix, nsquare, ntaylor, filter_eps)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(2)                :: exp_H
-      TYPE(cp_dbcsr_type), POINTER                       :: im_matrix
+      TYPE(dbcsr_p_type), DIMENSION(2)                   :: exp_H
+      TYPE(dbcsr_type), POINTER                          :: im_matrix
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
       REAL(KIND=dp), INTENT(in)                          :: filter_eps
 
@@ -176,7 +175,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, nloop
       REAL(KIND=dp)                                      :: square_fac, Tfac, tmp
-      TYPE(cp_dbcsr_type), POINTER                       :: T1, T2, Tres_im, Tres_re
+      TYPE(dbcsr_type), POINTER                          :: T1, T2, Tres_im, Tres_re
 
       CALL timeset(routineN, handle)
 
@@ -186,46 +185,46 @@ CONTAINS
       !Allocate work matrices
       NULLIFY (T1)
       ALLOCATE (T1)
-      CALL cp_dbcsr_init(T1)
-      CALL cp_dbcsr_create(T1, template=im_matrix, matrix_type="N")
+      CALL dbcsr_init(T1)
+      CALL dbcsr_create(T1, template=im_matrix, matrix_type="N")
       NULLIFY (T2)
       ALLOCATE (T2)
-      CALL cp_dbcsr_init(T2)
-      CALL cp_dbcsr_create(T2, template=im_matrix, matrix_type="N")
+      CALL dbcsr_init(T2)
+      CALL dbcsr_create(T2, template=im_matrix, matrix_type="N")
       NULLIFY (Tres_re)
       ALLOCATE (Tres_re)
-      CALL cp_dbcsr_init(Tres_re)
-      CALL cp_dbcsr_create(Tres_re, template=im_matrix, matrix_type="N")
+      CALL dbcsr_init(Tres_re)
+      CALL dbcsr_create(Tres_re, template=im_matrix, matrix_type="N")
       NULLIFY (Tres_im)
       ALLOCATE (Tres_im)
-      CALL cp_dbcsr_init(Tres_im)
-      CALL cp_dbcsr_create(Tres_im, template=im_matrix, matrix_type="N")
+      CALL dbcsr_init(Tres_im)
+      CALL dbcsr_create(Tres_im, template=im_matrix, matrix_type="N")
 
       !Create the unit matrices
-      CALL cp_dbcsr_set(T1, zero)
-      CALL cp_dbcsr_add_on_diag(T1, one)
-      CALL cp_dbcsr_set(Tres_re, zero)
-      CALL cp_dbcsr_add_on_diag(Tres_re, one)
-      CALL cp_dbcsr_set(Tres_im, zero)
+      CALL dbcsr_set(T1, zero)
+      CALL dbcsr_add_on_diag(T1, one)
+      CALL dbcsr_set(Tres_re, zero)
+      CALL dbcsr_add_on_diag(Tres_re, one)
+      CALL dbcsr_set(Tres_im, zero)
 
       nloop = CEILING(REAL(ntaylor, dp)/2.0_dp)
       !the inverse of the prefactor in the taylor series
       tmp = 1.0_dp
       DO i = 1, nloop
-         CALL cp_dbcsr_scale(T1, 1.0_dp/(REAL(i, dp)*2.0_dp-1.0_dp))
-         CALL cp_dbcsr_filter(T1, filter_eps)
-         CALL cp_dbcsr_multiply("N", "N", square_fac, im_matrix, T1, zero, &
-                                T2, filter_eps=filter_eps)
+         CALL dbcsr_scale(T1, 1.0_dp/(REAL(i, dp)*2.0_dp-1.0_dp))
+         CALL dbcsr_filter(T1, filter_eps)
+         CALL dbcsr_multiply("N", "N", square_fac, im_matrix, T1, zero, &
+                             T2, filter_eps=filter_eps)
          Tfac = one
          IF (MOD(i, 2) == 0) Tfac = -Tfac
-         CALL cp_dbcsr_add(Tres_im, T2, one, Tfac)
-         CALL cp_dbcsr_scale(T2, 1.0_dp/(REAL(i, dp)*2.0_dp))
-         CALL cp_dbcsr_filter(T2, filter_eps)
-         CALL cp_dbcsr_multiply("N", "N", square_fac, im_matrix, T2, zero, &
-                                T1, filter_eps=filter_eps)
+         CALL dbcsr_add(Tres_im, T2, one, Tfac)
+         CALL dbcsr_scale(T2, 1.0_dp/(REAL(i, dp)*2.0_dp))
+         CALL dbcsr_filter(T2, filter_eps)
+         CALL dbcsr_multiply("N", "N", square_fac, im_matrix, T2, zero, &
+                             T1, filter_eps=filter_eps)
          Tfac = one
          IF (MOD(i, 2) == 1) Tfac = -Tfac
-         CALL cp_dbcsr_add(Tres_re, T1, one, Tfac)
+         CALL dbcsr_add(Tres_re, T1, one, Tfac)
       END DO
 
       !Square the matrices, due to the scaling and squaring procedure
@@ -234,17 +233,17 @@ CONTAINS
             CALL cp_complex_dbcsr_gemm_3("N", "N", one, Tres_re, Tres_im, &
                                          Tres_re, Tres_im, zero, exp_H(1)%matrix, exp_H(2)%matrix, &
                                          filter_eps=filter_eps)
-            CALL cp_dbcsr_copy(Tres_re, exp_H(1)%matrix)
-            CALL cp_dbcsr_copy(Tres_im, exp_H(2)%matrix)
+            CALL dbcsr_copy(Tres_re, exp_H(1)%matrix)
+            CALL dbcsr_copy(Tres_im, exp_H(2)%matrix)
          END DO
       ELSE
-         CALL cp_dbcsr_copy(exp_H(1)%matrix, Tres_re)
-         CALL cp_dbcsr_copy(exp_H(2)%matrix, Tres_im)
+         CALL dbcsr_copy(exp_H(1)%matrix, Tres_re)
+         CALL dbcsr_copy(exp_H(2)%matrix, Tres_im)
       END IF
-      CALL cp_dbcsr_deallocate_matrix(T1)
-      CALL cp_dbcsr_deallocate_matrix(T2)
-      CALL cp_dbcsr_deallocate_matrix(Tres_re)
-      CALL cp_dbcsr_deallocate_matrix(Tres_im)
+      CALL dbcsr_deallocate_matrix(T1)
+      CALL dbcsr_deallocate_matrix(T2)
+      CALL dbcsr_deallocate_matrix(Tres_re)
+      CALL dbcsr_deallocate_matrix(Tres_im)
 
       CALL timestop(handle)
 
@@ -264,8 +263,8 @@ CONTAINS
 !> \author Samuel Andermatt (02.2014)
 ! **************************************************************************************************
    SUBROUTINE taylor_full_complex_dbcsr(exp_H, re_part, im_part, nsquare, ntaylor, filter_eps)
-      TYPE(cp_dbcsr_p_type), DIMENSION(2)                :: exp_H
-      TYPE(cp_dbcsr_type), POINTER                       :: re_part, im_part
+      TYPE(dbcsr_p_type), DIMENSION(2)                   :: exp_H
+      TYPE(dbcsr_type), POINTER                          :: re_part, im_part
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
       REAL(KIND=dp), INTENT(in)                          :: filter_eps
 
@@ -276,7 +275,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: square_fac
       INTEGER                                            :: handle, i
-      TYPE(cp_dbcsr_type), POINTER                       :: T1, T2, T3, Tres
+      TYPE(dbcsr_type), POINTER                          :: T1, T2, T3, Tres
 
       CALL timeset(routineN, handle)
 
@@ -286,62 +285,62 @@ CONTAINS
       !Allocate work matrices
       NULLIFY (T1)
       ALLOCATE (T1)
-      CALL cp_dbcsr_init(T1)
-      CALL cp_dbcsr_create(T1, template=re_part, matrix_type="N", &
-                           data_type=dbcsr_type_complex_8)
+      CALL dbcsr_init(T1)
+      CALL dbcsr_create(T1, template=re_part, matrix_type="N", &
+                        data_type=dbcsr_type_complex_8)
       NULLIFY (T2)
       ALLOCATE (T2)
-      CALL cp_dbcsr_init(T2)
-      CALL cp_dbcsr_create(T2, template=re_part, matrix_type="N", &
-                           data_type=dbcsr_type_complex_8)
+      CALL dbcsr_init(T2)
+      CALL dbcsr_create(T2, template=re_part, matrix_type="N", &
+                        data_type=dbcsr_type_complex_8)
       NULLIFY (T3)
       ALLOCATE (T3)
-      CALL cp_dbcsr_init(T3)
-      CALL cp_dbcsr_create(T3, template=re_part, matrix_type="N", &
-                           data_type=dbcsr_type_complex_8)
+      CALL dbcsr_init(T3)
+      CALL dbcsr_create(T3, template=re_part, matrix_type="N", &
+                        data_type=dbcsr_type_complex_8)
       NULLIFY (Tres)
       ALLOCATE (Tres)
-      CALL cp_dbcsr_init(Tres)
-      CALL cp_dbcsr_create(Tres, template=re_part, matrix_type="N", &
-                           data_type=dbcsr_type_complex_8)
+      CALL dbcsr_init(Tres)
+      CALL dbcsr_create(Tres, template=re_part, matrix_type="N", &
+                        data_type=dbcsr_type_complex_8)
 
       !Fuse the input matrices to a single complex matrix
-      CALL cp_dbcsr_copy(T3, re_part)
-      CALL cp_dbcsr_copy(Tres, im_part) !will later on be set back to zero
-      CALL cp_dbcsr_scale(Tres, CMPLX(0.0_dp, 1.0_dp, KIND=dp))
-      CALL cp_dbcsr_add(T3, Tres, one, one)
+      CALL dbcsr_copy(T3, re_part)
+      CALL dbcsr_copy(Tres, im_part) !will later on be set back to zero
+      CALL dbcsr_scale(Tres, CMPLX(0.0_dp, 1.0_dp, KIND=dp))
+      CALL dbcsr_add(T3, Tres, one, one)
 
       !Create the unit matrices
-      CALL cp_dbcsr_set(T1, zero)
-      CALL cp_dbcsr_add_on_diag(T1, 1.0_dp)
-      CALL cp_dbcsr_set(Tres, zero)
-      CALL cp_dbcsr_add_on_diag(Tres, 1.0_dp)
+      CALL dbcsr_set(T1, zero)
+      CALL dbcsr_add_on_diag(T1, 1.0_dp)
+      CALL dbcsr_set(Tres, zero)
+      CALL dbcsr_add_on_diag(Tres, 1.0_dp)
 
       DO i = 1, ntaylor
-         CALL cp_dbcsr_scale(T1, one/CMPLX(i*1.0_dp, 0.0_dp, KIND=dp))
-         CALL cp_dbcsr_filter(T1, filter_eps)
-         CALL cp_dbcsr_multiply("N", "N", square_fac, T1, T3, &
-                                zero, T2, filter_eps=filter_eps)
-         CALL cp_dbcsr_add(Tres, T2, one, one)
-         CALL cp_dbcsr_copy(T1, T2)
+         CALL dbcsr_scale(T1, one/CMPLX(i*1.0_dp, 0.0_dp, KIND=dp))
+         CALL dbcsr_filter(T1, filter_eps)
+         CALL dbcsr_multiply("N", "N", square_fac, T1, T3, &
+                             zero, T2, filter_eps=filter_eps)
+         CALL dbcsr_add(Tres, T2, one, one)
+         CALL dbcsr_copy(T1, T2)
       END DO
 
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_dbcsr_multiply("N", "N", one, Tres, Tres, zero, &
-                                   T2, filter_eps=filter_eps)
-            CALL cp_dbcsr_copy(Tres, T2)
+            CALL dbcsr_multiply("N", "N", one, Tres, Tres, zero, &
+                                T2, filter_eps=filter_eps)
+            CALL dbcsr_copy(Tres, T2)
          END DO
       END IF
 
-      CALL cp_dbcsr_copy(exp_H(1)%matrix, Tres, keep_imaginary=.FALSE.)
-      CALL cp_dbcsr_scale(Tres, CMPLX(0.0_dp, -1.0_dp, KIND=dp))
-      CALL cp_dbcsr_copy(exp_H(2)%matrix, Tres, keep_imaginary=.FALSE.)
+      CALL dbcsr_copy(exp_H(1)%matrix, Tres, keep_imaginary=.FALSE.)
+      CALL dbcsr_scale(Tres, CMPLX(0.0_dp, -1.0_dp, KIND=dp))
+      CALL dbcsr_copy(exp_H(2)%matrix, Tres, keep_imaginary=.FALSE.)
 
-      CALL cp_dbcsr_deallocate_matrix(T1)
-      CALL cp_dbcsr_deallocate_matrix(T2)
-      CALL cp_dbcsr_deallocate_matrix(T3)
-      CALL cp_dbcsr_deallocate_matrix(Tres)
+      CALL dbcsr_deallocate_matrix(T1)
+      CALL dbcsr_deallocate_matrix(T2)
+      CALL dbcsr_deallocate_matrix(T3)
+      CALL dbcsr_deallocate_matrix(Tres)
 
       CALL timestop(handle)
 
@@ -360,7 +359,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE bch_expansion_imaginary_propagator(propagator, density_re, density_im, filter_eps, filter_eps_small, eps_exp)
-      TYPE(cp_dbcsr_type), POINTER                       :: propagator, density_re, density_im
+      TYPE(dbcsr_type), POINTER                          :: propagator, density_re, density_im
       REAL(KIND=dp), INTENT(in)                          :: filter_eps, filter_eps_small, eps_exp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'bch_expansion_imaginary_propagator', &
@@ -370,7 +369,7 @@ CONTAINS
       INTEGER                                            :: handle, i, unit_nr
       LOGICAL                                            :: convergence
       REAL(KIND=dp)                                      :: alpha, max_alpha, prefac
-      TYPE(cp_dbcsr_type), POINTER                       :: comm, comm2, tmp, tmp2
+      TYPE(dbcsr_type), POINTER                          :: comm, comm2, tmp, tmp2
 
       CALL timeset(routineN, handle)
 
@@ -378,44 +377,44 @@ CONTAINS
 
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=propagator)
+      CALL dbcsr_init(tmp)
+      CALL dbcsr_create(tmp, template=propagator)
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL cp_dbcsr_init(tmp2)
-      CALL cp_dbcsr_create(tmp2, template=propagator)
+      CALL dbcsr_init(tmp2)
+      CALL dbcsr_create(tmp2, template=propagator)
       NULLIFY (comm)
       ALLOCATE (comm)
-      CALL cp_dbcsr_init(comm)
-      CALL cp_dbcsr_create(comm, template=propagator)
+      CALL dbcsr_init(comm)
+      CALL dbcsr_create(comm, template=propagator)
       NULLIFY (comm2)
       ALLOCATE (comm2)
-      CALL cp_dbcsr_init(comm2)
-      CALL cp_dbcsr_create(comm2, template=propagator)
+      CALL dbcsr_init(comm2)
+      CALL dbcsr_create(comm2, template=propagator)
 
-      CALL cp_dbcsr_copy(tmp, density_re)
-      CALL cp_dbcsr_copy(tmp2, density_im)
+      CALL dbcsr_copy(tmp, density_re)
+      CALL dbcsr_copy(tmp2, density_im)
 
       convergence = .FALSE.
       DO i = 1, 20
          prefac = one/i
-         CALL cp_dbcsr_multiply("N", "N", -prefac, propagator, tmp2, zero, comm, &
-                                filter_eps=filter_eps_small)
-         CALL cp_dbcsr_multiply("N", "N", prefac, propagator, tmp, zero, comm2, &
-                                filter_eps=filter_eps_small)
-         CALL cp_dbcsr_transposed(tmp, comm)
-         CALL cp_dbcsr_transposed(tmp2, comm2)
-         CALL cp_dbcsr_add(comm, tmp, one, one)
-         CALL cp_dbcsr_add(comm2, tmp2, one, -one)
-         CALL cp_dbcsr_add(density_re, comm, one, one)
-         CALL cp_dbcsr_add(density_im, comm2, one, one)
-         CALL cp_dbcsr_copy(tmp, comm)
-         CALL cp_dbcsr_copy(tmp2, comm2)
+         CALL dbcsr_multiply("N", "N", -prefac, propagator, tmp2, zero, comm, &
+                             filter_eps=filter_eps_small)
+         CALL dbcsr_multiply("N", "N", prefac, propagator, tmp, zero, comm2, &
+                             filter_eps=filter_eps_small)
+         CALL dbcsr_transposed(tmp, comm)
+         CALL dbcsr_transposed(tmp2, comm2)
+         CALL dbcsr_add(comm, tmp, one, one)
+         CALL dbcsr_add(comm2, tmp2, one, -one)
+         CALL dbcsr_add(density_re, comm, one, one)
+         CALL dbcsr_add(density_im, comm2, one, one)
+         CALL dbcsr_copy(tmp, comm)
+         CALL dbcsr_copy(tmp2, comm2)
          !check for convergence
          max_alpha = zero
-         alpha = cp_dbcsr_frobenius_norm(comm)
+         alpha = dbcsr_frobenius_norm(comm)
          IF (alpha > max_alpha) max_alpha = alpha
-         alpha = cp_dbcsr_frobenius_norm(comm2)
+         alpha = dbcsr_frobenius_norm(comm2)
          IF (alpha > max_alpha) max_alpha = alpha
          IF (max_alpha < eps_exp) convergence = .TRUE.
          IF (convergence) THEN
@@ -425,16 +424,16 @@ CONTAINS
          ENDIF
       ENDDO
 
-      CALL cp_dbcsr_filter(density_re, filter_eps)
-      CALL cp_dbcsr_filter(density_im, filter_eps)
+      CALL dbcsr_filter(density_re, filter_eps)
+      CALL dbcsr_filter(density_im, filter_eps)
 
       IF (.NOT. convergence) &
          CPWARN("BCH method did not converge")
 
-      CALL cp_dbcsr_deallocate_matrix(tmp)
-      CALL cp_dbcsr_deallocate_matrix(tmp2)
-      CALL cp_dbcsr_deallocate_matrix(comm)
-      CALL cp_dbcsr_deallocate_matrix(comm2)
+      CALL dbcsr_deallocate_matrix(tmp)
+      CALL dbcsr_deallocate_matrix(tmp2)
+      CALL dbcsr_deallocate_matrix(comm)
+      CALL dbcsr_deallocate_matrix(comm2)
 
       CALL timestop(handle)
 
@@ -455,7 +454,7 @@ CONTAINS
 
    SUBROUTINE bch_expansion_complex_propagator(propagator_re, propagator_im, density_re, density_im, filter_eps, &
                                                filter_eps_small, eps_exp)
-      TYPE(cp_dbcsr_type), POINTER                       :: propagator_re, propagator_im, &
+      TYPE(dbcsr_type), POINTER                          :: propagator_re, propagator_im, &
                                                             density_re, density_im
       REAL(KIND=dp), INTENT(in)                          :: filter_eps, filter_eps_small, eps_exp
 
@@ -466,7 +465,7 @@ CONTAINS
       INTEGER                                            :: handle, i, unit_nr
       LOGICAL                                            :: convergence
       REAL(KIND=dp)                                      :: alpha, max_alpha, prefac
-      TYPE(cp_dbcsr_type), POINTER                       :: comm, comm2, tmp, tmp2
+      TYPE(dbcsr_type), POINTER                          :: comm, comm2, tmp, tmp2
 
       CALL timeset(routineN, handle)
 
@@ -474,23 +473,23 @@ CONTAINS
 
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL cp_dbcsr_init(tmp)
-      CALL cp_dbcsr_create(tmp, template=propagator_re)
+      CALL dbcsr_init(tmp)
+      CALL dbcsr_create(tmp, template=propagator_re)
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL cp_dbcsr_init(tmp2)
-      CALL cp_dbcsr_create(tmp2, template=propagator_re)
+      CALL dbcsr_init(tmp2)
+      CALL dbcsr_create(tmp2, template=propagator_re)
       NULLIFY (comm)
       ALLOCATE (comm)
-      CALL cp_dbcsr_init(comm)
-      CALL cp_dbcsr_create(comm, template=propagator_re)
+      CALL dbcsr_init(comm)
+      CALL dbcsr_create(comm, template=propagator_re)
       NULLIFY (comm2)
       ALLOCATE (comm2)
-      CALL cp_dbcsr_init(comm2)
-      CALL cp_dbcsr_create(comm2, template=propagator_re)
+      CALL dbcsr_init(comm2)
+      CALL dbcsr_create(comm2, template=propagator_re)
 
-      CALL cp_dbcsr_copy(tmp, density_re)
-      CALL cp_dbcsr_copy(tmp2, density_im)
+      CALL dbcsr_copy(tmp, density_re)
+      CALL dbcsr_copy(tmp2, density_im)
 
       convergence = .FALSE.
 
@@ -498,19 +497,19 @@ CONTAINS
          prefac = one/i
          CALL cp_complex_dbcsr_gemm_3("N", "N", prefac, propagator_re, propagator_im, &
                                       tmp, tmp2, zero, comm, comm2, filter_eps=filter_eps_small)
-         CALL cp_dbcsr_transposed(tmp, comm)
-         CALL cp_dbcsr_transposed(tmp2, comm2)
-         CALL cp_dbcsr_add(comm, tmp, one, one)
-         CALL cp_dbcsr_add(comm2, tmp2, one, -one)
-         CALL cp_dbcsr_add(density_re, comm, one, one)
-         CALL cp_dbcsr_add(density_im, comm2, one, one)
-         CALL cp_dbcsr_copy(tmp, comm)
-         CALL cp_dbcsr_copy(tmp2, comm2)
+         CALL dbcsr_transposed(tmp, comm)
+         CALL dbcsr_transposed(tmp2, comm2)
+         CALL dbcsr_add(comm, tmp, one, one)
+         CALL dbcsr_add(comm2, tmp2, one, -one)
+         CALL dbcsr_add(density_re, comm, one, one)
+         CALL dbcsr_add(density_im, comm2, one, one)
+         CALL dbcsr_copy(tmp, comm)
+         CALL dbcsr_copy(tmp2, comm2)
          !check for convergence
          max_alpha = zero
-         alpha = cp_dbcsr_frobenius_norm(comm)
+         alpha = dbcsr_frobenius_norm(comm)
          IF (alpha > max_alpha) max_alpha = alpha
-         alpha = cp_dbcsr_frobenius_norm(comm2)
+         alpha = dbcsr_frobenius_norm(comm2)
          IF (alpha > max_alpha) max_alpha = alpha
          IF (max_alpha < eps_exp) convergence = .TRUE.
          IF (convergence) THEN
@@ -520,16 +519,16 @@ CONTAINS
          ENDIF
       ENDDO
 
-      CALL cp_dbcsr_filter(density_re, filter_eps)
-      CALL cp_dbcsr_filter(density_im, filter_eps)
+      CALL dbcsr_filter(density_re, filter_eps)
+      CALL dbcsr_filter(density_im, filter_eps)
 
       IF (.NOT. convergence) &
          CPWARN("BCH method did not converge ")
 
-      CALL cp_dbcsr_deallocate_matrix(tmp)
-      CALL cp_dbcsr_deallocate_matrix(tmp2)
-      CALL cp_dbcsr_deallocate_matrix(comm)
-      CALL cp_dbcsr_deallocate_matrix(comm2)
+      CALL dbcsr_deallocate_matrix(tmp)
+      CALL dbcsr_deallocate_matrix(tmp2)
+      CALL dbcsr_deallocate_matrix(comm)
+      CALL dbcsr_deallocate_matrix(comm2)
 
       CALL timestop(handle)
 

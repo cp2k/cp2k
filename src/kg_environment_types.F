@@ -11,8 +11,8 @@
 !> \author Martin Haeufel
 ! **************************************************************************************************
 MODULE kg_environment_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -68,13 +68,13 @@ MODULE kg_environment_types
       TYPE(qs_dispersion_type), POINTER                :: dispersion_env
       ! matrices in complete basis
       ! KS: Kohn-Sham; H: Core; S: overlap; T: kinetic energy;
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_ks
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_h
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_s
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_t
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_h
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_t
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER  :: matrix_p
       ! reduce basis
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER     :: mao_coef
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER     :: mao_coef
    END TYPE energy_correction_type
 
 ! **************************************************************************************************
@@ -97,7 +97,7 @@ MODULE kg_environment_types
       TYPE(section_vals_type), POINTER                :: xc_section_kg
       INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_to_molecule
       TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER    :: tnadd_mat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: tnadd_mat
       TYPE(neighbor_list_set_p_type), &
          DIMENSION(:), POINTER                        :: sab_orb_full, sac_kin
       INTEGER, DIMENSION(:), POINTER                  :: subset_of_mol
@@ -143,7 +143,7 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
+         CALL dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
       ENDIF
 
       DO isub = 1, kg_env%nsubsets
@@ -181,16 +181,16 @@ CONTAINS
             DEALLOCATE (kg_env%ec_env%sap_ppnl)
          END IF
          ! operator matrices
-         IF (ASSOCIATED(kg_env%ec_env%matrix_ks)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_ks)
-         IF (ASSOCIATED(kg_env%ec_env%matrix_h)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_h)
-         IF (ASSOCIATED(kg_env%ec_env%matrix_s)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_s)
-         IF (ASSOCIATED(kg_env%ec_env%matrix_t)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_t)
-         IF (ASSOCIATED(kg_env%ec_env%matrix_p)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_p)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_ks)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_h)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_h)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_s)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_s)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_t)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_t)
+         IF (ASSOCIATED(kg_env%ec_env%matrix_p)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%matrix_p)
          IF (ASSOCIATED(kg_env%ec_env%task_list)) THEN
             CALL deallocate_task_list(kg_env%ec_env%task_list)
          END IF
          ! reduced basis
-         IF (ASSOCIATED(kg_env%ec_env%mao_coef)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%ec_env%mao_coef)
+         IF (ASSOCIATED(kg_env%ec_env%mao_coef)) CALL dbcsr_deallocate_matrix_set(kg_env%ec_env%mao_coef)
          ! dispersion environment
          IF (ASSOCIATED(kg_env%ec_env%dispersion_env)) THEN
             CALL qs_dispersion_release(kg_env%ec_env%dispersion_env)

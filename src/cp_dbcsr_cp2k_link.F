@@ -19,11 +19,11 @@ MODULE cp_dbcsr_cp2k_link
                                               Schuett2016,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
-        cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_get_default_config, &
-        dbcsr_set_config, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: max_elements_per_block
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_default_config, dbcsr_get_matrix_type, &
+        dbcsr_has_symmetry, dbcsr_reserve_blocks, dbcsr_set, dbcsr_set_config, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -425,7 +425,7 @@ CONTAINS
 
    SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix, sab_orb, desymmetrize)
 
-      TYPE(cp_dbcsr_type)                                :: matrix
+      TYPE(dbcsr_type)                                   :: matrix
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       LOGICAL, INTENT(IN), OPTIONAL                      :: desymmetrize
@@ -443,7 +443,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      symmetry = cp_dbcsr_get_matrix_type(matrix)
+      symmetry = dbcsr_get_matrix_type(matrix)
 
       CPASSERT(ASSOCIATED(sab_orb))
 
@@ -455,7 +455,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL cp_dbcsr_finalize(matrix)
+      CALL dbcsr_finalize(matrix)
       ALLOCATE (rows(3), cols(3))
       blk_cnt = 0
       nadd = 1
@@ -515,10 +515,10 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       !
-      CALL cp_dbcsr_reserve_blocks(matrix, rows(1:blk_cnt), cols(1:blk_cnt))
+      CALL dbcsr_reserve_blocks(matrix, rows(1:blk_cnt), cols(1:blk_cnt))
       DEALLOCATE (rows)
       DEALLOCATE (cols)
-      CALL cp_dbcsr_finalize(matrix)
+      CALL dbcsr_finalize(matrix)
 
       CALL timestop(handle)
 
@@ -541,7 +541,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_to_csr_screening(ks_env, csr_sparsity)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: csr_sparsity
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: csr_sparsity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_to_csr_screening', &
          routineP = moduleN//':'//routineN
@@ -573,7 +573,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(cp_dbcsr_has_symmetry(csr_sparsity))
+      CPASSERT(dbcsr_has_symmetry(csr_sparsity))
 
       CALL get_ks_env(ks_env, &
                       sab_orb=neighbour_list, &
@@ -595,7 +595,7 @@ CONTAINS
       CALL basis_set_list_setup(basis_set_list_b, "ORB", qs_kind_set)
 
       ! csr_sparsity can obtain values 0 (if zero element) or 1 (if non-zero element)
-      CALL cp_dbcsr_set(csr_sparsity, 0.0)
+      CALL dbcsr_set(csr_sparsity, 0.0)
 
       CALL neighbor_list_iterator_create(nl_iterator, neighbour_list)
 
@@ -640,8 +640,8 @@ CONTAINS
             icol = iatom
          END IF
 
-         CALL cp_dbcsr_get_block_p(matrix=csr_sparsity, row=irow, col=icol, &
-                                   block=screen_blk, found=found)
+         CALL dbcsr_get_block_p(matrix=csr_sparsity, row=irow, col=icol, &
+                                block=screen_blk, found=found)
 
          CPASSERT(found)
 

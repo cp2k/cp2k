@@ -28,7 +28,7 @@ MODULE dbcsr_methods
    USE dbcsr_types,                     ONLY: &
         dbcsr_1d_array_type, dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
         dbcsr_imagedistribution_obj, dbcsr_imagedistribution_type, dbcsr_memtype_type, &
-        dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_antihermitian, &
+        dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_type, dbcsr_type_antihermitian, &
         dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
         dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
         dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
@@ -76,18 +76,6 @@ MODULE dbcsr_methods
    PUBLIC :: dbcsr_distribution_release
    PUBLIC :: dbcsr_mp_release, dbcsr_mp_grid_remove
 
-   INTERFACE dbcsr_valid_index
-      MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
-   END INTERFACE
-
-   INTERFACE dbcsr_blk_row_size
-      MODULE PROCEDURE dbcsr_blk_row_size_type, dbcsr_blk_row_size_obj
-   END INTERFACE
-
-   INTERFACE dbcsr_blk_column_size
-      MODULE PROCEDURE dbcsr_blk_column_size_type, dbcsr_blk_column_size_obj
-   END INTERFACE
-
    ! For the 1-D and 2-D arrays
 
    INTERFACE dbcsr_destroy_array
@@ -101,24 +89,12 @@ CONTAINS
 !> \param[in] matrix          verify index validity of this matrix
 !> \retval valid_index        index validity
 ! **************************************************************************************************
-   PURE FUNCTION dbcsr_valid_index_type(matrix) RESULT(valid_index)
+   PURE FUNCTION dbcsr_valid_index(matrix) RESULT(valid_index)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       LOGICAL                                            :: valid_index
 
       valid_index = matrix%valid
-   END FUNCTION dbcsr_valid_index_type
-
-! **************************************************************************************************
-!> \brief Returns whether the index structure of the matrix is valid.
-!> \param[in] matrix          verify index validity of this matrix
-!> \retval valid_index        index validity
-! **************************************************************************************************
-   PURE FUNCTION dbcsr_valid_index_obj(matrix) RESULT(valid_index)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      LOGICAL                                            :: valid_index
-
-      valid_index = dbcsr_valid_index_type(matrix%m)
-   END FUNCTION dbcsr_valid_index_obj
+   END FUNCTION dbcsr_valid_index
 
 ! **************************************************************************************************
 !> \brief Releases a reference for a DBCSR matrix
@@ -127,14 +103,14 @@ CONTAINS
 !> \param[in,out] matrix DBCSR matrix
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE dbcsr_release(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_release', routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-      matrix%m%refcount = matrix%m%refcount-1
-      IF (matrix%m%refcount .EQ. 0) THEN
+      matrix%refcount = matrix%refcount-1
+      IF (matrix%refcount .EQ. 0) THEN
          CALL dbcsr_destroy(matrix)
       ENDIF
    END SUBROUTINE dbcsr_release
@@ -145,7 +121,7 @@ CONTAINS
 !> \param[in] force           (optional) force deallocation
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE dbcsr_destroy(matrix, force)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: force
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', routineP = moduleN//':'//routineN
@@ -158,25 +134,25 @@ CONTAINS
       CALL timeset(routineN, error_handle)
       force_all = .FALSE.
       IF (PRESENT(force)) force_all = force
-      IF (.NOT. force_all .AND. matrix%m%refcount .NE. 0) &
+      IF (.NOT. force_all .AND. matrix%refcount .NE. 0) &
          CPWARN("You should not destroy referenced matrix.")
-      IF (force_all .AND. matrix%m%refcount .GT. 1) &
+      IF (force_all .AND. matrix%refcount .GT. 1) &
          CPWARN("You should not destroy referenced matrix.")
-      IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
-         IF (ASSOCIATED(matrix%m%wms)) &
+      IF (force_all .OR. matrix%refcount .EQ. 0) THEN
+         IF (ASSOCIATED(matrix%wms)) &
             CPWARN("Destroying unfinalized matrix")
-         IF (ASSOCIATED(matrix%m%index)) THEN
-            CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type)
+         IF (ASSOCIATED(matrix%index)) THEN
+            CALL memory_deallocate(matrix%index, matrix%index_memory_type)
          ENDIF
-         CALL dbcsr_data_release(matrix%m%data_area)
-         CALL array_release(matrix%m%row_blk_size)
-         CALL array_release(matrix%m%col_blk_size)
-         CALL array_release(matrix%m%row_blk_offset)
-         CALL array_release(matrix%m%col_blk_offset)
-         CALL dbcsr_distribution_release(matrix%m%dist)
+         CALL dbcsr_data_release(matrix%data_area)
+         CALL array_release(matrix%row_blk_size)
+         CALL array_release(matrix%col_blk_size)
+         CALL array_release(matrix%row_blk_offset)
+         CALL array_release(matrix%col_blk_offset)
+         CALL dbcsr_distribution_release(matrix%dist)
          CALL dbcsr_release_locals(matrix)
-         matrix%m%valid = .FALSE.
-         matrix%m%refcount = 0
+         matrix%valid = .FALSE.
+         matrix%refcount = 0
       ENDIF
       CALL timestop(error_handle)
    END SUBROUTINE dbcsr_destroy
@@ -282,37 +258,37 @@ CONTAINS
 !> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_release_locals(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
-      IF (matrix%m%has_local_rows) &
-         CALL array_release(matrix%m%local_rows)
-      IF (matrix%m%has_global_rows) &
-         CALL array_release(matrix%m%global_rows)
-      IF (matrix%m%has_local_cols) &
-         CALL array_release(matrix%m%local_cols)
-      IF (matrix%m%has_global_cols) &
-         CALL array_release(matrix%m%global_cols)
-      matrix%m%has_local_rows = .FALSE.
-      matrix%m%has_global_rows = .FALSE.
-      matrix%m%has_local_cols = .FALSE.
-      matrix%m%has_global_cols = .FALSE.
+      IF (matrix%has_local_rows) &
+         CALL array_release(matrix%local_rows)
+      IF (matrix%has_global_rows) &
+         CALL array_release(matrix%global_rows)
+      IF (matrix%has_local_cols) &
+         CALL array_release(matrix%local_cols)
+      IF (matrix%has_global_cols) &
+         CALL array_release(matrix%global_cols)
+      matrix%has_local_rows = .FALSE.
+      matrix%has_global_rows = .FALSE.
+      matrix%has_local_cols = .FALSE.
+      matrix%has_global_cols = .FALSE.
    END SUBROUTINE dbcsr_release_locals
 
 !  SUBROUTINE dbcsr_release_vlocals (matrix)
-!    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+!    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
 !
-!    IF (matrix%m%has_local_vrows) &
-!         CALL array_release (matrix%m%local_vrows)
-!    IF (matrix%m%has_global_vrows) &
-!         CALL array_release (matrix%m%global_vrows)
-!    IF (matrix%m%has_local_vcols) &
-!         CALL array_release (matrix%m%local_vcols)
-!    IF (matrix%m%has_global_vcols) &
-!         CALL array_release (matrix%m%global_vcols)
-!    matrix%m%has_local_vrows  = .FALSE.
-!    matrix%m%has_global_vrows = .FALSE.
-!    matrix%m%has_local_vcols  = .FALSE.
-!    matrix%m%has_global_vcols = .FALSE.
+!    IF (matrix%has_local_vrows) &
+!         CALL array_release (matrix%local_vrows)
+!    IF (matrix%has_global_vrows) &
+!         CALL array_release (matrix%global_vrows)
+!    IF (matrix%has_local_vcols) &
+!         CALL array_release (matrix%local_vcols)
+!    IF (matrix%has_global_vcols) &
+!         CALL array_release (matrix%global_vcols)
+!    matrix%has_local_vrows  = .FALSE.
+!    matrix%has_global_vrows = .FALSE.
+!    matrix%has_local_vcols  = .FALSE.
+!    matrix%has_global_vcols = .FALSE.
 !  END SUBROUTINE dbcsr_release_vlocals
 !
 
@@ -324,10 +300,10 @@ CONTAINS
 !> \retval nblkrows_total ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkrows_total(matrix) RESULT(nblkrows_total)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nblkrows_total
 
-      nblkrows_total = matrix%m%nblkrows_total
+      nblkrows_total = matrix%nblkrows_total
    END FUNCTION dbcsr_nblkrows_total
 
 ! **************************************************************************************************
@@ -336,10 +312,10 @@ CONTAINS
 !> \retval nblkcols_total ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkcols_total(matrix) RESULT(nblkcols_total)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nblkcols_total
 
-      nblkcols_total = matrix%m%nblkcols_total
+      nblkcols_total = matrix%nblkcols_total
    END FUNCTION dbcsr_nblkcols_total
 ! **************************************************************************************************
 !> \brief ...
@@ -347,10 +323,10 @@ CONTAINS
 !> \retval nfullrows_total ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullrows_total(matrix) RESULT(nfullrows_total)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nfullrows_total
 
-      nfullrows_total = matrix%m%nfullrows_total
+      nfullrows_total = matrix%nfullrows_total
    END FUNCTION dbcsr_nfullrows_total
 ! **************************************************************************************************
 !> \brief ...
@@ -358,10 +334,10 @@ CONTAINS
 !> \retval nfullcols_total ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullcols_total(matrix) RESULT(nfullcols_total)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nfullcols_total
 
-      nfullcols_total = matrix%m%nfullcols_total
+      nfullcols_total = matrix%nfullcols_total
    END FUNCTION dbcsr_nfullcols_total
 ! **************************************************************************************************
 !> \brief ...
@@ -369,10 +345,10 @@ CONTAINS
 !> \retval nblkrows_local ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkrows_local(matrix) RESULT(nblkrows_local)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nblkrows_local
 
-      nblkrows_local = matrix%m%nblkrows_local
+      nblkrows_local = matrix%nblkrows_local
    END FUNCTION dbcsr_nblkrows_local
 ! **************************************************************************************************
 !> \brief ...
@@ -380,10 +356,10 @@ CONTAINS
 !> \retval nblkcols_local ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkcols_local(matrix) RESULT(nblkcols_local)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nblkcols_local
 
-      nblkcols_local = matrix%m%nblkcols_local
+      nblkcols_local = matrix%nblkcols_local
    END FUNCTION dbcsr_nblkcols_local
 ! **************************************************************************************************
 !> \brief ...
@@ -391,10 +367,10 @@ CONTAINS
 !> \retval nfullrows_local ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullrows_local(matrix) RESULT(nfullrows_local)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nfullrows_local
 
-      nfullrows_local = matrix%m%nfullrows_local
+      nfullrows_local = matrix%nfullrows_local
    END FUNCTION dbcsr_nfullrows_local
 ! **************************************************************************************************
 !> \brief ...
@@ -402,10 +378,10 @@ CONTAINS
 !> \retval nfullcols_local ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullcols_local(matrix) RESULT(nfullcols_local)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: nfullcols_local
 
-      nfullcols_local = matrix%m%nfullcols_local
+      nfullcols_local = matrix%nfullcols_local
    END FUNCTION dbcsr_nfullcols_local
 ! **************************************************************************************************
 !> \brief ...
@@ -413,10 +389,10 @@ CONTAINS
 !> \retval max_row_size ...
 ! **************************************************************************************************
    FUNCTION dbcsr_max_row_size(matrix) RESULT(max_row_size)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: max_row_size
 
-      max_row_size = matrix%m%max_rbs
+      max_row_size = matrix%max_rbs
    END FUNCTION dbcsr_max_row_size
 ! **************************************************************************************************
 !> \brief ...
@@ -424,10 +400,10 @@ CONTAINS
 !> \retval max_col_size ...
 ! **************************************************************************************************
    FUNCTION dbcsr_max_col_size(matrix) RESULT(max_col_size)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: max_col_size
 
-      max_col_size = matrix%m%max_cbs
+      max_col_size = matrix%max_cbs
    END FUNCTION dbcsr_max_col_size
 
 ! **************************************************************************************************
@@ -436,10 +412,10 @@ CONTAINS
 !> \retval distribution ...
 ! **************************************************************************************************
    FUNCTION dbcsr_distribution(matrix) RESULT(distribution)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_distribution_obj)                       :: distribution
 
-      distribution = matrix%m%dist
+      distribution = matrix%dist
    END FUNCTION dbcsr_distribution
 
 ! **************************************************************************************************
@@ -448,10 +424,10 @@ CONTAINS
 !> \retval name ...
 ! **************************************************************************************************
    FUNCTION dbcsr_name(matrix) RESULT(name)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       CHARACTER(len=default_string_length)               :: name
 
-      name = matrix%m%name
+      name = matrix%name
    END FUNCTION dbcsr_name
 
 ! **************************************************************************************************
@@ -462,10 +438,10 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE dbcsr_setname(matrix, newname)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(len=*), INTENT(IN)                       :: newname
 
-      matrix%m%name = newname
+      matrix%name = newname
    END SUBROUTINE dbcsr_setname
 
 ! **************************************************************************************************
@@ -504,10 +480,10 @@ CONTAINS
 !> \retval row_blk_sizes ...
 ! **************************************************************************************************
    FUNCTION dbcsr_row_block_sizes(matrix) RESULT(row_blk_sizes)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
 
-      row_blk_sizes => array_data(matrix%m%row_blk_size)
+      row_blk_sizes => array_data(matrix%row_blk_size)
    END FUNCTION dbcsr_row_block_sizes
 
 ! **************************************************************************************************
@@ -516,10 +492,10 @@ CONTAINS
 !> \retval col_blk_sizes ...
 ! **************************************************************************************************
    FUNCTION dbcsr_col_block_sizes(matrix) RESULT(col_blk_sizes)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
 
-      col_blk_sizes => array_data(matrix%m%col_blk_size)
+      col_blk_sizes => array_data(matrix%col_blk_size)
    END FUNCTION dbcsr_col_block_sizes
 
 ! **************************************************************************************************
@@ -528,10 +504,10 @@ CONTAINS
 !> \retval col_blk_offsets ...
 ! **************************************************************************************************
    FUNCTION dbcsr_col_block_offsets(matrix) RESULT(col_blk_offsets)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_offsets
 
-      col_blk_offsets => array_data(matrix%m%col_blk_offset)
+      col_blk_offsets => array_data(matrix%col_blk_offset)
    END FUNCTION dbcsr_col_block_offsets
 
 ! **************************************************************************************************
@@ -540,10 +516,10 @@ CONTAINS
 !> \retval row_blk_offsets ...
 ! **************************************************************************************************
    FUNCTION dbcsr_row_block_offsets(matrix) RESULT(row_blk_offsets)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_offsets
 
-      row_blk_offsets => array_data(matrix%m%row_blk_offset)
+      row_blk_offsets => array_data(matrix%row_blk_offset)
    END FUNCTION dbcsr_row_block_offsets
 
 ! **************************************************************************************************
@@ -554,26 +530,14 @@ CONTAINS
 !> \param[in] row             row number
 !> \retval row_size           blocked row size
 ! **************************************************************************************************
-   PURE FUNCTION dbcsr_blk_row_size_type(matrix, row) RESULT(row_size)
+   PURE FUNCTION dbcsr_blk_row_size(matrix, row) RESULT(row_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: row
       INTEGER                                            :: row_size
 
       row_size = matrix%row_blk_size%low%data(row)
-   END FUNCTION dbcsr_blk_row_size_type
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param row ...
-!> \retval row_size ...
-! **************************************************************************************************
-   PURE FUNCTION dbcsr_blk_row_size_obj(matrix, row) RESULT(row_size)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      INTEGER, INTENT(IN)                                :: row
-      INTEGER                                            :: row_size
+   END FUNCTION dbcsr_blk_row_size
 
-      row_size = matrix%m%row_blk_size%low%data(row)
-   END FUNCTION dbcsr_blk_row_size_obj
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
@@ -581,11 +545,11 @@ CONTAINS
 !> \retval row_offset ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_blk_row_offset(matrix, row) RESULT(row_offset)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: row
       INTEGER                                            :: row_offset
 
-      row_offset = matrix%m%row_blk_offset%low%data(row)
+      row_offset = matrix%row_blk_offset%low%data(row)
    END FUNCTION dbcsr_blk_row_offset
 
 ! **************************************************************************************************
@@ -596,26 +560,14 @@ CONTAINS
 !> \param[in] column          column number
 !> \retval column_size        blocked row size
 ! **************************************************************************************************
-   PURE FUNCTION dbcsr_blk_column_size_type(matrix, column) RESULT(column_size)
+   PURE FUNCTION dbcsr_blk_column_size(matrix, column) RESULT(column_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: column
       INTEGER                                            :: column_size
 
       column_size = matrix%col_blk_size%low%data(column)
-   END FUNCTION dbcsr_blk_column_size_type
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param column ...
-!> \retval column_size ...
-! **************************************************************************************************
-   PURE FUNCTION dbcsr_blk_column_size_obj(matrix, column) RESULT(column_size)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      INTEGER, INTENT(IN)                                :: column
-      INTEGER                                            :: column_size
+   END FUNCTION dbcsr_blk_column_size
 
-      column_size = matrix%m%col_blk_size%low%data(column)
-   END FUNCTION dbcsr_blk_column_size_obj
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
@@ -623,11 +575,11 @@ CONTAINS
 !> \retval col_offset ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_blk_col_offset(matrix, col) RESULT(col_offset)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: col
       INTEGER                                            :: col_offset
 
-      col_offset = matrix%m%col_blk_offset%low%data(col)
+      col_offset = matrix%col_blk_offset%low%data(col)
    END FUNCTION dbcsr_blk_col_offset
 
 ! **************************************************************************************************
@@ -649,18 +601,18 @@ CONTAINS
 !>                            values)
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_matrix_type(matrix) RESULT(matrix_type)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       CHARACTER                                          :: matrix_type
 
       matrix_type = dbcsr_type_invalid
-      IF (matrix%m%symmetry) THEN
-         IF ((.NOT. matrix%m%negate_real) .AND. matrix%m%negate_imaginary) THEN
+      IF (matrix%symmetry) THEN
+         IF ((.NOT. matrix%negate_real) .AND. matrix%negate_imaginary) THEN
             matrix_type = dbcsr_type_hermitian
-         ELSEIF (matrix%m%negate_real .AND. (.NOT. matrix%m%negate_imaginary)) THEN
+         ELSEIF (matrix%negate_real .AND. (.NOT. matrix%negate_imaginary)) THEN
             matrix_type = dbcsr_type_antihermitian
-         ELSEIF (matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
+         ELSEIF (matrix%negate_real .AND. matrix%negate_imaginary) THEN
             matrix_type = dbcsr_type_antisymmetric
-         ELSEIF ((.NOT. matrix%m%negate_real) .AND. (.NOT. matrix%m%negate_imaginary)) THEN
+         ELSEIF ((.NOT. matrix%negate_real) .AND. (.NOT. matrix%negate_imaginary)) THEN
             matrix_type = dbcsr_type_symmetric
          ENDIF
       ELSE
@@ -674,10 +626,10 @@ CONTAINS
 !> \retval has_symmetry       matrix has symmetry
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_has_symmetry(matrix) RESULT(has_symmetry)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       LOGICAL                                            :: has_symmetry
 
-      has_symmetry = matrix%m%symmetry
+      has_symmetry = matrix%symmetry
    END FUNCTION dbcsr_has_symmetry
 
 ! **************************************************************************************************
@@ -688,10 +640,10 @@ CONTAINS
 ! **************************************************************************************************
 
    PURE FUNCTION dbcsr_get_replication_type(matrix) RESULT(repl_type)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       CHARACTER                                          :: repl_type
 
-      repl_type = matrix%m%replication_type
+      repl_type = matrix%replication_type
    END FUNCTION dbcsr_get_replication_type
 
 ! **************************************************************************************************
@@ -701,10 +653,10 @@ CONTAINS
 !>                            values)
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_data_type(matrix) RESULT(data_type)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: data_type
 
-      data_type = matrix%m%data_type
+      data_type = matrix%data_type
    END FUNCTION dbcsr_get_data_type
 
 ! **************************************************************************************************
@@ -715,10 +667,10 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION dbcsr_get_data_memory_type(matrix) &
       RESULT(memory_type)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_memtype_type)                           :: memory_type
 
-      memory_type = matrix%m%data_memory_type
+      memory_type = matrix%data_memory_type
    END FUNCTION dbcsr_get_data_memory_type
 
 ! **************************************************************************************************
@@ -727,10 +679,10 @@ CONTAINS
 !> \retval memory_type        memory type used for the index
 ! **************************************************************************************************
    FUNCTION dbcsr_get_index_memory_type(matrix) RESULT(memory_type)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_memtype_type)                           :: memory_type
 
-      memory_type = matrix%m%index_memory_type
+      memory_type = matrix%index_memory_type
    END FUNCTION dbcsr_get_index_memory_type
 
 !! **************************************************************************************************
@@ -740,10 +692,10 @@ CONTAINS
 !!>                            memory
 !! **************************************************************************************************
 !  PURE FUNCTION uses_special_memory_matrix (matrix) RESULT (uses_special)
-!    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+!    TYPE(dbcsr_type), INTENT(IN)              :: matrix
 !    LOGICAL                                  :: uses_special
 !
-!    uses_special = matrix%m%data_memory_type .NE. dbcsr_memory_default
+!    uses_special = matrix%data_memory_type .NE. dbcsr_memory_default
 !  END FUNCTION uses_special_memory_matrix
 !
 !
@@ -771,27 +723,27 @@ CONTAINS
 !> \retval data_size      size of data
 ! **************************************************************************************************
    FUNCTION dbcsr_get_data_size(matrix) RESULT(data_size)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: data_size
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size', &
          routineP = moduleN//':'//routineN
 
       data_size = 0
-      IF (ASSOCIATED(matrix%m%data_area%d)) THEN
-         SELECT CASE (matrix%m%data_area%d%data_type)
+      IF (ASSOCIATED(matrix%data_area%d)) THEN
+         SELECT CASE (matrix%data_area%d%data_type)
          CASE (dbcsr_type_real_8)
-            IF (ASSOCIATED(matrix%m%data_area%d%r_dp)) &
-               data_size = SIZE(matrix%m%data_area%d%r_dp)
+            IF (ASSOCIATED(matrix%data_area%d%r_dp)) &
+               data_size = SIZE(matrix%data_area%d%r_dp)
          CASE (dbcsr_type_real_4)
-            IF (ASSOCIATED(matrix%m%data_area%d%r_sp)) &
-               data_size = SIZE(matrix%m%data_area%d%r_sp)
+            IF (ASSOCIATED(matrix%data_area%d%r_sp)) &
+               data_size = SIZE(matrix%data_area%d%r_sp)
          CASE (dbcsr_type_complex_8)
-            IF (ASSOCIATED(matrix%m%data_area%d%c_dp)) &
-               data_size = SIZE(matrix%m%data_area%d%c_dp)
+            IF (ASSOCIATED(matrix%data_area%d%c_dp)) &
+               data_size = SIZE(matrix%data_area%d%c_dp)
          CASE (dbcsr_type_complex_4)
-            IF (ASSOCIATED(matrix%m%data_area%d%c_sp)) &
-               data_size = SIZE(matrix%m%data_area%d%c_sp)
+            IF (ASSOCIATED(matrix%data_area%d%c_sp)) &
+               data_size = SIZE(matrix%data_area%d%c_sp)
          CASE default
             CPABORT("Incorrect data type")
          END SELECT
@@ -807,7 +759,7 @@ CONTAINS
 !> \retval data_size          Data size used by matrix
 ! **************************************************************************************************
    FUNCTION dbcsr_get_data_size_used(matrix) RESULT(data_size)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: data_size
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size_used', &
@@ -824,10 +776,10 @@ CONTAINS
       col_blk_sizes => dbcsr_col_block_sizes(matrix)
       data_size = 0
 !$OMP     DO
-      DO row = 1, matrix%m%nblkrows_total
-         DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
-            col = matrix%m%col_i(blk)
-            IF (matrix%m%blk_p(blk) .NE. 0) THEN
+      DO row = 1, matrix%nblkrows_total
+         DO blk = matrix%row_p(row)+1, matrix%row_p(row+1)
+            col = matrix%col_i(blk)
+            IF (matrix%blk_p(blk) .NE. 0) THEN
                nze = row_blk_sizes(row)*col_blk_sizes(col)
                data_size = data_size+nze
             ENDIF
@@ -843,10 +795,10 @@ CONTAINS
 !> \retval num_blocks ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_num_blocks(matrix) RESULT(num_blocks)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: num_blocks
 
-      num_blocks = matrix%m%nblks
+      num_blocks = matrix%nblks
    END FUNCTION dbcsr_get_num_blocks
 
 ! **************************************************************************************************
@@ -855,10 +807,10 @@ CONTAINS
 !> \retval num_nze ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_nze(matrix) RESULT(num_nze)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: num_nze
 
-      num_nze = matrix%m%nze
+      num_nze = matrix%nze
    END FUNCTION dbcsr_get_nze
 
 ! **************************************************************************************************

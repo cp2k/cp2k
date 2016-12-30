@@ -11,17 +11,17 @@
 ! **************************************************************************************************
 MODULE qs_ot_minimizer
 
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_get_info,&
-                                              cp_dbcsr_init_random,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_scale,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_trace
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_get_info,&
+                                              dbcsr_init_random,&
+                                              dbcsr_p_type,&
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_trace
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathlib,                         ONLY: diamat_all
@@ -60,7 +60,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ot_mini(qs_ot_env, matrix_hc, output_unit)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_hc
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_mini', routineP = moduleN//':'//routineN
@@ -99,10 +99,10 @@ CONTAINS
             ! and also the gradient along the direction
             IF (qs_ot_env(1)%use_dx) THEN
                IF (do_ks) THEN
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
                   qs_ot_env(1)%gradient = qs_ot_env(1)%gradient+tmp
                   IF (qs_ot_env(1)%settings%do_rotation) THEN
-                     CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
+                     CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
                      qs_ot_env(1)%gradient = qs_ot_env(1)%gradient+0.5_dp*tmp
                   ENDIF
                END IF
@@ -112,10 +112,10 @@ CONTAINS
                ENDIF
             ELSE
                IF (do_ks) THEN
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
                   qs_ot_env(1)%gradient = qs_ot_env(1)%gradient-tmp
                   IF (qs_ot_env(1)%settings%do_rotation) THEN
-                     CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
+                     CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
                      qs_ot_env(1)%gradient = qs_ot_env(1)%gradient-0.5_dp*tmp
                   ENDIF
                ENDIF
@@ -248,11 +248,11 @@ CONTAINS
       IF (qs_ot_env(1)%use_dx) THEN
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_dx, &
-                                 alpha_scalar=1.0_dp, beta_scalar=ds)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_dx, &
+                              alpha_scalar=1.0_dp, beta_scalar=ds)
                IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_x, qs_ot_env(ispin)%rot_mat_dx, &
-                                    alpha_scalar=1.0_dp, beta_scalar=ds)
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, qs_ot_env(ispin)%rot_mat_dx, &
+                                 alpha_scalar=1.0_dp, beta_scalar=ds)
                ENDIF
             ENDDO
          END IF
@@ -264,11 +264,11 @@ CONTAINS
       ELSE
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_gx, &
-                                 alpha_scalar=1.0_dp, beta_scalar=-ds)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_gx, &
+                              alpha_scalar=1.0_dp, beta_scalar=-ds)
                IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_x, qs_ot_env(ispin)%rot_mat_gx, &
-                                    alpha_scalar=1.0_dp, beta_scalar=-ds)
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, qs_ot_env(ispin)%rot_mat_gx, &
+                                 alpha_scalar=1.0_dp, beta_scalar=-ds)
                ENDIF
             ENDDO
          ENDIF
@@ -564,7 +564,7 @@ CONTAINS
             DO ispin = 1, nspin
                CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                          qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx)
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
             ENDDO
             IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
@@ -572,18 +572,18 @@ CONTAINS
                WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
             ENDIF
             DO ispin = 1, nspin
-               CALL cp_dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
+               CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
                   ! right now no preconditioner yet
-                  CALL cp_dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx)
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
                ENDDO
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)
+                  CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)
                ENDDO
             ENDIF
          ENDIF
@@ -599,12 +599,12 @@ CONTAINS
          qs_ot_env(1)%gnorm = 0.0_dp
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
                ENDDO
@@ -622,9 +622,9 @@ CONTAINS
       n = 0
       nener = 0
       IF (do_ks) THEN
-         CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
+         CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
          DO ispin = 1, nspin
-            CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
+            CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
             k = k+itmp
          ENDDO
       ENDIF
@@ -677,12 +677,12 @@ CONTAINS
       gnorm_cross = 0.0_dp
       IF (do_ks) THEN
          DO ispin = 1, nspin
-            CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
+            CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
             gnorm_cross = gnorm_cross+tmp
          ENDDO
          IF (qs_ot_env(1)%settings%do_rotation) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                ! added 0.5, because we have (antisymmetry) only half the number of variables
                gnorm_cross = gnorm_cross+0.5_dp*tmp
             ENDDO
@@ -704,25 +704,25 @@ CONTAINS
          qs_ot_env(1)%gnorm = 0.0_dp
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
             ENDDO
             IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
                WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
             ENDIF
             DO ispin = 1, nspin
-               CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
                   ! right now no preconditioner yet
-                  CALL cp_dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
                ENDDO
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old)
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old)
                ENDDO
             ENDIF
          END IF
@@ -738,16 +738,16 @@ CONTAINS
          IF (do_ks) THEN
             qs_ot_env(1)%gnorm = 0.0_dp
             DO ispin = 1, nspin
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
-               CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx)
+               CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx_old, qs_ot_env(ispin)%matrix_gx)
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
-                  CALL cp_dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
                ENDDO
             ENDIF
          ENDIF
@@ -764,9 +764,9 @@ CONTAINS
       n = 0
       nener = 0
       IF (do_ks) THEN
-         CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
+         CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
          DO ispin = 1, nspin
-            CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
+            CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
             k = k+itmp
          ENDDO
       END IF
@@ -788,14 +788,14 @@ CONTAINS
       test_down = 0.0_dp
       IF (do_ks) THEN
          DO ispin = 1, nspin
-            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx, &
-                              alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
-            CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx, &
+                           alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+            CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
             test_down = test_down+tmp
             IF (qs_ot_env(1)%settings%do_rotation) THEN
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx, &
-                                 alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
+               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx, &
+                              alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
                test_down = test_down+0.5_dp*tmp
             ENDIF
          ENDDO
@@ -812,11 +812,11 @@ CONTAINS
          beta_pr = 0.0_dp
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx, &
-                                 alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_gx, &
+                              alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
                IF (qs_ot_env(1)%settings%do_rotation) THEN
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, &
-                                    qs_ot_env(ispin)%rot_mat_gx, alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, &
+                                 qs_ot_env(ispin)%rot_mat_gx, alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
                ENDIF
             ENDDO
          END IF
@@ -871,9 +871,9 @@ CONTAINS
 
       IF (do_ks) THEN
          DO ispin = 1, nspin
-            CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
+            CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
             IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-               CALL cp_dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, qs_ot_env(ispin)%rot_mat_x)
+               CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, qs_ot_env(ispin)%rot_mat_x)
             ENDIF
          ENDDO
       END IF
@@ -888,25 +888,25 @@ CONTAINS
             DO ispin = 1, nspin
                CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                          qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                   tmp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                                tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
             ENDDO
             IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
                WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
             ENDIF
             DO ispin = 1, nspin
-               CALL cp_dbcsr_scale(qs_ot_env(ispin)%matrix_h_e(j)%matrix, -qs_ot_env(1)%ds_min)
+               CALL dbcsr_scale(qs_ot_env(ispin)%matrix_h_e(j)%matrix, -qs_ot_env(1)%ds_min)
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, qs_ot_env(ispin)%rot_mat_gx)
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                      tmp)
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, qs_ot_env(ispin)%rot_mat_gx)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+                                   tmp)
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
                ENDDO
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_scale(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, -qs_ot_env(1)%ds_min)
+                  CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, -qs_ot_env(1)%ds_min)
                ENDDO
             ENDIF
          END IF
@@ -922,17 +922,17 @@ CONTAINS
          qs_ot_env(1)%gnorm = 0.0_dp
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
+               CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
                qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                 qs_ot_env(ispin)%matrix_gx, alpha_scalar=0.0_dp, beta_scalar=-qs_ot_env(1)%ds_min)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                              qs_ot_env(ispin)%matrix_gx, alpha_scalar=0.0_dp, beta_scalar=-qs_ot_env(1)%ds_min)
             ENDDO
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx, tmp)
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+0.5_dp*tmp
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                    qs_ot_env(ispin)%rot_mat_gx, alpha_scalar=0.0_dp, beta_scalar=-qs_ot_env(1)%ds_min)
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+                                 qs_ot_env(ispin)%rot_mat_gx, alpha_scalar=0.0_dp, beta_scalar=-qs_ot_env(1)%ds_min)
                ENDDO
             ENDIF
          END IF
@@ -948,9 +948,9 @@ CONTAINS
       n = 0
       nener = 0
       IF (do_ks) THEN
-         CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
+         CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
          DO ispin = 1, nspin
-            CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
+            CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
             k = k+itmp
          ENDDO
       END IF
@@ -978,14 +978,14 @@ CONTAINS
             qs_ot_env(1)%ls_diis(i, j) = 0.0_dp
             IF (do_ks) THEN
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                      qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                      tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                                   qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
+                                   tmp)
                   qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)+tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                     CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                         qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                         tmp)
+                     CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+                                      qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
+                                      tmp)
                      qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)+0.5_dp*tmp
                   ENDIF
                ENDDO
@@ -1000,14 +1000,14 @@ CONTAINS
             qs_ot_env(1)%ls_diis(i, j) = 0.0_dp
             IF (do_ks) THEN
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, &
-                                      qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                      tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, &
+                                   qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
+                                   tmp)
                   qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)-qs_ot_env(1)%ds_min*tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                     CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, &
-                                         qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                         tmp)
+                     CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_gx, &
+                                      qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
+                                      tmp)
                      qs_ot_env(1)%ls_diis(i, j) = qs_ot_env(1)%ls_diis(i, j)-qs_ot_env(1)%ds_min*0.5_dp*tmp
                   ENDIF
                ENDDO
@@ -1040,28 +1040,28 @@ CONTAINS
          IF (do_ks) THEN
             DO ispin = 1, nspin
                ! OK, add the vectors now
-               CALL cp_dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
+               CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
                DO i = 1, diis_bound
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                    qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
+                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                                 qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
                ENDDO
                DO i = 1, diis_bound
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                    qs_ot_env(ispin)%matrix_h_x(i)%matrix, &
-                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
+                  CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                                 qs_ot_env(ispin)%matrix_h_x(i)%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
                ENDDO
                IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                  CALL cp_dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
+                  CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
                   DO i = 1, diis_bound
-                     CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                       qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
-                                       alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
+                     CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
+                                    qs_ot_env(ispin)%rot_mat_h_e(i)%matrix, &
+                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
                   ENDDO
                   DO i = 1, diis_bound
-                     CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                       qs_ot_env(ispin)%rot_mat_h_x(i)%matrix, &
-                                       alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
+                     CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
+                                    qs_ot_env(ispin)%rot_mat_h_x(i)%matrix, &
+                                    alpha_scalar=1.0_dp, beta_scalar=qs_ot_env(1)%c_diis(i))
                   ENDDO
                ENDIF
             ENDDO
@@ -1088,18 +1088,18 @@ CONTAINS
             tr_xnew_gx = 0.0_dp
             IF (do_ks) THEN
                DO ispin = 1, nspin
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                                      qs_ot_env(ispin)%matrix_gx, tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+                                   qs_ot_env(ispin)%matrix_gx, tmp)
                   tr_xold_gx = tr_xold_gx+tmp
-                  CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_x, &
-                                      qs_ot_env(ispin)%matrix_gx, tmp)
+                  CALL dbcsr_trace(qs_ot_env(ispin)%matrix_x, &
+                                   qs_ot_env(ispin)%matrix_gx, tmp)
                   tr_xnew_gx = tr_xnew_gx+tmp
                   IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                     CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                                         qs_ot_env(ispin)%rot_mat_gx, tmp)
+                     CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
+                                      qs_ot_env(ispin)%rot_mat_gx, tmp)
                      tr_xold_gx = tr_xold_gx+0.5_dp*tmp
-                     CALL cp_dbcsr_trace(qs_ot_env(ispin)%rot_mat_x, &
-                                         qs_ot_env(ispin)%rot_mat_gx, tmp)
+                     CALL dbcsr_trace(qs_ot_env(ispin)%rot_mat_x, &
+                                      qs_ot_env(ispin)%rot_mat_gx, tmp)
                      tr_xnew_gx = tr_xnew_gx+0.5_dp*tmp
                   ENDIF
                ENDDO
@@ -1124,21 +1124,21 @@ CONTAINS
          qs_ot_env(1)%OT_METHOD_FULL = "OT SD"
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL cp_dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                 1.0_dp, 1.0_dp)
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
-                                 1.0_dp, 1.0_dp)
+               CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                              qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                              1.0_dp, 1.0_dp)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                              qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+                              1.0_dp, 1.0_dp)
                IF (qs_ot_env(ispin)%settings%do_rotation) THEN
-                  CALL cp_dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                    qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
-                                    1.0_dp, 1.0_dp)
-                  CALL cp_dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
-                                    qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
-                                    1.0_dp, 1.0_dp)
+                  CALL dbcsr_set(qs_ot_env(ispin)%rot_mat_x, 0.0_dp)
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
+                                 qs_ot_env(ispin)%rot_mat_h_e(j)%matrix, &
+                                 1.0_dp, 1.0_dp)
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_x, &
+                                 qs_ot_env(ispin)%rot_mat_h_x(j)%matrix, &
+                                 1.0_dp, 1.0_dp)
                ENDIF
             ENDDO
          END IF
@@ -1231,7 +1231,7 @@ CONTAINS
       j = MOD(qs_ot_env(1)%diis_iter, diis_m)+1 ! index in the circular array
 
       DO ispin = 1, nspin
-         CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
+         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
       ENDDO
 
       IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
@@ -1239,31 +1239,31 @@ CONTAINS
          DO ispin = 1, nspin
             CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
                                       qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
-            CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                                tmp)
+            CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                             tmp)
             qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
          ENDDO
          IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
             WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
          ENDIF
          DO ispin = 1, nspin
-            CALL cp_dbcsr_scale(qs_ot_env(ispin)%matrix_h_e(j)%matrix, -1.0_dp)
+            CALL dbcsr_scale(qs_ot_env(ispin)%matrix_h_e(j)%matrix, -1.0_dp)
          ENDDO
       ELSE
          qs_ot_env(1)%gnorm = 0.0_dp
          DO ispin = 1, nspin
-            CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
+            CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
             qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm+tmp
-            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                              qs_ot_env(ispin)%matrix_gx, alpha_scalar=0.0_dp, beta_scalar=-1.0_dp)
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                           qs_ot_env(ispin)%matrix_gx, alpha_scalar=0.0_dp, beta_scalar=-1.0_dp)
          ENDDO
       ENDIF
 
       k = 0
       n = 0
-      CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
+      CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
       DO ispin = 1, nspin
-         CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
+         CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
          k = k+itmp
       ENDDO
 
@@ -1288,34 +1288,34 @@ CONTAINS
 
       S = 0.0_dp
       DO ispin = 1, nspin
-         CALL cp_dbcsr_init_random(qs_ot_env(ispin)%matrix_x)
+         CALL dbcsr_init_random(qs_ot_env(ispin)%matrix_x)
          DO i = 1, diis_bound
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, tmp)
             S(i, i) = S(i, i)+tmp
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, tmp)
             S(i+diis_bound, i+diis_bound) = S(i+diis_bound, i+diis_bound)+tmp
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_x, tmp)
             S(i, 2*diis_bound+1) = S(i, 2*diis_bound+1)+tmp
             S(i, 2*diis_bound+1) = S(2*diis_bound+1, i)
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_x, tmp)
             S(i+diis_bound, 2*diis_bound+1) = S(i+diis_bound, 2*diis_bound+1)+tmp
             S(i+diis_bound, 2*diis_bound+1) = S(2*diis_bound+1, diis_bound+i)
             DO k = (i+1), diis_bound
-               CALL cp_dbcsr_trace( &
+               CALL dbcsr_trace( &
                   qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                   qs_ot_env(ispin)%matrix_h_x(circ_index(k))%matrix, &
                   tmp)
                S(i, k) = S(i, k)+tmp
                S(k, i) = S(i, k)
-               CALL cp_dbcsr_trace( &
+               CALL dbcsr_trace( &
                   qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                   qs_ot_env(ispin)%matrix_h_e(circ_index(k))%matrix, &
                   tmp)
@@ -1323,14 +1323,14 @@ CONTAINS
                S(diis_bound+k, diis_bound+i) = S(diis_bound+i, diis_bound+k)
             ENDDO
             DO k = 1, diis_bound
-               CALL cp_dbcsr_trace( &
+               CALL dbcsr_trace( &
                   qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                   qs_ot_env(ispin)%matrix_h_e(circ_index(k))%matrix, tmp)
                S(i, k+diis_bound) = S(i, k+diis_bound)+tmp
                S(k+diis_bound, i) = S(i, k+diis_bound)
             ENDDO
          ENDDO
-         CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_x, tmp)
+         CALL dbcsr_trace(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_x, tmp)
          S(2*diis_bound+1, 2*diis_bound+1) = S(2*diis_bound+1, 2*diis_bound+1)+tmp
       ENDDO
 
@@ -1346,22 +1346,22 @@ CONTAINS
          i = diis_bound
          DO ispin = 1, nspin
             ! dot product of differences
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                tmp)
             tmp2 = tmp2+tmp
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i-1))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
                tmp)
             tmp2 = tmp2-tmp
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i-1))%matrix, &
                tmp)
             tmp2 = tmp2-tmp
-            CALL cp_dbcsr_trace( &
+            CALL dbcsr_trace( &
                qs_ot_env(ispin)%matrix_h_x(circ_index(i-1))%matrix, &
                qs_ot_env(ispin)%matrix_h_e(circ_index(i-1))%matrix, &
                tmp)
@@ -1378,13 +1378,13 @@ CONTAINS
          sigma = sigma_dec*sigma
          qs_ot_env(1)%OT_METHOD_FULL = "OT BTRK"
          DO ispin = 1, nspin
-            CALL cp_dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
-            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_x(i)%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=(1.0_dp-gamma))
-            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=gamma)
+            CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                           qs_ot_env(ispin)%matrix_h_x(i)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=(1.0_dp-gamma))
+            CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                           qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=gamma)
          ENDDO
       ELSE
          ! Construct G
@@ -1422,16 +1422,16 @@ CONTAINS
 
          ! OK, add the vectors now, this sums up to the proposed step
          DO ispin = 1, nspin
-            CALL cp_dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
             DO i = 1, diis_bound
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=-x(i+diis_bound))
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                              qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=-x(i+diis_bound))
             ENDDO
             DO i = 1, diis_bound
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=x(i))
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                              qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=x(i))
             ENDDO
          ENDDO
 
@@ -1445,9 +1445,9 @@ CONTAINS
          ! compute the inner product of direction of the step and gradient
          tmp = 0.0_dp
          DO ispin = 1, nspin
-            CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, &
-                                qs_ot_env(ispin)%matrix_x, &
-                                tmp2)
+            CALL dbcsr_trace(qs_ot_env(ispin)%matrix_gx, &
+                             qs_ot_env(ispin)%matrix_x, &
+                             tmp2)
             tmp = tmp+tmp2
          ENDDO
 
@@ -1460,13 +1460,13 @@ CONTAINS
                   qs_ot_env(1)%diis_iter = 0
                ENDIF
                sigma = sigma*sigma_dec
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
-                                 alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                              qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
+                              alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             ELSE
-               CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                                 qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                              qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             ENDIF
          ENDDO
       ENDIF

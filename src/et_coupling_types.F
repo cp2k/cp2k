@@ -9,9 +9,9 @@
 ! **************************************************************************************************
 MODULE et_coupling_types
 
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -38,7 +38,7 @@ MODULE et_coupling_types
 ! **************************************************************************************************
    TYPE et_coupling_type
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER           :: et_mo_coeff
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER     :: rest_mat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER     :: rest_mat
       LOGICAL                                            :: first_run
       LOGICAL                                            :: keep_matrix
       REAL(KIND=dp)                                    :: energy, e1, order_p
@@ -76,7 +76,7 @@ CONTAINS
       TYPE(et_coupling_type), POINTER                    :: et_coupling
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: et_mo_coeff
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rest_mat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_et_coupling_type', &
@@ -97,7 +97,7 @@ CONTAINS
       TYPE(et_coupling_type), POINTER                    :: et_coupling
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: et_mo_coeff
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rest_mat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_et_coupling_type', &

@@ -9,10 +9,10 @@
 !> \author Teodoro Laino
 ! **************************************************************************************************
 MODULE qs_ks_qmmm_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
    USE cube_utils,                      ONLY: cube_info_type,&
                                               destroy_cube_info
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
@@ -51,7 +51,7 @@ MODULE qs_ks_qmmm_types
       TYPE(pw_p_type)                             :: v_qmmm_rspace
       TYPE(pw_p_type)                             :: v_metal_rspace
       TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                                :: matrix_h
    END TYPE qs_ks_qmmm_env_type
 
@@ -98,7 +98,7 @@ CONTAINS
                DEALLOCATE (ks_qmmm_env%cube_info)
             END IF
             IF (ASSOCIATED(ks_qmmm_env%matrix_h)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h)
+               CALL dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h)
             END IF
             DEALLOCATE (ks_qmmm_env)
          END IF

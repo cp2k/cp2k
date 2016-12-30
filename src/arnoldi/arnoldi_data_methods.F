@@ -19,11 +19,11 @@ MODULE arnoldi_data_methods
         get_data_z, get_evals_c, get_evals_d, get_evals_s, get_evals_z, get_sel_ind, has_d_cmplx, &
         has_d_real, has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, &
         set_data_z
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_create_col_vec_from_matrix, cp_dbcsr_get_data_p, cp_dbcsr_get_data_type, &
-        cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_mp_grid_setup, dbcsr_type_complex_4, &
-        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: &
+        create_col_vec_from_matrix, dbcsr_distribution_obj, dbcsr_get_data_p, dbcsr_get_data_type, &
+        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, &
+        dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
+        dbcsr_type_real_8, dbcsr_type_symmetric
    USE kinds,                           ONLY: real_4,&
                                               real_8
    USE util,                            ONLY: sort
@@ -63,7 +63,7 @@ CONTAINS
    SUBROUTINE setup_arnoldi_data(arnoldi_data, matrix, max_iter, threshold, selection_crit, &
                                  nval_request, nrestarts, generalized_ev, iram)
       TYPE(arnoldi_data_type)                            :: arnoldi_data
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
       INTEGER                                            :: max_iter
       REAL(real_8)                                       :: threshold
       INTEGER                                            :: selection_crit, nval_request, nrestarts
@@ -75,7 +75,7 @@ CONTAINS
       CALL setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, &
                                  nval_request, nrestarts, generalized_ev, iram)
 
-      SELECT CASE (cp_dbcsr_get_data_type (matrix (1)%matrix))
+      SELECT CASE (dbcsr_get_data_type (matrix (1)%matrix))
       CASE (dbcsr_type_real_8)
          CALL setup_arnoldi_data_d(arnoldi_data, matrix, max_iter)
       CASE (dbcsr_type_real_4)
@@ -103,7 +103,7 @@ CONTAINS
    SUBROUTINE setup_arnoldi_control(arnoldi_data, matrix, max_iter, threshold, selection_crit, nval_request, &
                                     nrestarts, generalized_ev, iram)
       TYPE(arnoldi_data_type)                            :: arnoldi_data
-      TYPE(cp_dbcsr_p_type), DIMENSION(:)                :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
       INTEGER                                            :: max_iter
       REAL(real_8)                                       :: threshold
       INTEGER                                            :: selection_crit, nval_request, nrestarts
@@ -117,7 +117,7 @@ CONTAINS
 
       ALLOCATE (control)
 ! Fill the information which will later on control the behavior of the arnoldi method and allow synchronization
-      CALL cp_dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
+      CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
       control%mp_group = distri%d%mp_env%mp%mp_group
       control%myproc = distri%d%mp_env%mp%mynode
 
@@ -130,7 +130,7 @@ CONTAINS
       control%symmetric = .FALSE.
 ! Will need a fix for complex because there it has to be hermitian
       IF (SIZE(matrix) == 1) &
-         control%symmetric = cp_dbcsr_get_matrix_type(matrix(1)%matrix) == dbcsr_type_symmetric
+         control%symmetric = dbcsr_get_matrix_type(matrix(1)%matrix) == dbcsr_type_symmetric
 
 ! Set the control parameters
       control%max_iter = max_iter
@@ -177,7 +177,7 @@ CONTAINS
    SUBROUTINE get_selected_ritz_vector(arnoldi_data, ind, matrix, vector)
       TYPE(arnoldi_data_type)                            :: arnoldi_data
       INTEGER                                            :: ind
-      TYPE(cp_dbcsr_type)                                :: matrix, vector
+      TYPE(dbcsr_type)                                   :: matrix, vector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector', &
          routineP = moduleN//':'//routineN
@@ -387,7 +387,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_arnoldi_initial_vector(ar_data, vector)
       TYPE(arnoldi_data_type)                            :: ar_data
-      TYPE(cp_dbcsr_type)                                :: vector
+      TYPE(dbcsr_type)                                   :: vector
 
       TYPE(arnoldi_control_type), POINTER                :: control
 

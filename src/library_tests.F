@@ -24,8 +24,6 @@ MODULE library_tests
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: dbcsr_reset_randmat_seed,&
-                                              dbcsr_run_tests
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_perf_acc_test
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -49,6 +47,8 @@ MODULE library_tests
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_init,          ONLY: init_input_type
+   USE dbcsr_api,                       ONLY: dbcsr_reset_randmat_seed,&
+                                              dbcsr_run_tests
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FWFFT,&

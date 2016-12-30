@@ -16,14 +16,6 @@ MODULE admm_methods
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-        cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t
@@ -51,6 +43,13 @@ MODULE admm_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_desymmetrize, dbcsr_distribution, dbcsr_get_block_p, dbcsr_get_data_size, &
+        dbcsr_get_data_type, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
+        dbcsr_row_block_sizes, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
                                               do_admm_exch_scaling_none,&
                                               do_admm_purify_cauchy,&
@@ -110,10 +109,10 @@ CONTAINS
       LOGICAL                                            :: s_mstruct_changed
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_aux
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, matrix_s_aux_fit, &
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb, rho_ao, &
                                                             rho_ao_aux
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
@@ -263,7 +262,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_derivs', &
          routineP = moduleN//':'//routineN
@@ -303,7 +302,7 @@ CONTAINS
                                  mos, mos_aux_fit, geometry_did_change)
 
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_mixed
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       LOGICAL, INTENT(IN)                                :: geometry_did_change
 
@@ -345,7 +344,7 @@ CONTAINS
    SUBROUTINE fit_mo_coeffs(admm_env, matrix_s_aux_fit, matrix_s_mixed, &
                             mos, geometry_did_change, blocked)
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_mixed
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_mixed
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       LOGICAL, INTENT(IN)                                :: geometry_did_change, blocked
 
@@ -354,8 +353,8 @@ CONTAINS
       INTEGER                                            :: blk, handle, iatom, jatom, nao_aux_fit, &
                                                             nao_orb, nspins
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_tilde
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type), POINTER                          :: matrix_s_tilde
 
       CALL timeset(routineN, handle)
 
@@ -371,26 +370,26 @@ CONTAINS
          ELSE
             NULLIFY (matrix_s_tilde)
             ALLOCATE (matrix_s_tilde)
-            CALL cp_dbcsr_init(matrix_s_tilde)
-            CALL cp_dbcsr_create(matrix_s_tilde, 'MATRIX s_tilde', &
-                                 cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_symmetric, &
-                                 cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                                 cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                                 cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
-                                 cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
+            CALL dbcsr_init(matrix_s_tilde)
+            CALL dbcsr_create(matrix_s_tilde, 'MATRIX s_tilde', &
+                              dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_symmetric, &
+                              dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                              dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                              dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
+                              dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
 
-            CALL cp_dbcsr_copy(matrix_s_tilde, matrix_s_aux_fit(1)%matrix)
+            CALL dbcsr_copy(matrix_s_tilde, matrix_s_aux_fit(1)%matrix)
 
-            CALL cp_dbcsr_iterator_start(iter, matrix_s_tilde)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_start(iter, matrix_s_tilde)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
                IF (admm_env%block_map(iatom, jatom) == 0) THEN
                   sparse_block = 0.0_dp
                END IF
             END DO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
             CALL copy_dbcsr_to_fm(matrix_s_tilde, admm_env%S_inv)
-            CALL cp_dbcsr_deallocate_matrix(matrix_s_tilde)
+            CALL dbcsr_deallocate_matrix(matrix_s_tilde)
          ENDIF
 
          CALL cp_fm_upper_to_full(admm_env%S_inv, admm_env%work_aux_aux)
@@ -614,7 +613,7 @@ CONTAINS
 
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: density_matrix
+      TYPE(dbcsr_type), POINTER                          :: density_matrix
       INTEGER                                            :: ispin
       LOGICAL, INTENT(IN)                                :: blocked
 
@@ -688,7 +687,7 @@ CONTAINS
       CALL copy_fm_to_dbcsr(admm_env%work_aux_aux3, density_matrix, keep_sparsity=.TRUE.)
 
       IF (nspins == 1) THEN
-         CALL cp_dbcsr_scale(density_matrix, 2.0_dp)
+         CALL dbcsr_scale(density_matrix, 2.0_dp)
       END IF
 
       CALL timestop(handle)
@@ -710,10 +709,10 @@ CONTAINS
       REAL(dp)                                           :: eig_diff, pole, tmp
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_ks_aux_fit
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_k_tilde
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit
+      TYPE(dbcsr_type), POINTER                          :: matrix_k_tilde
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
@@ -822,36 +821,36 @@ CONTAINS
 
          NULLIFY (matrix_k_tilde)
          ALLOCATE (matrix_k_tilde)
-         CALL cp_dbcsr_init(matrix_k_tilde)
-         CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-                              cp_dbcsr_distribution(matrix_ks(ispin)%matrix), &
-                              dbcsr_type_symmetric, &
-                              cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
-                              cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
-                              cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix), &
-                              cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix))
+         CALL dbcsr_init(matrix_k_tilde)
+         CALL dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
+                           dbcsr_distribution(matrix_ks(ispin)%matrix), &
+                           dbcsr_type_symmetric, &
+                           dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
+                           dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
+                           dbcsr_get_data_size(matrix_ks(ispin)%matrix), &
+                           dbcsr_get_data_type(matrix_ks(ispin)%matrix))
 
          CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix)
 
-         CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
-         CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp)
+         CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
+         CALL dbcsr_set(matrix_k_tilde, 0.0_dp)
          CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
          IF (admm_env%block_dm) THEN
             ! ** now loop through the list and nullify blocks
-            CALL cp_dbcsr_iterator_start(iter, matrix_k_tilde)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_start(iter, matrix_k_tilde)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
                IF (admm_env%block_map(iatom, jatom) == 0) THEN
                   sparse_block = 0.0_dp
                END IF
             END DO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
          ENDIF
 
-         CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
-         CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde)
+         CALL dbcsr_deallocate_matrix(matrix_k_tilde)
 
       END DO !spin-loop
 
@@ -871,9 +870,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nao_aux_fit, nao_orb, nmo
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_ks_aux_fit
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_k_tilde
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit
+      TYPE(dbcsr_type), POINTER                          :: matrix_k_tilde
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
 
@@ -974,28 +973,28 @@ CONTAINS
 
          NULLIFY (matrix_k_tilde)
          ALLOCATE (matrix_k_tilde)
-         CALL cp_dbcsr_init(matrix_k_tilde)
-         CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-                              cp_dbcsr_distribution(matrix_ks(ispin)%matrix), &
-                              dbcsr_type_symmetric, &
-                              cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
-                              cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
-                              cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix), &
-                              cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix))
+         CALL dbcsr_init(matrix_k_tilde)
+         CALL dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
+                           dbcsr_distribution(matrix_ks(ispin)%matrix), &
+                           dbcsr_type_symmetric, &
+                           dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
+                           dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
+                           dbcsr_get_data_size(matrix_ks(ispin)%matrix), &
+                           dbcsr_get_data_type(matrix_ks(ispin)%matrix))
 
          CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix)
 
-         CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
-         CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp)
+         CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
+         CALL dbcsr_set(matrix_k_tilde, 0.0_dp)
          CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
          CALL cp_gemm('N', 'N', nao_orb, nmo, nao_orb, &
                       1.0_dp, admm_env%work_orb_orb, mo_coeff, 0.0_dp, &
                       admm_env%mo_derivs_tmp(ispin)%matrix)
 
-         CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
+         CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
-         CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde)
+         CALL dbcsr_deallocate_matrix(matrix_k_tilde)
 
       ENDDO !spin loop
       CALL timestop(handle)
@@ -1027,7 +1026,7 @@ CONTAINS
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_diag', &
          routineP = moduleN//':'//routineN
@@ -1173,14 +1172,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: ener_k(2), ener_x(2), gsi_square, &
                                                             trace_tmp, trace_tmp_two
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks, matrix_ks_aux_fit, &
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks, matrix_ks_aux_fit, &
          matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, matrix_s, matrix_s_aux_fit, rho_ao, &
          rho_ao_aux
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_k_tilde, &
+      TYPE(dbcsr_type), POINTER                          :: matrix_k_tilde, &
                                                             matrix_ks_aux_fit_admms_tmp, &
                                                             matrix_TtsT
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
@@ -1212,15 +1211,15 @@ CONTAINS
 
       DO ispin = 1, dft_control%nspins
          IF (admm_env%block_dm) THEN
-            CALL cp_dbcsr_iterator_start(iter, matrix_ks_aux_fit(ispin)%matrix)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_start(iter, matrix_ks_aux_fit(ispin)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
                IF (admm_env%block_map(iatom, jatom) == 0) THEN
                   sparse_block = 0.0_dp
                END IF
             END DO
-            CALL cp_dbcsr_iterator_stop(iter)
-            CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_iterator_stop(iter)
+            CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, 1.0_dp)
 
          ELSE
 
@@ -1233,17 +1232,17 @@ CONTAINS
                 (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
                NULLIFY (matrix_ks_aux_fit_admms_tmp)
                ALLOCATE (matrix_ks_aux_fit_admms_tmp)
-               CALL cp_dbcsr_init(matrix_ks_aux_fit_admms_tmp)
-               CALL cp_dbcsr_create(matrix_ks_aux_fit_admms_tmp, template=matrix_ks_aux_fit(ispin)%matrix, &
-                                    name='matrix_ks_aux_fit_admms_tmp', matrix_type='s')
+               CALL dbcsr_init(matrix_ks_aux_fit_admms_tmp)
+               CALL dbcsr_create(matrix_ks_aux_fit_admms_tmp, template=matrix_ks_aux_fit(ispin)%matrix, &
+                                 name='matrix_ks_aux_fit_admms_tmp', matrix_type='s')
                ! matrix_ks_aux_fit_admms_tmp = k(d_Q)
-               CALL cp_dbcsr_copy(matrix_ks_aux_fit_admms_tmp, matrix_ks_aux_fit_hfx(ispin)%matrix)
+               CALL dbcsr_copy(matrix_ks_aux_fit_admms_tmp, matrix_ks_aux_fit_hfx(ispin)%matrix)
 
                ! matrix_ks_aux_fit_admms_tmp = k(d_Q) - gsi^2/3 x(d_Q)
-               CALL cp_dbcsr_add(matrix_ks_aux_fit_admms_tmp, matrix_ks_aux_fit_dft(ispin)%matrix, &
-                                 1.0_dp, -(admm_env%gsi(ispin))**(2.0_dp/3.0_dp))
+               CALL dbcsr_add(matrix_ks_aux_fit_admms_tmp, matrix_ks_aux_fit_dft(ispin)%matrix, &
+                              1.0_dp, -(admm_env%gsi(ispin))**(2.0_dp/3.0_dp))
                CALL copy_dbcsr_to_fm(matrix_ks_aux_fit_admms_tmp, admm_env%K(ispin)%matrix)
-               CALL cp_dbcsr_deallocate_matrix(matrix_ks_aux_fit_admms_tmp)
+               CALL dbcsr_deallocate_matrix(matrix_ks_aux_fit_admms_tmp)
             ELSE
                CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin)%matrix)
             END IF
@@ -1261,24 +1260,24 @@ CONTAINS
 
             NULLIFY (matrix_k_tilde)
             ALLOCATE (matrix_k_tilde)
-            CALL cp_dbcsr_init(matrix_k_tilde)
-            CALL cp_dbcsr_create(matrix_k_tilde, template=matrix_ks(ispin)%matrix, &
-                                 name='MATRIX K_tilde', matrix_type='S')
-            CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
-            CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp)
+            CALL dbcsr_init(matrix_k_tilde)
+            CALL dbcsr_create(matrix_k_tilde, template=matrix_ks(ispin)%matrix, &
+                              name='MATRIX K_tilde', matrix_type='S')
+            CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
+            CALL dbcsr_set(matrix_k_tilde, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
             ! Scale matrix_K_tilde here. Then, the scaling has to be done for forces seperately
             ! Scale matrix_K_tilde by gsi for ADMMQ and ADMMS (Eqs. (27), (37) in Merlot, 2014)
             IF (admm_env%charge_constrain) THEN
-               CALL cp_dbcsr_scale(matrix_k_tilde, admm_env%gsi(ispin))
+               CALL dbcsr_scale(matrix_k_tilde, admm_env%gsi(ispin))
             END IF
 
             ! Scale matrix_K_tilde by gsi^2 for ADMMP (Eq. (35) in Merlot, 2014)
             IF ((.NOT. admm_env%charge_constrain) .AND. &
                 (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
                gsi_square = (admm_env%gsi(ispin))*(admm_env%gsi(ispin))
-               CALL cp_dbcsr_scale(matrix_k_tilde, gsi_square)
+               CALL dbcsr_scale(matrix_k_tilde, gsi_square)
             END IF
 
             admm_env%lambda_merlot(ispin) = 0
@@ -1286,7 +1285,7 @@ CONTAINS
             ! Calculate LAMBDA according to Merlot, 1. IF: ADMMQ, 2. IF: ADMMP, 3. IF: ADMMS,
             IF (admm_env%charge_constrain .AND. &
                 (admm_env%scaling_model == do_admm_exch_scaling_none)) THEN
-               CALL cp_dbcsr_trace(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
+               CALL dbcsr_trace(matrix_ks_aux_fit(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
 
                ! Factor of 2 is missing compared to Eq. 28 in Merlot due to
                ! Tr(ds) = N in the code \neq 2N in Merlot
@@ -1307,8 +1306,8 @@ CONTAINS
 
             ELSE IF (admm_env%charge_constrain .AND. &
                      (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
-               CALL cp_dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
-               CALL cp_dbcsr_trace(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp_two)
+               CALL dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp)
+               CALL dbcsr_trace(matrix_ks_aux_fit_dft(ispin)%matrix, rho_ao_aux(ispin)%matrix, trace_tmp_two)
                ! For ADMMS open-shell case we need k and x (Merlot) separately since gsi(a)\=gsi(b)
                IF (dft_control%nspins == 2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
@@ -1345,30 +1344,30 @@ CONTAINS
 
                NULLIFY (matrix_TtsT)
                ALLOCATE (matrix_TtsT)
-               CALL cp_dbcsr_init(matrix_TtsT)
-               CALL cp_dbcsr_create(matrix_TtsT, template=matrix_ks(ispin)%matrix, &
-                                    name='MATRIX TtsT', matrix_type='S')
-               CALL cp_dbcsr_copy(matrix_TtsT, matrix_ks(ispin)%matrix)
-               CALL cp_dbcsr_set(matrix_TtsT, 0.0_dp)
+               CALL dbcsr_init(matrix_TtsT)
+               CALL dbcsr_create(matrix_TtsT, template=matrix_ks(ispin)%matrix, &
+                                 name='MATRIX TtsT', matrix_type='S')
+               CALL dbcsr_copy(matrix_TtsT, matrix_ks(ispin)%matrix)
+               CALL dbcsr_set(matrix_TtsT, 0.0_dp)
                CALL copy_fm_to_dbcsr(admm_env%work_orb_orb3, matrix_TtsT, keep_sparsity=.TRUE.)
 
                !Add -(gsi)*Lambda*TtsT and Lambda*S to the KS matrix according to Merlot2014
 
                IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .OR. &
                    admm_env%charge_constrain) THEN
-                  CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_TtsT, 1.0_dp, &
-                                    (-admm_env%lambda_merlot(ispin))*admm_env%gsi(ispin))
+                  CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_TtsT, 1.0_dp, &
+                                 (-admm_env%lambda_merlot(ispin))*admm_env%gsi(ispin))
                END IF
 
-               CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, 1.0_dp, admm_env%lambda_merlot(ispin))
+               CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_s(1)%matrix, 1.0_dp, admm_env%lambda_merlot(ispin))
 
-               CALL cp_dbcsr_deallocate_matrix(matrix_TtsT)
+               CALL dbcsr_deallocate_matrix(matrix_TtsT)
 
             END IF
 
-            CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
-            CALL cp_dbcsr_deallocate_matrix(matrix_k_tilde)
+            CALL dbcsr_deallocate_matrix(matrix_k_tilde)
 
          ENDIF
       ENDDO !spin loop
@@ -1428,7 +1427,7 @@ CONTAINS
 
       INTEGER                                            :: handle, myspin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit_hfx, rho_ao_aux, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit_hfx, rho_ao_aux, &
                                                             rho_ao_aux_buffer
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, v_rspace_dummy, &
@@ -1463,10 +1462,10 @@ CONTAINS
                       tot_rho_r=tot_rho_r)
 
 !   Calculate rho_buffer = rho_aux(ispin) to get exchange of ispin electrons
-      CALL cp_dbcsr_set(rho_ao_aux_buffer(1)%matrix, 0.0_dp)
-      CALL cp_dbcsr_set(rho_ao_aux_buffer(2)%matrix, 0.0_dp)
-      CALL cp_dbcsr_add(rho_ao_aux_buffer(ispin)%matrix, &
-                        rho_ao_aux(ispin)%matrix, 0.0_dp, 1.0_dp)
+      CALL dbcsr_set(rho_ao_aux_buffer(1)%matrix, 0.0_dp)
+      CALL dbcsr_set(rho_ao_aux_buffer(2)%matrix, 0.0_dp)
+      CALL dbcsr_add(rho_ao_aux_buffer(ispin)%matrix, &
+                     rho_ao_aux(ispin)%matrix, 0.0_dp, 1.0_dp)
 
       ! integration for getting the spin dependent density has to done for both spins!
       DO myspin = 1, dft_control%nspins
@@ -1494,8 +1493,8 @@ CONTAINS
       ener_k_ispin = 0.0_dp
 
       !! ** Calculate the exchange energy
-      CALL cp_dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux_buffer(ispin)%matrix, &
-                          ener_k_ispin)
+      CALL dbcsr_trace(matrix_ks_aux_fit_hfx(ispin)%matrix, rho_ao_aux_buffer(ispin)%matrix, &
+                       ener_k_ispin)
 
       ! Divide exchange for indivivual spin by two, since the ener_k_ispin originally is total
       ! exchange of alpha and beta
@@ -1514,7 +1513,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scale_dm(qs_env, rho_ao_orb, scale_back)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_orb
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_orb
       LOGICAL, INTENT(IN)                                :: scale_back
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_dm', routineP = moduleN//':'//routineN
@@ -1537,9 +1536,9 @@ CONTAINS
          DO ispin = 1, dft_control%nspins
             DO img = 1, dft_control%nimages
                IF (scale_back) THEN
-                  CALL cp_dbcsr_scale(rho_ao_orb(ispin, img)%matrix, 1.0_dp/admm_env%gsi(ispin))
+                  CALL dbcsr_scale(rho_ao_orb(ispin, img)%matrix, 1.0_dp/admm_env%gsi(ispin))
                ELSE
-                  CALL cp_dbcsr_scale(rho_ao_orb(ispin, img)%matrix, admm_env%gsi(ispin))
+                  CALL dbcsr_scale(rho_ao_orb(ispin, img)%matrix, admm_env%gsi(ispin))
                END IF
             END DO
          END DO
@@ -1563,7 +1562,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_aux_mo_derivs_none', &
          routineP = moduleN//':'//routineN
@@ -1616,7 +1615,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_no_diag', &
          routineP = moduleN//':'//routineN
@@ -1711,14 +1710,14 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb, rho_ao, &
-                                                            rho_ao_aux
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_rho_aux_desymm_tmp, matrix_w_q, &
-                                                            matrix_w_s
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, &
+                                                            matrix_s_aux_fit_vs_orb, rho_ao, &
+                                                            rho_ao_aux
+      TYPE(dbcsr_type), POINTER                          :: matrix_rho_aux_desymm_tmp, matrix_w_q, &
+                                                            matrix_w_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1775,19 +1774,19 @@ CONTAINS
       ! *** Create sparse work matrices
 
       ALLOCATE (matrix_w_s)
-      CALL cp_dbcsr_init(matrix_w_s)
-      CALL cp_dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
-                           cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
-                           cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                           cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                           cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
-                           cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
+      CALL dbcsr_init(matrix_w_s)
+      CALL dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
+                        dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
+                        dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                        dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                        dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
+                        dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s, sab_aux_fit_asymm)
 
       ALLOCATE (matrix_w_q)
-      CALL cp_dbcsr_init(matrix_w_q)
-      CALL cp_dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
-                         "W MATRIX AUX Q")
+      CALL dbcsr_init(matrix_w_q)
+      CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
+                      "W MATRIX AUX Q")
 
       DO ispin = 1, dft_control%nspins
          nmo = admm_env%nmo(ispin)
@@ -1918,42 +1917,42 @@ CONTAINS
             !Create desymmetrized auxiliary density matrix
             NULLIFY (matrix_rho_aux_desymm_tmp)
             ALLOCATE (matrix_rho_aux_desymm_tmp)
-            CALL cp_dbcsr_init(matrix_rho_aux_desymm_tmp)
-            CALL cp_dbcsr_create(matrix_rho_aux_desymm_tmp, 'Rho_aux non-symm', &
-                                 cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
-                                 cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                                 cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                                 cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
-                                 cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
+            CALL dbcsr_init(matrix_rho_aux_desymm_tmp)
+            CALL dbcsr_create(matrix_rho_aux_desymm_tmp, 'Rho_aux non-symm', &
+                              dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
+                              dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                              dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
+                              dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
+                              dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
 
-            CALL cp_dbcsr_desymmetrize(rho_ao_aux(ispin)%matrix, matrix_rho_aux_desymm_tmp)
+            CALL dbcsr_desymmetrize(rho_ao_aux(ispin)%matrix, matrix_rho_aux_desymm_tmp)
 
             ! ADMMS 1. scale original matrix_w_s by gsi due to inner deriv.
             !       2. add derivative of variational term with resp. to s
             IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
                 admm_env%charge_constrain) THEN
-               CALL cp_dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
-               CALL cp_dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                                 -admm_env%lambda_merlot(ispin))
+               CALL dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
+               CALL dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
+                              -admm_env%lambda_merlot(ispin))
 
                ! ADMMP add derivative of variational term with resp. to s
             ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
                      .NOT. admm_env%charge_constrain) THEN
 
-               CALL cp_dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                                 (admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin))
+               CALL dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
+                              (admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin))
 
                ! ADMMQ 1. scale original matrix_w_s by gsi due to inner deriv.
                !       2. add derivative of variational term with resp. to s
             ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_none .AND. &
                      admm_env%charge_constrain) THEN
-               CALL cp_dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
-               CALL cp_dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
-                                 -admm_env%lambda_merlot(ispin))
+               CALL dbcsr_scale(matrix_w_s, admm_env%gsi(ispin))
+               CALL dbcsr_add(matrix_w_s, matrix_rho_aux_desymm_tmp, 1.0_dp, &
+                              -admm_env%lambda_merlot(ispin))
 
             END IF
 
-            CALL cp_dbcsr_deallocate_matrix(matrix_rho_aux_desymm_tmp)
+            CALL dbcsr_deallocate_matrix(matrix_rho_aux_desymm_tmp)
 
          END IF
 
@@ -1970,29 +1969,29 @@ CONTAINS
 
          ! Add contribution of original basis set for ADMMQ
          IF (.NOT. admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain) THEN
-            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
             CALL build_overlap_force(ks_env, admm_force, &
                                      basis_type_a="ORB", basis_type_b="ORB", &
                                      sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
-            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin))
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin))
          END IF
 
          ! Add contribution of original basis set for ADMMP
          IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. .NOT. admm_env%charge_constrain) THEN
-            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, admm_env%lambda_merlot(ispin))
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, admm_env%lambda_merlot(ispin))
             CALL build_overlap_force(ks_env, admm_force, &
                                      basis_type_a="ORB", basis_type_b="ORB", &
                                      sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
-            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, 1.0_dp/admm_env%lambda_merlot(ispin))
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, 1.0_dp/admm_env%lambda_merlot(ispin))
          END IF
 
          ! Add contribution of original basis set for ADMMS
          IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain) THEN
-            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin))
             CALL build_overlap_force(ks_env, admm_force, &
                                      basis_type_a="ORB", basis_type_b="ORB", &
                                      sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix)
-            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin))
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin))
          END IF
 
          ! add forces
@@ -2024,8 +2023,8 @@ CONTAINS
       ENDDO !spin loop
 
       ! *** Deallocated weighted density matrices
-      CALL cp_dbcsr_deallocate_matrix(matrix_w_s)
-      CALL cp_dbcsr_deallocate_matrix(matrix_w_q)
+      CALL dbcsr_deallocate_matrix(matrix_w_s)
+      CALL dbcsr_deallocate_matrix(matrix_w_q)
 
       CALL timestop(handle)
 
@@ -2045,7 +2044,7 @@ CONTAINS
                                       density_matrix_large, overlap_matrix_large, ispin)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: density_matrix, overlap_matrix, &
+      TYPE(dbcsr_type), POINTER                          :: density_matrix, overlap_matrix, &
                                                             density_matrix_large, &
                                                             overlap_matrix_large
       INTEGER                                            :: ispin
@@ -2060,7 +2059,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_dbcsr_set(density_matrix, 0.0_dp)
+      CALL dbcsr_set(density_matrix, 0.0_dp)
       nao_aux_fit = admm_env%nao_aux_fit
       nmo = admm_env%nmo(ispin)
       CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix)
@@ -2099,15 +2098,15 @@ CONTAINS
 
          ! Calculate number of electrons in the original density matrix, transposing doesn't matter
          ! since both matrices are symmetric
-         CALL cp_dbcsr_trace(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin))
+         CALL dbcsr_trace(density_matrix_large, overlap_matrix_large, admm_env%n_large_basis(ispin))
          admm_env%n_large_basis(3) = admm_env%n_large_basis(3)+admm_env%n_large_basis(ispin)
          ! Calculate number of electrons in the auxiliary density matrix
-         CALL cp_dbcsr_trace(density_matrix, overlap_matrix, nel_tmp_aux)
+         CALL dbcsr_trace(density_matrix, overlap_matrix, nel_tmp_aux)
          admm_env%gsi(ispin) = admm_env%n_large_basis(ispin)/nel_tmp_aux
 
          IF (admm_env%charge_constrain) THEN
             ! multiply aux. DM with gsi to get the scaled DM (Merlot, Eq. 21)
-            CALL cp_dbcsr_scale(density_matrix, admm_env%gsi(ispin))
+            CALL dbcsr_scale(density_matrix, admm_env%gsi(ispin))
          ENDIF
 
       ENDIF
@@ -2127,7 +2126,7 @@ CONTAINS
    SUBROUTINE blockify_density_matrix(admm_env, density_matrix, density_matrix_aux, &
                                       ispin, nspins)
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_type), POINTER                       :: density_matrix, density_matrix_aux
+      TYPE(dbcsr_type), POINTER                          :: density_matrix, density_matrix_aux
       INTEGER                                            :: ispin, nspins
 
       CHARACTER(len=*), PARAMETER :: routineN = 'blockify_density_matrix', &
@@ -2136,27 +2135,27 @@ CONTAINS
       INTEGER                                            :: blk, handle, iatom, jatom
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block, sparse_block_aux
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
       ! ** set blocked density matrix to 0
-      CALL cp_dbcsr_set(density_matrix_aux, 0.0_dp)
+      CALL dbcsr_set(density_matrix_aux, 0.0_dp)
 
       ! ** now loop through the list and copy corresponding blocks
-      CALL cp_dbcsr_iterator_start(iter, density_matrix)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+      CALL dbcsr_iterator_start(iter, density_matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
          IF (admm_env%block_map(iatom, jatom) == 1) THEN
-            CALL cp_dbcsr_get_block_p(density_matrix_aux, &
-                                      row=iatom, col=jatom, BLOCK=sparse_block_aux, found=found)
+            CALL dbcsr_get_block_p(density_matrix_aux, &
+                                   row=iatom, col=jatom, BLOCK=sparse_block_aux, found=found)
             IF (found) THEN
                sparse_block_aux = sparse_block
             END IF
 
          END IF
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       CALL copy_dbcsr_to_fm(density_matrix_aux, admm_env%P_to_be_purified(ispin)%matrix)
       CALL cp_fm_upper_to_full(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_orb_orb2)

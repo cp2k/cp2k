@@ -8,10 +8,6 @@
 ! **************************************************************************************************
 MODULE qs_scf_initialization
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_init_p, &
-        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_default
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -41,6 +37,9 @@ MODULE qs_scf_initialization
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_init_p, dbcsr_p_type, &
+        dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default
    USE input_constants,                 ONLY: &
         broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
         diag_block_davidson, diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, &
@@ -323,10 +322,10 @@ CONTAINS
 
       INTEGER                                            :: handle, is, nao, nrow_block, nw
       LOGICAL                                            :: do_kpoints
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: ref_matrix
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, ao_mo_fmstruct
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: ref_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -379,15 +378,15 @@ CONTAINS
             ! Initialize dbcsr matrix to store the Cholesky decomposition
             IF (scf_env%cholesky_method == cholesky_dbcsr) THEN
                ref_matrix => matrix_s(1, 1)%matrix
-               CALL cp_dbcsr_init_p(scf_env%ortho_dbcsr)
-               CALL cp_dbcsr_create(scf_env%ortho_dbcsr, template=ref_matrix, &
-                                    matrix_type=dbcsr_type_no_symmetry)
-               CALL cp_dbcsr_init_p(scf_env%buf1_dbcsr)
-               CALL cp_dbcsr_create(scf_env%buf1_dbcsr, template=ref_matrix, &
-                                    matrix_type=dbcsr_type_no_symmetry)
-               CALL cp_dbcsr_init_p(scf_env%buf2_dbcsr)
-               CALL cp_dbcsr_create(scf_env%buf2_dbcsr, template=ref_matrix, &
-                                    matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(scf_env%ortho_dbcsr)
+               CALL dbcsr_create(scf_env%ortho_dbcsr, template=ref_matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(scf_env%buf1_dbcsr)
+               CALL dbcsr_create(scf_env%buf1_dbcsr, template=ref_matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(scf_env%buf2_dbcsr)
+               CALL dbcsr_create(scf_env%buf2_dbcsr, template=ref_matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
             ELSE IF (scf_env%cholesky_method == cholesky_inverse .OR. &
                      (scf_control%level_shift /= 0.0_dp .AND. &
                       scf_env%cholesky_method == cholesky_off)) THEN
@@ -454,12 +453,12 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ic, ik, ikk, ispin, nmo, nmo_mat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_b
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools, ao_mo_fm_pools_aux_fit
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
@@ -497,7 +496,7 @@ CONTAINS
          END IF
          IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN
             CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, ncol_global=nmo)
-            CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b)
+            CALL dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b)
             CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_set%mo_coeff_b, template=matrix_s(1, 1)%matrix, n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
          ENDIF
@@ -511,11 +510,11 @@ CONTAINS
             DO ispin = 1, nmo_mat
                CALL get_mo_set(mos(ispin)%mo_set, mo_coeff_b=mo_coeff_b)
                NULLIFY (mo_derivs(ispin)%matrix)
-               CALL cp_dbcsr_init_p(mo_derivs(ispin)%matrix)
-               CALL cp_dbcsr_create(mo_derivs(ispin)%matrix, "mo_derivs", &
-                                    cp_dbcsr_distribution(mo_coeff_b), dbcsr_type_no_symmetry, &
-                                    cp_dbcsr_row_block_sizes(mo_coeff_b), cp_dbcsr_col_block_sizes(mo_coeff_b), &
-                                    nze=0, data_type=dbcsr_type_real_default)
+               CALL dbcsr_init_p(mo_derivs(ispin)%matrix)
+               CALL dbcsr_create(mo_derivs(ispin)%matrix, "mo_derivs", &
+                                 dbcsr_distribution(mo_coeff_b), dbcsr_type_no_symmetry, &
+                                 dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b), &
+                                 nze=0, data_type=dbcsr_type_real_default)
             ENDDO
             CALL set_qs_env(qs_env, mo_derivs=mo_derivs)
          ENDIF
@@ -805,9 +804,9 @@ CONTAINS
                                                             init_u_ramping_each_scf, omit_headers, &
                                                             s_minus_half_available
       REAL(KIND=dp)                                      :: u_ramping
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

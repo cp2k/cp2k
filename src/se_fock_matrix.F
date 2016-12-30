@@ -18,18 +18,18 @@ MODULE se_fock_matrix
                                               atprop_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               semi_empirical_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_get_info,&
-                                              cp_dbcsr_multiply,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_trace,&
-                                              cp_dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_get_info,&
+                                              dbcsr_multiply,&
+                                              dbcsr_p_type,&
+                                              dbcsr_trace,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: do_method_am1,&
                                               do_method_mndo,&
                                               do_method_mndod,&
@@ -94,10 +94,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, matrix_h, matrix_p, mo_derivs
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_h, matrix_p, mo_derivs
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -152,7 +152,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             ! Copy the core matrix into the fock matrix
-            CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix, matrix_h(1)%matrix)
+            CALL dbcsr_copy(ks_matrix(ispin)%matrix, matrix_h(1)%matrix)
          END DO
 
 !      WRITE ( *, * ) 'KS_ENV%s_mstruct_changed', ks_env%s_mstruct_changed
@@ -196,7 +196,7 @@ CONTAINS
          ! Compute the Hartree energy
          ! NOTE: If we are performing SCP-NDDO, ks_matrix contains coulomb piece from SCP.
          DO ispin = 1, nspins
-            CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix, matrix_p(ispin)%matrix, trace=ecoul)
+            CALL dbcsr_trace(ks_matrix(ispin)%matrix, matrix_p(ispin)%matrix, trace=ecoul)
             energy%hartree = energy%hartree+ecoul
          END DO
 !      WRITE ( *, * ) 'AFTER Hartree',  ecoul, energy%hartree
@@ -206,11 +206,11 @@ CONTAINS
          IF (qs_env%qmmm) THEN
             DO ispin = 1, nspins
                ! If QM/MM sumup the 1el Hamiltonian
-               CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                                 1.0_dp, 1.0_dp)
+               CALL dbcsr_add(ks_matrix(ispin)%matrix, qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                              1.0_dp, 1.0_dp)
                ! Compute QM/MM Energy
-               CALL cp_dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                                   matrix_p(ispin)%matrix, trace=qmmm_el)
+               CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                                matrix_p(ispin)%matrix, trace=qmmm_el)
                energy%qmmm_el = energy%qmmm_el+qmmm_el
             END DO
          END IF
@@ -252,9 +252,9 @@ CONTAINS
                IF (.NOT. mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
                   CPABORT("")
                ENDIF
-               CALL cp_dbcsr_get_info(mo_coeff, nfullcols_total=ncol_global)
-               CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff, &
-                                      0.0_dp, mo_derivs(ispin)%matrix)
+               CALL dbcsr_get_info(mo_coeff, nfullcols_total=ncol_global)
+               CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff, &
+                                   0.0_dp, mo_derivs(ispin)%matrix)
             ENDDO
          ENDIF
 

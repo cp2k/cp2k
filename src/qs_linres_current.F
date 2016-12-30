@@ -22,13 +22,6 @@ MODULE qs_linres_current
    USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        convert_offsets_to_sizes, cp_dbcsr_add_block_node, cp_dbcsr_allocate_matrix_set, &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
@@ -53,6 +46,13 @@ MODULE qs_linres_current
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cube_utils,                      ONLY: cube_info_type
+   USE dbcsr_api,                       ONLY: &
+        convert_offsets_to_sizes, dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
+        dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_distribution_obj, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_data_size, dbcsr_get_matrix_type, dbcsr_init, dbcsr_p_type, &
+        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -192,14 +192,14 @@ CONTAINS
       REAL(dp), EXTERNAL                                 :: DDOT
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: density_matrix0, density_matrix_a, &
-                                                            density_matrix_ii, density_matrix_iii
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_psi1, psi0_order, psi1
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, psi_a_iB, psi_buf
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix0, density_matrix_a, &
+                                                            density_matrix_ii, density_matrix_iii
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -268,10 +268,10 @@ CONTAINS
       ENDDO
       !
       !
-      CALL cp_dbcsr_allocate_matrix_set(density_matrix0, nspins)
-      CALL cp_dbcsr_allocate_matrix_set(density_matrix_a, nspins)
-      CALL cp_dbcsr_allocate_matrix_set(density_matrix_ii, nspins)
-      CALL cp_dbcsr_allocate_matrix_set(density_matrix_iii, nspins)
+      CALL dbcsr_allocate_matrix_set(density_matrix0, nspins)
+      CALL dbcsr_allocate_matrix_set(density_matrix_a, nspins)
+      CALL dbcsr_allocate_matrix_set(density_matrix_ii, nspins)
+      CALL dbcsr_allocate_matrix_set(density_matrix_iii, nspins)
       !
       ! prepare for allocation
       ALLOCATE (first_sgf(natom))
@@ -289,31 +289,31 @@ CONTAINS
          !
          !density_matrix0
          ALLOCATE (density_matrix0(ispin)%matrix)
-         CALL cp_dbcsr_init(density_matrix0(ispin)%matrix)
-         CALL cp_dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
-                              name="density_matrix0", &
-                              dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0, mutable_work=.TRUE.)
+         CALL dbcsr_init(density_matrix0(ispin)%matrix)
+         CALL dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
+                           name="density_matrix0", &
+                           dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                           nze=0, mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix, sab_all)
          !
          !density_matrix_a
          ALLOCATE (density_matrix_a(ispin)%matrix)
-         CALL cp_dbcsr_init(density_matrix_a(ispin)%matrix)
-         CALL cp_dbcsr_copy(density_matrix_a(ispin)%matrix, density_matrix0(ispin)%matrix, &
-                            name="density_matrix_a")
+         CALL dbcsr_init(density_matrix_a(ispin)%matrix)
+         CALL dbcsr_copy(density_matrix_a(ispin)%matrix, density_matrix0(ispin)%matrix, &
+                         name="density_matrix_a")
          !
          !density_matrix_ii
          ALLOCATE (density_matrix_ii(ispin)%matrix)
-         CALL cp_dbcsr_init(density_matrix_ii(ispin)%matrix)
-         CALL cp_dbcsr_copy(density_matrix_ii(ispin)%matrix, density_matrix0(ispin)%matrix, &
-                            name="density_matrix_ii")
+         CALL dbcsr_init(density_matrix_ii(ispin)%matrix)
+         CALL dbcsr_copy(density_matrix_ii(ispin)%matrix, density_matrix0(ispin)%matrix, &
+                         name="density_matrix_ii")
          !
          !density_matrix_iii
          ALLOCATE (density_matrix_iii(ispin)%matrix)
-         CALL cp_dbcsr_init(density_matrix_iii(ispin)%matrix)
-         CALL cp_dbcsr_copy(density_matrix_iii(ispin)%matrix, density_matrix0(ispin)%matrix, &
-                            name="density_matrix_iii")
+         CALL dbcsr_init(density_matrix_iii(ispin)%matrix)
+         CALL dbcsr_copy(density_matrix_iii(ispin)%matrix, density_matrix0(ispin)%matrix, &
+                         name="density_matrix_iii")
       ENDDO
       !
       DEALLOCATE (row_blk_sizes)
@@ -336,7 +336,7 @@ CONTAINS
          !
          !
          ! Build the first density matrix
-         CALL cp_dbcsr_set(density_matrix0(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(density_matrix0(ispin)%matrix, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix, &
                                     matrix_v=mo_coeff, matrix_g=mo_coeff, &
                                     ncol=nmo, alpha=maxocc)
@@ -385,19 +385,19 @@ CONTAINS
          ! Multiply by the occupation number for the density matrix
          !
          ! Build the first density matrix
-         CALL cp_dbcsr_set(density_matrix_a(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(density_matrix_a(ispin)%matrix, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix, &
                                     matrix_v=mo_coeff, matrix_g=psi_a_iB, &
                                     ncol=nmo, alpha=maxocc)
          !
          ! Build the second density matrix
-         CALL cp_dbcsr_set(density_matrix_iii(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(density_matrix_iii(ispin)%matrix, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix, &
                                     matrix_v=mo_coeff, matrix_g=psi1_p(ispin, iiiB)%matrix, &
                                     ncol=nmo, alpha=maxocc)
          !
          ! Build the third density matrix
-         CALL cp_dbcsr_set(density_matrix_ii(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(density_matrix_ii(ispin)%matrix, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix, &
                                     matrix_v=mo_coeff, matrix_g=psi1_p(ispin, iiB)%matrix, &
                                     ncol=nmo, alpha=maxocc)
@@ -523,10 +523,10 @@ CONTAINS
       ENDDO
       DEALLOCATE (psi1, p_psi1)
 
-      CALL cp_dbcsr_deallocate_matrix_set(density_matrix0)
-      CALL cp_dbcsr_deallocate_matrix_set(density_matrix_a)
-      CALL cp_dbcsr_deallocate_matrix_set(density_matrix_ii)
-      CALL cp_dbcsr_deallocate_matrix_set(density_matrix_iii)
+      CALL dbcsr_deallocate_matrix_set(density_matrix0)
+      CALL dbcsr_deallocate_matrix_set(density_matrix_a)
+      CALL dbcsr_deallocate_matrix_set(density_matrix_ii)
+      CALL dbcsr_deallocate_matrix_set(density_matrix_iii)
       !
       ! Finalize
       CALL timestop(handle)
@@ -575,7 +575,7 @@ CONTAINS
    SUBROUTINE calculate_jrho_resp(mat_d0, mat_jp, mat_jp_rii, mat_jp_riii, iB, idir, &
                                   current_rs, current_gs, qs_env, current_env, soft_valid, retain_rsgrid)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
+      TYPE(dbcsr_type), POINTER                          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
       TYPE(pw_p_type), INTENT(INOUT)                     :: current_rs, current_gs
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -609,11 +609,11 @@ CONTAINS
          rpgfa, rpgfb, sphi_a, sphi_b, work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: jpabt_a, jpabt_b, jpabt_c, jpabt_d, workt
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: deltajp_a, deltajp_b, deltajp_c, &
-                                                            deltajp_d
-      TYPE(cp_dbcsr_type), POINTER                       :: mat_a, mat_b, mat_c, mat_d
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltajp_a, deltajp_b, deltajp_c, &
+                                                            deltajp_d
+      TYPE(dbcsr_type), POINTER                          :: mat_a, mat_b, mat_c, mat_d
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -765,30 +765,30 @@ CONTAINS
       ALLOCATE (deltajp_a(1), deltajp_b(1), deltajp_c(1), deltajp_d(1))
       IF (distributed_rs_grids) THEN
          ALLOCATE (deltajp_a(1)%matrix, deltajp_b(1)%matrix, deltajp_c(1)%matrix)
-         CALL cp_dbcsr_init(deltajp_a(1)%matrix)
-         CALL cp_dbcsr_init(deltajp_b(1)%matrix)
-         CALL cp_dbcsr_init(deltajp_c(1)%matrix)
+         CALL dbcsr_init(deltajp_a(1)%matrix)
+         CALL dbcsr_init(deltajp_b(1)%matrix)
+         CALL dbcsr_init(deltajp_c(1)%matrix)
          IF (do_igaim) THEN
             ALLOCATE (deltajp_d(1)%matrix)
-            CALL cp_dbcsr_init(deltajp_d(1)%matrix)
+            CALL dbcsr_init(deltajp_d(1)%matrix)
          ENDIF
 
-         CALL cp_dbcsr_create(deltajp_a(1)%matrix, ' deltajp_a ', cp_dbcsr_distribution(mat_a), cp_dbcsr_get_matrix_type(mat_a), &
-                              cp_dbcsr_row_block_sizes(mat_a), cp_dbcsr_col_block_sizes(mat_a), &
-                              cp_dbcsr_get_data_size(mat_a))
+         CALL dbcsr_create(deltajp_a(1)%matrix, ' deltajp_a ', dbcsr_distribution(mat_a), dbcsr_get_matrix_type(mat_a), &
+                           dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
+                           dbcsr_get_data_size(mat_a))
 
-         CALL cp_dbcsr_create(deltajp_b(1)%matrix, ' deltajp_b ', cp_dbcsr_distribution(mat_a), cp_dbcsr_get_matrix_type(mat_a), &
-                              cp_dbcsr_row_block_sizes(mat_a), cp_dbcsr_col_block_sizes(mat_a), &
-                              cp_dbcsr_get_data_size(mat_a))
+         CALL dbcsr_create(deltajp_b(1)%matrix, ' deltajp_b ', dbcsr_distribution(mat_a), dbcsr_get_matrix_type(mat_a), &
+                           dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
+                           dbcsr_get_data_size(mat_a))
 
-         CALL cp_dbcsr_create(deltajp_c(1)%matrix, ' deltajp_c ', cp_dbcsr_distribution(mat_a), cp_dbcsr_get_matrix_type(mat_a), &
-                              cp_dbcsr_row_block_sizes(mat_a), cp_dbcsr_col_block_sizes(mat_a), &
-                              cp_dbcsr_get_data_size(mat_a))
+         CALL dbcsr_create(deltajp_c(1)%matrix, ' deltajp_c ', dbcsr_distribution(mat_a), dbcsr_get_matrix_type(mat_a), &
+                           dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
+                           dbcsr_get_data_size(mat_a))
 
-         IF (do_igaim) CALL cp_dbcsr_create( &
-            deltajp_d(1)%matrix, ' deltajp_d ', cp_dbcsr_distribution(mat_a), &
-            cp_dbcsr_get_matrix_type(mat_a), cp_dbcsr_row_block_sizes(mat_a), cp_dbcsr_col_block_sizes(mat_a), &
-            cp_dbcsr_get_data_size(mat_a))
+         IF (do_igaim) CALL dbcsr_create( &
+            deltajp_d(1)%matrix, ' deltajp_d ', dbcsr_distribution(mat_a), &
+            dbcsr_get_matrix_type(mat_a), dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
+            dbcsr_get_data_size(mat_a))
       ELSE
          deltajp_a(1)%matrix => mat_a !mat_jp
          deltajp_b(1)%matrix => mat_b !mat_jp_rii
@@ -846,27 +846,27 @@ CONTAINS
          brow = iatom
          bcol = jatom
 
-         CALL cp_dbcsr_get_block_p(matrix=mat_a, row=brow, col=bcol, &
-                                   block=jp_block_a, found=den_found_a)
-         CALL cp_dbcsr_get_block_p(matrix=mat_b, row=brow, col=bcol, &
-                                   block=jp_block_b, found=den_found)
-         CALL cp_dbcsr_get_block_p(matrix=mat_c, row=brow, col=bcol, &
-                                   block=jp_block_c, found=den_found)
-         IF (do_igaim) CALL cp_dbcsr_get_block_p(matrix=mat_d, row=brow, col=bcol, &
-                                                 block=jp_block_d, found=den_found)
+         CALL dbcsr_get_block_p(matrix=mat_a, row=brow, col=bcol, &
+                                block=jp_block_a, found=den_found_a)
+         CALL dbcsr_get_block_p(matrix=mat_b, row=brow, col=bcol, &
+                                block=jp_block_b, found=den_found)
+         CALL dbcsr_get_block_p(matrix=mat_c, row=brow, col=bcol, &
+                                block=jp_block_c, found=den_found)
+         IF (do_igaim) CALL dbcsr_get_block_p(matrix=mat_d, row=brow, col=bcol, &
+                                              block=jp_block_d, found=den_found)
 
          IF (.NOT. ASSOCIATED(jp_block_a)) CYCLE
 
          IF (distributed_rs_grids) THEN
             NULLIFY (jpblock_a, jpblock_b, jpblock_c, jpblock_d)
-            CALL cp_dbcsr_add_block_node(deltajp_a(1)%matrix, brow, bcol, jpblock_a)
+            CALL dbcsr_add_block_node(deltajp_a(1)%matrix, brow, bcol, jpblock_a)
             jpblock_a = jp_block_a
-            CALL cp_dbcsr_add_block_node(deltajp_b(1)%matrix, brow, bcol, jpblock_b)
+            CALL dbcsr_add_block_node(deltajp_b(1)%matrix, brow, bcol, jpblock_b)
             jpblock_b = jp_block_b
-            CALL cp_dbcsr_add_block_node(deltajp_c(1)%matrix, brow, bcol, jpblock_c)
+            CALL dbcsr_add_block_node(deltajp_c(1)%matrix, brow, bcol, jpblock_c)
             jpblock_c = jp_block_c
             IF (do_igaim) THEN
-               CALL cp_dbcsr_add_block_node(deltajp_d(1)%matrix, brow, bcol, jpblock_d)
+               CALL dbcsr_add_block_node(deltajp_d(1)%matrix, brow, bcol, jpblock_d)
                jpblock_d = jp_block_d
             END IF
          ELSE
@@ -895,10 +895,10 @@ CONTAINS
       DEALLOCATE (basis_set_list)
 
       IF (distributed_rs_grids) THEN
-         CALL cp_dbcsr_finalize(deltajp_a(1)%matrix)
-         CALL cp_dbcsr_finalize(deltajp_b(1)%matrix)
-         CALL cp_dbcsr_finalize(deltajp_c(1)%matrix)
-         IF (do_igaim) CALL cp_dbcsr_finalize(deltajp_d(1)%matrix)
+         CALL dbcsr_finalize(deltajp_a(1)%matrix)
+         CALL dbcsr_finalize(deltajp_b(1)%matrix)
+         CALL dbcsr_finalize(deltajp_c(1)%matrix)
+         IF (do_igaim) CALL dbcsr_finalize(deltajp_d(1)%matrix)
       ENDIF
 
       ! sorts / redistributes the task list
@@ -1049,14 +1049,14 @@ CONTAINS
 
             ENDIF
 
-            CALL cp_dbcsr_get_block_p(matrix=deltajp_a(1)%matrix, row=brow, col=bcol, &
-                                      block=jp_block_a, found=den_found)
-            CALL cp_dbcsr_get_block_p(matrix=deltajp_b(1)%matrix, row=brow, col=bcol, &
-                                      block=jp_block_b, found=den_found)
-            CALL cp_dbcsr_get_block_p(matrix=deltajp_c(1)%matrix, row=brow, col=bcol, &
-                                      block=jp_block_c, found=den_found)
-            IF (do_igaim) CALL cp_dbcsr_get_block_p(matrix=deltajp_d(1)%matrix, row=brow, col=bcol, &
-                                                    block=jp_block_d, found=den_found)
+            CALL dbcsr_get_block_p(matrix=deltajp_a(1)%matrix, row=brow, col=bcol, &
+                                   block=jp_block_a, found=den_found)
+            CALL dbcsr_get_block_p(matrix=deltajp_b(1)%matrix, row=brow, col=bcol, &
+                                   block=jp_block_b, found=den_found)
+            CALL dbcsr_get_block_p(matrix=deltajp_c(1)%matrix, row=brow, col=bcol, &
+                                   block=jp_block_c, found=den_found)
+            IF (do_igaim) CALL dbcsr_get_block_p(matrix=deltajp_d(1)%matrix, row=brow, col=bcol, &
+                                                 block=jp_block_d, found=den_found)
 
             IF (.NOT. ASSOCIATED(jp_block_a)) &
                CPABORT("p_block not associated in deltap")
@@ -1229,10 +1229,10 @@ CONTAINS
       !   *** Release work storage ***
 
       IF (distributed_rs_grids) THEN
-         CALL cp_dbcsr_deallocate_matrix(deltajp_a(1)%matrix)
-         CALL cp_dbcsr_deallocate_matrix(deltajp_b(1)%matrix)
-         CALL cp_dbcsr_deallocate_matrix(deltajp_c(1)%matrix)
-         IF (do_igaim) CALL cp_dbcsr_deallocate_matrix(deltajp_d(1)%matrix)
+         CALL dbcsr_deallocate_matrix(deltajp_a(1)%matrix)
+         CALL dbcsr_deallocate_matrix(deltajp_b(1)%matrix)
+         CALL dbcsr_deallocate_matrix(deltajp_c(1)%matrix)
+         IF (do_igaim) CALL dbcsr_deallocate_matrix(deltajp_d(1)%matrix)
       END IF
       DEALLOCATE (deltajp_a, deltajp_b, deltajp_c, deltajp_d)
 
@@ -2120,8 +2120,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op_mom_ao, op_p_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_mom_der_ao
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: p_rxp, psi0_order, r_p1, r_p2
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp, rr_p1, rr_p2, &
                                                             rr_rxp
@@ -2131,6 +2129,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_mom_ao, op_p_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_mom_der_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -2187,8 +2187,8 @@ CONTAINS
       !
       ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
       ! Remember the derivatives are antisymmetric
-      CALL cp_dbcsr_allocate_matrix_set(op_mom_ao, 9)
-      CALL cp_dbcsr_allocate_matrix_set(op_mom_der_ao, 9, 3)
+      CALL dbcsr_allocate_matrix_set(op_mom_ao, 9)
+      CALL dbcsr_allocate_matrix_set(op_mom_der_ao, 9, 3)
       !
       ! prepare for allocation
       natom = SIZE(particle_set, 1)
@@ -2204,49 +2204,49 @@ CONTAINS
       !
       !
       ALLOCATE (op_mom_ao(1)%matrix)
-      CALL cp_dbcsr_init(op_mom_ao(1)%matrix)
-      CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
-                           name="op_mom", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+      CALL dbcsr_init(op_mom_ao(1)%matrix)
+      CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
+                        name="op_mom", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                        nze=0, mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix, sab_all)
 
       DO idir2 = 1, 3
          ALLOCATE (op_mom_der_ao(1, idir2)%matrix)
-         CALL cp_dbcsr_init(op_mom_der_ao(1, idir2)%matrix)
-         CALL cp_dbcsr_copy(op_mom_der_ao(1, idir2)%matrix, op_mom_ao(1)%matrix, &
-                            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
+         CALL dbcsr_init(op_mom_der_ao(1, idir2)%matrix)
+         CALL dbcsr_copy(op_mom_der_ao(1, idir2)%matrix, op_mom_ao(1)%matrix, &
+                         "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
       ENDDO
 
       DO idir = 2, SIZE(op_mom_ao, 1)
          ALLOCATE (op_mom_ao(idir)%matrix)
-         CALL cp_dbcsr_init(op_mom_ao(idir)%matrix)
-         CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix, op_mom_ao(1)%matrix, &
-                            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+         CALL dbcsr_init(op_mom_ao(idir)%matrix)
+         CALL dbcsr_copy(op_mom_ao(idir)%matrix, op_mom_ao(1)%matrix, &
+                         "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
          DO idir2 = 1, 3
             ALLOCATE (op_mom_der_ao(idir, idir2)%matrix)
-            CALL cp_dbcsr_init(op_mom_der_ao(idir, idir2)%matrix)
-            CALL cp_dbcsr_copy(op_mom_der_ao(idir, idir2)%matrix, op_mom_ao(1)%matrix, &
-                               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
+            CALL dbcsr_init(op_mom_der_ao(idir, idir2)%matrix)
+            CALL dbcsr_copy(op_mom_der_ao(idir, idir2)%matrix, op_mom_ao(1)%matrix, &
+                            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
          ENDDO
       ENDDO
       !
-      CALL cp_dbcsr_allocate_matrix_set(op_p_ao, 3)
+      CALL dbcsr_allocate_matrix_set(op_p_ao, 3)
       ALLOCATE (op_p_ao(1)%matrix)
-      CALL cp_dbcsr_init(op_p_ao(1)%matrix)
-      CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
-                           name="op_p_ao", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+      CALL dbcsr_init(op_p_ao(1)%matrix)
+      CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+                        name="op_p_ao", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
+                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                        nze=0, mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
       DO idir = 2, 3
          ALLOCATE (op_p_ao(idir)%matrix)
-         CALL cp_dbcsr_init(op_p_ao(idir)%matrix)
-         CALL cp_dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
-                            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+         CALL dbcsr_init(op_p_ao(idir)%matrix)
+         CALL dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
+                         "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
       ENDDO
       !
       !
@@ -2311,9 +2311,9 @@ CONTAINS
             ! Compute the multipole integrals for the state istate,
             ! using as reference center the corresponding Wannier center
             DO idir = 1, 9
-               CALL cp_dbcsr_set(op_mom_ao(idir)%matrix, 0.0_dp)
+               CALL dbcsr_set(op_mom_ao(idir)%matrix, 0.0_dp)
                DO idir2 = 1, 3
-                  CALL cp_dbcsr_set(op_mom_der_ao(idir, idir2)%matrix, 0.0_dp)
+                  CALL dbcsr_set(op_mom_der_ao(idir, idir2)%matrix, 0.0_dp)
                ENDDO
             ENDDO
             CALL rRc_xyz_der_ao(op_mom_ao, op_mom_der_ao, qs_env, dk, order=2, &
@@ -2502,9 +2502,9 @@ CONTAINS
       ENDDO ! ispin
       !
       ! deallocate the sparse matrices
-      CALL cp_dbcsr_deallocate_matrix_set(op_mom_ao)
-      CALL cp_dbcsr_deallocate_matrix_set(op_mom_der_ao)
-      CALL cp_dbcsr_deallocate_matrix_set(op_p_ao)
+      CALL dbcsr_deallocate_matrix_set(op_mom_ao)
+      CALL dbcsr_deallocate_matrix_set(op_mom_der_ao)
+      CALL dbcsr_deallocate_matrix_set(op_p_ao)
 
       CALL cp_fm_release(psi0)
       CALL cp_fm_release(psi_rxp)
@@ -2552,8 +2552,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_i_p_type), DIMENSION(:), POINTER        :: center_list
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op_mom_ao, op_p_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_mom_der_ao
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_p, psi1_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
@@ -2561,6 +2559,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_mom_ao, op_p_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_mom_der_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -2608,8 +2608,8 @@ CONTAINS
       !
       ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
       ! Remember the derivatives are antisymmetric
-      CALL cp_dbcsr_allocate_matrix_set(op_mom_ao, 9)
-      CALL cp_dbcsr_allocate_matrix_set(op_mom_der_ao, 9, 3)
+      CALL dbcsr_allocate_matrix_set(op_mom_ao, 9)
+      CALL dbcsr_allocate_matrix_set(op_mom_der_ao, 9, 3)
       !
       ! prepare for allocation
       natom = SIZE(particle_set, 1)
@@ -2625,49 +2625,49 @@ CONTAINS
       !
       !
       ALLOCATE (op_mom_ao(1)%matrix)
-      CALL cp_dbcsr_init(op_mom_ao(1)%matrix)
-      CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
-                           name="op_mom", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+      CALL dbcsr_init(op_mom_ao(1)%matrix)
+      CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
+                        name="op_mom", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                        nze=0, mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix, sab_all)
 
       DO idir2 = 1, 3
          ALLOCATE (op_mom_der_ao(1, idir2)%matrix)
-         CALL cp_dbcsr_init(op_mom_der_ao(1, idir2)%matrix)
-         CALL cp_dbcsr_copy(op_mom_der_ao(1, idir2)%matrix, op_mom_ao(1)%matrix, &
-                            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
+         CALL dbcsr_init(op_mom_der_ao(1, idir2)%matrix)
+         CALL dbcsr_copy(op_mom_der_ao(1, idir2)%matrix, op_mom_ao(1)%matrix, &
+                         "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
       ENDDO
 
       DO idir = 2, SIZE(op_mom_ao, 1)
          ALLOCATE (op_mom_ao(idir)%matrix)
-         CALL cp_dbcsr_init(op_mom_ao(idir)%matrix)
-         CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix, op_mom_ao(1)%matrix, &
-                            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+         CALL dbcsr_init(op_mom_ao(idir)%matrix)
+         CALL dbcsr_copy(op_mom_ao(idir)%matrix, op_mom_ao(1)%matrix, &
+                         "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
          DO idir2 = 1, 3
             ALLOCATE (op_mom_der_ao(idir, idir2)%matrix)
-            CALL cp_dbcsr_init(op_mom_der_ao(idir, idir2)%matrix)
-            CALL cp_dbcsr_copy(op_mom_der_ao(idir, idir2)%matrix, op_mom_ao(1)%matrix, &
-                               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
+            CALL dbcsr_init(op_mom_der_ao(idir, idir2)%matrix)
+            CALL dbcsr_copy(op_mom_der_ao(idir, idir2)%matrix, op_mom_ao(1)%matrix, &
+                            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
          ENDDO
       ENDDO
       !
-      CALL cp_dbcsr_allocate_matrix_set(op_p_ao, 3)
+      CALL dbcsr_allocate_matrix_set(op_p_ao, 3)
       ALLOCATE (op_p_ao(1)%matrix)
-      CALL cp_dbcsr_init(op_p_ao(1)%matrix)
-      CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
-                           name="op_p_ao", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+      CALL dbcsr_init(op_p_ao(1)%matrix)
+      CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+                        name="op_p_ao", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
+                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                        nze=0, mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
       DO idir = 2, 3
          ALLOCATE (op_p_ao(idir)%matrix)
-         CALL cp_dbcsr_init(op_p_ao(idir)%matrix)
-         CALL cp_dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
-                            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
+         CALL dbcsr_init(op_p_ao(idir)%matrix)
+         CALL dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
+                         "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
       ENDDO
       !
       !
@@ -2712,9 +2712,9 @@ CONTAINS
          ! Compute the multipole integrals for the state istate,
          ! using as reference center the corresponding Wannier center
          DO idir = 1, 9
-            CALL cp_dbcsr_set(op_mom_ao(idir)%matrix, 0.0_dp)
+            CALL dbcsr_set(op_mom_ao(idir)%matrix, 0.0_dp)
             DO idir2 = 1, 3
-               CALL cp_dbcsr_set(op_mom_der_ao(idir, idir2)%matrix, 0.0_dp)
+               CALL dbcsr_set(op_mom_der_ao(idir, idir2)%matrix, 0.0_dp)
             ENDDO
          ENDDO
          CALL rRc_xyz_der_ao(op_mom_ao, op_mom_der_ao, qs_env, dk, order=2, &
@@ -2858,9 +2858,9 @@ CONTAINS
       ENDDO ! ispin
       !
       ! deallocate the sparse matrices
-      CALL cp_dbcsr_deallocate_matrix_set(op_mom_ao)
-      CALL cp_dbcsr_deallocate_matrix_set(op_mom_der_ao)
-      CALL cp_dbcsr_deallocate_matrix_set(op_p_ao)
+      CALL dbcsr_deallocate_matrix_set(op_mom_ao)
+      CALL dbcsr_deallocate_matrix_set(op_mom_der_ao)
+      CALL dbcsr_deallocate_matrix_set(op_p_ao)
       CALL cp_fm_release(buf)
 
       CALL timestop(handle)

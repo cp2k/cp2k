@@ -28,10 +28,6 @@ MODULE qs_moments
                                               cp_cfm_release
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, &
-        cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_double,&
@@ -48,6 +44,10 @@ MODULE qs_moments
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_init, &
+        dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -109,7 +109,7 @@ CONTAINS
    SUBROUTINE build_local_moment_matrix(qs_env, moments, nmoments, ref_point, ref_points)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: moments
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
       INTEGER, INTENT(IN)                                :: nmoments
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: ref_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -235,8 +235,8 @@ CONTAINS
 
          DO i = 1, nm
             NULLIFY (mint(i)%block)
-            CALL cp_dbcsr_get_block_p(matrix=moments(i)%matrix, &
-                                      row=irow, col=icol, BLOCK=mint(i)%block, found=found)
+            CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
+                                   row=irow, col=icol, BLOCK=mint(i)%block, found=found)
             mint(i)%block = 0._dp
          END DO
 
@@ -334,7 +334,7 @@ CONTAINS
    SUBROUTINE build_local_magmom_matrix(qs_env, magmom, nmoments, ref_point, ref_points)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: magmom
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom
       INTEGER, INTENT(IN)                                :: nmoments
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: ref_point
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
@@ -357,7 +357,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: mint
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
@@ -379,13 +379,13 @@ CONTAINS
 
       ! magnetic dipoles/angular moments only
       nm = 3
-      CALL cp_dbcsr_allocate_matrix_set(magmom, nm)
+      CALL dbcsr_allocate_matrix_set(magmom, nm)
 
       DO i = 1, nm
          ALLOCATE (magmom(i)%matrix)
-         CALL cp_dbcsr_init(magmom(i)%matrix)
-         CALL cp_dbcsr_copy(magmom(i)%matrix, matrix_s(1)%matrix, "Moments")
-         CALL cp_dbcsr_set(magmom(i)%matrix, 0.0_dp)
+         CALL dbcsr_init(magmom(i)%matrix)
+         CALL dbcsr_copy(magmom(i)%matrix, matrix_s(1)%matrix, "Moments")
+         CALL dbcsr_set(magmom(i)%matrix, 0.0_dp)
       END DO
 
       NULLIFY (qs_kind_set, particle_set, sab_orb, cell)
@@ -472,8 +472,8 @@ CONTAINS
 
          DO i = 1, nm
             NULLIFY (mint(i)%block)
-            CALL cp_dbcsr_get_block_p(matrix=magmom(i)%matrix, &
-                                      row=irow, col=icol, BLOCK=mint(i)%block, found=found)
+            CALL dbcsr_get_block_p(matrix=magmom(i)%matrix, &
+                                   row=irow, col=icol, BLOCK=mint(i)%block, found=found)
             mint(i)%block = 0._dp
          END DO
 
@@ -570,7 +570,7 @@ CONTAINS
    SUBROUTINE build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, sinmat
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: kvec
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_moment_matrix', &
@@ -606,8 +606,8 @@ CONTAINS
                       particle_set=particle_set, cell=cell, &
                       sab_orb=sab_orb)
 
-      CALL cp_dbcsr_set(sinmat, 0.0_dp)
-      CALL cp_dbcsr_set(cosmat, 0.0_dp)
+      CALL dbcsr_set(sinmat, 0.0_dp)
+      CALL dbcsr_set(cosmat, 0.0_dp)
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
       ldab = ldwork
@@ -671,11 +671,11 @@ CONTAINS
          END IF
 
          NULLIFY (cblock)
-         CALL cp_dbcsr_get_block_p(matrix=cosmat, &
-                                   row=irow, col=icol, BLOCK=cblock, found=found)
+         CALL dbcsr_get_block_p(matrix=cosmat, &
+                                row=irow, col=icol, BLOCK=cblock, found=found)
          NULLIFY (sblock)
-         CALL cp_dbcsr_get_block_p(matrix=sinmat, &
-                                   row=irow, col=icol, BLOCK=sblock, found=found)
+         CALL dbcsr_get_block_p(matrix=sinmat, &
+                                row=irow, col=icol, BLOCK=sblock, found=found)
          IF (ASSOCIATED(cblock) .AND. .NOT. ASSOCIATED(sblock) .OR. &
              .NOT. ASSOCIATED(cblock) .AND. ASSOCIATED(sblock)) THEN
             CPABORT("")
@@ -735,7 +735,7 @@ CONTAINS
    SUBROUTINE build_berry_kpoint_matrix(qs_env, cosmat, sinmat, kvec)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: cosmat, sinmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: cosmat, sinmat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: kvec
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_kpoint_matrix', &
@@ -806,29 +806,29 @@ CONTAINS
                             basis=basis_set_list)
       CALL get_ks_env(ks_env, dbcsr_dist=dbcsr_dist)
       ! (re)allocate matrix sets
-      CALL cp_dbcsr_allocate_matrix_set(sinmat, 1, nimg)
-      CALL cp_dbcsr_allocate_matrix_set(cosmat, 1, nimg)
+      CALL dbcsr_allocate_matrix_set(sinmat, 1, nimg)
+      CALL dbcsr_allocate_matrix_set(cosmat, 1, nimg)
       DO i = 1, nimg
          ! sin
          ALLOCATE (sinmat(1, i)%matrix)
-         CALL cp_dbcsr_init(sinmat(1, i)%matrix)
-         CALL cp_dbcsr_create(matrix=sinmat(1, i)%matrix, &
-                              name="SINMAT", &
-                              dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0)
+         CALL dbcsr_init(sinmat(1, i)%matrix)
+         CALL dbcsr_create(matrix=sinmat(1, i)%matrix, &
+                           name="SINMAT", &
+                           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                           nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(sinmat(1, i)%matrix, sab_orb)
-         CALL cp_dbcsr_set(sinmat(1, i)%matrix, 0.0_dp)
+         CALL dbcsr_set(sinmat(1, i)%matrix, 0.0_dp)
          ! cos
          ALLOCATE (cosmat(1, i)%matrix)
-         CALL cp_dbcsr_init(cosmat(1, i)%matrix)
-         CALL cp_dbcsr_create(matrix=cosmat(1, i)%matrix, &
-                              name="COSMAT", &
-                              dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0)
+         CALL dbcsr_init(cosmat(1, i)%matrix)
+         CALL dbcsr_create(matrix=cosmat(1, i)%matrix, &
+                           name="COSMAT", &
+                           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                           nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(cosmat(1, i)%matrix, sab_orb)
-         CALL cp_dbcsr_set(cosmat(1, i)%matrix, 0.0_dp)
+         CALL dbcsr_set(cosmat(1, i)%matrix, 0.0_dp)
       END DO
 
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
@@ -887,12 +887,12 @@ CONTAINS
          END IF
 
          NULLIFY (sblock)
-         CALL cp_dbcsr_get_block_p(matrix=sinmat(1, ic)%matrix, &
-                                   row=irow, col=icol, BLOCK=sblock, found=found)
+         CALL dbcsr_get_block_p(matrix=sinmat(1, ic)%matrix, &
+                                row=irow, col=icol, BLOCK=sblock, found=found)
          CPASSERT(found)
          NULLIFY (cblock)
-         CALL cp_dbcsr_get_block_p(matrix=cosmat(1, ic)%matrix, &
-                                   row=irow, col=icol, BLOCK=cblock, found=found)
+         CALL dbcsr_get_block_p(matrix=cosmat(1, ic)%matrix, &
+                                row=irow, col=icol, BLOCK=cblock, found=found)
          CPASSERT(found)
 
          ra(:) = pbc(particle_set(iatom)%r(:), cell)
@@ -972,14 +972,14 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, rho_ao
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, sinmat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, opvec
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -1033,12 +1033,12 @@ CONTAINS
 
       NULLIFY (cosmat, sinmat)
       ALLOCATE (cosmat, sinmat)
-      CALL cp_dbcsr_init(cosmat)
-      CALL cp_dbcsr_init(sinmat)
-      CALL cp_dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
-      CALL cp_dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
-      CALL cp_dbcsr_set(cosmat, 0.0_dp)
-      CALL cp_dbcsr_set(sinmat, 0.0_dp)
+      CALL dbcsr_init(cosmat)
+      CALL dbcsr_init(sinmat)
+      CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
+      CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
+      CALL dbcsr_set(cosmat, 0.0_dp)
+      CALL dbcsr_set(sinmat, 0.0_dp)
 
       ALLOCATE (op_fm_set(2, dft_control%nspins))
       ALLOCATE (opvec(dft_control%nspins))
@@ -1180,7 +1180,7 @@ CONTAINS
       ! charge
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
+         CALL dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
          rmom(1, 1) = rmom(1, 1)+trace
       END DO
 
@@ -1323,8 +1323,8 @@ CONTAINS
          DEALLOCATE (mmom)
       END IF
 
-      CALL cp_dbcsr_deallocate_matrix(cosmat)
-      CALL cp_dbcsr_deallocate_matrix(sinmat)
+      CALL dbcsr_deallocate_matrix(cosmat)
+      CALL dbcsr_deallocate_matrix(sinmat)
 
       DO ispin = 1, dft_control%nspins
          CALL cp_fm_release(opvec(ispin)%matrix)
@@ -1351,7 +1351,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE op_orbbas(cosmat, sinmat, mos, op_fm_set, opvec)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, sinmat
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: opvec
@@ -1381,7 +1381,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE op_orbbas_rtp(cosmat, sinmat, mos, op_fm_set, mos_new)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, sinmat
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
@@ -1489,9 +1489,9 @@ CONTAINS
       REAL(dp), DIMENSION(3)                             :: rcc, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: magmom, matrix_s, moments, rho_ao
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_result_type), POINTER                      :: results
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: magmom, matrix_s, moments, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1511,12 +1511,12 @@ CONTAINS
       NULLIFY (moments, matrix_s)
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
       nm = (6+11*nmom+6*nmom**2+nmom**3)/6-1
-      CALL cp_dbcsr_allocate_matrix_set(moments, nm)
+      CALL dbcsr_allocate_matrix_set(moments, nm)
       DO i = 1, nm
          ALLOCATE (moments(i)%matrix)
-         CALL cp_dbcsr_init(moments(i)%matrix)
-         CALL cp_dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
-         CALL cp_dbcsr_set(moments(i)%matrix, 0.0_dp)
+         CALL dbcsr_init(moments(i)%matrix)
+         CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
+         CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
       END DO
 
       CALL build_local_moment_matrix(qs_env, moments, nmom, ref_point=rcc)
@@ -1542,20 +1542,20 @@ CONTAINS
 
       trace = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
+         CALL dbcsr_trace(rho_ao(ispin)%matrix, matrix_s(1)%matrix, trace)
          rmom(1, 1) = rmom(1, 1)+trace
       END DO
 
       DO i = 1, SIZE(moments)
          strace = 0._dp
          DO ispin = 1, dft_control%nspins
-            CALL cp_dbcsr_trace(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
+            CALL dbcsr_trace(rho_ao(ispin)%matrix, moments(i)%matrix, trace)
             strace = strace+trace
          END DO
          rmom(i+1, 1) = strace
       END DO
 
-      CALL cp_dbcsr_deallocate_matrix_set(moments)
+      CALL dbcsr_deallocate_matrix_set(moments)
 
       ! magnetic moments
       IF (magnetic) THEN
@@ -1566,12 +1566,12 @@ CONTAINS
          DO i = 1, SIZE(magmom)
             strace = 0._dp
             DO ispin = 1, dft_control%nspins
-               CALL cp_dbcsr_trace(rho_ao(ispin)%matrix, magmom(i)%matrix, trace)
+               CALL dbcsr_trace(rho_ao(ispin)%matrix, magmom(i)%matrix, trace)
                strace = strace+trace
             END DO
             mmom(i) = strace
          END DO
-         CALL cp_dbcsr_deallocate_matrix_set(magmom)
+         CALL dbcsr_deallocate_matrix_set(magmom)
       END IF
 
       ! nuclear contribution

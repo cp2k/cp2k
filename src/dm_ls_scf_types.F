@@ -11,10 +11,10 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE dm_ls_scf_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
-                                              cp_dbcsr_type
    USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_release,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular
    USE input_section_types,             ONLY: section_vals_release,&
@@ -42,20 +42,20 @@ MODULE dm_ls_scf_types
       LOGICAL :: single_precision
       LOGICAL :: do_pao
       INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
-      TYPE(cp_dbcsr_type)                :: matrix_A
-      TYPE(cp_dbcsr_type)                :: matrix_B
+      TYPE(dbcsr_type)                :: matrix_A
+      TYPE(dbcsr_type)                :: matrix_B
    END TYPE
 
    TYPE ls_mat_history_type
       INTEGER :: istore, nstore
-      TYPE(cp_dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix
+      TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix
    END TYPE
 
    TYPE ls_scf_curvy_type
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_dp
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
-      TYPE(cp_dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_psave
-      TYPE(cp_dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_BCH
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_dp
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
+      TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_psave
+      TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_BCH
       REAL(KIND=dp)                                    :: step_size(2)
       REAL(KIND=dp)                                    :: shift(2)
       REAL(KIND=dp)                                    :: cg_denom(2)
@@ -118,12 +118,12 @@ MODULE dm_ls_scf_types
       REAL(KIND=dp)         :: eps_diis
       REAL(KIND=dp)         :: energy_init
 
-      TYPE(cp_dbcsr_type)   :: matrix_s_inv
-      TYPE(cp_dbcsr_type)   :: matrix_s
-      TYPE(cp_dbcsr_type)   :: matrix_bs_sqrt, matrix_bs_sqrt_inv
-      TYPE(cp_dbcsr_type)   :: matrix_s_sqrt, matrix_s_sqrt_inv
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks
-      TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
+      TYPE(dbcsr_type)   :: matrix_s_inv
+      TYPE(dbcsr_type)   :: matrix_s
+      TYPE(dbcsr_type)   :: matrix_bs_sqrt, matrix_bs_sqrt_inv
+      TYPE(dbcsr_type)   :: matrix_s_sqrt, matrix_s_sqrt_inv
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_ks
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_p
 
       LOGICAL  :: report_all_sparsities, perform_mu_scan, use_s_sqrt
 
@@ -175,14 +175,14 @@ CONTAINS
       ! set up the buffer for the history of matrices
       DO istore = 1, MIN(ls_scf_env%scf_history%istore, ls_scf_env%scf_history%nstore)
          DO ispin = 1, SIZE(ls_scf_env%scf_history%matrix, 1)
-            CALL cp_dbcsr_release(ls_scf_env%scf_history%matrix(ispin, istore))
+            CALL dbcsr_release(ls_scf_env%scf_history%matrix(ispin, istore))
          ENDDO
       ENDDO
       DEALLOCATE (ls_scf_env%scf_history%matrix)
 
       IF (ALLOCATED(ls_scf_env%matrix_p)) THEN
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
-            CALL cp_dbcsr_release(ls_scf_env%matrix_p(ispin))
+            CALL dbcsr_release(ls_scf_env%matrix_p(ispin))
          ENDDO
          DEALLOCATE (ls_scf_env%matrix_p)
       END IF

@@ -15,10 +15,10 @@ MODULE qs_core_energies
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_array_init,&
                                               atprop_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_trace,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_trace,&
+                                              dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE erf_fn,                          ONLY: erfc
    USE kinds,                           ONLY: dp
@@ -77,7 +77,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_ptrace_gamma(hmat, pmat, ecore, nspin)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: hmat, pmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hmat, pmat
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
       INTEGER, INTENT(IN)                                :: nspin
 
@@ -92,7 +92,7 @@ CONTAINS
       ecore = 0.0_dp
       DO ispin = 1, nspin
          etr = 0.0_dp
-         CALL cp_dbcsr_trace(hmat(1)%matrix, pmat(ispin)%matrix, etr)
+         CALL dbcsr_trace(hmat(1)%matrix, pmat(ispin)%matrix, etr)
          ecore = ecore+etr
       END DO
 
@@ -114,7 +114,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_ptrace_kp(hmat, pmat, ecore, nspin)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: hmat, pmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: hmat, pmat
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
       INTEGER, INTENT(IN)                                :: nspin
 
@@ -132,7 +132,7 @@ CONTAINS
       DO ispin = 1, nspin
          DO ic = 1, nc
             etr = 0.0_dp
-            CALL cp_dbcsr_trace(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+            CALL dbcsr_trace(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
             ecore = ecore+etr
          END DO
       END DO
@@ -160,7 +160,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_ptrace_1(h, p, ecore)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: h, p
+      TYPE(dbcsr_type), POINTER                          :: h, p
       REAL(KIND=dp), INTENT(OUT)                         :: ecore
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_1', &
@@ -171,7 +171,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ecore = 0.0_dp
-      CALL cp_dbcsr_trace(h, p, ecore)
+      CALL dbcsr_trace(h, p, ecore)
 
       CALL timestop(handle)
 

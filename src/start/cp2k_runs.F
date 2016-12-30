@@ -19,9 +19,6 @@ MODULE cp2k_runs
                                               cp2k_year
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
-                                              cp_dbcsr_init_lib,&
-                                              dbcsr_print_config
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -47,6 +44,9 @@ MODULE cp2k_runs
                                               cp_unit_set_type,&
                                               print_all_units
    USE cuda_profiling,                  ONLY: cuda_nvtx_init
+   USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
+                                              dbcsr_init_lib,&
+                                              dbcsr_print_config
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -199,7 +199,7 @@ CONTAINS
 
       CALL pw_cuda_init()
 
-      CALL cp_dbcsr_init_lib()
+      CALL dbcsr_init_lib()
 
       NULLIFY (globenv, force_env)
 
@@ -258,10 +258,10 @@ CONTAINS
          ! Hack: DBCSR should be uninitialized when entering farming.
          ! But, we don't want to change the public f77_interface.
          ! TODO: refactor cp2k's startup code
-         CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0)
+         CALL dbcsr_finalize_lib(group=mpi_comm, output_unit=0)
          CALL pw_cuda_finalize()
          CALL farming_run(input_declaration, root_section, para_env)
-         CALL cp_dbcsr_init_lib()
+         CALL dbcsr_init_lib()
          CALL pw_cuda_init()
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env)
@@ -380,7 +380,7 @@ CONTAINS
       CALL m_memory()
 
       CALL pw_cuda_finalize()
-      CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit)
+      CALL dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit)
 
       m_memory_max_mpi = m_memory_max
       CALL mp_max(m_memory_max_mpi, mpi_comm)

@@ -27,13 +27,6 @@ MODULE qs_efield_berry
                                               cp_cfm_release,&
                                               cp_cfm_set_all
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -49,6 +42,13 @@ MODULE qs_efield_berry
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               twopi
@@ -146,7 +146,7 @@ CONTAINS
       INTEGER                                            :: handle, i
       REAL(dp), DIMENSION(3)                             :: kvec
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: cosmat, matrix_s, sinmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: cosmat, matrix_s, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
 
@@ -160,13 +160,13 @@ CONTAINS
       ALLOCATE (cosmat(3), sinmat(3))
       DO i = 1, 3
          ALLOCATE (cosmat(i)%matrix, sinmat(i)%matrix)
-         CALL cp_dbcsr_init(cosmat(i)%matrix)
-         CALL cp_dbcsr_init(sinmat(i)%matrix)
+         CALL dbcsr_init(cosmat(i)%matrix)
+         CALL dbcsr_init(sinmat(i)%matrix)
 
-         CALL cp_dbcsr_copy(cosmat(i)%matrix, matrix_s(1)%matrix, 'COS MAT')
-         CALL cp_dbcsr_copy(sinmat(i)%matrix, matrix_s(1)%matrix, 'SIN MAT')
-         CALL cp_dbcsr_set(cosmat(i)%matrix, 0.0_dp)
-         CALL cp_dbcsr_set(sinmat(i)%matrix, 0.0_dp)
+         CALL dbcsr_copy(cosmat(i)%matrix, matrix_s(1)%matrix, 'COS MAT')
+         CALL dbcsr_copy(sinmat(i)%matrix, matrix_s(1)%matrix, 'SIN MAT')
+         CALL dbcsr_set(cosmat(i)%matrix, 0.0_dp)
+         CALL dbcsr_set(sinmat(i)%matrix, 0.0_dp)
 
          kvec(:) = twopi*cell%h_inv(i, :)
          CALL build_berry_moment_matrix(qs_env, cosmat(i)%matrix, sinmat(i)%matrix, kvec)
@@ -215,14 +215,14 @@ CONTAINS
       TYPE(block_p_type), DIMENSION(3, 2)                :: dcost, dsint
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat, inv_mat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: tempmat
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, mo_coeff_b, sinmat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff_tmp, mo_derivs_tmp
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: inv_work, op_fm_set, opvec
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: tempmat
+      TYPE(dbcsr_type), POINTER                          :: cosmat, mo_coeff_b, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -344,12 +344,12 @@ CONTAINS
          ALLOCATE (tempmat(2, dft_control%nspins))
          DO ispin = 1, dft_control%nspins
             ALLOCATE (tempmat(1, ispin)%matrix, tempmat(2, ispin)%matrix)
-            CALL cp_dbcsr_init(tempmat(1, ispin)%matrix)
-            CALL cp_dbcsr_init(tempmat(2, ispin)%matrix)
-            CALL cp_dbcsr_copy(tempmat(1, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
-            CALL cp_dbcsr_copy(tempmat(2, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
-            CALL cp_dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
-            CALL cp_dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
+            CALL dbcsr_init(tempmat(1, ispin)%matrix)
+            CALL dbcsr_init(tempmat(2, ispin)%matrix)
+            CALL dbcsr_copy(tempmat(1, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
+            CALL dbcsr_copy(tempmat(2, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
+            CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
          END DO
          ! integration
          CALL get_qs_kind_set(qs_kind_set, maxco=ldab, maxsgf=lsab)
@@ -421,8 +421,8 @@ CONTAINS
                ! calculate: C [C^T S_berry C]^(-1) C^T
                ! Store this matrix in DBCSR form (only S overlap blocks)
                DO ispin = 1, dft_control%nspins
-                  CALL cp_dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
-                  CALL cp_dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
+                  CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
+                  CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
                   CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
                                opvec(1, ispin)%matrix)
@@ -542,11 +542,11 @@ CONTAINS
                   forceb = 0.0_dp
                   DO ispin = 1, dft_control%nspins
                      NULLIFY (rblock, iblock)
-                     CALL cp_dbcsr_get_block_p(matrix=tempmat(1, ispin)%matrix, &
-                                               row=irow, col=icol, BLOCK=rblock, found=found)
+                     CALL dbcsr_get_block_p(matrix=tempmat(1, ispin)%matrix, &
+                                            row=irow, col=icol, BLOCK=rblock, found=found)
                      CPASSERT(found)
-                     CALL cp_dbcsr_get_block_p(matrix=tempmat(2, ispin)%matrix, &
-                                               row=irow, col=icol, BLOCK=iblock, found=found)
+                     CALL dbcsr_get_block_p(matrix=tempmat(2, ispin)%matrix, &
+                                            row=irow, col=icol, BLOCK=iblock, found=found)
                      CPASSERT(found)
                      n1 = SIZE(rblock, 1)
                      n2 = SIZE(rblock, 2)
@@ -660,7 +660,7 @@ CONTAINS
             DEALLOCATE (dcost(i, 1)%block, dsint(i, 1)%block)
             DEALLOCATE (dcost(i, 2)%block, dsint(i, 2)%block)
          END DO
-         CALL cp_dbcsr_deallocate_matrix_set(tempmat)
+         CALL dbcsr_deallocate_matrix_set(tempmat)
       END IF
       CALL timestop(handle)
 
@@ -705,14 +705,14 @@ CONTAINS
       TYPE(block_p_type), DIMENSION(3, 2)                :: dcost, dsint
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: eigrmat, inv_mat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: tempmat
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, mo_coeff_b, sinmat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff_tmp
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: inv_work, mo_derivs_tmp, op_fm_set, opvec
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: tempmat
+      TYPE(dbcsr_type), POINTER                          :: cosmat, mo_coeff_b, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -835,12 +835,12 @@ CONTAINS
          ALLOCATE (tempmat(2, dft_control%nspins))
          DO ispin = 1, dft_control%nspins
             ALLOCATE (tempmat(1, ispin)%matrix, tempmat(2, ispin)%matrix)
-            CALL cp_dbcsr_init(tempmat(1, ispin)%matrix)
-            CALL cp_dbcsr_init(tempmat(2, ispin)%matrix)
-            CALL cp_dbcsr_copy(tempmat(1, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
-            CALL cp_dbcsr_copy(tempmat(2, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
-            CALL cp_dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
-            CALL cp_dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
+            CALL dbcsr_init(tempmat(1, ispin)%matrix)
+            CALL dbcsr_init(tempmat(2, ispin)%matrix)
+            CALL dbcsr_copy(tempmat(1, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
+            CALL dbcsr_copy(tempmat(2, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
+            CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
          END DO
          ! integration
          CALL get_qs_kind_set(qs_kind_set, maxco=ldab, maxsgf=lsab)
@@ -912,8 +912,8 @@ CONTAINS
             ! calculate: C [C^T S_berry C]^(-1) C^T
             ! Store this matrix in DBCSR form (only S overlap blocks)
             DO ispin = 1, dft_control%nspins
-               CALL cp_dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
-               CALL cp_dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
                CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
                             opvec(1, ispin)%matrix)
@@ -1030,11 +1030,11 @@ CONTAINS
                forceb = 0.0_dp
                DO ispin = 1, dft_control%nspins
                   NULLIFY (rblock, iblock)
-                  CALL cp_dbcsr_get_block_p(matrix=tempmat(1, ispin)%matrix, &
-                                            row=irow, col=icol, BLOCK=rblock, found=found)
+                  CALL dbcsr_get_block_p(matrix=tempmat(1, ispin)%matrix, &
+                                         row=irow, col=icol, BLOCK=rblock, found=found)
                   CPASSERT(found)
-                  CALL cp_dbcsr_get_block_p(matrix=tempmat(2, ispin)%matrix, &
-                                            row=irow, col=icol, BLOCK=iblock, found=found)
+                  CALL dbcsr_get_block_p(matrix=tempmat(2, ispin)%matrix, &
+                                         row=irow, col=icol, BLOCK=iblock, found=found)
                   CPASSERT(found)
                   n1 = SIZE(rblock, 1)
                   n2 = SIZE(rblock, 2)
@@ -1162,7 +1162,7 @@ CONTAINS
             DEALLOCATE (dcost(i, 1)%block, dsint(i, 1)%block)
             DEALLOCATE (dcost(i, 2)%block, dsint(i, 2)%block)
          END DO
-         CALL cp_dbcsr_deallocate_matrix_set(tempmat)
+         CALL dbcsr_deallocate_matrix_set(tempmat)
       END IF
       CALL timestop(handle)
 

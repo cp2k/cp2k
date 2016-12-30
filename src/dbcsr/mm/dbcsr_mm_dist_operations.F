@@ -37,9 +37,9 @@ MODULE dbcsr_mm_dist_operations
                                               dbcsr_mp_nprows
    USE dbcsr_toollib,                   ONLY: gcd
    USE dbcsr_types,                     ONLY: &
-        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, dbcsr_mp_obj, dbcsr_obj, &
-        dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
-        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local
+        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, dbcsr_mp_obj, dbcsr_slot_home_pcol, &
+        dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -444,7 +444,7 @@ CONTAINS
 !> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reset_locals(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
       LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
@@ -456,32 +456,32 @@ CONTAINS
       CALL dbcsr_release_locals(matrix)
       ! Rows
       IF (dbg) &
-         WRITE (*, *) "reset local rows for ", TRIM(matrix%m%name), &
-         matrix%m%nblkrows_local, "prow", matrix%m%index(dbcsr_slot_home_prow), &
-         dbcsr_mp_myprow(dbcsr_distribution_mp(matrix%m%dist))
-      CALL dbcsr_get_local_rows(dist, matrix%m%local_rows, &
-                                matrix%m%index(dbcsr_slot_home_prow))
-      CALL array_hold(matrix%m%local_rows)
-      IF (dbg) WRITE (*, *) "local rows", matrix%m%local_rows%low%data
-      matrix%m%nblkrows_local = array_size(matrix%m%local_rows)
-      CALL dbcsr_get_global_row_map(dist, matrix%m%global_rows)
-      CALL array_hold(matrix%m%global_rows)
-      matrix%m%has_local_rows = .TRUE.
-      matrix%m%has_global_rows = .TRUE.
+         WRITE (*, *) "reset local rows for ", TRIM(matrix%name), &
+         matrix%nblkrows_local, "prow", matrix%index(dbcsr_slot_home_prow), &
+         dbcsr_mp_myprow(dbcsr_distribution_mp(matrix%dist))
+      CALL dbcsr_get_local_rows(dist, matrix%local_rows, &
+                                matrix%index(dbcsr_slot_home_prow))
+      CALL array_hold(matrix%local_rows)
+      IF (dbg) WRITE (*, *) "local rows", matrix%local_rows%low%data
+      matrix%nblkrows_local = array_size(matrix%local_rows)
+      CALL dbcsr_get_global_row_map(dist, matrix%global_rows)
+      CALL array_hold(matrix%global_rows)
+      matrix%has_local_rows = .TRUE.
+      matrix%has_global_rows = .TRUE.
       ! Columns
       IF (dbg) &
-         WRITE (*, *) "reset local cols for ", TRIM(matrix%m%name), &
-         matrix%m%nblkcols_local, "pcol", matrix%m%index(dbcsr_slot_home_pcol), &
-         dbcsr_mp_mypcol(dbcsr_distribution_mp(matrix%m%dist))
-      CALL dbcsr_get_local_cols(dist, matrix%m%local_cols, &
-                                matrix%m%index(dbcsr_slot_home_pcol))
-      CALL array_hold(matrix%m%local_cols)
-      IF (dbg) WRITE (*, *) "local cols", matrix%m%local_cols%low%data
-      matrix%m%nblkcols_local = array_size(matrix%m%local_cols)
-      CALL dbcsr_get_global_col_map(dist, matrix%m%global_cols)
-      CALL array_hold(matrix%m%global_cols)
-      matrix%m%has_local_cols = .TRUE.
-      matrix%m%has_global_cols = .TRUE.
+         WRITE (*, *) "reset local cols for ", TRIM(matrix%name), &
+         matrix%nblkcols_local, "pcol", matrix%index(dbcsr_slot_home_pcol), &
+         dbcsr_mp_mypcol(dbcsr_distribution_mp(matrix%dist))
+      CALL dbcsr_get_local_cols(dist, matrix%local_cols, &
+                                matrix%index(dbcsr_slot_home_pcol))
+      CALL array_hold(matrix%local_cols)
+      IF (dbg) WRITE (*, *) "local cols", matrix%local_cols%low%data
+      matrix%nblkcols_local = array_size(matrix%local_cols)
+      CALL dbcsr_get_global_col_map(dist, matrix%global_cols)
+      CALL array_hold(matrix%global_cols)
+      matrix%has_local_cols = .TRUE.
+      matrix%has_global_cols = .TRUE.
       !
    END SUBROUTINE dbcsr_reset_locals
 
@@ -493,7 +493,7 @@ CONTAINS
 !> \param do_rows ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reset_vlocals(matrix, imgdist, do_rows)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rows
 
@@ -506,32 +506,32 @@ CONTAINS
       IF (PRESENT(do_rows)) my_do_rows = do_rows
       ! Rows
       IF (.NOT. PRESENT(do_rows) .OR. my_do_rows) THEN
-         CALL dbcsr_get_local_vrows(imgdist, matrix%m%local_rows, &
-                                    matrix%m%index(dbcsr_slot_home_vprow))
+         CALL dbcsr_get_local_vrows(imgdist, matrix%local_rows, &
+                                    matrix%index(dbcsr_slot_home_vprow))
       ELSE
-         matrix%m%local_rows = imgdist%i%main%d%local_rows
+         matrix%local_rows = imgdist%i%main%d%local_rows
       ENDIF
-      CALL array_hold(matrix%m%local_rows)
-      matrix%m%has_local_rows = .TRUE.
-      matrix%m%nblkrows_local = array_size(matrix%m%local_rows)
-      matrix%m%index(dbcsr_slot_nblkrows_local) = array_size(matrix%m%local_rows)
-      CALL dbcsr_get_global_vrow_map(imgdist, matrix%m%global_rows)
-      CALL array_hold(matrix%m%global_rows)
-      matrix%m%has_global_rows = .TRUE.
+      CALL array_hold(matrix%local_rows)
+      matrix%has_local_rows = .TRUE.
+      matrix%nblkrows_local = array_size(matrix%local_rows)
+      matrix%index(dbcsr_slot_nblkrows_local) = array_size(matrix%local_rows)
+      CALL dbcsr_get_global_vrow_map(imgdist, matrix%global_rows)
+      CALL array_hold(matrix%global_rows)
+      matrix%has_global_rows = .TRUE.
       ! Columns
       IF (.NOT. PRESENT(do_rows) .OR. .NOT. my_do_rows) THEN
-         CALL dbcsr_get_local_vcols(imgdist, matrix%m%local_cols, &
-                                    matrix%m%index(dbcsr_slot_home_vpcol))
+         CALL dbcsr_get_local_vcols(imgdist, matrix%local_cols, &
+                                    matrix%index(dbcsr_slot_home_vpcol))
       ELSE
-         matrix%m%local_cols = imgdist%i%main%d%local_cols
+         matrix%local_cols = imgdist%i%main%d%local_cols
       ENDIF
-      CALL array_hold(matrix%m%local_cols)
-      matrix%m%has_local_cols = .TRUE.
-      matrix%m%nblkcols_local = array_size(matrix%m%local_cols)
-      matrix%m%index(dbcsr_slot_nblkcols_local) = array_size(matrix%m%local_cols)
-      CALL dbcsr_get_global_vcol_map(imgdist, matrix%m%global_cols)
-      CALL array_hold(matrix%m%global_cols)
-      matrix%m%has_global_cols = .TRUE.
+      CALL array_hold(matrix%local_cols)
+      matrix%has_local_cols = .TRUE.
+      matrix%nblkcols_local = array_size(matrix%local_cols)
+      matrix%index(dbcsr_slot_nblkcols_local) = array_size(matrix%local_cols)
+      CALL dbcsr_get_global_vcol_map(imgdist, matrix%global_cols)
+      CALL array_hold(matrix%global_cols)
+      matrix%has_global_cols = .TRUE.
    END SUBROUTINE dbcsr_reset_vlocals
 
 ! **************************************************************************************************

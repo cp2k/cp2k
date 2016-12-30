@@ -18,12 +18,6 @@ MODULE qs_loc_utils
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -47,6 +41,12 @@ MODULE qs_loc_utils
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE input_constants,                 ONLY: &
         do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, &
@@ -148,7 +148,7 @@ CONTAINS
    SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S)
 
       TYPE(cp_fm_type), POINTER                          :: mo_new, mo_ref
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_S
+      TYPE(dbcsr_type), POINTER                          :: matrix_S
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref', &
          routineP = moduleN//':'//routineN
@@ -470,11 +470,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupations
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mat_ptr, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -605,10 +605,10 @@ CONTAINS
                DO j = 1, SIZE(qs_loc_env%op_sm_set, 1)
                   NULLIFY (qs_loc_env%op_sm_set(j, i)%matrix)
                   ALLOCATE (qs_loc_env%op_sm_set(j, i)%matrix)
-                  CALL cp_dbcsr_init(qs_loc_env%op_sm_set(j, i)%matrix)
-                  CALL cp_dbcsr_copy(qs_loc_env%op_sm_set(j, i)%matrix, matrix_s(1)%matrix, &
-                                     name="qs_loc_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))))
-                  CALL cp_dbcsr_set(qs_loc_env%op_sm_set(j, i)%matrix, 0.0_dp)
+                  CALL dbcsr_init(qs_loc_env%op_sm_set(j, i)%matrix)
+                  CALL dbcsr_copy(qs_loc_env%op_sm_set(j, i)%matrix, matrix_s(1)%matrix, &
+                                  name="qs_loc_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))))
+                  CALL dbcsr_set(qs_loc_env%op_sm_set(j, i)%matrix, 0.0_dp)
                ENDDO
             END DO
 
@@ -692,7 +692,7 @@ CONTAINS
                                                             sphi_b, work, zeta, zetb
       TYPE(block_p_type), DIMENSION(:), POINTER          :: op_cos, op_sin
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_sm_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(neighbor_list_iterator_p_type), &
@@ -817,11 +817,11 @@ CONTAINS
 
             DO i = 1, dim_op
                NULLIFY (op_cos(i)%block)
-               CALL cp_dbcsr_get_block_p(matrix=op_sm_set(1, i)%matrix, &
-                                         row=irow, col=icol, block=op_cos(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=op_sm_set(1, i)%matrix, &
+                                      row=irow, col=icol, block=op_cos(i)%block, found=found)
                NULLIFY (op_sin(i)%block)
-               CALL cp_dbcsr_get_block_p(matrix=op_sm_set(2, i)%matrix, &
-                                         row=irow, col=icol, block=op_sin(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=op_sm_set(2, i)%matrix, &
+                                      row=irow, col=icol, block=op_sin(i)%block, found=found)
             END DO
          END IF ! new_atom_b
 
@@ -1241,10 +1241,10 @@ CONTAINS
                                                             output_unit
       LOGICAL                                            :: my_do_homo, my_do_mo_cubes, restart_found
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_rmpv, mo_derivs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, mo_derivs
       TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(scf_control_type), POINTER                    :: scf_control

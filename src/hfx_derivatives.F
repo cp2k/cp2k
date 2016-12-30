@@ -16,9 +16,6 @@ MODULE hfx_derivatives
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&
-                                              cp_dbcsr_p_type,&
-                                              dbcsr_type_antisymmetric
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -28,6 +25,9 @@ MODULE hfx_derivatives
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_matrix_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type_antisymmetric
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_communication,               ONLY: get_full_density
    USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
@@ -109,7 +109,7 @@ CONTAINS
                                       irep, use_virial, adiabatic_rescale_factor)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: irep
@@ -177,8 +177,8 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao_mp2
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_mp2
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
@@ -219,7 +219,7 @@ CONTAINS
       IF (ASSOCIATED(qs_env%mp2_env)) with_mp2_density = .TRUE.
 
       IF (with_mp2_density) CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_mp2)
-      is_anti_symmetric = cp_dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
+      is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
 
       CALL get_qs_env(qs_env, &
                       admm_env=admm_env, &

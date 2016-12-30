@@ -26,14 +26,14 @@ MODULE transport
    USE bibliography,                    ONLY: Bruck2014,&
                                               cite_reference
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, cp_csr_create_from_dbcsr, &
-        cp_csr_print_sparsity, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-        cp_dbcsr_desymmetrize, cp_dbcsr_has_symmetry, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
-        csr_dbcsr_blkrow_dist, csr_type, dbcsr_type_real_8
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE dbcsr_api,                       ONLY: &
+        convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
+        csr_dbcsr_blkrow_dist, csr_print_sparsity, csr_type, dbcsr_copy, dbcsr_copy_into_existing, &
+        dbcsr_create, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_init, dbcsr_set, dbcsr_type, &
+        dbcsr_type_real_8
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -114,9 +114,9 @@ CONTAINS
       ALLOCATE (transport_env)
       CALL transport_init_read_input(input, transport_env)
       CALL transport_set_contact_params(qs_env, transport_env)
-      CALL cp_dbcsr_init(transport_env%template_matrix_sym)
-      CALL cp_dbcsr_init(transport_env%template_matrix_nosym)
-      CALL cp_dbcsr_init(transport_env%csr_sparsity)
+      CALL dbcsr_init(transport_env%template_matrix_sym)
+      CALL dbcsr_init(transport_env%template_matrix_nosym)
+      CALL dbcsr_init(transport_env%csr_sparsity)
       CALL set_qs_env(qs_env, transport_env=transport_env)
 
       CALL timestop(handle)
@@ -260,7 +260,7 @@ CONTAINS
    SUBROUTINE transport_initialize(ks_env, transport_env, template_matrix)
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: template_matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: template_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transport_initialize', &
          routineP = moduleN//':'//routineN
@@ -283,34 +283,34 @@ CONTAINS
       mp_group = logger%para_env%group
       CALL mp_environ(numnodes, mynode, mp_group)
 
-      IF (cp_dbcsr_has_symmetry(template_matrix)) THEN
-         CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
-         CALL cp_dbcsr_desymmetrize(transport_env%template_matrix_sym, transport_env%template_matrix_nosym)
+      IF (dbcsr_has_symmetry(template_matrix)) THEN
+         CALL dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
+         CALL dbcsr_desymmetrize(transport_env%template_matrix_sym, transport_env%template_matrix_nosym)
       ELSE
-         CALL cp_dbcsr_copy(transport_env%template_matrix_nosym, template_matrix)
-         CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
+         CALL dbcsr_copy(transport_env%template_matrix_nosym, template_matrix)
+         CALL dbcsr_copy(transport_env%template_matrix_sym, template_matrix)
       END IF
 
-      CALL cp_dbcsr_create(transport_env%csr_sparsity, "CSR sparsity", &
-                           template=transport_env%template_matrix_sym, &
-                           data_type=dbcsr_type_real_8)
-      CALL cp_dbcsr_copy(transport_env%csr_sparsity, transport_env%template_matrix_sym)
+      CALL dbcsr_create(transport_env%csr_sparsity, "CSR sparsity", &
+                        template=transport_env%template_matrix_sym, &
+                        data_type=dbcsr_type_real_8)
+      CALL dbcsr_copy(transport_env%csr_sparsity, transport_env%template_matrix_sym)
 
       CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity)
 
-      IF (.NOT. transport_env%csr_screening) CALL cp_dbcsr_set(transport_env%csr_sparsity, 1.0)
-      CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
-                                    transport_env%s_matrix, &
-                                    csr_dbcsr_blkrow_dist, &
-                                    csr_sparsity=transport_env%csr_sparsity, &
-                                    numnodes=numnodes)
+      IF (.NOT. transport_env%csr_screening) CALL dbcsr_set(transport_env%csr_sparsity, 1.0)
+      CALL csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
+                                 transport_env%s_matrix, &
+                                 csr_dbcsr_blkrow_dist, &
+                                 csr_sparsity=transport_env%csr_sparsity, &
+                                 numnodes=numnodes)
 
-      CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr)
+      CALL csr_print_sparsity(transport_env%s_matrix, unit_nr)
 
-      CALL cp_convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix)
+      CALL convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix)
 
-      CALL cp_csr_create(transport_env%ks_matrix, transport_env%s_matrix)
-      CALL cp_csr_create(transport_env%p_matrix, transport_env%s_matrix)
+      CALL csr_create(transport_env%ks_matrix, transport_env%s_matrix)
+      CALL csr_create(transport_env%p_matrix, transport_env%s_matrix)
 
       CALL timestop(handle)
 
@@ -336,8 +336,8 @@ CONTAINS
                                   nelectron_spin, natoms, energy_diff, iscf, extra_scf)
 
       TYPE(transport_env_type), INTENT(INOUT)            :: transport_env
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix_s, matrix_ks
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s, matrix_ks
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p
       INTEGER, INTENT(IN)                                :: nelectron_spin, natoms
       REAL(dp), INTENT(IN)                               :: energy_diff
       INTEGER, INTENT(IN)                                :: iscf
@@ -373,19 +373,19 @@ CONTAINS
       CALL csr_interop_nullify(ks_mat)
       CALL csr_interop_nullify(p_mat)
 
-      CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%s_matrix, s_mat)
 
-      CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks)
+      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%ks_matrix, ks_mat)
 
-      CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_p)
+      CALL dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_p)
       CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat)
 
       CALL c_method(transport_env%params, s_mat, ks_mat, p_mat)
 
       CALL convert_csr_interop_to_dbcsr(p_mat, transport_env%p_matrix, transport_env%template_matrix_nosym)
-      CALL cp_dbcsr_copy(matrix_p, transport_env%template_matrix_nosym)
+      CALL dbcsr_copy(matrix_p, transport_env%template_matrix_nosym)
 
       CALL timestop(handle)
 
@@ -400,7 +400,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE convert_dbcsr_to_csr_interop(dbcsr_mat, csr_mat, csr_interop_mat)
 
-      TYPE(cp_dbcsr_type), INTENT(IN)          :: dbcsr_mat
+      TYPE(dbcsr_type), INTENT(IN)          :: dbcsr_mat
       TYPE(csr_type), INTENT(INOUT)            :: csr_mat
       TYPE(cp2k_csr_interop_type), INTENT(INOUT)      :: csr_interop_mat
 
@@ -421,7 +421,7 @@ CONTAINS
       num_pe = logger%para_env%num_pe
 
 ! dbcsr to csr
-      CALL cp_convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
+      CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
 
 ! csr to csr_interop
       rowptr_local => csr_mat%rowptr_local
@@ -505,7 +505,7 @@ CONTAINS
 
       TYPE(cp2k_csr_interop_type), INTENT(IN)            :: csr_interop_mat
       TYPE(csr_type), INTENT(INOUT)                      :: csr_mat
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: dbcsr_mat
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: dbcsr_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_interop_to_dbcsr', &
          routineP = moduleN//':'//routineN
@@ -538,7 +538,7 @@ CONTAINS
       csr_mat%nzval_local%r_dp = nzvals_local
 
 ! csr to dbcsr
-      CALL cp_convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
+      CALL convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
 
       CALL timestop(handle)
 

@@ -17,18 +17,18 @@ MODULE cp_dbcsr_output
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_get_data_size, cp_dbcsr_get_info, &
-        cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_name, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_col_block_sizes, dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_get_num_blocks, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_name, &
+        dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -167,7 +167,7 @@ CONTAINS
                                            first_row, last_row, first_col, last_col, scale, &
                                            output_unit, omit_headers)
 
-      TYPE(cp_dbcsr_type)                                :: sparse_matrix
+      TYPE(dbcsr_type)                                   :: sparse_matrix
       INTEGER, INTENT(IN)                                :: before, after
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -194,7 +194,7 @@ CONTAINS
 
       CALL mp_sum(matrix, group)
 
-      SELECT CASE (cp_dbcsr_get_matrix_type (sparse_matrix))
+      SELECT CASE (dbcsr_get_matrix_type (sparse_matrix))
       CASE (dbcsr_type_symmetric)
          CALL symmetrize_matrix(matrix, "upper_to_lower")
          print_sym = .TRUE.
@@ -246,7 +246,7 @@ CONTAINS
          my_omit_headers = .FALSE.
       END IF
 
-      matrix_name = cp_dbcsr_name(sparse_matrix)
+      matrix_name = dbcsr_name(sparse_matrix)
       IF (print_sym) THEN
          CALL write_matrix_sym(matrix, matrix_name, before, after, qs_env, para_env, &
                                row1, row2, col1, col2, output_unit, my_omit_headers)
@@ -268,7 +268,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix, fm)
 
-      TYPE(cp_dbcsr_type)                                :: sparse_matrix
+      TYPE(dbcsr_type)                                   :: sparse_matrix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'copy_repl_dbcsr_to_repl_fm', &
@@ -279,18 +279,18 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: DATA
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
       IF (ASSOCIATED(fm)) DEALLOCATE (fm)
 
-      CALL cp_dbcsr_get_info(matrix=sparse_matrix, &
-                             nblkrows_total=nblkrows_total, &
-                             nblkcols_total=nblkcols_total)
+      CALL dbcsr_get_info(matrix=sparse_matrix, &
+                          nblkrows_total=nblkrows_total, &
+                          nblkcols_total=nblkcols_total)
 
-      col_blk_size => cp_dbcsr_col_block_sizes(sparse_matrix)
-      row_blk_size => cp_dbcsr_row_block_sizes(sparse_matrix)
+      col_blk_size => dbcsr_col_block_sizes(sparse_matrix)
+      row_blk_size => dbcsr_row_block_sizes(sparse_matrix)
 
       !> this should be precomputed somewhere else
       ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))
@@ -311,16 +311,16 @@ CONTAINS
 
       fm(:, :) = 0.0_dp
 
-      CALL cp_dbcsr_iterator_start(iter, sparse_matrix)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, blk)
+      CALL dbcsr_iterator_start(iter, sparse_matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, DATA, blk)
          DO j = 1, SIZE(DATA, 2)
          DO i = 1, SIZE(DATA, 1)
             fm(r_offset(row)+i-1, c_offset(col)+j-1) = DATA(i, j)
          ENDDO
          ENDDO
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       DEALLOCATE (r_offset, c_offset)
 
@@ -608,7 +608,7 @@ CONTAINS
 !>      Creation (25.06.2003,MK)
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_write_matrix_dist(matrix, output_unit, para_env)
-      TYPE(cp_dbcsr_type)                                :: matrix
+      TYPE(dbcsr_type)                                   :: matrix
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -644,14 +644,14 @@ CONTAINS
       ALLOCATE (nelement(npe))
       nelement(:) = 0
 
-      nblock(mype) = cp_dbcsr_get_num_blocks(matrix)
-      nelement(mype) = cp_dbcsr_get_data_size(matrix)
+      nblock(mype) = dbcsr_get_num_blocks(matrix)
+      nelement(mype) = dbcsr_get_data_size(matrix)
 
-      CALL cp_dbcsr_get_info(matrix=matrix, &
-                             name=matrix_name, &
-                             matrix_type=matrix_type, &
-                             nblkrows_total=natom, &
-                             nfullrows_total=nrow)
+      CALL dbcsr_get_info(matrix=matrix, &
+                          name=matrix_name, &
+                          matrix_type=matrix_type, &
+                          nblkrows_total=natom, &
+                          nfullrows_total=nrow)
 
       IF (full_output) THEN
          ! XXXXXXXX should gather/scatter this on ionode

@@ -14,9 +14,9 @@ MODULE qmmm_se_forces
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1
@@ -94,7 +94,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: delta, enuclear
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces_QM, p_block_a
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_qm
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -157,8 +157,8 @@ CONTAINS
                   iatom = list(i)
                   ! Give back block
                   NULLIFY (p_block_a)
-                  CALL cp_dbcsr_get_block_p(matrix=matrix_p(ispin)%matrix, &
-                                            row=iatom, col=iatom, BLOCK=p_block_a, found=found)
+                  CALL dbcsr_get_block_p(matrix=matrix_p(ispin)%matrix, &
+                                         row=iatom, col=iatom, BLOCK=p_block_a, found=found)
 
                   IF (ASSOCIATED(p_block_a)) THEN
                      ! Expand derivative of geometrical factors

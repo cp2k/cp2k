@@ -19,11 +19,6 @@ MODULE preconditioner_solvers
    USE bibliography,                    ONLY: Schiffmann2015,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
-        cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init_p, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
@@ -37,6 +32,10 @@ MODULE preconditioner_solvers
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_filter, dbcsr_get_info, &
+        dbcsr_get_occupation, dbcsr_init_p, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE input_constants,                 ONLY: ot_precond_solver_default,&
                                               ot_precond_solver_direct,&
                                               ot_precond_solver_inv_chol,&
@@ -67,8 +66,8 @@ CONTAINS
                                    matrix_h)
       INTEGER                                            :: my_solver_type
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
 
       CHARACTER(len=*), PARAMETER :: routineN = 'solve_preconditioner', &
          routineP = moduleN//':'//routineN
@@ -96,9 +95,9 @@ CONTAINS
          IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
             IF (preconditioner_env%condition_num < 0.0_dp) &
                CALL estimate_cond_num(preconditioner_env%sparse_matrix, preconditioner_env%condition_num)
-            CALL cp_dbcsr_filter(preconditioner_env%sparse_matrix, &
-                                 1.0_dp/preconditioner_env%condition_num*0.01_dp)
-            occ_matrix = cp_dbcsr_get_occupation(preconditioner_env%sparse_matrix)
+            CALL dbcsr_filter(preconditioner_env%sparse_matrix, &
+                              1.0_dp/preconditioner_env%condition_num*0.01_dp)
+            occ_matrix = dbcsr_get_occupation(preconditioner_env%sparse_matrix)
          END IF
          ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
          IF (preconditioner_env%solver .NE. ot_precond_solver_update .AND. occ_matrix > 0.5_dp) THEN
@@ -125,7 +124,7 @@ CONTAINS
    SUBROUTINE make_full_inverse_cholesky(preconditioner_env, matrix_s)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
          routineP = moduleN//':'//routineN
@@ -178,7 +177,7 @@ CONTAINS
    SUBROUTINE make_full_fact_cholesky(preconditioner_env, matrix_s)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
          routineP = moduleN//':'//routineN
@@ -221,7 +220,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_inverse_update(preconditioner_env, matrix_h)
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_inverse_update', &
          routineP = moduleN//':'//routineN
@@ -242,16 +241,16 @@ CONTAINS
       CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%sparse_matrix, matrix_h)
       IF (.NOT. ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
          use_guess = .FALSE.
-         CALL cp_dbcsr_init_p(preconditioner_env%dbcsr_matrix)
-         CALL cp_dbcsr_create(preconditioner_env%dbcsr_matrix, "prec_dbcsr", &
-                              template=matrix_h, matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(preconditioner_env%dbcsr_matrix)
+         CALL dbcsr_create(preconditioner_env%dbcsr_matrix, "prec_dbcsr", &
+                           template=matrix_h, matrix_type=dbcsr_type_no_symmetry)
       END IF
 
       ! Try to get a reasonbale guess for the filtering threshold
       filter_eps = 1.0_dp/preconditioner_env%condition_num*0.1_dp
 
       ! Agressive filtering on the initial guess is needed to avoid fill ins and retain sparsity
-      CALL cp_dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps*100.0_dp)
+      CALL dbcsr_filter(preconditioner_env%dbcsr_matrix, filter_eps*100.0_dp)
       ! We don't need a high accuracy for the inverse so 0.4 is reasonable for convergence
       CALL invert_Hotelling(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, filter_eps*10.0_dp, &
                             use_inv_as_guess=use_guess, norm_convergence=0.4_dp, filter_eps=filter_eps)
@@ -267,7 +266,7 @@ CONTAINS
 !> \param cond_num ...
 ! **************************************************************************************************
    SUBROUTINE estimate_cond_num(matrix, cond_num)
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix
+      TYPE(dbcsr_type), POINTER                          :: matrix
       REAL(KIND=dp)                                      :: cond_num
 
       CHARACTER(len=*), PARAMETER :: routineN = 'estimate_cond_num', &
@@ -276,7 +275,7 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: max_ev, min_ev
       TYPE(arnoldi_data_type)                            :: my_arnoldi
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrices
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices
 
       CALL timeset(routineN, handle)
 
@@ -311,7 +310,7 @@ CONTAINS
    SUBROUTINE transfer_fm_to_dbcsr(fm_matrix, dbcsr_matrix, template_mat)
 
       TYPE(cp_fm_type), POINTER                          :: fm_matrix
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_matrix, template_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_matrix, template_mat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'transfer_fm_to_dbcsr', &
          routineP = moduleN//':'//routineN
@@ -321,11 +320,11 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(fm_matrix)) THEN
          IF (.NOT. ASSOCIATED(dbcsr_matrix)) THEN
-            CALL cp_dbcsr_init_p(dbcsr_matrix)
-            CALL cp_dbcsr_create(dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
-                                 cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
-                                 cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
-                                 nze=0, data_type=dbcsr_type_real_8)
+            CALL dbcsr_init_p(dbcsr_matrix)
+            CALL dbcsr_create(dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
+                              dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
+                              dbcsr_row_block_sizes(template_mat), dbcsr_col_block_sizes(template_mat), &
+                              nze=0, data_type=dbcsr_type_real_8)
          ENDIF
 !       CALL cp_fm_create(fm_tmp, matrix_struct=fm_matrix%matrix_struct)
 !       CALL cp_fm_upper_to_full(fm_matrix, fm_tmp)
@@ -347,7 +346,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transfer_dbcsr_to_fm(dbcsr_matrix, fm_matrix, para_env, context)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_matrix
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_matrix
       TYPE(cp_fm_type), POINTER                          :: fm_matrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -366,14 +365,14 @@ CONTAINS
             CALL cp_fm_release(fm_matrix)
          ENDIF
 
-         CALL cp_dbcsr_get_info(dbcsr_matrix, nfullrows_total=n)
+         CALL dbcsr_get_info(dbcsr_matrix, nfullrows_total=n)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                   context=context, para_env=para_env)
          CALL cp_fm_create(fm_matrix, fm_struct_tmp)
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          CALL copy_dbcsr_to_fm(dbcsr_matrix, fm_matrix)
-         CALL cp_dbcsr_release(dbcsr_matrix)
+         CALL dbcsr_release(dbcsr_matrix)
          DEALLOCATE (dbcsr_matrix)
       END IF
 

@@ -13,7 +13,6 @@ MODULE qs_linres_epr_ownutils
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -21,6 +20,7 @@ MODULE qs_linres_epr_ownutils
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -230,9 +230,9 @@ CONTAINS
 
       INTEGER                                            :: i1, ispin, output_unit
       REAL(KIND=dp)                                      :: epr_g_zke_temp(2)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: kinetic, rho_ao
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: lr_section

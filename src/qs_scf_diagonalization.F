@@ -21,11 +21,6 @@ MODULE qs_scf_diagonalization
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_init, &
-        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
@@ -56,6 +51,11 @@ MODULE qs_scf_diagonalization
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution, dbcsr_init, dbcsr_p_type, &
+        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
         core_guess, general_roks, high_spin_roks, restart_guess
@@ -145,7 +145,7 @@ CONTAINS
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
@@ -156,8 +156,8 @@ CONTAINS
       INTEGER                                            :: ispin, nspin
       LOGICAL                                            :: do_level_shift, use_jacobi
       REAL(kind=dp)                                      :: diis_error, eps_diis
-      TYPE(cp_dbcsr_type), POINTER                       :: ortho_dbcsr
       TYPE(cp_fm_type), POINTER                          :: matrix_u_fm, ortho
+      TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr
 
       nspin = SIZE(matrix_ks)
       NULLIFY (ortho, ortho_dbcsr)
@@ -291,7 +291,7 @@ CONTAINS
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
@@ -333,7 +333,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -353,12 +353,12 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type), POINTER                         :: cksmat, cmos, csmat, cwork
-      TYPE(cp_dbcsr_type), POINTER                       :: cmatrix, rmatrix, tmpmat
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type), POINTER                          :: fmdummy, fmlocal, imos, mo_coeff, &
                                                             rksmat, rmos, rsmat
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -376,15 +376,15 @@ CONTAINS
 
       ! allocate some work matrices
       ALLOCATE (rmatrix, cmatrix, tmpmat)
-      CALL cp_dbcsr_init(rmatrix)
-      CALL cp_dbcsr_init(cmatrix)
-      CALL cp_dbcsr_init(tmpmat)
-      CALL cp_dbcsr_create(rmatrix, template=matrix_ks(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-      CALL cp_dbcsr_create(cmatrix, template=matrix_ks(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_antisymmetric)
-      CALL cp_dbcsr_create(tmpmat, template=matrix_ks(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(rmatrix)
+      CALL dbcsr_init(cmatrix)
+      CALL dbcsr_init(tmpmat)
+      CALL dbcsr_create(rmatrix, template=matrix_ks(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmatrix, template=matrix_ks(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(tmpmat, template=matrix_ks(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
 
@@ -421,35 +421,35 @@ CONTAINS
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                IF (use_real_wfn) THEN
                   ! FT of matrices KS and S, then transfer to FM type
-                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
+                  CALL dbcsr_set(rmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks, ispin=ispin, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
+                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(1)%matrix)
                   ! s matrix is not spin dependent
-                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
+                  CALL dbcsr_set(rmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
+                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3)%matrix)
                ELSE
                   ! FT of matrices KS and S, then transfer to FM type
-                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
-                  CALL cp_dbcsr_set(cmatrix, 0.0_dp)
+                  CALL dbcsr_set(rmatrix, 0.0_dp)
+                  CALL dbcsr_set(cmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks, ispin=ispin, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
+                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(1)%matrix)
-                  CALL cp_dbcsr_desymmetrize(cmatrix, tmpmat)
+                  CALL dbcsr_desymmetrize(cmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(2)%matrix)
                   ! s matrix is not spin dependent, double the work
-                  CALL cp_dbcsr_set(rmatrix, 0.0_dp)
-                  CALL cp_dbcsr_set(cmatrix, 0.0_dp)
+                  CALL dbcsr_set(rmatrix, 0.0_dp)
+                  CALL dbcsr_set(cmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL cp_dbcsr_desymmetrize(rmatrix, tmpmat)
+                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3)%matrix)
-                  CALL cp_dbcsr_desymmetrize(cmatrix, tmpmat)
+                  CALL dbcsr_desymmetrize(cmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(4)%matrix)
                END IF
                ! transfer to kpoint group
@@ -521,9 +521,9 @@ CONTAINS
                                        matrix_s(1, 1)%matrix, sab_nl, fmwork)
       END IF
 
-      CALL cp_dbcsr_deallocate_matrix(rmatrix)
-      CALL cp_dbcsr_deallocate_matrix(cmatrix)
-      CALL cp_dbcsr_deallocate_matrix(tmpmat)
+      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL dbcsr_deallocate_matrix(cmatrix)
+      CALL dbcsr_deallocate_matrix(tmpmat)
 
       IF (use_real_wfn) THEN
          CALL cp_fm_release(rksmat)
@@ -578,11 +578,11 @@ CONTAINS
                                                             sum_band, sum_val, t1, t2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupations
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: eval_first, occ_first
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
       TYPE(cp_fm_type), POINTER                          :: c0, chc, evec, mo_coeff, work
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -616,8 +616,8 @@ CONTAINS
 
       DO ispin = 1, nspin
          ! does not yet handle k-points
-         CALL cp_dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho_ao(ispin)%matrix)
-         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin, 1)%matrix)
+         CALL dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho_ao(ispin)%matrix)
+         CALL dbcsr_copy(rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin, 1)%matrix)
       END DO
 
       subspace_env%p_matrix_mix => scf_env%p_mix_new
@@ -715,7 +715,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             ! does not yet handle k-points
-            CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_mix(ispin, 1)%matrix)
+            CALL dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_mix(ispin, 1)%matrix)
          END DO
          ! update of density
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
@@ -745,8 +745,8 @@ CONTAINS
       NULLIFY (subspace_env%p_matrix_mix)
       DO ispin = 1, nspin
          ! does not yet handle k-points
-         CALL cp_dbcsr_copy(scf_env%p_mix_new(ispin, 1)%matrix, rho_ao(ispin)%matrix)
-         CALL cp_dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_store(ispin)%matrix)
+         CALL dbcsr_copy(scf_env%p_mix_new(ispin, 1)%matrix, rho_ao(ispin)%matrix)
+         CALL dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_store(ispin)%matrix)
 
          DEALLOCATE (eval_first(ispin)%array, occ_first(ispin)%array)
       END DO
@@ -772,9 +772,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ispin, nmo, nspin
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
@@ -787,20 +787,20 @@ CONTAINS
       nspin = SIZE(mos)
 !   *** allocate p_atrix_store ***
       IF (.NOT. ASSOCIATED(subspace_env%p_matrix_store)) THEN
-         CALL cp_dbcsr_allocate_matrix_set(subspace_env%p_matrix_store, nspin)
+         CALL dbcsr_allocate_matrix_set(subspace_env%p_matrix_store, nspin)
 
          DO i = 1, nspin
             ALLOCATE (subspace_env%p_matrix_store(i)%matrix)
-            CALL cp_dbcsr_init(subspace_env%p_matrix_store(i)%matrix)
-            CALL cp_dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
-                                 name="DENSITY_STORE", &
-                                 dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                                 col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                                 nze=0)
+            CALL dbcsr_init(subspace_env%p_matrix_store(i)%matrix)
+            CALL dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
+                              name="DENSITY_STORE", &
+                              dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric, &
+                              row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+                              col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+                              nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix, &
                                                sab_orb)
-            CALL cp_dbcsr_set(subspace_env%p_matrix_store(i)%matrix, 0.0_dp)
+            CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix, 0.0_dp)
          ENDDO
 
       END IF
@@ -842,7 +842,7 @@ CONTAINS
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
@@ -938,7 +938,7 @@ CONTAINS
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
@@ -1051,7 +1051,7 @@ CONTAINS
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
@@ -1320,7 +1320,7 @@ CONTAINS
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_moconv_only
@@ -1522,7 +1522,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_moconv_only

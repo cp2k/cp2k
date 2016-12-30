@@ -10,11 +10,11 @@
 !> \author MDB
 ! **************************************************************************************************
 MODULE mp2_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_eri_mme_types,                ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_param
    USE cp_fm_types,                     ONLY: cp_fm_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type,&
                                               pair_list_element_type
@@ -102,8 +102,8 @@ MODULE mp2_types
       LOGICAL                  :: do_im_time
       LOGICAL                  :: do_RI_overlap
       LOGICAL                  :: do_ri_axk
-      TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, &
-                                                  mo_coeff_v
+      TYPE(dbcsr_type), POINTER             :: mo_coeff_o, &
+                                               mo_coeff_v
       REAL(KIND=dp)            :: ener_axk
    END TYPE
 
@@ -187,9 +187,9 @@ MODULE mp2_types
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: P_ij, P_ab, P_ij_beta, P_ab_beta
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: Gamma_P_ia, Gamma_P_ia_beta
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: PQ_half, Gamma_PQ, Gamma_PQ_beta
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia, G_P_ia_beta
-      TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
-                                                  mo_coeff_v, mo_coeff_v_beta
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia, G_P_ia_beta
+      TYPE(dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
+                                               mo_coeff_v, mo_coeff_v_beta
       TYPE(cp_fm_type), POINTER                :: P_mo, P_mo_beta, W_mo, W_mo_beta, &
                                                   L_jb, L_jb_beta
       REAL(KIND=dp) :: cphf_eps_conv

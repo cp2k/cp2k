@@ -24,7 +24,7 @@ MODULE dbcsr_data_operations
                                               dbcsr_data_set_size_referenced,&
                                               dbcsr_get_data
    USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
-                                              dbcsr_obj,&
+                                              dbcsr_type,&
                                               dbcsr_type_complex_4,&
                                               dbcsr_type_complex_8,&
                                               dbcsr_type_real_4,&
@@ -56,7 +56,7 @@ CONTAINS
 !> \param[out] previous_data_area  (optional) previous data area
 ! **************************************************************************************************
    SUBROUTINE dbcsr_switch_data_area(matrix, data_area, previous_data_area)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: data_area
       TYPE(dbcsr_data_obj), INTENT(OUT), OPTIONAL        :: previous_data_area
 
@@ -69,12 +69,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       IF (PRESENT(previous_data_area)) THEN
-         previous_data_area = matrix%m%data_area
+         previous_data_area = matrix%data_area
       ELSE
-         CALL dbcsr_data_release(matrix%m%data_area)
+         CALL dbcsr_data_release(matrix%data_area)
       ENDIF
-      matrix%m%data_area = data_area
-      CALL dbcsr_data_hold(matrix%m%data_area)
+      matrix%data_area = data_area
+      CALL dbcsr_data_hold(matrix%data_area)
       CALL timestop(handle)
    END SUBROUTINE dbcsr_switch_data_area
 

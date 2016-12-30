@@ -11,9 +11,9 @@
 ! **************************************************************************************************
 MODULE kg_correction
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_trace
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_p_type,&
+                                              dbcsr_trace
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed
    USE kg_environment_types,            ONLY: kg_environment_type
@@ -62,7 +62,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       LOGICAL, INTENT(in), OPTIONAL                      :: gapw, gapw_xc
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
       LOGICAL                                            :: calc_force
@@ -99,7 +99,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE kg_ekin_embed(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, calc_force)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       LOGICAL, INTENT(in), OPTIONAL                      :: gapw, gapw_xc
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
       LOGICAL                                            :: calc_force
@@ -109,7 +109,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, isub, natom, nspins
       LOGICAL                                            :: my_gapw, my_gapw_xc
       REAL(KIND=dp)                                      :: ekin_imol
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: density_matrix, matrix_h
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix, matrix_h
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -230,13 +230,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE kg_ekin_atomic(qs_env, ks_matrix, ekin_mol)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       REAL(KIND=dp), INTENT(out)                         :: ekin_mol
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_atomic', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: density_matrix, tnadd_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix, tnadd_matrix
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -253,9 +253,9 @@ CONTAINS
 
       ekin_mol = 0.0_dp
       DO ispin = 1, nspins
-         CALL cp_dbcsr_trace(tnadd_matrix(1)%matrix, density_matrix(ispin)%matrix, ekin_mol)
-         CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, tnadd_matrix(1)%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL dbcsr_trace(tnadd_matrix(1)%matrix, density_matrix(ispin)%matrix, ekin_mol)
+         CALL dbcsr_add(ks_matrix(ispin)%matrix, tnadd_matrix(1)%matrix, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       END DO
       ! definition is inverted (see qs_ks_methods)
       ekin_mol = -ekin_mol

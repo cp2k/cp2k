@@ -11,10 +11,10 @@
 ! **************************************************************************************************
 MODULE ct_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_release,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: cg_polak_ribiere,&
                                               tensor_orthogonal
    USE kinds,                           ONLY: dp
@@ -65,59 +65,59 @@ MODULE ct_types
       REAL(KIND=dp)         :: energy_correction
 
 !SPIN!!!    ! metric matrices for covariant to contravariant transformations
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: p_index_up=>NULL()
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: p_index_down=>NULL()
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: q_index_up=>NULL()
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: q_index_down=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: p_index_up=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: p_index_down=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: q_index_up=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: q_index_down=>NULL()
 !SPIN!!!
 !SPIN!!!    ! kohn-sham, covariant-covariant representation
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: matrix_ks=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_ks=>NULL()
 !SPIN!!!    ! density, contravariant-contravariant representation
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: matrix_p=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_p=>NULL()
 !SPIN!!!    ! occ orbitals, contravariant-covariant representation
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: matrix_t=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_t=>NULL()
 !SPIN!!!    ! virt orbitals, contravariant-covariant representation
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: matrix_v=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_v=>NULL()
 !SPIN!!!
 !SPIN!!!    ! to avoid bulding Occ-by-N and Virt-vy-N matrices inside
 !SPIN!!!    ! the ct routines get them from the external code
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: matrix_qp_template=>NULL()
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER  :: matrix_pq_template=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_qp_template=>NULL()
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER  :: matrix_pq_template=>NULL()
 !SPIN!!!
 !SPIN!!!    ! single excitation amplitudes
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE  :: matrix_x
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE  :: matrix_x
 !SPIN!!!    ! residuals
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), ALLOCATABLE  :: matrix_res
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE  :: matrix_res
 
       ! metric matrices for covariant to contravariant transformations
-      TYPE(cp_dbcsr_type), POINTER  :: p_index_up => NULL()
-      TYPE(cp_dbcsr_type), POINTER  :: p_index_down => NULL()
-      TYPE(cp_dbcsr_type), POINTER  :: q_index_up => NULL()
-      TYPE(cp_dbcsr_type), POINTER  :: q_index_down => NULL()
+      TYPE(dbcsr_type), POINTER  :: p_index_up => NULL()
+      TYPE(dbcsr_type), POINTER  :: p_index_down => NULL()
+      TYPE(dbcsr_type), POINTER  :: q_index_up => NULL()
+      TYPE(dbcsr_type), POINTER  :: q_index_down => NULL()
 
       ! kohn-sham, covariant-covariant representation
-      TYPE(cp_dbcsr_type), POINTER  :: matrix_ks => NULL()
+      TYPE(dbcsr_type), POINTER  :: matrix_ks => NULL()
       ! density, contravariant-contravariant representation
-      TYPE(cp_dbcsr_type), POINTER  :: matrix_p => NULL()
+      TYPE(dbcsr_type), POINTER  :: matrix_p => NULL()
       ! occ orbitals, contravariant-covariant representation
-      TYPE(cp_dbcsr_type), POINTER  :: matrix_t => NULL()
+      TYPE(dbcsr_type), POINTER  :: matrix_t => NULL()
       ! virt orbitals, contravariant-covariant representation
-      TYPE(cp_dbcsr_type), POINTER  :: matrix_v => NULL()
+      TYPE(dbcsr_type), POINTER  :: matrix_v => NULL()
 
       ! to avoid bulding Occ-by-N and Virt-vy-N matrices inside
       ! the ct routines get them from the external code
-      TYPE(cp_dbcsr_type), POINTER  :: matrix_qp_template => NULL()
-      TYPE(cp_dbcsr_type), POINTER  :: matrix_pq_template => NULL()
+      TYPE(dbcsr_type), POINTER  :: matrix_qp_template => NULL()
+      TYPE(dbcsr_type), POINTER  :: matrix_pq_template => NULL()
 
       ! guess for single excitation amplitudes
       ! it is used exclusively as a guess, not modified
       ! it should be given in the up_down representation
-      TYPE(cp_dbcsr_type), POINTER  :: matrix_x_guess => NULL()
+      TYPE(dbcsr_type), POINTER  :: matrix_x_guess => NULL()
 
       ! single excitation amplitudes
-      TYPE(cp_dbcsr_type)           :: matrix_x
+      TYPE(dbcsr_type)           :: matrix_x
       ! residuals
-      TYPE(cp_dbcsr_type)           :: matrix_res
+      TYPE(dbcsr_type)           :: matrix_res
 
       TYPE(cp_para_env_type), POINTER  :: para_env => NULL()
       TYPE(cp_blacs_env_type), POINTER  :: blacs_env => NULL()
@@ -224,10 +224,9 @@ CONTAINS
                                                             update_q
       REAL(KIND=dp), OPTIONAL                            :: eps_convergence, eps_filter
       INTEGER, OPTIONAL                                  :: max_iter
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER :: p_index_up, p_index_down, q_index_up, &
-         q_index_down, matrix_ks, matrix_p, matrix_qp_template, matrix_pq_template, matrix_t, &
-         matrix_v
-      TYPE(cp_dbcsr_type), OPTIONAL                      :: copy_matrix_x
+      TYPE(dbcsr_type), OPTIONAL, POINTER :: p_index_up, p_index_down, q_index_up, q_index_down, &
+         matrix_ks, matrix_p, matrix_qp_template, matrix_pq_template, matrix_t, matrix_v
+      TYPE(dbcsr_type), OPTIONAL                         :: copy_matrix_x
       REAL(KIND=dp), OPTIONAL                            :: energy_correction
       LOGICAL, OPTIONAL                                  :: calculate_energy_corr, converged, &
                                                             qq_preconditioner_full, &
@@ -237,19 +236,19 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
 !INTEGER      , OPTIONAL                     :: nspins
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: p_index_up
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: p_index_down
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: q_index_up
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: q_index_down
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_ks
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_p
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_t
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_v
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_qp_template
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_pq_template
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_x
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: p_index_up
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: p_index_down
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: q_index_up
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: q_index_down
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_ks
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_p
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_t
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_v
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_qp_template
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_pq_template
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), POINTER, OPTIONAL  :: matrix_x
 !SPIN!!!
-!SPIN!!!    TYPE(cp_dbcsr_type), DIMENSION(:), OPTIONAL           :: copy_matrix_x
+!SPIN!!!    TYPE(dbcsr_type), DIMENSION(:), OPTIONAL           :: copy_matrix_x
 !INTEGER                                               :: ispin
 
       IF (PRESENT(use_occ_orbs)) use_occ_orbs = env%use_occ_orbs
@@ -287,8 +286,8 @@ CONTAINS
       IF (PRESENT(q_index_down)) q_index_down => env%q_index_down
       IF (PRESENT(copy_matrix_x)) THEN
          !DO ispin=1,env%nspins
-         !CALL cp_dbcsr_copy(copy_matrix_x(ispin),env%matrix_x(ispin))
-         CALL cp_dbcsr_copy(copy_matrix_x, env%matrix_x)
+         !CALL dbcsr_copy(copy_matrix_x(ispin),env%matrix_x(ispin))
+         CALL dbcsr_copy(copy_matrix_x, env%matrix_x)
          !ENDDO
       ENDIF
       !IF (PRESENT(matrix_x)) matrix_x => env%matrix_x
@@ -349,7 +348,7 @@ CONTAINS
                                                             update_q
       REAL(KIND=dp), OPTIONAL                            :: eps_convergence, eps_filter
       INTEGER, OPTIONAL                                  :: max_iter
-      TYPE(cp_dbcsr_type), OPTIONAL, TARGET :: p_index_up, p_index_down, q_index_up, q_index_down, &
+      TYPE(dbcsr_type), OPTIONAL, TARGET :: p_index_up, p_index_down, q_index_up, q_index_down, &
          matrix_ks, matrix_p, matrix_qp_template, matrix_pq_template, matrix_t, matrix_v, &
          matrix_x_guess
       LOGICAL, OPTIONAL                                  :: calculate_energy_corr
@@ -361,16 +360,16 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
 !INTEGER      , OPTIONAL                     :: nspins
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: p_index_up
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: p_index_down
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: q_index_up
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: q_index_down
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_ks
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_p
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_t
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_v
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_qp_template
-!SPIN!!!    TYPE(cp_dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_pq_template
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: p_index_up
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: p_index_down
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: q_index_up
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: q_index_down
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_ks
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_p
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_t
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_v
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_qp_template
+!SPIN!!!    TYPE(dbcsr_type), TARGET, DIMENSION(:), OPTIONAL  :: matrix_pq_template
 ! set para_env and blacs_env which are needed to operate with full matrices
 ! it would be nice to have everything with cp_dbcsr matrices, well maybe later
 
@@ -432,10 +431,10 @@ CONTAINS
       NULLIFY (env%blacs_env)
 
       !DO ispin=1,env%nspins
-      CALL cp_dbcsr_release(env%matrix_x)
-      CALL cp_dbcsr_release(env%matrix_res)
-      !CALL cp_dbcsr_release(env%matrix_x(ispin))
-      !CALL cp_dbcsr_release(env%matrix_res(ispin))
+      CALL dbcsr_release(env%matrix_x)
+      CALL dbcsr_release(env%matrix_res)
+      !CALL dbcsr_release(env%matrix_x(ispin))
+      !CALL dbcsr_release(env%matrix_res(ispin))
       !ENDDO
       !DEALLOCATE(env%matrix_x,env%matrix_res)
 

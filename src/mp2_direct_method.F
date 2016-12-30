@@ -14,12 +14,12 @@ MODULE mp2_direct_method
                                               get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE gamma,                           ONLY: init_md_ftable
    USE hfx_energy_potential,            ONLY: coulomb4
    USE hfx_libint_wrapper_types,        ONLY: lib_int
@@ -180,8 +180,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_T
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type), POINTER                 :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter

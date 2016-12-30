@@ -10,15 +10,15 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_gemm_interface
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_multiply,&
-                                              cp_dbcsr_release,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm_bc,&
                                               copy_fm_to_dbcsr_bc
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_get_mm_type,&
                                               cp_fm_type
+   USE dbcsr_api,                       ONLY: dbcsr_multiply,&
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: do_dbcsr,&
                                               do_pdgemm
    USE kinds,                           ONLY: dp
@@ -72,7 +72,7 @@ CONTAINS
       INTEGER                                            :: handle, handle1, my_multi
       INTEGER, DIMENSION(:), POINTER                     :: a_col_loc, a_row_loc, b_col_loc, &
                                                             b_row_loc, c_col_loc, c_row_loc
-      TYPE(cp_dbcsr_type)                                :: a_db, b_db, c_db
+      TYPE(dbcsr_type)                                   :: a_db, b_db, c_db
 
       CALL timeset(routineN, handle)
 
@@ -141,12 +141,12 @@ CONTAINS
          CALL copy_fm_to_dbcsr_bc(matrix_b, b_db)
          CALL copy_fm_to_dbcsr_bc(matrix_c, c_db)
 
-         CALL cp_dbcsr_multiply(transa, transb, alpha, a_db, b_db, beta, c_db, last_k=k)
+         CALL dbcsr_multiply(transa, transb, alpha, a_db, b_db, beta, c_db, last_k=k)
 
          CALL copy_dbcsr_to_fm_bc(c_db, matrix_c)
-         CALL cp_dbcsr_release(a_db)
-         CALL cp_dbcsr_release(b_db)
-         CALL cp_dbcsr_release(c_db)
+         CALL dbcsr_release(a_db)
+         CALL dbcsr_release(b_db)
+         CALL dbcsr_release(c_db)
          CALL timestop(handle1)
       END SELECT
       CALL timestop(handle)

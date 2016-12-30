@@ -21,14 +21,14 @@ MODULE lri_environment_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE generic_os_integrals,            ONLY: int_overlap_aabb_os,&
                                               int_overlap_ab_os,&
                                               int_overlap_aba_os,&
@@ -347,7 +347,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(qs_rho_type), POINTER                         :: lri_rho_struct
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -377,7 +377,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_avec', routineP = moduleN//':'//routineN
 
@@ -389,7 +389,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dab, rab(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pbij
-      TYPE(cp_dbcsr_type), POINTER                       :: pmat
+      TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_list_type), POINTER                       :: lri_rho
       TYPE(lri_rhoab_type), POINTER                      :: lrho
@@ -432,10 +432,10 @@ CONTAINS
                ! get the density matrix Pab
                NULLIFY (pbij)
                IF (iatom <= jatom) THEN
-                  CALL cp_dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
+                  CALL dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
                   trans = .FALSE.
                ELSE
-                  CALL cp_dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
+                  CALL dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
                   trans = .TRUE.
                END IF
                CPASSERT(found)

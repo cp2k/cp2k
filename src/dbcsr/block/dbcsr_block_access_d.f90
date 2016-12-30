@@ -16,7 +16,7 @@
 ! **************************************************************************************************
   SUBROUTINE dbcsr_get_2d_block_p_d(matrix,row,col,block,tr,found,&
        row_size, col_size)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:,:), POINTER         :: block
     LOGICAL, INTENT(OUT)                     :: tr
@@ -38,7 +38,7 @@
 !   ---------------------------------------------------------------------------
     IF (careful_mod) CALL timeset (routineN, error_handle)
     IF (debug_mod) THEN
-       IF(matrix%m%data_type /= dbcsr_type_real_8) &
+       IF(matrix%data_type /= dbcsr_type_real_8) &
           CPABORT("Data type mismatch for requested block.")
     ENDIF
 
@@ -46,8 +46,8 @@
          stored_tr, found, blk, offset)
     tr = stored_tr
 
-    rsize = dbcsr_blk_row_size (matrix%m, stored_row)
-    csize = dbcsr_blk_column_size (matrix%m, stored_col)
+    rsize = dbcsr_blk_row_size (matrix, stored_row)
+    csize = dbcsr_blk_column_size (matrix, stored_col)
     IF (PRESENT (row_size)) row_size = rsize
     IF (PRESENT (col_size)) col_size = csize
 
@@ -59,24 +59,24 @@
           block => block0(1:0, 1:0)
        ELSE
           block_1d => pointer_view (dbcsr_get_data_p (&
-               matrix%m%data_area, 0.0_real_8), offset, offset+nze-1)
+               matrix%data_area, 0.0_real_8), offset, offset+nze-1)
           CALL dbcsr_set_block_pointer (matrix, block, rsize, csize, offset)
        ENDIF
-    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
-       nwms = SIZE(matrix%m%wms)
+    ELSEIF (ASSOCIATED (matrix%wms)) THEN
+       nwms = SIZE(matrix%wms)
        iw = 1
 !$     IF(nwms < omp_get_num_threads()) &
 !$        CPABORT("Number of work matrices not equal to number of threads")
 !$     iw = omp_get_thread_num () + 1
-       IF(.NOT.dbcsr_use_mutable (matrix%m))&
+       IF(.NOT.dbcsr_use_mutable (matrix))&
           CPABORT("Can not retrieve blocks from non-mutable work matrices.")
-       IF (dbcsr_use_mutable (matrix%m)) THEN
-          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
-             CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
+       IF (dbcsr_use_mutable (matrix)) THEN
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%wms(iw)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%wms(iw)%mutable,&
                   dbcsr_get_data_type(matrix))
           ENDIF
           CALL btree_get_d (&
-               matrix%m%wms(iw)%mutable%m%btree_d,&
+               matrix%wms(iw)%mutable%m%btree_d,&
                make_coordinate_tuple(stored_row, stored_col),&
                data_block, found)
           IF (found) THEN
@@ -101,7 +101,7 @@
 ! **************************************************************************************************
   SUBROUTINE dbcsr_get_block_p_d(matrix,row,col,block,tr,found,&
        row_size, col_size)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(dbcsr_type), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), POINTER           :: block
     LOGICAL, INTENT(OUT)                     :: tr
@@ -120,7 +120,7 @@
 !   ---------------------------------------------------------------------------
 
     IF (debug_mod) THEN
-       IF(matrix%m%data_type /= dbcsr_type_real_8) &
+       IF(matrix%data_type /= dbcsr_type_real_8) &
           CPABORT("Data type mismatch for requested block.")
     ENDIF
 
@@ -128,8 +128,8 @@
          stored_tr, found, blk, offset)
     tr = stored_tr
 
-    rsize = dbcsr_blk_row_size (matrix%m, stored_row)
-    csize = dbcsr_blk_column_size (matrix%m, stored_col)
+    rsize = dbcsr_blk_row_size (matrix, stored_row)
+    csize = dbcsr_blk_column_size (matrix, stored_col)
     IF (PRESENT (row_size)) row_size = rsize
     IF (PRESENT (col_size)) col_size = csize
 
@@ -138,12 +138,12 @@
        nze = rsize*csize
        !
        block => pointer_view (&
-            dbcsr_get_data_p (matrix%m%data_area, 0.0_real_8), offset, offset+nze-1&
+            dbcsr_get_data_p (matrix%data_area, 0.0_real_8), offset, offset+nze-1&
             )
-    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
-       IF(.NOT.dbcsr_use_mutable (matrix%m))&
+    ELSEIF (ASSOCIATED (matrix%wms)) THEN
+       IF(.NOT.dbcsr_use_mutable (matrix))&
           CPABORT("Can not retrieve blocks from non-mutable work matrices.")
-       IF(dbcsr_use_mutable (matrix%m))&
+       IF(dbcsr_use_mutable (matrix))&
           CPABORT("Can not retrieve rank-1 block pointers from mutable work matrices.")
     ENDIF
   END SUBROUTINE dbcsr_get_block_p_d
@@ -160,7 +160,7 @@
 ! **************************************************************************************************
   SUBROUTINE dbcsr_reserve_block2d_d(matrix, row, col, block,&
        transposed, existed)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:,:), POINTER         :: block
     LOGICAL, INTENT(IN), OPTIONAL            :: transposed
@@ -185,8 +185,8 @@
     ELSE
        NULLIFY (original_block)
     ENDIF
-    row_blk_size => array_data (matrix%m%row_blk_size)
-    col_blk_size => array_data (matrix%m%col_blk_size)
+    row_blk_size => array_data (matrix%row_blk_size)
+    col_blk_size => array_data (matrix%col_blk_size)
     row_size = row_blk_size(row)
     col_size = col_blk_size(col)
 
@@ -198,10 +198,10 @@
     ENDIF
     sym_tr = .FALSE.
     CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col)
-    IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
+    IF (.NOT.ASSOCIATED (matrix%wms)) THEN
        CALL dbcsr_work_create (matrix, work_mutable=.TRUE.)
        !$OMP MASTER
-       matrix%m%valid = .FALSE.
+       matrix%valid = .FALSE.
        !$OMP END MASTER
        !$OMP BARRIER
     ENDIF
@@ -215,21 +215,21 @@
     ENDIF
     data_block%tr = tr
 
-    nwms = SIZE(matrix%m%wms)
+    nwms = SIZE(matrix%wms)
     iw = 1
 !$  IF(nwms < omp_get_num_threads()) &
 !$     CPABORT("Number of work matrices not equal to number of threads")
 !$  iw = omp_get_thread_num () + 1
-    CALL btree_add_d (matrix%m%wms(iw)%mutable%m%btree_d,&
+    CALL btree_add_d (matrix%wms(iw)%mutable%m%btree_d,&
          make_coordinate_tuple(stored_row, stored_col),&
          data_block, found, data_block2)
 
     IF (.NOT. found) THEN
 !$OMP CRITICAL (critical_reserve_block2d)
-       matrix%m%valid = .FALSE.
+       matrix%valid = .FALSE.
 !$OMP END CRITICAL (critical_reserve_block2d)
-       matrix%m%wms(iw)%lastblk = matrix%m%wms(iw)%lastblk + 1
-       matrix%m%wms(iw)%datasize = matrix%m%wms(iw)%datasize + row_size*col_size
+       matrix%wms(iw)%lastblk = matrix%wms(iw)%lastblk + 1
+       matrix%wms(iw)%datasize = matrix%wms(iw)%datasize + row_size*col_size
     ELSE
        IF (.NOT. gift) THEN
           DEALLOCATE (data_block%p)
@@ -254,7 +254,7 @@
 ! **************************************************************************************************
   SUBROUTINE dbcsr_put_block2d_d(matrix, row, col, block, lb_row_col, transposed,&
        summation, flop, scale)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:,:), INTENT(IN)      :: block
     INTEGER, DIMENSION(2), OPTIONAL, INTENT(INOUT) :: lb_row_col
@@ -301,7 +301,7 @@
 ! **************************************************************************************************
   SUBROUTINE dbcsr_put_block_d(matrix, row, col, block, lb_row_col, transposed,&
        summation, flop, scale)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), INTENT(IN)        :: block
     INTEGER, DIMENSION(2), OPTIONAL, INTENT(INOUT) :: lb_row_col
@@ -340,12 +340,12 @@
     IF (tr) CALL swap (row_size, col_size)
 
     stored_row = row ; stored_col = col; sym_tr = .FALSE.
-    CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col)
+    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col)
     nze = row_size*col_size
     !
     IF (debug_mod .AND. SIZE(block) < nze) &
        CPABORT("Invalid block dimensions")
-    CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
+    CALL dbcsr_get_stored_block_info (matrix, stored_row, stored_col,&
          found, blk, lb_row_col, offset)
     IF(found) THEN
        ! let's copy the block
@@ -353,12 +353,12 @@
        ! Fix the index if the new block's transpose flag is different
        ! from the old one.
        tr_diff = .FALSE.
-       IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
+       IF (matrix%blk_p(blk).LT.0 .NEQV. tr) THEN
           tr_diff = .TRUE.
-          matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
+          matrix%blk_p(blk) = -matrix%blk_p(blk)
        ENDIF
        block_1d => pointer_view (dbcsr_get_data_p (&
-            matrix%m%data_area, 0.0_real_8), offset, offset+nze-1)
+            matrix%data_area, 0.0_real_8), offset, offset+nze-1)
        IF (nze .GT. 0) THEN
           IF (do_sum) THEN
              IF(tr_diff) &
@@ -383,29 +383,29 @@
        ENDIF
     ELSE
        !!@@@
-       !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
+       !call cp_assert (associated (matrix%wms), cp_fatal_level,&
        !     cp_caller_error, routineN, "Work matrices not prepared")
-       IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
+       IF (.NOT.ASSOCIATED (matrix%wms)) THEN
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
                sizedata_guess=SIZE(block))
        ENDIF
-       nwms = SIZE(matrix%m%wms)
+       nwms = SIZE(matrix%wms)
        iw = 1
 !$     IF(debug_mod .AND. nwms < omp_get_num_threads()) &
 !$        CPABORT("Number of work matrices not equal to number of threads")
 !$     iw = omp_get_thread_num () + 1
-       blk_p = matrix%m%wms(iw)%datasize + 1
-       IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(iw))) THEN
+       blk_p = matrix%wms(iw)%datasize + 1
+       IF (.NOT.dbcsr_wm_use_mutable (matrix%wms(iw))) THEN
           IF (tr) blk_p = -blk_p
-          CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p)
-          CALL dbcsr_data_ensure_size (matrix%m%wms(iw)%data_area,&
-               matrix%m%wms(iw)%datasize+SIZE(block),&
+          CALL add_work_coordinate (matrix%wms(iw), row, col, blk_p)
+          CALL dbcsr_data_ensure_size (matrix%wms(iw)%data_area,&
+               matrix%wms(iw)%datasize+SIZE(block),&
                factor=default_resize_factor)
           IF (PRESENT (scale)) THEN
-             CALL dbcsr_data_set (matrix%m%wms(iw)%data_area, ABS(blk_p),&
+             CALL dbcsr_data_set (matrix%wms(iw)%data_area, ABS(blk_p),&
                   data_size=SIZE(block), src=scale*block, source_lb=1)
           ELSE
-             CALL dbcsr_data_set (matrix%m%wms(iw)%data_area, ABS(blk_p),&
+             CALL dbcsr_data_set (matrix%wms(iw)%data_area, ABS(blk_p),&
                   data_size=SIZE(block), src=block, source_lb=1)
           ENDIF
        ELSE
@@ -416,13 +416,13 @@
              data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
           ENDIF
           data_block%tr = tr
-          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
-             CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%wms(iw)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%wms(iw)%mutable,&
                   dbcsr_get_data_type(matrix))
           ENDIF
           IF (.NOT. do_sum) THEN
              CALL btree_add_d (&
-                  matrix%m%wms(iw)%mutable%m%btree_d,&
+                  matrix%wms(iw)%mutable%m%btree_d,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.TRUE.)
              IF (found) THEN
@@ -432,7 +432,7 @@
              ENDIF
           ELSE
              CALL btree_add_d (&
-                  matrix%m%wms(iw)%mutable%m%btree_d,&
+                  matrix%wms(iw)%mutable%m%btree_d,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.FALSE.)
              IF (found) THEN
@@ -445,15 +445,15 @@
              ENDIF
           ENDIF
           IF (.NOT. found) THEN
-             matrix%m%wms(iw)%lastblk = matrix%m%wms(iw)%lastblk + 1
+             matrix%wms(iw)%lastblk = matrix%wms(iw)%lastblk + 1
           ENDIF
        ENDIF
        IF (.NOT. found) THEN
-          matrix%m%wms(iw)%datasize = matrix%m%wms(iw)%datasize + SIZE (block)
+          matrix%wms(iw)%datasize = matrix%wms(iw)%datasize + SIZE (block)
        ELSE
        ENDIF
 !$OMP CRITICAL (dbcsr_put_block_critical)
-       matrix%m%valid = .FALSE.
+       matrix%valid = .FALSE.
 !$OMP END CRITICAL (dbcsr_put_block_critical)
     ENDIF
     IF (PRESENT(flop)) flop = flop + my_flop
@@ -470,7 +470,7 @@
 ! **************************************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_2d_d (&
        matrix, pointer_any, rsize, csize, base_offset)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(dbcsr_type), INTENT(IN)              :: matrix
     REAL(kind=real_8), DIMENSION(:,:), POINTER         :: pointer_any
     INTEGER, INTENT(IN)                      :: rsize, csize
     INTEGER, INTENT(IN)                      :: base_offset
@@ -485,7 +485,7 @@
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) CALL timeset (routineN, error_handler)
-    CALL dbcsr_get_data (matrix%m%data_area, lin_blk_p,&
+    CALL dbcsr_get_data (matrix%data_area, lin_blk_p,&
          lb=base_offset, ub=base_offset+rsize*csize-1)
     CALL pointer_rank_remap2 (pointer_any, rsize, csize,&
          lin_blk_p)

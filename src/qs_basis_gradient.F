@@ -13,16 +13,16 @@ MODULE qs_basis_gradient
                                               get_atomic_kind,&
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE particle_types,                  ONLY: particle_type
@@ -91,10 +91,10 @@ CONTAINS
       LOGICAL                                            :: floating, has_unit_metric
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s, matrix_w_kp
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_w_kp
+      TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: basis_force, force, qs_force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -147,13 +147,13 @@ CONTAINS
             nspin = dft_control%nspins
             nimg = dft_control%nimages
             matrix => matrix_s(1, 1)%matrix
-            CALL cp_dbcsr_allocate_matrix_set(matrix_w_kp, nspin, nimg)
+            CALL dbcsr_allocate_matrix_set(matrix_w_kp, nspin, nimg)
             DO ispin = 1, nspin
                DO img = 1, nimg
                   ALLOCATE (matrix_w_kp(ispin, img)%matrix)
-                  CALL cp_dbcsr_init(matrix_w_kp(ispin, img)%matrix)
-                  CALL cp_dbcsr_copy(matrix_w_kp(ispin, img)%matrix, matrix, name="W MATRIX")
-                  CALL cp_dbcsr_set(matrix_w_kp(ispin, img)%matrix, 0.0_dp)
+                  CALL dbcsr_init(matrix_w_kp(ispin, img)%matrix)
+                  CALL dbcsr_copy(matrix_w_kp(ispin, img)%matrix, matrix, name="W MATRIX")
+                  CALL dbcsr_set(matrix_w_kp(ispin, img)%matrix, 0.0_dp)
                END DO
             END DO
             CALL set_ks_env(ks_env, matrix_w_kp=matrix_w_kp)
@@ -282,9 +282,9 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nmo
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s_kp, rho_ao_kp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_rho_type), POINTER                         :: rho

@@ -7,13 +7,13 @@
 ! **************************************************************************************************
 MODULE qs_scf_loop_utils
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_name,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_external_control,             ONLY: external_control
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_name,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -131,7 +131,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: has_unit_metric, skip_diag_sub
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -269,7 +269,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: has_unit_metric
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos
@@ -359,9 +359,9 @@ CONTAINS
       TYPE(smear_type), POINTER                          :: smear
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       REAL(KIND=dp), INTENT(IN)                          :: total_energy
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       LOGICAL, INTENT(INOUT)                             :: energy_only
       LOGICAL, INTENT(IN)                                :: has_unit_metric
 
@@ -369,8 +369,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
-      TYPE(cp_dbcsr_type), POINTER                       :: orthogonality_metric
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
 
       CALL timeset(routineN, handle)
       NULLIFY (rho_ao)
@@ -425,7 +425,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing', &
          routineP = moduleN//':'//routineN
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
 
       NULLIFY (rho_ao_kp)
 
@@ -553,7 +553,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ic, ispin, nc
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
 
       NULLIFY (rho_ao_kp)
 
@@ -568,16 +568,16 @@ CONTAINS
                                         invert=.TRUE.)
             DO ic = 1, nc
                DO ispin = 1, dft_control%nspins
-                  CALL cp_dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
-                                     name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+                  CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
+                                  name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
                END DO
             END DO
          CASE (gspace_mixing_nr, pulay_mixing_nr, broyden_mixing_nr, &
                broyden_mixing_new_nr, multisecant_mixing_nr)
             DO ic = 1, nc
                DO ispin = 1, dft_control%nspins
-                  CALL cp_dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
-                                     name=TRIM(cp_dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+                  CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
+                                  name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
                END DO
             END DO
          END SELECT

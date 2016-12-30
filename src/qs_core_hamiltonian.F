@@ -81,11 +81,6 @@ MODULE qs_core_hamiltonian
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
                                               cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -95,6 +90,11 @@ MODULE qs_core_hamiltonian
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_type
    USE input_constants,                 ONLY: do_admm_purify_none,&
                                               do_ppl_analytic,&
                                               kg_tnadd_atomic,&
@@ -167,12 +167,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter, eps_fit, eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p, matrix_s, matrix_t, &
-                                                            matrix_w
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_t, &
+                                                            matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -246,12 +246,12 @@ CONTAINS
          !     (as it should not be needed afterwards)
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimages
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
-                                 alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
-               CALL cp_dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                              alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
       ELSE
@@ -354,15 +354,15 @@ CONTAINS
       ! initialize H matrix
       NULLIFY (matrix_h)
       CALL get_qs_env(qs_env=qs_env, matrix_h_kp=matrix_h)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_h, 1, nimages)
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimages)
       DO img = 1, nimages
          ALLOCATE (matrix_h(1, img)%matrix)
-         CALL cp_dbcsr_init(matrix_h(1, img)%matrix)
-         CALL cp_dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, 1)%matrix)
+         CALL dbcsr_init(matrix_h(1, img)%matrix)
+         CALL dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, 1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
          IF (.NOT. ofdft) THEN
-            CALL cp_dbcsr_copy(matrix_h(1, img)%matrix, matrix_t(1, img)%matrix, &
-                               keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
+            CALL dbcsr_copy(matrix_h(1, img)%matrix, matrix_t(1, img)%matrix, &
+                            keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
          END IF
       END DO
       IF (.NOT. ofdft) THEN
@@ -403,10 +403,10 @@ CONTAINS
          ! *** in the calling force routine after leaving this routine ***
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimages
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
-               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
-                                 alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+               CALL dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                              alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
       END IF
@@ -496,7 +496,7 @@ CONTAINS
 !> \param particle_set ...
 ! **************************************************************************************************
    SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set, particle_set)
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -507,23 +507,23 @@ CONTAINS
       INTEGER                                            :: blk, iatom, ikind, jatom, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hblock, reltmat
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       natom = SIZE(particle_set)
       ALLOCATE (kind_of(natom))
 
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
-      CALL cp_dbcsr_iterator_start(iter, matrix_h)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
+      CALL dbcsr_iterator_start(iter, matrix_h)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
          IF (iatom == jatom) THEN
             ikind = kind_of(iatom)
             CALL get_qs_kind(qs_kind_set(ikind), reltmat=reltmat)
             hblock = hblock+reltmat
          END IF
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       DEALLOCATE (kind_of)
 
@@ -544,10 +544,10 @@ CONTAINS
 
       INTEGER                                            :: after, handle, i, ic, iw, output_unit
       LOGICAL                                            :: omit_headers
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, matrix_v
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrixkp_h, matrixkp_s, matrixkp_t
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_v
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_h, matrixkp_s, matrixkp_t
 
       CALL timeset(routineN, handle)
 
@@ -625,15 +625,15 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_h_kp=matrixkp_h, kinetic_kp=matrixkp_t)
          IF (ASSOCIATED(matrixkp_h)) THEN
             IF (SIZE(matrixkp_h, 2) == 1) THEN
-               CALL cp_dbcsr_allocate_matrix_set(matrix_v, 1)
+               CALL dbcsr_allocate_matrix_set(matrix_v, 1)
                ALLOCATE (matrix_v(1)%matrix)
-               CALL cp_dbcsr_init(matrix_v(1)%matrix)
-               CALL cp_dbcsr_copy(matrix_v(1)%matrix, matrixkp_h(1, 1)%matrix, name="POTENTIAL ENERGY MATRIX")
-               CALL cp_dbcsr_add(matrix_v(1)%matrix, matrixkp_t(1, 1)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+               CALL dbcsr_init(matrix_v(1)%matrix)
+               CALL dbcsr_copy(matrix_v(1)%matrix, matrixkp_h(1, 1)%matrix, name="POTENTIAL ENERGY MATRIX")
+               CALL dbcsr_add(matrix_v(1)%matrix, matrixkp_t(1, 1)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
                CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix, 4, after, qs_env, &
                                                  para_env, output_unit=iw, omit_headers=omit_headers)
-               CALL cp_dbcsr_deallocate_matrix_set(matrix_v)
+               CALL dbcsr_deallocate_matrix_set(matrix_v)
             ELSE
                CPWARN("Printing of potential energy matrix not implemented for k-points")
             END IF

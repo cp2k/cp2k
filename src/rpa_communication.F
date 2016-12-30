@@ -13,11 +13,6 @@ MODULE rpa_communication
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type,&
-                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -32,6 +27,11 @@ MODULE rpa_communication
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_irecv,&
                                               mp_isend,&
@@ -585,10 +585,10 @@ CONTAINS
                                 homo, virtual, mo_coeff_o, ngroup, my_group_L_start, my_group_L_end, &
                                 my_group_L_size, dimen_RI)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dbcsr_Gamma_3
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA, para_env_sub
       INTEGER                                            :: homo, virtual
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
       INTEGER                                            :: ngroup, my_group_L_start, &
                                                             my_group_L_end, my_group_L_size, &
                                                             dimen_RI
@@ -847,8 +847,8 @@ CONTAINS
       ! Allocate dbcsr_Gamma_3
       NULLIFY (dbcsr_Gamma_3)
 
-      !CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_3, ncol_local)
-      CALL cp_dbcsr_allocate_matrix_set(dbcsr_Gamma_3, my_group_L_size)
+      !CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_3, ncol_local)
+      CALL dbcsr_allocate_matrix_set(dbcsr_Gamma_3, my_group_L_size)
 
       ! auxiliary vector of indices for the send buffer
       ALLOCATE (iii_vet(number_of_send))
@@ -936,7 +936,7 @@ CONTAINS
 
          ! now create the DBCSR matrix and copy fm_ia into it
          ALLOCATE (dbcsr_Gamma_3(kkB)%matrix)
-         CALL cp_dbcsr_init(dbcsr_Gamma_3(kkB)%matrix)
+         CALL dbcsr_init(dbcsr_Gamma_3(kkB)%matrix)
          CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB)%matrix, &
                                             template=mo_coeff_o, &
                                             m=homo, n=virtual, sym=dbcsr_type_no_symmetry)

@@ -12,12 +12,6 @@
 ! **************************************************************************************************
 MODULE stm_images
    USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -34,6 +28,12 @@ MODULE stm_images
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -108,12 +108,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: efermi, ref_energy
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occ, stm_biases
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: evals, occupation
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
-      TYPE(cp_dbcsr_type), POINTER                       :: stm_density_ao
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_arrays
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_type), POINTER                          :: stm_density_ao
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: wf_g, wf_r
@@ -153,9 +153,9 @@ CONTAINS
       END IF
 
       ALLOCATE (stm_density_ao)
-      CALL cp_dbcsr_init(stm_density_ao)
-      CALL cp_dbcsr_copy(stm_density_ao, rho_ao(1)%matrix, &
-                         name="stm_density_ao")
+      CALL dbcsr_init(stm_density_ao)
+      CALL dbcsr_copy(stm_density_ao, rho_ao(1)%matrix, &
+                      name="stm_density_ao")
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
@@ -220,7 +220,7 @@ CONTAINS
       DEALLOCATE (evals)
       DEALLOCATE (occupation)
 
-      CALL cp_dbcsr_deallocate_matrix(stm_density_ao)
+      CALL dbcsr_deallocate_matrix(stm_density_ao)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
 
@@ -261,7 +261,7 @@ CONTAINS
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: stm_section
-      TYPE(cp_dbcsr_type), POINTER                       :: stm_density_ao
+      TYPE(dbcsr_type), POINTER                          :: stm_density_ao
       TYPE(pw_p_type)                                    :: wf_r, wf_g
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_arrays
       TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(IN)     :: evals, occupation
@@ -362,7 +362,7 @@ CONTAINS
          CALL cp_fm_column_scale(matrix_vf, occ_tot(1:istates))
          alpha = 1.0_dp
 
-         CALL cp_dbcsr_set(stm_density_ao, 0.0_dp)
+         CALL dbcsr_set(stm_density_ao, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(stm_density_ao, matrix_v=matrix_v, matrix_g=matrix_vf, ncol=istates, &
                                     alpha=alpha)
 

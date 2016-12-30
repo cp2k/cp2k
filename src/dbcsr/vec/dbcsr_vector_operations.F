@@ -13,8 +13,8 @@
 MODULE dbcsr_vector_operations
    USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                               dbcsr_scalar_fill_all
-   USE dbcsr_types,                     ONLY: dbcsr_obj,&
-                                              dbcsr_scalar_type,&
+   USE dbcsr_types,                     ONLY: dbcsr_scalar_type,&
+                                              dbcsr_type,&
                                               dbcsr_type_complex_4,&
                                               dbcsr_type_complex_8,&
                                               dbcsr_type_real_4,&
@@ -67,9 +67,9 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE dbcsr_matrix_colvec_multiply_d(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-      TYPE(dbcsr_obj)                                    :: matrix, vec_in, vec_out
+      TYPE(dbcsr_type)                                   :: matrix, vec_in, vec_out
       REAL(real_8)                                       :: alpha, beta
-      TYPE(dbcsr_obj)                                    :: work_row, work_col
+      TYPE(dbcsr_type)                                   :: work_row, work_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_d', &
          routineP = moduleN//':'//routineN
@@ -77,7 +77,7 @@ CONTAINS
       INTEGER                                            :: matrix_type
       TYPE(dbcsr_scalar_type)                            :: a, b
 
-      matrix_type = matrix%m%data_type
+      matrix_type = matrix%data_type
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_real_8, dbcsr_type_real_4, dbcsr_type_complex_4, dbcsr_type_complex_8)
          ! We can convert the prefactors if necessary
@@ -103,9 +103,9 @@ CONTAINS
 !> \param work_col ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_matrix_colvec_multiply_s(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-      TYPE(dbcsr_obj)                                    :: matrix, vec_in, vec_out
+      TYPE(dbcsr_type)                                   :: matrix, vec_in, vec_out
       REAL(real_4)                                       :: alpha, beta
-      TYPE(dbcsr_obj)                                    :: work_row, work_col
+      TYPE(dbcsr_type)                                   :: work_row, work_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_s', &
          routineP = moduleN//':'//routineN
@@ -113,7 +113,7 @@ CONTAINS
       INTEGER                                            :: matrix_type
       TYPE(dbcsr_scalar_type)                            :: a, b
 
-      matrix_type = matrix%m%data_type
+      matrix_type = matrix%data_type
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_real_8, dbcsr_type_real_4, dbcsr_type_complex_4, dbcsr_type_complex_8)
          ! We can convert the prefactors if necessary
@@ -139,9 +139,9 @@ CONTAINS
 !> \param work_col ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_matrix_colvec_multiply_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-      TYPE(dbcsr_obj)                                    :: matrix, vec_in, vec_out
+      TYPE(dbcsr_type)                                   :: matrix, vec_in, vec_out
       COMPLEX(real_4)                                    :: alpha, beta
-      TYPE(dbcsr_obj)                                    :: work_row, work_col
+      TYPE(dbcsr_type)                                   :: work_row, work_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_c', &
          routineP = moduleN//':'//routineN
@@ -149,7 +149,7 @@ CONTAINS
       INTEGER                                            :: matrix_type
       TYPE(dbcsr_scalar_type)                            :: a, b
 
-      matrix_type = matrix%m%data_type
+      matrix_type = matrix%data_type
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_real_8, dbcsr_type_real_4)
          CPABORT("Complex prefactors dissallowed for real matrices")
@@ -177,9 +177,9 @@ CONTAINS
 !> \param work_col ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_matrix_colvec_multiply_z(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-      TYPE(dbcsr_obj)                                    :: matrix, vec_in, vec_out
+      TYPE(dbcsr_type)                                   :: matrix, vec_in, vec_out
       COMPLEX(real_8)                                    :: alpha, beta
-      TYPE(dbcsr_obj)                                    :: work_row, work_col
+      TYPE(dbcsr_type)                                   :: work_row, work_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_z', &
          routineP = moduleN//':'//routineN
@@ -187,7 +187,7 @@ CONTAINS
       INTEGER                                            :: matrix_type
       TYPE(dbcsr_scalar_type)                            :: a, b
 
-      matrix_type = matrix%m%data_type
+      matrix_type = matrix%data_type
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_real_8, dbcsr_type_real_4)
          CPABORT("Complex prefactors dissallowed for real matrices")

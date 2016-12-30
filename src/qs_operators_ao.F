@@ -18,14 +18,14 @@ MODULE qs_operators_ao
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_get_matrix_type,&
-                                              cp_dbcsr_p_type,&
-                                              dbcsr_type_antisymmetric,&
-                                              dbcsr_type_no_symmetry
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_get_matrix_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type_antisymmetric,&
+                                              dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
@@ -69,7 +69,7 @@ CONTAINS
    SUBROUTINE build_lin_mom_matrix(qs_env, matrix)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix', &
          routineP = moduleN//':'//routineN
@@ -194,8 +194,8 @@ CONTAINS
 
             DO i = 1, 3
                NULLIFY (integral(i)%block)
-               CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix, &
-                                         row=irow, col=icol, BLOCK=integral(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix(i)%matrix, &
+                                      row=irow, col=icol, BLOCK=integral(i)%block, found=found)
                CPASSERT(ASSOCIATED(INTEGRAL(i)%block))
             ENDDO
          END IF
@@ -423,7 +423,7 @@ CONTAINS
    SUBROUTINE build_ang_mom_matrix(qs_env, matrix, rc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: rc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_ang_mom_matrix', &
@@ -551,8 +551,8 @@ CONTAINS
 
             DO i = 1, 3
                NULLIFY (INTEGRAL(i)%block)
-               CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix, &
-                                         row=irow, col=icol, BLOCK=INTEGRAL(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix(i)%matrix, &
+                                      row=irow, col=icol, BLOCK=INTEGRAL(i)%block, found=found)
                CPASSERT(ASSOCIATED(INTEGRAL(i)%block))
             ENDDO
          END IF
@@ -799,7 +799,7 @@ CONTAINS
 
    SUBROUTINE p_xyz_ao(op, qs_env, minimum_image)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: minimum_image
 
@@ -935,7 +935,7 @@ CONTAINS
             ELSE
                irow = jatom
                icol = iatom
-               IF (cp_dbcsr_get_matrix_type(op(1)%matrix) == dbcsr_type_antisymmetric) THEN
+               IF (dbcsr_get_matrix_type(op(1)%matrix) == dbcsr_type_antisymmetric) THEN
                   !IF(op(1)%matrix%symmetry=="antisymmetric") THEN
                   alpha = -1.0_dp
                END IF
@@ -943,8 +943,8 @@ CONTAINS
 
             DO i = 1, 3
                NULLIFY (op_dip(i)%block)
-               CALL cp_dbcsr_get_block_p(matrix=op(i)%matrix, &
-                                         row=irow, col=icol, block=op_dip(i)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=op(i)%matrix, &
+                                      row=irow, col=icol, block=op_dip(i)%block, found=found)
                CPASSERT(ASSOCIATED(op_dip(i)%block))
             END DO
          END IF ! new_atom_b
@@ -1064,7 +1064,7 @@ CONTAINS
 
    SUBROUTINE rRc_xyz_ao(op, qs_env, rc, order, minimum_image, soft)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp)                                           :: Rc(3)
       INTEGER, INTENT(IN)                                :: order
@@ -1211,8 +1211,8 @@ CONTAINS
 
             DO imom = 1, M_dim
                NULLIFY (op_dip(imom)%block)
-               CALL cp_dbcsr_get_block_p(matrix=op(imom)%matrix, &
-                                         row=irow, col=icol, block=op_dip(imom)%block, found=found)
+               CALL dbcsr_get_block_p(matrix=op(imom)%matrix, &
+                                      row=irow, col=icol, block=op_dip(imom)%block, found=found)
                CPASSERT(ASSOCIATED(op_dip(imom)%block))
             END DO ! imom
          END IF ! new_atom_b
@@ -1326,8 +1326,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rRc_xyz_der_ao(op, op_der, qs_env, rc, order, minimum_image, soft)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: op_der
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_der
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp)                                           :: Rc(3)
       INTEGER, INTENT(IN)                                :: order
@@ -1369,7 +1369,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(op))
       CPASSERT(ASSOCIATED(op_der))
       !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
-      IF (.NOT. cp_dbcsr_get_matrix_type(op_der(1, 1)%matrix) .EQ. dbcsr_type_no_symmetry) THEN
+      IF (.NOT. dbcsr_get_matrix_type(op_der(1, 1)%matrix) .EQ. dbcsr_type_no_symmetry) THEN
          CPABORT("")
       END IF
 
@@ -1492,17 +1492,17 @@ CONTAINS
 
             DO imom = 1, M_dim
                NULLIFY (op_dip(imom)%block)
-               CALL cp_dbcsr_get_block_p(matrix=op(imom)%matrix, &
-                                         row=irow, col=icol, &
-                                         block=op_dip(imom)%block, &
-                                         found=op_found)
+               CALL dbcsr_get_block_p(matrix=op(imom)%matrix, &
+                                      row=irow, col=icol, &
+                                      block=op_dip(imom)%block, &
+                                      found=op_found)
                CPASSERT(op_found .AND. ASSOCIATED(op_dip(imom)%block))
                DO idir = 1, 3
                   NULLIFY (op_dip_der(imom, idir)%block)
-                  CALL cp_dbcsr_get_block_p(matrix=op_der(imom, idir)%matrix, &
-                                            row=irow, col=icol, &
-                                            block=op_dip_der(imom, idir)%block, &
-                                            found=op_der_found)
+                  CALL dbcsr_get_block_p(matrix=op_der(imom, idir)%matrix, &
+                                         row=irow, col=icol, &
+                                         block=op_dip_der(imom, idir)%block, &
+                                         found=op_der_found)
                   CPASSERT(op_der_found .AND. ASSOCIATED(op_dip_der(imom, idir)%block))
                END DO ! idir
             END DO ! imom

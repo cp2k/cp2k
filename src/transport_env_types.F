@@ -22,10 +22,10 @@ MODULE transport_env_types
                                               C_NULL_FUNPTR,&
                                               C_NULL_PTR,&
                                               C_PTR
-   USE cp_dbcsr_interface,              ONLY: cp_csr_destroy,&
-                                              cp_dbcsr_release,&
-                                              cp_dbcsr_type,&
-                                              csr_type
+   USE dbcsr_api,                       ONLY: csr_destroy,&
+                                              csr_type,&
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -95,9 +95,9 @@ MODULE transport_env_types
    TYPE transport_env_type
       TYPE(C_FUNPTR)                   :: ext_c_method_ptr = C_NULL_FUNPTR
       TYPE(cp2k_transport_parameters)  :: params
-      TYPE(cp_dbcsr_type)              :: template_matrix_sym
-      TYPE(cp_dbcsr_type)              :: template_matrix_nosym
-      TYPE(cp_dbcsr_type)              :: csr_sparsity
+      TYPE(dbcsr_type)              :: template_matrix_sym
+      TYPE(dbcsr_type)              :: template_matrix_nosym
+      TYPE(dbcsr_type)              :: csr_sparsity
       TYPE(csr_type)                   :: s_matrix
       TYPE(csr_type)                   :: ks_matrix
       TYPE(csr_type)                   :: p_matrix
@@ -145,12 +145,12 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(transport_env))
 
-      CALL cp_csr_destroy(transport_env%s_matrix)
-      CALL cp_csr_destroy(transport_env%ks_matrix)
-      CALL cp_csr_destroy(transport_env%p_matrix)
-      CALL cp_dbcsr_release(transport_env%template_matrix_sym)
-      CALL cp_dbcsr_release(transport_env%template_matrix_nosym)
-      CALL cp_dbcsr_release(transport_env%csr_sparsity)
+      CALL csr_destroy(transport_env%s_matrix)
+      CALL csr_destroy(transport_env%ks_matrix)
+      CALL csr_destroy(transport_env%p_matrix)
+      CALL dbcsr_release(transport_env%template_matrix_sym)
+      CALL dbcsr_release(transport_env%template_matrix_nosym)
+      CALL dbcsr_release(transport_env%csr_sparsity)
 
       transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 

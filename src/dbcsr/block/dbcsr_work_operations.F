@@ -73,17 +73,16 @@ MODULE dbcsr_work_operations
                                               uppercase
    USE dbcsr_types,                     ONLY: &
         dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_memtype_default, &
-        dbcsr_memtype_type, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, &
-        dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-        dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, &
-        dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, &
-        dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
-        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
-        dbcsr_slot_nfullrows_local, dbcsr_slot_nfullrows_total, dbcsr_slot_nze, dbcsr_slot_row_p, &
-        dbcsr_slot_size, dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-        dbcsr_work_type
+        dbcsr_memtype_type, dbcsr_meta_size, dbcsr_num_slots, dbcsr_repl_col, dbcsr_repl_full, &
+        dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_coli, &
+        dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, &
+        dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
+        dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
+        dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, dbcsr_slot_nfullrows_local, &
+        dbcsr_slot_nfullrows_total, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
+        dbcsr_type_antihermitian, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+        dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_work_type
    USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                               dbcsr_calc_block_sizes,&
                                               dbcsr_verify_matrix,&
@@ -163,7 +162,7 @@ CONTAINS
                                row_blk_offset, col_blk_offset, &
                                thread_dist, &
                                reuse, reuse_arrays, mutable_work, make_index, replication_type)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
       CHARACTER, INTENT(IN)                              :: matrix_type
@@ -195,185 +194,185 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Reuse matrix only if has actually been allocated.
-      hijack = ASSOCIATED(matrix%m%index)
+      hijack = ASSOCIATED(matrix%index)
       IF (PRESENT(reuse)) hijack = reuse
 
       my_make_index = .TRUE.
       IF (PRESENT(make_index)) my_make_index = make_index
 
       IF (.NOT. hijack) THEN
-         matrix%m = dbcsr_type()
-         matrix%m%refcount = 1
+         matrix = dbcsr_type()
+         matrix%refcount = 1
       ENDIF
 !$OMP     CRITICAL
-      matrix%m%serial_number = dbcsr_matrix_counter
+      matrix%serial_number = dbcsr_matrix_counter
       dbcsr_matrix_counter = dbcsr_matrix_counter+1
 !$OMP     END CRITICAL
       ! Mark matrix index as having an invalid index.
-      matrix%m%valid = .FALSE.
-      matrix%m%name = name
+      matrix%valid = .FALSE.
+      matrix%name = name
       ! Sets the type of matrix building/modifying work structures.
       IF (PRESENT(mutable_work)) THEN
-         matrix%m%work_mutable = mutable_work
+         matrix%work_mutable = mutable_work
       ELSE
-         matrix%m%work_mutable = .FALSE.
+         matrix%work_mutable = .FALSE.
       ENDIF
       ! Sets the correct data type.
       IF (PRESENT(data_type)) THEN
          SELECT CASE (data_type)
          CASE (dbcsr_type_real_4)
-            matrix%m%data_type = dbcsr_type_real_4
+            matrix%data_type = dbcsr_type_real_4
          CASE (dbcsr_type_real_8)
-            matrix%m%data_type = dbcsr_type_real_8
+            matrix%data_type = dbcsr_type_real_8
          CASE (dbcsr_type_complex_4)
-            matrix%m%data_type = dbcsr_type_complex_4
+            matrix%data_type = dbcsr_type_complex_4
          CASE (dbcsr_type_complex_8)
-            matrix%m%data_type = dbcsr_type_complex_8
+            matrix%data_type = dbcsr_type_complex_8
          CASE DEFAULT
             CPABORT("Invalid matrix type")
          END SELECT
       ELSE
-         matrix%m%data_type = dbcsr_type_real_default
+         matrix%data_type = dbcsr_type_real_default
       ENDIF
 
-      matrix%m%data_memory_type = dbcsr_memtype_default
+      matrix%data_memory_type = dbcsr_memtype_default
       IF (PRESENT(data_memory_type)) &
-         matrix%m%data_memory_type = data_memory_type
+         matrix%data_memory_type = data_memory_type
 
-      matrix%m%index_memory_type = dbcsr_memtype_default
+      matrix%index_memory_type = dbcsr_memtype_default
       IF (PRESENT(index_memory_type)) &
-         matrix%m%index_memory_type = index_memory_type
+         matrix%index_memory_type = index_memory_type
 
       IF (hijack) THEN
          ! Release/deallocate elements that are replaced or not needed
          ! by the new matrix. This is similar to what dbcsr_destroy
          ! does, except that it keeps the index and data.
-         CALL array_release(matrix%m%row_blk_size)
-         CALL array_release(matrix%m%col_blk_size)
-         CALL array_release(matrix%m%row_blk_offset)
-         CALL array_release(matrix%m%col_blk_offset)
-         IF (matrix%m%has_local_rows) &
-            CALL array_release(matrix%m%local_rows)
-         IF (matrix%m%has_global_rows) &
-            CALL array_release(matrix%m%global_rows)
-         IF (matrix%m%has_local_cols) &
-            CALL array_release(matrix%m%local_cols)
-         IF (matrix%m%has_global_cols) &
-            CALL array_release(matrix%m%global_cols)
-         CALL dbcsr_distribution_release(matrix%m%dist)
-         IF (ASSOCIATED(matrix%m%wms)) THEN
-            CALL dbcsr_work_destroy_all(matrix%m)
+         CALL array_release(matrix%row_blk_size)
+         CALL array_release(matrix%col_blk_size)
+         CALL array_release(matrix%row_blk_offset)
+         CALL array_release(matrix%col_blk_offset)
+         IF (matrix%has_local_rows) &
+            CALL array_release(matrix%local_rows)
+         IF (matrix%has_global_rows) &
+            CALL array_release(matrix%global_rows)
+         IF (matrix%has_local_cols) &
+            CALL array_release(matrix%local_cols)
+         IF (matrix%has_global_cols) &
+            CALL array_release(matrix%global_cols)
+         CALL dbcsr_distribution_release(matrix%dist)
+         IF (ASSOCIATED(matrix%wms)) THEN
+            CALL dbcsr_work_destroy_all(matrix)
          ENDIF
-         CALL array_nullify(matrix%m%local_rows)
-         CALL array_nullify(matrix%m%global_rows)
-         CALL array_nullify(matrix%m%local_cols)
-         CALL array_nullify(matrix%m%global_cols)
+         CALL array_nullify(matrix%local_rows)
+         CALL array_nullify(matrix%global_rows)
+         CALL array_nullify(matrix%local_cols)
+         CALL array_nullify(matrix%global_cols)
       ELSE
          ! Invalidate index
-         NULLIFY (matrix%m%index)
+         NULLIFY (matrix%index)
          ! Invalidate data
          IF (PRESENT(data_buffer)) THEN
             IF (.NOT. dbcsr_data_valid(data_buffer)) &
                CPABORT("Input data buffer not valid.")
-            IF (matrix%m%data_type /= data_buffer%d%data_type) &
+            IF (matrix%data_type /= data_buffer%d%data_type) &
                CPABORT("Input buffer data type different by matrix data type.")
-            matrix%m%data_memory_type = data_buffer%d%memory_type
-            matrix%m%data_area = data_buffer
-            CALL dbcsr_data_hold(matrix%m%data_area)
+            matrix%data_memory_type = data_buffer%d%memory_type
+            matrix%data_area = data_buffer
+            CALL dbcsr_data_hold(matrix%data_area)
          ELSE
-            CALL dbcsr_data_init(matrix%m%data_area)
+            CALL dbcsr_data_init(matrix%data_area)
          ENDIF
       ENDIF
       ! These are always invalidated.
-      NULLIFY (matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c, &
-               matrix%m%coo_l)
+      NULLIFY (matrix%row_p, matrix%col_i, matrix%blk_p, matrix%thr_c, &
+               matrix%coo_l)
       IF (PRESENT(row_blk_size_obj)) THEN
-         matrix%m%row_blk_size = row_blk_size_obj
-         CALL array_hold(matrix%m%row_blk_size)
+         matrix%row_blk_size = row_blk_size_obj
+         CALL array_hold(matrix%row_blk_size)
       ELSE
-         CALL array_new(matrix%m%row_blk_size, row_blk_size, gift=reuse_arrays)
+         CALL array_new(matrix%row_blk_size, row_blk_size, gift=reuse_arrays)
       ENDIF
       IF (PRESENT(max_rbs)) THEN
-         matrix%m%max_rbs = max_rbs
-      ELSE IF (array_size(matrix%m%row_blk_size) .GT. 0) THEN
-         matrix%m%max_rbs = MAXVAL(array_data(matrix%m%row_blk_size))
+         matrix%max_rbs = max_rbs
+      ELSE IF (array_size(matrix%row_blk_size) .GT. 0) THEN
+         matrix%max_rbs = MAXVAL(array_data(matrix%row_blk_size))
       ELSE
-         matrix%m%max_rbs = 0
+         matrix%max_rbs = 0
       ENDIF
       IF (PRESENT(col_blk_size_obj)) THEN
-         matrix%m%col_blk_size = col_blk_size_obj
-         CALL array_hold(matrix%m%col_blk_size)
+         matrix%col_blk_size = col_blk_size_obj
+         CALL array_hold(matrix%col_blk_size)
       ELSE
-         CALL array_new(matrix%m%col_blk_size, col_blk_size, gift=reuse_arrays)
+         CALL array_new(matrix%col_blk_size, col_blk_size, gift=reuse_arrays)
       ENDIF
 
       IF (PRESENT(max_cbs)) THEN
-         matrix%m%max_cbs = max_cbs
-      ELSE IF (array_size(matrix%m%col_blk_size) .GT. 0) THEN
-         matrix%m%max_cbs = MAXVAL(array_data(matrix%m%col_blk_size))
+         matrix%max_cbs = max_cbs
+      ELSE IF (array_size(matrix%col_blk_size) .GT. 0) THEN
+         matrix%max_cbs = MAXVAL(array_data(matrix%col_blk_size))
       ELSE
-         matrix%m%max_cbs = 0
+         matrix%max_cbs = 0
       ENDIF
       !
-      IF (array_size(matrix%m%row_blk_size) /= dbcsr_distribution_nrows(dist)) &
+      IF (array_size(matrix%row_blk_size) /= dbcsr_distribution_nrows(dist)) &
          CPABORT("Number of blocked rows does match blocked row distribution.")
-      IF (array_size(matrix%m%col_blk_size) /= dbcsr_distribution_ncols(dist)) &
+      IF (array_size(matrix%col_blk_size) /= dbcsr_distribution_ncols(dist)) &
          CPABORT("Number of blocked columns does match blocked column distribution.")
       ! initialize row/col offsets
       IF (PRESENT(row_blk_offset)) THEN
          IF (dbcsr_distribution_nrows(dist)+1 /= array_size(row_blk_offset)) &
             CALL cp_abort(__LOCATION__, &
                           "Number of blocked offset rows does match blocked row distribution.")
-         matrix%m%row_blk_offset = row_blk_offset
-         CALL array_hold(matrix%m%row_blk_offset)
+         matrix%row_blk_offset = row_blk_offset
+         CALL array_hold(matrix%row_blk_offset)
       ELSE
-         ALLOCATE (vec_row_blk_offset(array_size(matrix%m%row_blk_size)+1))
-         CALL convert_sizes_to_offsets(array_data(matrix%m%row_blk_size), vec_row_blk_offset)
-         CALL array_new(matrix%m%row_blk_offset, vec_row_blk_offset, gift=.TRUE.)
+         ALLOCATE (vec_row_blk_offset(array_size(matrix%row_blk_size)+1))
+         CALL convert_sizes_to_offsets(array_data(matrix%row_blk_size), vec_row_blk_offset)
+         CALL array_new(matrix%row_blk_offset, vec_row_blk_offset, gift=.TRUE.)
       ENDIF
 
       IF (PRESENT(col_blk_offset)) THEN
          IF (dbcsr_distribution_ncols(dist)+1 /= array_size(col_blk_offset)) &
             CALL cp_abort(__LOCATION__, &
                           "Number of blocked offset columns does match blocked colum distribution.")
-         matrix%m%col_blk_offset = col_blk_offset
-         CALL array_hold(matrix%m%col_blk_offset)
+         matrix%col_blk_offset = col_blk_offset
+         CALL array_hold(matrix%col_blk_offset)
       ELSE
-         ALLOCATE (vec_col_blk_offset(array_size(matrix%m%col_blk_size)+1))
-         CALL convert_sizes_to_offsets(array_data(matrix%m%col_blk_size), vec_col_blk_offset)
-         CALL array_new(matrix%m%col_blk_offset, vec_col_blk_offset, gift=.TRUE.)
+         ALLOCATE (vec_col_blk_offset(array_size(matrix%col_blk_size)+1))
+         CALL convert_sizes_to_offsets(array_data(matrix%col_blk_size), vec_col_blk_offset)
+         CALL array_new(matrix%col_blk_offset, vec_col_blk_offset, gift=.TRUE.)
       ENDIF
 
-      matrix%m%dist = dist
-      CALL dbcsr_distribution_hold(matrix%m%dist)
-!$    IF (.NOT. dbcsr_distribution_has_threads(matrix%m%dist) .AND. PRESENT(thread_dist)) THEN
+      matrix%dist = dist
+      CALL dbcsr_distribution_hold(matrix%dist)
+!$    IF (.NOT. dbcsr_distribution_has_threads(matrix%dist) .AND. PRESENT(thread_dist)) THEN
 !$       IF (dbcsr_distribution_has_threads(thread_dist)) THEN
-!$          matrix%m%dist%d%num_threads = thread_dist%d%num_threads
-!$          matrix%m%dist%d%has_thread_dist = .TRUE.
-!$          matrix%m%dist%d%thread_dist = thread_dist%d%thread_dist
-!$          CALL array_hold(matrix%m%dist%d%thread_dist)
+!$          matrix%dist%d%num_threads = thread_dist%d%num_threads
+!$          matrix%dist%d%has_thread_dist = .TRUE.
+!$          matrix%dist%d%thread_dist = thread_dist%d%thread_dist
+!$          CALL array_hold(matrix%dist%d%thread_dist)
 !$       ENDIF
 !$    ENDIF
-!$    IF (.NOT. dbcsr_distribution_has_threads(matrix%m%dist)) THEN
-!$       CALL dbcsr_distribution_make_threads(matrix%m%dist, &
-!$                                            array_data(matrix%m%row_blk_size))
+!$    IF (.NOT. dbcsr_distribution_has_threads(matrix%dist)) THEN
+!$       CALL dbcsr_distribution_make_threads(matrix%dist, &
+!$                                            array_data(matrix%row_blk_size))
 !$    ENDIF
       ! Set up some data.
       IF (my_make_index) THEN
-         CALL meta_from_dist(new_meta, dist, array_data(matrix%m%row_blk_size), &
-                             array_data(matrix%m%col_blk_size))
-         matrix%m%nblkrows_total = new_meta(dbcsr_slot_nblkrows_total)
-         matrix%m%nblkcols_total = new_meta(dbcsr_slot_nblkcols_total)
-         matrix%m%nfullrows_total = new_meta(dbcsr_slot_nfullrows_total)
-         matrix%m%nfullcols_total = new_meta(dbcsr_slot_nfullcols_total)
-         matrix%m%nblkrows_local = new_meta(dbcsr_slot_nblkrows_local)
-         matrix%m%nblkcols_local = new_meta(dbcsr_slot_nblkcols_local)
-         matrix%m%nfullrows_local = new_meta(dbcsr_slot_nfullrows_local)
-         matrix%m%nfullcols_local = new_meta(dbcsr_slot_nfullcols_local)
+         CALL meta_from_dist(new_meta, dist, array_data(matrix%row_blk_size), &
+                             array_data(matrix%col_blk_size))
+         matrix%nblkrows_total = new_meta(dbcsr_slot_nblkrows_total)
+         matrix%nblkcols_total = new_meta(dbcsr_slot_nblkcols_total)
+         matrix%nfullrows_total = new_meta(dbcsr_slot_nfullrows_total)
+         matrix%nfullcols_total = new_meta(dbcsr_slot_nfullcols_total)
+         matrix%nblkrows_local = new_meta(dbcsr_slot_nblkrows_local)
+         matrix%nblkcols_local = new_meta(dbcsr_slot_nblkcols_local)
+         matrix%nfullrows_local = new_meta(dbcsr_slot_nfullrows_local)
+         matrix%nfullcols_local = new_meta(dbcsr_slot_nfullcols_local)
       ENDIF
       my_nze = 0; IF (PRESENT(nze)) my_nze = nze
-      matrix%m%nblks = 0
-      matrix%m%nze = 0
+      matrix%nblks = 0
+      matrix%nze = 0
 
       IF (PRESENT(replication_type)) THEN
          IF (replication_type .NE. dbcsr_repl_none &
@@ -383,72 +382,72 @@ CONTAINS
             CPABORT("Invalid replication type '"//replication_type//"'")
          IF (replication_type .EQ. dbcsr_repl_row .OR. replication_type .EQ. dbcsr_repl_col) &
             CPWARN("Row and column replication not fully supported")
-         matrix%m%replication_type = replication_type
+         matrix%replication_type = replication_type
       ELSE
-         matrix%m%replication_type = dbcsr_repl_none
+         matrix%replication_type = dbcsr_repl_none
       ENDIF
       !
       ! Setup a matrix from scratch
       IF (.NOT. hijack) THEN
          IF (.NOT. PRESENT(data_buffer)) THEN
-            CALL dbcsr_data_new(matrix%m%data_area, matrix%m%data_type, my_nze, &
-                                memory_type=matrix%m%data_memory_type)
-            CALL dbcsr_data_set_size_referenced(matrix%m%data_area, 0)
+            CALL dbcsr_data_new(matrix%data_area, matrix%data_type, my_nze, &
+                                memory_type=matrix%data_memory_type)
+            CALL dbcsr_data_set_size_referenced(matrix%data_area, 0)
          ENDIF
          !
          IF (my_make_index) THEN
-            NULLIFY (matrix%m%index)
-            CALL ensure_array_size(matrix%m%index, lb=1, ub=dbcsr_num_slots, &
-                                   zero_pad=.TRUE., memory_type=matrix%m%index_memory_type)
+            NULLIFY (matrix%index)
+            CALL ensure_array_size(matrix%index, lb=1, ub=dbcsr_num_slots, &
+                                   zero_pad=.TRUE., memory_type=matrix%index_memory_type)
          ENDIF
       ENDIF
       IF (my_make_index) THEN
-         IF (LBOUND(matrix%m%index, 1) .GT. 1 &
-             .OR. UBOUND(matrix%m%index, 1) .LT. dbcsr_num_slots) &
+         IF (LBOUND(matrix%index, 1) .GT. 1 &
+             .OR. UBOUND(matrix%index, 1) .LT. dbcsr_num_slots) &
             CPABORT("Index is not large enough")
-         matrix%m%index(1:dbcsr_num_slots) = 0
-         matrix%m%index(1:dbcsr_meta_size) = new_meta(1:dbcsr_meta_size)
-         matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
+         matrix%index(1:dbcsr_num_slots) = 0
+         matrix%index(1:dbcsr_meta_size) = new_meta(1:dbcsr_meta_size)
+         matrix%index(dbcsr_slot_size) = dbcsr_num_slots
       ENDIF
       !
-      matrix%m%symmetry = .FALSE.
-      matrix%m%negate_real = .FALSE.
-      matrix%m%negate_imaginary = .FALSE.
-      !matrix%m%transpose = .FALSE.
+      matrix%symmetry = .FALSE.
+      matrix%negate_real = .FALSE.
+      matrix%negate_imaginary = .FALSE.
+      !matrix%transpose = .FALSE.
       matrix_type_l = matrix_type
       CALL uppercase(matrix_type_l)
       SELECT CASE (matrix_type_l)
       CASE (dbcsr_type_no_symmetry)
       CASE (dbcsr_type_symmetric)
-         matrix%m%symmetry = .TRUE.
+         matrix%symmetry = .TRUE.
       CASE (dbcsr_type_antisymmetric)
-         matrix%m%symmetry = .TRUE.
-         matrix%m%negate_real = .TRUE.
-         matrix%m%negate_imaginary = .TRUE.
+         matrix%symmetry = .TRUE.
+         matrix%negate_real = .TRUE.
+         matrix%negate_imaginary = .TRUE.
       CASE (dbcsr_type_hermitian)
-         matrix%m%symmetry = .TRUE.
-         matrix%m%negate_imaginary = .TRUE.
+         matrix%symmetry = .TRUE.
+         matrix%negate_imaginary = .TRUE.
       CASE (dbcsr_type_antihermitian)
-         matrix%m%symmetry = .TRUE.
-         matrix%m%negate_real = .TRUE.
+         matrix%symmetry = .TRUE.
+         matrix%negate_real = .TRUE.
       CASE DEFAULT
          CPABORT("Invalid matrix type.")
       END SELECT
-      matrix%m%bcsc = .FALSE.
-      matrix%m%local_indexing = .FALSE.
-      matrix%m%list_indexing = .FALSE.
-      CALL array_nullify(matrix%m%local_rows)
-      CALL array_nullify(matrix%m%global_rows)
-      CALL array_nullify(matrix%m%local_cols)
-      CALL array_nullify(matrix%m%global_cols)
-      matrix%m%has_local_rows = .FALSE.
-      matrix%m%has_global_rows = .FALSE.
-      matrix%m%has_local_cols = .FALSE.
-      matrix%m%has_global_cols = .FALSE.
+      matrix%bcsc = .FALSE.
+      matrix%local_indexing = .FALSE.
+      matrix%list_indexing = .FALSE.
+      CALL array_nullify(matrix%local_rows)
+      CALL array_nullify(matrix%global_rows)
+      CALL array_nullify(matrix%local_cols)
+      CALL array_nullify(matrix%global_cols)
+      matrix%has_local_rows = .FALSE.
+      matrix%has_global_rows = .FALSE.
+      matrix%has_local_cols = .FALSE.
+      matrix%has_global_cols = .FALSE.
       IF (my_make_index) THEN
-         CALL dbcsr_make_index_exist(matrix%m)
+         CALL dbcsr_make_index_exist(matrix)
       ENDIF
-      matrix%m%valid = .TRUE.
+      matrix%valid = .TRUE.
       CALL timestop(handle)
    END SUBROUTINE dbcsr_create_new
 
@@ -481,8 +480,8 @@ CONTAINS
                                     max_rbs, max_cbs, &
                                     row_blk_offset, col_blk_offset, &
                                     reuse_arrays, mutable_work, make_index, replication_type)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
-      TYPE(dbcsr_obj), INTENT(IN)                        :: template
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: template
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
       TYPE(dbcsr_distribution_obj), INTENT(IN), OPTIONAL :: dist
       CHARACTER, INTENT(IN), OPTIONAL                    :: matrix_type
@@ -544,7 +543,7 @@ CONTAINS
          IF (.NOT. PRESENT(max_rbs)) &
             new_max_rbs = dbcsr_max_row_size(template)
          IF (.NOT. PRESENT(row_blk_offset)) &
-            new_row_blk_offset = template%m%row_blk_offset
+            new_row_blk_offset = template%row_blk_offset
       ENDIF
       IF (PRESENT(max_cbs)) new_max_cbs = max_cbs
       IF (PRESENT(col_blk_offset)) new_col_blk_offset = col_blk_offset
@@ -562,7 +561,7 @@ CONTAINS
          IF (.NOT. PRESENT(max_cbs)) &
             new_max_cbs = dbcsr_max_col_size(template)
          IF (.NOT. PRESENT(col_blk_offset)) &
-            new_col_blk_offset = template%m%col_blk_offset
+            new_col_blk_offset = template%col_blk_offset
       ENDIF
       IF (PRESENT(data_type)) THEN
          new_data_type = data_type
@@ -587,7 +586,7 @@ CONTAINS
       IF (PRESENT(mutable_work)) THEN
          new_mutable_work = mutable_work
       ELSE
-         new_mutable_work = dbcsr_use_mutable(template%m)
+         new_mutable_work = dbcsr_use_mutable(template)
       ENDIF
       IF (PRESENT(row_blk_size)) THEN
          CALL dbcsr_create(matrix, name=new_name, dist=new_dist, &
@@ -610,8 +609,8 @@ CONTAINS
                            matrix_type=new_matrix_type, &
                            row_blk_size=new_row_blk_size, &
                            col_blk_size=new_col_blk_size, &
-                           row_blk_size_obj=template%m%row_blk_size, &
-                           col_blk_size_obj=template%m%col_blk_size, &
+                           row_blk_size_obj=template%row_blk_size, &
+                           col_blk_size_obj=template%col_blk_size, &
                            nze=nze, &
                            data_type=new_data_type, &
                            data_buffer=data_buffer, &
@@ -630,12 +629,12 @@ CONTAINS
       my_make_index = .TRUE.
       IF (PRESENT(make_index)) my_make_index = make_index
       IF (my_make_index) THEN
-         matrix%m%index(dbcsr_slot_home_prow) = template%m%index(dbcsr_slot_home_prow)
-         matrix%m%index(dbcsr_slot_home_rowi) = template%m%index(dbcsr_slot_home_rowi)
-         matrix%m%index(dbcsr_slot_home_pcol) = template%m%index(dbcsr_slot_home_pcol)
-         matrix%m%index(dbcsr_slot_home_coli) = template%m%index(dbcsr_slot_home_coli)
-         matrix%m%index(dbcsr_slot_home_vprow) = template%m%index(dbcsr_slot_home_vprow)
-         matrix%m%index(dbcsr_slot_home_vpcol) = template%m%index(dbcsr_slot_home_vpcol)
+         matrix%index(dbcsr_slot_home_prow) = template%index(dbcsr_slot_home_prow)
+         matrix%index(dbcsr_slot_home_rowi) = template%index(dbcsr_slot_home_rowi)
+         matrix%index(dbcsr_slot_home_pcol) = template%index(dbcsr_slot_home_pcol)
+         matrix%index(dbcsr_slot_home_coli) = template%index(dbcsr_slot_home_coli)
+         matrix%index(dbcsr_slot_home_vprow) = template%index(dbcsr_slot_home_vprow)
+         matrix%index(dbcsr_slot_home_vpcol) = template%index(dbcsr_slot_home_vpcol)
       ENDIF
       IF (PRESENT(row_blk_size) .AND. .NOT. PRESENT(row_blk_offset)) THEN
          CALL array_release(new_row_blk_offset)
@@ -712,7 +711,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n, &
                                 work_mutable, memory_type)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN), OPTIONAL                      :: nblks_guess, sizedata_guess, n
       LOGICAL, INTENT(in), OPTIONAL                      :: work_mutable
       TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL     :: memory_type
@@ -738,43 +737,43 @@ CONTAINS
 !$       ENDIF
       ENDIF
 !$OMP     MASTER
-      wms_new = .NOT. ASSOCIATED(matrix%m%wms)
+      wms_new = .NOT. ASSOCIATED(matrix%wms)
       wms_realloc = .FALSE.
-      IF (ASSOCIATED(matrix%m%wms)) THEN
-         ow = SIZE(matrix%m%wms)
+      IF (ASSOCIATED(matrix%wms)) THEN
+         ow = SIZE(matrix%wms)
          IF (ow .LT. nw) &
             CPWARN("Number of work matrices less than threads.")
          IF (ow .LT. nw) wms_realloc = .TRUE.
       ENDIF
       IF (PRESENT(work_mutable)) THEN
-         matrix%m%work_mutable = work_mutable
+         matrix%work_mutable = work_mutable
       ENDIF
       IF (wms_realloc) THEN
          ALLOCATE (wms(nw))
-         wms(1:ow) = matrix%m%wms(1:ow)
-         DEALLOCATE (matrix%m%wms)
-         matrix%m%wms => wms
+         wms(1:ow) = matrix%wms(1:ow)
+         DEALLOCATE (matrix%wms)
+         matrix%wms => wms
          DO iw = ow+1, nw
-            CALL dbcsr_init_wm(matrix%m%wms(iw), matrix%m%data_type, &
+            CALL dbcsr_init_wm(matrix%wms(iw), matrix%data_type, &
                                nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, &
                                memory_type=memory_type)
-            IF (matrix%m%work_mutable) &
-               CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable, &
+            IF (matrix%work_mutable) &
+               CALL dbcsr_mutable_new(matrix%wms(iw)%mutable, &
                                       dbcsr_get_data_type(matrix))
          END DO
       ENDIF
       IF (wms_new) THEN
-         ALLOCATE (matrix%m%wms(nw))
+         ALLOCATE (matrix%wms(nw))
          DO iw = 1, nw
-            CALL dbcsr_init_wm(matrix%m%wms(iw), matrix%m%data_type, &
+            CALL dbcsr_init_wm(matrix%wms(iw), matrix%data_type, &
                                nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, &
                                memory_type=memory_type)
-            IF (matrix%m%work_mutable) &
-               CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable, &
+            IF (matrix%work_mutable) &
+               CALL dbcsr_mutable_new(matrix%wms(iw)%mutable, &
                                       dbcsr_get_data_type(matrix))
          END DO
       ENDIF
-      matrix%m%valid = .FALSE.
+      matrix%valid = .FALSE.
 !$OMP     END MASTER
       CALL timestop(handle)
    END SUBROUTINE dbcsr_work_create
@@ -792,7 +791,7 @@ CONTAINS
 !>                            default is false
 ! **************************************************************************************************
    SUBROUTINE dbcsr_finalize(matrix, reshuffle)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: reshuffle
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize', routineP = moduleN//':'//routineN
@@ -817,9 +816,9 @@ CONTAINS
          ! matrix that was not changed.
 !$OMP        BARRIER
 !$OMP        MASTER
-         IF (ASSOCIATED(matrix%m%wms)) &
-            CALL dbcsr_work_destroy_all(matrix%m)
-         matrix%m%valid = .TRUE.
+         IF (ASSOCIATED(matrix%wms)) &
+            CALL dbcsr_work_destroy_all(matrix)
+         matrix%valid = .TRUE.
 !$OMP        END MASTER
 !$OMP        BARRIER
          CALL timestop(handle)
@@ -836,60 +835,60 @@ CONTAINS
       ! Now make sure that a valid row_p exists. Also clear the row_p if
       ! the matrix is declared to have 0 blocks.
 !$OMP     MASTER
-      fake_row_p = .NOT. ASSOCIATED(matrix%m%row_p)
-      IF (ASSOCIATED(matrix%m%row_p)) THEN
-         fake_row_p = SIZE(matrix%m%row_p) .LE. 1
+      fake_row_p = .NOT. ASSOCIATED(matrix%row_p)
+      IF (ASSOCIATED(matrix%row_p)) THEN
+         fake_row_p = SIZE(matrix%row_p) .LE. 1
       ENDIF
-      fake_row_p = fake_row_p .OR. matrix%m%nblks .EQ. 0
+      fake_row_p = fake_row_p .OR. matrix%nblks .EQ. 0
 !$OMP     END MASTER
       !
       ! See where data will be appended in the main data
       ! area. Alternatively, set to the start if the matrix is declared
       ! to have no data. (This value is ignored if reshuffle is true
       ! because the main data area is always new.)
-      start_offset = matrix%m%nze
+      start_offset = matrix%nze
       i = dbcsr_get_data_size_used(matrix)
 !$OMP     MASTER
-      matrix%m%nze = 0
+      matrix%nze = 0
 !$OMP     END MASTER
 !$OMP     BARRIER
 !$OMP     ATOMIC
-      matrix%m%nze = matrix%m%nze+i
+      matrix%nze = matrix%nze+i
 !$OMP     BARRIER
       IF (dbg) THEN
-         WRITE (*, *) routineN//" sizes", matrix%m%nze, i, &
-            dbcsr_data_get_size_referenced(matrix%m%data_area), &
-            dbcsr_data_get_size(matrix%m%data_area)
+         WRITE (*, *) routineN//" sizes", matrix%nze, i, &
+            dbcsr_data_get_size_referenced(matrix%data_area), &
+            dbcsr_data_get_size(matrix%data_area)
       ENDIF
-      IF (.FALSE. .AND. dbcsr_data_get_size_referenced(matrix%m%data_area) .NE. &
-          matrix%m%nze) THEN
-         IF (matrix%m%nze .NE. dbcsr_data_get_size_referenced(matrix%m%data_area)) &
+      IF (.FALSE. .AND. dbcsr_data_get_size_referenced(matrix%data_area) .NE. &
+          matrix%nze) THEN
+         IF (matrix%nze .NE. dbcsr_data_get_size_referenced(matrix%data_area)) &
             CPWARN("Should reshuffle.")
-         IF (ASSOCIATED(matrix%m%wms)) THEN
-            sort_data = .NOT. dbcsr_wm_use_mutable(matrix%m%wms(1))
+         IF (ASSOCIATED(matrix%wms)) THEN
+            sort_data = .NOT. dbcsr_wm_use_mutable(matrix%wms(1))
          ENDIF
       ENDIF
-      IF (sort_data .AND. matrix%m%nze .GT. 0) THEN
+      IF (sort_data .AND. matrix%nze .GT. 0) THEN
          CALL dbcsr_add_wm_from_matrix(matrix)
-         matrix%m%nze = 0
+         matrix%nze = 0
 !$OMP        MASTER
          fake_row_p = .TRUE.
 !$OMP        END MASTER
       ENDIF
-      start_offset = dbcsr_data_get_size_referenced(matrix%m%data_area)+1
-      IF (matrix%m%nze .EQ. 0) start_offset = 1
+      start_offset = dbcsr_data_get_size_referenced(matrix%data_area)+1
+      IF (matrix%nze .EQ. 0) start_offset = 1
 !$OMP     MASTER
-      matrix%m%index(dbcsr_slot_nze) = matrix%m%nze
+      matrix%index(dbcsr_slot_nze) = matrix%nze
       IF (fake_row_p) THEN
-         ALLOCATE (empty_row_p(matrix%m%nblkrows_total+1))
+         ALLOCATE (empty_row_p(matrix%nblkrows_total+1))
          empty_row_p(:) = 0
-         CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, &
+         CALL dbcsr_addto_index_array(matrix, dbcsr_slot_row_p, &
                                       DATA=empty_row_p, extra=0)
-         CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, &
+         CALL dbcsr_addto_index_array(matrix, dbcsr_slot_col_i, &
                                       reservation=0)
-         CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, &
+         CALL dbcsr_addto_index_array(matrix, dbcsr_slot_blk_p, &
                                       reservation=0)
-         CALL dbcsr_repoint_index(matrix%m)
+         CALL dbcsr_repoint_index(matrix)
       ENDIF
 !$OMP     END MASTER
       !
@@ -905,7 +904,7 @@ CONTAINS
 !$OMP        MASTER
          !
          ! Create work matrices if not yet existing
-         IF (.NOT. ASSOCIATED(matrix%m%wms)) THEN
+         IF (.NOT. ASSOCIATED(matrix%wms)) THEN
             nwms = 1
 !$          nwms = omp_get_num_threads()
             CALL dbcsr_work_create(matrix, n=nwms)
@@ -915,28 +914,28 @@ CONTAINS
          !
          ! Ensure index arrays at least exist.
 !$OMP        DO SCHEDULE (STATIC, 1)
-         DO i = 1, SIZE(matrix%m%wms)
-            IF (.NOT. ASSOCIATED(matrix%m%wms(i)%row_i)) THEN
-               CALL ensure_array_size(matrix%m%wms(i)%row_i, ub=0)
+         DO i = 1, SIZE(matrix%wms)
+            IF (.NOT. ASSOCIATED(matrix%wms(i)%row_i)) THEN
+               CALL ensure_array_size(matrix%wms(i)%row_i, ub=0)
             ENDIF
-            IF (.NOT. ASSOCIATED(matrix%m%wms(i)%col_i)) THEN
-               CALL ensure_array_size(matrix%m%wms(i)%col_i, ub=0)
+            IF (.NOT. ASSOCIATED(matrix%wms(i)%col_i)) THEN
+               CALL ensure_array_size(matrix%wms(i)%col_i, ub=0)
             ENDIF
-            IF (.NOT. ASSOCIATED(matrix%m%wms(i)%blk_p)) THEN
-               CALL ensure_array_size(matrix%m%wms(i)%blk_p, ub=0)
+            IF (.NOT. ASSOCIATED(matrix%wms(i)%blk_p)) THEN
+               CALL ensure_array_size(matrix%wms(i)%blk_p, ub=0)
             ENDIF
          ENDDO
 !$OMP        ENDDO
          !
          ! Check for deleted blocks
 !$OMP        MASTER
-         nblks = matrix%m%row_p(matrix%m%nblkrows_total+1)
-         IF (ANY(matrix%m%blk_p(1:nblks) .EQ. 0)) THEN
+         nblks = matrix%row_p(matrix%nblkrows_total+1)
+         IF (ANY(matrix%blk_p(1:nblks) .EQ. 0)) THEN
             CALL dbcsr_index_prune_deleted(matrix)
          ENDIF
-         old_row_p => matrix%m%row_p
-         old_col_i => matrix%m%col_i
-         old_blk_p => matrix%m%blk_p
+         old_row_p => matrix%row_p
+         old_col_i => matrix%col_i
+         old_blk_p => matrix%blk_p
 !$OMP        END MASTER
          !
 !$OMP        BARRIER
@@ -948,7 +947,7 @@ CONTAINS
          ! more work matrices. It's a shortcut when the finalize is
          ! called from a non-parallel environment whereas the matrix was
          ! built/modified in a parallel environment
-         nwms = SIZE(matrix%m%wms)
+         nwms = SIZE(matrix%wms)
          spawn = .FALSE.
 !$       IF (.NOT. OMP_IN_PARALLEL()) THEN
 !$          IF (nwms .GT. 1) spawn = .TRUE.
@@ -958,12 +957,12 @@ CONTAINS
 !$OMP                    DEFAULT (NONE) &
 !$OMP                    SHARED (matrix, old_row_p, old_col_i, old_blk_p,&
 !$OMP                            start_offset, sort_data)
-            CALL dbcsr_merge_all(matrix%m, &
+            CALL dbcsr_merge_all(matrix, &
                                  old_row_p, old_col_i, old_blk_p, &
                                  sort_data=sort_data)
 !$OMP           END PARALLEL
          ELSE
-            CALL dbcsr_merge_all(matrix%m, &
+            CALL dbcsr_merge_all(matrix, &
                                  old_row_p, old_col_i, old_blk_p, &
                                  sort_data=sort_data)
          ENDIF
@@ -971,10 +970,10 @@ CONTAINS
 !$OMP BARRIER
 !$OMP MASTER
       ! Clean up.
-      IF (ASSOCIATED(matrix%m%wms)) THEN
-         CALL dbcsr_work_destroy_all(matrix%m)
+      IF (ASSOCIATED(matrix%wms)) THEN
+         CALL dbcsr_work_destroy_all(matrix)
       ENDIF
-      matrix%m%valid = .TRUE.
+      matrix%valid = .TRUE.
 !$OMP END MASTER
 !$OMP BARRIER
       IF (dbg) THEN
@@ -997,7 +996,7 @@ CONTAINS
 !> \param reshuffle ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_special_finalize(matrix, reshuffle)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: reshuffle
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_special_finalize', &
@@ -1011,13 +1010,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (matrix%m%nblks .NE. 0) &
+      IF (matrix%nblks .NE. 0) &
          CPABORT("Optimized finalize requires empty matrix.")
       IF (dbcsr_valid_index(matrix)) &
          CPABORT("Optimized finalize requires invalid matrix.")
-      IF (.NOT. ASSOCIATED(matrix%m%wms)) &
+      IF (.NOT. ASSOCIATED(matrix%wms)) &
          CPABORT("Optimized finalize requires work matrices exist.")
-      IF (SIZE(matrix%m%wms) .NE. 1) &
+      IF (SIZE(matrix%wms) .NE. 1) &
          CPABORT("Optimized finalize requires single work matrix")
 
       !
@@ -1042,31 +1041,31 @@ CONTAINS
          ! Ensure needed index arrays at least exist.
 !$OMP        MASTER
          !
-         IF (.NOT. ASSOCIATED(matrix%m%wms(1)%row_i)) THEN
-            CALL ensure_array_size(matrix%m%wms(1)%row_i, ub=0)
+         IF (.NOT. ASSOCIATED(matrix%wms(1)%row_i)) THEN
+            CALL ensure_array_size(matrix%wms(1)%row_i, ub=0)
          ENDIF
-         IF (.NOT. ASSOCIATED(matrix%m%wms(1)%col_i)) THEN
-            CALL ensure_array_size(matrix%m%wms(1)%col_i, ub=0)
+         IF (.NOT. ASSOCIATED(matrix%wms(1)%col_i)) THEN
+            CALL ensure_array_size(matrix%wms(1)%col_i, ub=0)
          ENDIF
-         IF (.NOT. ASSOCIATED(matrix%m%wms(1)%blk_p)) THEN
-            CALL ensure_array_size(matrix%m%wms(1)%blk_p, ub=0)
+         IF (.NOT. ASSOCIATED(matrix%wms(1)%blk_p)) THEN
+            CALL ensure_array_size(matrix%wms(1)%blk_p, ub=0)
          ENDIF
          !
 !$OMP        END MASTER
 !$OMP        BARRIER
          !
 !$OMP        PARALLEL DEFAULT (NONE), SHARED(matrix)
-         CALL dbcsr_merge_single_wm(matrix%m)
+         CALL dbcsr_merge_single_wm(matrix)
 !$OMP        END PARALLEL
 
       ENDIF
 
 !$OMP     MASTER
       ! Clean up.
-      IF (ASSOCIATED(matrix%m%wms)) THEN
-         CALL dbcsr_work_destroy_all(matrix%m)
+      IF (ASSOCIATED(matrix%wms)) THEN
+         CALL dbcsr_work_destroy_all(matrix)
       ENDIF
-      matrix%m%valid = .TRUE.
+      matrix%valid = .TRUE.
 !$OMP     END MASTER
 !$OMP     BARRIER
       IF (dbg) THEN
@@ -1084,22 +1083,22 @@ CONTAINS
 !> \retval quick              whether matrix can be quickly finalized
 ! **************************************************************************************************
    FUNCTION can_quickly_finalize(matrix) RESULT(quick)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       LOGICAL                                            :: quick
 
 !   ---------------------------------------------------------------------------
 
-      IF (ASSOCIATED(matrix%m%wms)) THEN
-         quick = matrix%m%nblks .EQ. 0
-         quick = quick .AND. SIZE(matrix%m%wms) .EQ. 1 .AND. &
-                 .NOT. dbcsr_wm_use_mutable(matrix%m%wms(1))
+      IF (ASSOCIATED(matrix%wms)) THEN
+         quick = matrix%nblks .EQ. 0
+         quick = quick .AND. SIZE(matrix%wms) .EQ. 1 .AND. &
+                 .NOT. dbcsr_wm_use_mutable(matrix%wms(1))
          IF (quick) THEN
             quick = quick .AND. &
                     dbcsr_memtype_equal( &
-                    dbcsr_data_get_memory_type(matrix%m%wms(1)%data_area), &
-                    dbcsr_data_get_memory_type(matrix%m%data_area))
+                    dbcsr_data_get_memory_type(matrix%wms(1)%data_area), &
+                    dbcsr_data_get_memory_type(matrix%data_area))
             quick = quick .AND. &
-                    ASSOCIATED(matrix%m%wms(1)%row_i)
+                    ASSOCIATED(matrix%wms(1)%row_i)
          ENDIF
       ELSE
          quick = .FALSE.
@@ -1114,7 +1113,7 @@ CONTAINS
 !> \param[in,out] matrix      matrix to finalize
 ! **************************************************************************************************
    SUBROUTINE quick_finalize(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'quick_finalize', routineP = moduleN//':'//routineN
 
@@ -1125,30 +1124,30 @@ CONTAINS
       CALL timeset(routineN, error_handle)
 !$OMP     SECTIONS
 !$OMP     SECTION
-      nblks = matrix%m%wms(1)%lastblk
-      nrows = matrix%m%nblkrows_total
+      nblks = matrix%wms(1)%lastblk
+      nrows = matrix%nblkrows_total
       CALL dbcsr_sort_indices(nblks, &
-                              matrix%m%wms(1)%row_i, &
-                              matrix%m%wms(1)%col_i, &
-                              matrix%m%wms(1)%blk_p)
-      CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_row_p)
-      CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_col_i)
-      CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_blk_p)
-      CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, &
+                              matrix%wms(1)%row_i, &
+                              matrix%wms(1)%col_i, &
+                              matrix%wms(1)%blk_p)
+      CALL dbcsr_clearfrom_index_array(matrix, dbcsr_slot_row_p)
+      CALL dbcsr_clearfrom_index_array(matrix, dbcsr_slot_col_i)
+      CALL dbcsr_clearfrom_index_array(matrix, dbcsr_slot_blk_p)
+      CALL dbcsr_addto_index_array(matrix, dbcsr_slot_row_p, &
                                    reservation=nrows+1, extra=2*nblks)
-      CALL dbcsr_make_dbcsr_index(matrix%m%row_p, matrix%m%wms(1)%row_i, &
+      CALL dbcsr_make_dbcsr_index(matrix%row_p, matrix%wms(1)%row_i, &
                                   nrows, nblks)
-      CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, &
-                                   DATA=matrix%m%wms(1)%col_i(1:nblks))
-      CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, &
-                                   DATA=matrix%m%wms(1)%blk_p(1:nblks))
-      matrix%m%nblks = nblks
-      matrix%m%nze = matrix%m%wms(1)%datasize
-      matrix%m%index(dbcsr_slot_nblks) = nblks
-      matrix%m%index(dbcsr_slot_nze) = matrix%m%wms(1)%datasize
-      CALL dbcsr_repoint_index(matrix%m)
+      CALL dbcsr_addto_index_array(matrix, dbcsr_slot_col_i, &
+                                   DATA=matrix%wms(1)%col_i(1:nblks))
+      CALL dbcsr_addto_index_array(matrix, dbcsr_slot_blk_p, &
+                                   DATA=matrix%wms(1)%blk_p(1:nblks))
+      matrix%nblks = nblks
+      matrix%nze = matrix%wms(1)%datasize
+      matrix%index(dbcsr_slot_nblks) = nblks
+      matrix%index(dbcsr_slot_nze) = matrix%wms(1)%datasize
+      CALL dbcsr_repoint_index(matrix)
 !$OMP     SECTION
-      CALL dbcsr_switch_data_area(matrix, matrix%m%wms(1)%data_area)
+      CALL dbcsr_switch_data_area(matrix, matrix%wms(1)%data_area)
 !$OMP     END SECTIONS
       CALL timestop(error_handle)
    END SUBROUTINE quick_finalize
@@ -1159,7 +1158,7 @@ CONTAINS
 !> \param[in] limits          (optional) the limits to use for copying
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_wm_from_matrix(matrix, limits)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, DIMENSION(4), INTENT(IN), OPTIONAL        :: limits
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_wm_from_matrix', &
@@ -1173,9 +1172,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 !$OMP     BARRIER
-      preexists = ASSOCIATED(matrix%m%wms)
+      preexists = ASSOCIATED(matrix%wms)
       IF (preexists) THEN
-         old_nwms = SIZE(matrix%m%wms)
+         old_nwms = SIZE(matrix%wms)
          IF (old_nwms .EQ. 0) &
             CPWARN("Nonexisting work matrices?!")
       ELSE
@@ -1191,16 +1190,16 @@ CONTAINS
 !$    nwms = MAX(nwms, nthreads)
 !$OMP     BARRIER
 !$OMP     MASTER
-      IF (.NOT. ASSOCIATED(matrix%m%wms)) THEN
+      IF (.NOT. ASSOCIATED(matrix%wms)) THEN
          CALL dbcsr_work_create(matrix, &
-                                INT(matrix%m%nblks*default_resize_factor/nwms), &
-                                INT(matrix%m%nze*default_resize_factor/nwms), &
+                                INT(matrix%nblks*default_resize_factor/nwms), &
+                                INT(matrix%nze*default_resize_factor/nwms), &
                                 n=nwms, work_mutable=.FALSE.)
       ENDIF
 !$OMP     END MASTER
 !$OMP     BARRIER
-      size_used = matrix%m%nze
-      CALL dbcsr_fill_wm_from_matrix(matrix%m%wms, matrix, size_used, &
+      size_used = matrix%nze
+      CALL dbcsr_fill_wm_from_matrix(matrix%wms, matrix, size_used, &
                                      limits=limits)
 !$OMP     BARRIER
       CALL timestop(handle)
@@ -1219,7 +1218,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix, size_used, limits)
       TYPE(dbcsr_work_type), DIMENSION(:), INTENT(INOUT) :: wm
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: size_used
       INTEGER, DIMENSION(4), INTENT(IN), OPTIONAL        :: limits
 
@@ -1237,7 +1236,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-      nwms = SIZE(matrix%m%wms)
+      nwms = SIZE(matrix%wms)
       mt = .FALSE.
 !$    IF (nwms .GT. 1) mt = omp_get_num_threads() .GT. 1
       ithread = 0; nthreads = 1
@@ -1245,9 +1244,9 @@ CONTAINS
 !$    nthreads = omp_get_num_threads()
       limit = PRESENT(limits)
       careful = size_used+size_used/8 &
-                .LT. dbcsr_data_get_size_referenced(matrix%m%data_area)
+                .LT. dbcsr_data_get_size_referenced(matrix%data_area)
       CALL dbcsr_data_init(data_block)
-      CALL dbcsr_data_new(data_block, dbcsr_data_get_type(matrix%m%data_area))
+      CALL dbcsr_data_new(data_block, dbcsr_data_get_type(matrix%data_area))
       IF (mt) THEN
          wm_first = ithread+1
          wm_last = ithread+1
@@ -1268,7 +1267,7 @@ CONTAINS
             CPABORT("Adding main matrix into mutable not supported.")
          IF (mutable) THEN
             IF (.NOT. dbcsr_mutable_instantiated(wm(which_wm)%mutable)) THEN
-               CALL dbcsr_mutable_new(wm(which_wm)%mutable, matrix%m%data_type)
+               CALL dbcsr_mutable_new(wm(which_wm)%mutable, matrix%data_type)
             ENDIF
          ELSE
             ! We don't know how much data we'll get so we have to be generous.
@@ -1286,7 +1285,7 @@ CONTAINS
          IF (limit) THEN
             IF (.NOT. within_limits(row, col, limits)) CYCLE
          ENDIF
-         blk_p = matrix%m%blk_p(blk)
+         blk_p = matrix%blk_p(blk)
          which_wm = ithread+1
          wblk_p = SIGN(wm(which_wm)%datasize+1, blk_p)
          nze = dbcsr_data_get_size(data_block)
@@ -1319,8 +1318,8 @@ CONTAINS
       IF (.NOT. mt .AND. .NOT. limit .AND. .NOT. careful .AND. .NOT. mutable) THEN
          DO which_wm = 1, nwms
             CALL dbcsr_data_ensure_size(wm(which_wm)%data_area, &
-                                        dbcsr_data_get_size_referenced(matrix%m%data_area))
-            CALL dbcsr_data_copyall(wm(which_wm)%data_area, matrix%m%data_area)
+                                        dbcsr_data_get_size_referenced(matrix%data_area))
+            CALL dbcsr_data_copyall(wm(which_wm)%data_area, matrix%data_area)
             wm(which_wm)%datasize = size_used
          ENDDO
       ENDIF

@@ -47,7 +47,7 @@
 !> \param arnoldi_data ...
 ! **************************************************************************************************
   SUBROUTINE arnoldi_init_c (matrix, vectors, arnoldi_data)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors_type)                :: vectors
     TYPE(arnoldi_data_type)                 :: arnoldi_data
 
@@ -58,7 +58,7 @@
                                                 nrow_local, ncol_local, pcol_group, &
                                                 row, col
     REAL(real_4)                        :: rnorm
-    TYPE(cp_dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_iterator_type)                     :: iter
     COMPLEX(kind=real_4)                         :: norm 
     COMPLEX(kind=real_4), DIMENSION(:), ALLOCATABLE :: &
                                                 v_vec, w_vec
@@ -74,7 +74,7 @@
     ar_data=>get_data_c(arnoldi_data)
 
    ! create a local data copy to store the vectors and make Gram Schmidt a bit simpler
-    CALL cp_dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ALLOCATE(v_vec(nrow_local))
     ALLOCATE(w_vec(nrow_local))
     v_vec = CMPLX(0.0, 0.0, real_4) ; w_vec = CMPLX(0.0, 0.0, real_4)
@@ -82,37 +82,37 @@
 
     IF(control%has_initial_vector)THEN
        ! after calling the set routine the initial vector is stored in f_vec
-       CALL transfer_local_array_to_cp_dbcsr_c(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
+       CALL transfer_local_array_to_dbcsr_c(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
     ELSE
        ! Setup the initial normalized random vector (sufficient if it only happens on proc_col 0)
-       CALL cp_dbcsr_iterator_start(iter, vectors%input_vec)
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_vec, row_size=row_size, col_size=col_size)
+       CALL dbcsr_iterator_start(iter, vectors%input_vec)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          CALL dbcsr_iterator_next_block(iter, row, col, data_vec, row_size=row_size, col_size=col_size)
           iseed(1)=2; iseed(2)=MOD(row, 4095); iseed(3)=MOD(col, 4095); iseed(4)=11
           CALL clarnv(2, iseed, row_size*col_size, data_vec)
        END DO
-       CALL cp_dbcsr_iterator_stop(iter)
+       CALL dbcsr_iterator_stop(iter)
     END IF
 
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
 
     ! compute the vector norm of the random vectorm, get it real valued as well (rnorm)
     CALL compute_norms_c(v_vec, norm, rnorm, control%pcol_group)
 
     IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
-    CALL cp_dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm)
+    CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm)
 
     ! Everything prepared, initialize the Arnoldi iteration
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
 
     ! This permits to compute the subspace of a matrix which is a product of multiple matrices
     DO i=1, SIZE(matrix)
-       CALL cp_dbcsr_matrix_colvec_multiply(matrix(i)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
+       CALL dbcsr_matrix_colvec_multiply(matrix(i)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
                                         CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
-       CALL cp_dbcsr_copy(vectors%input_vec, vectors%result_vec)
+       CALL dbcsr_copy(vectors%input_vec, vectors%result_vec)
     END DO
 
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%result_vec, w_vec, nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%result_vec, w_vec, nrow_local, control%local_comp)
 
     ! Put the projection into the Hessenberg matrix, and make the vectors orthonormal
     ar_data%Hessenberg(1, 1)=DOT_PRODUCT(v_vec, w_vec)
@@ -237,7 +237,7 @@
 !> \param arnoldi_data ...
 ! **************************************************************************************************
   SUBROUTINE build_subspace_c(matrix, vectors, arnoldi_data)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors_type), TARGET        :: vectors
     TYPE(arnoldi_data_type)                 :: arnoldi_data
 
@@ -250,14 +250,14 @@
     TYPE(arnoldi_data_c_type), POINTER  :: ar_data
     COMPLEX(kind=real_4)                         :: norm
     COMPLEX(kind=real_4), ALLOCATABLE, DIMENSION(:)      :: h_vec, s_vec, v_vec, w_vec
-    TYPE(cp_dbcsr_type), POINTER                 :: input_vec, result_vec, swap_vec
+    TYPE(dbcsr_type), POINTER                 :: input_vec, result_vec, swap_vec
 
     ar_data=>get_data_c(arnoldi_data)
     control=>get_control(arnoldi_data)
     control%converged=.FALSE.
 
     ! create the vectors required during the iterations
-    CALL cp_dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ALLOCATE(v_vec(nrow_local));  ALLOCATE(w_vec(nrow_local))
     v_vec = CMPLX(0.0, 0.0, real_4) ; w_vec = CMPLX(0.0, 0.0, real_4)
     ALLOCATE(s_vec(control%max_iter)); ALLOCATE(h_vec(control%max_iter))
@@ -278,18 +278,18 @@
 
        input_vec=>vectors%input_vec
        result_vec=>vectors%result_vec
-       CALL transfer_local_array_to_cp_dbcsr_c(input_vec, v_vec, nrow_local, control%local_comp)
+       CALL transfer_local_array_to_dbcsr_c(input_vec, v_vec, nrow_local, control%local_comp)
  
        ! This permits to compute the subspace of a matrix which is a product of two matrices
        DO i=1, SIZE(matrix)
-          CALL cp_dbcsr_matrix_colvec_multiply(matrix(i)%matrix, input_vec, result_vec, CMPLX(1.0, 0.0, real_4), &
+          CALL dbcsr_matrix_colvec_multiply(matrix(i)%matrix, input_vec, result_vec, CMPLX(1.0, 0.0, real_4), &
                                             CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
           swap_vec=>input_vec
           input_vec=>result_vec
           result_vec=>swap_vec
        END DO
 
-       CALL transfer_cp_dbcsr_to_local_array_c(input_vec, w_vec, nrow_local, control%local_comp)
+       CALL transfer_dbcsr_to_local_array_c(input_vec, w_vec, nrow_local, control%local_comp)
 
        ! Let's do the orthonormalization, to get the new f_vec. First try the Gram Schmidt scheme
        CALL Gram_Schmidt_ortho_c(h_vec, ar_data%f_vec, s_vec, w_vec, nrow_local, j+1, &
@@ -322,17 +322,17 @@
 !> \param n ...
 !> \param is_local ...
 ! **************************************************************************************************
-  SUBROUTINE transfer_cp_dbcsr_to_local_array_c(vec, array, n, is_local)
-    TYPE(cp_dbcsr_type)                          :: vec
+  SUBROUTINE transfer_dbcsr_to_local_array_c(vec, array, n, is_local)
+    TYPE(dbcsr_type)                          :: vec
     COMPLEX(kind=real_4), DIMENSION(:)           :: array
     INTEGER                                  :: n
     LOGICAL                                  :: is_local
     COMPLEX(kind=real_4), DIMENSION(:), POINTER          :: data_vec
 
-    data_vec => cp_dbcsr_get_data_p (vec, select_data_type=CMPLX(0.0, 0.0, real_4))
+    data_vec => dbcsr_get_data_p (vec, select_data_type=CMPLX(0.0, 0.0, real_4))
     IF(is_local) array(1:n)=data_vec(1:n)
 
-  END SUBROUTINE transfer_cp_dbcsr_to_local_array_c
+  END SUBROUTINE transfer_dbcsr_to_local_array_c
 
 ! **************************************************************************************************
 !> \brief The inverse routine transfering data back from an array to a dbcsr
@@ -341,17 +341,17 @@
 !> \param n ...
 !> \param is_local ...
 ! **************************************************************************************************
-  SUBROUTINE transfer_local_array_to_cp_dbcsr_c(vec, array, n, is_local)
-    TYPE(cp_dbcsr_type)                          :: vec
+  SUBROUTINE transfer_local_array_to_dbcsr_c(vec, array, n, is_local)
+    TYPE(dbcsr_type)                          :: vec
     COMPLEX(kind=real_4), DIMENSION(:)           :: array
     INTEGER                                  :: n
     LOGICAL                                  :: is_local
     COMPLEX(kind=real_4), DIMENSION(:), POINTER          :: data_vec
 
-    data_vec => cp_dbcsr_get_data_p (vec, select_data_type=CMPLX(0.0, 0.0, real_4))
+    data_vec => dbcsr_get_data_p (vec, select_data_type=CMPLX(0.0, 0.0, real_4))
     IF(is_local) data_vec(1:n)=array(1:n)
 
-  END SUBROUTINE transfer_local_array_to_cp_dbcsr_c
+  END SUBROUTINE transfer_local_array_to_dbcsr_c
 
 ! **************************************************************************************************
 !> \brief Gram-Schmidt in matrix vector form
@@ -462,8 +462,8 @@
 ! **************************************************************************************************
 
   SUBROUTINE gev_arnoldi_init_c (matrix, matrix_arnoldi, vectors, arnoldi_data)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix_arnoldi
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix_arnoldi
     TYPE(m_x_v_vectors_type)                :: vectors
     TYPE(arnoldi_data_type)                 :: arnoldi_data
 
@@ -474,7 +474,7 @@
                                                 nrow_local, ncol_local, pcol_group, &
                                                 row, col
     REAL(real_4)                        :: rnorm
-    TYPE(cp_dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_iterator_type)                     :: iter
     COMPLEX(kind=real_4)                         :: norm, denom
     COMPLEX(kind=real_4), DIMENSION(:), ALLOCATABLE :: &
                                                 v_vec, w_vec
@@ -490,7 +490,7 @@
     ar_data=>get_data_c(arnoldi_data)
     
    ! create a local data copy to store the vectors and make Gram Schmidt a bit simpler
-    CALL cp_dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ALLOCATE(v_vec(nrow_local))
     ALLOCATE(w_vec(nrow_local))
     v_vec = CMPLX(0.0, 0.0, real_4) ; w_vec = CMPLX(0.0, 0.0, real_4)
@@ -498,39 +498,39 @@
 
     IF(control%has_initial_vector)THEN
     ! after calling the set routine the initial vector is stored in f_vec
-        CALL transfer_local_array_to_cp_dbcsr_c(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
+        CALL transfer_local_array_to_dbcsr_c(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
     ELSE
     ! Setup the initial normalized random vector (sufficient if it only happens on proc_col 0)
-       CALL cp_dbcsr_iterator_start(iter, vectors%input_vec)
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_vec, row_size=row_size, col_size=col_size)
+       CALL dbcsr_iterator_start(iter, vectors%input_vec)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          CALL dbcsr_iterator_next_block(iter, row, col, data_vec, row_size=row_size, col_size=col_size)
           iseed(1)=2; iseed(2)=MOD(row, 4095); iseed(3)=MOD(col, 4095); iseed(4)=11
           CALL clarnv(2, iseed, row_size*col_size, data_vec)
        END DO
-       CALL cp_dbcsr_iterator_stop(iter)
+       CALL dbcsr_iterator_stop(iter)
     END IF   
 
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
    
     ! compute the vector norm of the reandom vectorm, get it real valued as well (rnorm)
     CALL compute_norms_c(v_vec, norm, rnorm, control%pcol_group)
 
     IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
-    CALL cp_dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm)
+    CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm)
 
-    CALL cp_dbcsr_matrix_colvec_multiply(matrix(1)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
+    CALL dbcsr_matrix_colvec_multiply(matrix(1)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
                                       CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
 
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%result_vec, w_vec, nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%result_vec, w_vec, nrow_local, control%local_comp)
    
     ar_data%rho_scale=CMPLX(0.0, 0.0, real_4)
     ar_data%rho_scale=DOT_PRODUCT(v_vec,w_vec)
     CALL mp_sum(ar_data%rho_scale, pcol_group)
 
-    CALL cp_dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
+    CALL dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
                                       CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
 
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%result_vec, w_vec, nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%result_vec, w_vec, nrow_local, control%local_comp)
     
     denom=CMPLX(0.0, 0.0, real_4)
     denom=DOT_PRODUCT(v_vec,w_vec)
@@ -539,8 +539,8 @@
     CALL mp_bcast(ar_data%rho_scale,0,control%mp_group)
 
     ! if the maximum ev is requested we need to optimize with -A-rho*B
-    CALL cp_dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix)
-    CALL cp_dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, CMPLX(1.0, 0.0, real_4), -ar_data%rho_scale)
+    CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix)
+    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, CMPLX(1.0, 0.0, real_4), -ar_data%rho_scale)
    
     ar_data%x_vec=v_vec
 
@@ -556,7 +556,7 @@
 !> \param arnoldi_data ...
 ! **************************************************************************************************
   SUBROUTINE gev_build_subspace_c(matrix, vectors, arnoldi_data)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors_type)                :: vectors
     TYPE(arnoldi_data_type)                 :: arnoldi_data
 
@@ -576,17 +576,17 @@
     pcol_group=control%pcol_group
 
     ! create the vectors required during the iterations
-    CALL cp_dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ALLOCATE(v_vec(nrow_local));  ALLOCATE(w_vec(nrow_local))
     v_vec = CMPLX(0.0, 0.0, real_4) ; w_vec = CMPLX(0.0, 0.0, real_4)
     ALLOCATE(s_vec(control%max_iter)); ALLOCATE(h_vec(control%max_iter))
     ALLOCATE(Zmat(nrow_local,control%max_iter)); ALLOCATE(CZmat(nrow_local,control%max_iter))
     ALLOCATE(BZmat(nrow_local,control%max_iter))
 
-    CALL transfer_local_array_to_cp_dbcsr_c(vectors%input_vec, ar_data%x_vec, nrow_local, control%local_comp)
-    CALL cp_dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
+    CALL transfer_local_array_to_dbcsr_c(vectors%input_vec, ar_data%x_vec, nrow_local, control%local_comp)
+    CALL dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
                                       CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%result_vec, BZmat(:,1), nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%result_vec, BZmat(:,1), nrow_local, control%local_comp)
     
     norm=CMPLX(0.0, 0.0, real_4) 
     norm=DOT_PRODUCT(ar_data%x_vec,BZmat(:,1)) 
@@ -597,10 +597,10 @@
 
     DO j=1,control%max_iter
        control%current_step=j
-       CALL transfer_local_array_to_cp_dbcsr_c(vectors%input_vec, Zmat(:,j), nrow_local, control%local_comp)
-       CALL cp_dbcsr_matrix_colvec_multiply(matrix(1)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
+       CALL transfer_local_array_to_dbcsr_c(vectors%input_vec, Zmat(:,j), nrow_local, control%local_comp)
+       CALL dbcsr_matrix_colvec_multiply(matrix(1)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
                                         CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
-       CALL transfer_cp_dbcsr_to_local_array_c(vectors%result_vec, CZmat(:,j), nrow_local, control%local_comp)
+       CALL transfer_dbcsr_to_local_array_c(vectors%result_vec, CZmat(:,j), nrow_local, control%local_comp)
        w_vec(:)=CZmat(:,j)                         
        
        ! Let's do the orthonormalization, to get the new f_vec. First try the Gram Schmidt scheme
@@ -612,10 +612,10 @@
        CALL DGKS_ortho_c(h_vec, ar_data%f_vec, s_vec, nrow_local, j, BZmat, &
                                     Zmat, control%local_comp, control%pcol_group)
     
-       CALL transfer_local_array_to_cp_dbcsr_c(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
-       CALL cp_dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
+       CALL transfer_local_array_to_dbcsr_c(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
+       CALL dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
                                         CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
-       CALL transfer_cp_dbcsr_to_local_array_c(vectors%result_vec, v_vec, nrow_local, control%local_comp)
+       CALL transfer_dbcsr_to_local_array_c(vectors%result_vec, v_vec, nrow_local, control%local_comp)
        norm=CMPLX(0.0, 0.0, real_4)
        norm=DOT_PRODUCT(ar_data%f_vec,v_vec)
        CALL mp_sum(norm, pcol_group)
@@ -662,8 +662,8 @@
 !> \param arnoldi_data ...
 ! **************************************************************************************************
   SUBROUTINE gev_update_data_c(matrix, matrix_arnoldi, vectors, arnoldi_data)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix
-    TYPE(cp_dbcsr_p_type), DIMENSION(:)     :: matrix_arnoldi
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
+    TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix_arnoldi
     TYPE(m_x_v_vectors_type)                :: vectors
     TYPE(arnoldi_data_type)                 :: arnoldi_data
 
@@ -695,20 +695,20 @@
 !                        ar_data%revec(1:control%current_step,control%selected_ind(1)))
 
 ! update the C-matrix (A-rho*B), if teh maximum value is requested we have to use -A-rho*B
-    CALL cp_dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix)
-    CALL cp_dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, CMPLX(1.0, 0.0, real_4), -ar_data%rho_scale)
+    CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix)
+    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, CMPLX(1.0, 0.0, real_4), -ar_data%rho_scale)
 
 ! compute convergence and set the correct eigenvalue and eigenvector
-    CALL cp_dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     IF (ncol_local>0) THEN
        ALLOCATE(v_vec(nrow_local))
        CALL compute_norms_c(ar_data%x_vec, norm, rnorm, control%pcol_group)
        v_vec(:)=ar_data%x_vec(:)/rnorm
     ENDIF
-    CALL transfer_local_array_to_cp_dbcsr_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
-    CALL cp_dbcsr_matrix_colvec_multiply(matrix_arnoldi(1)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
+    CALL transfer_local_array_to_dbcsr_c(vectors%input_vec, v_vec, nrow_local, control%local_comp)
+    CALL dbcsr_matrix_colvec_multiply(matrix_arnoldi(1)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
                                             CMPLX(0.0, 0.0, real_4), vectors%rep_row_vec, vectors%rep_col_vec)
-    CALL transfer_cp_dbcsr_to_local_array_c(vectors%result_vec, v_vec, nrow_local, control%local_comp)
+    CALL transfer_dbcsr_to_local_array_c(vectors%result_vec, v_vec, nrow_local, control%local_comp)
     IF (ncol_local>0) THEN
        CALL compute_norms_c(v_vec, norm, rnorm, control%pcol_group)
        ! check convergence 

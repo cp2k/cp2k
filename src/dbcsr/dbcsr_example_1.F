@@ -17,7 +17,7 @@ PROGRAM dbcsr_example_1
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
         dbcsr_finalize, dbcsr_finalize_lib, dbcsr_init_lib, dbcsr_mp_new, dbcsr_mp_obj, &
-        dbcsr_mp_release, dbcsr_obj, dbcsr_print, dbcsr_release, dbcsr_type_no_symmetry, &
+        dbcsr_mp_release, dbcsr_print, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_type_real_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
@@ -31,7 +31,7 @@ PROGRAM dbcsr_example_1
 
    IMPLICIT NONE
 
-   TYPE(dbcsr_obj)                          :: matrix_a
+   TYPE(dbcsr_type)                          :: matrix_a
 
    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
    INTEGER                                  :: mp_comm, group, numnodes, mynode, &

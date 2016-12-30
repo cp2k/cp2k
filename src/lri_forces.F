@@ -15,9 +15,9 @@ MODULE lri_forces
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: &
         allocate_lri_force_components, deallocate_lri_force_components, lri_density_type, &
@@ -65,7 +65,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       LOGICAL                                            :: use_virial
 
@@ -133,7 +133,7 @@ CONTAINS
 
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(virial_type), POINTER                         :: virial
@@ -150,7 +150,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: st, v_dadra, v_dadrb, v_inta, v_intb
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: davec, dssn, dsst, dtvec, pbij, sdssn, &
                                                             sdsst, sdt
-      TYPE(cp_dbcsr_type), POINTER                       :: pmat
+      TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(lri_force_type), POINTER                      :: lri_force
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_coef
@@ -221,10 +221,10 @@ CONTAINS
                ! get the density matrix Pab
                NULLIFY (pbij)
                IF (iatom <= jatom) THEN
-                  CALL cp_dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
+                  CALL dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
                   trans = .FALSE.
                ELSE
-                  CALL cp_dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
+                  CALL dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
                   trans = .TRUE.
                END IF
 

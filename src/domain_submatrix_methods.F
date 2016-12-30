@@ -11,18 +11,17 @@
 ! **************************************************************************************************
 MODULE domain_submatrix_methods
 
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_col_block_sizes, cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_finalize, &
-        cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_get_stored_coordinates, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_nblkcols_total, &
-        cp_dbcsr_nblkrows_total, cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, &
-        cp_dbcsr_type, cp_dbcsr_work_create, dbcsr_distribution_mp, dbcsr_mp_group, &
-        dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_mp_mynode, &
+        dbcsr_mp_numnodes, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_reserve_block2d, &
+        dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_types,          ONLY: domain_map_type,&
                                               domain_submatrix_type,&
                                               select_row_col
@@ -741,7 +740,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: curr_norm, send_norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_norm
 
-!TYPE(cp_dbcsr_type), INTENT(IN)                        :: distr_pattern
+!TYPE(dbcsr_type), INTENT(IN)                        :: distr_pattern
 
       CALL timeset(routineN, handle)
 
@@ -794,7 +793,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: curr_trace, send_trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_trace
 
-!TYPE(cp_dbcsr_type), INTENT(IN)                        :: distr_pattern
+!TYPE(dbcsr_type), INTENT(IN)                        :: distr_pattern
 
       CALL timeset(routineN, handle)
 
@@ -853,10 +852,10 @@ CONTAINS
    SUBROUTINE construct_submatrices(matrix, submatrix, distr_pattern, domain_map, &
                                     node_of_domain, job_type)
 
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: submatrix
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: distr_pattern
+      TYPE(dbcsr_type), INTENT(IN)                       :: distr_pattern
       TYPE(domain_map_type), INTENT(IN)                  :: domain_map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
       INTEGER, INTENT(IN)                                :: job_type
@@ -887,19 +886,19 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nblkrows_tot = cp_dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = cp_dbcsr_nblkcols_total(matrix)
+      nblkrows_tot = dbcsr_nblkrows_total(matrix)
+      nblkcols_tot = dbcsr_nblkcols_total(matrix)
 
       ndomains = nblkcols_tot ! RZK-warning not true for atomic distributions
 
       nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp( &
-                                 cp_dbcsr_distribution(distr_pattern)))
+                                 dbcsr_distribution(distr_pattern)))
       GroupID = dbcsr_mp_group(dbcsr_distribution_mp( &
-                               cp_dbcsr_distribution(distr_pattern)))
+                               dbcsr_distribution(distr_pattern)))
       myNode = dbcsr_mp_mynode(dbcsr_distribution_mp( &
-                               cp_dbcsr_distribution(distr_pattern)))
+                               dbcsr_distribution(distr_pattern)))
 
-      matrix_type = cp_dbcsr_get_matrix_type(matrix)
+      matrix_type = dbcsr_get_matrix_type(matrix)
 
       ldesc = 2
       ALLOCATE (send_descriptor(ldesc, nNodes))
@@ -941,10 +940,10 @@ CONTAINS
                ENDIF
 
                transp = .FALSE.
-               CALL cp_dbcsr_get_stored_coordinates(matrix, &
-                                                    row, col, block_node)
+               CALL dbcsr_get_stored_coordinates(matrix, &
+                                                 row, col, block_node)
                IF (block_node .EQ. myNode) THEN
-                  CALL cp_dbcsr_get_block_p(matrix, row, col, block_p, found, row_size, col_size)
+                  CALL dbcsr_get_block_p(matrix, row, col, block_p, found, row_size, col_size)
                   IF (found) THEN
                      send_descriptor(1, dest_node+1) = send_descriptor(1, dest_node+1)+1
                      send_descriptor(2, dest_node+1) = send_descriptor(2, dest_node+1)+ &
@@ -960,9 +959,9 @@ CONTAINS
 
       ! simple but quadratically scaling procedure
       ! loop over local blocks
-      !CALL cp_dbcsr_iterator_start(iter,matrix)
-      !DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-      !   CALL cp_dbcsr_iterator_next_block(iter,row,col,data_p,&
+      !CALL dbcsr_iterator_start(iter,matrix)
+      !DO WHILE (dbcsr_iterator_blocks_left(iter))
+      !   CALL dbcsr_iterator_next_block(iter,row,col,data_p,&
       !           row_size=row_size,col_size=col_size)
       !   DO idomain = 1, ndomains
       !      IF (job_type==select_row_col) THEN
@@ -975,7 +974,7 @@ CONTAINS
       !      IF (domain_needs_block) THEN
       !         transp=.FALSE.
       !         dest_node=node_of_domain(idomain)
-      !         !CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
+      !         !CALL dbcsr_get_stored_coordinates(distr_pattern,&
       !         !        idomain, idomain, transp, dest_node)
       !         send_descriptor(1,dest_node+1)=send_descriptor(1,dest_node+1)+1
       !         send_descriptor(2,dest_node+1)=send_descriptor(2,dest_node+1)+&
@@ -983,7 +982,7 @@ CONTAINS
       !      ENDIF
       !   ENDDO
       !ENDDO
-      !CALL cp_dbcsr_iterator_stop(iter)
+      !CALL dbcsr_iterator_stop(iter)
 
       ! communicate number of blocks and their sizes to the other nodes
       CALL mp_alltoall(send_descriptor, recv_descriptor, ldesc, GroupID)
@@ -1074,10 +1073,10 @@ CONTAINS
                ENDIF
 
                transp = .FALSE.
-               CALL cp_dbcsr_get_stored_coordinates(matrix, &
-                                                    row, col, block_node)
+               CALL dbcsr_get_stored_coordinates(matrix, &
+                                                 row, col, block_node)
                IF (block_node .EQ. myNode) THEN
-                  CALL cp_dbcsr_get_block_p(matrix, row, col, block_p, found, row_size, col_size)
+                  CALL dbcsr_get_block_p(matrix, row, col, block_p, found, row_size, col_size)
                   IF (found) THEN
                      !col_offset=0
                      !DO icol=1,col_size
@@ -1109,9 +1108,9 @@ CONTAINS
 
       ENDDO
       ! more simple but quadratically scaling version
-      !CALL cp_dbcsr_iterator_start(iter,matrix)
-      !DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-      !   CALL cp_dbcsr_iterator_next_block(iter,row,col,data_p,&
+      !CALL dbcsr_iterator_start(iter,matrix)
+      !DO WHILE (dbcsr_iterator_blocks_left(iter))
+      !   CALL dbcsr_iterator_next_block(iter,row,col,data_p,&
       !           row_size=row_size,col_size=col_size)
       !   DO idomain = 1, ndomains
       !      IF (job_type==select_row_col) THEN
@@ -1124,7 +1123,7 @@ CONTAINS
       !      IF (domain_needs_block) THEN
       !         transp=.FALSE.
       !         dest_node=node_of_domain(idomain)
-      !         !CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
+      !         !CALL dbcsr_get_stored_coordinates(distr_pattern,&
       !         !        idomain, idomain, transp, dest_node)
       !         ! place the data appropriately
       !         col_offset=0
@@ -1146,7 +1145,7 @@ CONTAINS
       !      ENDIF
       !   ENDDO
       !ENDDO
-      !CALL cp_dbcsr_iterator_stop(iter)
+      !CALL dbcsr_iterator_stop(iter)
 
       ! send-receive all blocks
       CALL mp_alltoall(send_data, send_size_cpu, send_offset_cpu, &
@@ -1163,8 +1162,8 @@ CONTAINS
       DEALLOCATE (offset2_block)
 
       ! copy blocks into submatrices
-      col_blk_size => cp_dbcsr_col_block_sizes(matrix)
-      row_blk_size => cp_dbcsr_row_block_sizes(matrix)
+      col_blk_size => dbcsr_col_block_sizes(matrix)
+      row_blk_size => dbcsr_row_block_sizes(matrix)
 !    ALLOCATE(subm_row_size(ndomains),subm_col_size(ndomains))
 !    subm_row_size(:)=0
 !    subm_col_size(:)=0
@@ -1183,7 +1182,7 @@ CONTAINS
       DO idomain = 1, ndomains
          dest_node = node_of_domain(idomain)
          !transp=.FALSE.
-         !CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
+         !CALL dbcsr_get_stored_coordinates(distr_pattern,&
          !        idomain, idomain, transp, dest_node)
          IF (dest_node .EQ. mynode) THEN
             submatrix(idomain)%domain = idomain
@@ -1353,10 +1352,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE construct_dbcsr_from_submatrices(matrix, submatrix, distr_pattern)
 
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN)                                      :: submatrix
-      TYPE(cp_dbcsr_type), INTENT(IN)                    :: distr_pattern
+      TYPE(dbcsr_type), INTENT(IN)                       :: distr_pattern
 
       CHARACTER(len=*), PARAMETER :: routineN = 'construct_dbcsr_from_submatrices', &
          routineP = moduleN//':'//routineN
@@ -1374,8 +1373,8 @@ CONTAINS
       LOGICAL                                            :: transp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p
-      TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
@@ -1387,8 +1386,8 @@ CONTAINS
          unit_nr = -1
       ENDIF
 
-      nblkrows_tot = cp_dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = cp_dbcsr_nblkcols_total(matrix)
+      nblkrows_tot = dbcsr_nblkrows_total(matrix)
+      nblkcols_tot = dbcsr_nblkcols_total(matrix)
 
       ndomains = nblkcols_tot ! RZK-warning not true for atomic distributions
       ndomains2 = SIZE(submatrix)
@@ -1398,27 +1397,27 @@ CONTAINS
       ENDIF
 
       nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp( &
-                                 cp_dbcsr_distribution(distr_pattern)))
+                                 dbcsr_distribution(distr_pattern)))
       GroupID = dbcsr_mp_group(dbcsr_distribution_mp( &
-                               cp_dbcsr_distribution(distr_pattern)))
+                               dbcsr_distribution(distr_pattern)))
       myNode = dbcsr_mp_mynode(dbcsr_distribution_mp( &
-                               cp_dbcsr_distribution(distr_pattern)))
+                               dbcsr_distribution(distr_pattern)))
 
-      matrix_type = cp_dbcsr_get_matrix_type(matrix)
+      matrix_type = dbcsr_get_matrix_type(matrix)
       IF (matrix_type .NE. dbcsr_type_no_symmetry) THEN
          CPABORT("only non-symmetric matrices so far")
       ENDIF
 
       ! remove all blocks from the dbcsr matrix
-      CALL cp_dbcsr_iterator_start(iter, matrix)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, block_p)
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, block_p)
          block_p(:, :) = 0.0_dp
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
-      CALL cp_dbcsr_filter(matrix, 0.1_dp)
+      CALL dbcsr_iterator_stop(iter)
+      CALL dbcsr_filter(matrix, 0.1_dp)
 
-      CALL cp_dbcsr_work_create(matrix, work_mutable=.TRUE.)
+      CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
 
       ldesc = 2
       ALLOCATE (send_descriptor(ldesc, nNodes))
@@ -1444,8 +1443,8 @@ CONTAINS
                ENDIF
 
                transp = .FALSE.
-               CALL cp_dbcsr_get_stored_coordinates(distr_pattern, &
-                                                    row, idomain, dest_node)
+               CALL dbcsr_get_stored_coordinates(distr_pattern, &
+                                                 row, idomain, dest_node)
 
                send_descriptor(1, dest_node+1) = send_descriptor(1, dest_node+1)+1
                send_descriptor(2, dest_node+1) = send_descriptor(2, dest_node+1)+ &
@@ -1528,8 +1527,8 @@ CONTAINS
                colsize = submatrix(idomain)%size_bcol(1)
 
                transp = .FALSE.
-               CALL cp_dbcsr_get_stored_coordinates(distr_pattern, &
-                                                    row, idomain, dest_node)
+               CALL dbcsr_get_stored_coordinates(distr_pattern, &
+                                                 row, idomain, dest_node)
 
                ! place the data appropriately
                col_offset = 0
@@ -1573,18 +1572,18 @@ CONTAINS
       DEALLOCATE (offset2_block)
 
       ! copy recieved data into dbcsr matrix
-      col_blk_size => cp_dbcsr_col_block_sizes(matrix)
-      row_blk_size => cp_dbcsr_row_block_sizes(matrix)
+      col_blk_size => dbcsr_col_block_sizes(matrix)
+      row_blk_size => dbcsr_row_block_sizes(matrix)
       DO iNode = 1, nNodes
          block_offset = 0
          DO iBlock = 1, recv_size2_cpu(iNode)/2
             ! read the (row,col) of the block
             row = recv_data2(recv_offset2_cpu(iNode)+(iBlock-1)*2+1)
             col = recv_data2(recv_offset2_cpu(iNode)+(iBlock-1)*2+2)
-            !CALL cp_dbcsr_get_block_p(matrix,row,col,block_p,found)
+            !CALL dbcsr_get_block_p(matrix,row,col,block_p,found)
             !IF (.NOT.found) THEN
             NULLIFY (block_p)
-            CALL cp_dbcsr_reserve_block2d(matrix, row, col, block_p)
+            CALL dbcsr_reserve_block2d(matrix, row, col, block_p)
             CPASSERT(ASSOCIATED(block_p))
             !ENDIF
             ! copy data from the received array into the matrix block
@@ -1603,7 +1602,7 @@ CONTAINS
       DEALLOCATE (recv_data)
       DEALLOCATE (recv_data2)
 
-      CALL cp_dbcsr_finalize(matrix)
+      CALL dbcsr_finalize(matrix)
 
       CALL timestop(handle)
 

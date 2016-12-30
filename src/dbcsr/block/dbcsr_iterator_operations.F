@@ -28,8 +28,8 @@ MODULE dbcsr_iterator_operations
    USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                               dbcsr_distribution_obj,&
                                               dbcsr_iterator,&
-                                              dbcsr_obj,&
-                                              dbcsr_scalar_type
+                                              dbcsr_scalar_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: real_4,&
                                               real_8
 #include "../../base/base_uses.f90"
@@ -148,7 +148,7 @@ CONTAINS
    SUBROUTINE dbcsr_iterator_start(iterator, matrix, shared, dynamic, &
                                    dynamic_byrows, contiguous_pointers, read_only)
       TYPE(dbcsr_iterator), INTENT(OUT)                  :: iterator
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: shared, dynamic, dynamic_byrows, &
                                                             contiguous_pointers, read_only
 
@@ -220,36 +220,36 @@ CONTAINS
       ENDIF
       iterator%row = 0
       iterator%pos = 0
-      iterator%rbs => array_data(matrix%m%row_blk_size)
-      iterator%cbs => array_data(matrix%m%col_blk_size)
-      iterator%roff => array_data(matrix%m%row_blk_offset)
-      iterator%coff => array_data(matrix%m%col_blk_offset)
+      iterator%rbs => array_data(matrix%row_blk_size)
+      iterator%cbs => array_data(matrix%col_blk_size)
+      iterator%roff => array_data(matrix%row_blk_offset)
+      iterator%coff => array_data(matrix%col_blk_offset)
 
-      iterator%local_indexing = matrix%m%local_indexing
+      iterator%local_indexing = matrix%local_indexing
       !IF(iterator%local_indexing .AND. .NOT. iterator%dynamic) &
       !   CPABORT("Locally-indexed matrices can only have a dynamic iterator.")
-      IF (iterator%local_indexing .AND. .NOT. array_exists(matrix%m%local_rows)) &
+      IF (iterator%local_indexing .AND. .NOT. array_exists(matrix%local_rows)) &
          CALL cp_abort(__LOCATION__, &
                        "Local rows mapping array should exist when local indexing is used.")
-      IF (iterator%local_indexing .AND. .NOT. array_exists(matrix%m%global_rows)) &
+      IF (iterator%local_indexing .AND. .NOT. array_exists(matrix%global_rows)) &
          CALL cp_abort(__LOCATION__, &
                        "Global rows mapping array should exist when local indexing is used.")
-      iterator%global_rows => array_data(matrix%m%global_rows)
-      iterator%local_rows => array_data(matrix%m%local_rows)
+      iterator%global_rows => array_data(matrix%global_rows)
+      iterator%local_rows => array_data(matrix%local_rows)
 
-      iterator%transpose = .FALSE. !matrix%m%transpose
-      iterator%nblks = matrix%m%nblks
+      iterator%transpose = .FALSE. !matrix%transpose
+      iterator%nblks = matrix%nblks
       IF (iterator%transpose) THEN
-         iterator%nblkrows_total = matrix%m%nblkcols_total
+         iterator%nblkrows_total = matrix%nblkcols_total
       ELSE
-         iterator%nblkrows_total = matrix%m%nblkrows_total
+         iterator%nblkrows_total = matrix%nblkrows_total
       ENDIF
 
-      iterator%row_p => matrix%m%row_p
-      iterator%col_i => matrix%m%col_i
-      iterator%blk_p => matrix%m%blk_p
+      iterator%row_p => matrix%row_p
+      iterator%col_i => matrix%col_i
+      iterator%blk_p => matrix%blk_p
 !$OMP     CRITICAL (crit_data)
-      iterator%data_area = matrix%m%data_area
+      iterator%data_area = matrix%data_area
       CALL dbcsr_data_hold(iterator%data_area)
 !$OMP     END CRITICAL (crit_data)
       iterator%row_size = 0

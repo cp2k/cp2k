@@ -15,10 +15,6 @@
 MODULE mscfg_methods
    USE atomic_kind_types,               ONLY: get_atomic_kind
    USE cell_types,                      ONLY: cell_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_create,&
-                                              cp_dbcsr_init,&
-                                              dbcsr_type_no_symmetry
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -27,6 +23,10 @@ MODULE mscfg_methods
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_release,&
                                               cp_subsys_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_init,&
+                                              dbcsr_type_no_symmetry
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE global_types,                    ONLY: global_environment_type
@@ -278,12 +278,12 @@ CONTAINS
          mscfg_env%nmosets_of_frag(ifrag) = nmosets_of_frag
          DO imo = 1, nmosets_of_frag
             ! the matrices have been allocated already - copy the results there
-            CALL cp_dbcsr_init(mscfg_env%mos_of_frag(ifrag, imo))
-            CALL cp_dbcsr_create(mscfg_env%mos_of_frag(ifrag, imo), &
-                                 template=mos_of_frag(imo)%mo_set%mo_coeff_b, &
-                                 matrix_type=dbcsr_type_no_symmetry)
-            CALL cp_dbcsr_copy(mscfg_env%mos_of_frag(ifrag, imo), &
-                               mos_of_frag(imo)%mo_set%mo_coeff_b)
+            CALL dbcsr_init(mscfg_env%mos_of_frag(ifrag, imo))
+            CALL dbcsr_create(mscfg_env%mos_of_frag(ifrag, imo), &
+                              template=mos_of_frag(imo)%mo_set%mo_coeff_b, &
+                              matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_copy(mscfg_env%mos_of_frag(ifrag, imo), &
+                            mos_of_frag(imo)%mo_set%mo_coeff_b)
          ENDDO
          !
          ! Clean up

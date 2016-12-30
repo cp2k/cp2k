@@ -16,13 +16,6 @@ MODULE qs_initial_guess
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_get_diag, &
-        cp_dbcsr_get_num_blocks, cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, &
-        cp_dbcsr_type, cp_dbcsr_verify_matrix
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -37,6 +30,12 @@ MODULE qs_initial_guess
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_checksum, dbcsr_copy, dbcsr_filter, dbcsr_get_diag, dbcsr_get_num_blocks, &
+        dbcsr_get_occupation, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
+        dbcsr_set_diag, dbcsr_trace, dbcsr_type, dbcsr_verify_matrix
    USE external_potential_types,        ONLY: all_potential_type,&
                                               gth_potential_type
    USE input_constants,                 ONLY: atomic_guess,&
@@ -143,16 +142,16 @@ CONTAINS
       TYPE(atom_matrix_type), DIMENSION(:), POINTER      :: pmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: h_core_sparse, matrix_ks, p_rmpv, &
-                                                            s_sparse
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h_kp, matrix_ks_kp, matrix_s_kp, &
-                                                            rho_ao_kp
-      TYPE(cp_dbcsr_type)                                :: mo_dbcsr, mo_tmp_dbcsr
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: work1
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, sv, work2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: h_core_sparse, matrix_ks, p_rmpv, &
+                                                            s_sparse
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h_kp, matrix_ks_kp, matrix_s_kp, &
+                                                            rho_ao_kp
+      TYPE(dbcsr_type)                                   :: mo_dbcsr, mo_tmp_dbcsr
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -200,7 +199,7 @@ CONTAINS
       ! just initialize the first image, the other density are set to zero
       DO ispin = 1, dft_control%nspins
          DO ic = 1, SIZE(rho_ao_kp, 2)
-            CALL cp_dbcsr_set(rho_ao_kp(ispin, ic)%matrix, 0.0_dp)
+            CALL dbcsr_set(rho_ao_kp(ispin, ic)%matrix, 0.0_dp)
          END DO
       END DO
       s_sparse => matrix_s_kp(:, 1)
@@ -615,12 +614,12 @@ CONTAINS
          ALLOCATE (kind_of(natoms))
          ALLOCATE (first_sgf(natoms), last_sgf(natoms))
 
-         checksum = cp_dbcsr_checksum(s_sparse(1)%matrix)
-         i = cp_dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
+         checksum = dbcsr_checksum(s_sparse(1)%matrix)
+         i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
          IF (output_unit > 0) WRITE (output_unit, *) 'S nblks', i, ' checksum', checksum
-         CALL cp_dbcsr_filter(s_sparse(1)%matrix, eps)
-         checksum = cp_dbcsr_checksum(s_sparse(1)%matrix)
-         i = cp_dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
+         CALL dbcsr_filter(s_sparse(1)%matrix, eps)
+         checksum = dbcsr_checksum(s_sparse(1)%matrix)
+         i = dbcsr_get_num_blocks(s_sparse(1)%matrix); CALL mp_sum(i, group)
          IF (output_unit > 0) WRITE (output_unit, *) 'S nblks', i, ' checksum', checksum
 
          CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, &
@@ -643,32 +642,32 @@ CONTAINS
                             maxocc=maxocc, &
                             nelectron=nelectron)
             !
-            CALL cp_dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
+            CALL dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
                ikind = kind_of(irow)
                IF (icol .EQ. irow) DATA(:, :) = pmat(ikind)%mat(:, :)*scale
             ENDDO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
 
-            !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
-            checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix)
-            occ = cp_dbcsr_get_occupation(p_rmpv(ispin)%matrix)
+            !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
+            checksum = dbcsr_checksum(p_rmpv(ispin)%matrix)
+            occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
             IF (output_unit > 0) WRITE (output_unit, *) 'P_init occ', occ, ' checksum', checksum
             ! so far p needs to have the same sparsity as S
-            !CALL cp_dbcsr_filter(p_rmpv(ispin)%matrix, eps)
-            !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
-            checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix)
-            occ = cp_dbcsr_get_occupation(p_rmpv(ispin)%matrix)
+            !CALL dbcsr_filter(p_rmpv(ispin)%matrix, eps)
+            !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
+            checksum = dbcsr_checksum(p_rmpv(ispin)%matrix)
+            occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
             IF (output_unit > 0) WRITE (output_unit, *) 'P_init occ', occ, ' checksum', checksum
 
-            CALL cp_dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
+            CALL dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1)
             scale = REAL(nelectron, dp)/trps1
-            CALL cp_dbcsr_scale(p_rmpv(ispin)%matrix, scale)
+            CALL dbcsr_scale(p_rmpv(ispin)%matrix, scale)
 
-            !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
-            checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix)
-            occ = cp_dbcsr_get_occupation(p_rmpv(ispin)%matrix)
+            !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix)
+            checksum = dbcsr_checksum(p_rmpv(ispin)%matrix)
+            occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
             IF (output_unit > 0) WRITE (output_unit, *) 'P occ', occ, ' checksum', checksum
             !
             ! The orbital transformation method (OT) requires not only an
@@ -772,17 +771,17 @@ CONTAINS
 
                ENDIF
                !
-               CALL cp_dbcsr_init(mo_dbcsr)
+               CALL dbcsr_init(mo_dbcsr)
                CALL cp_fm_to_dbcsr_row_template(mo_dbcsr, mo_coeff, s_sparse(1)%matrix)
-               !CALL cp_dbcsr_verify_matrix(mo_dbcsr)
-               checksum = cp_dbcsr_checksum(mo_dbcsr)
+               !CALL dbcsr_verify_matrix(mo_dbcsr)
+               checksum = dbcsr_checksum(mo_dbcsr)
 
-               occ = cp_dbcsr_get_occupation(mo_dbcsr)
+               occ = dbcsr_get_occupation(mo_dbcsr)
                IF (output_unit > 0) WRITE (output_unit, *) 'C occ', occ, ' checksum', checksum
-               CALL cp_dbcsr_filter(mo_dbcsr, eps)
-               !CALL cp_dbcsr_verify_matrix(mo_dbcsr)
-               occ = cp_dbcsr_get_occupation(mo_dbcsr)
-               checksum = cp_dbcsr_checksum(mo_dbcsr)
+               CALL dbcsr_filter(mo_dbcsr, eps)
+               !CALL dbcsr_verify_matrix(mo_dbcsr)
+               occ = dbcsr_get_occupation(mo_dbcsr)
+               checksum = dbcsr_checksum(mo_dbcsr)
                IF (output_unit > 0) WRITE (output_unit, *) 'C occ', occ, ' checksum', checksum
                !
                ! multiply times PS
@@ -791,40 +790,40 @@ CONTAINS
                END IF
                !
                ! S*C
-               CALL cp_dbcsr_init(mo_tmp_dbcsr)
-               CALL cp_dbcsr_copy(mo_tmp_dbcsr, mo_dbcsr, name="mo_tmp")
-               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr, &
-                                      0.0_dp, mo_tmp_dbcsr, &
-                                      retain_sparsity=.TRUE.)
-               !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr)
-               checksum = cp_dbcsr_checksum(mo_tmp_dbcsr)
-               occ = cp_dbcsr_get_occupation(mo_tmp_dbcsr)
+               CALL dbcsr_init(mo_tmp_dbcsr)
+               CALL dbcsr_copy(mo_tmp_dbcsr, mo_dbcsr, name="mo_tmp")
+               CALL dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr, &
+                                   0.0_dp, mo_tmp_dbcsr, &
+                                   retain_sparsity=.TRUE.)
+               !CALL dbcsr_verify_matrix(mo_tmp_dbcsr)
+               checksum = dbcsr_checksum(mo_tmp_dbcsr)
+               occ = dbcsr_get_occupation(mo_tmp_dbcsr)
                IF (output_unit > 0) WRITE (output_unit, *) 'S*C occ', occ, ' checksum', checksum
-               CALL cp_dbcsr_filter(mo_tmp_dbcsr, eps)
-               !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr)
-               checksum = cp_dbcsr_checksum(mo_tmp_dbcsr)
-               occ = cp_dbcsr_get_occupation(mo_tmp_dbcsr)
+               CALL dbcsr_filter(mo_tmp_dbcsr, eps)
+               !CALL dbcsr_verify_matrix(mo_tmp_dbcsr)
+               checksum = dbcsr_checksum(mo_tmp_dbcsr)
+               occ = dbcsr_get_occupation(mo_tmp_dbcsr)
                IF (output_unit > 0) WRITE (output_unit, *) 'S*C occ', occ, ' checksum', checksum
                !
                ! P*SC
                ! the destroy is needed for the moment to avoid memory leaks !
                ! This one is not needed because _destroy takes care of zeroing.
-               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix, &
-                                      mo_tmp_dbcsr, 0.0_dp, mo_dbcsr)
-               IF (.FALSE.) CALL cp_dbcsr_verify_matrix(mo_dbcsr)
-               checksum = cp_dbcsr_checksum(mo_dbcsr)
-               occ = cp_dbcsr_get_occupation(mo_dbcsr)
+               CALL dbcsr_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix, &
+                                   mo_tmp_dbcsr, 0.0_dp, mo_dbcsr)
+               IF (.FALSE.) CALL dbcsr_verify_matrix(mo_dbcsr)
+               checksum = dbcsr_checksum(mo_dbcsr)
+               occ = dbcsr_get_occupation(mo_dbcsr)
                IF (output_unit > 0) WRITE (output_unit, *) 'P*SC occ', occ, ' checksum', checksum
-               CALL cp_dbcsr_filter(mo_dbcsr, eps)
-               !CALL cp_dbcsr_verify_matrix(mo_dbcsr)
-               checksum = cp_dbcsr_checksum(mo_dbcsr)
-               occ = cp_dbcsr_get_occupation(mo_dbcsr)
+               CALL dbcsr_filter(mo_dbcsr, eps)
+               !CALL dbcsr_verify_matrix(mo_dbcsr)
+               checksum = dbcsr_checksum(mo_dbcsr)
+               occ = dbcsr_get_occupation(mo_dbcsr)
                IF (output_unit > 0) WRITE (output_unit, *) 'P*SC occ', occ, ' checksum', checksum
                !
                CALL copy_dbcsr_to_fm(mo_dbcsr, mo_coeff)
 
-               CALL cp_dbcsr_release(mo_dbcsr)
-               CALL cp_dbcsr_release(mo_tmp_dbcsr)
+               CALL dbcsr_release(mo_dbcsr)
+               CALL dbcsr_release(mo_tmp_dbcsr)
 
                ! and ortho the result
                CALL make_basis_sm(mo_coeff, nmo, s_sparse(1)%matrix)
@@ -931,7 +930,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_atomic_block_dm(matrix_p, matrix_s, particle_set, atomic_kind_set, &
                                         qs_kind_set, ispin, nspin, nelectron_spin, output_unit)
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p, matrix_s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p, matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -946,7 +945,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: scale, trps1
       TYPE(atom_matrix_type), ALLOCATABLE, DIMENSION(:)  :: pmat
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL timeset(routineN, handle)
@@ -955,7 +954,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,T2,A,I0)") "Spin ", ispin
       END IF
 
-      CALL cp_dbcsr_set(matrix_p, 0.0_dp)
+      CALL dbcsr_set(matrix_p, 0.0_dp)
 
       natom = SIZE(particle_set)
 
@@ -981,19 +980,19 @@ CONTAINS
       scale = 1.0_dp
       IF (nspin == 2) scale = 0.5_dp
 
-      CALL cp_dbcsr_iterator_start(iter, matrix_p)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
+      CALL dbcsr_iterator_start(iter, matrix_p)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
          ikind = kind_of(irow)
          IF (icol .EQ. irow) DATA(:, :) = pmat(ikind)%mat(:, :)*scale
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
-      CALL cp_dbcsr_trace(matrix_p, matrix_s, trps1)
+      CALL dbcsr_trace(matrix_p, matrix_s, trps1)
       scale = 0.0_dp
       IF (nelectron_spin > 0) & ! could be a ghost-atoms-only simulation
          scale = REAL(nelectron_spin, dp)/trps1
-      CALL cp_dbcsr_scale(matrix_p, scale)
+      CALL dbcsr_scale(matrix_p, scale)
 
       IF (output_unit > 0) THEN
          IF (nspin > 1) THEN
@@ -1031,7 +1030,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_atomic_fock_matrix(matrix_f, particle_set, atomic_kind_set, &
                                            qs_kind_set, output_unit)
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_f
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_f
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1045,7 +1044,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block
       TYPE(atom_matrix_type), ALLOCATABLE, DIMENSION(:)  :: fmat
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
       CALL timeset(routineN, handle)
@@ -1068,16 +1067,16 @@ CONTAINS
       END DO
 
       ! zero result matrix
-      CALL cp_dbcsr_set(matrix_f, 0.0_dp)
+      CALL dbcsr_set(matrix_f, 0.0_dp)
 
       ! copy precomputed blocks onto diagonal of result matrix
-      CALL cp_dbcsr_iterator_start(iter, matrix_f)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, irow, icol, block)
+      CALL dbcsr_iterator_start(iter, matrix_f)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, irow, icol, block)
          ikind = kind_of(irow)
          IF (icol .EQ. irow) block(:, :) = fmat(ikind)%mat(:, :)
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       ! cleanup
       DO ikind = 1, SIZE(atomic_kind_set)
@@ -1105,7 +1104,7 @@ CONTAINS
    SUBROUTINE calculate_mopac_dm(matrix_p, matrix_s, has_unit_metric, &
                                  dft_control, particle_set, atomic_kind_set, qs_kind_set, &
                                  nspin, nelectron_spin, para_env)
-      TYPE(cp_dbcsr_type), INTENT(INOUT)                 :: matrix_p, matrix_s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_p, matrix_s
       LOGICAL                                            :: has_unit_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1136,7 +1135,7 @@ CONTAINS
 
       group = para_env%group
       natom = SIZE(particle_set)
-      nao = cp_dbcsr_nfullrows_total(matrix_p)
+      nao = dbcsr_nfullrows_total(matrix_p)
       IF (nspin == 1) THEN
          maxocc = 2.0_dp
       ELSE
@@ -1159,7 +1158,7 @@ CONTAINS
       IF (has_unit_metric) THEN
          sdiag(:) = 1.0_dp
       ELSE
-         CALL cp_dbcsr_get_diag(matrix_s, sdiag)
+         CALL dbcsr_get_diag(matrix_s, sdiag)
          CALL mp_sum(sdiag, group)
       END IF
 
@@ -1336,7 +1335,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL cp_dbcsr_set_diag(matrix_p, pdiag)
+      CALL dbcsr_set_diag(matrix_p, pdiag)
 
       DEALLOCATE (econf)
 

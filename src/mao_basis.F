@@ -15,13 +15,13 @@ MODULE mao_basis
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_create,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_reserve_diag_blocks,&
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_create,&
+                                              dbcsr_deallocate_matrix_set,&
                                               dbcsr_distribution_obj,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_reserve_diag_blocks,&
                                               dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE mao_methods,                     ONLY: mao_build_q
@@ -69,9 +69,9 @@ CONTAINS
    SUBROUTINE mao_generate_basis(qs_env, mao_coef, ref_basis_set, pmat_external, smat_external, &
                                  molecular, max_iter, eps_grad, nmao_external, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
       CHARACTER(len=*), OPTIONAL                         :: ref_basis_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: pmat_external, smat_external
       LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
       INTEGER, INTENT(IN), OPTIONAL                      :: max_iter
@@ -90,9 +90,9 @@ CONTAINS
       LOGICAL                                            :: do_nmao_external, molecule
       REAL(KIND=dp)                                      :: electra(2), eps_filter, eps_fun, &
                                                             mao_eps_grad
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_q, matrix_smm, matrix_smo
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p, matrix_s
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_q, matrix_smm, matrix_smo
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list, orb_basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -225,7 +225,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, natom=natom)
       CALL get_ks_env(ks_env=ks_env, particle_set=particle_set, dbcsr_dist=dbcsr_dist)
       NULLIFY (mao_coef)
-      CALL cp_dbcsr_allocate_matrix_set(mao_coef, nspin)
+      CALL dbcsr_allocate_matrix_set(mao_coef, nspin)
       ALLOCATE (row_blk_sizes(natom), col_blk_sizes(natom))
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, &
                             basis=mao_basis_set_list)
@@ -247,11 +247,11 @@ CONTAINS
       DO ispin = 1, nspin
          ! coefficients
          ALLOCATE (mao_coef(ispin)%matrix)
-         CALL cp_dbcsr_init(mao_coef(ispin)%matrix)
-         CALL cp_dbcsr_create(matrix=mao_coef(ispin)%matrix, &
-                              name="MAO_COEF", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
-         CALL cp_dbcsr_reserve_diag_blocks(matrix=mao_coef(ispin)%matrix)
+         CALL dbcsr_init(mao_coef(ispin)%matrix)
+         CALL dbcsr_create(matrix=mao_coef(ispin)%matrix, &
+                           name="MAO_COEF", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
+                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+         CALL dbcsr_reserve_diag_blocks(matrix=mao_coef(ispin)%matrix)
       END DO
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
@@ -274,9 +274,9 @@ CONTAINS
 
       DEALLOCATE (mao_basis_set_list, orb_basis_set_list)
 
-      IF (ASSOCIATED(matrix_smm)) CALL cp_dbcsr_deallocate_matrix_set(matrix_smm)
-      IF (ASSOCIATED(matrix_smo)) CALL cp_dbcsr_deallocate_matrix_set(matrix_smo)
-      IF (ASSOCIATED(matrix_q)) CALL cp_dbcsr_deallocate_matrix_set(matrix_q)
+      IF (ASSOCIATED(matrix_smm)) CALL dbcsr_deallocate_matrix_set(matrix_smm)
+      IF (ASSOCIATED(matrix_smo)) CALL dbcsr_deallocate_matrix_set(matrix_smo)
+      IF (ASSOCIATED(matrix_q)) CALL dbcsr_deallocate_matrix_set(matrix_q)
 
       CALL timestop(handle)
 

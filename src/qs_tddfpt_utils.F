@@ -10,7 +10,6 @@
 MODULE qs_tddfpt_utils
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
@@ -27,6 +26,7 @@ MODULE qs_tddfpt_utils
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -110,7 +110,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: n_spins, spin
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       NULLIFY (matrix_s, dft_control)
@@ -293,8 +293,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: nhomos, nlumos, nrows
       REAL(KIND=dp)                                      :: contribution, summed_contributions
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: homo_coeff_col, lumo_coeff_col
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: S_lumos
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tddfpt_control_type)                          :: t_control
 
@@ -383,7 +383,7 @@ CONTAINS
    SUBROUTINE normalize(X, tmp_vec, metric)
 
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: x, tmp_vec
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: metric
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: metric
 
       INTEGER                                            :: n_spins, spin
       REAL(KIND=dp)                                      :: norm, tmp

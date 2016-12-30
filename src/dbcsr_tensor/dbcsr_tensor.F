@@ -29,10 +29,10 @@ MODULE dbcsr_tensor
                                               sizes_of_arrays
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_mp_group, dbcsr_obj, dbcsr_put_block, dbcsr_reserve_blocks, &
-        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
+        dbcsr_get_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_mp_group, dbcsr_put_block, dbcsr_reserve_blocks, dbcsr_type, dbcsr_type_complex_4, &
+        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
    USE dbcsr_tensor_block,              ONLY: &
         block_buffer_add_anyd_block, block_buffer_blocks_left, block_buffer_create, &
         block_buffer_destroy, block_buffer_get_next_anyd_block, block_buffer_type, block_nd, &
@@ -65,7 +65,7 @@ MODULE dbcsr_tensor
       dbcsr_t_copy, &
       dbcsr_t_get_block, &
       dbcsr_t_get_stored_coordinates, &
-      dbcsr_t_iterator, &
+      dbcsr_t_iterator_type, &
       dbcsr_t_iterator_blocks_left, &
       dbcsr_t_iterator_next_block, &
       dbcsr_t_iterator_start, &
@@ -75,12 +75,12 @@ MODULE dbcsr_tensor
       dbcsr_t_put_block, &
       dbcsr_t_reserve_blocks
 
-   TYPE dbcsr_t_iterator
-      TYPE(dbcsr_iterator)   :: iter
-      TYPE(nd_to_2d_mapping) :: nd_index_blk
-      TYPE(nd_to_2d_mapping) :: nd_index
-      TYPE(array_list)       :: blk_sizes, blk_offsets
-   END TYPE dbcsr_t_iterator
+   TYPE dbcsr_t_iterator_type
+      TYPE(dbcsr_iterator_type)   :: iter
+      TYPE(nd_to_2d_mapping)      :: nd_index_blk
+      TYPE(nd_to_2d_mapping)      :: nd_index
+      TYPE(array_list)            :: blk_sizes, blk_offsets
+   END TYPE dbcsr_t_iterator_type
 
    INTERFACE dbcsr_t_put_block
       MODULE PROCEDURE dbcsr_t_put_2d_block_r_dp
@@ -139,7 +139,7 @@ CONTAINS
       INTEGER                                            :: nblocks_reserved
 
       INTEGER                                            :: blk, blk_p
-      TYPE(dbcsr_t_iterator)                             :: iterator
+      TYPE(dbcsr_t_iterator_type)                        :: iterator
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor))          :: blk_offset, blk_size, ind_nd
 
       CPASSERT(tensor%valid)
@@ -165,7 +165,7 @@ CONTAINS
       INTEGER                                            :: blk, iblk, nblk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_ind_1, blk_ind_2, blk_ind_3, &
                                                             blk_ind_4
-      TYPE(dbcsr_t_iterator)                             :: iterator
+      TYPE(dbcsr_t_iterator_type)                        :: iterator
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor))          :: ind_nd
 
       CPASSERT(tensor%valid)
@@ -204,7 +204,7 @@ CONTAINS
 !> \param tensor ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_iterator_start(iterator, tensor)
-      TYPE(dbcsr_t_iterator), INTENT(OUT)                :: iterator
+      TYPE(dbcsr_t_iterator_type), INTENT(OUT)           :: iterator
       TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
 
       CPASSERT(tensor%valid)
@@ -221,7 +221,7 @@ CONTAINS
 !> \param iterator ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_iterator_stop(iterator)
-      TYPE(dbcsr_t_iterator), INTENT(INOUT)              :: iterator
+      TYPE(dbcsr_t_iterator_type), INTENT(INOUT)         :: iterator
 
       CALL dbcsr_iterator_stop(iterator%iter)
       CALL destroy_nd_to_2d_mapping(iterator%nd_index)
@@ -238,7 +238,7 @@ CONTAINS
 !>      the source due to a bug in the IBM XL Fortran compiler (compilation fails)
 ! **************************************************************************************************
    PURE FUNCTION ndims_iterator(iterator)
-      TYPE(dbcsr_t_iterator), INTENT(IN)                 :: iterator
+      TYPE(dbcsr_t_iterator_type), INTENT(IN)            :: iterator
       INTEGER                                            :: ndims_iterator
 
       ndims_iterator = iterator%nd_index%ndim_nd
@@ -255,7 +255,7 @@ CONTAINS
 !> \param blk_offset blk offset in each dimension
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_iterator_next_block(iterator, ind_nd, blk, blk_p, blk_size, blk_offset)
-      TYPE(dbcsr_t_iterator), INTENT(INOUT)              :: iterator
+      TYPE(dbcsr_t_iterator_type), INTENT(INOUT)         :: iterator
       INTEGER, DIMENSION(dbcsr_t_ndims(iterator)), &
          INTENT(OUT)                                     :: ind_nd
       INTEGER, INTENT(OUT)                               :: blk
@@ -280,7 +280,7 @@ CONTAINS
 !> \retval dbcsr_t_iterator_blocks_left ...
 ! **************************************************************************************************
    FUNCTION dbcsr_t_iterator_blocks_left(iterator)
-      TYPE(dbcsr_t_iterator), INTENT(IN)                 :: iterator
+      TYPE(dbcsr_t_iterator_type), INTENT(IN)            :: iterator
       LOGICAL                                            :: dbcsr_t_iterator_blocks_left
 
       dbcsr_t_iterator_blocks_left = dbcsr_iterator_blocks_left(iterator%iter)
@@ -346,7 +346,7 @@ CONTAINS
          rows(iblk) = ind_2d(1); cols(iblk) = ind_2d(2)
       ENDDO
 
-      CALL dbcsr_reserve_blocks(tensor%matrix_rep, rows=rows, columns=cols)
+      CALL dbcsr_reserve_blocks(tensor%matrix_rep, rows=rows, cols=cols)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -370,13 +370,13 @@ CONTAINS
 !> \param tensor_out ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_reserve_blocks_matrix(matrix_in, tensor_out)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_in
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor_out
 
       INTEGER                                            :: blk, iblk, nblk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_ind_1, blk_ind_2
       INTEGER, DIMENSION(2)                              :: ind_2d
-      TYPE(dbcsr_iterator)                               :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       nblk = 0
       CALL dbcsr_iterator_start(iter, matrix_in)
@@ -452,26 +452,20 @@ CONTAINS
 !> \param tensor_out ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_copy_matrix(matrix_in, tensor_out)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_in
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor_out
 
       INTEGER, DIMENSION(2)                              :: ind_2d
-      LOGICAL                                            :: tr
       REAL(KIND=real_8), ALLOCATABLE, DIMENSION(:, :)    :: block_arr
       REAL(KIND=real_8), DIMENSION(:, :), POINTER        :: block
-      TYPE(dbcsr_iterator)                               :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL dbcsr_t_reserve_blocks_matrix(matrix_in, tensor_out)
 
       CALL dbcsr_iterator_start(iter, matrix_in)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), block, tr)
-         IF (tr) THEN
-            ALLOCATE (block_arr(SIZE(block, 2), SIZE(block, 1)))
-            block_arr(:, :) = TRANSPOSE(block)
-         ELSE
-            CALL allocate_any(SHAPE(block), block_arr, source=block)
-         ENDIF
+         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), block)
+         CALL allocate_any(SHAPE(block), block_arr, source=block)
          CALL dbcsr_t_put_block(tensor_out, ind_2d, SHAPE(block_arr), block_arr)
          DEALLOCATE (block_arr)
       ENDDO
@@ -494,7 +488,7 @@ CONTAINS
       CALL permute_index(tensor_in%nd_index, nd_index_rs, order)
       CALL permute_index(tensor_in%nd_index_blk, nd_index_blk_rs, order)
 
-      CALL dbcsr_create(tensor_out%matrix_rep, tensor_in%matrix_rep)
+      CALL dbcsr_create(tensor_out%matrix_rep, template=tensor_in%matrix_rep)
       CALL dbcsr_finalize(tensor_out%matrix_rep)
 
       CALL dbcsr_copy(tensor_out%matrix_rep, tensor_in%matrix_rep)
@@ -597,7 +591,7 @@ CONTAINS
                                                             num_entries_recv, num_entries_send, &
                                                             num_rec, num_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: req_array
-      TYPE(dbcsr_t_iterator)                             :: iter
+      TYPE(dbcsr_t_iterator_type)                        :: iter
       TYPE(block_nd)                                     :: blk_data
       TYPE(block_buffer_type), ALLOCATABLE, DIMENSION(:) :: buffer_recv, buffer_send
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor_in))       :: blk_size, ind_nd, index
@@ -1091,7 +1085,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
       INTEGER, DIMENSION(2)                              :: ind_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       REAL(kind=real_8), ALLOCATABLE, DIMENSION(:, :)    :: block_2d
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: block_2d_ptr
       TYPE(nd_to_2d_mapping)                             :: map_blk
@@ -1100,7 +1094,7 @@ CONTAINS
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1126,7 +1120,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
       INTEGER, DIMENSION(2)                              :: ind_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       REAL(kind=real_8), ALLOCATABLE, DIMENSION(:, :)    :: block_2d
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: block_2d_ptr
       TYPE(nd_to_2d_mapping)                             :: map_blk
@@ -1135,7 +1129,7 @@ CONTAINS
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1160,7 +1154,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
       INTEGER, DIMENSION(2)                              :: ind_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       REAL(kind=real_8), ALLOCATABLE, DIMENSION(:, :)    :: block_2d
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: block_2d_ptr
       TYPE(nd_to_2d_mapping)                             :: map_blk
@@ -1169,7 +1163,7 @@ CONTAINS
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1194,7 +1188,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
       INTEGER, DIMENSION(2)                              :: ind_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       REAL(kind=real_4), ALLOCATABLE, DIMENSION(:, :)    :: block_2d
       REAL(kind=real_4), DIMENSION(:, :), POINTER        :: block_2d_ptr
       TYPE(nd_to_2d_mapping)                             :: map_blk
@@ -1203,7 +1197,7 @@ CONTAINS
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1229,7 +1223,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
       INTEGER, DIMENSION(2)                              :: ind_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       REAL(kind=real_4), ALLOCATABLE, DIMENSION(:, :)    :: block_2d
       REAL(kind=real_4), DIMENSION(:, :), POINTER        :: block_2d_ptr
       TYPE(nd_to_2d_mapping)                             :: map_blk
@@ -1238,7 +1232,7 @@ CONTAINS
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1263,7 +1257,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
       INTEGER, DIMENSION(2)                              :: ind_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       REAL(kind=real_4), ALLOCATABLE, DIMENSION(:, :)    :: block_2d
       REAL(kind=real_4), DIMENSION(:, :), POINTER        :: block_2d_ptr
       TYPE(nd_to_2d_mapping)                             :: map_blk
@@ -1272,7 +1266,7 @@ CONTAINS
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1299,14 +1293,14 @@ CONTAINS
       COMPLEX(kind=real_8), DIMENSION(:, :), POINTER     :: block_2d_ptr
       INTEGER, DIMENSION(2)                              :: ind_2d
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       TYPE(nd_to_2d_mapping)                             :: map_blk
 
       NULLIFY (block_2d_ptr)
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1334,14 +1328,14 @@ CONTAINS
       COMPLEX(kind=real_8), DIMENSION(:, :), POINTER     :: block_2d_ptr
       INTEGER, DIMENSION(2)                              :: ind_2d
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       TYPE(nd_to_2d_mapping)                             :: map_blk
 
       NULLIFY (block_2d_ptr)
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1368,14 +1362,14 @@ CONTAINS
       COMPLEX(kind=real_8), DIMENSION(:, :), POINTER     :: block_2d_ptr
       INTEGER, DIMENSION(2)                              :: ind_2d
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       TYPE(nd_to_2d_mapping)                             :: map_blk
 
       NULLIFY (block_2d_ptr)
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1402,14 +1396,14 @@ CONTAINS
       COMPLEX(kind=real_4), DIMENSION(:, :), POINTER     :: block_2d_ptr
       INTEGER, DIMENSION(2)                              :: ind_2d
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       TYPE(nd_to_2d_mapping)                             :: map_blk
 
       NULLIFY (block_2d_ptr)
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1437,14 +1431,14 @@ CONTAINS
       COMPLEX(kind=real_4), DIMENSION(:, :), POINTER     :: block_2d_ptr
       INTEGER, DIMENSION(2)                              :: ind_2d
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       TYPE(nd_to_2d_mapping)                             :: map_blk
 
       NULLIFY (block_2d_ptr)
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)
@@ -1471,14 +1465,14 @@ CONTAINS
       COMPLEX(kind=real_4), DIMENSION(:, :), POINTER     :: block_2d_ptr
       INTEGER, DIMENSION(2)                              :: ind_2d
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: map1_2d, map2_2d
-      LOGICAL                                            :: found, tr
+      LOGICAL                                            :: found
       TYPE(nd_to_2d_mapping)                             :: map_blk
 
       NULLIFY (block_2d_ptr)
 
       ! convert block index
       ind_2d(:) = get_2d_indices(tensor%nd_index_blk, ind)
-      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, tr, found)
+      CALL dbcsr_get_block_p(tensor%matrix_rep, ind_2d(1), ind_2d(2), block_2d_ptr, found)
       CPASSERT(found)
       ! convert pointer to allocatable
       CALL allocate_any(SHAPE(block_2d_ptr), block_2d, source=block_2d_ptr)

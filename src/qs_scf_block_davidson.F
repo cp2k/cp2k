@@ -15,12 +15,6 @@
 ! **************************************************************************************************
 MODULE qs_scf_block_davidson
 
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_distribution, cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init_p, &
-        cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
-        cp_dbcsr_scale_by_vector, cp_dbcsr_type, dbcsr_norm_column, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_default, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -48,6 +42,11 @@ MODULE qs_scf_block_davidson
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_distribution, &
+        dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_norm, &
+        dbcsr_norm_column, dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_scale_by_vector, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
@@ -80,7 +79,7 @@ CONTAINS
 
       TYPE(davidson_type)                                :: bdav_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
 
@@ -95,12 +94,12 @@ CONTAINS
       REAL(dp)                                           :: lambda, max_norm, min_norm, t1, t2
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: ritz_coeff, vnorm
       REAL(dp), DIMENSION(:), POINTER                    :: eig_not_conv, eigenvalues, evals
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_b
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: c_conv, c_notconv, c_out, c_pz, c_z, &
                                                             h_block, h_fm, m_hc, m_sc, m_tmp, &
                                                             mo_coeff, mt_tmp, s_block, s_fm, &
                                                             v_block, w_block
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
 
       CALL timeset(routineN, handle)
 
@@ -477,7 +476,7 @@ CONTAINS
 
       TYPE(davidson_type)                                :: bdav_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
 
@@ -492,12 +491,12 @@ CONTAINS
       REAL(dp)                                           :: lambda, max_norm, min_norm, t1, t2
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: eig_not_conv, evals, ritz_coeff, vnorm
       REAL(dp), DIMENSION(:), POINTER                    :: eigenvalues
-      TYPE(cp_dbcsr_type), POINTER                       :: c_out, matrix_hc, matrix_mm, matrix_pz, &
-                                                            matrix_sc, matrix_z, mo_coeff_b, &
-                                                            mo_conv, mo_notconv, smo_conv
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER :: h_block, matrix_mm_fm, matrix_mmt_fm, matrix_nm_fm, &
          matrix_z_fm, mo_coeff, mo_conv_fm, mo_notconv_fm, s_block, v_block, w_block
+      TYPE(dbcsr_type), POINTER                          :: c_out, matrix_hc, matrix_mm, matrix_pz, &
+                                                            matrix_sc, matrix_z, mo_coeff_b, &
+                                                            mo_conv, mo_notconv, smo_conv
 
       CALL timeset(routineN, handle)
 
@@ -533,44 +532,44 @@ CONTAINS
       DO iter = 1, max_iter
          NULLIFY (c_out, mo_conv, mo_notconv_fm, mo_notconv)
          ! Prepare HC and SC, using mo_coeff_b (sparse), these are still sparse
-         CALL cp_dbcsr_init_p(matrix_hc)
-         CALL cp_dbcsr_create(matrix_hc, "matrix_hc", cp_dbcsr_distribution(mo_coeff_b), &
-                              dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mo_coeff_b), &
-                              cp_dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
-         CALL cp_dbcsr_init_p(matrix_sc)
-         CALL cp_dbcsr_create(matrix_sc, "matrix_sc", cp_dbcsr_distribution(mo_coeff_b), &
-                              dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mo_coeff_b), &
-                              cp_dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_init_p(matrix_hc)
+         CALL dbcsr_create(matrix_hc, "matrix_hc", dbcsr_distribution(mo_coeff_b), &
+                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(mo_coeff_b), &
+                           dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_init_p(matrix_sc)
+         CALL dbcsr_create(matrix_sc, "matrix_sc", dbcsr_distribution(mo_coeff_b), &
+                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(mo_coeff_b), &
+                           dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
 
-         CALL cp_dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k)
-         CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, matrix_h, mo_coeff_b, 0.0_dp, matrix_hc, last_column=k)
-         CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_coeff_b, 0.0_dp, matrix_sc, last_column=k)
+         CALL dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k)
+         CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_h, mo_coeff_b, 0.0_dp, matrix_hc, last_column=k)
+         CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_coeff_b, 0.0_dp, matrix_sc, last_column=k)
 
          ! compute Ritz values
          ritz_coeff = 0.0_dp
          ! Allocate Sparse matrices: nmoxnmo
          ! matrix_mm
 
-         CALL cp_dbcsr_init_p(matrix_mm)
+         CALL dbcsr_init_p(matrix_mm)
          CALL cp_dbcsr_m_by_n_from_template(matrix_mm, template=matrix_s, m=nmo, n=nmo, &
                                             sym=dbcsr_type_no_symmetry)
 
-         CALL cp_dbcsr_multiply('t', 'n', 1.0_dp, mo_coeff_b, matrix_hc, 0.0_dp, matrix_mm, last_column=k)
-         CALL cp_dbcsr_get_diag(matrix_mm, ritz_coeff)
+         CALL dbcsr_multiply('t', 'n', 1.0_dp, mo_coeff_b, matrix_hc, 0.0_dp, matrix_mm, last_column=k)
+         CALL dbcsr_get_diag(matrix_mm, ritz_coeff)
          CALL mp_sum(ritz_coeff, mo_coeff%matrix_struct%para_env%group)
 
          ! extended subspace P Z = P [H - theta S]C  this ia another matrix of type and size as mo_coeff_b
-         CALL cp_dbcsr_init_p(matrix_z)
-         CALL cp_dbcsr_create(matrix_z, "matrix_z", cp_dbcsr_distribution(mo_coeff_b), &
-                              dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mo_coeff_b), &
-                              cp_dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
-         CALL cp_dbcsr_copy(matrix_z, matrix_sc)
-         CALL cp_dbcsr_scale_by_vector(matrix_z, ritz_coeff, side='right')
-         CALL cp_dbcsr_add(matrix_z, matrix_hc, -1.0_dp, 1.0_dp)
+         CALL dbcsr_init_p(matrix_z)
+         CALL dbcsr_create(matrix_z, "matrix_z", dbcsr_distribution(mo_coeff_b), &
+                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(mo_coeff_b), &
+                           dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_copy(matrix_z, matrix_sc)
+         CALL dbcsr_scale_by_vector(matrix_z, ritz_coeff, side='right')
+         CALL dbcsr_add(matrix_z, matrix_hc, -1.0_dp, 1.0_dp)
 
          ! Check for converged eigenvectors
          vnorm = 0.0_dp
-         CALL cp_dbcsr_norm(matrix_z, which_norm=dbcsr_norm_column, norm_vector=vnorm)
+         CALL dbcsr_norm(matrix_z, which_norm=dbcsr_norm_column, norm_vector=vnorm)
          nmo_converged = 0
          nmo_not_converged = 0
          max_norm = 0.0_dp
@@ -629,10 +628,10 @@ CONTAINS
             END DO
             nset_not_conv = nset
 
-            CALL cp_dbcsr_release_p(matrix_hc)
-            CALL cp_dbcsr_release_p(matrix_sc)
-            CALL cp_dbcsr_release_p(matrix_z)
-            CALL cp_dbcsr_release_p(matrix_mm)
+            CALL dbcsr_release_p(matrix_hc)
+            CALL dbcsr_release_p(matrix_sc)
+            CALL dbcsr_release_p(matrix_z)
+            CALL dbcsr_release_p(matrix_mm)
          END IF
 
          IF (REAL(nmo_converged, dp)/REAL(nmo, dp) > bdav_env%conv_percent) THEN
@@ -674,30 +673,30 @@ CONTAINS
             END DO
 
             ! allocate c_out sparse matrix, to project out the converged MOS
-            CALL cp_dbcsr_init_p(c_out)
-            CALL cp_dbcsr_create(c_out, "c_out", cp_dbcsr_distribution(matrix_s), &
-                                 dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(matrix_s), &
-                                 cp_dbcsr_col_block_sizes(matrix_s), nze=0, data_type=dbcsr_type_real_default)
+            CALL dbcsr_init_p(c_out)
+            CALL dbcsr_create(c_out, "c_out", dbcsr_distribution(matrix_s), &
+                              dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_s), &
+                              dbcsr_col_block_sizes(matrix_s), nze=0, data_type=dbcsr_type_real_default)
 
             ! allocate mo_conv sparse
-            CALL cp_dbcsr_init_p(mo_conv)
+            CALL dbcsr_init_p(mo_conv)
             CALL cp_dbcsr_m_by_n_from_row_template(mo_conv, template=matrix_s, n=nmo_converged, &
                                                    sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_init_p(smo_conv)
+            CALL dbcsr_init_p(smo_conv)
             CALL cp_dbcsr_m_by_n_from_row_template(smo_conv, template=matrix_s, n=nmo_converged, &
                                                    sym=dbcsr_type_no_symmetry)
 
             CALL copy_fm_to_dbcsr(mo_conv_fm, mo_conv) !fm->dbcsr
 
-            CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_conv, 0.0_dp, smo_conv, last_column=nmo_converged)
-            CALL cp_dbcsr_multiply('n', 't', 1.0_dp, smo_conv, smo_conv, 0.0_dp, c_out, last_column=nao)
+            CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_conv, 0.0_dp, smo_conv, last_column=nmo_converged)
+            CALL dbcsr_multiply('n', 't', 1.0_dp, smo_conv, smo_conv, 0.0_dp, c_out, last_column=nao)
             ! project c_out out of H
             lambda = 100.0_dp*ABS(eigenvalues(homo))
-            CALL cp_dbcsr_add(c_out, matrix_h, lambda, 1.0_dp)
+            CALL dbcsr_add(c_out, matrix_h, lambda, 1.0_dp)
 
-            CALL cp_dbcsr_release_p(mo_conv)
-            CALL cp_dbcsr_release_p(smo_conv)
+            CALL dbcsr_release_p(mo_conv)
+            CALL dbcsr_release_p(smo_conv)
             CALL cp_fm_release(mo_conv_fm)
 
             !allocate c_notconv_fm
@@ -721,42 +720,42 @@ CONTAINS
             END DO
 
             ! allocate mo_conv sparse
-            CALL cp_dbcsr_init_p(mo_notconv)
+            CALL dbcsr_init_p(mo_notconv)
             CALL cp_dbcsr_m_by_n_from_row_template(mo_notconv, template=matrix_s, n=nmo_not_converged, &
                                                    sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_init_p(matrix_hc)
+            CALL dbcsr_init_p(matrix_hc)
             CALL cp_dbcsr_m_by_n_from_row_template(matrix_hc, template=matrix_s, n=nmo_not_converged, &
                                                    sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_init_p(matrix_sc)
+            CALL dbcsr_init_p(matrix_sc)
             CALL cp_dbcsr_m_by_n_from_row_template(matrix_sc, template=matrix_s, n=nmo_not_converged, &
                                                    sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_init_p(matrix_z)
+            CALL dbcsr_init_p(matrix_z)
             CALL cp_dbcsr_m_by_n_from_row_template(matrix_z, template=matrix_s, n=nmo_not_converged, &
                                                    sym=dbcsr_type_no_symmetry)
 
             CALL copy_fm_to_dbcsr(mo_notconv_fm, mo_notconv) !fm->dbcsr
 
-            CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, c_out, mo_notconv, 0.0_dp, matrix_hc, &
-                                   last_column=nmo_not_converged)
-            CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_notconv, 0.0_dp, matrix_sc, &
-                                   last_column=nmo_not_converged)
+            CALL dbcsr_multiply('n', 'n', 1.0_dp, c_out, mo_notconv, 0.0_dp, matrix_hc, &
+                                last_column=nmo_not_converged)
+            CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_notconv, 0.0_dp, matrix_sc, &
+                                last_column=nmo_not_converged)
 
-            CALL cp_dbcsr_copy(matrix_z, matrix_sc)
-            CALL cp_dbcsr_scale_by_vector(matrix_z, eig_not_conv, side='right')
-            CALL cp_dbcsr_add(matrix_z, matrix_hc, -1.0_dp, 1.0_dp)
+            CALL dbcsr_copy(matrix_z, matrix_sc)
+            CALL dbcsr_scale_by_vector(matrix_z, eig_not_conv, side='right')
+            CALL dbcsr_add(matrix_z, matrix_hc, -1.0_dp, 1.0_dp)
 
             DEALLOCATE (eig_not_conv)
 
             ! matrix_mm
-            CALL cp_dbcsr_init_p(matrix_mm)
+            CALL dbcsr_init_p(matrix_mm)
             CALL cp_dbcsr_m_by_n_from_template(matrix_mm, template=matrix_s, m=nmo_not_converged, n=nmo_not_converged, &
                                                sym=dbcsr_type_no_symmetry)
 
-            CALL cp_dbcsr_multiply('t', 'n', 1.0_dp, mo_notconv, matrix_hc, 0.0_dp, matrix_mm, &
-                                   last_column=nmo_not_converged)
+            CALL dbcsr_multiply('t', 'n', 1.0_dp, mo_notconv, matrix_hc, 0.0_dp, matrix_mm, &
+                                last_column=nmo_not_converged)
 
          ELSE
             mo_notconv => mo_coeff_b
@@ -765,19 +764,19 @@ CONTAINS
          END IF
 
          ! allocate matrix_pz using as template matrix_z
-         CALL cp_dbcsr_init_p(matrix_pz)
-         CALL cp_dbcsr_create(matrix_pz, "matrix_pz", cp_dbcsr_distribution(matrix_z), &
-                              dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(matrix_z), &
-                              cp_dbcsr_col_block_sizes(matrix_z), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_init_p(matrix_pz)
+         CALL dbcsr_create(matrix_pz, "matrix_pz", dbcsr_distribution(matrix_z), &
+                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(matrix_z), &
+                           dbcsr_col_block_sizes(matrix_z), nze=0, data_type=dbcsr_type_real_default)
 
          IF (do_apply_preconditioner) THEN
             IF (preconditioner%in_use /= 0) THEN
                CALL apply_preconditioner(preconditioner, matrix_z, matrix_pz)
             ELSE
-               CALL cp_dbcsr_copy(matrix_pz, matrix_z)
+               CALL dbcsr_copy(matrix_pz, matrix_z)
             END IF
          ELSE
-            CALL cp_dbcsr_copy(matrix_pz, matrix_z)
+            CALL dbcsr_copy(matrix_pz, matrix_z)
          END IF
 
          !allocate NMOxNMO  full matrices
@@ -809,7 +808,7 @@ CONTAINS
          CALL cp_fm_to_fm_submat(matrix_mm_fm, h_block, nmat, nmat, 1, 1, 1, 1)
 
          ! compute the bottom left  ZSC (top right is transpose)
-         CALL cp_dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_sc, 0.0_dp, matrix_mm, last_column=nmat)
+         CALL dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_sc, 0.0_dp, matrix_mm, last_column=nmat)
          !  set the bottom left part of S[C,Z] block matrix  ZSC
          !copy sparse to full
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
@@ -818,7 +817,7 @@ CONTAINS
          CALL cp_fm_to_fm_submat(matrix_mmt_fm, s_block, nmat, nmat, 1, 1, 1, 1+nmat)
 
          ! compute the bottom left  ZHC (top right is transpose)
-         CALL cp_dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_hc, 0.0_dp, matrix_mm, last_column=nmat)
+         CALL dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_hc, 0.0_dp, matrix_mm, last_column=nmat)
          ! set the bottom left part of S[C,Z] block matrix  ZHC
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
          CALL cp_fm_to_fm_submat(matrix_mm_fm, h_block, nmat, nmat, 1, 1, 1+nmat, 1)
@@ -828,25 +827,25 @@ CONTAINS
          CALL cp_fm_release(matrix_mmt_fm)
 
          ! (reuse matrix_sc and matrix_hc to computr HZ and SZ)
-         CALL cp_dbcsr_get_info(matrix_pz, nfullrows_total=n, nfullcols_total=k)
-         CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, c_out, matrix_pz, 0.0_dp, matrix_hc, last_column=k)
-         CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, matrix_pz, 0.0_dp, matrix_sc, last_column=k)
+         CALL dbcsr_get_info(matrix_pz, nfullrows_total=n, nfullcols_total=k)
+         CALL dbcsr_multiply('n', 'n', 1.0_dp, c_out, matrix_pz, 0.0_dp, matrix_hc, last_column=k)
+         CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, matrix_pz, 0.0_dp, matrix_sc, last_column=k)
 
          ! compute the bottom right  ZSZ
-         CALL cp_dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_sc, 0.0_dp, matrix_mm, last_column=k)
+         CALL dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_sc, 0.0_dp, matrix_mm, last_column=k)
          ! set the bottom right part of S[C,Z] block matrix  ZSZ
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
          CALL cp_fm_to_fm_submat(matrix_mm_fm, s_block, nmat, nmat, 1, 1, 1+nmat, 1+nmat)
 
          ! compute the bottom right  ZHZ
-         CALL cp_dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_hc, 0.0_dp, matrix_mm, last_column=k)
+         CALL dbcsr_multiply('t', 'n', 1.0_dp, matrix_pz, matrix_hc, 0.0_dp, matrix_mm, last_column=k)
          ! set the bottom right part of H[C,Z] block matrix  ZHZ
          CALL copy_dbcsr_to_fm(matrix_mm, matrix_mm_fm)
          CALL cp_fm_to_fm_submat(matrix_mm_fm, h_block, nmat, nmat, 1, 1, 1+nmat, 1+nmat)
 
-         CALL cp_dbcsr_release_p(matrix_mm)
-         CALL cp_dbcsr_release_p(matrix_sc)
-         CALL cp_dbcsr_release_p(matrix_hc)
+         CALL dbcsr_release_p(matrix_mm)
+         CALL dbcsr_release_p(matrix_sc)
+         CALL dbcsr_release_p(matrix_hc)
 
          CALL reduce_extended_space(s_block, h_block, v_block, w_block, evals, nmat2)
 
@@ -865,8 +864,8 @@ CONTAINS
          CALL cp_fm_to_fm_submat(v_block, matrix_mm_fm, nmat, nmat, 1+nmat, 1, 1, 1)
          CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, matrix_z_fm, matrix_mm_fm, 1.0_dp, matrix_nm_fm)
 
-         CALL cp_dbcsr_release_p(matrix_z)
-         CALL cp_dbcsr_release_p(matrix_pz)
+         CALL dbcsr_release_p(matrix_z)
+         CALL dbcsr_release_p(matrix_pz)
          CALL cp_fm_release(matrix_z_fm)
          CALL cp_fm_release(s_block)
          CALL cp_fm_release(h_block)
@@ -888,8 +887,8 @@ CONTAINS
             DEALLOCATE (iconv_set)
             DEALLOCATE (inotconv_set)
 
-            CALL cp_dbcsr_release_p(mo_notconv)
-            CALL cp_dbcsr_release_p(c_out)
+            CALL dbcsr_release_p(mo_notconv)
+            CALL dbcsr_release_p(c_out)
             CALL cp_fm_release(mo_notconv_fm)
          ELSE
             CALL cp_fm_to_fm(matrix_nm_fm, mo_coeff)

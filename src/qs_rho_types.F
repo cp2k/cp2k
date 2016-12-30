@@ -14,8 +14,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_rho_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE kpoint_transitional,             ONLY: get_1d_pointer,&
                                               get_2d_pointer,&
@@ -66,7 +66,7 @@ MODULE qs_rho_types
    TYPE qs_rho_type
       PRIVATE
       TYPE(kpoint_transitional_type)                 :: rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao_im => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER   :: rho_ao_im => Null()
       TYPE(pw_p_type), DIMENSION(:), POINTER         :: rho_g => Null(), &
                                                         rho_r => Null(), &
                                                         drho_g => Null(), &
@@ -218,7 +218,7 @@ CONTAINS
       CALL kpoint_transitional_release(rho_struct%rho_ao)
 
       IF (ASSOCIATED(rho_struct%rho_ao_im)) &
-         CALL cp_dbcsr_deallocate_matrix_set(rho_struct%rho_ao_im)
+         CALL dbcsr_deallocate_matrix_set(rho_struct%rho_ao_im)
       IF (ASSOCIATED(rho_struct%tot_rho_r)) &
          DEALLOCATE (rho_struct%tot_rho_r)
       IF (ASSOCIATED(rho_struct%tot_rho_g)) &
@@ -259,9 +259,9 @@ CONTAINS
                          drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r, drho_r, rho_g, drho_g, tau_r, &
                                                             tau_g
@@ -331,9 +331,9 @@ CONTAINS
                          drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r, drho_r, rho_g, drho_g, tau_r, &
                                                             tau_g

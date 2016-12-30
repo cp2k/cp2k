@@ -4,8 +4,6 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE optbas_opt_utils
    USE admm_types,                      ONLY: admm_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
                                               cp_fm_upper_to_full
@@ -15,6 +13,8 @@ MODULE optbas_opt_utils
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -40,7 +40,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE evaluate_energy(mos, matrix_ks, S_inv_orb, Q, tmp1, energy)
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(cp_fm_type), POINTER                          :: S_inv_orb, Q, tmp1
       REAL(KIND=dp)                                      :: energy
 
@@ -94,7 +94,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE evaluate_fval(mos, mos_aux_fit, Q, Snew, admm_env, fval, S_cond_number)
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
-      TYPE(cp_dbcsr_type), POINTER                       :: Q, Snew
+      TYPE(dbcsr_type), POINTER                          :: Q, Snew
       TYPE(admm_type), POINTER                           :: admm_env
       REAL(KIND=dp)                                      :: fval, S_cond_number
 

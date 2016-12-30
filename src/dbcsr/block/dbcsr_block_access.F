@@ -58,8 +58,8 @@ MODULE dbcsr_block_access
    USE dbcsr_toollib,                   ONLY: make_coordinate_tuple,&
                                               swap
    USE dbcsr_types,                     ONLY: &
-        dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-        dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
+        dbcsr_data_obj, dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, &
+        dbcsr_slot_nze, dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
         dbcsr_type_complex_8, dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
         dbcsr_type_real_8, dbcsr_type_real_8_2d
    USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
@@ -150,7 +150,7 @@ CONTAINS
 !> \param[in]  block_number   (optional) the block number, if it is known
 ! **************************************************************************************************
    SUBROUTINE dbcsr_remove_block(matrix, row, col, block_nze, block_number)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: row, col, block_nze
       INTEGER, INTENT(IN), OPTIONAL                      :: block_number
 
@@ -165,7 +165,7 @@ CONTAINS
       IF (careful_mod) CALL timeset(routineN, error_handle)
       IF (PRESENT(block_number)) THEN
          b = block_number
-         IF (block_number .GT. matrix%m%nblks) &
+         IF (block_number .GT. matrix%nblks) &
             CPABORT("Block number too big.")
          found = .TRUE.
       ELSE
@@ -174,12 +174,12 @@ CONTAINS
       b = ABS(b)
       IF (found .AND. b .GT. 0) THEN
          ! Mark the block for deletion.
-         matrix%m%blk_p(b) = 0
-         matrix%m%valid = .FALSE.
+         matrix%blk_p(b) = 0
+         matrix%valid = .FALSE.
          ! update nze accordingly
-         matrix%m%nze = matrix%m%nze-block_nze
+         matrix%nze = matrix%nze-block_nze
          IF (debug_mod) THEN
-            IF (matrix%m%nze < 0) CPABORT("nze < 0!")
+            IF (matrix%nze < 0) CPABORT("nze < 0!")
          ENDIF
       ELSE
          IF (debug_mod) THEN
@@ -206,7 +206,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_block_p_area(matrix, row, col, block, tr, found, &
                                      row_size, col_size)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: row, col
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: block
       LOGICAL, INTENT(OUT)                               :: tr, found
@@ -231,24 +231,24 @@ CONTAINS
 
       tr = stored_tr
 
-      rsize = dbcsr_blk_row_size(matrix%m, stored_row)
-      csize = dbcsr_blk_column_size(matrix%m, stored_col)
+      rsize = dbcsr_blk_row_size(matrix, stored_row)
+      csize = dbcsr_blk_column_size(matrix, stored_col)
       IF (PRESENT(row_size)) row_size = rsize
       IF (PRESENT(col_size)) col_size = csize
 
       CALL dbcsr_data_clear_pointer(block)
       IF (found) THEN
          CALL dbcsr_set_block_pointer(matrix, block, rsize, csize, stored_tr, offset)
-      ELSEIF (ASSOCIATED(matrix%m%wms)) THEN
+      ELSEIF (ASSOCIATED(matrix%wms)) THEN
          iw = 1
 !$       iw = omp_get_thread_num()+1
-         IF (.NOT. dbcsr_use_mutable(matrix%m)) &
+         IF (.NOT. dbcsr_use_mutable(matrix)) &
             CPABORT("Can not retrieve blocks from non-mutable work matrices.")
-         IF (dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
+         IF (dbcsr_mutable_instantiated(matrix%wms(iw)%mutable)) THEN
             SELECT CASE (block%d%data_type)
             CASE (dbcsr_type_real_4_2d)
                CALL btree_get_s( &
-                  matrix%m%wms(iw)%mutable%m%btree_s, &
+                  matrix%wms(iw)%mutable%m%btree_s, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_s, found)
                IF (found) THEN
@@ -256,7 +256,7 @@ CONTAINS
                ENDIF
             CASE (dbcsr_type_real_8_2d)
                CALL btree_get_d( &
-                  matrix%m%wms(iw)%mutable%m%btree_d, &
+                  matrix%wms(iw)%mutable%m%btree_d, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_d, found)
                IF (found) THEN
@@ -264,7 +264,7 @@ CONTAINS
                ENDIF
             CASE (dbcsr_type_complex_4_2d)
                CALL btree_get_c( &
-                  matrix%m%wms(iw)%mutable%m%btree_c, &
+                  matrix%wms(iw)%mutable%m%btree_c, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_c, found)
                IF (found) THEN
@@ -272,7 +272,7 @@ CONTAINS
                ENDIF
             CASE (dbcsr_type_complex_8_2d)
                CALL btree_get_z( &
-                  matrix%m%wms(iw)%mutable%m%btree_z, &
+                  matrix%wms(iw)%mutable%m%btree_z, &
                   make_coordinate_tuple(stored_row, stored_col), &
                   data_block_z, found)
                IF (found) THEN
@@ -307,7 +307,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_put_block_area(matrix, row, col, block, lb_row_col, transposed, &
                                    summation, flop, scale)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: row, col
       TYPE(dbcsr_data_obj)                               :: block
       INTEGER, DIMENSION(2), INTENT(INOUT), OPTIONAL     :: lb_row_col
@@ -419,7 +419,7 @@ CONTAINS
 !> \param[in,out] matrix      Matrix into which blocks should be added.
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reserve_all_blocks(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_all_blocks', &
          routineP = moduleN//':'//routineN
@@ -480,7 +480,7 @@ CONTAINS
 !> \param[in,out] matrix      Matrix into which blocks should be added.
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reserve_diag_blocks(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_diag_blocks', &
          routineP = moduleN//':'//routineN
@@ -538,7 +538,7 @@ CONTAINS
 !>      No data is cleared in this case
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reserve_blocks(matrix, rows, columns, blk_pointers)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, DIMENSION(:), INTENT(IN)                  :: rows, columns
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: blk_pointers
 
@@ -563,7 +563,7 @@ CONTAINS
          data_size_old = 0
       ELSE
          ! Get current data size
-         data_size_old = dbcsr_data_get_size_referenced(matrix%m%data_area)
+         data_size_old = dbcsr_data_get_size_referenced(matrix%data_area)
       ENDIF
       !> Ensures that the rows and columns are sorted.
       nblks_added = SIZE(rows)
@@ -586,7 +586,7 @@ CONTAINS
       ! Adjust the index.
       ! Get the old row indices
       ALLOCATE (old_row_i(nblks_old))
-      CALL dbcsr_expand_row_index(matrix%m%row_p, old_row_i, &
+      CALL dbcsr_expand_row_index(matrix%row_p, old_row_i, &
                                   nblkrows, nblks_old)
       ! Calculate new block pointers. Possibly high estimates.
       new_data_sizes = 0
@@ -614,12 +614,12 @@ CONTAINS
       ! Merge the two indices
       IF (PRESENT(blk_pointers)) THEN
          CALL merge_index_arrays(new_row_i, new_col_i, new_blk_p, nblks_new, &
-                                 old_row_i, matrix%m%col_i, matrix%m%blk_p, nblks_old, &
+                                 old_row_i, matrix%col_i, matrix%blk_p, nblks_old, &
                                  added_blk_info, nblks_added, added_nblks=nblks_actual_added)
          data_size_new = 0
       ELSE
          CALL merge_index_arrays(new_row_i, new_col_i, new_blk_p, nblks_new, &
-                                 old_row_i, matrix%m%col_i, matrix%m%blk_p, nblks_old, &
+                                 old_row_i, matrix%col_i, matrix%blk_p, nblks_old, &
                                  added_blk_info, nblks_added, added_nblks=nblks_actual_added, &
                                  added_sizes=added_sizes, added_size_offset=data_size_old+1, &
                                  added_size=data_size_new)
@@ -632,26 +632,26 @@ CONTAINS
       ! We can skip this if no block was actually added.
       IF (nblks_actual_added .GT. 0) THEN
          ! Write the new index
-         matrix%m%nblks = nblks_new
-         matrix%m%nze = matrix%m%nze+data_size_new
-         matrix%m%index(dbcsr_slot_nblks) = matrix%m%nblks
-         matrix%m%index(dbcsr_slot_nze) = matrix%m%index(dbcsr_slot_nze)
-         CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_col_i)
-         CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_blk_p)
-         CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, &
+         matrix%nblks = nblks_new
+         matrix%nze = matrix%nze+data_size_new
+         matrix%index(dbcsr_slot_nblks) = matrix%nblks
+         matrix%index(dbcsr_slot_nze) = matrix%index(dbcsr_slot_nze)
+         CALL dbcsr_clearfrom_index_array(matrix, dbcsr_slot_col_i)
+         CALL dbcsr_clearfrom_index_array(matrix, dbcsr_slot_blk_p)
+         CALL dbcsr_addto_index_array(matrix, dbcsr_slot_col_i, &
                                       new_col_i(1:nblks_new), &
                                       extra=nblks_new)
-         CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, &
+         CALL dbcsr_addto_index_array(matrix, dbcsr_slot_blk_p, &
                                       new_blk_p(1:nblks_new))
-         CALL dbcsr_make_dbcsr_index(matrix%m%row_p, new_row_i(1:nblks_new), &
+         CALL dbcsr_make_dbcsr_index(matrix%row_p, new_row_i(1:nblks_new), &
                                      nblkrows, nblks_new)
          IF (.NOT. PRESENT(blk_pointers)) THEN
             ! Resize data area to fit the new blocks.
-            CALL dbcsr_data_ensure_size(matrix%m%data_area, &
-                                        data_size=matrix%m%nze)
+            CALL dbcsr_data_ensure_size(matrix%data_area, &
+                                        data_size=matrix%nze)
             ! Zero the new data blocks.
-            CALL dbcsr_data_clear(matrix%m%data_area, &
-                                  lb=data_size_old+1, ub=matrix%m%nze)
+            CALL dbcsr_data_clear(matrix%data_area, &
+                                  lb=data_size_old+1, ub=matrix%nze)
          ENDIF
       ENDIF
       CALL timestop(handle)
@@ -668,7 +668,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_set_block_pointer_any(matrix, pointer_any, &
                                           rsize, csize, main_tr, base_offset)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: pointer_any
       INTEGER, INTENT(IN)                                :: rsize, csize
       LOGICAL, INTENT(IN)                                :: main_tr
@@ -681,10 +681,10 @@ CONTAINS
 
       IF (main_tr) THEN
          CALL dbcsr_data_set_pointer(pointer_any, csize, rsize, &
-                                     matrix%m%data_area, source_lb=base_offset)
+                                     matrix%data_area, source_lb=base_offset)
       ELSE
          CALL dbcsr_data_set_pointer(pointer_any, rsize, csize, &
-                                     matrix%m%data_area, source_lb=base_offset)
+                                     matrix%data_area, source_lb=base_offset)
       ENDIF
    END SUBROUTINE dbcsr_set_block_pointer_any
 

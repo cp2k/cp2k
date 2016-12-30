@@ -12,9 +12,9 @@ MODULE qs_rho_atom_methods
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               gapw_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE erf_fn,                          ONLY: erf
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -470,7 +470,7 @@ CONTAINS
    SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom_set
 
@@ -670,9 +670,9 @@ CONTAINS
 
          DO ispin = 1, nspins
             NULLIFY (p_block_spin(ispin)%r_coef)
-            CALL cp_dbcsr_get_block_p(matrix=rho_ao(ispin, img)%matrix, &
-                                      row=irow, col=icol, BLOCK=p_block_spin(ispin)%r_coef, &
-                                      found=found)
+            CALL dbcsr_get_block_p(matrix=rho_ao(ispin, img)%matrix, &
+                                   row=irow, col=icol, BLOCK=p_block_spin(ispin)%r_coef, &
+                                   found=found)
             pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))
          ENDDO
 

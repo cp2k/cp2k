@@ -11,8 +11,8 @@
 ! **************************************************************************************************
 MODULE admm_dm_types
    USE cp_control_types,                ONLY: admm_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
-                                              cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_release,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_mcweeny
    USE kinds,                           ONLY: dp
@@ -27,7 +27,7 @@ MODULE admm_dm_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_dm_types'
 
    TYPE mcweeny_history_type
-      TYPE(cp_dbcsr_type)                        :: m
+      TYPE(dbcsr_type)                        :: m
       INTEGER                                    :: count = -1
       TYPE(mcweeny_history_type), POINTER        :: next => Null()
    END TYPE mcweeny_history_type
@@ -39,7 +39,7 @@ MODULE admm_dm_types
    TYPE admm_dm_type
       LOGICAL                                  :: purify = .FALSE.
       INTEGER                                  :: method = -1
-      TYPE(cp_dbcsr_type), POINTER             :: matrix_a => Null()
+      TYPE(dbcsr_type), POINTER             :: matrix_a => Null()
       REAL(KIND=dp)                            :: eps_filter = 1e-20_dp
       INTEGER                                  :: mcweeny_max_steps = 100
       INTEGER, DIMENSION(:, :), POINTER         :: block_map => Null()
@@ -104,7 +104,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(admm_dm)) RETURN
 
       IF (ASSOCIATED(admm_dm%matrix_a)) THEN
-         CALL cp_dbcsr_release(admm_dm%matrix_a)
+         CALL dbcsr_release(admm_dm%matrix_a)
          DEALLOCATE (admm_dm%matrix_a)
       ENDIF
 

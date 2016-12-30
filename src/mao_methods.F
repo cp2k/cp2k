@@ -20,13 +20,6 @@ MODULE mao_methods
                                               write_gto_basis_set
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-        cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_mp, &
-        dbcsr_mp_group, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t
    USE cp_fm_diag,                      ONLY: cp_fm_geeig
@@ -37,6 +30,12 @@ MODULE mao_methods
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
+        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: mao_basis_ext,&
                                               mao_basis_orb,&
                                               mao_basis_prim
@@ -77,7 +76,7 @@ CONTAINS
 !> \param smat ...
 ! **************************************************************************************************
    SUBROUTINE mao_initialization(mao_coef, pmat, smat)
-      TYPE(cp_dbcsr_type)                                :: mao_coef, pmat, smat
+      TYPE(dbcsr_type)                                   :: mao_coef, pmat, smat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_initialization', &
          routineP = moduleN//':'//routineN
@@ -87,17 +86,17 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, pblock, sblock
-      TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
 
-      CALL cp_dbcsr_iterator_start(dbcsr_iter, mao_coef)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL cp_dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
+      CALL dbcsr_iterator_start(dbcsr_iter, mao_coef)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
          CPASSERT(iatom == jatom)
          m = SIZE(cblock, 2)
          NULLIFY (pblock, sblock)
-         CALL cp_dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pblock, found=found)
+         CALL dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pblock, found=found)
          CPASSERT(found)
-         CALL cp_dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
+         CALL dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
          CPASSERT(found)
          n = SIZE(sblock, 1)
          lwork = MAX(n*n, 100)
@@ -110,7 +109,7 @@ CONTAINS
          cblock(1:n, 1:m) = amat(1:n, n:n-m+1:-1)
          DEALLOCATE (amat, bmat, w, work)
       END DO
-      CALL cp_dbcsr_iterator_stop(dbcsr_iter)
+      CALL dbcsr_iterator_stop(dbcsr_iter)
 
       CALL mao_orthogonalization(mao_coef, smat)
 
@@ -126,40 +125,40 @@ CONTAINS
 !> \param reuse ...
 ! **************************************************************************************************
    SUBROUTINE mao_function(mao_coef, fval, qmat, smat, binv, reuse)
-      TYPE(cp_dbcsr_type)                                :: mao_coef
+      TYPE(dbcsr_type)                                   :: mao_coef
       REAL(KIND=dp), INTENT(OUT)                         :: fval
-      TYPE(cp_dbcsr_type)                                :: qmat, smat, binv
+      TYPE(dbcsr_type)                                   :: qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_function', routineP = moduleN//':'//routineN
 
       REAL(KIND=dp)                                      :: convergence, threshold
-      TYPE(cp_dbcsr_type)                                :: bmat, scmat, tmat
+      TYPE(dbcsr_type)                                   :: bmat, scmat, tmat
 
       threshold = 1.e-8_dp
       convergence = 1.e-6_dp
       ! temp matrices
-      CALL cp_dbcsr_init(scmat)
-      CALL cp_dbcsr_create(scmat, template=mao_coef)
-      CALL cp_dbcsr_init(bmat)
-      CALL cp_dbcsr_create(bmat, template=binv)
-      CALL cp_dbcsr_init(tmat)
-      CALL cp_dbcsr_create(tmat, template=qmat)
+      CALL dbcsr_init(scmat)
+      CALL dbcsr_create(scmat, template=mao_coef)
+      CALL dbcsr_init(bmat)
+      CALL dbcsr_create(bmat, template=binv)
+      CALL dbcsr_init(tmat)
+      CALL dbcsr_create(tmat, template=qmat)
       ! calculate B=C(T)*S*C matrix, S=(MAO,MAO) overlap
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
-      CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mao_coef, scmat, 0.0_dp, bmat)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
+      CALL dbcsr_multiply("T", "N", 1.0_dp, mao_coef, scmat, 0.0_dp, bmat)
       ! calculate inverse of B
       CALL invert_Hotelling(binv, bmat, threshold, use_inv_as_guess=reuse, &
                             norm_convergence=convergence, silent=.TRUE.)
       ! calculate Binv*C and T=C(T)*Binv*C
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mao_coef, binv, 0.0_dp, scmat)
-      CALL cp_dbcsr_multiply("N", "T", 1.0_dp, scmat, mao_coef, 0.0_dp, tmat)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, mao_coef, binv, 0.0_dp, scmat)
+      CALL dbcsr_multiply("N", "T", 1.0_dp, scmat, mao_coef, 0.0_dp, tmat)
       ! function = Tr(Q*T)
-      CALL cp_dbcsr_trace(qmat, tmat, fval)
+      CALL dbcsr_trace(qmat, tmat, fval)
       ! free temp matrices
-      CALL cp_dbcsr_release(scmat)
-      CALL cp_dbcsr_release(bmat)
-      CALL cp_dbcsr_release(tmat)
+      CALL dbcsr_release(scmat)
+      CALL dbcsr_release(bmat)
+      CALL dbcsr_release(tmat)
 
    END SUBROUTINE mao_function
 
@@ -174,52 +173,52 @@ CONTAINS
 !> \param reuse ...
 ! **************************************************************************************************
    SUBROUTINE mao_function_gradient(mao_coef, fval, mao_grad, qmat, smat, binv, reuse)
-      TYPE(cp_dbcsr_type)                                :: mao_coef
+      TYPE(dbcsr_type)                                   :: mao_coef
       REAL(KIND=dp), INTENT(OUT)                         :: fval
-      TYPE(cp_dbcsr_type)                                :: mao_grad, qmat, smat, binv
+      TYPE(dbcsr_type)                                   :: mao_grad, qmat, smat, binv
       LOGICAL, INTENT(IN)                                :: reuse
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_function_gradient', &
          routineP = moduleN//':'//routineN
 
       REAL(KIND=dp)                                      :: convergence, threshold
-      TYPE(cp_dbcsr_type)                                :: bmat, scmat, t2mat, tmat
+      TYPE(dbcsr_type)                                   :: bmat, scmat, t2mat, tmat
 
       threshold = 1.e-8_dp
       convergence = 1.e-6_dp
       ! temp matrices
-      CALL cp_dbcsr_init(scmat)
-      CALL cp_dbcsr_create(scmat, template=mao_coef)
-      CALL cp_dbcsr_init(bmat)
-      CALL cp_dbcsr_create(bmat, template=binv)
-      CALL cp_dbcsr_init(tmat)
-      CALL cp_dbcsr_create(tmat, template=qmat)
-      CALL cp_dbcsr_init(t2mat)
-      CALL cp_dbcsr_create(t2mat, template=scmat)
+      CALL dbcsr_init(scmat)
+      CALL dbcsr_create(scmat, template=mao_coef)
+      CALL dbcsr_init(bmat)
+      CALL dbcsr_create(bmat, template=binv)
+      CALL dbcsr_init(tmat)
+      CALL dbcsr_create(tmat, template=qmat)
+      CALL dbcsr_init(t2mat)
+      CALL dbcsr_create(t2mat, template=scmat)
       ! calculate B=C(T)*S*C matrix, S=(MAO,MAO) overlap
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
-      CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mao_coef, scmat, 0.0_dp, bmat)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
+      CALL dbcsr_multiply("T", "N", 1.0_dp, mao_coef, scmat, 0.0_dp, bmat)
       ! calculate inverse of B
       CALL invert_Hotelling(binv, bmat, threshold, use_inv_as_guess=reuse, &
                             norm_convergence=convergence, silent=.TRUE.)
       ! calculate R=C*Binv and T=C*Binv*C(T)=R*C(T)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mao_coef, binv, 0.0_dp, scmat)
-      CALL cp_dbcsr_multiply("N", "T", 1.0_dp, scmat, mao_coef, 0.0_dp, tmat)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, mao_coef, binv, 0.0_dp, scmat)
+      CALL dbcsr_multiply("N", "T", 1.0_dp, scmat, mao_coef, 0.0_dp, tmat)
       ! function = Tr(Q*T)
-      CALL cp_dbcsr_trace(qmat, tmat, fval)
+      CALL dbcsr_trace(qmat, tmat, fval)
       ! Gradient part 1: g = 2*Q*C*Binv = 2*Q*R
-      CALL cp_dbcsr_multiply("N", "N", 2.0_dp, qmat, scmat, 0.0_dp, mao_grad, &
-                             retain_sparsity=.TRUE.)
+      CALL dbcsr_multiply("N", "N", 2.0_dp, qmat, scmat, 0.0_dp, mao_grad, &
+                          retain_sparsity=.TRUE.)
       ! Gradient part 2: g = -2*S*T*X; X = Q*R
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, qmat, scmat, 0.0_dp, t2mat)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmat, t2mat, 0.0_dp, scmat)
-      CALL cp_dbcsr_multiply("N", "N", -2.0_dp, smat, scmat, 1.0_dp, mao_grad, &
-                             retain_sparsity=.TRUE.)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, qmat, scmat, 0.0_dp, t2mat)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, tmat, t2mat, 0.0_dp, scmat)
+      CALL dbcsr_multiply("N", "N", -2.0_dp, smat, scmat, 1.0_dp, mao_grad, &
+                          retain_sparsity=.TRUE.)
       ! free temp matrices
-      CALL cp_dbcsr_release(scmat)
-      CALL cp_dbcsr_release(bmat)
-      CALL cp_dbcsr_release(tmat)
-      CALL cp_dbcsr_release(t2mat)
+      CALL dbcsr_release(scmat)
+      CALL dbcsr_release(bmat)
+      CALL dbcsr_release(tmat)
+      CALL dbcsr_release(t2mat)
 
       CALL mao_project_gradient(mao_coef, mao_grad, smat)
 
@@ -231,7 +230,7 @@ CONTAINS
 !> \param smat ...
 ! **************************************************************************************************
    SUBROUTINE mao_orthogonalization(mao_coef, smat)
-      TYPE(cp_dbcsr_type)                                :: mao_coef, smat
+      TYPE(dbcsr_type)                                   :: mao_coef, smat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_orthogonalization', &
          routineP = moduleN//':'//routineN
@@ -241,16 +240,16 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat, bmat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, sblock
-      TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
 
-      CALL cp_dbcsr_iterator_start(dbcsr_iter, mao_coef)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL cp_dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
+      CALL dbcsr_iterator_start(dbcsr_iter, mao_coef)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
          CPASSERT(iatom == jatom)
          m = SIZE(cblock, 2)
          n = SIZE(cblock, 1)
          NULLIFY (sblock)
-         CALL cp_dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
+         CALL dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
          CPASSERT(found)
          lwork = MAX(n*n, 100)
          ALLOCATE (amat(n, m), bmat(m, m), w(m), work(lwork))
@@ -268,7 +267,7 @@ CONTAINS
          cblock(1:n, 1:m) = MATMUL(cblock(1:n, 1:m), bmat(1:m, 1:m))
          DEALLOCATE (amat, bmat, w, work)
       END DO
-      CALL cp_dbcsr_iterator_stop(dbcsr_iter)
+      CALL dbcsr_iterator_stop(dbcsr_iter)
 
    END SUBROUTINE mao_orthogonalization
 
@@ -279,7 +278,7 @@ CONTAINS
 !> \param smat ...
 ! **************************************************************************************************
    SUBROUTINE mao_project_gradient(mao_coef, mao_grad, smat)
-      TYPE(cp_dbcsr_type)                                :: mao_coef, mao_grad, smat
+      TYPE(dbcsr_type)                                   :: mao_coef, mao_grad, smat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_project_gradient', &
          routineP = moduleN//':'//routineN
@@ -288,26 +287,26 @@ CONTAINS
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: amat
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, gblock, sblock
-      TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
 
-      CALL cp_dbcsr_iterator_start(dbcsr_iter, mao_coef)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL cp_dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
+      CALL dbcsr_iterator_start(dbcsr_iter, mao_coef)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, cblock)
          CPASSERT(iatom == jatom)
          m = SIZE(cblock, 2)
          n = SIZE(cblock, 1)
          NULLIFY (sblock)
-         CALL cp_dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
+         CALL dbcsr_get_block_p(matrix=smat, row=iatom, col=jatom, block=sblock, found=found)
          CPASSERT(found)
          NULLIFY (gblock)
-         CALL cp_dbcsr_get_block_p(matrix=mao_grad, row=iatom, col=jatom, block=gblock, found=found)
+         CALL dbcsr_get_block_p(matrix=mao_grad, row=iatom, col=jatom, block=gblock, found=found)
          CPASSERT(found)
          ALLOCATE (amat(m, m))
          amat(1:m, 1:m) = MATMUL(TRANSPOSE(cblock(1:n, 1:m)), MATMUL(sblock(1:n, 1:n), gblock(1:n, 1:m)))
          gblock(1:n, 1:m) = gblock(1:n, 1:m)-MATMUL(cblock(1:n, 1:m), amat(1:m, 1:m))
          DEALLOCATE (amat)
       END DO
-      CALL cp_dbcsr_iterator_stop(dbcsr_iter)
+      CALL dbcsr_iterator_stop(dbcsr_iter)
 
    END SUBROUTINE mao_project_gradient
 
@@ -318,7 +317,7 @@ CONTAINS
 !> \retval spro ...
 ! **************************************************************************************************
    FUNCTION mao_scalar_product(fmat1, fmat2) RESULT(spro)
-      TYPE(cp_dbcsr_type)                                :: fmat1, fmat2
+      TYPE(dbcsr_type)                                   :: fmat1, fmat2
       REAL(KIND=dp)                                      :: spro
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mao_scalar_product', &
@@ -327,23 +326,23 @@ CONTAINS
       INTEGER                                            :: group, iatom, jatom, m, n
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ablock, bblock
-      TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
 
       spro = 0.0_dp
 
-      CALL cp_dbcsr_iterator_start(dbcsr_iter, fmat1)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL cp_dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, ablock)
+      CALL dbcsr_iterator_start(dbcsr_iter, fmat1)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, ablock)
          CPASSERT(iatom == jatom)
          m = SIZE(ablock, 2)
          n = SIZE(ablock, 1)
-         CALL cp_dbcsr_get_block_p(matrix=fmat2, row=iatom, col=jatom, block=bblock, found=found)
+         CALL dbcsr_get_block_p(matrix=fmat2, row=iatom, col=jatom, block=bblock, found=found)
          CPASSERT(found)
          spro = spro+SUM(ablock(1:n, 1:m)*bblock(1:n, 1:m))
       END DO
-      CALL cp_dbcsr_iterator_stop(dbcsr_iter)
+      CALL dbcsr_iterator_stop(dbcsr_iter)
 
-      group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(fmat1)))
+      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(fmat1)))
       CALL mp_sum(spro, group)
 
    END FUNCTION mao_scalar_product
@@ -361,7 +360,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_p_gamma(pmat, ksmat, smat, kpoints, nmos, occ)
 
-      TYPE(cp_dbcsr_type)                                :: pmat, ksmat, smat
+      TYPE(dbcsr_type)                                   :: pmat, ksmat, smat
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: nmos
       REAL(KIND=dp), INTENT(IN)                          :: occ
@@ -372,13 +371,13 @@ CONTAINS
       INTEGER                                            :: norb
       REAL(KIND=dp)                                      :: de
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
-      TYPE(cp_dbcsr_type)                                :: tempmat
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: fmksmat, fmsmat, fmvec, fmwork
+      TYPE(dbcsr_type)                                   :: tempmat
 
       ! FM matrices
 
-      CALL cp_dbcsr_get_info(smat, nfullrows_total=norb)
+      CALL dbcsr_get_info(smat, nfullrows_total=norb)
       CALL cp_fm_struct_create(fmstruct=matrix_struct, context=kpoints%blacs_env_all, &
                                nrow_global=norb, ncol_global=norb)
       CALL cp_fm_create(fmksmat, matrix_struct)
@@ -388,13 +387,13 @@ CONTAINS
       ALLOCATE (eigenvalues(norb))
 
       ! DBCSR matrix
-      CALL cp_dbcsr_init(tempmat)
-      CALL cp_dbcsr_create(tempmat, template=smat, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(tempmat)
+      CALL dbcsr_create(tempmat, template=smat, matrix_type=dbcsr_type_no_symmetry)
 
       ! transfer to FM
-      CALL cp_dbcsr_desymmetrize(smat, tempmat)
+      CALL dbcsr_desymmetrize(smat, tempmat)
       CALL copy_dbcsr_to_fm(tempmat, fmsmat)
-      CALL cp_dbcsr_desymmetrize(ksmat, tempmat)
+      CALL dbcsr_desymmetrize(ksmat, tempmat)
       CALL copy_dbcsr_to_fm(tempmat, fmksmat)
 
       ! diagonalize
@@ -408,7 +407,7 @@ CONTAINS
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=pmat, matrix_v=fmvec, ncol=nmos, alpha=occ)
 
       DEALLOCATE (eigenvalues)
-      CALL cp_dbcsr_release(tempmat)
+      CALL dbcsr_release(tempmat)
       CALL cp_fm_release(fmksmat)
       CALL cp_fm_release(fmsmat)
       CALL cp_fm_release(fmvec)
@@ -545,7 +544,7 @@ CONTAINS
    SUBROUTINE mao_basis_analysis(mao_coef, matrix_smm, mao_basis_set_list, particle_set, &
                                  qs_kind_set, unit_nr, para_env)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coef, matrix_smm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef, matrix_smm
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: mao_basis_set_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -582,11 +581,11 @@ CONTAINS
          CALL get_gto_basis_set(basis_set, nsgf=ma)
          ALLOCATE (cmask(ma), vec1(ma), vec2(ma), weight(0:lmax, na))
          weight = 0.0_dp
-         CALL cp_dbcsr_get_block_p(matrix=matrix_smm(1)%matrix, row=iatom, col=iatom, &
-                                   block=block, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_smm(1)%matrix, row=iatom, col=iatom, &
+                                block=block, found=found)
          DO ispin = 1, nspin
-            CALL cp_dbcsr_get_block_p(matrix=mao_coef(ispin)%matrix, row=iatom, col=iatom, &
-                                      block=cmao, found=found)
+            CALL dbcsr_get_block_p(matrix=mao_coef(ispin)%matrix, row=iatom, col=iatom, &
+                                   block=cmao, found=found)
             IF (found) THEN
                DO l = 0, lmax
                   cmask = 0.0_dp
@@ -643,16 +642,16 @@ CONTAINS
    SUBROUTINE mao_build_q(matrix_q, matrix_p, matrix_s, matrix_smm, matrix_smo, smm_list, &
                           electra, eps_filter, nimages, kpoints, matrix_ks, sab_orb)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_q
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p, matrix_s
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_smm, matrix_smo
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_q
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_smm, matrix_smo
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: smm_list
       REAL(KIND=dp), DIMENSION(2), INTENT(OUT)           :: electra
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN), OPTIONAL                      :: nimages
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_ks
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb
@@ -662,7 +661,7 @@ CONTAINS
       INTEGER                                            :: im, ispin, nim, nocc, norb, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       REAL(KIND=dp)                                      :: elex, xkp(3)
-      TYPE(cp_dbcsr_type)                                :: ksmat, pmat, smat, tmat
+      TYPE(dbcsr_type)                                   :: ksmat, pmat, smat, tmat
 
       nim = 1
       IF (PRESENT(nimages)) nim = nimages
@@ -677,38 +676,38 @@ CONTAINS
       DO ispin = 1, nspin
          electra(ispin) = 0.0_dp
          DO im = 1, nim
-            CALL cp_dbcsr_trace(matrix_p(ispin, im)%matrix, matrix_s(1, im)%matrix, elex)
+            CALL dbcsr_trace(matrix_p(ispin, im)%matrix, matrix_s(1, im)%matrix, elex)
             electra(ispin) = electra(ispin)+elex
          END DO
       END DO
 
       ! Q matrix
       NULLIFY (matrix_q)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_q, nspin)
+      CALL dbcsr_allocate_matrix_set(matrix_q, nspin)
       DO ispin = 1, nspin
          ALLOCATE (matrix_q(ispin)%matrix)
-         CALL cp_dbcsr_init(matrix_q(ispin)%matrix)
-         CALL cp_dbcsr_create(matrix_q(ispin)%matrix, template=matrix_smm(1)%matrix)
+         CALL dbcsr_init(matrix_q(ispin)%matrix)
+         CALL dbcsr_create(matrix_q(ispin)%matrix, template=matrix_smm(1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_q(ispin)%matrix, smm_list)
       END DO
       ! temp matrix
-      CALL cp_dbcsr_init(tmat)
-      CALL cp_dbcsr_create(tmat, template=matrix_smo(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(tmat)
+      CALL dbcsr_create(tmat, template=matrix_smo(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       ! Q=APA(T)
       DO ispin = 1, nspin
          IF (nim == 1) THEN
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_smo(1)%matrix, matrix_p(ispin, 1)%matrix, &
-                                   0.0_dp, tmat, filter_eps=eps_filter)
-            CALL cp_dbcsr_multiply("N", "T", 1.0_dp, tmat, matrix_smo(1)%matrix, &
-                                   0.0_dp, matrix_q(ispin)%matrix, filter_eps=eps_filter)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_smo(1)%matrix, matrix_p(ispin, 1)%matrix, &
+                                0.0_dp, tmat, filter_eps=eps_filter)
+            CALL dbcsr_multiply("N", "T", 1.0_dp, tmat, matrix_smo(1)%matrix, &
+                                0.0_dp, matrix_q(ispin)%matrix, filter_eps=eps_filter)
          ELSE
             ! k-points
-            CALL cp_dbcsr_init(pmat)
-            CALL cp_dbcsr_create(pmat, template=matrix_s(1, 1)%matrix)
-            CALL cp_dbcsr_init(smat)
-            CALL cp_dbcsr_create(smat, template=matrix_s(1, 1)%matrix)
-            CALL cp_dbcsr_init(ksmat)
-            CALL cp_dbcsr_create(ksmat, template=matrix_s(1, 1)%matrix)
+            CALL dbcsr_init(pmat)
+            CALL dbcsr_create(pmat, template=matrix_s(1, 1)%matrix)
+            CALL dbcsr_init(smat)
+            CALL dbcsr_create(smat, template=matrix_s(1, 1)%matrix)
+            CALL dbcsr_init(ksmat)
+            CALL dbcsr_create(ksmat, template=matrix_s(1, 1)%matrix)
             CALL cp_dbcsr_alloc_block_from_nbl(pmat, sab_orb)
             CALL cp_dbcsr_alloc_block_from_nbl(smat, sab_orb)
             CALL cp_dbcsr_alloc_block_from_nbl(ksmat, sab_orb)
@@ -717,26 +716,26 @@ CONTAINS
             ! calculate density matrix at gamma point
             xkp = 0.0_dp
             ! transform KS and S matrices to the gamma point
-            CALL cp_dbcsr_set(ksmat, 0.0_dp)
+            CALL dbcsr_set(ksmat, 0.0_dp)
             CALL rskp_transform(rmatrix=ksmat, rsmat=matrix_ks, ispin=ispin, &
                                 xkp=xkp, cell_to_index=cell_to_index, sab_nl=sab_orb)
-            CALL cp_dbcsr_set(smat, 0.0_dp)
+            CALL dbcsr_set(smat, 0.0_dp)
             CALL rskp_transform(rmatrix=smat, rsmat=matrix_s, ispin=1, &
                                 xkp=xkp, cell_to_index=cell_to_index, sab_nl=sab_orb)
             norb = NINT(electra(ispin))
             nocc = MOD(2, nspin)+1
             CALL calculate_p_gamma(pmat, ksmat, smat, kpoints, norb, REAL(nocc, KIND=dp))
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_smo(1)%matrix, pmat, &
-                                   0.0_dp, tmat, filter_eps=eps_filter)
-            CALL cp_dbcsr_multiply("N", "T", 1.0_dp, tmat, matrix_smo(1)%matrix, &
-                                   0.0_dp, matrix_q(ispin)%matrix, filter_eps=eps_filter)
-            CALL cp_dbcsr_release(pmat)
-            CALL cp_dbcsr_release(smat)
-            CALL cp_dbcsr_release(ksmat)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_smo(1)%matrix, pmat, &
+                                0.0_dp, tmat, filter_eps=eps_filter)
+            CALL dbcsr_multiply("N", "T", 1.0_dp, tmat, matrix_smo(1)%matrix, &
+                                0.0_dp, matrix_q(ispin)%matrix, filter_eps=eps_filter)
+            CALL dbcsr_release(pmat)
+            CALL dbcsr_release(smat)
+            CALL dbcsr_release(ksmat)
          END IF
       END DO
       ! free temp matrix
-      CALL cp_dbcsr_release(tmat)
+      CALL dbcsr_release(tmat)
 
    END SUBROUTINE mao_build_q
 

@@ -19,11 +19,7 @@
 ! **************************************************************************************************
 MODULE qs_mo_types
 
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_init_p,&
-                                              cp_dbcsr_release_p,&
-                                              cp_dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy_columns_hack
+   USE cp_dbcsr_operations,             ONLY: dbcsr_copy_columns_hack
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -31,6 +27,10 @@ MODULE qs_mo_types
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_init_p,&
+                                              dbcsr_release_p,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -43,7 +43,7 @@ MODULE qs_mo_types
    TYPE mo_set_type
       ! the actual MO coefficients as a matrix
       TYPE(cp_fm_type), POINTER                 :: mo_coeff
-      TYPE(cp_dbcsr_type), POINTER              :: mo_coeff_b
+      TYPE(dbcsr_type), POINTER              :: mo_coeff_b
       ! we are using the dbcsr mo_coeff_b
       LOGICAL                                   :: use_mo_coeff_b
       ! number of molecular orbitals (# cols in mo_coeff)
@@ -126,8 +126,8 @@ CONTAINS
 
       NULLIFY (mo_set_new%mo_coeff_b)
       IF (ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
-         CALL cp_dbcsr_init_p(mo_set_new%mo_coeff_b)
-         CALL cp_dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
+         CALL dbcsr_init_p(mo_set_new%mo_coeff_b)
+         CALL dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
       ENDIF
       mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
@@ -288,10 +288,10 @@ CONTAINS
 
       ! first nmo_beta orbitals are copied from alpha to beta
       IF (my_convert_dbcsr) THEN !fm->dbcsr
-         CALL cp_dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b, mo_array(1)%mo_set%mo_coeff_b, & !fm->dbcsr
-                                         mo_array(2)%mo_set%nmo, 1, 1, & !fm->dbcsr
-                                         para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env, & !fm->dbcsr
-                                         blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context) !fm->dbcsr
+         CALL dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b, mo_array(1)%mo_set%mo_coeff_b, & !fm->dbcsr
+                                      mo_array(2)%mo_set%nmo, 1, 1, & !fm->dbcsr
+                                      para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env, & !fm->dbcsr
+                                      blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context) !fm->dbcsr
       ELSE !fm->dbcsr
          CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff, mo_array(2)%mo_set%mo_coeff, mo_array(2)%mo_set%nmo)
       ENDIF
@@ -322,7 +322,7 @@ CONTAINS
             DEALLOCATE (mo_set%occupation_numbers)
          END IF
          CALL cp_fm_release(mo_set%mo_coeff)
-         IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL cp_dbcsr_release_p(mo_set%mo_coeff_b)
+         IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
          DEALLOCATE (mo_set)
       END IF
 
@@ -361,7 +361,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: nmo
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eigenvalues, occupation_numbers
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: mo_coeff
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: mo_coeff_b
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_b
       LOGICAL, INTENT(OUT), OPTIONAL                     :: uniform_occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: kTS, mu, flexible_electron_count
 

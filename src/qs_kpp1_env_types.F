@@ -10,8 +10,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_kpp1_env_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+                                              dbcsr_p_type
    USE pw_types,                        ONLY: pw_p_type,&
                                               pw_release
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -56,7 +56,7 @@ MODULE qs_kpp1_env_types
    TYPE qs_kpp1_env_type
       INTEGER :: ref_count, id_nr, print_count, iter
       TYPE(pw_p_type), DIMENSION(:), POINTER :: v_rspace
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: v_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: v_ao
       TYPE(pw_p_type), DIMENSION(:, :), POINTER :: drho_r
       TYPE(xc_derivative_set_type), POINTER :: deriv_set
       TYPE(xc_rho_set_type), POINTER        :: rho_set
@@ -105,7 +105,7 @@ CONTAINS
             IF (ASSOCIATED(kpp1_env%v_ao)) THEN
                DO ispin = 1, SIZE(kpp1_env%v_ao)
                   IF (ASSOCIATED(kpp1_env%v_ao(ispin)%matrix)) THEN
-                     CALL cp_dbcsr_deallocate_matrix(kpp1_env%v_ao(ispin)%matrix)
+                     CALL dbcsr_deallocate_matrix(kpp1_env%v_ao(ispin)%matrix)
                   END IF
                END DO
                DEALLOCATE (kpp1_env%v_ao)

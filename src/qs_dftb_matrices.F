@@ -20,13 +20,6 @@ MODULE qs_dftb_matrices
    USE cp_control_types,                ONLY: dft_control_type,&
                                               dftb_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
-        cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
-        dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -35,6 +28,12 @@ MODULE qs_dftb_matrices
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        convert_offsets_to_sizes, dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_set, &
+        dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE erf_fn,                          ONLY: erfc
    USE ewald_environment_types,         ONLY: ewald_env_create,&
                                               ewald_env_get,&
@@ -169,9 +168,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(block_p_type), DIMENSION(2:4)                 :: dgblocks, dsblocks
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: gamma_matrix
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gamma_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -264,10 +263,10 @@ CONTAINS
 
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimg
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-               CALL cp_dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
          natom = SIZE(particle_set)
@@ -346,36 +345,36 @@ CONTAINS
             icol = MAX(iatom, jatom)
             irow = MIN(iatom, jatom)
             NULLIFY (sblock, fblock, gblock)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
-                                      row=irow, col=icol, BLOCK=sblock, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                   row=irow, col=icol, BLOCK=sblock, found=found)
             CPASSERT(found)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
-                                      row=irow, col=icol, BLOCK=fblock, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_h(1, ic)%matrix, &
+                                   row=irow, col=icol, BLOCK=fblock, found=found)
             CPASSERT(found)
             IF (dftb_control%self_consistent) THEN
-               CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(1)%matrix, &
-                                         row=irow, col=icol, BLOCK=gblock, found=found)
+               CALL dbcsr_get_block_p(matrix=gamma_matrix(1)%matrix, &
+                                      row=irow, col=icol, BLOCK=gblock, found=found)
                CPASSERT(found)
             END IF
 
             IF (calculate_forces) THEN
                NULLIFY (pblock)
-               CALL cp_dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
-                                         row=irow, col=icol, block=pblock, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                      row=irow, col=icol, block=pblock, found=found)
                CPASSERT(ASSOCIATED(pblock))
                NULLIFY (wblock)
-               CALL cp_dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
-                                         row=irow, col=icol, block=wblock, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
+                                      row=irow, col=icol, block=wblock, found=found)
                CPASSERT(ASSOCIATED(wblock))
                IF (dftb_control%self_consistent) THEN
                   DO i = 2, 4
                      NULLIFY (dsblocks(i)%block)
-                     CALL cp_dbcsr_get_block_p(matrix=matrix_s(i, ic)%matrix, &
-                                               row=irow, col=icol, BLOCK=dsblocks(i)%block, found=found)
+                     CALL dbcsr_get_block_p(matrix=matrix_s(i, ic)%matrix, &
+                                            row=irow, col=icol, BLOCK=dsblocks(i)%block, found=found)
                      CPASSERT(found)
                      NULLIFY (dgblocks(i)%block)
-                     CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(i)%matrix, &
-                                               row=irow, col=icol, BLOCK=dgblocks(i)%block, found=found)
+                     CALL dbcsr_get_block_p(matrix=gamma_matrix(i)%matrix, &
+                                            row=irow, col=icol, BLOCK=dgblocks(i)%block, found=found)
                      CPASSERT(found)
                   END DO
                END IF
@@ -522,18 +521,18 @@ CONTAINS
 
       IF (dftb_control%self_consistent) THEN
          DO i = 1, SIZE(gamma_matrix)
-            CALL cp_dbcsr_finalize(gamma_matrix(i)%matrix)
+            CALL dbcsr_finalize(gamma_matrix(i)%matrix)
          ENDDO
          CALL set_ks_env(ks_env, gamma_matrix=gamma_matrix)
       ENDIF
       DO i = 1, SIZE(matrix_s, 1)
          DO img = 1, nimg
-            CALL cp_dbcsr_finalize(matrix_s(i, img)%matrix)
+            CALL dbcsr_finalize(matrix_s(i, img)%matrix)
          END DO
       ENDDO
       DO i = 1, SIZE(matrix_h, 1)
          DO img = 1, nimg
-            CALL cp_dbcsr_finalize(matrix_h(i, img)%matrix)
+            CALL dbcsr_finalize(matrix_h(i, img)%matrix)
          END DO
       ENDDO
 
@@ -583,8 +582,8 @@ CONTAINS
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p, 1) == 2) THEN
             DO img = 1, nimg
-               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, alpha_scalar=1.0_dp, &
-                                 beta_scalar=-1.0_dp)
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, alpha_scalar=1.0_dp, &
+                              beta_scalar=-1.0_dp)
             END DO
          END IF
          DEALLOCATE (atom_of_kind)
@@ -614,11 +613,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mcharge, occupation_numbers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p1, mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix, matrix_h, matrix_p, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -658,7 +657,7 @@ CONTAINS
       DO ispin = 1, nspins
          DO img = 1, SIZE(ks_matrix, 2)
             ! copy the core matrix into the fock matrix
-            CALL cp_dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix)
+            CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix)
          END DO
       END DO
 
@@ -696,12 +695,12 @@ CONTAINS
          CPASSERT(SIZE(ks_matrix, 2) == 1)
          DO ispin = 1, nspins
             ! If QM/MM sumup the 1el Hamiltonian
-            CALL cp_dbcsr_add(ks_matrix(ispin, 1)%matrix, qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                              1.0_dp, 1.0_dp)
+            CALL dbcsr_add(ks_matrix(ispin, 1)%matrix, qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                           1.0_dp, 1.0_dp)
             CALL qs_rho_get(rho, rho_ao=matrix_p1)
             ! Compute QM/MM Energy
-            CALL cp_dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
-                                matrix_p1(ispin)%matrix, trace=qmmm_el)
+            CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix, &
+                             matrix_p1(ispin)%matrix, trace=qmmm_el)
             energy%qmmm_el = energy%qmmm_el+qmmm_el
          END DO
          pc_ener = qs_env%ks_qmmm_env%pc_ener
@@ -740,8 +739,8 @@ CONTAINS
             IF (.NOT. mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
                CPABORT("")
             ENDIF
-            CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin, 1)%matrix, mo_coeff, &
-                                   0.0_dp, mo_derivs(ispin)%matrix)
+            CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin, 1)%matrix, mo_coeff, &
+                                0.0_dp, mo_derivs(ispin)%matrix)
          ENDDO
       ENDIF
 
@@ -759,7 +758,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nderivative
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_overlap', &
          routineP = moduleN//':'//routineN
@@ -864,15 +863,15 @@ CONTAINS
             icol = MAX(iatom, jatom); irow = MIN(iatom, jatom)
 
             NULLIFY (sblock)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix, &
-                                      row=irow, col=icol, BLOCK=sblock, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_s(1)%matrix, &
+                                   row=irow, col=icol, BLOCK=sblock, found=found)
             CPASSERT(found)
 
             IF (nderivative .GT. 0) THEN
                DO i = 2, SIZE(matrix_s, 1)
                   NULLIFY (dsblocks(i)%block)
-                  CALL cp_dbcsr_get_block_p(matrix=matrix_s(i)%matrix, &
-                                            row=irow, col=icol, BLOCK=dsblocks(i)%block, found=found)
+                  CALL dbcsr_get_block_p(matrix=matrix_s(i)%matrix, &
+                                         row=irow, col=icol, BLOCK=dsblocks(i)%block, found=found)
                END DO
             END IF
 
@@ -951,7 +950,7 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       DO i = 1, SIZE(matrix_s, 1)
-         CALL cp_dbcsr_finalize(matrix_s(i)%matrix)
+         CALL dbcsr_finalize(matrix_s(i)%matrix)
       ENDDO
 
       CALL timestop(handle)
@@ -987,8 +986,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qpot
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hblock, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_h, matrix_s
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_qm
@@ -1045,30 +1044,30 @@ CONTAINS
       ! Allocate the core Hamiltonian matrix
       CALL get_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env_loc)
       matrix_h => ks_qmmm_env_loc%matrix_h
-      CALL cp_dbcsr_allocate_matrix_set(matrix_h, 1)
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1)
       ALLOCATE (matrix_h(1)%matrix)
-      CALL cp_dbcsr_init(matrix_h(1)%matrix)
-      CALL cp_dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
-                         name="QMMM HAMILTONIAN MATRIX")
-      CALL cp_dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
+      CALL dbcsr_init(matrix_h(1)%matrix)
+      CALL dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
+                      name="QMMM HAMILTONIAN MATRIX")
+      CALL dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
 
-      CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+      CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
          NULLIFY (hblock)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix, &
-                                   row=iatom, col=jatom, block=hblock, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_h(1)%matrix, &
+                                row=iatom, col=jatom, block=hblock, found=found)
          CPASSERT(found)
          hblock = hblock-0.5_dp*sblock*(qpot(iatom)+qpot(jatom))
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       ks_qmmm_env_loc%matrix_h => matrix_h
       ks_qmmm_env_loc%pc_ener = pc_ener
 
       DEALLOCATE (qpot)
 
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_s)
+      CALL dbcsr_deallocate_matrix_set(matrix_s)
 
       CALL timestop(handle)
 
@@ -1089,7 +1088,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_h, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_s
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
 
       CALL timeset(routineN, handle)
@@ -1101,16 +1100,16 @@ CONTAINS
       ! Allocate the core Hamiltonian matrix
       CALL get_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env_loc)
       matrix_h => ks_qmmm_env_loc%matrix_h
-      CALL cp_dbcsr_allocate_matrix_set(matrix_h, 1)
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1)
       ALLOCATE (matrix_h(1)%matrix)
-      CALL cp_dbcsr_init(matrix_h(1)%matrix)
-      CALL cp_dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
-                         name="QMMM HAMILTONIAN MATRIX")
-      CALL cp_dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
+      CALL dbcsr_init(matrix_h(1)%matrix)
+      CALL dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
+                      name="QMMM HAMILTONIAN MATRIX")
+      CALL dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
       ks_qmmm_env_loc%matrix_h => matrix_h
       ks_qmmm_env_loc%pc_ener = 0.0_dp
 
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_s)
+      CALL dbcsr_deallocate_matrix_set(matrix_s)
 
       CALL timestop(handle)
 
@@ -1147,8 +1146,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_mm, qpot
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hblock, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_h, matrix_s
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -1317,23 +1316,23 @@ CONTAINS
       ! Allocate the core Hamiltonian matrix
       CALL get_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env_loc)
       matrix_h => ks_qmmm_env_loc%matrix_h
-      CALL cp_dbcsr_allocate_matrix_set(matrix_h, 1)
+      CALL dbcsr_allocate_matrix_set(matrix_h, 1)
       ALLOCATE (matrix_h(1)%matrix)
-      CALL cp_dbcsr_init(matrix_h(1)%matrix)
-      CALL cp_dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
-                         name="QMMM HAMILTONIAN MATRIX")
-      CALL cp_dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
+      CALL dbcsr_init(matrix_h(1)%matrix)
+      CALL dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
+                      name="QMMM HAMILTONIAN MATRIX")
+      CALL dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
 
-      CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+      CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
          NULLIFY (hblock)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix, &
-                                   row=iatom, col=jatom, block=hblock, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_h(1)%matrix, &
+                                row=iatom, col=jatom, block=hblock, found=found)
          CPASSERT(found)
          hblock = hblock-0.5_dp*sblock*(qpot(iatom)+qpot(jatom))
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       ks_qmmm_env_loc%matrix_h => matrix_h
       ks_qmmm_env_loc%pc_ener = pc_ener
@@ -1344,7 +1343,7 @@ CONTAINS
       CALL ewald_env_release(ewald_env)
       CALL ewald_pw_release(ewald_pw)
 
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_s)
+      CALL dbcsr_deallocate_matrix_set(matrix_s)
 
       CALL timestop(handle)
 
@@ -1387,8 +1386,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, dsblock, Forces_QM, pblock, &
                                                             sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_qm
@@ -1490,36 +1489,36 @@ CONTAINS
          ! derivatives from qm charges
          Forces_QM = 0.0_dp
          IF (SIZE(matrix_p) == 2) THEN
-            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
          END IF
          !
-         CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+         CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
             !
             IF (iatom == jatom) CYCLE
             !
             gmij = -0.5_dp*(qpot(iatom)+qpot(jatom))
             NULLIFY (pblock)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix, &
-                                      row=iatom, col=jatom, block=pblock, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix, &
+                                   row=iatom, col=jatom, block=pblock, found=found)
             CPASSERT(found)
             DO i = 1, 3
                NULLIFY (dsblock)
-               CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix, &
-                                         row=iatom, col=jatom, block=dsblock, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix, &
+                                      row=iatom, col=jatom, block=dsblock, found=found)
                CPASSERT(found)
                fi = -2.0_dp*gmij*SUM(pblock*dsblock)
                Forces_QM(i, iatom) = Forces_QM(i, iatom)+fi
                Forces_QM(i, jatom) = Forces_QM(i, jatom)-fi
             END DO
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
          !
          IF (SIZE(matrix_p) == 2) THEN
-            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
          END IF
          !
          ! Transfer QM gradients to the QM particles..
@@ -1540,7 +1539,7 @@ CONTAINS
          DEALLOCATE (Forces_QM)
          DEALLOCATE (qpot)
 
-         CALL cp_dbcsr_deallocate_matrix_set(matrix_s)
+         CALL dbcsr_deallocate_matrix_set(matrix_s)
 
       END IF
       CALL timestop(handle)
@@ -1584,8 +1583,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, dsblock, Forces_MM, Forces_QM, &
                                                             pblock, sblock
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(dftb_control_type), POINTER                   :: dftb_control
       TYPE(ewald_environment_type), POINTER              :: ewald_env
@@ -1850,36 +1849,36 @@ CONTAINS
          ! derivatives from qm charges
          Forces_QM = 0.0_dp
          IF (SIZE(matrix_p) == 2) THEN
-            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
          END IF
          !
-         CALL cp_dbcsr_iterator_start(iter, matrix_s(1)%matrix)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
+         CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sblock, blk)
             !
             IF (iatom == jatom) CYCLE
             !
             gmij = -0.5_dp*(qpot(iatom)+qpot(jatom))
             NULLIFY (pblock)
-            CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix, &
-                                      row=iatom, col=jatom, block=pblock, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix, &
+                                   row=iatom, col=jatom, block=pblock, found=found)
             CPASSERT(found)
             DO i = 1, 3
                NULLIFY (dsblock)
-               CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix, &
-                                         row=iatom, col=jatom, block=dsblock, found=found)
+               CALL dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix, &
+                                      row=iatom, col=jatom, block=dsblock, found=found)
                CPASSERT(found)
                fi = -2.0_dp*gmij*SUM(pblock*dsblock)
                Forces_QM(i, iatom) = Forces_QM(i, iatom)+fi
                Forces_QM(i, jatom) = Forces_QM(i, jatom)-fi
             END DO
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
          !
          IF (SIZE(matrix_p) == 2) THEN
-            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
          END IF
          !
          ! Transfer QM gradients to the QM particles..
@@ -1904,7 +1903,7 @@ CONTAINS
          CALL ewald_env_release(ewald_env)
          CALL ewald_pw_release(ewald_pw)
 
-         CALL cp_dbcsr_deallocate_matrix_set(matrix_s)
+         CALL dbcsr_deallocate_matrix_set(matrix_s)
 
       END IF
 
@@ -2139,7 +2138,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nderivative
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrices
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices
       CHARACTER(LEN=*)                                   :: mnames
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -2188,7 +2187,7 @@ CONTAINS
       ALLOCATE (row_blk_sizes(natom))
       CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
 
-      CALL cp_dbcsr_allocate_matrix_set(matrices, nmat)
+      CALL dbcsr_allocate_matrix_set(matrices, nmat)
 
       ! Up to 2nd derivative take care to get the symmetries correct
       DO i = 1, nmat
@@ -2201,12 +2200,12 @@ CONTAINS
             matnames = TRIM(mnames)//" MATRIX DFTB"
          END IF
          ALLOCATE (matrices(i)%matrix)
-         CALL cp_dbcsr_init(matrices(i)%matrix)
-         CALL cp_dbcsr_create(matrix=matrices(i)%matrix, &
-                              name=TRIM(matnames), &
-                              dist=dbcsr_dist, matrix_type=symmetry_type, &
-                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0, mutable_work=.TRUE.)
+         CALL dbcsr_init(matrices(i)%matrix)
+         CALL dbcsr_create(matrix=matrices(i)%matrix, &
+                           name=TRIM(matnames), &
+                           dist=dbcsr_dist, matrix_type=symmetry_type, &
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                           nze=0, mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(matrices(i)%matrix, sab_nl)
       END DO
 
@@ -2230,7 +2229,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nderivative, nimg
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrices
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrices
       CHARACTER(LEN=*)                                   :: mnames
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -2279,7 +2278,7 @@ CONTAINS
       ALLOCATE (row_blk_sizes(natom))
       CALL convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
 
-      CALL cp_dbcsr_allocate_matrix_set(matrices, nmat, nimg)
+      CALL dbcsr_allocate_matrix_set(matrices, nmat, nimg)
 
       ! Up to 2nd derivative take care to get the symmetries correct
       DO img = 1, nimg
@@ -2293,12 +2292,12 @@ CONTAINS
                matnames = TRIM(mnames)//" MATRIX DFTB"
             END IF
             ALLOCATE (matrices(i, img)%matrix)
-            CALL cp_dbcsr_init(matrices(i, img)%matrix)
-            CALL cp_dbcsr_create(matrix=matrices(i, img)%matrix, &
-                                 name=TRIM(matnames), &
-                                 dist=dbcsr_dist, matrix_type=symmetry_type, &
-                                 row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                                 nze=0, mutable_work=.TRUE.)
+            CALL dbcsr_init(matrices(i, img)%matrix)
+            CALL dbcsr_create(matrix=matrices(i, img)%matrix, &
+                              name=TRIM(matnames), &
+                              dist=dbcsr_dist, matrix_type=symmetry_type, &
+                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                              nze=0, mutable_work=.TRUE.)
             CALL cp_dbcsr_alloc_block_from_nbl(matrices(i, img)%matrix, sab_nl)
          END DO
       END DO
@@ -2321,7 +2320,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nmat
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: gammat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: gammat
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
@@ -2349,25 +2348,25 @@ CONTAINS
       ALLOCATE (row_blk_sizes(natom))
       CALL convert_offsets_to_sizes(felem, row_blk_sizes, lelem)
 
-      CALL cp_dbcsr_allocate_matrix_set(gammat, nmat)
+      CALL dbcsr_allocate_matrix_set(gammat, nmat)
       ALLOCATE (gammat(1)%matrix)
-      CALL cp_dbcsr_init(gammat(1)%matrix)
+      CALL dbcsr_init(gammat(1)%matrix)
 
-      CALL cp_dbcsr_create(matrix=gammat(1)%matrix, &
-                           name="GAMMA MATRIX", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+      CALL dbcsr_create(matrix=gammat(1)%matrix, &
+                        name="GAMMA MATRIX", &
+                        dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                        nze=0, mutable_work=.TRUE.)
 
       DO i = 2, nmat
          ALLOCATE (gammat(i)%matrix)
-         CALL cp_dbcsr_init(gammat(i)%matrix)
+         CALL dbcsr_init(gammat(i)%matrix)
 
-         CALL cp_dbcsr_create(matrix=gammat(i)%matrix, &
-                              name="DERIVATIVE GAMMA MATRIX", &
-                              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0, mutable_work=.TRUE.)
+         CALL dbcsr_create(matrix=gammat(i)%matrix, &
+                           name="DERIVATIVE GAMMA MATRIX", &
+                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                           nze=0, mutable_work=.TRUE.)
       END DO
 
       DEALLOCATE (row_blk_sizes, felem, lelem)

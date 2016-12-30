@@ -75,7 +75,7 @@ MODULE dbcsr_operations
         dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_inverse_special, dbcsr_func_sin, &
         dbcsr_func_spread_from_zero, dbcsr_func_tanh, dbcsr_func_truncate, dbcsr_iterator, &
         dbcsr_mp_obj, dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_gershgorin, &
-        dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_repl_full, dbcsr_repl_none, dbcsr_scalar_type, &
+        dbcsr_norm_maxabsnorm, dbcsr_repl_full, dbcsr_repl_none, dbcsr_scalar_type, dbcsr_type, &
         dbcsr_type_antihermitian, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
         dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
         dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
@@ -206,7 +206,7 @@ CONTAINS
 !>
 ! **************************************************************************************************
    SUBROUTINE dbcsr_conjg(matrix)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_conjg', routineP = moduleN//':'//routineN
 
@@ -245,7 +245,7 @@ CONTAINS
 !> \param matrix_a ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_zero(matrix_a)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_zero', routineP = moduleN//':'//routineN
 
@@ -256,19 +256,19 @@ CONTAINS
       SELECT CASE (dbcsr_get_data_type (matrix_a))
       CASE (dbcsr_type_complex_4)
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE), SHARED(matrix_a)
-         matrix_a%m%data_area%d%c_sp = (0.0, 0.0)
+         matrix_a%data_area%d%c_sp = (0.0, 0.0)
 !$OMP       END PARALLEL WORKSHARE
       CASE (dbcsr_type_complex_8)
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE), SHARED(matrix_a)
-         matrix_a%m%data_area%d%c_dp = (0.0_dp, 0.0_dp)
+         matrix_a%data_area%d%c_dp = (0.0_dp, 0.0_dp)
 !$OMP       END PARALLEL WORKSHARE
       CASE (dbcsr_type_real_4)
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE), SHARED(matrix_a)
-         matrix_a%m%data_area%d%r_sp = 0.0
+         matrix_a%data_area%d%r_sp = 0.0
 !$OMP       END PARALLEL WORKSHARE
       CASE (dbcsr_type_real_8)
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE), SHARED(matrix_a)
-         matrix_a%m%data_area%d%r_dp = 0.0_dp
+         matrix_a%data_area%d%r_dp = 0.0_dp
 !$OMP       END PARALLEL WORKSHARE
       END SELECT
 
@@ -286,7 +286,7 @@ CONTAINS
 !> to 0 to avoid limiting.
 ! **************************************************************************************************
    SUBROUTINE dbcsr_scale_anytype(matrix_a, alpha_scalar, limits)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha_scalar
       INTEGER, DIMENSION(4), INTENT(IN), OPTIONAL        :: limits
 
@@ -419,7 +419,7 @@ CONTAINS
 !> \param[in] side              apply the scaling from the side
 ! **************************************************************************************************
    SUBROUTINE dbcsr_scale_by_vector_anytype(matrix_a, alpha, side)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
       TYPE(dbcsr_data_obj), INTENT(IN), OPTIONAL         :: alpha
       CHARACTER(LEN=*), INTENT(IN)                       :: side
 
@@ -534,7 +534,7 @@ CONTAINS
 !>
 ! **************************************************************************************************
    SUBROUTINE dbcsr_set_anytype(matrix, alpha)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_anytype', &
@@ -574,8 +574,8 @@ CONTAINS
 !> \param flop ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_anytype(matrix_a, matrix_b, alpha_scalar, beta_scalar, flop)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_b
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: alpha_scalar, beta_scalar
       INTEGER(KIND=int_8), INTENT(INOUT), OPTIONAL       :: flop
 
@@ -622,8 +622,8 @@ CONTAINS
       ENDIF
 
       ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
-      size_a = dbcsr_data_get_size_referenced(matrix_a%m%data_area)
-      size_b = dbcsr_data_get_size_referenced(matrix_b%m%data_area)
+      size_a = dbcsr_data_get_size_referenced(matrix_a%data_area)
+      size_b = dbcsr_data_get_size_referenced(matrix_b%data_area)
       IF (.NOT. dbcsr_scalar_are_equal(my_beta_scalar, &
                                        dbcsr_scalar_zero(data_type_b))) THEN
          my_flop = 0
@@ -634,9 +634,9 @@ CONTAINS
 !$OMP                 SHARED (do_scale, my_beta_scalar) &
 !$OMP                 REDUCTION (+ : my_flop)
          lb_row_col(:) = 0
-         IF (size_b .GT. size_a .AND. matrix_b%m%nblks .GT. matrix_a%m%nblks) THEN
+         IF (size_b .GT. size_a .AND. matrix_b%nblks .GT. matrix_a%nblks) THEN
             CALL dbcsr_work_create(matrix_a, &
-                                   nblks_guess=matrix_b%m%nblks-matrix_a%m%nblks, &
+                                   nblks_guess=matrix_b%nblks-matrix_a%nblks, &
                                    sizedata_guess=size_b-size_a, &
                                    work_mutable=.FALSE.)
          ELSE
@@ -682,8 +682,8 @@ CONTAINS
 !> \param beta_scalar ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_d(matrix_a, matrix_b, alpha_scalar, beta_scalar)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_b
       REAL(real_8), INTENT(IN)                           :: alpha_scalar, beta_scalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_d', routineP = moduleN//':'//routineN
@@ -735,8 +735,8 @@ CONTAINS
 !> \param beta_scalar ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_s(matrix_a, matrix_b, alpha_scalar, beta_scalar)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_b
       REAL(real_4), INTENT(IN)                           :: alpha_scalar, beta_scalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_s', routineP = moduleN//':'//routineN
@@ -763,8 +763,8 @@ CONTAINS
 !> \param beta_scalar ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_z(matrix_a, matrix_b, alpha_scalar, beta_scalar)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_b
       COMPLEX(real_8), INTENT(IN)                        :: alpha_scalar, beta_scalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_z', routineP = moduleN//':'//routineN
@@ -796,8 +796,8 @@ CONTAINS
 !> \param beta_scalar ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_c(matrix_a, matrix_b, alpha_scalar, beta_scalar)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_b
       COMPLEX(real_4), INTENT(IN)                        :: alpha_scalar, beta_scalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_c', routineP = moduleN//':'//routineN
@@ -843,7 +843,7 @@ CONTAINS
 !>           fails if |a1*x+a0| > 1
 ! **************************************************************************************************
    SUBROUTINE dbcsr_function_of_elements(matrix_a, func, a0, a1, a2)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
       INTEGER, INTENT(IN)                                :: func
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: a0, a1, a2
 
@@ -983,8 +983,8 @@ CONTAINS
    SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, &
                                      b_assume_value)
 
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a, matrix_b
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_c
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: b_assume_value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hadamard_product', &
@@ -1089,7 +1089,7 @@ CONTAINS
 !> \param last_row ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_on_diag_anytype(matrix, alpha_scalar, first_row, last_row)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha_scalar
       INTEGER, INTENT(in), OPTIONAL                      :: first_row, last_row
 
@@ -1177,7 +1177,7 @@ CONTAINS
 !> \param keep_sparsity ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_init_random(matrix, keep_sparsity)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       LOGICAL, OPTIONAL                                  :: keep_sparsity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_random', &
@@ -1198,8 +1198,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      row_blk_size => array_data(matrix%m%row_blk_size)
-      col_blk_size => array_data(matrix%m%col_blk_size)
+      row_blk_size => array_data(matrix%row_blk_size)
+      col_blk_size => array_data(matrix%col_blk_size)
       mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
       CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
 
@@ -1250,8 +1250,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_block_diag(matrix, diag)
 
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: diag
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: diag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_diag', &
          routineP = moduleN//':'//routineN
@@ -1264,7 +1264,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-      CALL dbcsr_create(diag, name='diag of '//TRIM(matrix%m%name), &
+      CALL dbcsr_create(diag, name='diag of '//TRIM(matrix%name), &
                         template=matrix)
 
       CALL dbcsr_data_init(data_a)
@@ -1289,7 +1289,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_diag_anytype(matrix, diag)
 
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: diag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag_anytype', &
@@ -1343,7 +1343,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_set_diag_anytype(matrix, diag)
 
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(dbcsr_data_obj), INTENT(IN)                   :: diag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag_anytype', &
@@ -1472,8 +1472,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, keep_sparsity, &
                          shallow_data, keep_imaginary, matrix_type)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_b
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: name
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity, shallow_data, &
                                                             keep_imaginary
@@ -1498,7 +1498,7 @@ CONTAINS
       IF (keep_sparse .AND. shallow) &
          CPWARN("Shallow copy not compatibly with sparsity retainment")
       IF (keep_sparse) THEN
-         IF (PRESENT(name)) matrix_b%m%name = name
+         IF (PRESENT(name)) matrix_b%name = name
          CALL dbcsr_copy_into_existing(matrix_b, matrix_a)
       ELSE
          IF (dbcsr_valid_index(matrix_b)) THEN
@@ -1530,37 +1530,37 @@ CONTAINS
                               matrix_type=new_matrix_type, &
                               template=matrix_a)
          ENDIF
-         CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index), &
+         CALL ensure_array_size(matrix_b%index, ub=SIZE(matrix_a%index), &
                                 memory_type=dbcsr_get_index_memory_type(matrix_b))
          !
          ! copy index and data
-         matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
+         matrix_b%index(1:SIZE(matrix_a%index)) = matrix_a%index(:)
          IF (.NOT. shallow) THEN
-            IF (matrix_a%m%nze > dbcsr_get_data_size(matrix_a)) &
+            IF (matrix_a%nze > dbcsr_get_data_size(matrix_a)) &
                CPABORT("Source matrix sizes not consistent!")
-            CALL dbcsr_data_ensure_size(matrix_b%m%data_area, &
-                                        dbcsr_data_get_size_referenced(matrix_a%m%data_area))
+            CALL dbcsr_data_ensure_size(matrix_b%data_area, &
+                                        dbcsr_data_get_size_referenced(matrix_a%data_area))
             IF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_get_data_type(matrix_b)) &
                THEN
-               CALL dbcsr_data_copyall(matrix_b%m%data_area, &
-                                       matrix_a%m%data_area)
+               CALL dbcsr_data_copyall(matrix_b%data_area, &
+                                       matrix_a%data_area)
             ELSE
-               CALL dbcsr_data_convert(matrix_b%m%data_area, &
-                                       matrix_a%m%data_area, drop_real=keep_imaginary)
+               CALL dbcsr_data_convert(matrix_b%data_area, &
+                                       matrix_a%data_area, drop_real=keep_imaginary)
             ENDIF
          ELSE
             IF (dbcsr_get_data_type(matrix_a) .NE. dbcsr_get_data_type(matrix_b)) &
                CPABORT("Shallow copy only possible when retaining data type.")
-            CALL dbcsr_switch_data_area(matrix_b, matrix_a%m%data_area)
+            CALL dbcsr_switch_data_area(matrix_b, matrix_a%data_area)
          ENDIF
          !
          ! the row_p, col_i and blk_p ...
-         CALL dbcsr_repoint_index(matrix_b%m)
-         matrix_b%m%nze = matrix_a%m%nze
-         matrix_b%m%nblks = matrix_b%m%nblks
-         matrix_b%m%valid = .TRUE.
+         CALL dbcsr_repoint_index(matrix_b)
+         matrix_b%nze = matrix_a%nze
+         matrix_b%nblks = matrix_b%nblks
+         matrix_b%valid = .TRUE.
 
-         matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
+         matrix_b%sparsity_id = matrix_a%sparsity_id
       ENDIF
       CALL timestop(handle)
    END SUBROUTINE dbcsr_copy
@@ -1571,8 +1571,8 @@ CONTAINS
 !> \param[in]    matrix_a       source DBCSR matrix
 ! **************************************************************************************************
    SUBROUTINE dbcsr_copy_into_existing(matrix_b, matrix_a)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_b
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing', &
          routineP = moduleN//':'//routineN
@@ -1591,8 +1591,8 @@ CONTAINS
       IF (dbcsr_get_data_type(matrix_b) .NE. dbcsr_get_data_type(matrix_a)) &
          CPABORT("Matrices have different data types.")
       data_type = dbcsr_get_data_type(matrix_b)
-      neg_real = matrix_b%m%negate_real
-      neg_imag = matrix_b%m%negate_imaginary
+      neg_real = matrix_b%negate_real
+      neg_imag = matrix_b%negate_imaginary
       making_symmetric = dbcsr_has_symmetry(matrix_b) &
                          .AND. .NOT. dbcsr_has_symmetry(matrix_a)
       IF (making_symmetric) THEN
@@ -1672,8 +1672,8 @@ CONTAINS
 !> \param[in]    matrix_a       source DBCSR matrix
 ! **************************************************************************************************
    SUBROUTINE dbcsr_copy_into_existing_sym(matrix_b, matrix_a)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_b
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing_sym', &
          routineP = moduleN//':'//routineN
@@ -1693,8 +1693,8 @@ CONTAINS
       data_type = dbcsr_get_data_type(matrix_b)
       IF (.NOT. dbcsr_has_symmetry(matrix_b) .OR. dbcsr_has_symmetry(matrix_a)) &
          CPABORT("Must copy from non-symmetric to symmetric matrix.")
-      neg_real = matrix_b%m%negate_real
-      neg_imag = matrix_b%m%negate_imaginary
+      neg_real = matrix_b%negate_real
+      neg_imag = matrix_b%negate_imaginary
 
       CALL dbcsr_data_init(src_data)
       CALL dbcsr_data_init(dst_data)
@@ -1790,8 +1790,8 @@ CONTAINS
    SUBROUTINE dbcsr_copy_submatrix(matrix_b, matrix_a, name, &
                                    block_row_bounds, block_column_bounds, &
                                    shallow_data)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_b
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: name
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: block_row_bounds, block_column_bounds
       LOGICAL, INTENT(IN), OPTIONAL                      :: shallow_data
@@ -1859,7 +1859,7 @@ CONTAINS
 !$OMP END PARALLEL
       ELSE
          ! For the shallow copy the source matrix data is referenced.
-         CALL dbcsr_switch_data_area(matrix_b, matrix_a%m%data_area)
+         CALL dbcsr_switch_data_area(matrix_b, matrix_a%data_area)
          nblocks = dbcsr_get_num_blocks(matrix_a) ! High estimate.
          ! Shallow copy goes through source's data blocks and inserts
          ! the only the ones corresponding to the submatrix specifier
@@ -1910,8 +1910,8 @@ CONTAINS
    SUBROUTINE dbcsr_crop_matrix(matrix_b, matrix_a, &
                                 full_row_bounds, full_column_bounds, &
                                 shallow_data)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_b
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: full_row_bounds, full_column_bounds
       LOGICAL, INTENT(IN), OPTIONAL                      :: shallow_data
 
@@ -2092,7 +2092,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_triu(matrix_a)
 
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_triu', routineP = moduleN//':'//routineN
 
@@ -2139,7 +2139,7 @@ CONTAINS
    SUBROUTINE dbcsr_filter_anytype(matrix, eps, method, &
                                    use_absolute, filter_diag, quick)
 
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: eps
       INTEGER, INTENT(IN), OPTIONAL                      :: method
       LOGICAL, INTENT(in), OPTIONAL                      :: use_absolute, filter_diag, quick
@@ -2282,7 +2282,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_norm_anytype(matrix, which_norm, norm_scalar, norm_vector)
 
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: which_norm
       REAL(KIND=real_8), INTENT(OUT), OPTIONAL           :: norm_scalar
       TYPE(dbcsr_data_obj), INTENT(INOUT), OPTIONAL      :: norm_vector
@@ -2387,11 +2387,11 @@ CONTAINS
             SELECT CASE (dbcsr_get_data_type (matrix))
             CASE (dbcsr_type_real_4)
                CALL mp_sum(norm_vector%d%r_sp, &
-                           dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+                           dbcsr_mp_group(dbcsr_distribution_mp(matrix%dist)))
                norm_vector%d%r_sp = SQRT(norm_vector%d%r_sp)
             CASE (dbcsr_type_real_8)
                CALL mp_sum(norm_vector%d%r_dp, &
-                           dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+                           dbcsr_mp_group(dbcsr_distribution_mp(matrix%dist)))
                norm_vector%d%r_dp = SQRT(norm_vector%d%r_dp)
             END SELECT
          ENDIF
@@ -2411,7 +2411,7 @@ CONTAINS
 !> \param norm_vector ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_norm_r8_vec(matrix, which_norm, norm_vector)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: which_norm
       REAL(KIND=real_8), DIMENSION(:), INTENT(OUT), &
          TARGET                                          :: norm_vector
@@ -2435,7 +2435,7 @@ CONTAINS
 !> \param norm_scalar ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_norm_r4_scal(matrix, which_norm, norm_scalar)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: which_norm
       REAL(KIND=real_4), INTENT(OUT)                     :: norm_scalar
 
@@ -2452,7 +2452,7 @@ CONTAINS
 !> \param norm_vector ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_norm_r4_vec(matrix, which_norm, norm_vector)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: which_norm
       REAL(KIND=real_4), DIMENSION(:), INTENT(OUT), &
          TARGET                                          :: norm_vector
@@ -2476,7 +2476,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION dbcsr_gershgorin_norm(matrix) RESULT(norm)
 
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       REAL(KIND=real_8)                                  :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_gershgorin_norm'
@@ -2555,7 +2555,7 @@ CONTAINS
          END SELECT
       ENDDO
       CALL dbcsr_iterator_stop(iter)
-      CALL mp_sum(buff_d, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+      CALL mp_sum(buff_d, dbcsr_mp_group(dbcsr_distribution_mp(matrix%dist)))
       norm = MAXVAL(buff_d)
       DEALLOCATE (buff_d)
 
@@ -2569,7 +2569,7 @@ CONTAINS
 !> \retval norm ...
 ! **************************************************************************************************
    FUNCTION dbcsr_maxabs(matrix) RESULT(norm)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       REAL(real_8)                                       :: norm
 
       COMPLEX(KIND=real_4), DIMENSION(:, :), POINTER     :: data_c
@@ -2604,7 +2604,7 @@ CONTAINS
       ENDDO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL mp_max(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+      CALL mp_max(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%dist)))
 
    END FUNCTION dbcsr_maxabs
 
@@ -2616,7 +2616,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION dbcsr_frobenius_norm(matrix, local) RESULT(norm)
 
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       LOGICAL, INTENT(in), OPTIONAL                      :: local
       REAL(KIND=real_8)                                  :: norm
 
@@ -2672,7 +2672,7 @@ CONTAINS
          END SELECT
       ENDDO
       CALL dbcsr_iterator_stop(iter)
-      IF (.NOT. my_local) CALL mp_sum(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+      IF (.NOT. my_local) CALL mp_sum(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%dist)))
       norm = SQRT(norm)
 
       CALL timestop(handle)
@@ -2684,7 +2684,7 @@ CONTAINS
 !> \param[in,out] matrix      dbcsr matrix to operate on
 ! **************************************************************************************************
    SUBROUTINE dbcsr_sum_replicated(matrix)
-      TYPE(dbcsr_obj), INTENT(inout)                     :: matrix
+      TYPE(dbcsr_type), INTENT(inout)                    :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sum_replicated', &
          routineP = moduleN//':'//routineN
@@ -2709,15 +2709,15 @@ CONTAINS
       IF (.NOT. ALL(all_checksums .EQ. index_checksum)) &
          CPABORT("Replicated matrices do not all have the same index structure.")
       !
-      SELECT CASE (dbcsr_data_get_type (matrix%m%data_area))
+      SELECT CASE (dbcsr_data_get_type (matrix%data_area))
       CASE (dbcsr_type_real_4)
-         CALL mp_sum(matrix%m%data_area%d%r_sp, comm)
+         CALL mp_sum(matrix%data_area%d%r_sp, comm)
       CASE (dbcsr_type_real_8)
-         CALL mp_sum(matrix%m%data_area%d%r_dp, comm)
+         CALL mp_sum(matrix%data_area%d%r_dp, comm)
       CASE (dbcsr_type_complex_4)
-         CALL mp_sum(matrix%m%data_area%d%c_sp, comm)
+         CALL mp_sum(matrix%data_area%d%c_sp, comm)
       CASE (dbcsr_type_complex_8)
-         CALL mp_sum(matrix%m%data_area%d%c_dp, comm)
+         CALL mp_sum(matrix%data_area%d%c_dp, comm)
       CASE default
          CPABORT("Incorrect data type")
       END SELECT
@@ -2732,7 +2732,7 @@ CONTAINS
 !> \param trace ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_trace_a_b_d(matrix_a, matrix_b, trace)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a, matrix_b
       REAL(kind=real_8), INTENT(INOUT)                   :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_b_d', &
@@ -2766,7 +2766,7 @@ CONTAINS
 !> \param trace ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_trace_a_any(matrix_a, trace)
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
       TYPE(dbcsr_scalar_type), INTENT(INOUT)             :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_any', &
@@ -2853,7 +2853,7 @@ CONTAINS
                              local_rows, local_cols, proc_row_dist, proc_col_dist, &
                              row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, distribution, name, data_area, &
                              matrix_type, data_type)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, nfullrows_total, &
          nfullcols_total, nblkrows_local, nblkcols_local, nfullrows_local, nfullcols_local, &
          my_prow, my_pcol
@@ -2872,39 +2872,39 @@ CONTAINS
 
       !vw avoid massive priting of warnings
       !CPWARN("Invalid matrix")
-      IF (PRESENT(nblkrows_total)) nblkrows_total = matrix%m%nblkrows_total
-      IF (PRESENT(nblkcols_total)) nblkcols_total = matrix%m%nblkcols_total
-      IF (PRESENT(nfullrows_total)) nfullrows_total = matrix%m%nfullrows_total
-      IF (PRESENT(nfullcols_total)) nfullcols_total = matrix%m%nfullcols_total
-      IF (PRESENT(nblkrows_local)) nblkrows_local = matrix%m%nblkrows_local
-      IF (PRESENT(nblkcols_local)) nblkcols_local = matrix%m%nblkcols_local
-      IF (PRESENT(nfullrows_local)) nfullrows_local = matrix%m%nfullrows_local
-      IF (PRESENT(nfullcols_local)) nfullcols_local = matrix%m%nfullcols_local
-      IF (PRESENT(row_blk_size)) row_blk_size => array_data(matrix%m%row_blk_size)
-      IF (PRESENT(col_blk_size)) col_blk_size => array_data(matrix%m%col_blk_size)
-      IF (PRESENT(row_blk_offset)) row_blk_offset => array_data(matrix%m%row_blk_offset)
-      IF (PRESENT(col_blk_offset)) col_blk_offset => array_data(matrix%m%col_blk_offset)
-      IF (PRESENT(distribution)) distribution = matrix%m%dist
-      IF (PRESENT(name)) name = matrix%m%name
-      IF (PRESENT(data_area)) data_area = matrix%m%data_area
+      IF (PRESENT(nblkrows_total)) nblkrows_total = matrix%nblkrows_total
+      IF (PRESENT(nblkcols_total)) nblkcols_total = matrix%nblkcols_total
+      IF (PRESENT(nfullrows_total)) nfullrows_total = matrix%nfullrows_total
+      IF (PRESENT(nfullcols_total)) nfullcols_total = matrix%nfullcols_total
+      IF (PRESENT(nblkrows_local)) nblkrows_local = matrix%nblkrows_local
+      IF (PRESENT(nblkcols_local)) nblkcols_local = matrix%nblkcols_local
+      IF (PRESENT(nfullrows_local)) nfullrows_local = matrix%nfullrows_local
+      IF (PRESENT(nfullcols_local)) nfullcols_local = matrix%nfullcols_local
+      IF (PRESENT(row_blk_size)) row_blk_size => array_data(matrix%row_blk_size)
+      IF (PRESENT(col_blk_size)) col_blk_size => array_data(matrix%col_blk_size)
+      IF (PRESENT(row_blk_offset)) row_blk_offset => array_data(matrix%row_blk_offset)
+      IF (PRESENT(col_blk_offset)) col_blk_offset => array_data(matrix%col_blk_offset)
+      IF (PRESENT(distribution)) distribution = matrix%dist
+      IF (PRESENT(name)) name = matrix%name
+      IF (PRESENT(data_area)) data_area = matrix%data_area
       IF (PRESENT(matrix_type)) THEN
          matrix_type = dbcsr_get_matrix_type(matrix)
          IF (matrix_type .EQ. dbcsr_type_invalid) &
             CPABORT("Incorrect symmetry")
       ENDIF
-      IF (PRESENT(data_type)) data_type = matrix%m%data_type
+      IF (PRESENT(data_type)) data_type = matrix%data_type
       IF (PRESENT(local_rows)) &
-         local_rows => dbcsr_distribution_local_rows(matrix%m%dist)
+         local_rows => dbcsr_distribution_local_rows(matrix%dist)
       IF (PRESENT(local_cols)) &
-         local_cols => dbcsr_distribution_local_cols(matrix%m%dist)
+         local_cols => dbcsr_distribution_local_cols(matrix%dist)
       IF (PRESENT(proc_row_dist)) &
-         proc_row_dist => dbcsr_distribution_row_dist(matrix%m%dist)
+         proc_row_dist => dbcsr_distribution_row_dist(matrix%dist)
       IF (PRESENT(proc_col_dist)) &
-         proc_col_dist => dbcsr_distribution_col_dist(matrix%m%dist)
+         proc_col_dist => dbcsr_distribution_col_dist(matrix%dist)
       IF (PRESENT(my_prow)) &
-         my_prow = dbcsr_mp_myprow(dbcsr_distribution_mp(matrix%m%dist))
+         my_prow = dbcsr_mp_myprow(dbcsr_distribution_mp(matrix%dist))
       IF (PRESENT(my_pcol)) &
-         my_pcol = dbcsr_mp_mypcol(dbcsr_distribution_mp(matrix%m%dist))
+         my_pcol = dbcsr_mp_mypcol(dbcsr_distribution_mp(matrix%dist))
    END SUBROUTINE dbcsr_get_info
 
 ! **************************************************************************************************
@@ -2915,7 +2915,7 @@ CONTAINS
 !>                            structures
 ! **************************************************************************************************
    FUNCTION dbcsr_may_be_dense(matrix, occ_thresh) RESULT(may_be_dense)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       REAL(real_8), INTENT(in)                           :: occ_thresh
       LOGICAL                                            :: may_be_dense
 
@@ -2926,7 +2926,7 @@ CONTAINS
       occ = dbcsr_get_occupation(matrix)
       may_be_dense = .NOT. (occ .LT. occ_thresh)
       ! make sure every proc sees the same
-      CALL mp_sum(may_be_dense, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+      CALL mp_sum(may_be_dense, dbcsr_mp_group(dbcsr_distribution_mp(matrix%dist)))
    END FUNCTION dbcsr_may_be_dense
 
 ! **************************************************************************************************
@@ -2935,20 +2935,20 @@ CONTAINS
 !> \retval occupation ...
 ! **************************************************************************************************
    FUNCTION dbcsr_get_occupation(matrix) RESULT(occupation)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       REAL(KIND=real_8)                                  :: occupation
 
       INTEGER                                            :: nfullcols, nfullrows
       INTEGER(KIND=int_8)                                :: nze_global
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
 
-      nze_global = matrix%m%nze
-      CALL mp_sum(nze_global, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+      nze_global = matrix%nze
+      CALL mp_sum(nze_global, dbcsr_mp_group(dbcsr_distribution_mp(matrix%dist)))
 
       nfullrows = dbcsr_nfullrows_total(matrix)
       nfullcols = dbcsr_nfullcols_total(matrix)
 
-      row_blk_size => array_data(matrix%m%row_blk_size)
+      row_blk_size => array_data(matrix%row_blk_size)
 
       IF (nfullrows .NE. 0 .AND. nfullcols .NE. 0) THEN
          IF (dbcsr_has_symmetry(matrix)) THEN

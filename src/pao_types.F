@@ -8,10 +8,10 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
-                                              cp_dbcsr_type,&
-                                              dbcsr_distribution_obj,&
-                                              dbcsr_distribution_release
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
+                                              dbcsr_distribution_release,&
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -177,24 +177,24 @@ MODULE pao_types
       LOGICAL                          :: need_initial_scf = .FALSE.
 
       ! matrices
-      TYPE(cp_dbcsr_type)              :: matrix_X
-      TYPE(cp_dbcsr_type)              :: matrix_U
-      TYPE(cp_dbcsr_type)              :: matrix_U0
-      TYPE(cp_dbcsr_type)              :: matrix_H0
-      TYPE(cp_dbcsr_type)              :: matrix_Y
-      TYPE(cp_dbcsr_type)              :: matrix_N
-      TYPE(cp_dbcsr_type)              :: matrix_N_inv
-      TYPE(cp_dbcsr_type)              :: matrix_N_diag
-      TYPE(cp_dbcsr_type)              :: matrix_X_orig
-      TYPE(cp_dbcsr_type)              :: matrix_G
-      TYPE(cp_dbcsr_type)              :: matrix_G_prev
-      TYPE(cp_dbcsr_type)              :: matrix_D
-      TYPE(cp_dbcsr_type)              :: matrix_D_preconed
-      TYPE(cp_dbcsr_type)              :: matrix_V_terms
-      TYPE(cp_dbcsr_type)              :: matrix_BFGS
-      TYPE(cp_dbcsr_type)              :: matrix_precon
-      TYPE(cp_dbcsr_type)              :: matrix_precon_inv
-      TYPE(cp_dbcsr_type)              :: matrix_R
+      TYPE(dbcsr_type)              :: matrix_X
+      TYPE(dbcsr_type)              :: matrix_U
+      TYPE(dbcsr_type)              :: matrix_U0
+      TYPE(dbcsr_type)              :: matrix_H0
+      TYPE(dbcsr_type)              :: matrix_Y
+      TYPE(dbcsr_type)              :: matrix_N
+      TYPE(dbcsr_type)              :: matrix_N_inv
+      TYPE(dbcsr_type)              :: matrix_N_diag
+      TYPE(dbcsr_type)              :: matrix_X_orig
+      TYPE(dbcsr_type)              :: matrix_G
+      TYPE(dbcsr_type)              :: matrix_G_prev
+      TYPE(dbcsr_type)              :: matrix_D
+      TYPE(dbcsr_type)              :: matrix_D_preconed
+      TYPE(dbcsr_type)              :: matrix_V_terms
+      TYPE(dbcsr_type)              :: matrix_BFGS
+      TYPE(dbcsr_type)              :: matrix_precon
+      TYPE(dbcsr_type)              :: matrix_precon_inv
+      TYPE(dbcsr_type)              :: matrix_R
 
       TYPE(training_matrix_type), ALLOCATABLE, &
          DIMENSION(:)                  :: ml_training_matrices
@@ -217,12 +217,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_dbcsr_release(pao%matrix_X)
-      CALL cp_dbcsr_release(pao%matrix_Y)
-      CALL cp_dbcsr_release(pao%matrix_N)
-      CALL cp_dbcsr_release(pao%matrix_N_inv)
-      CALL cp_dbcsr_release(pao%matrix_N_diag)
-      CALL cp_dbcsr_release(pao%matrix_H0)
+      CALL dbcsr_release(pao%matrix_X)
+      CALL dbcsr_release(pao%matrix_Y)
+      CALL dbcsr_release(pao%matrix_N)
+      CALL dbcsr_release(pao%matrix_N_inv)
+      CALL dbcsr_release(pao%matrix_N_diag)
+      CALL dbcsr_release(pao%matrix_H0)
 
       DEALLOCATE (pao%ml_training_set)
       IF (ALLOCATED(pao%ml_training_matrices)) &

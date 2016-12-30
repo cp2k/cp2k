@@ -85,7 +85,7 @@ MODULE dbcsr_mm
    USE dbcsr_types,                     ONLY: &
         dbcsr_2d_array_type, dbcsr_conjugate_transpose, dbcsr_distribution_obj, &
         dbcsr_imagedistribution_obj, dbcsr_mp_obj, dbcsr_mpi_size_limits, dbcsr_no_transpose, &
-        dbcsr_obj, dbcsr_scalar_type, dbcsr_transpose, dbcsr_type_antisymmetric
+        dbcsr_scalar_type, dbcsr_transpose, dbcsr_type, dbcsr_type_antisymmetric
    USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                               dbcsr_verify_matrix
    USE dbcsr_work_operations,           ONLY: dbcsr_add_wm_from_matrix,&
@@ -374,9 +374,9 @@ CONTAINS
 
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
       TYPE(dbcsr_scalar_type), INTENT(IN)                :: beta
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_c
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_column, &
                                                             last_column, first_k, last_k
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
@@ -405,8 +405,8 @@ CONTAINS
       TYPE(dbcsr_imagedistribution_obj)                  :: dense_rdist_left, dense_rdist_right, &
                                                             rdist_left, rdist_right
       TYPE(dbcsr_mp_obj)                                 :: mp_obj
-      TYPE(dbcsr_obj)                                    :: matrix_left, matrix_right, product_matrix
       TYPE(dbcsr_scalar_type)                            :: eps_any
+      TYPE(dbcsr_type)                                   :: matrix_left, matrix_right, product_matrix
 
       CALL timeset(routineN, handle)
       CALL array_nullify(dense_k_sizes)
@@ -487,7 +487,7 @@ CONTAINS
          matrix_left = matrix_a
          transpose_left = .FALSE.
       CASE (dbcsr_transpose)
-         matrix_left = dbcsr_obj()
+         matrix_left = dbcsr_type()
          IF (dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_antisymmetric) THEN
             !
             ! For antisymmetric matrix, we need to do a hard copy
@@ -502,7 +502,7 @@ CONTAINS
          ENDIF
          transpose_left = .TRUE.
       CASE (dbcsr_conjugate_transpose)
-         matrix_left = dbcsr_obj()
+         matrix_left = dbcsr_type()
          CALL dbcsr_new_transposed(matrix_left, matrix_a, &
                                    shallow_data_copy=.FALSE., redistribute=.FALSE., &
                                    transpose_distribution=.FALSE.)
@@ -517,7 +517,7 @@ CONTAINS
          matrix_right = matrix_b
          transpose_right = .FALSE.
       CASE (dbcsr_transpose)
-         matrix_right = dbcsr_obj()
+         matrix_right = dbcsr_type()
          IF (dbcsr_get_matrix_type(matrix_b) .EQ. dbcsr_type_antisymmetric) THEN
             !
             ! For antisymmetric matrix, we need to do a hard copy
@@ -532,7 +532,7 @@ CONTAINS
          ENDIF
          transpose_right = .TRUE.
       CASE (dbcsr_conjugate_transpose)
-         matrix_right = dbcsr_obj()
+         matrix_right = dbcsr_type()
          CALL dbcsr_new_transposed(matrix_right, matrix_b, &
                                    shallow_data_copy=.FALSE., redistribute=.FALSE., &
                                    transpose_distribution=.FALSE.)
@@ -554,15 +554,15 @@ CONTAINS
       use_dense_mult = .NOT. PRESENT(filter_eps)
       IF (has_acc) use_dense_mult = .FALSE.
       !
-      mp_obj = dbcsr_distribution_mp(matrix_c%m%dist)
+      mp_obj = dbcsr_distribution_mp(matrix_c%dist)
       numnodes = dbcsr_mp_numnodes(mp_obj)
       nprows = dbcsr_mp_nprows(mp_obj)
       npcols = dbcsr_mp_npcols(mp_obj)
       !
-      has_clusters = dbcsr_distribution_has_row_clusters(matrix_left%m%dist) .OR. &
-                     dbcsr_distribution_has_col_clusters(matrix_left%m%dist) .OR. &
-                     dbcsr_distribution_has_row_clusters(matrix_right%m%dist) .OR. &
-                     dbcsr_distribution_has_col_clusters(matrix_right%m%dist)
+      has_clusters = dbcsr_distribution_has_row_clusters(matrix_left%dist) .OR. &
+                     dbcsr_distribution_has_col_clusters(matrix_left%dist) .OR. &
+                     dbcsr_distribution_has_row_clusters(matrix_right%dist) .OR. &
+                     dbcsr_distribution_has_col_clusters(matrix_right%dist)
       !
       ! 3D layers
       CALL make_layers_3D_C_reduction(dbcsr_cfg%num_layers_3D, mp_obj, has_clusters)
@@ -687,60 +687,60 @@ CONTAINS
       !
       ! The thread distribution must reflect the current (possibly
       ! dense) distribution
-      IF (.NOT. dbcsr_distribution_has_threads(matrix_c%m%dist)) THEN
+      IF (.NOT. dbcsr_distribution_has_threads(matrix_c%dist)) THEN
          release_tdist = .TRUE.
-         CALL dbcsr_distribution_make_threads(matrix_c%m%dist)
+         CALL dbcsr_distribution_make_threads(matrix_c%dist)
       ELSE
          release_tdist = .FALSE.
       ENDIF
       !
       ! Compute number of images (rows and columns)
       ! By construction clusters require RMA algo
-      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_left%m%dist)) THEN
-         nimages_left_rows = dbcsr_distribution_num_local_row_clusters(matrix_left%m%dist)* &
-                             dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%m%dist))
+      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_left%dist)) THEN
+         nimages_left_rows = dbcsr_distribution_num_local_row_clusters(matrix_left%dist)* &
+                             dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist))
       ELSE
          ! 1D clustering (only RMA support 2D clustering)
-         nimages_left_rows = dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%m%dist))
+         nimages_left_rows = dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist))
       ENDIF
       !
-      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_left%m%dist)) THEN
-         nimages_match = dbcsr_distribution_num_local_col_clusters(matrix_left%m%dist)* &
-                         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%m%dist))
-      ELSE IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_right%m%dist)) THEN
-         nimages_match = dbcsr_distribution_num_local_row_clusters(matrix_right%m%dist)* &
-                         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_right%m%dist))
+      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_left%dist)) THEN
+         nimages_match = dbcsr_distribution_num_local_col_clusters(matrix_left%dist)* &
+                         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%dist))
+      ELSE IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_row_clusters(matrix_right%dist)) THEN
+         nimages_match = dbcsr_distribution_num_local_row_clusters(matrix_right%dist)* &
+                         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_right%dist))
       ELSE
          ! 1D clustering
          nimages_match = dbcsr_distribution_get_num_images_1d( &
                          dbcsr_nfullcols_total(matrix_left), &
                          dbcsr_nblkcols_total(matrix_left), &
-                         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%m%dist)), &
-                         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%m%dist)))
+                         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%dist)), &
+                         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%dist)))
       ENDIF
       !
-      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_right%m%dist)) THEN
-         nimages_right_cols = dbcsr_distribution_num_local_col_clusters(matrix_right%m%dist)* &
-                              dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%m%dist))
+      IF (dbcsr_cfg%use_mpi_exp .AND. dbcsr_distribution_has_col_clusters(matrix_right%dist)) THEN
+         nimages_right_cols = dbcsr_distribution_num_local_col_clusters(matrix_right%dist)* &
+                              dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%dist))
       ELSE
          ! 1D clustering for the old algorithm (only RMA support 2D clustering)
-         nimages_right_cols = dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%m%dist))
+         nimages_right_cols = dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%dist))
       ENDIF
       !
       ! Create imaged distributions for the multiply.
-      CALL dbcsr_create_image_dist(rdist_right, matrix_right%m%dist, &
-                                   match_row_nbins=dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%m%dist)), &
+      CALL dbcsr_create_image_dist(rdist_right, matrix_right%dist, &
+                                   match_row_nbins=dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_left%dist)), &
                                    match_col_nbins=npcols, &
-                                   match_col_pdist=dbcsr_distribution_col_dist(matrix_c%m%dist), &
+                                   match_col_pdist=dbcsr_distribution_col_dist(matrix_c%dist), &
                                    nimages_rows=nimages_match, &
                                    nimages_cols=nimages_right_cols)
       !
-      CALL dbcsr_create_image_dist(rdist_left, matrix_left%m%dist, &
-                                   match_row_pdist=dbcsr_distribution_row_dist(matrix_c%m%dist), &
+      CALL dbcsr_create_image_dist(rdist_left, matrix_left%dist, &
+                                   match_row_pdist=dbcsr_distribution_row_dist(matrix_c%dist), &
                                    match_row_nbins=nprows, &
                                    match_col_pdist=dbcsr_distribution_row_dist(rdist_right%i%main), &
                                    match_col_idist=array_data(rdist_right%i%row_image), &
-                                   match_col_nbins=dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_right%m%dist)), &
+                                   match_col_nbins=dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_right%dist)), &
                                    nimages_rows=nimages_left_rows, &
                                    nimages_cols=nimages_match)
       !
@@ -748,14 +748,14 @@ CONTAINS
          CALL dbcsr_make_dists_dense(dbcsr_distribution(matrix_c), &
                                      rdist_left, rdist_right, dense_product_distribution, &
                                      dense_rdist_left, dense_rdist_right,.NOT. use_dense_mult, &
-                                     m_map, k_vmap, n_map, matrix_c%m%row_blk_size)
-         CALL make_sizes_dense(matrix_c%m%row_blk_size, m_map, &
+                                     m_map, k_vmap, n_map, matrix_c%row_blk_size)
+         CALL make_sizes_dense(matrix_c%row_blk_size, m_map, &
                                dbcsr_distribution_nrows(dense_product_distribution), &
                                dense_row_sizes)
-         CALL make_sizes_dense(matrix_c%m%col_blk_size, n_map, &
+         CALL make_sizes_dense(matrix_c%col_blk_size, n_map, &
                                dbcsr_distribution_ncols(dense_product_distribution), &
                                dense_col_sizes)
-         CALL make_sizes_dense(matrix_right%m%row_blk_size, k_vmap, &
+         CALL make_sizes_dense(matrix_right%row_blk_size, k_vmap, &
                                dbcsr_distribution_nrows(dense_rdist_right%i%main), &
                                dense_k_sizes)
       ENDIF
@@ -763,23 +763,23 @@ CONTAINS
       IF (use_dense_mult .AND. .NOT. ab_dense) &
          CPABORT("Wrong logic when making dense matrices.")
       IF (use_dense_mult) THEN
-         old_product_row_blk_offsets = matrix_c%m%row_blk_offset
-         old_product_col_blk_offsets = matrix_c%m%col_blk_offset
-         old_product_row_blk_sizes = matrix_c%m%row_blk_size
-         old_product_col_blk_sizes = matrix_c%m%col_blk_size
+         old_product_row_blk_offsets = matrix_c%row_blk_offset
+         old_product_col_blk_offsets = matrix_c%col_blk_offset
+         old_product_row_blk_sizes = matrix_c%row_blk_size
+         old_product_col_blk_sizes = matrix_c%col_blk_size
          CALL array_hold(old_product_row_blk_offsets)
          CALL array_hold(old_product_col_blk_offsets)
          CALL array_hold(old_product_row_blk_sizes)
          CALL array_hold(old_product_col_blk_sizes)
          old_product_distribution = dbcsr_distribution(matrix_c)
          CALL dbcsr_distribution_hold(old_product_distribution)
-         product_matrix = dbcsr_obj()
+         product_matrix = dbcsr_type()
          CALL dbcsr_make_dense(matrix_c, product_matrix, &
                                dense_product_distribution, &
                                dense_row_sizes, dense_col_sizes, &
                                m_map, n_map)
       ELSE
-         product_matrix = dbcsr_obj()
+         product_matrix = dbcsr_type()
          CALL dbcsr_copy(product_matrix, matrix_c, shallow_data=.TRUE.)
       ENDIF
       IF (ab_dense) THEN
@@ -800,7 +800,7 @@ CONTAINS
             IF (debug_mod) WRITE (*, *) routineN//" Making canonical index"
             CALL dbcsr_make_index_canonical(product_matrix)
          ENDIF
-         IF (ASSOCIATED(product_matrix%m%wms)) &
+         IF (ASSOCIATED(product_matrix%wms)) &
             CPABORT("Product matrix should be finalized!")
          CALL dbcsr_make_untransposed_blocks(product_matrix)
 !$OMP PARALLEL &
@@ -837,11 +837,11 @@ CONTAINS
                                  has_acc, &
                                  alpha)
       ELSE
-         product_matrix%m%nblks = 0
-         product_matrix%m%nze = 0
-         product_matrix%m%row_p(:) = 0
-         CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
-         product_matrix%m%valid = .FALSE.
+         product_matrix%nblks = 0
+         product_matrix%nze = 0
+         product_matrix%row_p(:) = 0
+         CALL dbcsr_data_set_size_referenced(product_matrix%data_area, 0)
+         product_matrix%valid = .FALSE.
          !
          ! Right images
          CALL make_m2s(matrix_right, m2s_right, rdist_right, dense_rdist_right, &
@@ -912,7 +912,7 @@ CONTAINS
       IF (transpose_left) CALL dbcsr_release(matrix_left)
       IF (transpose_right) CALL dbcsr_release(matrix_right)
       IF (release_tdist) THEN
-         CALL dbcsr_distribution_no_threads(product_matrix%m%dist)
+         CALL dbcsr_distribution_no_threads(product_matrix%dist)
       ENDIF
       !
       CALL dbcsr_release_locals(product_matrix)
@@ -924,7 +924,7 @@ CONTAINS
       ENDIF
       IF (use_dense_mult) THEN
          CALL dbcsr_release(matrix_c)
-         matrix_c = dbcsr_obj()
+         matrix_c = dbcsr_type()
          CALL dbcsr_make_undense(product_matrix, matrix_c, &
                                  old_product_distribution, &
                                  old_product_row_blk_offsets, old_product_col_blk_offsets, &
@@ -938,7 +938,7 @@ CONTAINS
          CALL dbcsr_distribution_release(old_product_distribution)
       ELSE
          CALL dbcsr_release(matrix_c)
-         matrix_c = dbcsr_obj()
+         matrix_c = dbcsr_type()
          CALL dbcsr_copy(matrix_c, product_matrix, shallow_data=.TRUE.)
          CALL dbcsr_release(product_matrix)
       ENDIF
@@ -988,9 +988,9 @@ CONTAINS
       !  - matrix_c contains already blocks and beta is not zero
       !  - Cuda is enabled
       !  - multiple OpenMP threads are used
-      IF (INT(matrix_c%m%nblks, KIND=int_8) > &
-          INT(SIZE(array_data(matrix_c%m%row_blk_size)), KIND=int_8)* &
-          INT(SIZE(array_data(matrix_c%m%col_blk_size)), KIND=int_8)) &
+      IF (INT(matrix_c%nblks, KIND=int_8) > &
+          INT(SIZE(array_data(matrix_c%row_blk_size)), KIND=int_8)* &
+          INT(SIZE(array_data(matrix_c%col_blk_size)), KIND=int_8)) &
          CPABORT("Bug: Matrix contains too many blocks")
       output_unit = default_output_unit
       num_multiplications = num_multiplications+1

@@ -20,13 +20,13 @@ MODULE cp_eri_mme_interface
                                               cell_type,&
                                               init_cell,&
                                               pbc
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_eri_mme_types,                ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_init_read_input,&
                                               cp_eri_mme_param,&
                                               cp_eri_mme_set_params
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE eri_mme_integrate,               ONLY: eri_mme_2c_integrate,&
                                               eri_mme_2c_integrate_set,&
                                               eri_mme_3c_integrate_set
@@ -307,8 +307,8 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       INTEGER, INTENT(IN)                                :: first_c, last_c
-      TYPE(cp_dbcsr_p_type), &
-         DIMENSION(last_c-first_c+1), INTENT(INOUT)      :: mat_ab
+      TYPE(dbcsr_p_type), DIMENSION(last_c-first_c+1), &
+         INTENT(INOUT)                                   :: mat_ab
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type_a, basis_type_b, basis_type_c
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -534,8 +534,8 @@ CONTAINS
          DO ic = set_offset_start, set_offset_start+last_c-first_c
             ic_dbcsr = ic_dbcsr+1
             NULLIFY (munu_block)
-            CALL cp_dbcsr_get_block_p(matrix=mat_ab(ic_dbcsr)%matrix, &
-                                      row=irow, col=icol, block=munu_block, found=found)
+            CALL dbcsr_get_block_p(matrix=mat_ab(ic_dbcsr)%matrix, &
+                                   row=irow, col=icol, block=munu_block, found=found)
             CPASSERT(found)
             munu_block(:, :) = 0.0_dp
             IF (irow .EQ. iatom) THEN

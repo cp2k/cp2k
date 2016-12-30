@@ -5,13 +5,13 @@
 
 MODULE qs_fb_atomic_matrix_methods
 
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_get_info,&
-                                              cp_dbcsr_get_stored_coordinates,&
-                                              cp_dbcsr_row_block_sizes,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_col_block_sizes,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_get_info,&
+                                              dbcsr_get_stored_coordinates,&
+                                              dbcsr_row_block_sizes,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_alltoall
@@ -69,7 +69,7 @@ CONTAINS
                                     ncols, &
                                     blk_row_start, &
                                     blk_col_start)
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       INTEGER, INTENT(OUT)                               :: nrows, ncols
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: blk_row_start, blk_col_start
@@ -84,8 +84,8 @@ CONTAINS
 
       NULLIFY (halo_atoms, row_block_size_data, col_block_size_data)
 
-      row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
-      col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
+      row_block_size_data => dbcsr_row_block_sizes(dbcsr_mat)
+      col_block_size_data => dbcsr_col_block_sizes(dbcsr_mat)
       CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                               natoms=natoms_in_halo, &
                               halo_atoms=halo_atoms)
@@ -133,7 +133,7 @@ CONTAINS
                                     atomic_matrix, &
                                     blk_row_start, &
                                     blk_col_start)
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: atomic_matrix
@@ -188,8 +188,8 @@ CONTAINS
       numprocs = para_env%num_pe
 
       ! get dbcsr row and col block sizes
-      row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
-      col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
+      row_block_size_data => dbcsr_row_block_sizes(dbcsr_mat)
+      col_block_size_data => dbcsr_col_block_sizes(dbcsr_mat)
 
       ! allocate temporary arrays for send
       ALLOCATE (send_sizes(numprocs))
@@ -235,9 +235,9 @@ CONTAINS
                                           pe, iatom, jatom, send_encode)
             nrows_blk = row_block_size_data(iatom)
             ncols_blk = col_block_size_data(jatom)
-            CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
-                                      row=iatom, col=jatom, block=mat_block, &
-                                      found=found)
+            CALL dbcsr_get_block_p(matrix=dbcsr_mat, &
+                                   row=iatom, col=jatom, block=mat_block, &
+                                   found=found)
             IF (.NOT. found) THEN
                CPABORT("Matrix block not found")
             ELSE
@@ -438,7 +438,7 @@ CONTAINS
                                              para_env, &
                                              atom_pairs_send, &
                                              atom_pairs_recv)
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
@@ -480,8 +480,8 @@ CONTAINS
 
       ! get the total number of atoms, we can obtain this directly
       ! from the global block row dimension of the dbcsr matrix
-      CALL cp_dbcsr_get_info(matrix=dbcsr_mat, &
-                             nblkrows_total=nblkrows_total)
+      CALL dbcsr_get_info(matrix=dbcsr_mat, &
+                          nblkrows_total=nblkrows_total)
 
       ! destination proc is always the local processor
       dest = para_env%mepos ! my MPI rank
@@ -508,10 +508,10 @@ CONTAINS
             IF (jatom_global .GE. iatom_global) THEN
                ! find the source proc that supposed to own the block
                ! (iatom_global, jatom_global)
-               CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
-                                                    iatom_global, &
-                                                    jatom_global, &
-                                                    processor=src)
+               CALL dbcsr_get_stored_coordinates(dbcsr_mat, &
+                                                 iatom_global, &
+                                                 jatom_global, &
+                                                 processor=src)
                ! we must encode the global atom indices rather the halo
                ! atomic indices in each task, because halo atomic
                ! indices are local to each halo, and each processor is
@@ -566,9 +566,9 @@ CONTAINS
          pair = tasks_send(TASK_PAIR, itask)
          CALL fb_com_tasks_decode_pair(pair, iatom_global, jatom_global, nencode)
          ! check if block exists in DBCSR matrix
-         CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
-                                   row=iatom_global, col=jatom_global, block=mat_block, &
-                                   found=found)
+         CALL dbcsr_get_block_p(matrix=dbcsr_mat, &
+                                row=iatom_global, col=jatom_global, block=mat_block, &
+                                found=found)
          IF (found) THEN
             counter = counter+1
             ! we can do this here, because essencially we are inspecting
@@ -633,7 +633,7 @@ CONTAINS
                                                para_env, &
                                                atom_pairs_send, &
                                                atom_pairs_recv)
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
@@ -675,8 +675,8 @@ CONTAINS
                                    halos=halos)
       ! get the total number of atoms, we can obtain this directly
       ! from the global block row dimension of the dbcsr matrix
-      CALL cp_dbcsr_get_info(matrix=dbcsr_mat, &
-                             nblkrows_total=nblkrows_total)
+      CALL dbcsr_get_info(matrix=dbcsr_mat, &
+                          nblkrows_total=nblkrows_total)
 
       ! estimate the maximum number of blocks to be received
       ntasks_recv = 0
@@ -705,10 +705,10 @@ CONTAINS
                IF (jatom_global .GE. iatom_global) THEN
                   ! find the source proc that supposed to own the block
                   ! (iatom_global, jatom_global)
-                  CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
-                                                       iatom_global, &
-                                                       jatom_global, &
-                                                       processor=src)
+                  CALL dbcsr_get_stored_coordinates(dbcsr_mat, &
+                                                    iatom_global, &
+                                                    jatom_global, &
+                                                    processor=src)
                   ! we must encode the global atom indices rather the halo
                   ! atomic indices in each task, because halo atomic indices
                   ! are local to each halo, and each processor is working on a
@@ -763,9 +763,9 @@ CONTAINS
          pair = tasks_send(TASK_PAIR, itask)
          CALL fb_com_tasks_decode_pair(pair, iatom_global, jatom_global, nencode)
          ! check if block exists in DBCSR matrix
-         CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, row=iatom_global, &
-                                   col=jatom_global, block=mat_block, &
-                                   found=found)
+         CALL dbcsr_get_block_p(matrix=dbcsr_mat, row=iatom_global, &
+                                col=jatom_global, block=mat_block, &
+                                found=found)
          IF (found) THEN
             counter = counter+1
             ! we can do this here, because essencially we are inspecting

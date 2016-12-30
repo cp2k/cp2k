@@ -22,15 +22,15 @@ MODULE qs_ks_types
    USE cp_control_types,                ONLY: dft_control_release,&
                                               dft_control_retain,&
                                               dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_distribution_release,&
-                                              cp_dbcsr_p_type,&
-                                              dbcsr_distribution_obj
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_distribution_obj,&
+                                              dbcsr_distribution_release,&
+                                              dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_retain,&
@@ -157,17 +157,17 @@ MODULE qs_ks_types
                                                                matrix_w, &
                                                                matrix_vxc
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im => Null(), &
-                                                               matrix_w_mp2 => Null(), &
-                                                               matrix_p_mp2 => Null(), &
-                                                               gamma_matrix => Null(), &
-                                                               matrix_s_aux_fit => Null(), &
-                                                               matrix_s_aux_fit_vs_orb => Null(), &
-                                                               matrix_s_RI_aux => Null(), &
-                                                               matrix_ks_aux_fit => Null(), &
-                                                               matrix_ks_aux_fit_im => Null(), &
-                                                               matrix_ks_aux_fit_dft => Null(), &
-                                                               matrix_ks_aux_fit_hfx => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im => Null(), &
+                                                            matrix_w_mp2 => Null(), &
+                                                            matrix_p_mp2 => Null(), &
+                                                            gamma_matrix => Null(), &
+                                                            matrix_s_aux_fit => Null(), &
+                                                            matrix_s_aux_fit_vs_orb => Null(), &
+                                                            matrix_s_RI_aux => Null(), &
+                                                            matrix_ks_aux_fit => Null(), &
+                                                            matrix_ks_aux_fit_im => Null(), &
+                                                            matrix_ks_aux_fit_dft => Null(), &
+                                                            matrix_ks_aux_fit_hfx => Null()
 
       TYPE(qs_rho_type), POINTER                            :: rho => Null(), &
                                                                rho_buffer => Null(), &
@@ -368,11 +368,11 @@ CONTAINS
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
          matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp
@@ -613,11 +613,11 @@ CONTAINS
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
          matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, gamma_matrix
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp
@@ -721,7 +721,7 @@ CONTAINS
       END IF
       IF (PRESENT(dbcsr_dist)) THEN
          IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
-            CALL cp_dbcsr_distribution_release(ks_env%dbcsr_dist)
+            CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
             DEALLOCATE (ks_env%dbcsr_dist)
          ENDIF
          ks_env%dbcsr_dist => dbcsr_dist
@@ -768,7 +768,7 @@ CONTAINS
             IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
                CALL pw_release(ks_env%v_hartree_rspace)
             IF (ASSOCIATED(ks_env%matrix_ks_im)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
             CALL kpoint_transitional_release(ks_env%matrix_ks)
             CALL kpoint_transitional_release(ks_env%matrix_h)
@@ -778,25 +778,25 @@ CONTAINS
             CALL kpoint_transitional_release(ks_env%kinetic)
 
             IF (ASSOCIATED(ks_env%matrix_ks_aux_fit)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
             IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_im)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
             IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_dft)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_dft)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_dft)
             IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_hfx)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_hfx)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_hfx)
             IF (ASSOCIATED(ks_env%matrix_s_aux_fit)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit)
             IF (ASSOCIATED(ks_env%matrix_s_aux_fit_vs_orb)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit_vs_orb)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit_vs_orb)
             IF (ASSOCIATED(ks_env%matrix_s_RI_aux)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_s_RI_aux)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_s_RI_aux)
             IF (ASSOCIATED(ks_env%matrix_w_mp2)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_w_mp2)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_w_mp2)
             IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
             IF (ASSOCIATED(ks_env%gamma_matrix)) &
-               CALL cp_dbcsr_deallocate_matrix_set(ks_env%gamma_matrix)
+               CALL dbcsr_deallocate_matrix_set(ks_env%gamma_matrix)
             IF (ASSOCIATED(ks_env%rho)) &
                CALL qs_rho_release(ks_env%rho)
             IF (ASSOCIATED(ks_env%rho_buffer)) &
@@ -837,7 +837,7 @@ CONTAINS
                DEALLOCATE (ks_env%vee)
             ENDIF
             IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
-               CALL cp_dbcsr_distribution_release(ks_env%dbcsr_dist)
+               CALL dbcsr_distribution_release(ks_env%dbcsr_dist)
                DEALLOCATE (ks_env%dbcsr_dist)
             ENDIF
 
@@ -964,10 +964,10 @@ CONTAINS
          ks_env%s_mstruct_changed = .TRUE.
          ! *** deallocate matrices that will have the wrong structure ***
          CALL kpoint_transitional_release(ks_env%matrix_ks)
-         CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
+         CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
          !TODO: deallocate imaginary parts as well
-         !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
-         !CALL cp_dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
+         !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
+         !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
       ENDIF
 
       CALL timestop(handle)

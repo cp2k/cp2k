@@ -24,11 +24,6 @@ MODULE dft_plus_u
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, &
-        cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
@@ -50,6 +45,10 @@ MODULE dft_plus_u
                                               cp_print_key_unit_nr,&
                                               low_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: plus_u_lowdin,&
                                               plus_u_mulliken,&
                                               plus_u_mulliken_charges
@@ -96,7 +95,7 @@ CONTAINS
    SUBROUTINE plus_u(qs_env, matrix_h, matrix_w)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_w
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', routineP = moduleN//':'//routineN
@@ -201,7 +200,7 @@ CONTAINS
                      print_level)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_w
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
@@ -231,11 +230,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: q_block, v_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: sm_h, sm_p, sm_q, sm_s, sm_v, sm_w
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -379,12 +378,12 @@ CONTAINS
       ! Create local block diagonal matrices
 
       ALLOCATE (sm_q)
-      CALL cp_dbcsr_init(sm_q)
-      CALL cp_dbcsr_get_block_diag(sm_s, sm_q)
+      CALL dbcsr_init(sm_q)
+      CALL dbcsr_get_block_diag(sm_s, sm_q)
 
       ALLOCATE (sm_v)
-      CALL cp_dbcsr_init(sm_v)
-      CALL cp_dbcsr_get_block_diag(sm_s, sm_v)
+      CALL dbcsr_init(sm_v)
+      CALL dbcsr_get_block_diag(sm_s, sm_v)
 
       ! Loop over all spins
 
@@ -406,8 +405,8 @@ CONTAINS
 
          sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
 
-         CALL cp_dbcsr_set(sm_q, 0.0_dp)
-         CALL cp_dbcsr_set(sm_v, 0.0_dp)
+         CALL dbcsr_set(sm_q, 0.0_dp)
+         CALL dbcsr_set(sm_v, 0.0_dp)
 
          ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
 
@@ -546,11 +545,11 @@ CONTAINS
 
                ! Get diagonal block
 
-               CALL cp_dbcsr_get_block_p(matrix=sm_q, &
-                                         row=atom_a, &
-                                         col=atom_a, &
-                                         block=q_block, &
-                                         found=found)
+               CALL dbcsr_get_block_p(matrix=sm_q, &
+                                      row=atom_a, &
+                                      col=atom_a, &
+                                      block=q_block, &
+                                      found=found)
 
                IF (ASSOCIATED(q_block)) THEN
 
@@ -654,11 +653,11 @@ CONTAINS
 
                   IF (.NOT. just_energy) THEN
 
-                     CALL cp_dbcsr_get_block_p(matrix=sm_v, &
-                                               row=atom_a, &
-                                               col=atom_a, &
-                                               block=v_block, &
-                                               found=found)
+                     CALL dbcsr_get_block_p(matrix=sm_v, &
+                                            row=atom_a, &
+                                            col=atom_a, &
+                                            block=v_block, &
+                                            found=found)
                      CPASSERT(ASSOCIATED(v_block))
 
                      i = 0
@@ -813,8 +812,8 @@ CONTAINS
 
       ! Release (local) sparse matrices
 
-      CALL cp_dbcsr_deallocate_matrix(sm_q)
-      CALL cp_dbcsr_deallocate_matrix(sm_v)
+      CALL dbcsr_deallocate_matrix(sm_q)
+      CALL dbcsr_deallocate_matrix(sm_v)
 
       CALL timestop(handle)
 
@@ -855,7 +854,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: orthonormal_basis
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_h
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
@@ -883,9 +882,9 @@ CONTAINS
                                                             v_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: kind_a
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: sm_h, sm_p, sm_q, sm_s, sm_v
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_q, sm_s, sm_v
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1001,33 +1000,33 @@ CONTAINS
 
          IF (.NOT. ASSOCIATED(sm_q)) THEN
             ALLOCATE (sm_q)
-            CALL cp_dbcsr_init(sm_q)
-            CALL cp_dbcsr_get_block_diag(sm_p, sm_q)
+            CALL dbcsr_init(sm_q)
+            CALL dbcsr_get_block_diag(sm_p, sm_q)
          END IF
-         CALL cp_dbcsr_set(sm_q, 0.0_dp)
+         CALL dbcsr_set(sm_q, 0.0_dp)
 
          IF (.NOT. ASSOCIATED(sm_v)) THEN
             ALLOCATE (sm_v)
-            CALL cp_dbcsr_init(sm_v)
-            CALL cp_dbcsr_get_block_diag(sm_p, sm_v)
+            CALL dbcsr_init(sm_v)
+            CALL dbcsr_get_block_diag(sm_p, sm_v)
          END IF
-         CALL cp_dbcsr_set(sm_v, 0.0_dp)
+         CALL dbcsr_set(sm_v, 0.0_dp)
 
          DO iatom = 1, natom
 
-            CALL cp_dbcsr_get_block_p(matrix=sm_p, &
-                                      row=iatom, &
-                                      col=iatom, &
-                                      block=p_block, &
-                                      found=found)
+            CALL dbcsr_get_block_p(matrix=sm_p, &
+                                   row=iatom, &
+                                   col=iatom, &
+                                   block=p_block, &
+                                   found=found)
 
             IF (.NOT. ASSOCIATED(p_block)) CYCLE
 
-            CALL cp_dbcsr_get_block_p(matrix=sm_q, &
-                                      row=iatom, &
-                                      col=iatom, &
-                                      block=q_block, &
-                                      found=found)
+            CALL dbcsr_get_block_p(matrix=sm_q, &
+                                   row=iatom, &
+                                   col=iatom, &
+                                   block=q_block, &
+                                   found=found)
             CPASSERT(ASSOCIATED(q_block))
 
             IF (orthonormal_basis) THEN
@@ -1036,11 +1035,11 @@ CONTAINS
                   q_block(isgf, isgf) = p_block(isgf, isgf)
                END DO
             ELSE
-               CALL cp_dbcsr_get_block_p(matrix=sm_s, &
-                                         row=iatom, &
-                                         col=iatom, &
-                                         block=s_block, &
-                                         found=found)
+               CALL dbcsr_get_block_p(matrix=sm_s, &
+                                      row=iatom, &
+                                      col=iatom, &
+                                      block=s_block, &
+                                      found=found)
                CPASSERT(ASSOCIATED(s_block))
                ! Exploit that P and S are symmetric
                DO jsgf = 1, SIZE(p_block, 2)
@@ -1163,11 +1162,11 @@ CONTAINS
 
                ! Get diagonal block
 
-               CALL cp_dbcsr_get_block_p(matrix=sm_q, &
-                                         row=atom_a, &
-                                         col=atom_a, &
-                                         block=q_block, &
-                                         found=found)
+               CALL dbcsr_get_block_p(matrix=sm_q, &
+                                      row=atom_a, &
+                                      col=atom_a, &
+                                      block=q_block, &
+                                      found=found)
 
                ! Calculate energy contribution to E(U)
 
@@ -1271,11 +1270,11 @@ CONTAINS
 
                   IF (.NOT. just_energy) THEN
 
-                     CALL cp_dbcsr_get_block_p(matrix=sm_v, &
-                                               row=atom_a, &
-                                               col=atom_a, &
-                                               block=v_block, &
-                                               found=found)
+                     CALL dbcsr_get_block_p(matrix=sm_v, &
+                                            row=atom_a, &
+                                            col=atom_a, &
+                                            block=v_block, &
+                                            found=found)
                      CPASSERT(ASSOCIATED(v_block))
 
                      i = 0
@@ -1406,19 +1405,19 @@ CONTAINS
 
                   atom_a = atom_list(iatom)
 
-                  CALL cp_dbcsr_get_block_p(matrix=sm_h, &
-                                            row=atom_a, &
-                                            col=atom_a, &
-                                            block=h_block, &
-                                            found=found)
+                  CALL dbcsr_get_block_p(matrix=sm_h, &
+                                         row=atom_a, &
+                                         col=atom_a, &
+                                         block=h_block, &
+                                         found=found)
 
                   IF (.NOT. ASSOCIATED(h_block)) CYCLE
 
-                  CALL cp_dbcsr_get_block_p(matrix=sm_v, &
-                                            row=atom_a, &
-                                            col=atom_a, &
-                                            block=v_block, &
-                                            found=found)
+                  CALL dbcsr_get_block_p(matrix=sm_v, &
+                                         row=atom_a, &
+                                         col=atom_a, &
+                                         block=v_block, &
+                                         found=found)
                   CPASSERT(ASSOCIATED(v_block))
 
                   IF (orthonormal_basis) THEN
@@ -1426,11 +1425,11 @@ CONTAINS
                         h_block(isgf, isgf) = h_block(isgf, isgf)+v_block(isgf, isgf)
                      END DO
                   ELSE
-                     CALL cp_dbcsr_get_block_p(matrix=sm_s, &
-                                               row=atom_a, &
-                                               col=atom_a, &
-                                               block=s_block, &
-                                               found=found)
+                     CALL dbcsr_get_block_p(matrix=sm_s, &
+                                            row=atom_a, &
+                                            col=atom_a, &
+                                            block=s_block, &
+                                            found=found)
                      CPASSERT(ASSOCIATED(s_block))
                      DO jsgf = 1, SIZE(h_block, 2)
                         DO isgf = 1, SIZE(h_block, 1)
@@ -1457,8 +1456,8 @@ CONTAINS
                       "to unphysical Mulliken charges. Check your input, "// &
                       "if this warning persists or try a different method!")
 
-      CALL cp_dbcsr_deallocate_matrix(sm_q)
-      CALL cp_dbcsr_deallocate_matrix(sm_v)
+      CALL dbcsr_deallocate_matrix(sm_q)
+      CALL dbcsr_deallocate_matrix(sm_v)
 
       CALL timestop(handle)
 
@@ -1505,7 +1504,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: orthonormal_basis
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_h, matrix_w
       LOGICAL, INTENT(IN)                                :: should_output
       INTEGER, INTENT(IN)                                :: output_unit, print_level
@@ -1528,10 +1527,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: q_ii
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block, s_block, w_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: sm_h, sm_p, sm_s, sm_w
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: sm_h, sm_p, sm_s, sm_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1653,11 +1652,11 @@ CONTAINS
 
          trps(:) = 0.0_dp
 
-         CALL cp_dbcsr_iterator_start(iter, sm_p)
+         CALL dbcsr_iterator_start(iter, sm_p)
 
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-            CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
 
             IF (orthonormal_basis) THEN
 
@@ -1673,11 +1672,11 @@ CONTAINS
 
             ELSE
 
-               CALL cp_dbcsr_get_block_p(matrix=sm_s, &
-                                         row=iatom, &
-                                         col=jatom, &
-                                         block=s_block, &
-                                         found=found)
+               CALL dbcsr_get_block_p(matrix=sm_s, &
+                                      row=iatom, &
+                                      col=jatom, &
+                                      block=s_block, &
+                                      found=found)
                CPASSERT(ASSOCIATED(s_block))
 
                sgf = first_sgf_atom(jatom)
@@ -1702,7 +1701,7 @@ CONTAINS
 
          END DO ! next atom "iatom"
 
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
 
          CALL mp_sum(trps, para_env%group)
 
@@ -1807,11 +1806,11 @@ CONTAINS
 
                ! Get diagonal block
 
-               CALL cp_dbcsr_get_block_p(matrix=sm_p, &
-                                         row=atom_a, &
-                                         col=atom_a, &
-                                         block=p_block, &
-                                         found=found)
+               CALL dbcsr_get_block_p(matrix=sm_p, &
+                                      row=atom_a, &
+                                      col=atom_a, &
+                                      block=p_block, &
+                                      found=found)
 
                ! Calculate E(U) and dE(U)/dq
 
@@ -1875,11 +1874,11 @@ CONTAINS
 
          IF (ASSOCIATED(sm_h)) THEN
 
-            CALL cp_dbcsr_iterator_start(iter, sm_h)
+            CALL dbcsr_iterator_start(iter, sm_h)
 
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, h_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block, blk)
 
                IF (orthonormal_basis) THEN
 
@@ -1897,11 +1896,11 @@ CONTAINS
 
                   ! Request katom just to check for consistent sparse matrix pattern
 
-                  CALL cp_dbcsr_get_block_p(matrix=sm_s, &
-                                            row=iatom, &
-                                            col=jatom, &
-                                            block=s_block, &
-                                            found=found)
+                  CALL dbcsr_get_block_p(matrix=sm_s, &
+                                         row=iatom, &
+                                         col=jatom, &
+                                         block=s_block, &
+                                         found=found)
                   CPASSERT(ASSOCIATED(s_block))
 
                   ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
@@ -1934,7 +1933,7 @@ CONTAINS
 
             END DO ! Next atom "iatom"
 
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
 
          END IF ! An update of the Hamiltonian matrix is requested
 
@@ -1944,11 +1943,11 @@ CONTAINS
 
          IF (ASSOCIATED(sm_w) .AND. (.NOT. orthonormal_basis)) THEN
 
-            CALL cp_dbcsr_iterator_start(iter, sm_p)
+            CALL dbcsr_iterator_start(iter, sm_p)
 
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
 
                ! Skip the diagonal blocks of the W matrix
 
@@ -1956,11 +1955,11 @@ CONTAINS
 
                ! Request katom just to check for consistent sparse matrix patterns
 
-               CALL cp_dbcsr_get_block_p(matrix=sm_w, &
-                                         row=iatom, &
-                                         col=jatom, &
-                                         block=w_block, &
-                                         found=found)
+               CALL dbcsr_get_block_p(matrix=sm_w, &
+                                      row=iatom, &
+                                      col=jatom, &
+                                      block=w_block, &
+                                      found=found)
                CPASSERT(ASSOCIATED(w_block))
 
                ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
@@ -1991,7 +1990,7 @@ CONTAINS
 
             END DO ! next block node "jatom"
 
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
 
          END IF ! W matrix update requested
 

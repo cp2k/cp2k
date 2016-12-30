@@ -17,9 +17,6 @@ MODULE lri_optimize_ri_basis
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type,&
                                               init_orb_basis_set
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -28,6 +25,9 @@ MODULE lri_optimize_ri_basis
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_constants,                 ONLY: do_lri_opt_all,&
                                               do_lri_opt_coeff,&
                                               do_lri_opt_exps
@@ -95,9 +95,9 @@ CONTAINS
 
       INTEGER                                            :: iunit, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmatrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_opt_type), POINTER                        :: lri_opt
@@ -518,7 +518,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_opt_type), POINTER                        :: lri_opt
       TYPE(opt_state_type)                               :: opt_state
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: nkind
 
@@ -567,7 +567,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_opt_type), POINTER                        :: lri_opt
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: pmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pmatrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: fobj
 
@@ -579,7 +579,7 @@ CONTAINS
       LOGICAL                                            :: found, trans
       REAL(KIND=dp)                                      :: obj_ab, rhoexact_sq, rhofit_sq, rhomix
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pbij
-      TYPE(cp_dbcsr_type), POINTER                       :: pmat
+      TYPE(dbcsr_type), POINTER                          :: pmat
       TYPE(lri_int_rho_type), POINTER                    :: lriir
       TYPE(lri_int_type), POINTER                        :: lrii
       TYPE(lri_list_type), POINTER                       :: lri_rho
@@ -630,10 +630,10 @@ CONTAINS
 
                NULLIFY (pbij)
                IF (iatom <= jatom) THEN
-                  CALL cp_dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
+                  CALL dbcsr_get_block_p(matrix=pmat, row=iatom, col=jatom, block=pbij, found=found)
                   trans = .FALSE.
                ELSE
-                  CALL cp_dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
+                  CALL dbcsr_get_block_p(matrix=pmat, row=jatom, col=iatom, block=pbij, found=found)
                   trans = .TRUE.
                END IF
                CPASSERT(found)

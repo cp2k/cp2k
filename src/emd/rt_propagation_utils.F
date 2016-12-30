@@ -12,13 +12,6 @@ MODULE rt_propagation_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_checksum, cp_dbcsr_copy, &
-        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-        cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -32,6 +25,12 @@ MODULE rt_propagation_utils
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_copy_into_existing, &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
+        dbcsr_distribution, dbcsr_filter, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: use_restart_wfn,&
                                               use_rt_restart
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -95,9 +94,9 @@ CONTAINS
       INTEGER, DIMENSION(6, 2)                           :: c_map_mat
       LOGICAL                                            :: return_s_derivatives
       REAL(dp), DIMENSION(:), POINTER                    :: block_values
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: C_mat, S_der, s_derivs
-      TYPE(cp_dbcsr_type), POINTER                       :: B_mat, tmp_mat, tmp_mat2
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, S_der, s_derivs
+      TYPE(dbcsr_type), POINTER                          :: B_mat, tmp_mat, tmp_mat2
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
@@ -129,8 +128,8 @@ CONTAINS
 
       NULLIFY (tmp_mat)
       ALLOCATE (tmp_mat)
-      CALL cp_dbcsr_init(tmp_mat)
-      CALL cp_dbcsr_create(tmp_mat, template=S_der(1)%matrix, matrix_type="N")
+      CALL dbcsr_init(tmp_mat)
+      CALL dbcsr_create(tmp_mat, template=S_der(1)%matrix, matrix_type="N")
 
       IF (rtp%iter < 2) THEN
          ! calculate the overlap derivative matrices
@@ -143,40 +142,40 @@ CONTAINS
 
          NULLIFY (tmp_mat2)
          ALLOCATE (tmp_mat2)
-         CALL cp_dbcsr_init(tmp_mat2)
-         CALL cp_dbcsr_create(tmp_mat2, template=S_der(1)%matrix, matrix_type="S")
+         CALL dbcsr_init(tmp_mat2)
+         CALL dbcsr_create(tmp_mat2, template=S_der(1)%matrix, matrix_type="S")
          DO m = 1, 9
-            CALL cp_dbcsr_copy(tmp_mat2, s_derivs(m+1)%matrix)
-            CALL cp_dbcsr_desymmetrize(tmp_mat2, S_der(m)%matrix)
-            CALL cp_dbcsr_scale(S_der(m)%matrix, -one)
-            CALL cp_dbcsr_filter(S_der(m)%matrix, rtp%filter_eps)
+            CALL dbcsr_copy(tmp_mat2, s_derivs(m+1)%matrix)
+            CALL dbcsr_desymmetrize(tmp_mat2, S_der(m)%matrix)
+            CALL dbcsr_scale(S_der(m)%matrix, -one)
+            CALL dbcsr_filter(S_der(m)%matrix, rtp%filter_eps)
             !The diagonal should be zero
-            CALL cp_dbcsr_iterator_start(iter, S_der(m)%matrix)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+            CALL dbcsr_iterator_start(iter, S_der(m)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
                IF (row_atom == col_atom) block_values = 0.0_dp
             END DO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
          END DO
-         CALL cp_dbcsr_deallocate_matrix_set(s_derivs)
-         CALL cp_dbcsr_deallocate_matrix(tmp_mat2)
+         CALL dbcsr_deallocate_matrix_set(s_derivs)
+         CALL dbcsr_deallocate_matrix(tmp_mat2)
       END IF
 
       !calculate scalar product v(Rb)*<alpha|d/dRb beta> (B_mat), and store the first derivatives
 
-      CALL cp_dbcsr_set(B_mat, zero)
+      CALL dbcsr_set(B_mat, zero)
       DO m = 1, 3
-         CALL cp_dbcsr_copy(tmp_mat, S_der(m)%matrix)
-         CALL cp_dbcsr_iterator_start(iter, tmp_mat)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+         CALL dbcsr_copy(tmp_mat, S_der(m)%matrix)
+         CALL dbcsr_iterator_start(iter, tmp_mat)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
             IF (row_atom == col_atom) block_values = 0.0_dp
             block_values = block_values*particle_set(col_atom)%v(m)
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
-         CALL cp_dbcsr_add(B_mat, tmp_mat, one, one)
+         CALL dbcsr_iterator_stop(iter)
+         CALL dbcsr_add(B_mat, tmp_mat, one, one)
       END DO
-      CALL cp_dbcsr_filter(B_mat, rtp%filter_eps)
+      CALL dbcsr_filter(B_mat, rtp%filter_eps)
       !calculate C matrix: v(Rb)*<d/dRa alpha| d/dRb beta>
 
       c_map_mat = 0
@@ -191,27 +190,27 @@ CONTAINS
       END DO
 
       DO i = 1, 3
-         CALL cp_dbcsr_set(C_mat(i)%matrix, zero)
+         CALL dbcsr_set(C_mat(i)%matrix, zero)
       END DO
       DO m = 1, 6
-         CALL cp_dbcsr_copy(tmp_mat, S_der(m+3)%matrix)
+         CALL dbcsr_copy(tmp_mat, S_der(m+3)%matrix)
          DO j = 1, 2
             IF (c_map_mat(m, j) == 0) CYCLE
-            CALL cp_dbcsr_add(C_mat(c_map_mat(m, j))%matrix, tmp_mat, one, one)
+            CALL dbcsr_add(C_mat(c_map_mat(m, j))%matrix, tmp_mat, one, one)
          END DO
       END DO
 
       DO m = 1, 3
-         CALL cp_dbcsr_iterator_start(iter, C_mat(m)%matrix)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
+         CALL dbcsr_iterator_start(iter, C_mat(m)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row_atom, col_atom, block_values)
             block_values = block_values*particle_set(row_atom)%v(m)
          END DO
-         CALL cp_dbcsr_iterator_stop(iter)
-         CALL cp_dbcsr_filter(C_mat(m)%matrix, rtp%filter_eps)
+         CALL dbcsr_iterator_stop(iter)
+         CALL dbcsr_filter(C_mat(m)%matrix, rtp%filter_eps)
       END DO
 
-      CALL cp_dbcsr_deallocate_matrix(tmp_mat)
+      CALL dbcsr_deallocate_matrix(tmp_mat)
       CALL timestop(handle)
    END SUBROUTINE
 
@@ -232,10 +231,10 @@ CONTAINS
                                                             unit_nr
       REAL(KIND=dp)                                      :: alpha, cs_pos
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p_rmpv, rho_new, rho_old
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_old
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv, rho_new, rho_old
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -288,7 +287,7 @@ CONTAINS
                   keep_sparsity=.FALSE., alpha=alpha)
             END DO
             DO i = 1, nspin
-               CALL cp_dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
+               CALL dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
             ENDDO
             CALL calc_update_rho_sparse(qs_env)
          ELSE
@@ -306,22 +305,22 @@ CONTAINS
                re = 2*ispin-1
                im = 2*ispin
                WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE", ispin, "_RESTART.dm"
-               CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(rho_old(re)%matrix), &
-                                         matrix_new=rho_old(re)%matrix)
-               cs_pos = cp_dbcsr_checksum(rho_old(re)%matrix, pos=.TRUE.)
+               CALL dbcsr_binary_read(file_name, distribution=dbcsr_distribution(rho_old(re)%matrix), &
+                                      matrix_new=rho_old(re)%matrix)
+               cs_pos = dbcsr_checksum(rho_old(re)%matrix, pos=.TRUE.)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
                ENDIF
                WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM", ispin, "_RESTART.dm"
-               CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(rho_old(im)%matrix), &
-                                         matrix_new=rho_old(im)%matrix)
-               cs_pos = cp_dbcsr_checksum(rho_old(im)%matrix, pos=.TRUE.)
+               CALL dbcsr_binary_read(file_name, distribution=dbcsr_distribution(rho_old(im)%matrix), &
+                                      matrix_new=rho_old(im)%matrix)
+               cs_pos = dbcsr_checksum(rho_old(im)%matrix, pos=.TRUE.)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ", cs_pos
                ENDIF
             ENDDO
             DO i = 1, SIZE(rho_new)
-               CALL cp_dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
+               CALL dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)
             ENDDO
             CALL calc_update_rho_sparse(qs_env)
          ELSE
@@ -354,9 +353,9 @@ CONTAINS
 
       INTEGER                                            :: handle, i, im, ncol, re
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao, rho_ao_im
       TYPE(cp_fm_p_type)                                 :: mos_occ
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -375,7 +374,7 @@ CONTAINS
       DO i = 1, SIZE(mos_new)/2
          re = 2*i-1; im = 2*i
          alpha = 3*one-REAL(SIZE(mos_new)/2, dp)
-         CALL cp_dbcsr_set(rho_ao(i)%matrix, zero)
+         CALL dbcsr_set(rho_ao(i)%matrix, zero)
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
          CALL cp_fm_create(mos_occ%matrix, &
                            matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
@@ -424,7 +423,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
       INTEGER                                            :: handle, ispin
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao, rho_ao_im, rho_new
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_ao_im, rho_new
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -443,9 +442,9 @@ CONTAINS
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
       IF (rtp%do_hfx) CALL qs_rho_get(rho_struct=rho, rho_ao_im=rho_ao_im)
       DO ispin = 1, SIZE(rho_ao)
-         CALL cp_dbcsr_set(rho_ao(ispin)%matrix, zero)
-         CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2-1)%matrix)
-         IF (rtp%do_hfx) CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
+         CALL dbcsr_set(rho_ao(ispin)%matrix, zero)
+         CALL dbcsr_copy_into_existing(rho_ao(ispin)%matrix, rho_new(ispin*2-1)%matrix)
+         IF (rtp%do_hfx) CALL dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix, rho_new(ispin*2)%matrix)
       END DO
 
       CALL qs_rho_update_rho(rho, qs_env)
@@ -465,7 +464,7 @@ CONTAINS
    SUBROUTINE calculate_P_imaginary(qs_env, rtp, matrix_p_im, keep_sparsity)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p_im
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_im
       LOGICAL, OPTIONAL                                  :: keep_sparsity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
@@ -493,7 +492,7 @@ CONTAINS
          CALL cp_fm_create(mos_occ(im)%matrix, &
                            matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
                            name="mos_occ")
-         CALL cp_dbcsr_set(matrix_p_im(i)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_p_im(i)%matrix, 0.0_dp)
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
          CALL cp_fm_to_fm(mos_new(re)%matrix, mos_occ(re)%matrix)
          CALL cp_fm_column_scale(mos_occ(re)%matrix, mos(i)%mo_set%occupation_numbers/alpha)

@@ -5,7 +5,6 @@
 MODULE optimize_basis
    USE admm_methods,                    ONLY: admm_fit_mo_coeffs
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -14,6 +13,7 @@ MODULE optimize_basis
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE f77_interface,                   ONLY: create_force_env,&
                                               destroy_force_env,&
                                               f_env_add_defaults,&
@@ -246,7 +246,7 @@ CONTAINS
                                                             my_id, ncalc, set_id
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cond_vec, energy, f_vec, my_time, &
                                                             start_time
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
@@ -343,7 +343,7 @@ CONTAINS
       INTEGER                                            :: bas_id, handle, icalc, ierr, mp_id, &
                                                             set_id, stat
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(qs_environment_type), POINTER                 :: qs_env

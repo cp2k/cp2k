@@ -20,10 +20,6 @@ MODULE hfx_admm_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
@@ -32,6 +28,10 @@ MODULE hfx_admm_utils
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE input_constants,                 ONLY: &
@@ -108,8 +108,8 @@ CONTAINS
       LOGICAL                                            :: do_hfx, my_do_mp2_hfx, s_mstruct_changed
       TYPE(admm_dm_type), POINTER                        :: admm_dm
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -204,7 +204,7 @@ CONTAINS
                             just_energy, v_rspace_new, v_tau_rspace)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
@@ -219,12 +219,12 @@ CONTAINS
                                                             hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed, use_virial
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: hf_energy
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_1d, matrix_ks_aux_fit, &
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_1d, matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_hfx, &
                                                             matrix_ks_aux_fit_im, matrix_ks_im, &
                                                             rho_ao_1d
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_ks_orb, rho_ao_orb
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_orb, rho_ao_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -271,13 +271,13 @@ CONTAINS
       ! *** Initialize the auxiliary ks matrix to zero if required
       IF (dft_control%do_admm) THEN
          DO ispin = 1, nspins
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
-            CALL cp_dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
          END DO
       END IF
       DO ispin = 1, nspins
          DO img = 1, nimages
-            CALL cp_dbcsr_set(matrix_ks(ispin, img)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_ks(ispin, img)%matrix, 0.0_dp)
          END DO
       END DO
 
@@ -341,14 +341,14 @@ CONTAINS
 
             CALL get_qs_env(qs_env=qs_env, rtp=rtp)
             DO ispin = 1, nspins
-               CALL cp_dbcsr_set(matrix_ks_im(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(matrix_ks_im(ispin)%matrix, 0.0_dp)
             END DO
             IF (dft_control%do_admm) THEN
                ! matrix_ks_orb => matrix_ks_aux_fit_im
                ns = SIZE(matrix_ks_aux_fit_im)
                matrix_ks_orb(1:ns, 1:1) => matrix_ks_aux_fit_im(1:ns)
                DO ispin = 1, nspins
-                  CALL cp_dbcsr_set(matrix_ks_aux_fit_im(ispin)%matrix, 0.0_dp)
+                  CALL dbcsr_set(matrix_ks_aux_fit_im(ispin)%matrix, 0.0_dp)
                END DO
             ELSE
                ! matrix_ks_orb => matrix_ks_im
@@ -384,8 +384,8 @@ CONTAINS
       ! *** Add Core-Hamiltonian-Matrix ***
       DO ispin = 1, nspins
          DO img = 1, nimages
-            CALL cp_dbcsr_add(matrix_ks(ispin, img)%matrix, matrix_h(1, img)%matrix, &
-                              1.0_dp, 1.0_dp)
+            CALL dbcsr_add(matrix_ks(ispin, img)%matrix, matrix_h(1, img)%matrix, &
+                           1.0_dp, 1.0_dp)
          END DO
       END DO
       IF (use_virial .AND. calculate_forces) THEN
@@ -434,9 +434,9 @@ CONTAINS
                                                             scaling
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_b
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -954,7 +954,7 @@ CONTAINS
 !>     Simplified version of subroutine hfx_ks_matrix()
 ! **************************************************************************************************
    SUBROUTINE tddft_hfx_matrix(matrix_ks, rho_ao, qs_env)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, rho_ao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddft_hfx_matrix', &
@@ -965,8 +965,8 @@ CONTAINS
       LOGICAL                                            :: distribute_fock_matrix, do_hfx, &
                                                             hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks_kp, rho_ao_kp
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input

@@ -15,8 +15,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE kpoint_transitional
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -27,8 +27,8 @@ MODULE kpoint_transitional
 
    TYPE kpoint_transitional_type
       PRIVATE
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: ptr_1d => Null()
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER        :: ptr_2d => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ptr_1d => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER        :: ptr_2d => Null()
       LOGICAL                                               :: set_as_1d = .FALSE.
    END TYPE kpoint_transitional_type
 
@@ -42,7 +42,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION get_1d_pointer(this) RESULT(res)
       TYPE(kpoint_transitional_type)                     :: this
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: res
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: res
 
       IF (ASSOCIATED(this%ptr_1d)) THEN
          IF (SIZE(this%ptr_2d, 2) /= 1) &
@@ -60,7 +60,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION get_2d_pointer(this) RESULT(res)
       TYPE(kpoint_transitional_type)                     :: this
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: res
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: res
 
       res => this%ptr_2d
    END FUNCTION get_2d_pointer
@@ -73,7 +73,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_1d_pointer(this, ptr_1d)
       TYPE(kpoint_transitional_type)                     :: this
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ptr_1d
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ptr_1d
 
       INTEGER                                            :: n
 
@@ -96,7 +96,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_2d_pointer(this, ptr_2d)
       TYPE(kpoint_transitional_type)                     :: this
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ptr_2d
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ptr_2d
 
       IF (ASSOCIATED(ptr_2d)) THEN
          this%ptr_1d => ptr_2d(:, 1)
@@ -118,9 +118,9 @@ CONTAINS
 
       IF (ASSOCIATED(this%ptr_1d)) THEN
          IF (this%set_as_1d) THEN
-            CALL cp_dbcsr_deallocate_matrix_set(this%ptr_1d)
+            CALL dbcsr_deallocate_matrix_set(this%ptr_1d)
          ELSE
-            CALL cp_dbcsr_deallocate_matrix_set(this%ptr_2d)
+            CALL dbcsr_deallocate_matrix_set(this%ptr_2d)
          ENDIF
       ENDIF
       NULLIFY (this%ptr_1d, this%ptr_2d)

@@ -16,10 +16,6 @@ MODULE qs_mo_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
                                               cp_dbcsr_syevx
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, &
-        cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_template,&
@@ -43,6 +39,10 @@ MODULE qs_mo_methods
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_release_p, dbcsr_scale_by_vector, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
    USE physcon,                         ONLY: evolt
@@ -88,7 +88,7 @@ CONTAINS
    SUBROUTINE make_basis_sm(vmatrix, ncol, matrix_s)
       TYPE(cp_fm_type), POINTER                          :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm', routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
@@ -182,9 +182,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_sv_dbcsr(vmatrix, ncol, svmatrix, para_env, blacs_env)
 
-      TYPE(cp_dbcsr_type)                                :: vmatrix
+      TYPE(dbcsr_type)                                   :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
-      TYPE(cp_dbcsr_type)                                :: svmatrix
+      TYPE(dbcsr_type)                                   :: svmatrix
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
@@ -201,7 +201,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
-      CALL cp_dbcsr_get_info(vmatrix, nfullrows_total=n, nfullcols_total=ncol_global)
+      CALL dbcsr_get_info(vmatrix, nfullrows_total=n, nfullcols_total=ncol_global)
       IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_struct_create(fm_struct_tmp, context=blacs_env, nrow_global=ncol, &
@@ -303,7 +303,7 @@ CONTAINS
 
       TYPE(cp_fm_type), POINTER                          :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_lowdin', &
          routineP = moduleN//':'//routineN
@@ -407,7 +407,7 @@ CONTAINS
    SUBROUTINE calculate_dm_sparse(mo_set, density_matrix, use_dbcsr, retain_sparsity)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: density_matrix
+      TYPE(dbcsr_type), POINTER                          :: density_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_dbcsr, retain_sparsity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse', &
@@ -416,8 +416,8 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: my_retain_sparsity, my_use_dbcsr
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_dbcsr_type)                                :: dbcsr_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_tmp
+      TYPE(dbcsr_type)                                   :: dbcsr_tmp
 
       CALL timeset(routineN, handle)
 
@@ -431,19 +431,19 @@ CONTAINS
          END IF
       END IF
 
-      CALL cp_dbcsr_set(density_matrix, 0.0_dp)
+      CALL dbcsr_set(density_matrix, 0.0_dp)
 
       IF (.NOT. mo_set%uniform_occupation) THEN ! not all orbitals 1..homo are equally occupied
 
          IF (my_use_dbcsr) THEN
-            CALL cp_dbcsr_init(dbcsr_tmp)
-            CALL cp_dbcsr_copy(dbcsr_tmp, mo_set%mo_coeff_b)
-            CALL cp_dbcsr_scale_by_vector(dbcsr_tmp, mo_set%occupation_numbers(1:mo_set%homo), &
-                                          side='right')
-            CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp, &
-                                   1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity, &
-                                   last_k=mo_set%homo)
-            CALL cp_dbcsr_release(dbcsr_tmp)
+            CALL dbcsr_init(dbcsr_tmp)
+            CALL dbcsr_copy(dbcsr_tmp, mo_set%mo_coeff_b)
+            CALL dbcsr_scale_by_vector(dbcsr_tmp, mo_set%occupation_numbers(1:mo_set%homo), &
+                                       side='right')
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp, &
+                                1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity, &
+                                last_k=mo_set%homo)
+            CALL dbcsr_release(dbcsr_tmp)
          ELSE
             NULLIFY (fm_tmp)
             CALL cp_fm_create(fm_tmp, mo_set%mo_coeff%matrix_struct)
@@ -459,9 +459,9 @@ CONTAINS
          ENDIF
       ELSE
          IF (my_use_dbcsr) THEN
-            CALL cp_dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b, &
-                                   1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity, &
-                                   last_k=mo_set%homo)
+            CALL dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b, &
+                                1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity, &
+                                last_k=mo_set%homo)
          ELSE
             alpha = mo_set%maxocc
             CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix, &
@@ -496,13 +496,13 @@ CONTAINS
                                          do_rotation, co_rotate, co_rotate_dbcsr)
 
       TYPE(cp_fm_type), POINTER                          :: orbitals
-      TYPE(cp_dbcsr_type), POINTER                       :: ks_matrix
+      TYPE(dbcsr_type), POINTER                          :: ks_matrix
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: evals_arg
       LOGICAL, INTENT(IN), OPTIONAL                      :: ionode
       INTEGER, INTENT(IN), OPTIONAL                      :: scr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rotation
       TYPE(cp_fm_type), OPTIONAL, POINTER                :: co_rotate
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: co_rotate_dbcsr
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: co_rotate_dbcsr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm', &
          routineP = moduleN//':'//routineN
@@ -638,12 +638,12 @@ CONTAINS
    SUBROUTINE subspace_eigenvalues_ks_dbcsr(orbitals, ks_matrix, evals_arg, ionode, scr, &
                                             do_rotation, co_rotate, para_env, blacs_env)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: orbitals, ks_matrix
+      TYPE(dbcsr_type), POINTER                          :: orbitals, ks_matrix
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: evals_arg
       LOGICAL, INTENT(IN), OPTIONAL                      :: ionode
       INTEGER, INTENT(IN), OPTIONAL                      :: scr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rotation
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: co_rotate
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: co_rotate
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
 
@@ -653,7 +653,7 @@ CONTAINS
       INTEGER                                            :: handle, i, j, ncol_global, nrow_global
       LOGICAL                                            :: compute_evecs, do_rotation_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
-      TYPE(cp_dbcsr_type), POINTER                       :: e_vectors, h_block, weighted_vectors
+      TYPE(dbcsr_type), POINTER                          :: e_vectors, h_block, weighted_vectors
 
       CALL timeset(routineN, handle)
 
@@ -662,9 +662,9 @@ CONTAINS
 
       NULLIFY (e_vectors, h_block, weighted_vectors)
 
-      CALL cp_dbcsr_get_info(matrix=orbitals, &
-                             nfullcols_total=ncol_global, &
-                             nfullrows_total=nrow_global)
+      CALL dbcsr_get_info(matrix=orbitals, &
+                          nfullcols_total=ncol_global, &
+                          nfullrows_total=nrow_global)
 
       IF (do_rotation_local) THEN
          compute_evecs = .TRUE.
@@ -679,33 +679,33 @@ CONTAINS
 
          ALLOCATE (evals(ncol_global))
 
-         CALL cp_dbcsr_init_p(weighted_vectors)
-         CALL cp_dbcsr_copy(weighted_vectors, orbitals, name="weighted_vectors")
+         CALL dbcsr_init_p(weighted_vectors)
+         CALL dbcsr_copy(weighted_vectors, orbitals, name="weighted_vectors")
 
-         CALL cp_dbcsr_init_p(h_block)
+         CALL dbcsr_init_p(h_block)
          CALL cp_dbcsr_m_by_n_from_template(h_block, template=orbitals, m=ncol_global, n=ncol_global, &
                                             sym=dbcsr_type_no_symmetry)
 
 !!!!!!!!!!!!!!XXXXXXXXXXXXXXXXXXX!!!!!!!!!!!!!
          !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
          IF (compute_evecs) THEN
-            CALL cp_dbcsr_init_p(e_vectors)
+            CALL dbcsr_init_p(e_vectors)
             CALL cp_dbcsr_m_by_n_from_template(e_vectors, template=orbitals, m=ncol_global, n=ncol_global, &
                                                sym=dbcsr_type_no_symmetry)
-!           CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
+!           CALL dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
 !                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default)
             !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
          ENDIF
-!        CALL cp_dbcsr_distribution_release (dist)
+!        CALL dbcsr_distribution_release (dist)
 !        CALL array_release (row_blk_size);CALL array_release (col_blk_size)
          !CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! h subblock and diag
-         CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, ks_matrix, orbitals, &
-                                0.0_dp, weighted_vectors)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, ks_matrix, orbitals, &
+                             0.0_dp, weighted_vectors)
          !CALL cp_dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global)
 
-         CALL cp_dbcsr_multiply('T', 'N', 1.0_dp, orbitals, weighted_vectors, 0.0_dp, h_block)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, orbitals, weighted_vectors, 0.0_dp, h_block)
          !CALL cp_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
          !                orbitals,weighted_vectors,0.0_dp,h_block)
 
@@ -718,17 +718,17 @@ CONTAINS
 
          ! rotate the orbitals
          IF (do_rotation_local) THEN
-            CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, orbitals, e_vectors, 0.0_dp, weighted_vectors)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, orbitals, e_vectors, 0.0_dp, weighted_vectors)
             !CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
             !             orbitals,e_vectors,0.0_dp,weighted_vectors)
-            CALL cp_dbcsr_copy(orbitals, weighted_vectors)
+            CALL dbcsr_copy(orbitals, weighted_vectors)
             !CALL cp_fm_to_fm(weighted_vectors,orbitals)
             IF (PRESENT(co_rotate)) THEN
                IF (ASSOCIATED(co_rotate)) THEN
-                  CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, co_rotate, e_vectors, 0.0_dp, weighted_vectors)
+                  CALL dbcsr_multiply('N', 'N', 1.0_dp, co_rotate, e_vectors, 0.0_dp, weighted_vectors)
                   !CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                   !     co_rotate,e_vectors,0.0_dp,weighted_vectors)
-                  CALL cp_dbcsr_copy(co_rotate, weighted_vectors)
+                  CALL dbcsr_copy(co_rotate, weighted_vectors)
                   !CALL cp_fm_to_fm(weighted_vectors,co_rotate)
                ENDIF
             ENDIF
@@ -759,12 +759,12 @@ CONTAINS
             ENDIF
          ENDIF
 
-         CALL cp_dbcsr_release_p(weighted_vectors)
-         CALL cp_dbcsr_release_p(h_block)
+         CALL dbcsr_release_p(weighted_vectors)
+         CALL dbcsr_release_p(h_block)
          !CALL cp_fm_release(weighted_vectors)
          !CALL cp_fm_release(h_block)
          IF (compute_evecs) THEN
-            CALL cp_dbcsr_release_p(e_vectors)
+            CALL dbcsr_release_p(e_vectors)
             !CALL cp_fm_release(e_vectors)
          ENDIF
 
@@ -787,7 +787,7 @@ CONTAINS
    SUBROUTINE calculate_orthonormality(orthonormality, mo_array, matrix_s)
       REAL(KIND=dp)                                      :: orthonormality
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: matrix_s
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orthonormality', &
          routineP = moduleN//':'//routineN
@@ -922,17 +922,17 @@ CONTAINS
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       INTEGER, INTENT(IN)                                :: nspins
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_rmpv
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(admm_type), OPTIONAL, POINTER                 :: admm_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_deriv
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
 
       CALL timeset(routineN, handle)
 

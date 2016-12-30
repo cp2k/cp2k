@@ -9,11 +9,10 @@
 ! **************************************************************************************************
 MODULE pao_optimizer
    USE arnoldi_api,                     ONLY: arnoldi_extremal
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, &
-        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
-        cp_dbcsr_trace, cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_init, &
+        dbcsr_multiply, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, &
+        dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_opt_bfgs,&
                                               pao_opt_cg
@@ -35,16 +34,16 @@ CONTAINS
    SUBROUTINE pao_opt_init(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CALL cp_dbcsr_init(pao%matrix_D)
-      CALL cp_dbcsr_copy(pao%matrix_D, pao%matrix_G)
-      CALL cp_dbcsr_set(pao%matrix_D, 0.0_dp)
+      CALL dbcsr_init(pao%matrix_D)
+      CALL dbcsr_copy(pao%matrix_D, pao%matrix_G)
+      CALL dbcsr_set(pao%matrix_D, 0.0_dp)
 
-      CALL cp_dbcsr_init(pao%matrix_G_prev)
-      CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_D)
+      CALL dbcsr_init(pao%matrix_G_prev)
+      CALL dbcsr_copy(pao%matrix_G_prev, pao%matrix_D)
 
       IF (pao%precondition) THEN
-         CALL cp_dbcsr_init(pao%matrix_D_preconed)
-         CALL cp_dbcsr_copy(pao%matrix_D_preconed, pao%matrix_D)
+         CALL dbcsr_init(pao%matrix_D_preconed)
+         CALL dbcsr_copy(pao%matrix_D_preconed, pao%matrix_D)
       ENDIF
 
       IF (pao%optimizer == pao_opt_bfgs) &
@@ -61,18 +60,18 @@ CONTAINS
 
       INTEGER, DIMENSION(:), POINTER                     :: nparams
 
-      nparams => cp_dbcsr_row_block_sizes(pao%matrix_X)
+      nparams => dbcsr_row_block_sizes(pao%matrix_X)
 
-      CALL cp_dbcsr_init(pao%matrix_BFGS)
-      CALL cp_dbcsr_create(pao%matrix_BFGS, &
-                           template=pao%matrix_X, &
-                           row_blk_size=nparams, &
-                           col_blk_size=nparams, &
-                           name="PAO matrix_BFGS")
+      CALL dbcsr_init(pao%matrix_BFGS)
+      CALL dbcsr_create(pao%matrix_BFGS, &
+                        template=pao%matrix_X, &
+                        row_blk_size=nparams, &
+                        col_blk_size=nparams, &
+                        name="PAO matrix_BFGS")
 
-      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_BFGS)
-      CALL cp_dbcsr_set(pao%matrix_BFGS, 0.0_dp)
-      CALL cp_dbcsr_add_on_diag(pao%matrix_BFGS, 1.0_dp)
+      CALL dbcsr_reserve_diag_blocks(pao%matrix_BFGS)
+      CALL dbcsr_set(pao%matrix_BFGS, 0.0_dp)
+      CALL dbcsr_add_on_diag(pao%matrix_BFGS, 1.0_dp)
 
    END SUBROUTINE pao_opt_init_bfgs
 
@@ -83,13 +82,13 @@ CONTAINS
    SUBROUTINE pao_opt_finalize(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CALL cp_dbcsr_release(pao%matrix_D)
-      CALL cp_dbcsr_release(pao%matrix_G_prev)
+      CALL dbcsr_release(pao%matrix_D)
+      CALL dbcsr_release(pao%matrix_G_prev)
       IF (pao%precondition) &
-         CALL cp_dbcsr_release(pao%matrix_D_preconed)
+         CALL dbcsr_release(pao%matrix_D_preconed)
 
       IF (pao%optimizer == pao_opt_bfgs) &
-         CALL cp_dbcsr_release(pao%matrix_BFGS)
+         CALL dbcsr_release(pao%matrix_BFGS)
 
    END SUBROUTINE pao_opt_finalize
 
@@ -105,32 +104,32 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_opt_new_dir'
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_type)                                :: matrix_G_preconed
+      TYPE(dbcsr_type)                                   :: matrix_G_preconed
 
       CALL timeset(routineN, handle)
 
       IF (pao%precondition) THEN
          ! We can't convert matrix_D for and back every time, the numeric noise would disturb the CG,
          ! hence we keep matrix_D_preconed around.
-         CALL cp_dbcsr_init(matrix_G_preconed)
-         CALL cp_dbcsr_copy(matrix_G_preconed, pao%matrix_G)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, pao%matrix_G, &
-                                0.0_dp, matrix_G_preconed, retain_sparsity=.TRUE.)
+         CALL dbcsr_init(matrix_G_preconed)
+         CALL dbcsr_copy(matrix_G_preconed, pao%matrix_G)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, pao%matrix_G, &
+                             0.0_dp, matrix_G_preconed, retain_sparsity=.TRUE.)
          CALL pao_opt_new_dir_low(pao, icycle, matrix_G_preconed, pao%matrix_G_prev, pao%matrix_D_preconed)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, pao%matrix_D_preconed, &
-                                0.0_dp, pao%matrix_D, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, pao%matrix_D_preconed, &
+                             0.0_dp, pao%matrix_D, retain_sparsity=.TRUE.)
 
          ! store preconditioned gradient for next iteration
-         CALL cp_dbcsr_copy(pao%matrix_G_prev, matrix_G_preconed)
+         CALL dbcsr_copy(pao%matrix_G_prev, matrix_G_preconed)
 
-         pao%norm_G = cp_dbcsr_frobenius_norm(matrix_G_preconed)
+         pao%norm_G = dbcsr_frobenius_norm(matrix_G_preconed)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of preconditioned gradient:", pao%norm_G
-         CALL cp_dbcsr_release(matrix_G_preconed)
+         CALL dbcsr_release(matrix_G_preconed)
 
       ELSE
          CALL pao_opt_new_dir_low(pao, icycle, pao%matrix_G, pao%matrix_G_prev, pao%matrix_D)
-         CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_G) ! store gradient for next iteration
-         pao%norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
+         CALL dbcsr_copy(pao%matrix_G_prev, pao%matrix_G) ! store gradient for next iteration
+         pao%norm_G = dbcsr_frobenius_norm(pao%matrix_G)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| norm of gradient:", pao%norm_G
       ENDIF
 
@@ -149,7 +148,7 @@ CONTAINS
    SUBROUTINE pao_opt_new_dir_low(pao, icycle, matrix_G, matrix_G_prev, matrix_D)
       TYPE(pao_env_type), POINTER                        :: pao
       INTEGER, INTENT(IN)                                :: icycle
-      TYPE(cp_dbcsr_type)                                :: matrix_G, matrix_G_prev, matrix_D
+      TYPE(dbcsr_type)                                   :: matrix_G, matrix_G_prev, matrix_D
 
       SELECT CASE (pao%optimizer)
       CASE (pao_opt_cg)
@@ -173,7 +172,7 @@ CONTAINS
    SUBROUTINE pao_opt_newdir_cg(pao, icycle, matrix_G, matrix_G_prev, matrix_D)
       TYPE(pao_env_type), POINTER                        :: pao
       INTEGER, INTENT(IN)                                :: icycle
-      TYPE(cp_dbcsr_type)                                :: matrix_G, matrix_G_prev, matrix_D
+      TYPE(dbcsr_type)                                   :: matrix_G, matrix_G_prev, matrix_D
 
       REAL(KIND=dp)                                      :: beta, change, trace_D, trace_D_Gnew, &
                                                             trace_G_mix, trace_G_new, trace_G_prev
@@ -183,11 +182,11 @@ CONTAINS
          IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|CG| warming up with steepest descent"
          beta = 0.0_dp
       ELSE
-         CALL cp_dbcsr_trace(matrix_G, matrix_G, trace_G_new)
-         CALL cp_dbcsr_trace(matrix_G_prev, matrix_G_prev, trace_G_prev)
-         CALL cp_dbcsr_trace(matrix_G, matrix_G_prev, trace_G_mix)
-         CALL cp_dbcsr_trace(matrix_D, matrix_G, trace_D_Gnew)
-         CALL cp_dbcsr_trace(matrix_D, matrix_D, trace_D)
+         CALL dbcsr_trace(matrix_G, matrix_G, trace_G_new)
+         CALL dbcsr_trace(matrix_G_prev, matrix_G_prev, trace_G_prev)
+         CALL dbcsr_trace(matrix_G, matrix_G_prev, trace_G_mix)
+         CALL dbcsr_trace(matrix_D, matrix_G, trace_D_Gnew)
+         CALL dbcsr_trace(matrix_D, matrix_D, trace_D)
          IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|CG| trace_G_new ", trace_G_new
          IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|CG| trace_G_prev ", trace_G_prev
          IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|CG| trace_G_mix ", trace_G_mix
@@ -214,7 +213,7 @@ CONTAINS
       IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|CG| beta: ", beta
 
       ! calculate new CG direction matrix_D
-      CALL cp_dbcsr_add(matrix_D, matrix_G, beta, -1.0_dp)
+      CALL dbcsr_add(matrix_D, matrix_G, beta, -1.0_dp)
 
    END SUBROUTINE pao_opt_newdir_cg
 
@@ -229,7 +228,7 @@ CONTAINS
    SUBROUTINE pao_opt_newdir_bfgs(pao, icycle, matrix_G, matrix_G_prev, matrix_D)
       TYPE(pao_env_type), POINTER                        :: pao
       INTEGER, INTENT(IN)                                :: icycle
-      TYPE(cp_dbcsr_type)                                :: matrix_G, matrix_G_prev, matrix_D
+      TYPE(dbcsr_type)                                   :: matrix_G, matrix_G_prev, matrix_D
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_opt_newdir_bfgs'
 
@@ -237,7 +236,7 @@ CONTAINS
       LOGICAL                                            :: arnoldi_converged
       REAL(dp)                                           :: eval_max, eval_min, theta, trace_ry, &
                                                             trace_sy, trace_yHy, trace_yy
-      TYPE(cp_dbcsr_type)                                :: matrix_Hy, matrix_Hyr, matrix_r, &
+      TYPE(dbcsr_type)                                   :: matrix_Hy, matrix_Hyr, matrix_r, &
                                                             matrix_rr, matrix_ryH, matrix_ryHyr, &
                                                             matrix_s, matrix_y, matrix_yr
 
@@ -248,32 +247,32 @@ CONTAINS
       ! Notation according to the book from Nocedal and Wright, see chapter 6.
       IF (icycle > 1) THEN
          ! y = G - G_prev
-         CALL cp_dbcsr_init(matrix_y)
-         CALL cp_dbcsr_copy(matrix_y, matrix_G)
-         CALL cp_dbcsr_add(matrix_y, matrix_G_prev, 1.0_dp, -1.0_dp) ! dG
+         CALL dbcsr_init(matrix_y)
+         CALL dbcsr_copy(matrix_y, matrix_G)
+         CALL dbcsr_add(matrix_y, matrix_G_prev, 1.0_dp, -1.0_dp) ! dG
 
          ! s = X - X_prev
-         CALL cp_dbcsr_init(matrix_s)
-         CALL cp_dbcsr_copy(matrix_s, matrix_D)
-         CALL cp_dbcsr_scale(matrix_s, pao%linesearch%step_size) ! dX
+         CALL dbcsr_init(matrix_s)
+         CALL dbcsr_copy(matrix_s, matrix_D)
+         CALL dbcsr_scale(matrix_s, pao%linesearch%step_size) ! dX
 
          ! sy = MATMUL(TRANPOSE(s), y)
-         CALL cp_dbcsr_trace(matrix_s, matrix_y, trace_sy)
+         CALL dbcsr_trace(matrix_s, matrix_y, trace_sy)
 
          ! heuristic initialization
          IF (icycle == 2) THEN
-            CALL cp_dbcsr_trace(matrix_Y, matrix_Y, trace_yy)
-            CALL cp_dbcsr_scale(pao%matrix_BFGS, trace_sy/trace_yy)
+            CALL dbcsr_trace(matrix_Y, matrix_Y, trace_yy)
+            CALL dbcsr_scale(pao%matrix_BFGS, trace_sy/trace_yy)
             IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|BFGS| Initializing with:", trace_sy/trace_yy
          ENDIF
 
          ! Hy = MATMUL(H, y)
-         CALL cp_dbcsr_init(matrix_Hy)
-         CALL cp_dbcsr_create(matrix_Hy, template=matrix_G, matrix_type="N")
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_BFGS, matrix_y, 0.0_dp, matrix_Hy)
+         CALL dbcsr_init(matrix_Hy)
+         CALL dbcsr_create(matrix_Hy, template=matrix_G, matrix_type="N")
+         CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_BFGS, matrix_y, 0.0_dp, matrix_Hy)
 
          ! yHy = MATMUL(TRANPOSE(y), Hy)
-         CALL cp_dbcsr_trace(matrix_y, matrix_Hy, trace_yHy)
+         CALL dbcsr_trace(matrix_y, matrix_Hy, trace_yHy)
 
          ! Use damped BFGS algorithm to ensure H remains positive definite.
          ! See chapter 18 in Nocedal and Wright's book for details.
@@ -286,55 +285,55 @@ CONTAINS
          ENDIF
 
          ! r = theta*s + (1-theta)*Hy
-         CALL cp_dbcsr_init(matrix_r)
-         CALL cp_dbcsr_copy(matrix_r, matrix_s)
-         CALL cp_dbcsr_add(matrix_r, matrix_Hy, theta, (1.0_dp-theta))
+         CALL dbcsr_init(matrix_r)
+         CALL dbcsr_copy(matrix_r, matrix_s)
+         CALL dbcsr_add(matrix_r, matrix_Hy, theta, (1.0_dp-theta))
 
          ! use t instead of y to update B matrix
-         CALL cp_dbcsr_trace(matrix_r, matrix_y, trace_ry)
+         CALL dbcsr_trace(matrix_r, matrix_y, trace_ry)
          CPASSERT(trace_RY > 0.0_dp)
 
          ! yr = MATMUL(y, TRANSPOSE(r))
-         CALL cp_dbcsr_init(matrix_yr)
-         CALL cp_dbcsr_create(matrix_yr, template=pao%matrix_BFGS, matrix_type="N")
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_y, matrix_r, 0.0_dp, matrix_yr)
+         CALL dbcsr_init(matrix_yr)
+         CALL dbcsr_create(matrix_yr, template=pao%matrix_BFGS, matrix_type="N")
+         CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_y, matrix_r, 0.0_dp, matrix_yr)
 
          ! Hyr = MATMUL(H, yr)
-         CALL cp_dbcsr_init(matrix_Hyr)
-         CALL cp_dbcsr_create(matrix_Hyr, template=pao%matrix_BFGS, matrix_type="N")
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_BFGS, matrix_yr, 0.0_dp, matrix_Hyr)
+         CALL dbcsr_init(matrix_Hyr)
+         CALL dbcsr_create(matrix_Hyr, template=pao%matrix_BFGS, matrix_type="N")
+         CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_BFGS, matrix_yr, 0.0_dp, matrix_Hyr)
 
          ! ryH = MATMUL(TRANSPOSE(yr), H)
-         CALL cp_dbcsr_init(matrix_ryH)
-         CALL cp_dbcsr_create(matrix_ryH, template=pao%matrix_BFGS, matrix_type="N")
-         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_yr, pao%matrix_BFGS, 0.0_dp, matrix_ryH)
+         CALL dbcsr_init(matrix_ryH)
+         CALL dbcsr_create(matrix_ryH, template=pao%matrix_BFGS, matrix_type="N")
+         CALL dbcsr_multiply("T", "N", 1.0_dp, matrix_yr, pao%matrix_BFGS, 0.0_dp, matrix_ryH)
 
          ! ryHry = MATMUL(ryH,yr)
-         CALL cp_dbcsr_init(matrix_ryHyr)
-         CALL cp_dbcsr_create(matrix_ryHyr, template=pao%matrix_BFGS, matrix_type="N")
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_ryH, matrix_yr, 0.0_dp, matrix_ryHyr)
+         CALL dbcsr_init(matrix_ryHyr)
+         CALL dbcsr_create(matrix_ryHyr, template=pao%matrix_BFGS, matrix_type="N")
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_ryH, matrix_yr, 0.0_dp, matrix_ryHyr)
 
          ! rr = MATMUL(r,TRANSPOSE(r))
-         CALL cp_dbcsr_init(matrix_rr)
-         CALL cp_dbcsr_create(matrix_rr, template=pao%matrix_BFGS, matrix_type="N")
-         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_r, matrix_r, 0.0_dp, matrix_rr)
+         CALL dbcsr_init(matrix_rr)
+         CALL dbcsr_create(matrix_rr, template=pao%matrix_BFGS, matrix_type="N")
+         CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_r, matrix_r, 0.0_dp, matrix_rr)
 
          ! H = H - Hyr/ry - ryH/ry + ryHyr/(ry**2) + rr/ry
-         CALL cp_dbcsr_add(pao%matrix_BFGS, matrix_HYR, 1.0_dp, -1.0_dp/trace_ry)
-         CALL cp_dbcsr_add(pao%matrix_BFGS, matrix_ryH, 1.0_dp, -1.0_dp/trace_ry)
-         CALL cp_dbcsr_add(pao%matrix_BFGS, matrix_ryHyr, 1.0_dp, +1.0_dp/(trace_ry**2))
-         CALL cp_dbcsr_add(pao%matrix_BFGS, matrix_rr, 1.0_dp, +1.0_dp/trace_ry)
+         CALL dbcsr_add(pao%matrix_BFGS, matrix_HYR, 1.0_dp, -1.0_dp/trace_ry)
+         CALL dbcsr_add(pao%matrix_BFGS, matrix_ryH, 1.0_dp, -1.0_dp/trace_ry)
+         CALL dbcsr_add(pao%matrix_BFGS, matrix_ryHyr, 1.0_dp, +1.0_dp/(trace_ry**2))
+         CALL dbcsr_add(pao%matrix_BFGS, matrix_rr, 1.0_dp, +1.0_dp/trace_ry)
 
          ! clean up
-         CALL cp_dbcsr_release(matrix_y)
-         CALL cp_dbcsr_release(matrix_s)
-         CALL cp_dbcsr_release(matrix_r)
-         CALL cp_dbcsr_release(matrix_Hy)
-         CALL cp_dbcsr_release(matrix_yr)
-         CALL cp_dbcsr_release(matrix_Hyr)
-         CALL cp_dbcsr_release(matrix_ryH)
-         CALL cp_dbcsr_release(matrix_ryHyr)
-         CALL cp_dbcsr_release(matrix_rr)
+         CALL dbcsr_release(matrix_y)
+         CALL dbcsr_release(matrix_s)
+         CALL dbcsr_release(matrix_r)
+         CALL dbcsr_release(matrix_Hy)
+         CALL dbcsr_release(matrix_yr)
+         CALL dbcsr_release(matrix_Hyr)
+         CALL dbcsr_release(matrix_ryH)
+         CALL dbcsr_release(matrix_ryHyr)
+         CALL dbcsr_release(matrix_rr)
       ENDIF
 
       ! approximate condition of Hessian
@@ -350,8 +349,8 @@ CONTAINS
 
       ! calculate new direction
       ! d = MATMUL(H, -g)
-      CALL cp_dbcsr_multiply("N", "N", -1.0_dp, pao%matrix_BFGS, matrix_G, &
-                             0.0_dp, matrix_D, retain_sparsity=.TRUE.)
+      CALL dbcsr_multiply("N", "N", -1.0_dp, pao%matrix_BFGS, matrix_G, &
+                          0.0_dp, matrix_D, retain_sparsity=.TRUE.)
 
       CALL timestop(handle)
    END SUBROUTINE pao_opt_newdir_bfgs

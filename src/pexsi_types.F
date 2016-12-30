@@ -17,13 +17,13 @@ MODULE pexsi_types
    USE bibliography,                    ONLY: Lin2009,&
                                               Lin2013,&
                                               cite_reference
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_scale,&
-                                              cp_dbcsr_type,&
-                                              csr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE dbcsr_api,                       ONLY: csr_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_scale,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_dims_create,&
@@ -83,22 +83,22 @@ MODULE pexsi_types
 !> \author Patrick Seewald
 ! **************************************************************************************************
    TYPE lib_pexsi_env
-      TYPE(cp_dbcsr_type)                      :: dbcsr_template_matrix_sym, &
-                                                  dbcsr_template_matrix_nonsym
+      TYPE(dbcsr_type)                      :: dbcsr_template_matrix_sym, &
+                                               dbcsr_template_matrix_nonsym
       TYPE(csr_type)                           :: csr_mat_p, csr_mat_ks, csr_mat_s, &
                                                   csr_mat_E, csr_mat_F
       TYPE(cp_pexsi_options)                   :: options
       REAL(KIND=dp), DIMENSION(:), POINTER     :: kTS => NULL()
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                                :: matrix_w => NULL()
 
       INTEGER(kind=int_8)                      :: plan
       INTEGER                                  :: nspin, num_ranks_per_pole, mp_group
 
-      TYPE(cp_dbcsr_type), DIMENSION(:), &
+      TYPE(dbcsr_type), DIMENSION(:), &
          POINTER                                :: max_ev_vector
-      TYPE(cp_dbcsr_type)                      :: csr_sparsity
+      TYPE(dbcsr_type)                      :: csr_sparsity
       INTEGER, DIMENSION(2)                    :: mp_dims
 
       LOGICAL                                  :: csr_screening, do_adaptive_tol_nel
@@ -230,8 +230,8 @@ CONTAINS
    SUBROUTINE convert_nspin_cp2k_pexsi(direction, numElectron, matrix_p, matrix_w, kTS)
       INTEGER, INTENT(IN)                                :: direction
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: numElectron
-      TYPE(cp_dbcsr_type), INTENT(INOUT), OPTIONAL       :: matrix_p
-      TYPE(cp_dbcsr_p_type), INTENT(INOUT), OPTIONAL     :: matrix_w
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: matrix_p
+      TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: matrix_w
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: kTS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'convert_nspin_cp2k_pexsi', &
@@ -250,8 +250,8 @@ CONTAINS
       END SELECT
 
       IF (PRESENT(numElectron)) numElectron = scaling*numElectron
-      IF (PRESENT(matrix_p)) CALL cp_dbcsr_scale(matrix_p, scaling)
-      IF (PRESENT(matrix_w)) CALL cp_dbcsr_scale(matrix_w%matrix, scaling)
+      IF (PRESENT(matrix_p)) CALL dbcsr_scale(matrix_p, scaling)
+      IF (PRESENT(matrix_w)) CALL dbcsr_scale(matrix_w%matrix, scaling)
       IF (PRESENT(kTS)) kTS = scaling*kTS
 
       CALL timestop(handle)

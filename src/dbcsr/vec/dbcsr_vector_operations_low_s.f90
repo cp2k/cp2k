@@ -9,9 +9,9 @@
 !> \param work_col ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_matrix_colvec_multiply_low_s(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-    TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
+    TYPE(dbcsr_type)                          :: matrix, vec_in, vec_out
     REAL(kind=real_4)                          :: alpha, beta
-    TYPE(dbcsr_obj)                          :: work_row, work_col
+    TYPE(dbcsr_type)                          :: work_row, work_col
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_low', &
       routineP = moduleN//':'//routineN
@@ -44,9 +44,9 @@
 !> \param work_col ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_matrix_vector_mult_s(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-    TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
+    TYPE(dbcsr_type)                          :: matrix, vec_in, vec_out
     REAL(kind=real_4)                          :: alpha, beta
-    TYPE(dbcsr_obj)                          :: work_row, work_col
+    TYPE(dbcsr_type)                          :: work_row, work_col
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult', &
       routineP = moduleN//':'//routineN
@@ -105,7 +105,7 @@
     CALL timestop(handle1)
 
 ! sum all the data onto the first processor col where the original vector is stored
-    data_vec => dbcsr_get_data_p (work_col%m%data_area, select_data_type=0.0_real_4)
+    data_vec => dbcsr_get_data_p (work_col%data_area, select_data_type=0.0_real_4)
     CALL dbcsr_get_info(matrix=work_col, nfullrows_local=nrows, nfullcols_local=ncols)
     CALL mp_sum(data_vec(1:nrows*ncols), prow_group)
 
@@ -142,9 +142,9 @@
 !> \param skip_diag ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_matrixT_vector_mult_s(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, skip_diag)
-    TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
+    TYPE(dbcsr_type)                          :: matrix, vec_in, vec_out
     REAL(kind=real_4)                          :: alpha, beta
-    TYPE(dbcsr_obj)                          :: work_row, work_col
+    TYPE(dbcsr_type)                          :: work_row, work_col
     LOGICAL                                  :: skip_diag
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult', &
@@ -187,7 +187,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 ! Replicate the data on all processore in the row
-    data_vec => dbcsr_get_data_p (work_col%m%data_area, select_data_type=0.0_real_4)
+    data_vec => dbcsr_get_data_p (work_col%data_area, select_data_type=0.0_real_4)
     CALL mp_bcast(data_vec, 0, prow_group)
 
 ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
@@ -221,7 +221,7 @@
     CALL timestop(handle1)
 
 ! sum all the data within a processor column to obtain the replicated result
-    data_vec => dbcsr_get_data_p (work_row%m%data_area, select_data_type=0.0_real_4)
+    data_vec => dbcsr_get_data_p (work_row%data_area, select_data_type=0.0_real_4)
 ! we use the replicated vector but the final answer is only summed to proc_col 0 for efficiency
     CALL dbcsr_get_info(matrix=work_row, nfullrows_local=nrows, nfullcols_local=ncols)
     CALL mp_sum(data_vec(1:nrows*ncols), pcol_group)
@@ -254,7 +254,7 @@
 !> \param fast_vec_col ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_col_vec_to_rep_row_s(vec_in, rep_col_vec, rep_row_vec, fast_vec_col)
-    TYPE(dbcsr_obj)                          :: vec_in, rep_col_vec, &
+    TYPE(dbcsr_type)                          :: vec_in, rep_col_vec, &
                                                 rep_row_vec
     TYPE(fast_vec_access_type), INTENT(IN)   :: fast_vec_col
 
@@ -285,8 +285,8 @@
 
 ! Copy the local vector to the replicated on the first processor column (this is where vec_in lives)
     CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-    data_vec_rep => dbcsr_get_data_p (rep_col_vec%m%data_area, select_data_type=0.0_real_4)
-    data_vec => dbcsr_get_data_p (vec_in%m%data_area, select_data_type=0.0_real_4)
+    data_vec_rep => dbcsr_get_data_p (rep_col_vec%data_area, select_data_type=0.0_real_4)
+    data_vec => dbcsr_get_data_p (vec_in%data_area, select_data_type=0.0_real_4)
     IF(mypcol==0)data_vec_rep(1:nrows*ncols)=data_vec(1:nrows*ncols)
 ! Replicate the data along the row
     CALL mp_bcast(data_vec_rep(1:nrows*ncols), 0, prow_group)
@@ -309,7 +309,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_get_info(matrix=rep_row_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-    data_vec_rep => dbcsr_get_data_p (rep_row_vec%m%data_area, select_data_type=0.0_real_4)
+    data_vec_rep => dbcsr_get_data_p (rep_row_vec%data_area, select_data_type=0.0_real_4)
     CALL mp_sum(data_vec_rep(1:ncols*nrows), pcol_group)
 
     CALL timestop(handle)
@@ -324,7 +324,7 @@
 !> \param fast_vec_col_add ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_rep_row_to_rep_col_vec_s(rep_col_vec, rep_row_vec, fast_vec_row, fast_vec_col_add)
-    TYPE(dbcsr_obj)                          :: rep_col_vec, rep_row_vec
+    TYPE(dbcsr_type)                          :: rep_col_vec, rep_row_vec
     TYPE(fast_vec_access_type), OPTIONAL     :: fast_vec_col_add
     TYPE(fast_vec_access_type)               :: fast_vec_row
 
@@ -367,7 +367,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-    data_vec_rep => dbcsr_get_data_p (rep_col_vec%m%data_area, select_data_type=0.0_real_4)
+    data_vec_rep => dbcsr_get_data_p (rep_col_vec%data_area, select_data_type=0.0_real_4)
     CALL mp_sum(data_vec_rep(1:nrows*ncols), prow_group)
 
     CALL timestop(handle)
@@ -381,7 +381,7 @@
 !> \param fast_vec_access ...
 ! **************************************************************************************************
   SUBROUTINE create_fast_col_vec_access_s(vec, fast_vec_access)
-    TYPE(dbcsr_obj)                          :: vec
+    TYPE(dbcsr_type)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access_s', &
@@ -434,7 +434,7 @@
 !> \param fast_vec_access ...
 ! **************************************************************************************************
   SUBROUTINE create_fast_row_vec_access_s(vec, fast_vec_access)
-    TYPE(dbcsr_obj)                          :: vec
+    TYPE(dbcsr_type)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access_s', &
@@ -493,9 +493,9 @@
 !> \param work_col ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_sym_matrix_vector_mult_s(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-    TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
+    TYPE(dbcsr_type)                          :: matrix, vec_in, vec_out
     REAL(kind=real_4)                          :: alpha, beta
-    TYPE(dbcsr_obj)                          :: work_row, work_col
+    TYPE(dbcsr_type)                          :: work_row, work_col
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sym_m_v_mult', &
       routineP = moduleN//':'//routineN
@@ -510,7 +510,7 @@
     REAL(kind=real_4), DIMENSION(:, :), POINTER       :: data_d, vec_res
     TYPE(dbcsr_distribution_obj)             :: distri
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj)                          :: result_row, result_col
+    TYPE(dbcsr_type)                          :: result_row, result_col
 
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col, res_fast_vec_row, res_fast_vec_col
     INTEGER                                  :: prow, pcol, rprow, rpcol
@@ -587,7 +587,7 @@
     CALL timestop(handle1)
 
     ! sum all the data within a processor column to obtain the replicated result from lower
-    data_vec => dbcsr_get_data_p (result_row%m%data_area, select_data_type=0.0_real_4)
+    data_vec => dbcsr_get_data_p (result_row%data_area, select_data_type=0.0_real_4)
     CALL dbcsr_get_info(matrix=result_row, nfullrows_local=nrows, nfullcols_local=ncols)
 
     CALL mp_sum(data_vec(1:nrows*ncols), pcol_group)

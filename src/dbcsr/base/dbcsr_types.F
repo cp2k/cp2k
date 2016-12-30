@@ -34,8 +34,7 @@ MODULE dbcsr_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_types'
 
-   PUBLIC :: dbcsr_obj, &
-             dbcsr_type, &
+   PUBLIC :: dbcsr_type, &
              dbcsr_scalar_type, &
              dbcsr_data_obj, &
              dbcsr_data_area_type, &
@@ -48,7 +47,7 @@ MODULE dbcsr_types
              dbcsr_imagedistribution_obj, &
              dbcsr_iterator, &
              dbcsr_mutable_obj, &
-             dbcsr_obj_type_p
+             dbcsr_type_p
    PUBLIC :: dbcsr_meta_size
    PUBLIC :: dbcsr_slot_size, &
              dbcsr_slot_row_p, &
@@ -309,7 +308,7 @@ MODULE dbcsr_types
 !>                       indexing is enabled)
 ! **************************************************************************************************
    TYPE dbcsr_iterator
-      TYPE(dbcsr_obj), POINTER                       :: matrix => Null()
+      TYPE(dbcsr_type), POINTER                       :: matrix => Null()
       TYPE(dbcsr_block_buffer_obj)                   :: buffer_2d
       INTEGER                                        :: pos = -1
       INTEGER                                        :: row = -1
@@ -569,14 +568,6 @@ MODULE dbcsr_types
                                                    (/2**7, 2**13, 2**15, 2**17, 2**22, 2**24/)
 
 ! **************************************************************************************************
-!> \brief The BCSR sparse matrix object.
-!> \var m  The DBCSR array.
-! **************************************************************************************************
-   TYPE dbcsr_obj
-      TYPE(dbcsr_type) :: m = dbcsr_type()
-   END TYPE dbcsr_obj
-
-! **************************************************************************************************
 !> \brief Pointer to a work matrix.
 !> \var w           the work matrix
 ! **************************************************************************************************
@@ -586,18 +577,18 @@ MODULE dbcsr_types
 
 ! **************************************************************************************************
 !> \brief Pointer to a object.
-!> \var matrix         the dbcsr_object
+!> \var matrix         the dbcsr_typeect
 ! **************************************************************************************************
-   TYPE dbcsr_obj_type_p
-      TYPE(dbcsr_obj), POINTER           :: matrix => Null()
-   END TYPE dbcsr_obj_type_p
+   TYPE dbcsr_type_p
+      TYPE(dbcsr_type), POINTER           :: matrix => Null()
+   END TYPE dbcsr_type_p
 
 ! **************************************************************************************************
 !> \brief A 1-D array of DBCSR matrices
 !> \var s           the array of matrices
 ! **************************************************************************************************
    TYPE dbcsr_1d_array_obj
-      TYPE(dbcsr_obj_type_p), DIMENSION(:), POINTER :: mats => Null()
+      TYPE(dbcsr_type_p), DIMENSION(:), POINTER :: mats => Null()
    END TYPE dbcsr_1d_array_obj
 
 ! **************************************************************************************************
@@ -605,7 +596,7 @@ MODULE dbcsr_types
 !> \var s           the array of matrices
 ! **************************************************************************************************
    TYPE dbcsr_2d_array_obj
-      TYPE(dbcsr_obj_type_p), DIMENSION(:, :), POINTER :: mats => Null()
+      TYPE(dbcsr_type_p), DIMENSION(:, :), POINTER :: mats => Null()
    END TYPE dbcsr_2d_array_obj
 
 ! **************************************************************************************************
@@ -615,7 +606,7 @@ MODULE dbcsr_types
 !> \var image_dist  image distribution
 ! **************************************************************************************************
    TYPE dbcsr_1d_array_type
-      TYPE(dbcsr_obj), DIMENSION(:), POINTER :: mats => Null()
+      TYPE(dbcsr_type), DIMENSION(:), POINTER :: mats => Null()
       TYPE(dbcsr_imagedistribution_obj)      :: image_dist
    END TYPE dbcsr_1d_array_type
 
@@ -625,7 +616,7 @@ MODULE dbcsr_types
 !> \var image_dist  image distribution
 ! **************************************************************************************************
    TYPE dbcsr_2d_array_type
-      TYPE(dbcsr_obj), DIMENSION(:, :), POINTER :: mats => Null()
+      TYPE(dbcsr_type), DIMENSION(:, :), POINTER :: mats => Null()
       TYPE(dbcsr_imagedistribution_obj)         :: image_dist
    END TYPE dbcsr_2d_array_type
 

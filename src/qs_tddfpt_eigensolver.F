@@ -8,8 +8,6 @@ MODULE qs_tddfpt_eigensolver
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                              cp_dbcsr_set
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
@@ -33,6 +31,8 @@ MODULE qs_tddfpt_eigensolver
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_set
    USE input_constants,                 ONLY: tddfpt_davidson,&
                                               tddfpt_lanczos
    USE kinds,                           ONLY: default_string_length,&
@@ -184,7 +184,6 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_difference, evals_tmp
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_p_type)                                 :: Atilde, Us
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: R, X
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: Ab, b, Sb
@@ -192,6 +191,7 @@ CONTAINS
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER   :: kv_fm_struct
       TYPE(cp_fm_struct_type), POINTER                   :: tilde_fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
 
@@ -567,7 +567,7 @@ CONTAINS
       !-----------------!
       IF (do_kernel) THEN
          DO spin = 1, nspins
-            CALL cp_dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp) ! optimize?
+            CALL dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp) ! optimize?
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix, &
                                        matrix_v=p_env%psi0d(spin)%matrix, &
                                        matrix_g=X(spin)%matrix, &

@@ -11,11 +11,6 @@
 ! **************************************************************************************************
 MODULE dm_ls_chebyshev
    USE arnoldi_api,                     ONLY: arnoldi_extremal
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_frobenius_norm, cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
-        cp_dbcsr_type, dbcsr_type_no_symmetry
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -23,6 +18,10 @@ MODULE dm_ls_chebyshev
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, &
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_init, dbcsr_multiply, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE dm_ls_scf_qs,                    ONLY: write_matrix_to_cube
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -118,10 +117,10 @@ CONTAINS
                                                             ev2, kernel_g, mu, sev1, sev2, trace_dm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aitchev_T, E_inte, gdensity, sqrt_vec
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_r
-      TYPE(cp_dbcsr_type)                                :: matrix_dummy1, matrix_F, matrix_tmp1, &
-                                                            matrix_tmp2, matrix_tmp3
-      TYPE(cp_dbcsr_type), DIMENSION(:), POINTER         :: matrix_dummy2
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type)                                   :: matrix_dummy1, matrix_F, matrix_tmp1, &
+                                                            matrix_tmp2, matrix_tmp3
+      TYPE(dbcsr_type), DIMENSION(:), POINTER            :: matrix_dummy2
 
       IF (.NOT. ls_scf_env%chebyshev%compute_chebyshev) RETURN
 
@@ -174,29 +173,29 @@ CONTAINS
       ENDIF
 
       ! create 3 temporary matrices
-      CALL cp_dbcsr_init(matrix_tmp1) !initialization
-      CALL cp_dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_init(matrix_tmp2)
-      CALL cp_dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_init(matrix_tmp3)
-      CALL cp_dbcsr_create(matrix_tmp3, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_init(matrix_F)
-      CALL cp_dbcsr_create(matrix_F, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_init(matrix_dummy1)
-      CALL cp_dbcsr_create(matrix_dummy1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_tmp1) !initialization
+      CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_tmp2)
+      CALL dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_tmp3)
+      CALL dbcsr_create(matrix_tmp3, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_F)
+      CALL dbcsr_create(matrix_F, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_init(matrix_dummy1)
+      CALL dbcsr_create(matrix_dummy1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
 
       DO iwindow = 1, nwindow
-         CALL cp_dbcsr_init(matrix_dummy2(iwindow)) ! density matrix
-         CALL cp_dbcsr_create(matrix_dummy2(iwindow), template=ls_scf_env%matrix_s, &
-                              matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_init(matrix_dummy2(iwindow)) ! density matrix
+         CALL dbcsr_create(matrix_dummy2(iwindow), template=ls_scf_env%matrix_s, &
+                           matrix_type=dbcsr_type_no_symmetry)
       END DO
 
       DO ispin = 1, SIZE(ls_scf_env%matrix_ks)
          ! create matrix_F=inv(sqrt(S))*H*inv(sqrt(S))
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_ks(ispin), &
-                                0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
-         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
-                                0.0_dp, matrix_F, filter_eps=ls_scf_env%eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_ks(ispin), &
+                             0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
+                             0.0_dp, matrix_F, filter_eps=ls_scf_env%eps_filter)
 
          ! find largest and smallest eigenvalues
          CALL arnoldi_extremal(matrix_F, max_ev, min_ev, converged=converged, max_iter=ls_scf_env%max_iter_lanczos, &
@@ -243,15 +242,15 @@ CONTAINS
          END DO
 
          ! scale the matrix to get evals in the interval -1,1
-         CALL cp_dbcsr_add_on_diag(matrix_F, -interval_b)
-         CALL cp_dbcsr_scale(matrix_F, 1/interval_a)
+         CALL dbcsr_add_on_diag(matrix_F, -interval_b)
+         CALL dbcsr_scale(matrix_F, 1/interval_a)
 
          ! compute chebyshev matrix recursion
-         CALL cp_dbcsr_get_info(matrix=matrix_F, nfullrows_total=Nrows) !get information about a matrix
-         CALL cp_dbcsr_set(matrix_dummy1, 0.0_dp) !empty matrix creation(for density matrix)
+         CALL dbcsr_get_info(matrix=matrix_F, nfullrows_total=Nrows) !get information about a matrix
+         CALL dbcsr_set(matrix_dummy1, 0.0_dp) !empty matrix creation(for density matrix)
 
          DO iwindow = 1, nwindow
-            CALL cp_dbcsr_set(matrix_dummy2(iwindow), 0.0_dp) !empty matrix creation(for density matrix)
+            CALL dbcsr_set(matrix_dummy2(iwindow), 0.0_dp) !empty matrix creation(for density matrix)
          END DO
 
          ALLOCATE (mu(1:ncheb))
@@ -259,41 +258,41 @@ CONTAINS
          CALL kernel(kernel_g(1), 1, ncheb)
          CALL kernel(kernel_g(2), 2, ncheb)
 
-         CALL cp_dbcsr_set(matrix_tmp1, 0.0_dp) !matrix creation
-         CALL cp_dbcsr_add_on_diag(matrix_tmp1, 1.0_dp) !add a only number to diagonal elements
-         CALL cp_dbcsr_trace(matrix_tmp1, trace=mu(1))
-         CALL cp_dbcsr_copy(matrix_tmp2, matrix_F) !make matrix_tmp2 = matrix_F
-         CALL cp_dbcsr_trace(matrix_tmp2, trace=mu(2))
+         CALL dbcsr_set(matrix_tmp1, 0.0_dp) !matrix creation
+         CALL dbcsr_add_on_diag(matrix_tmp1, 1.0_dp) !add a only number to diagonal elements
+         CALL dbcsr_trace(matrix_tmp1, trace=mu(1))
+         CALL dbcsr_copy(matrix_tmp2, matrix_F) !make matrix_tmp2 = matrix_F
+         CALL dbcsr_trace(matrix_tmp2, trace=mu(2))
 
          DO iwindow = 1, nwindow
-            CALL cp_dbcsr_copy(matrix_dummy1, matrix_tmp1)
-            CALL cp_dbcsr_copy(matrix_dummy2(iwindow), matrix_tmp2) !matrix_dummy2=
-            CALL cp_dbcsr_scale(matrix_dummy1, kernel_g(1)*aitchev_T(1, iwindow)) !first term of chebyshev poly(matrix)
-            CALL cp_dbcsr_scale(matrix_dummy2(iwindow), 2.0_dp*kernel_g(2)*aitchev_T(2, iwindow)) !second term of chebyshev poly(matrix)
+            CALL dbcsr_copy(matrix_dummy1, matrix_tmp1)
+            CALL dbcsr_copy(matrix_dummy2(iwindow), matrix_tmp2) !matrix_dummy2=
+            CALL dbcsr_scale(matrix_dummy1, kernel_g(1)*aitchev_T(1, iwindow)) !first term of chebyshev poly(matrix)
+            CALL dbcsr_scale(matrix_dummy2(iwindow), 2.0_dp*kernel_g(2)*aitchev_T(2, iwindow)) !second term of chebyshev poly(matrix)
 
-            CALL cp_dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
          END DO
 
          DO icheb = 2, ncheb-1
             t1 = m_walltime()
-            CALL cp_dbcsr_multiply("N", "N", 2.0_dp, matrix_F, matrix_tmp2, &
-                                   -1.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter) !matrix multiplication(Recursion)
-            CALL cp_dbcsr_copy(matrix_tmp3, matrix_tmp1)
-            CALL cp_dbcsr_copy(matrix_tmp1, matrix_tmp2)
-            CALL cp_dbcsr_copy(matrix_tmp2, matrix_tmp3)
-            CALL cp_dbcsr_trace(matrix_tmp2, trace=mu(icheb+1)) !icheb+1 th coefficient
+            CALL dbcsr_multiply("N", "N", 2.0_dp, matrix_F, matrix_tmp2, &
+                                -1.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter) !matrix multiplication(Recursion)
+            CALL dbcsr_copy(matrix_tmp3, matrix_tmp1)
+            CALL dbcsr_copy(matrix_tmp1, matrix_tmp2)
+            CALL dbcsr_copy(matrix_tmp2, matrix_tmp3)
+            CALL dbcsr_trace(matrix_tmp2, trace=mu(icheb+1)) !icheb+1 th coefficient
             CALL kernel(kernel_g(icheb+1), icheb+1, ncheb)
 
             DO iwindow = 1, nwindow
 
-               CALL cp_dbcsr_copy(matrix_dummy1, matrix_tmp2)
-               CALL cp_dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb+1)*aitchev_T(icheb+1, iwindow)) !second term of chebyshev poly(matrix)
-               CALL cp_dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
-               CALL cp_dbcsr_trace(matrix_dummy2(iwindow), trace=trace_dm(iwindow)) !icheb+1 th coefficient
+               CALL dbcsr_copy(matrix_dummy1, matrix_tmp2)
+               CALL dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb+1)*aitchev_T(icheb+1, iwindow)) !second term of chebyshev poly(matrix)
+               CALL dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
+               CALL dbcsr_trace(matrix_dummy2(iwindow), trace=trace_dm(iwindow)) !icheb+1 th coefficient
 
             END DO
 
-            occ = cp_dbcsr_get_occupation(matrix_tmp1)
+            occ = dbcsr_get_occupation(matrix_tmp1)
             t2 = m_walltime()
             IF (unit_nr > 0 .AND. MOD(icheb, 20) == 0) THEN
                CALL m_flush(unit_nr)
@@ -313,17 +312,17 @@ CONTAINS
             ELSE
                orbital_occ = 1.0_dp
             ENDIF
-            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, matrix_dummy2(iwindow), &
-                                   0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
-            CALL cp_dbcsr_multiply("N", "N", orbital_occ, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
-                                   0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
-            CALL cp_dbcsr_copy(matrix_dummy2(iwindow), matrix_tmp2)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, matrix_dummy2(iwindow), &
+                                0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
+            CALL dbcsr_multiply("N", "N", orbital_occ, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
+                                0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
+            CALL dbcsr_copy(matrix_dummy2(iwindow), matrix_tmp2)
 
             ! look at the difference with the density matrix from the ls routines
             IF (.FALSE.) THEN
-               CALL cp_dbcsr_copy(matrix_tmp1, matrix_tmp2)
-               CALL cp_dbcsr_add(matrix_tmp1, ls_scf_env%matrix_p(ispin), 1.0_dp, -1.0_dp) !comparison
-               frob_matrix = cp_dbcsr_frobenius_norm(matrix_tmp1)
+               CALL dbcsr_copy(matrix_tmp1, matrix_tmp2)
+               CALL dbcsr_add(matrix_tmp1, ls_scf_env%matrix_p(ispin), 1.0_dp, -1.0_dp) !comparison
+               frob_matrix = dbcsr_frobenius_norm(matrix_tmp1)
                IF (unit_nr > 0) WRITE (unit_nr, *) "Difference between Chebyshev DM and LS DM", frob_matrix
             ENDIF
          END DO
@@ -382,14 +381,14 @@ CONTAINS
       CALL cp_print_key_finished_output(unit_dos, logger, ls_scf_env%chebyshev%print_key_dos, "")
 
       ! free the matrices
-      CALL cp_dbcsr_release(matrix_tmp1)
-      CALL cp_dbcsr_release(matrix_tmp2)
-      CALL cp_dbcsr_release(matrix_tmp3)
-      CALL cp_dbcsr_release(matrix_F)
-      CALL cp_dbcsr_release(matrix_dummy1)
+      CALL dbcsr_release(matrix_tmp1)
+      CALL dbcsr_release(matrix_tmp2)
+      CALL dbcsr_release(matrix_tmp3)
+      CALL dbcsr_release(matrix_F)
+      CALL dbcsr_release(matrix_dummy1)
 
       DO iwindow = 1, nwindow
-         CALL cp_dbcsr_release(matrix_dummy2(iwindow))
+         CALL dbcsr_release(matrix_dummy2(iwindow))
       END DO
 
       DEALLOCATE (ev1, ev2, sev1, sev2, matrix_dummy2)

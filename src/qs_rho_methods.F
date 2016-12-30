@@ -14,12 +14,12 @@ MODULE qs_rho_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, &
-        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_symmetric
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_init, dbcsr_p_type, &
+        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -94,9 +94,9 @@ CONTAINS
       LOGICAL                                            :: do_kpoints, my_admm, my_rebuild_ao, &
                                                             my_rebuild_grids
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s_kp, rho_ao_kp
-      TYPE(cp_dbcsr_type), POINTER                       :: refmatrix, tmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
+      TYPE(dbcsr_type), POINTER                          :: refmatrix, tmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -163,9 +163,9 @@ CONTAINS
       ! rho_ao
       IF (my_rebuild_ao .OR. (.NOT. ASSOCIATED(rho_ao_kp))) THEN
          IF (ASSOCIATED(rho_ao_kp)) &
-            CALL cp_dbcsr_deallocate_matrix_set(rho_ao_kp)
+            CALL dbcsr_deallocate_matrix_set(rho_ao_kp)
          ! Create a new density matrix set
-         CALL cp_dbcsr_allocate_matrix_set(rho_ao_kp, nspins, nimg)
+         CALL dbcsr_allocate_matrix_set(rho_ao_kp, nspins, nimg)
          CALL qs_rho_set(rho, rho_ao_kp=rho_ao_kp)
          DO i = 1, nspins
             DO ic = 1, nimg
@@ -180,14 +180,14 @@ CONTAINS
                END IF
                ALLOCATE (rho_ao_kp(i, ic)%matrix)
                tmatrix => rho_ao_kp(i, ic)%matrix
-               CALL cp_dbcsr_init(tmatrix)
-               CALL cp_dbcsr_create(matrix=tmatrix, name=TRIM(headline), &
-                                    dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                    row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
-                                    col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
-                                    nze=0)
+               CALL dbcsr_init(tmatrix)
+               CALL dbcsr_create(matrix=tmatrix, name=TRIM(headline), &
+                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
+                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
+                                 nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
-               CALL cp_dbcsr_set(tmatrix, 0.0_dp)
+               CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO
          END DO
       END IF
@@ -341,9 +341,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r, tot_rho_r_xc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp, rho_xc_ao
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_xc_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -485,7 +485,7 @@ CONTAINS
          ! copy rho_ao into rho_xc_ao
          DO ispin = 1, nspins
             DO img = 1, nimg
-               CALL cp_dbcsr_copy(rho_xc_ao(ispin, img)%matrix, rho_ao_kp(ispin, img)%matrix)
+               CALL dbcsr_copy(rho_xc_ao(ispin, img)%matrix, rho_ao_kp(ispin, img)%matrix)
             END DO
          END DO
          DO ispin = 1, nspins
@@ -552,7 +552,7 @@ CONTAINS
          tau_g_valid_in, tau_r_valid_in
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_in, tot_rho_g_out, &
                                                             tot_rho_r_in, tot_rho_r_out
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho_ao_in, rho_ao_out
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_in, rho_ao_out
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER :: drho_g_in, drho_g_out, drho_r_in, drho_r_out, &
@@ -602,14 +602,14 @@ CONTAINS
 
       ! rho_ao
       IF (ASSOCIATED(rho_ao_in)) THEN
-         CALL cp_dbcsr_allocate_matrix_set(rho_ao_out, nspins)
+         CALL dbcsr_allocate_matrix_set(rho_ao_out, nspins)
          CALL qs_rho_set(rho_output, rho_ao=rho_ao_out)
          DO i = 1, nspins
             ALLOCATE (rho_ao_out(i)%matrix)
-            CALL cp_dbcsr_init(rho_ao_out(i)%matrix)
-            CALL cp_dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, &
-                               name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))))
-            CALL cp_dbcsr_set(rho_ao_out(i)%matrix, 0.0_dp)
+            CALL dbcsr_init(rho_ao_out(i)%matrix)
+            CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, &
+                            name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))))
+            CALL dbcsr_set(rho_ao_out(i)%matrix, 0.0_dp)
          END DO
       END IF
 

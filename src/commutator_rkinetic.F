@@ -15,8 +15,8 @@ MODULE commutator_rkinetic
    USE ai_kinetic,                      ONLY: kinetic
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
@@ -65,7 +65,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_com_tr_matrix(matrix_tr, qs_kind_set, basis_type, sab_nl)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_tr
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_tr
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -172,16 +172,16 @@ CONTAINS
             icol = jatom
          END IF
          NULLIFY (kx_block)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_tr(1)%matrix, &
-                                   row=irow, col=icol, BLOCK=kx_block, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_tr(1)%matrix, &
+                                row=irow, col=icol, BLOCK=kx_block, found=found)
          CPASSERT(found)
          NULLIFY (ky_block)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_tr(2)%matrix, &
-                                   row=irow, col=icol, BLOCK=ky_block, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_tr(2)%matrix, &
+                                row=irow, col=icol, BLOCK=ky_block, found=found)
          CPASSERT(found)
          NULLIFY (kz_block)
-         CALL cp_dbcsr_get_block_p(matrix=matrix_tr(3)%matrix, &
-                                   row=irow, col=icol, BLOCK=kz_block, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_tr(3)%matrix, &
+                                row=irow, col=icol, BLOCK=kz_block, found=found)
          CPASSERT(found)
 
          rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)

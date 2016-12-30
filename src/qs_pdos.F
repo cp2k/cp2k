@@ -20,7 +20,6 @@ MODULE qs_pdos
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -42,6 +41,7 @@ MODULE qs_pdos
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -179,12 +179,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pdos_array
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: s_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: matrix_shalf, matrix_shalfc, &
                                                             matrix_work, mo_coeff, mo_virt
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(ldos_p_type), DIMENSION(:), POINTER           :: ldos_p
@@ -933,10 +933,10 @@ CONTAINS
 
       INTEGER                                            :: nmo, nrow_global
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, s_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, s_matrix
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(scf_control_type), POINTER                    :: scf_control
 

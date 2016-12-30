@@ -21,10 +21,10 @@ MODULE qs_linres_atom_current
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_p_type
    USE input_constants,                 ONLY: current_gauge_atom,&
                                               current_gauge_r,&
                                               current_gauge_r_and_step_func
@@ -108,7 +108,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(current_env_type)                             :: current_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
@@ -131,8 +131,8 @@ CONTAINS
                                                             r_coef_s, tmp_coeff, zero_coeff
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_a, mat_b, mat_c, mat_d
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_a, mat_b, mat_c, mat_d
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, orb_basis_set
@@ -322,21 +322,21 @@ CONTAINS
             NULLIFY (b_block(ispin)%r_coef)
             NULLIFY (c_block(ispin)%r_coef)
             NULLIFY (d_block(ispin)%r_coef)
-            CALL cp_dbcsr_get_block_p(matrix=mat_a(ispin)%matrix, &
-                                      row=iatom, col=jatom, block=a_block(ispin)%r_coef, &
-                                      found=den_found)
+            CALL dbcsr_get_block_p(matrix=mat_a(ispin)%matrix, &
+                                   row=iatom, col=jatom, block=a_block(ispin)%r_coef, &
+                                   found=den_found)
             jmax = jmax+MAXVAL(ABS(a_block(ispin)%r_coef))
-            CALL cp_dbcsr_get_block_p(matrix=mat_b(ispin)%matrix, &
-                                      row=iatom, col=jatom, block=b_block(ispin)%r_coef, &
-                                      found=den_found)
+            CALL dbcsr_get_block_p(matrix=mat_b(ispin)%matrix, &
+                                   row=iatom, col=jatom, block=b_block(ispin)%r_coef, &
+                                   found=den_found)
             jmax = jmax+MAXVAL(ABS(b_block(ispin)%r_coef))
-            CALL cp_dbcsr_get_block_p(matrix=mat_c(ispin)%matrix, &
-                                      row=iatom, col=jatom, block=c_block(ispin)%r_coef, &
-                                      found=den_found)
+            CALL dbcsr_get_block_p(matrix=mat_c(ispin)%matrix, &
+                                   row=iatom, col=jatom, block=c_block(ispin)%r_coef, &
+                                   found=den_found)
             jmax = jmax+MAXVAL(ABS(c_block(ispin)%r_coef))
-            CALL cp_dbcsr_get_block_p(matrix=mat_d(ispin)%matrix, &
-                                      row=iatom, col=jatom, block=d_block(ispin)%r_coef, &
-                                      found=den_found)
+            CALL dbcsr_get_block_p(matrix=mat_d(ispin)%matrix, &
+                                   row=iatom, col=jatom, block=d_block(ispin)%r_coef, &
+                                   found=den_found)
             jmax = jmax+MAXVAL(ABS(d_block(ispin)%r_coef))
          ENDDO
 

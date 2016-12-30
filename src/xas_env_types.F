@@ -15,13 +15,13 @@ MODULE xas_env_types
    USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
                                               gto_basis_set_p_type
    USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_give_back_fm
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                               qs_loc_env_release,&
@@ -98,7 +98,7 @@ MODULE xas_env_types
       TYPE(cp_fm_type), POINTER :: unoccupied_orbs
       TYPE(cp_fm_type), POINTER :: all_vectors
       TYPE(cp_fm_type), POINTER :: fm_work
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ostrength_sm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: ostrength_sm
       TYPE(qs_loc_env_new_type), POINTER :: qs_loc_env
       TYPE(qs_scf_env_type), POINTER                        :: scf_env
       TYPE(scf_control_type), POINTER          :: scf_control
@@ -163,7 +163,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: spectrum
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: groundstate_coeff
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ostrength_sm
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dip_fm_set
@@ -389,7 +389,7 @@ CONTAINS
             END IF
 
             IF (ASSOCIATED(xas_env%ostrength_sm)) THEN
-               CALL cp_dbcsr_deallocate_matrix_set(xas_env%ostrength_sm)
+               CALL dbcsr_deallocate_matrix_set(xas_env%ostrength_sm)
             END IF
             IF (ASSOCIATED(xas_env%qs_loc_env)) THEN
                CALL qs_loc_env_release(xas_env%qs_loc_env)

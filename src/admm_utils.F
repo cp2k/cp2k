@@ -12,13 +12,12 @@
 ! **************************************************************************************************
 MODULE admm_utils
    USE admm_types,                      ONLY: admm_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, cp_dbcsr_get_data_size, &
-        cp_dbcsr_get_data_type, cp_dbcsr_init, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-        cp_dbcsr_type, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_distribution, dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_init, &
+        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_purify_cauchy,&
                                               do_admm_purify_cauchy_subspace,&
                                               do_admm_purify_mo_diag,&
@@ -48,10 +47,10 @@ CONTAINS
    SUBROUTINE admm_correct_for_eigenvalues(ispin, admm_env, ks_matrix)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_type), POINTER                       :: ks_matrix
+      TYPE(dbcsr_type), POINTER                          :: ks_matrix
 
       INTEGER                                            :: nao_aux_fit, nao_orb
-      TYPE(cp_dbcsr_type), POINTER                       :: work
+      TYPE(dbcsr_type), POINTER                          :: work
 
       nao_aux_fit = admm_env%nao_aux_fit
       nao_orb = admm_env%nao_orb
@@ -62,18 +61,18 @@ CONTAINS
             !* remove what has been added and add the correction
             NULLIFY (work)
             ALLOCATE (work)
-            CALL cp_dbcsr_init(work)
-            CALL cp_dbcsr_create(work, 'work', &
-                                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix), &
-                                 cp_dbcsr_col_block_sizes(ks_matrix), &
-                                 cp_dbcsr_get_data_size(ks_matrix), &
-                                 cp_dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_init(work)
+            CALL dbcsr_create(work, 'work', &
+                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
+                              dbcsr_col_block_sizes(ks_matrix), &
+                              dbcsr_get_data_size(ks_matrix), &
+                              dbcsr_get_data_type(ks_matrix))
 
-            CALL cp_dbcsr_copy(work, ks_matrix)
-            CALL cp_dbcsr_set(work, 0.0_dp)
+            CALL dbcsr_copy(work, ks_matrix)
+            CALL dbcsr_set(work, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-            CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
+            CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
 
             ! ** calculate A^T*H_tilde*A
             CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
@@ -85,21 +84,21 @@ CONTAINS
 
             CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-            CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
-            CALL cp_dbcsr_deallocate_matrix(work)
+            CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
+            CALL dbcsr_deallocate_matrix(work)
 
          CASE (do_admm_purify_mo_diag)
             !* remove what has been added and add the correction
             NULLIFY (work)
             ALLOCATE (work)
-            CALL cp_dbcsr_init(work)
-            CALL cp_dbcsr_create(work, 'work', &
-                                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix), &
-                                 cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_data_size(ks_matrix), &
-                                 cp_dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_init(work)
+            CALL dbcsr_create(work, 'work', &
+                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
+                              dbcsr_col_block_sizes(ks_matrix), dbcsr_get_data_size(ks_matrix), &
+                              dbcsr_get_data_type(ks_matrix))
 
-            CALL cp_dbcsr_copy(work, ks_matrix)
-            CALL cp_dbcsr_set(work, 0.0_dp)
+            CALL dbcsr_copy(work, ks_matrix)
+            CALL dbcsr_set(work, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
             ! ** calculate A^T*H_tilde*A
@@ -112,8 +111,8 @@ CONTAINS
 
             CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-            CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
-            CALL cp_dbcsr_deallocate_matrix(work)
+            CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
+            CALL dbcsr_deallocate_matrix(work)
 
          CASE (do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_cauchy)
             ! do nothing
@@ -131,10 +130,10 @@ CONTAINS
    SUBROUTINE admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_matrix)
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_type), POINTER                       :: ks_matrix
+      TYPE(dbcsr_type), POINTER                          :: ks_matrix
 
       INTEGER                                            :: nao_aux_fit, nao_orb
-      TYPE(cp_dbcsr_type), POINTER                       :: work
+      TYPE(dbcsr_type), POINTER                          :: work
 
       nao_aux_fit = admm_env%nao_aux_fit
       nao_orb = admm_env%nao_orb
@@ -145,42 +144,42 @@ CONTAINS
             !* remove what has been added and add the correction
             NULLIFY (work)
             ALLOCATE (work)
-            CALL cp_dbcsr_init(work)
-            CALL cp_dbcsr_create(work, 'work', &
-                                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix), &
-                                 cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_data_size(ks_matrix), &
-                                 cp_dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_init(work)
+            CALL dbcsr_create(work, 'work', &
+                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
+                              dbcsr_col_block_sizes(ks_matrix), dbcsr_get_data_size(ks_matrix), &
+                              dbcsr_get_data_type(ks_matrix))
 
-            CALL cp_dbcsr_copy(work, ks_matrix)
-            CALL cp_dbcsr_set(work, 0.0_dp)
+            CALL dbcsr_copy(work, ks_matrix)
+            CALL dbcsr_set(work, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-            CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
+            CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
 
             CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-            CALL cp_dbcsr_set(work, 0.0_dp)
+            CALL dbcsr_set(work, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-            CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
-            CALL cp_dbcsr_deallocate_matrix(work)
+            CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp)
+            CALL dbcsr_deallocate_matrix(work)
 
          CASE (do_admm_purify_mo_diag)
             NULLIFY (work)
             ALLOCATE (work)
-            CALL cp_dbcsr_init(work)
-            CALL cp_dbcsr_create(work, 'work', &
-                                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix), &
-                                 cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_data_size(ks_matrix), &
-                                 cp_dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_init(work)
+            CALL dbcsr_create(work, 'work', &
+                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
+                              dbcsr_col_block_sizes(ks_matrix), dbcsr_get_data_size(ks_matrix), &
+                              dbcsr_get_data_type(ks_matrix))
 
-            CALL cp_dbcsr_copy(work, ks_matrix)
-            CALL cp_dbcsr_set(work, 0.0_dp)
+            CALL dbcsr_copy(work, ks_matrix)
+            CALL dbcsr_set(work, 0.0_dp)
 
             CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-            CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
-            CALL cp_dbcsr_deallocate_matrix(work)
+            CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp)
+            CALL dbcsr_deallocate_matrix(work)
 
          CASE (do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_cauchy)
             ! do nothing

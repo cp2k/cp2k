@@ -11,12 +11,12 @@
 ! **************************************************************************************************
 MODULE qs_active_space_types
 
-   USE cp_dbcsr_interface,              ONLY: cp_csr_destroy,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type,&
-                                              csr_p_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
+   USE dbcsr_api,                       ONLY: csr_destroy,&
+                                              csr_p_type,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_p_type
@@ -76,7 +76,7 @@ MODULE qs_active_space_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: vxc_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: h_sub
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: fock_sub
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER:: pmat_inactive
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER:: pmat_inactive
    END TYPE active_space_type
 
 ! **************************************************************************************************
@@ -171,7 +171,7 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(active_space_env%pmat_inactive)) &
-            CALL cp_dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)
+            CALL dbcsr_deallocate_matrix_set(active_space_env%pmat_inactive)
 
          DEALLOCATE (active_space_env)
       END IF
@@ -193,7 +193,7 @@ CONTAINS
       IF (ASSOCIATED(eri_env%eri)) THEN
 
          DO i = 1, SIZE(eri_env%eri)
-            CALL cp_csr_destroy(eri_env%eri(i)%csr_mat)
+            CALL csr_destroy(eri_env%eri(i)%csr_mat)
             DEALLOCATE (eri_env%eri(i)%csr_mat)
          END DO
          DEALLOCATE (eri_env%eri)

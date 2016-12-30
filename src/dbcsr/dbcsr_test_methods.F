@@ -48,10 +48,10 @@ MODULE dbcsr_test_methods
                                               dbcsr_mp_release
    USE dbcsr_ptr_util,                  ONLY: ensure_array_size
    USE dbcsr_types,                     ONLY: &
-        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, dbcsr_obj, &
-        dbcsr_scalar_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
+        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, dbcsr_scalar_type, &
+        dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+        dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
    USE dbcsr_util,                      ONLY: dbcsr_verify_matrix
    USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                               dbcsr_finalize,&
@@ -149,7 +149,7 @@ CONTAINS
 !> The operation is done localy.
 ! **************************************************************************************************
    SUBROUTINE dbcsr_impose_sparsity(sparse, dense)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: sparse
+      TYPE(dbcsr_type), INTENT(IN)                       :: sparse
       TYPE(dbcsr_data_obj), INTENT(inout)                :: dense
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_impose_sparsity', &
@@ -265,7 +265,7 @@ CONTAINS
 !> The operation is done localy.
 ! **************************************************************************************************
    SUBROUTINE dbcsr_to_dense_local(sparse, dense)
-      TYPE(dbcsr_obj), INTENT(in)                        :: sparse
+      TYPE(dbcsr_type), INTENT(in)                       :: sparse
       TYPE(dbcsr_data_obj), INTENT(inout)                :: dense
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_to_dense_local', &
@@ -384,7 +384,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_make_random_matrix(matrix, row_blk_sizes, col_blk_sizes, &
                                        name, sparsity, mp_group, data_type, symmetry, dist)
-      TYPE(dbcsr_obj), INTENT(out)                       :: matrix
+      TYPE(dbcsr_type), INTENT(out)                      :: matrix
       INTEGER, DIMENSION(:), INTENT(in), POINTER         :: row_blk_sizes, col_blk_sizes
       CHARACTER(len=*), INTENT(in)                       :: name
       REAL(kind=real_8), INTENT(in)                      :: sparsity

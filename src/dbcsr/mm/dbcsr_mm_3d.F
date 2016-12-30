@@ -89,13 +89,13 @@ MODULE dbcsr_mm_3d
    USE dbcsr_types,                     ONLY: &
         dbcsr_1d_array_type, dbcsr_2d_array_obj, dbcsr_data_obj, dbcsr_distribution_obj, &
         dbcsr_imagedistribution_obj, dbcsr_iterator, dbcsr_memtype_type, dbcsr_mp_obj, &
-        dbcsr_num_slots, dbcsr_obj, dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-        dbcsr_slot_coo_l, dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
-        dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
-        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
-        dbcsr_slot_nfullcols_local, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, &
-        dbcsr_slot_thr_c, dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-        dbcsr_type_int_4, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8
+        dbcsr_num_slots, dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_coo_l, &
+        dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, &
+        dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, dbcsr_slot_nblkcols_local, &
+        dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nze, &
+        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_type, dbcsr_type_complex_4, &
+        dbcsr_type_complex_8, dbcsr_type_int_4, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+        dbcsr_type_real_8
    USE dbcsr_util,                      ONLY: find_block_of_element
    USE dbcsr_work_operations,           ONLY: dbcsr_add_wm_from_matrix,&
                                               dbcsr_create,&
@@ -235,7 +235,7 @@ CONTAINS
                                  f_row, l_row, f_col, l_col, &
                                  otf_filtering, transpose, &
                                  has_acc, alpha)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
@@ -282,7 +282,7 @@ CONTAINS
                            f_row, l_row, f_col, l_col, &
                            otf_filtering, transpose, has_acc, &
                            scale_value)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: imgdist
       LOGICAL, INTENT(IN)                                :: is_left
       INTEGER, INTENT(IN)                                :: f_row, l_row, f_col, l_col
@@ -342,7 +342,7 @@ CONTAINS
       ! Take input values and check validity
       IF (.NOT. dbcsr_valid_index(matrix)) &
          CPABORT("Matrix not initialized.")
-      sm = matrix%m
+      sm = matrix
       data_type = sm%data_type
       IF (data_type .NE. dbcsr_type_real_8 .AND. &
           data_type .NE. dbcsr_type_real_4 .AND. &
@@ -1790,8 +1790,8 @@ CONTAINS
                           retain_sparsity, &
                           filter_eps, flop, keep_product_data)
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist_left, imgdist_right
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_left, matrix_right
-      TYPE(dbcsr_obj), INTENT(INOUT), TARGET             :: product_matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_left, matrix_right
+      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: product_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
       REAL(kind=real_8), INTENT(IN), OPTIONAL            :: filter_eps
       INTEGER(KIND=int_8), INTENT(OUT)                   :: flop
@@ -1870,9 +1870,9 @@ CONTAINS
 !$OMP END PARALLEL
       !
       ! Dummy checks
-      IF (.NOT. ASSOCIATED(product_matrix%m%wms)) &
+      IF (.NOT. ASSOCIATED(product_matrix%wms)) &
          CPABORT("Work matrices do not exist")
-      IF (SIZE(product_matrix%m%wms) .NE. nthreads) &
+      IF (SIZE(product_matrix%wms) .NE. nthreads) &
          CPABORT("Work matrices not correctly sized.")
       IF (.NOT. buffers_orig%left%is_valid .OR. &
           .NOT. buffers_orig%right%is_valid .OR. &
@@ -1909,7 +1909,7 @@ CONTAINS
       right_col_mult = imgdist_right%i%col_multiplicity
       left_mp_obj = dbcsr_distribution_mp(imgdist_left%i%main)
       right_mp_obj = dbcsr_distribution_mp(imgdist_right%i%main)
-      product_mp_obj = dbcsr_distribution_mp(product_matrix%m%dist)
+      product_mp_obj = dbcsr_distribution_mp(product_matrix%dist)
       numnodes = dbcsr_mp_numnodes(product_mp_obj)
       mynode = dbcsr_mp_mynode(product_mp_obj)
       myprow = dbcsr_mp_myprow(product_mp_obj)
@@ -2039,7 +2039,7 @@ CONTAINS
       ! Exchange 3D meta for C matrix
       IF (do_layers3D .AND. keep_sparsity) THEN
          ALLOCATE (product_matrix_meta_size(nrows3D, ncols3D))
-         CALL mp_allgather(product_matrix%m%index(dbcsr_slot_size), &
+         CALL mp_allgather(product_matrix%index(dbcsr_slot_size), &
                            product_matrix_meta_size, layers_3D_C_reduction%grp3D)
          ALLOCATE (product_matrix_meta_displ(nrows3D, ncols3D))
          size_guess = 0
@@ -2050,9 +2050,9 @@ CONTAINS
             ENDDO
          ENDDO
          ALLOCATE (product_matrix_meta(size_guess))
-         product_matrix%m%index(dbcsr_slot_nblks) = product_matrix%m%nblks
-         product_matrix%m%index(dbcsr_slot_nze) = product_matrix%m%nze
-         CALL mp_iallgather(product_matrix%m%index(1:product_matrix%m%index(dbcsr_slot_size)), &
+         product_matrix%index(dbcsr_slot_nblks) = product_matrix%nblks
+         product_matrix%index(dbcsr_slot_nze) = product_matrix%nze
+         CALL mp_iallgather(product_matrix%index(1:product_matrix%index(dbcsr_slot_size)), &
                             product_matrix_meta, product_matrix_meta_size, product_matrix_meta_displ, &
                             layers_3D_C_reduction%grp3D, request_keep_sparsity)
       ENDIF
@@ -2448,7 +2448,7 @@ CONTAINS
                         ! Set the referenced sizes to the actual data moved via MPI
                         CALL dbcsr_data_set_size_referenced(right_buffer_p%data(1), &
                                                             right_buffer_p%offset(idata, 2))
-                        right_buffer_p%buffer%mats(1)%m%valid = .FALSE.
+                        right_buffer_p%buffer%mats(1)%valid = .FALSE.
                      ENDIF
                      ! Left
                      IF (do_comm_left(irow3D)) THEN
@@ -2464,7 +2464,7 @@ CONTAINS
                         ! Set the referenced sizes to the actual data moved via MPI
                         CALL dbcsr_data_set_size_referenced(left_buffer_p%data(1), &
                                                             left_buffer_p%offset(idata, 2))
-                        left_buffer_p%buffer%mats(1)%m%valid = .FALSE.
+                        left_buffer_p%buffer%mats(1)%valid = .FALSE.
                      ENDIF
                   ENDIF
                ENDIF
@@ -2485,23 +2485,23 @@ CONTAINS
                                            data_size=size_guess, &
                                            data_memory_type=memtype_mpi_product)
                   product_matrix3D%mats(irow3D, icol3D)% &
-                     matrix%m%index(1:product_matrix_meta_size(irow3D, icol3D)) = &
+                     matrix%index(1:product_matrix_meta_size(irow3D, icol3D)) = &
                      product_matrix_meta(product_matrix_meta_displ(irow3D, icol3D)+1: &
                                          product_matrix_meta_displ(irow3D, icol3D)+ &
                                          product_matrix_meta_size(irow3D, icol3D))
-                  CALL dbcsr_data_clear(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, &
+                  CALL dbcsr_data_clear(product_matrix3D%mats(irow3D, icol3D)%matrix%data_area, &
                                         ub=size_guess)
                ELSE
                   CALL setup_buffer_matrix(product_matrix3D%mats(irow3D, icol3D)%matrix, &
                                            product_matrix, data_memory_type=memtype_mpi_product)
                ENDIF
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_prow) = &
+               product_matrix3D%mats(irow3D, icol3D)%matrix%index(dbcsr_slot_home_prow) = &
                   (irow3D-1)*layers_3D_C_reduction%side3D+myprow
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%index(dbcsr_slot_home_pcol) = &
+               product_matrix3D%mats(irow3D, icol3D)%matrix%index(dbcsr_slot_home_pcol) = &
                   (icol3D-1)*layers_3D_C_reduction%side3D+mypcol
                CALL dbcsr_reset_locals(product_matrix3D%mats(irow3D, icol3D)%matrix)
-               product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
-               CALL dbcsr_repoint_index(product_matrix3D%mats(irow3D, icol3D)%matrix%m)
+               product_matrix3D%mats(irow3D, icol3D)%matrix%nblks = 0
+               CALL dbcsr_repoint_index(product_matrix3D%mats(irow3D, icol3D)%matrix)
             ENDIF
             !
 !$OMP PARALLEL DEFAULT(NONE) &
@@ -2530,26 +2530,26 @@ CONTAINS
             ENDIF
             ! The work arrays have to be setup
             size_guess = product_matrix3D%mats(irow3D, icol3D)% &
-                         matrix%m%wms(ithread+1)%datasize ! Should be minimal
+                         matrix%wms(ithread+1)%datasize ! Should be minimal
             IF (.NOT. keep_sparsity) THEN
                size_guess = MAX(size_guess, size_guess_init)
             ENDIF
             CALL dbcsr_data_ensure_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                        matrix%m%wms(ithread+1)%data_area, &
+                                        matrix%wms(ithread+1)%data_area, &
                                         size_guess)
             CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)% &
-                                                matrix%m%wms(ithread+1)%data_area, &
+                                                matrix%wms(ithread+1)%data_area, &
                                                 product_matrix3D%mats(irow3D, icol3D)% &
-                                                matrix%m%wms(ithread+1)%datasize)
+                                                matrix%wms(ithread+1)%datasize)
             CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                   matrix%m%wms(ithread+1)%row_i, ub=1)
+                                   matrix%wms(ithread+1)%row_i, ub=1)
             CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                   matrix%m%wms(ithread+1)%col_i, ub=1)
+                                   matrix%wms(ithread+1)%col_i, ub=1)
             CALL ensure_array_size(product_matrix3D%mats(irow3D, icol3D)% &
-                                   matrix%m%wms(ithread+1)%blk_p, ub=1)
+                                   matrix%wms(ithread+1)%blk_p, ub=1)
             ALLOCATE (multrec(ithread, irow3D, icol3D)%p)
             CALL dbcsr_mm_multrec_init(multrec(ithread, irow3D, icol3D)%p, &
-                                       product=product_matrix3D%mats(irow3D, icol3D)%matrix%m, &
+                                       product=product_matrix3D%mats(irow3D, icol3D)%matrix, &
                                        keep_sparsity=keep_sparsity, &
                                        eps=filter_eps, &
                                        row_max_epss=product_matrix_epss(product_matrix_epss_displ(irow3D)+1: &
@@ -2560,11 +2560,11 @@ CONTAINS
                                        nlayers=nranks3D)
 !$OMP END PARALLEL
             !
-            product_matrix3D%mats(irow3D, icol3D)%matrix%m%nblks = 0
-            product_matrix3D%mats(irow3D, icol3D)%matrix%m%nze = 0
-            product_matrix3D%mats(irow3D, icol3D)%matrix%m%row_p(:) = 0
-            CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)%matrix%m%data_area, 0)
-            product_matrix3D%mats(irow3D, icol3D)%matrix%m%valid = .FALSE.
+            product_matrix3D%mats(irow3D, icol3D)%matrix%nblks = 0
+            product_matrix3D%mats(irow3D, icol3D)%matrix%nze = 0
+            product_matrix3D%mats(irow3D, icol3D)%matrix%row_p(:) = 0
+            CALL dbcsr_data_set_size_referenced(product_matrix3D%mats(irow3D, icol3D)%matrix%data_area, 0)
+            product_matrix3D%mats(irow3D, icol3D)%matrix%valid = .FALSE.
          ENDIF
          !
          ! Wait data and do the multiplications.
@@ -2599,10 +2599,10 @@ CONTAINS
                      buffers_orig%left%data_red3D)
                   DEALLOCATE (multrec(ithread, irow3D_send, icol3D_send)%p)
                   CALL dbcsr_work_destroy( &
-                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%wms(ithread+1))
+                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%wms(ithread+1))
 !$OMP BARRIER
 !$OMP MASTER
-                  DEALLOCATE (product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%wms)
+                  DEALLOCATE (product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%wms)
                   CALL timeset(routineN//"_red3D_size", handle3)
                   CALL mp_waitall(requests_reduction_size)
                   CALL timestop(handle3)
@@ -2647,7 +2647,7 @@ CONTAINS
             !
             IF (right_nrequests .GT. 0 .AND. left_nrequests .GT. 0) THEN
                ! check if right matrix was already initialized
-               IF (.NOT. right_buffer_p%buffer%mats(1)%m%valid) THEN
+               IF (.NOT. right_buffer_p%buffer%mats(1)%valid) THEN
                   CALL mp_waitall(right_buffer_p%get_requests(:, 1:right_nrequests))
                   IF (has_acc) CALL dbcsr_data_host2dev(right_buffer_p%data(1))
                   ! Repoint indices of matrices
@@ -2673,7 +2673,7 @@ CONTAINS
                   ENDIF
                ENDIF
                ! check if left matrix was already initialized
-               IF (.NOT. left_buffer_p%buffer%mats(1)%m%valid) THEN
+               IF (.NOT. left_buffer_p%buffer%mats(1)%valid) THEN
                   CALL mp_waitall(left_buffer_p%get_requests(:, 1:left_nrequests))
                   IF (has_acc) CALL dbcsr_data_host2dev(left_buffer_p%data(1))
                   ! Repoint indices of matrices
@@ -2706,8 +2706,8 @@ CONTAINS
                ithread = 0
 !$             ithread = omp_get_thread_num()
                CALL dbcsr_mm_multrec_multiply(multrec(ithread, irow3D, icol3D)%p, &
-                                              left=left_buffer_p%buffer%mats(1)%m, &
-                                              right=right_buffer_p%buffer%mats(1)%m, &
+                                              left=left_buffer_p%buffer%mats(1), &
+                                              right=right_buffer_p%buffer%mats(1), &
                                               flop=flop, &
                                               a_norms=left_norms(:, 1, MIN(ileft_buffer_calc, nbuffers_norms)), &
                                               b_norms=right_norms(:, 1, MIN(iright_buffer_calc, nbuffers_norms)))
@@ -2749,12 +2749,12 @@ CONTAINS
                IF (irow3D .NE. myrow3D .OR. &
                    icol3D .NE. mycol3D) THEN
 !$OMP ATOMIC
-                  product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%nblks = &
-                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%nblks+ &
+                  product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%nblks = &
+                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%nblks+ &
                      dbcsr_mm_multrec_get_nblks(multrec(ithread, irow3D_send, icol3D_send)%p)
 !$OMP ATOMIC
-                  product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%nze = &
-                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%nze+ &
+                  product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%nze = &
+                     product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%nze+ &
                      dbcsr_mm_multrec_get_nze(multrec(ithread, irow3D_send, icol3D_send)%p)
 !$OMP BARRIER
 !$OMP MASTER
@@ -2762,10 +2762,10 @@ CONTAINS
                   ! the offset sizes of each thread for meta and data
                   CALL ensure_array_size(buffers_orig%left%meta_red3D, &
                                          ub=product_matrix3D%mats(irow3D_send, icol3D_send)% &
-                                         matrix%m%nblks*3+(nthreads+1)*2, &
+                                         matrix%nblks*3+(nthreads+1)*2, &
                                          nocopy=.TRUE., memory_type=memtype_mpi_buffer)
                   CALL dbcsr_data_ensure_size(buffers_orig%left%data_red3D, &
-                                              product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%m%nze, &
+                                              product_matrix3D%mats(irow3D_send, icol3D_send)%matrix%nze, &
                                               nocopy=.TRUE.)
                   ! Set the offsets
                   buffers_orig%left%meta_red3D(1) = (nthreads+1)*2
@@ -2915,11 +2915,11 @@ CONTAINS
       !
       IF (debug_mod) THEN
          v_ki = 0
-         DO blk = 1, SIZE(product_matrix%m%blk_p)
-            v_ki = MAX(v_ki, ABS(product_matrix%m%blk_p(blk)))
+         DO blk = 1, SIZE(product_matrix%blk_p)
+            v_ki = MAX(v_ki, ABS(product_matrix%blk_p(blk)))
          ENDDO
          WRITE (*, *) routineN//" Actual final size", &
-            LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0), &
+            LOG(REAL(dbcsr_data_get_size(product_matrix%data_area)))/LOG(10.0), &
             LOG(REAL(v_ki))/LOG(10.0)
       ENDIF
       !
@@ -2997,7 +2997,7 @@ CONTAINS
       TYPE(dbcsr_buffer_p), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: buffers
       INTEGER, INTENT(IN)                                :: nbuffers, meta_size
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
 
       INTEGER                                            :: ibuffer, jbuffer
@@ -3153,8 +3153,8 @@ CONTAINS
                                 retain_sparsity, &
                                 filter_eps, flop, keep_product_data)
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist_left, imgdist_right
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_left, matrix_right
-      TYPE(dbcsr_obj), INTENT(INOUT)                     :: product_matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_left, matrix_right
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: product_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
       REAL(kind=real_8), INTENT(IN), OPTIONAL            :: filter_eps
       INTEGER(KIND=int_8), INTENT(OUT)                   :: flop
@@ -3205,7 +3205,7 @@ CONTAINS
       TYPE(dbcsr_mm_multrec_type_p), ALLOCATABLE, &
          DIMENSION(:)                                    :: multrec, multrec_scatter
       TYPE(dbcsr_mp_obj)                                 :: left_mp_obj, product_mp_obj, right_mp_obj
-      TYPE(dbcsr_obj)                                    :: product_matrix_scatter
+      TYPE(dbcsr_type)                                   :: product_matrix_scatter
 
 !   ---------------------------------------------------------------------------
 
@@ -3233,9 +3233,9 @@ CONTAINS
 !$    size_index_merged = size_index_merged+nthreads+1
       !
       ! Dummy checks
-      IF (.NOT. ASSOCIATED(product_matrix%m%wms)) &
+      IF (.NOT. ASSOCIATED(product_matrix%wms)) &
          CPABORT("Work matrices do not exist")
-      IF (SIZE(product_matrix%m%wms) .NE. nthreads) &
+      IF (SIZE(product_matrix%wms) .NE. nthreads) &
          CPABORT("Work matrices not correctly sized.")
       IF (.NOT. buffers_orig%left%is_valid .OR. &
           .NOT. buffers_orig%right%is_valid .OR. &
@@ -3272,7 +3272,7 @@ CONTAINS
       right_col_mult = imgdist_right%i%col_multiplicity
       left_mp_obj = dbcsr_distribution_mp(imgdist_left%i%main)
       right_mp_obj = dbcsr_distribution_mp(imgdist_right%i%main)
-      product_mp_obj = dbcsr_distribution_mp(product_matrix%m%dist)
+      product_mp_obj = dbcsr_distribution_mp(product_matrix%dist)
       numnodes = dbcsr_mp_numnodes(product_mp_obj)
       mynode = dbcsr_mp_mynode(product_mp_obj)
       myprow = dbcsr_mp_myprow(product_mp_obj)
@@ -3347,26 +3347,26 @@ CONTAINS
           right_col_nimages .GT. 1 .AND. .NOT. has_acc .AND. &
           is_not_virtual) THEN
          IF (do_diagonal) THEN
-            meta_size_scatter = product_matrix%m%index(dbcsr_slot_size)
+            meta_size_scatter = product_matrix%index(dbcsr_slot_size)
          ENDIF
          CALL mp_bcast(meta_size_scatter, right_myprow, grp_gather)
          CALL ensure_array_size(local_meta_product_scatter, ub=meta_size_scatter, &
                                 nocopy=.TRUE., memory_type=memtype_mpi_buffer)
          IF (do_diagonal) THEN
             local_meta_product_scatter(1:meta_size_scatter) = &
-               product_matrix%m%index(1:meta_size_scatter)
-            local_meta_product_scatter(dbcsr_slot_nblks) = product_matrix%m%nblks
-            local_meta_product_scatter(dbcsr_slot_nze) = product_matrix%m%nze
+               product_matrix%index(1:meta_size_scatter)
+            local_meta_product_scatter(dbcsr_slot_nblks) = product_matrix%nblks
+            local_meta_product_scatter(dbcsr_slot_nze) = product_matrix%nze
          ENDIF
          CALL mp_ibcast(local_meta_product_scatter, right_myprow, &
                         grp_gather, request_product_matrix)
       ENDIF
       !
-      product_matrix%m%nblks = 0
-      product_matrix%m%nze = 0
-      product_matrix%m%row_p(:) = 0
-      CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
-      product_matrix%m%valid = .FALSE.
+      product_matrix%nblks = 0
+      product_matrix%nze = 0
+      product_matrix%row_p(:) = 0
+      CALL dbcsr_data_set_size_referenced(product_matrix%data_area, 0)
+      product_matrix%valid = .FALSE.
       !
       ! Count the maximum possible multiplies per row for on-the-fly filtering
       IF (otf_filtering) THEN
@@ -3408,7 +3408,7 @@ CONTAINS
       ! Prepare result matrix for scatter data
       nimages_scatter = 0
       IF (do_scatter .OR. do_diagonal) THEN
-         product_matrix_scatter = dbcsr_obj()
+         product_matrix_scatter = dbcsr_type()
          !
          ! Check scattered meta
          IF (local_size_scatter(imeta) .GT. 1) THEN
@@ -3431,24 +3431,24 @@ CONTAINS
          ENDIF
          CALL dbcsr_create(product_matrix_scatter, &
                            template=product_matrix, &
-                           name=TRIM("Scatter buffer of "//TRIM(product_matrix%m%name)), &
+                           name=TRIM("Scatter buffer of "//TRIM(product_matrix%name)), &
                            make_index=.NOT. keep_sparsity .OR. local_size_scatter(imeta) .LE. 1, &
                            data_buffer=local_data_product_scatter)
          IF (local_size_scatter(imeta) .GT. 1) THEN
             !
             IF (keep_sparsity) THEN
-               product_matrix_scatter%m%index => local_meta_product_scatter
-               CALL dbcsr_data_ensure_size(product_matrix_scatter%m%data_area, &
-                                           product_matrix_scatter%m%index(dbcsr_slot_nze), &
+               product_matrix_scatter%index => local_meta_product_scatter
+               CALL dbcsr_data_ensure_size(product_matrix_scatter%data_area, &
+                                           product_matrix_scatter%index(dbcsr_slot_nze), &
                                            zero_pad=.TRUE.)
             ELSE
-               CALL dbcsr_data_set_size_referenced(product_matrix_scatter%m%data_area, 0)
+               CALL dbcsr_data_set_size_referenced(product_matrix_scatter%data_area, 0)
             ENDIF
             !
-            product_matrix_scatter%m%index(dbcsr_slot_home_pcol) = myprow
+            product_matrix_scatter%index(dbcsr_slot_home_pcol) = myprow
             CALL dbcsr_reset_locals(product_matrix_scatter)
-            CALL dbcsr_repoint_index(product_matrix_scatter%m)
-            product_matrix_scatter%m%valid = .FALSE.
+            CALL dbcsr_repoint_index(product_matrix_scatter)
+            product_matrix_scatter%valid = .FALSE.
             ALLOCATE (multrec_scatter(0:nthreads-1))
             !
 !$OMP PARALLEL DEFAULT(NONE) &
@@ -3473,17 +3473,17 @@ CONTAINS
             ENDIF
 !$OMP BARRIER
             ! The work arrays have to be setup
-            size_guess = product_matrix_scatter%m%wms(ithread+1)%datasize ! Should be minimal
-            CALL dbcsr_data_ensure_size(product_matrix_scatter%m%wms(ithread+1)%data_area, &
+            size_guess = product_matrix_scatter%wms(ithread+1)%datasize ! Should be minimal
+            CALL dbcsr_data_ensure_size(product_matrix_scatter%wms(ithread+1)%data_area, &
                                         size_guess)
-            CALL dbcsr_data_set_size_referenced(product_matrix_scatter%m%wms(ithread+1)%data_area, &
-                                                product_matrix_scatter%m%wms(ithread+1)%datasize)
-            CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%row_i, ub=1)
-            CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%col_i, ub=1)
-            CALL ensure_array_size(product_matrix_scatter%m%wms(ithread+1)%blk_p, ub=1)
+            CALL dbcsr_data_set_size_referenced(product_matrix_scatter%wms(ithread+1)%data_area, &
+                                                product_matrix_scatter%wms(ithread+1)%datasize)
+            CALL ensure_array_size(product_matrix_scatter%wms(ithread+1)%row_i, ub=1)
+            CALL ensure_array_size(product_matrix_scatter%wms(ithread+1)%col_i, ub=1)
+            CALL ensure_array_size(product_matrix_scatter%wms(ithread+1)%blk_p, ub=1)
             ALLOCATE (multrec_scatter(ithread)%p)
             CALL dbcsr_mm_multrec_init(multrec_scatter(ithread)%p, &
-                                       product=product_matrix_scatter%m, &
+                                       product=product_matrix_scatter, &
                                        keep_sparsity=keep_sparsity, &
                                        eps=filter_eps, &
                                        row_max_epss=row_max_epss, &
@@ -3491,9 +3491,9 @@ CONTAINS
                                        right_row_blk_size=dbcsr_row_block_sizes(matrix_right), &
                                        nlayers=nlayers)
 !$OMP END PARALLEL
-            product_matrix_scatter%m%nblks = 0
-            product_matrix_scatter%m%nze = 0
-            product_matrix_scatter%m%row_p(:) = 0
+            product_matrix_scatter%nblks = 0
+            product_matrix_scatter%nze = 0
+            product_matrix_scatter%row_p(:) = 0
             !
             ! Set images with scatter data
             CALL setup_buffer_matrices_images(buffer_scatter, nimages_scatter, &
@@ -3502,28 +3502,28 @@ CONTAINS
             meta_size_scatter = 0
             right_data_size = 0
             DO v_ki = 1, nimages_scatter
-               buffer_scatter%mats(v_ki)%m%index => local_meta_scatter(meta_size_scatter+dbcsr_slot_size: &
-                                                                       meta_size_scatter+ &
-                                                                       local_meta_scatter(meta_size_scatter+ &
-                                                                                          dbcsr_slot_size))
+               buffer_scatter%mats(v_ki)%index => local_meta_scatter(meta_size_scatter+dbcsr_slot_size: &
+                                                                     meta_size_scatter+ &
+                                                                     local_meta_scatter(meta_size_scatter+ &
+                                                                                        dbcsr_slot_size))
                meta_size_scatter = meta_size_scatter+local_meta_scatter(meta_size_scatter+dbcsr_slot_size)
                CALL dbcsr_reset_vlocals(buffer_scatter%mats(v_ki), imgdist_right, do_rows=.TRUE.)
                ! Set local cols
-               CALL array_release(buffer_scatter%mats(v_ki)%m%local_cols)
-               buffer_scatter%mats(v_ki)%m%local_cols = product_matrix_scatter%m%local_cols
-               CALL array_hold(buffer_scatter%mats(v_ki)%m%local_cols)
-               buffer_scatter%mats(v_ki)%m%has_local_cols = .TRUE.
-               buffer_scatter%mats(v_ki)%m%nblkcols_local = product_matrix_scatter%m%nblkcols_local
-               buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_nblkcols_local) = &
-                  product_matrix_scatter%m%nblkcols_local
-               CALL dbcsr_repoint_index(buffer_scatter%mats(v_ki)%m)
-               buffer_scatter%mats(v_ki)%m%index(dbcsr_num_slots+3: &
-                                                 buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_size):3) = &
-                  buffer_scatter%mats(v_ki)%m%index(dbcsr_num_slots+3: &
-                                                    buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_size):3)+ &
+               CALL array_release(buffer_scatter%mats(v_ki)%local_cols)
+               buffer_scatter%mats(v_ki)%local_cols = product_matrix_scatter%local_cols
+               CALL array_hold(buffer_scatter%mats(v_ki)%local_cols)
+               buffer_scatter%mats(v_ki)%has_local_cols = .TRUE.
+               buffer_scatter%mats(v_ki)%nblkcols_local = product_matrix_scatter%nblkcols_local
+               buffer_scatter%mats(v_ki)%index(dbcsr_slot_nblkcols_local) = &
+                  product_matrix_scatter%nblkcols_local
+               CALL dbcsr_repoint_index(buffer_scatter%mats(v_ki))
+               buffer_scatter%mats(v_ki)%index(dbcsr_num_slots+3: &
+                                               buffer_scatter%mats(v_ki)%index(dbcsr_slot_size):3) = &
+                  buffer_scatter%mats(v_ki)%index(dbcsr_num_slots+3: &
+                                                  buffer_scatter%mats(v_ki)%index(dbcsr_slot_size):3)+ &
                   right_data_size
-               right_data_size = right_data_size+buffer_scatter%mats(v_ki)%m%index(dbcsr_slot_nze)
-               buffer_scatter%mats(v_ki)%m%valid = .TRUE.
+               right_data_size = right_data_size+buffer_scatter%mats(v_ki)%index(dbcsr_slot_nze)
+               buffer_scatter%mats(v_ki)%valid = .TRUE.
             ENDDO
          ENDIF
       ENDIF
@@ -3554,17 +3554,17 @@ CONTAINS
 !$    ithread = OMP_GET_THREAD_NUM()
       !
       ! The work arrays have to be setup
-      size_guess = product_matrix%m%wms(ithread+1)%datasize ! Should be minimal
-      CALL dbcsr_data_ensure_size(product_matrix%m%wms(ithread+1)%data_area, &
+      size_guess = product_matrix%wms(ithread+1)%datasize ! Should be minimal
+      CALL dbcsr_data_ensure_size(product_matrix%wms(ithread+1)%data_area, &
                                   size_guess)
-      CALL dbcsr_data_set_size_referenced(product_matrix%m%wms(ithread+1)%data_area, &
-                                          product_matrix%m%wms(ithread+1)%datasize)
-      CALL ensure_array_size(product_matrix%m%wms(ithread+1)%row_i, ub=1)
-      CALL ensure_array_size(product_matrix%m%wms(ithread+1)%col_i, ub=1)
-      CALL ensure_array_size(product_matrix%m%wms(ithread+1)%blk_p, ub=1)
+      CALL dbcsr_data_set_size_referenced(product_matrix%wms(ithread+1)%data_area, &
+                                          product_matrix%wms(ithread+1)%datasize)
+      CALL ensure_array_size(product_matrix%wms(ithread+1)%row_i, ub=1)
+      CALL ensure_array_size(product_matrix%wms(ithread+1)%col_i, ub=1)
+      CALL ensure_array_size(product_matrix%wms(ithread+1)%blk_p, ub=1)
       ALLOCATE (multrec(ithread)%p)
       CALL dbcsr_mm_multrec_init(multrec(ithread)%p, &
-                                 product=product_matrix%m, &
+                                 product=product_matrix, &
                                  keep_sparsity=keep_sparsity, &
                                  eps=filter_eps, &
                                  row_max_epss=row_max_epss, &
@@ -3868,22 +3868,22 @@ CONTAINS
       ! These values for meta data are used for global values
       right_global_indices(dbcsr_slot_nblkrows_total:dbcsr_slot_nfullcols_local) = &
          (/ &
-         matrix_right%m%nblkrows_total, &
-         matrix_right%m%nblkcols_total, &
-         matrix_right%m%nfullrows_total, &
-         matrix_right%m%nfullcols_total, &
+         matrix_right%nblkrows_total, &
+         matrix_right%nblkcols_total, &
+         matrix_right%nfullrows_total, &
+         matrix_right%nfullcols_total, &
          0, 0, &
-         matrix_right%m%nfullrows_local, &
-         matrix_right%m%nfullcols_local/)
+         matrix_right%nfullrows_local, &
+         matrix_right%nfullcols_local/)
       left_global_indices(dbcsr_slot_nblkrows_total:dbcsr_slot_nfullcols_local) = &
          (/ &
-         matrix_left%m%nblkrows_total, &
-         matrix_left%m%nblkcols_total, &
-         matrix_left%m%nfullrows_total, &
-         matrix_left%m%nfullcols_total, &
+         matrix_left%nblkrows_total, &
+         matrix_left%nblkcols_total, &
+         matrix_left%nfullrows_total, &
+         matrix_left%nfullcols_total, &
          0, 0, &
-         matrix_left%m%nfullrows_local, &
-         matrix_left%m%nfullcols_local/)
+         matrix_left%nfullrows_local, &
+         matrix_left%nfullcols_local/)
       !
       ALLOCATE (right_get_requests_images(min_nimages))
       ALLOCATE (left_get_requests_images(min_nimages))
@@ -4007,8 +4007,8 @@ CONTAINS
          wait_merge_calc: IF (metronome .GT. 0) THEN
             IF (debug_mod) WRITE (*, '(1X,A)') routineN//" waiting for right and left"
             !
-            buffers_calc%right%buffer%mats(:)%m%nblks = 0
-            buffers_calc%left%buffer%mats(:)%m%nblks = 0
+            buffers_calc%right%buffer%mats(:)%nblks = 0
+            buffers_calc%left%buffer%mats(:)%nblks = 0
             !
             common_unmerged(:) = .FALSE.
             !
@@ -4110,10 +4110,10 @@ CONTAINS
             !
             IF (debug_mod) THEN
                DO v_ki = 1, min_nimages
-                  IF (buffers_calc%right%buffer%mats(v_ki)%m%nblks .NE. 0) &
+                  IF (buffers_calc%right%buffer%mats(v_ki)%nblks .NE. 0) &
                      CALL dbcsr_print(buffers_calc%right%buffer%mats(v_ki), &
                                       nodata=.TRUE.)
-                  IF (buffers_calc%left%buffer%mats(v_ki)%m%nblks .NE. 0) &
+                  IF (buffers_calc%left%buffer%mats(v_ki)%nblks .NE. 0) &
                      CALL dbcsr_print(buffers_calc%left%buffer%mats(v_ki), &
                                       nodata=.TRUE.)
                ENDDO
@@ -4141,10 +4141,10 @@ CONTAINS
 !$          ithread = omp_get_thread_num()
             !
             DO v_ki = 1, nimages_scatter
-               IF (buffers_calc%left%buffer%mats(v_k_scatter(v_ki))%m%nblks .EQ. 0) CYCLE
+               IF (buffers_calc%left%buffer%mats(v_k_scatter(v_ki))%nblks .EQ. 0) CYCLE
                CALL dbcsr_mm_multrec_multiply(multrec_scatter(ithread)%p, &
-                                              left=buffers_calc%left%buffer%mats(v_k_scatter(v_ki))%m, &
-                                              right=buffer_scatter%mats(v_ki)%m, &
+                                              left=buffers_calc%left%buffer%mats(v_k_scatter(v_ki)), &
+                                              right=buffer_scatter%mats(v_ki), &
                                               flop=flop, &
                                               a_norms=left_norms(:, v_k_scatter(v_ki)), &
                                               b_norms=right_norms(:, v_ki), &
@@ -4183,11 +4183,11 @@ CONTAINS
       !
       IF (debug_mod) THEN
          v_ki = 0
-         DO blk = 1, SIZE(product_matrix%m%blk_p)
-            v_ki = MAX(v_ki, ABS(product_matrix%m%blk_p(blk)))
+         DO blk = 1, SIZE(product_matrix%blk_p)
+            v_ki = MAX(v_ki, ABS(product_matrix%blk_p(blk)))
          ENDDO
          WRITE (*, *) routineN//" Actual final size", &
-            LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0), &
+            LOG(REAL(dbcsr_data_get_size(product_matrix%data_area)))/LOG(10.0), &
             LOG(REAL(v_ki))/LOG(10.0)
       ENDIF
       !
@@ -4234,14 +4234,14 @@ CONTAINS
             DEALLOCATE (v_k_scatter)
             IF (do_scatter) THEN
                DO v_ki = 1, nimages_scatter
-                  NULLIFY (buffer_scatter%mats(v_ki)%m%index)
+                  NULLIFY (buffer_scatter%mats(v_ki)%index)
                ENDDO
                CALL dbcsr_destroy_array(buffer_scatter)
                DEALLOCATE (multrec_scatter)
                CALL dbcsr_finalize(product_matrix_scatter)
-               IF (product_matrix_scatter%m%nblks .NE. 0) THEN
-                  local_meta_size_gather = product_matrix_scatter%m%index(dbcsr_slot_size)
-                  local_data_size_gather = product_matrix_scatter%m%index(dbcsr_slot_nze)
+               IF (product_matrix_scatter%nblks .NE. 0) THEN
+                  local_meta_size_gather = product_matrix_scatter%index(dbcsr_slot_size)
+                  local_data_size_gather = product_matrix_scatter%index(dbcsr_slot_nze)
                ENDIF
             ENDIF
          ENDIF
@@ -4277,20 +4277,20 @@ CONTAINS
                                                 data_displ_gather(right_npcols-1)+data_size_gather(right_npcols-1))
             CALL dbcsr_create(product_matrix_scatter, &
                               template=product_matrix, &
-                              name=TRIM("Gather buffer of "//TRIM(product_matrix%m%name)), &
+                              name=TRIM("Gather buffer of "//TRIM(product_matrix%name)), &
                               make_index=.NOT. keep_sparsity, &
                               data_buffer=local_data_scatter)
             IF (keep_sparsity) THEN
-               product_matrix_scatter%m%index => local_meta_product_scatter
-               CALL dbcsr_repoint_index(product_matrix_scatter%m)
+               product_matrix_scatter%index => local_meta_product_scatter
+               CALL dbcsr_repoint_index(product_matrix_scatter)
             ENDIF
             CALL dbcsr_reset_locals(product_matrix_scatter)
-            product_matrix_scatter%m%nblks = 0
-            product_matrix_scatter%m%nze = 0
-            product_matrix_scatter%m%row_p(:) = 0
-            product_matrix_scatter%m%valid = .FALSE.
+            product_matrix_scatter%nblks = 0
+            product_matrix_scatter%nze = 0
+            product_matrix_scatter%row_p(:) = 0
+            product_matrix_scatter%valid = .FALSE.
          ENDIF
-         CALL mp_gatherv(product_matrix_scatter%m%index(1:local_meta_size_gather), &
+         CALL mp_gatherv(product_matrix_scatter%index(1:local_meta_size_gather), &
                          local_meta_scatter, meta_size_gather, meta_displ_gather, &
                          right_myprow, grp_gather)
          IF (do_diagonal) THEN
@@ -4299,15 +4299,15 @@ CONTAINS
             ! between send and receive buffers
             CALL dbcsr_gatherv_any(buffers_orig%right%data_diag, &
                                    local_data_size_gather, &
-                                   product_matrix_scatter%m%data_area, &
+                                   product_matrix_scatter%data_area, &
                                    data_size_gather, data_displ_gather, &
                                    right_myprow, grp_gather)
          ENDIF
          IF (do_scatter) THEN
             ! Sender
-            CALL dbcsr_gatherv_any(product_matrix_scatter%m%data_area, &
+            CALL dbcsr_gatherv_any(product_matrix_scatter%data_area, &
                                    local_data_size_gather, &
-                                   product_matrix_scatter%m%data_area, &
+                                   product_matrix_scatter%data_area, &
                                    data_size_gather, data_displ_gather, &
                                    right_myprow, grp_gather)
          ENDIF
@@ -4315,14 +4315,14 @@ CONTAINS
             ! Merge gathered images
             DO iproc = 0, right_npcols-1
                IF (meta_size_gather(iproc) .GT. 1) THEN
-                  product_matrix_scatter%m%index(dbcsr_slot_nblks) = &
-                     product_matrix_scatter%m%index(dbcsr_slot_nblks)+ &
+                  product_matrix_scatter%index(dbcsr_slot_nblks) = &
+                     product_matrix_scatter%index(dbcsr_slot_nblks)+ &
                      local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_nblks)
-                  product_matrix_scatter%m%index(dbcsr_slot_nze) = &
-                     product_matrix_scatter%m%index(dbcsr_slot_nze)+ &
+                  product_matrix_scatter%index(dbcsr_slot_nze) = &
+                     product_matrix_scatter%index(dbcsr_slot_nze)+ &
                      local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_nze)
-                  product_matrix_scatter%m%row_p(:) = &
-                     product_matrix_scatter%m%row_p(:)+ &
+                  product_matrix_scatter%row_p(:) = &
+                     product_matrix_scatter%row_p(:)+ &
                      local_meta_scatter(meta_displ_gather(iproc)+ &
                                         local_meta_scatter(meta_displ_gather(iproc)+ &
                                                            dbcsr_slot_row_p): &
@@ -4331,22 +4331,22 @@ CONTAINS
                                                            dbcsr_slot_row_p+1))
                ENDIF
             ENDDO
-            product_matrix_scatter%m%index(dbcsr_slot_size) = &
-               product_matrix_scatter%m%index(dbcsr_slot_size)+ &
-               product_matrix_scatter%m%index(dbcsr_slot_nblks)*2
-            product_matrix_scatter%m%index(dbcsr_slot_col_i+1) = &
-               product_matrix_scatter%m%index(dbcsr_slot_col_i)+ &
-               product_matrix_scatter%m%index(dbcsr_slot_nblks)-1
-            product_matrix_scatter%m%index(dbcsr_slot_blk_p) = &
-               product_matrix_scatter%m%index(dbcsr_slot_col_i+1)+1
-            product_matrix_scatter%m%index(dbcsr_slot_blk_p+1) = &
-               product_matrix_scatter%m%index(dbcsr_slot_blk_p)+ &
-               product_matrix_scatter%m%index(dbcsr_slot_nblks)-1
-            CALL ensure_array_size(product_matrix_scatter%m%index, &
-                                   ub=product_matrix_scatter%m%index(dbcsr_slot_size), &
+            product_matrix_scatter%index(dbcsr_slot_size) = &
+               product_matrix_scatter%index(dbcsr_slot_size)+ &
+               product_matrix_scatter%index(dbcsr_slot_nblks)*2
+            product_matrix_scatter%index(dbcsr_slot_col_i+1) = &
+               product_matrix_scatter%index(dbcsr_slot_col_i)+ &
+               product_matrix_scatter%index(dbcsr_slot_nblks)-1
+            product_matrix_scatter%index(dbcsr_slot_blk_p) = &
+               product_matrix_scatter%index(dbcsr_slot_col_i+1)+1
+            product_matrix_scatter%index(dbcsr_slot_blk_p+1) = &
+               product_matrix_scatter%index(dbcsr_slot_blk_p)+ &
+               product_matrix_scatter%index(dbcsr_slot_nblks)-1
+            CALL ensure_array_size(product_matrix_scatter%index, &
+                                   ub=product_matrix_scatter%index(dbcsr_slot_size), &
                                    nocopy=.FALSE., memory_type=memtype_mpi_buffer)
             !
-            CALL dbcsr_repoint_index(product_matrix_scatter%m)
+            CALL dbcsr_repoint_index(product_matrix_scatter)
             !
             ! Collect col_i and blk_p, row by row
 !$OMP PARALLEL DEFAULT (NONE) &
@@ -4356,10 +4356,10 @@ CONTAINS
 !$OMP PRIVATE (local_meta_size_gather,iproc,col,v_ki,&
 !$OMP          col_i,blk_p,row)
 !$OMP DO
-            DO row = 0, SIZE(product_matrix_scatter%m%row_p)-2
-               local_meta_size_gather = product_matrix_scatter%m%row_p(row+1)+1
+            DO row = 0, SIZE(product_matrix_scatter%row_p)-2
+               local_meta_size_gather = product_matrix_scatter%row_p(row+1)+1
                ! Skip empty rows
-               IF (local_meta_size_gather .GT. product_matrix_scatter%m%row_p(row+2)) CYCLE
+               IF (local_meta_size_gather .GT. product_matrix_scatter%row_p(row+2)) CYCLE
                DO iproc = 0, right_npcols-1
                   IF (meta_size_gather(iproc) .GT. 1) THEN
                      col = meta_displ_gather(iproc)+ &
@@ -4375,9 +4375,9 @@ CONTAINS
                                                  local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_blk_p): &
                                                  meta_displ_gather(iproc)+ &
                                                  local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_blk_p+1))
-                     product_matrix_scatter%m%col_i(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
+                     product_matrix_scatter%col_i(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
                         col_i(local_meta_scatter(col)+1:local_meta_scatter(col+1))
-                     product_matrix_scatter%m%blk_p(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
+                     product_matrix_scatter%blk_p(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
                         blk_p(local_meta_scatter(col)+1:local_meta_scatter(col+1))+ &
                         data_displ_gather(iproc)
                      local_meta_size_gather = local_meta_size_gather+v_ki
@@ -4392,7 +4392,7 @@ CONTAINS
                         meta_displ_gather, data_displ_gather)
          ENDIF
          CALL dbcsr_release_locals(product_matrix_scatter)
-         IF (keep_sparsity .AND. local_size_scatter(imeta) .GT. 1) NULLIFY (product_matrix_scatter%m%index)
+         IF (keep_sparsity .AND. local_size_scatter(imeta) .GT. 1) NULLIFY (product_matrix_scatter%index)
          CALL dbcsr_release(product_matrix_scatter)
          CALL timestop(handle2)
       ENDIF
@@ -4813,8 +4813,8 @@ CONTAINS
          !
          DO ui = 1, ncommons_unmerged
             CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p, &
-                                           left=left_buffer%buffer%mats(indices_common_unmerged(ui))%m, &
-                                           right=right_buffer%buffer%mats(indices_common_unmerged(ui))%m, &
+                                           left=left_buffer%buffer%mats(indices_common_unmerged(ui)), &
+                                           right=right_buffer%buffer%mats(indices_common_unmerged(ui)), &
                                            flop=flop, &
                                            a_norms=left_norms(:, indices_common_unmerged(ui)), &
                                            b_norms=right_norms(:, indices_common_unmerged(ui)), &
@@ -4843,7 +4843,7 @@ CONTAINS
       TYPE(dbcsr_1d_array_type), INTENT(INOUT)           :: buffer_set
       INTEGER, INTENT(IN)                                :: nimages
       TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
-      TYPE(dbcsr_obj), INTENT(IN)                        :: template_matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: template_matrix
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: data_buffer
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: index_size_images
       INTEGER, INTENT(IN), OPTIONAL                      :: index_size
@@ -4861,32 +4861,32 @@ CONTAINS
 !$OMP        imgdist,data_buffer,memtype_mpi_buffer,&
 !$OMP        index_size_images,index_size)
       DO v_ki = 1, nimages
-         buffer_set%mats(v_ki) = dbcsr_obj()
+         buffer_set%mats(v_ki) = dbcsr_type()
          CALL dbcsr_create(buffer_set%mats(v_ki), &
-                           "Buffer image of "//template_matrix%m%name, &
+                           "Buffer image of "//template_matrix%name, &
                            imgdist%i%main, &
                            dbcsr_type_no_symmetry, &
-                           array_data(template_matrix%m%row_blk_size), array_data(template_matrix%m%col_blk_size), &
-                           template_matrix%m%row_blk_size, template_matrix%m%col_blk_size, &
+                           array_data(template_matrix%row_blk_size), array_data(template_matrix%col_blk_size), &
+                           template_matrix%row_blk_size, template_matrix%col_blk_size, &
                            data_type=dbcsr_data_get_type(data_buffer), &
                            data_buffer=data_buffer, &
-                           max_rbs=template_matrix%m%max_rbs, max_cbs=template_matrix%m%max_cbs, &
-                           row_blk_offset=template_matrix%m%row_blk_offset, col_blk_offset=template_matrix%m%col_blk_offset, &
+                           max_rbs=template_matrix%max_rbs, max_cbs=template_matrix%max_cbs, &
+                           row_blk_offset=template_matrix%row_blk_offset, col_blk_offset=template_matrix%col_blk_offset, &
                            index_memory_type=memtype_mpi_buffer, &
                            make_index=.FALSE.)
          IF (PRESENT(index_size_images)) THEN
-            CALL ensure_array_size(buffer_set%mats(v_ki)%m%index, &
+            CALL ensure_array_size(buffer_set%mats(v_ki)%index, &
                                    ub=index_size_images(v_ki), nocopy=.TRUE., &
                                    memory_type=dbcsr_get_index_memory_type(buffer_set%mats(v_ki)))
          ELSEIF (PRESENT(index_size)) THEN
-            CALL ensure_array_size(buffer_set%mats(v_ki)%m%index, &
+            CALL ensure_array_size(buffer_set%mats(v_ki)%index, &
                                    ub=index_size, nocopy=.TRUE., &
                                    memory_type=dbcsr_get_index_memory_type(buffer_set%mats(v_ki)))
          ENDIF
-         buffer_set%mats(v_ki)%m%negate_real = template_matrix%m%negate_real
-         buffer_set%mats(v_ki)%m%negate_imaginary = template_matrix%m%negate_imaginary
-         buffer_set%mats(v_ki)%m%local_indexing = .TRUE.
-         buffer_set%mats(v_ki)%m%list_indexing = .TRUE.
+         buffer_set%mats(v_ki)%negate_real = template_matrix%negate_real
+         buffer_set%mats(v_ki)%negate_imaginary = template_matrix%negate_imaginary
+         buffer_set%mats(v_ki)%local_indexing = .TRUE.
+         buffer_set%mats(v_ki)%list_indexing = .TRUE.
       ENDDO
 !$OMP END PARALLEL DO
    END SUBROUTINE setup_buffer_matrices_images
@@ -5127,8 +5127,8 @@ CONTAINS
       IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4) &
          CPABORT("build_trs_stack: stac_buf has wrong datatype")
 
-      row_blk_sizes => array_data(matrices%mats(indices(1))%m%row_blk_size)
-      col_blk_sizes => array_data(matrices%mats(indices(1))%m%col_blk_size)
+      row_blk_sizes => array_data(matrices%mats(indices(1))%row_blk_size)
+      col_blk_sizes => array_data(matrices%mats(indices(1))%col_blk_size)
 
       ! enumerate the blocksizes to keep the following 2D-arrays small.
       CALL enumerate_blk_sizes(row_blk_sizes, row_blk_sizes2enum, enum2row_blk_sizes)
@@ -5142,16 +5142,16 @@ CONTAINS
 
       nblks_total = 0
       DO imat = 1, SIZE(indices)
-         nblks_total = nblks_total+matrices%mats(indices(imat))%m%nblks
+         nblks_total = nblks_total+matrices%mats(indices(imat))%nblks
       ENDDO
       ALLOCATE (tmp_stack(3, nblks_total))
 
       nblks_total = 0
       DO imat = 1, SIZE(indices)
-         blk_index => matrices%mats(indices(imat))%m%coo_l
-         local2global_rows => array_data(matrices%mats(indices(imat))%m%local_rows)
-         local2global_cols => array_data(matrices%mats(indices(imat))%m%local_cols)
-         nblks = matrices%mats(indices(imat))%m%nblks
+         blk_index => matrices%mats(indices(imat))%coo_l
+         local2global_rows => array_data(matrices%mats(indices(imat))%local_rows)
+         local2global_cols => array_data(matrices%mats(indices(imat))%local_cols)
+         nblks = matrices%mats(indices(imat))%nblks
 
          ! collect block addresses and dimensions in a temporary stack
          ! while doing so, also count number of blocks per block-dimensions
@@ -5562,8 +5562,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ioffset_first
       INTEGER, DIMENSION(:), POINTER                     :: unmerged_indices
       LOGICAL                                            :: noempty
-      TYPE(dbcsr_obj), POINTER                           :: image_obj
-      TYPE(dbcsr_type), POINTER                          :: image
+      TYPE(dbcsr_type), POINTER                          :: image, image_obj
 
       CALL timeset(routineN, handle)
       !
@@ -5637,7 +5636,7 @@ CONTAINS
 !$OMP SCHEDULE(guided)
       images_unmerge: DO ui = my_uf, my_ul
          image_obj => images%mats(ui)
-         image => image_obj%m
+         image => image_obj
          CALL set_empty_meta_index(image%index, global_indices, size_index_merged)
          noempty = .TRUE.
          IF (PRESENT(vunmerged)) THEN

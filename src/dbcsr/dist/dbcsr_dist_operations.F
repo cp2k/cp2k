@@ -40,7 +40,6 @@ MODULE dbcsr_dist_operations
                                               swap
    USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                               dbcsr_mp_obj,&
-                                              dbcsr_obj,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp,&
                                               sp
@@ -68,18 +67,6 @@ MODULE dbcsr_dist_operations
 
    ! Helper routines
    PUBLIC :: dbcsr_dist_bin, find_all_local_elements, rebin_distribution
-
-   INTERFACE dbcsr_get_stored_block_info
-      MODULE PROCEDURE get_stored_block_info_type, get_stored_block_info_obj
-   END INTERFACE
-
-   INTERFACE dbcsr_get_stored_coordinates
-      MODULE PROCEDURE get_stored_coordinates_type, get_stored_coordinates_obj
-   END INTERFACE
-
-   INTERFACE dbcsr_get_block_index
-      MODULE PROCEDURE get_block_index_type, get_block_index_obj
-   END INTERFACE
 
    LOGICAL, PARAMETER :: careful_mod = .FALSE.
    LOGICAL, PARAMETER :: debug_mod = .FALSE.
@@ -137,7 +124,7 @@ CONTAINS
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! **************************************************************************************************
-   PURE SUBROUTINE get_stored_coordinates_type(matrix, row, column, processor)
+   PURE SUBROUTINE dbcsr_get_stored_coordinates(matrix, row, column, processor)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: row, column
       INTEGER, INTENT(OUT), OPTIONAL                     :: processor
@@ -154,7 +141,7 @@ CONTAINS
             processor = dbcsr_distribution_processor(matrix%dist, row, column)
          ENDIF
       ENDIF
-   END SUBROUTINE get_stored_coordinates_type
+   END SUBROUTINE dbcsr_get_stored_coordinates
 
 ! **************************************************************************************************
 !> \brief Canonical logic
@@ -194,33 +181,6 @@ CONTAINS
    END SUBROUTINE get_stored_canonical
 
 ! **************************************************************************************************
-!> \brief Sets the correct source matrix, row, column and possible data
-!>        transposition for a given matrix and matrix logical row and
-!>        column.
-!> \param[in] matrix          DBCSR matrix
-!> \param[in] row             logical row
-!> \param[in] column          logical column
-!> \param[out] processor      (optional) returns the processor on which this
-!>                            block resides
-! **************************************************************************************************
-   SUBROUTINE get_stored_coordinates_obj(matrix, row, column, processor)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      INTEGER, INTENT(IN)                                :: row, column
-      INTEGER, INTENT(OUT), OPTIONAL                     :: processor
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &
-         routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-      IF (PRESENT(processor)) THEN
-         CALL dbcsr_get_stored_coordinates(matrix%m, row, column, processor)
-      ELSE
-         CALL dbcsr_get_stored_coordinates(matrix%m, row, column)
-      ENDIF
-   END SUBROUTINE get_stored_coordinates_obj
-
-! **************************************************************************************************
 !> \brief Looks up a block's index given logical coordinates.
 !> \param[in] matrix          DBCSR matrix
 !> \param[in] row             logical row
@@ -234,8 +194,8 @@ CONTAINS
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
 ! **************************************************************************************************
-   PURE SUBROUTINE get_block_index_type(matrix, row, column, stored_row, &
-                                        stored_column, transpose, found, block_number, data_offset)
+   PURE SUBROUTINE dbcsr_get_block_index(matrix, row, column, stored_row, &
+                                         stored_column, transpose, found, block_number, data_offset)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: row, column
       INTEGER, INTENT(OUT)                               :: stored_row, stored_column
@@ -249,46 +209,9 @@ CONTAINS
       stored_column = column
       transpose = .FALSE.
       CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_column)
-      CALL get_stored_block_info_type(matrix, stored_row, stored_column, &
-                                      found, block_number, data_offset=data_offset, transposed=transpose)
-   END SUBROUTINE get_block_index_type
-
-! **************************************************************************************************
-!> \brief Sets the correct source matrix, row, column and possible data
-!>        transposition for a given matrix and matrix logical row and
-!>        column.
-!> \param[in] matrix          DBCSR matrix
-!> \param[in] row             logical row
-!> \param[in] column          logical column
-!> \param[out] stored_row     row where block is actually stored
-!> \param[out] stored_column  column where block is actually stored
-!> \param[out] transpose      whether the data must be transposed
-!> \param[out] found          whether the block was found
-!> \param[out] block_number   returns the block number of the row
-!>                            and column
-!> \param[out] data_offset    (optional) data offset for the block; 0 if
-!>                            nonexistent
-! **************************************************************************************************
-   PURE SUBROUTINE get_block_index_obj(matrix, row, column, stored_row, &
-                                       stored_column, transpose, found, block_number, data_offset)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      INTEGER, INTENT(IN)                                :: row, column
-      INTEGER, INTENT(OUT)                               :: stored_row, stored_column
-      LOGICAL, INTENT(OUT)                               :: transpose, found
-      INTEGER, INTENT(OUT)                               :: block_number
-      INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
-
-!   ---------------------------------------------------------------------------
-
-      IF (PRESENT(data_offset)) THEN
-         CALL dbcsr_get_block_index(matrix%m, row, column, stored_row, &
-                                    stored_column, transpose, found, block_number, &
-                                    data_offset=data_offset)
-      ELSE
-         CALL dbcsr_get_block_index(matrix%m, row, column, stored_row, &
-                                    stored_column, transpose, found, block_number)
-      ENDIF
-   END SUBROUTINE get_block_index_obj
+      CALL dbcsr_get_stored_block_info(matrix, stored_row, stored_column, &
+                                       found, block_number, data_offset=data_offset, transposed=transpose)
+   END SUBROUTINE dbcsr_get_block_index
 
 ! **************************************************************************************************
 !> \brief Returns the index to a queried block, given a real (stored) row and
@@ -306,8 +229,8 @@ CONTAINS
 !> \param[out] transposed     (optional) whether the block is stored transposed
 !>                            according to its position
 ! **************************************************************************************************
-   PURE SUBROUTINE get_stored_block_info_type(matrix, row, column, &
-                                              found, block_number, lb_row_col, data_offset, transposed)
+   PURE SUBROUTINE dbcsr_get_stored_block_info(matrix, row, column, &
+                                               found, block_number, lb_row_col, data_offset, transposed)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: row, column
       LOGICAL, INTENT(OUT)                               :: found
@@ -361,54 +284,7 @@ CONTAINS
             transposed = .FALSE.
          ENDIF
       ENDIF
-   END SUBROUTINE get_stored_block_info_type
-
-! **************************************************************************************************
-!> \brief Returns the index to a queried block, given a real (stored) row and
-!>        column
-!> \param[in] matrix          bcsr matrix
-!> \param[in] row             input is logical row, output is lookup row
-!> \param[in] column          input is logical column, output is lookup
-!>                            column
-!> \param[out] found          whether the block was found
-!> \param[out] block_number   returns the block number of the row
-!>                            and column; 0 if nonexistent
-!> \param lb_row_col ...
-!> \param[out] data_offset    (optional) data offset for the block; 0 if
-!>                            nonexistent
-!> \param[out] transposed     (optional) whether the block is stored transposed
-!>                            according to its position
-! **************************************************************************************************
-   PURE SUBROUTINE get_stored_block_info_obj(matrix, row, column, &
-                                             found, block_number, lb_row_col, data_offset, transposed)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
-      INTEGER, INTENT(IN)                                :: row, column
-      LOGICAL, INTENT(OUT)                               :: found
-      INTEGER, INTENT(OUT)                               :: block_number
-      INTEGER, DIMENSION(2), INTENT(INOUT), OPTIONAL     :: lb_row_col
-      INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: transposed
-
-!   ---------------------------------------------------------------------------
-
-      IF (PRESENT(data_offset)) THEN
-         IF (PRESENT(transposed)) THEN
-            CALL dbcsr_get_stored_block_info(matrix%m, row, column, found, &
-                                             block_number, lb_row_col, data_offset, transposed)
-         ELSE
-            CALL dbcsr_get_stored_block_info(matrix%m, row, column, found, &
-                                             block_number, lb_row_col, data_offset)
-         ENDIF
-      ELSE
-         IF (PRESENT(transposed)) THEN
-            CALL dbcsr_get_stored_block_info(matrix%m, row, column, found, &
-                                             block_number, lb_row_col, transposed=transposed)
-         ELSE
-            CALL dbcsr_get_stored_block_info(matrix%m, row, column, found, &
-                                             block_number, lb_row_col)
-         ENDIF
-      ENDIF
-   END SUBROUTINE get_stored_block_info_obj
+   END SUBROUTINE dbcsr_get_stored_block_info
 
 ! **************************************************************************************************
 !> \brief Transposes a distribution

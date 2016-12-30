@@ -7,11 +7,11 @@ MODULE qs_fb_filter_matrix_methods
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_info, cp_dbcsr_get_stored_coordinates, &
-        cp_dbcsr_init, cp_dbcsr_put_block, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
-        dbcsr_distribution_obj, dbcsr_type_no_symmetry
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_info, &
+        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_put_block, dbcsr_row_block_sizes, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE fermi_utils,                     ONLY: Fermi,&
                                               FermiFixed
    USE kinds,                           ONLY: default_string_length,&
@@ -96,14 +96,14 @@ CONTAINS
                                name, &
                                filter_mat, &
                                tolerance)
-      TYPE(cp_dbcsr_type), POINTER                       :: H_mat, S_mat
+      TYPE(dbcsr_type), POINTER                          :: H_mat, S_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level, filter_temp
       CHARACTER(LEN=*), INTENT(IN)                       :: name
-      TYPE(cp_dbcsr_type), POINTER                       :: filter_mat
+      TYPE(dbcsr_type), POINTER                          :: filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build', &
@@ -136,10 +136,10 @@ CONTAINS
       ! calculate the row_blk_size and col_blk_size arrays for
       ! constructing the filter matrix in DBCSR format
       ! row_blk_size for the filter matrix is the same as H or S
-      CALL cp_dbcsr_get_info(H_mat, &
-                             nblkcols_total=nblkcols_total, &
-                             row_blk_size=row_blk_size, &
-                             distribution=dbcsr_dist)
+      CALL dbcsr_get_info(H_mat, &
+                          nblkcols_total=nblkcols_total, &
+                          row_blk_size=row_blk_size, &
+                          distribution=dbcsr_dist)
       ALLOCATE (col_blk_size(nblkcols_total))
       col_blk_size = 0
       DO iblkcol = 1, nblkcols_total
@@ -156,14 +156,14 @@ CONTAINS
       symmetry_string = dbcsr_type_no_symmetry
       ! create empty filter matrix
       ALLOCATE (filter_mat)
-      CALL cp_dbcsr_init(filter_mat)
-      CALL cp_dbcsr_create(matrix=filter_mat, &
-                           name=name_string, &
-                           dist=dbcsr_dist, &
-                           matrix_type=symmetry_string, &
-                           row_blk_size=row_blk_size, &
-                           col_blk_size=col_blk_size, &
-                           nze=0)
+      CALL dbcsr_init(filter_mat)
+      CALL dbcsr_create(matrix=filter_mat, &
+                        name=name_string, &
+                        dist=dbcsr_dist, &
+                        matrix_type=symmetry_string, &
+                        row_blk_size=row_blk_size, &
+                        col_blk_size=col_blk_size, &
+                        nze=0)
       DEALLOCATE (col_blk_size)
 
       CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
@@ -215,7 +215,7 @@ CONTAINS
       END DO
 
       ! finalise the filter matrix
-      CALL cp_dbcsr_finalize(filter_mat)
+      CALL dbcsr_finalize(filter_mat)
 
       ! cleanup
       CALL fb_atomic_halo_release(dummy_atomic_halo)
@@ -258,14 +258,14 @@ CONTAINS
                                  name, &
                                  filter_mat, &
                                  tolerance)
-      TYPE(cp_dbcsr_type), POINTER                       :: H_mat, S_mat
+      TYPE(dbcsr_type), POINTER                          :: H_mat, S_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level, filter_temp
       CHARACTER(LEN=*), INTENT(IN)                       :: name
-      TYPE(cp_dbcsr_type), POINTER                       :: filter_mat
+      TYPE(dbcsr_type), POINTER                          :: filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_2', &
@@ -304,10 +304,10 @@ CONTAINS
       ! calculate the row_blk_size and col_blk_size arrays for
       ! constructing the filter matrix in DBCSR format
       ! row_blk_size for the filter matrix is the same as H or S
-      CALL cp_dbcsr_get_info(H_mat, &
-                             nblkcols_total=nblkcols_total, &
-                             row_blk_size=row_blk_size, &
-                             distribution=dbcsr_dist)
+      CALL dbcsr_get_info(H_mat, &
+                          nblkcols_total=nblkcols_total, &
+                          row_blk_size=row_blk_size, &
+                          distribution=dbcsr_dist)
       ALLOCATE (col_blk_size(nblkcols_total))
       col_blk_size = 0
       DO iblkcol = 1, nblkcols_total
@@ -322,14 +322,14 @@ CONTAINS
       CALL uppercase(name_string)
       ! create empty filter matrix (it is always non-symmetric as it is non-square)
       ALLOCATE (filter_mat)
-      CALL cp_dbcsr_init(filter_mat)
-      CALL cp_dbcsr_create(matrix=filter_mat, &
-                           name=name_string, &
-                           dist=dbcsr_dist, &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=row_blk_size, &
-                           col_blk_size=col_blk_size, &
-                           nze=0)
+      CALL dbcsr_init(filter_mat)
+      CALL dbcsr_create(matrix=filter_mat, &
+                        name=name_string, &
+                        dist=dbcsr_dist, &
+                        matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_size, &
+                        col_blk_size=col_blk_size, &
+                        nze=0)
       DEALLOCATE (col_blk_size)
 
       ! get all the blocks required for constructing atomic matrics, and
@@ -430,7 +430,7 @@ CONTAINS
       CALL fb_matrix_data_release(filter_mat_data)
 
       ! finalise matrix
-      CALL cp_dbcsr_finalize(filter_mat)
+      CALL dbcsr_finalize(filter_mat)
 
       CALL timestop(handle)
 
@@ -467,13 +467,13 @@ CONTAINS
                                     filter_temp, &
                                     filter_mat, &
                                     tolerance)
-      TYPE(cp_dbcsr_type), POINTER                       :: H_mat, S_mat
+      TYPE(dbcsr_type), POINTER                          :: H_mat, S_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level, filter_temp
-      TYPE(cp_dbcsr_type), POINTER                       :: filter_mat
+      TYPE(dbcsr_type), POINTER                          :: filter_mat
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol', &
@@ -530,7 +530,7 @@ CONTAINS
                             functions=tfns)
 
       ! obtain row and col block size data for filter matrix
-      row_block_size_data => cp_dbcsr_row_block_sizes(H_mat)
+      row_block_size_data => dbcsr_row_block_sizes(H_mat)
       natoms_global = SIZE(particle_set)
       ALLOCATE (col_block_size_data(natoms_global))
       DO jatom_global = 1, natoms_global
@@ -730,9 +730,9 @@ CONTAINS
             nrows_blk = row_block_size_data(iatom_global)
             ncols_blk = col_block_size_data(jatom_global)
             ind = recv_disps(ipe)+recv_sizes(ipe)
-            CALL cp_dbcsr_put_block(filter_mat, &
-                                    iatom_global, jatom_global, &
-                                    recv_buf((ind+1):(ind+nrows_blk*ncols_blk)))
+            CALL dbcsr_put_block(filter_mat, &
+                                 iatom_global, jatom_global, &
+                                 recv_buf((ind+1):(ind+nrows_blk*ncols_blk)))
             recv_sizes(ipe) = recv_sizes(ipe)+nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe
@@ -784,7 +784,7 @@ CONTAINS
                                       filter_temp, &
                                       filter_mat_data, &
                                       tolerance)
-      TYPE(cp_dbcsr_type), POINTER                       :: H_mat, S_mat
+      TYPE(dbcsr_type), POINTER                          :: H_mat, S_mat
       TYPE(fb_matrix_data_obj), INTENT(IN)               :: H_mat_data, S_mat_data
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       TYPE(fb_trial_fns_obj), INTENT(IN)                 :: trial_fns
@@ -823,7 +823,7 @@ CONTAINS
                             functions=tfns)
 
       ! obtain row and col block size data for filter matrix
-      row_block_size_data => cp_dbcsr_row_block_sizes(H_mat)
+      row_block_size_data => dbcsr_row_block_sizes(H_mat)
       natoms_global = SIZE(particle_set)
       ALLOCATE (col_block_size_data(natoms_global))
       DO jatom_global = 1, natoms_global
@@ -972,7 +972,7 @@ CONTAINS
                                             para_env, &
                                             atom_pairs_send, &
                                             atom_pairs_recv)
-      TYPE(cp_dbcsr_type), POINTER                       :: filter_mat
+      TYPE(dbcsr_type), POINTER                          :: filter_mat
       TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
@@ -1035,21 +1035,21 @@ CONTAINS
       ! total number of block rows in the DBCSR filter matrix.  We
       ! assumes that before calling this subroutine, the filter_mat has
       ! already been created and initialised: i.e. using
-      ! cp_dbcsr_create_new. Even if the matrix is at the moment empty,
+      ! dbcsr_create_new. Even if the matrix is at the moment empty,
       ! the attribute nblkrows_total is already assigned from the dbcsr
       ! distribution data
-      CALL cp_dbcsr_get_info(filter_mat, &
-                             nblkrows_total=nblkrows_total)
+      CALL dbcsr_get_info(filter_mat, &
+                          nblkrows_total=nblkrows_total)
 
       ! construct send tasks
       itask = 1
       DO iatom_in_halo = 1, natoms_in_halo
          iatom_global = halo_atoms(iatom_in_halo)
          ! find where the constructed block of filter matrix belongs to
-         CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
-                                              iatom_global, &
-                                              jatom_global, &
-                                              processor=dest)
+         CALL dbcsr_get_stored_coordinates(filter_mat, &
+                                           iatom_global, &
+                                           jatom_global, &
+                                           processor=dest)
          ! create the send tasks
          tasks_send(TASK_DEST, itask) = dest
          tasks_send(TASK_SRC, itask) = src
@@ -1111,7 +1111,7 @@ CONTAINS
                                               para_env, &
                                               atom_pairs_send, &
                                               atom_pairs_recv)
-      TYPE(cp_dbcsr_type), POINTER                       :: filter_mat
+      TYPE(dbcsr_type), POINTER                          :: filter_mat
       TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_com_atom_pairs_obj), INTENT(INOUT)         :: atom_pairs_send, atom_pairs_recv
@@ -1173,11 +1173,11 @@ CONTAINS
       ! total number of block rows in the DBCSR filter matrix.  We
       ! assumes that before calling this subroutine, the filter_mat has
       ! already been created and initialised: i.e. using
-      ! cp_dbcsr_create_new. Even if the matrix is at the moment empty,
+      ! dbcsr_create_new. Even if the matrix is at the moment empty,
       ! the attribute nblkrows_total is already assigned from the dbcsr
       ! distribution data
-      CALL cp_dbcsr_get_info(filter_mat, &
-                             nblkrows_total=nblkrows_total)
+      CALL dbcsr_get_info(filter_mat, &
+                          nblkrows_total=nblkrows_total)
 
       ! construct send tasks
       itask = 1
@@ -1192,10 +1192,10 @@ CONTAINS
             jatom_stored = jatom_global
             transpose = .FALSE.
             ! find where the constructed block of filter matrix belongs to
-            CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
-                                                 iatom_stored, &
-                                                 jatom_stored, &
-                                                 processor=dest)
+            CALL dbcsr_get_stored_coordinates(filter_mat, &
+                                              iatom_stored, &
+                                              jatom_stored, &
+                                              processor=dest)
             ! create the send tasks
             tasks_send(TASK_DEST, itask) = dest
             tasks_send(TASK_SRC, itask) = src

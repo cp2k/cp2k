@@ -26,7 +26,7 @@ MODULE dbcsr_tensor_types
         dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
         dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_finalize, &
         dbcsr_get_data_type, dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
-        dbcsr_name, dbcsr_obj, dbcsr_release, dbcsr_row_block_sizes
+        dbcsr_name, dbcsr_release, dbcsr_row_block_sizes, dbcsr_type
    USE dbcsr_tensor_index,              ONLY: create_nd_to_2d_mapping,&
                                               destroy_nd_to_2d_mapping,&
                                               get_2d_indices,&
@@ -59,7 +59,7 @@ MODULE dbcsr_tensor_types
       ndims_tensor
 
    TYPE dbcsr_t_type
-      TYPE(dbcsr_obj)                      :: matrix_rep
+      TYPE(dbcsr_type)                      :: matrix_rep
       TYPE(nd_to_2d_mapping)               :: nd_index_blk
       TYPE(nd_to_2d_mapping)               :: nd_index
       TYPE(array_list)                     :: blk_sizes
@@ -339,7 +339,7 @@ CONTAINS
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
 
-      CALL dbcsr_create(tensor%matrix_rep, tensor_in%matrix_rep)
+      CALL dbcsr_create(tensor%matrix_rep, template=tensor_in%matrix_rep)
       CALL dbcsr_finalize(tensor%matrix_rep)
 
       tensor%nd_index_blk = tensor_in%nd_index_blk
@@ -364,7 +364,7 @@ CONTAINS
 !> \param name ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_create_matrix(matrix_in, tensor, order, name)
-      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_in
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
       TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: order
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name

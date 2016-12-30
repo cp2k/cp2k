@@ -17,12 +17,6 @@ MODULE rt_delta_pulse
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                              cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_filter,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
@@ -44,6 +38,12 @@ MODULE rt_delta_pulse
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_filter,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -92,12 +92,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type), POINTER                         :: oo_c, oo_v, oo_vt
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: S_inv
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: eigenvectors, mat_ks, mat_tmp, momentum, &
                                                             oo_1, oo_2, S_chol, S_inv_fm, tmpS, &
                                                             virtuals
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: S_inv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -283,10 +283,10 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type), POINTER                         :: oo_c, oo_v, oo_vt
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: cosmat, S_inv, sinmat
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mat_S, oo_1, oo_2, S_inv_fm, tmp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: cosmat, S_inv, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(rt_prop_type), POINTER                        :: rtp
@@ -331,10 +331,10 @@ CONTAINS
       kvec(:) = dft_control%rtp_control%delta_pulse_scale*kvec
 
       ALLOCATE (cosmat, sinmat)
-      CALL cp_dbcsr_init(cosmat)
-      CALL cp_dbcsr_init(sinmat)
-      CALL cp_dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
-      CALL cp_dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
+      CALL dbcsr_init(cosmat)
+      CALL dbcsr_init(sinmat)
+      CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
+      CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
       CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
 
       ! apply inv(S)*operator to C
@@ -403,13 +403,13 @@ CONTAINS
 
       CALL cp_fm_release(mat_S)
 
-      CALL cp_dbcsr_deallocate_matrix(cosmat)
-      CALL cp_dbcsr_deallocate_matrix(sinmat)
+      CALL dbcsr_deallocate_matrix(cosmat)
+      CALL dbcsr_deallocate_matrix(sinmat)
 
 !***************************************************************
 !remove later
       CALL copy_fm_to_dbcsr(S_inv_fm, S_inv)
-      CALL cp_dbcsr_filter(S_inv, rtp%filter_eps)
+      CALL dbcsr_filter(S_inv, rtp%filter_eps)
       CALL cp_fm_release(S_inv_fm)
 !**************************************************************
 

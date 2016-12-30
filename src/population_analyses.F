@@ -18,11 +18,6 @@ MODULE population_analyses
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_copy, cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, &
-        cp_dbcsr_setname, cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
@@ -37,6 +32,11 @@ MODULE population_analyses
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_setname, &
+        dbcsr_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush
@@ -90,12 +90,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_p
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrixkp_p, matrixkp_s
-      TYPE(cp_dbcsr_type), POINTER                       :: sm_p, sm_s
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_p, matrixkp_s
+      TYPE(dbcsr_type), POINTER                          :: sm_p, sm_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -266,10 +266,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: ps
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop, p_block, ps_block, s_block
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_p, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: sm_p, sm_ps, sm_s
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: sm_p, sm_ps, sm_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -332,37 +332,37 @@ CONTAINS
          sm_s => matrix_s(1, 1)%matrix ! Overlap matrix in sparse format
          ALLOCATE (sm_ps)
          headline = "MULLIKEN NET ATOMIC ORBITAL AND OVERLAP POPULATION MATRIX"
-         CALL cp_dbcsr_init(sm_ps)
-         CALL cp_dbcsr_copy(matrix_b=sm_ps, &
-                            matrix_a=sm_s, &
-                            name=TRIM(headline))
+         CALL dbcsr_init(sm_ps)
+         CALL dbcsr_copy(matrix_b=sm_ps, &
+                         matrix_a=sm_s, &
+                         name=TRIM(headline))
       END IF
 
       ! Build Mulliken population matrix for each spin
       DO ispin = 1, nspin
          DO ic = 1, SIZE(matrix_s, 2)
             IF (print_level > 2) THEN
-               CALL cp_dbcsr_set(sm_ps, 0.0_dp)
+               CALL dbcsr_set(sm_ps, 0.0_dp)
             END IF
             sm_s => matrix_s(1, ic)%matrix ! Overlap matrix in sparse format
             sm_p => matrix_p(ispin, ic)%matrix ! Density matrix for spin ispin in sparse format
             ! Calculate Hadamard product of P and S as sparse matrix (Mulliken)
-            ! CALL cp_dbcsr_hadamard_product(sm_p,sm_s,sm_ps)
-            CALL cp_dbcsr_iterator_start(iter, sm_s)
-            DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-               CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, s_block, blk)
+            ! CALL dbcsr_hadamard_product(sm_p,sm_s,sm_ps)
+            CALL dbcsr_iterator_start(iter, sm_s)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, s_block, blk)
                IF (.NOT. (ASSOCIATED(s_block))) CYCLE
-               CALL cp_dbcsr_get_block_p(matrix=sm_p, &
+               CALL dbcsr_get_block_p(matrix=sm_p, &
+                                      row=iatom, &
+                                      col=jatom, &
+                                      block=p_block, &
+                                      found=found)
+               IF (print_level > 2) THEN
+                  CALL dbcsr_get_block_p(matrix=sm_ps, &
                                          row=iatom, &
                                          col=jatom, &
-                                         block=p_block, &
+                                         block=ps_block, &
                                          found=found)
-               IF (print_level > 2) THEN
-                  CALL cp_dbcsr_get_block_p(matrix=sm_ps, &
-                                            row=iatom, &
-                                            col=jatom, &
-                                            block=ps_block, &
-                                            found=found)
                   CPASSERT(ASSOCIATED(ps_block))
                END IF
 
@@ -386,16 +386,16 @@ CONTAINS
                   END DO
                END IF
             END DO
-            CALL cp_dbcsr_iterator_stop(iter)
+            CALL dbcsr_iterator_stop(iter)
          END DO
 
          IF (print_level > 2) THEN
             ! Write the full Mulliken net AO and overlap population matrix
             IF (nspin > 1) THEN
                IF (ispin == 1) THEN
-                  CALL cp_dbcsr_setname(sm_ps, TRIM(headline)//" For Alpha Spin")
+                  CALL dbcsr_setname(sm_ps, TRIM(headline)//" For Alpha Spin")
                ELSE
-                  CALL cp_dbcsr_setname(sm_ps, TRIM(headline)//" For Beta Spin")
+                  CALL dbcsr_setname(sm_ps, TRIM(headline)//" For Beta Spin")
                END IF
             END IF
             CALL cp_dbcsr_write_sparse_matrix(sm_ps, 4, 6, qs_env, para_env, &
@@ -412,7 +412,7 @@ CONTAINS
       END IF
 
       ! Release local working storage
-      IF (ASSOCIATED(sm_ps)) CALL cp_dbcsr_deallocate_matrix(sm_ps)
+      IF (ASSOCIATED(sm_ps)) CALL dbcsr_deallocate_matrix(sm_ps)
       IF (ASSOCIATED(orbpop)) THEN
          DEALLOCATE (orbpop)
       END IF

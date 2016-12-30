@@ -20,14 +20,14 @@ MODULE qs_efield_local
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_trace
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_trace
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
@@ -118,7 +118,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
 
@@ -132,9 +132,9 @@ CONTAINS
       ALLOCATE (dipmat(3))
       DO i = 1, 3
          ALLOCATE (dipmat(i)%matrix)
-         CALL cp_dbcsr_init(dipmat(i)%matrix)
-         CALL cp_dbcsr_copy(dipmat(i)%matrix, matrix_s(1)%matrix, 'DIP MAT')
-         CALL cp_dbcsr_set(dipmat(i)%matrix, 0.0_dp)
+         CALL dbcsr_init(dipmat(i)%matrix)
+         CALL dbcsr_copy(dipmat(i)%matrix, matrix_s(1)%matrix, 'DIP MAT')
+         CALL dbcsr_set(dipmat(i)%matrix, 0.0_dp)
       END DO
       CALL build_local_moment_matrix(qs_env, dipmat, 1, rpoint)
       CALL set_efield_matrices(efield=efield, dipmat=dipmat)
@@ -174,8 +174,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: dipmat, matrix_ks, matrix_p
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_ks, matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(efield_berry_type), POINTER                   :: efield
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -235,7 +235,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=matrix_p)
       DO ispin = 1, SIZE(matrix_p)
          DO idir = 1, 3
-            CALL cp_dbcsr_trace(matrix_p(ispin)%matrix, dipmat(idir)%matrix, tmp)
+            CALL dbcsr_trace(matrix_p(ispin)%matrix, dipmat(idir)%matrix, tmp)
             ener_field = ener_field+fieldpol(idir)*tmp
          END DO
       END DO
@@ -248,8 +248,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks)
          DO ispin = 1, SIZE(matrix_ks)
             DO idir = 1, 3
-               CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, dipmat(idir)%matrix, &
-                                 alpha_scalar=1.0_dp, beta_scalar=fieldpol(idir))
+               CALL dbcsr_add(matrix_ks(ispin)%matrix, dipmat(idir)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=fieldpol(idir))
             END DO
          END DO
 
@@ -323,11 +323,11 @@ CONTAINS
 
                ! density matrix
                NULLIFY (p_block_a)
-               CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix, irow, icol, p_block_a, found)
+               CALL dbcsr_get_block_p(matrix_p(1)%matrix, irow, icol, p_block_a, found)
                IF (.NOT. found) CYCLE
                IF (SIZE(matrix_p) > 1) THEN
                   NULLIFY (p_block_b)
-                  CALL cp_dbcsr_get_block_p(matrix_p(2)%matrix, irow, icol, p_block_b, found)
+                  CALL dbcsr_get_block_p(matrix_p(2)%matrix, irow, icol, p_block_b, found)
                   CPASSERT(found)
                END IF
                forcea = 0.0_dp

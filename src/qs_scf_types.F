@@ -10,14 +10,14 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE qs_scf_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
-                                              cp_dbcsr_deallocate_matrix_set,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+   USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -96,8 +96,8 @@ MODULE qs_scf_types
    TYPE subspace_env_type
       INTEGER :: max_iter, mixing_method
       REAL(dp) :: eps_diag_sub, eps_ene, eps_adapt
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER :: p_matrix_mix
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_matrix_mix
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: chc_mat, c_vec, c0
       TYPE(mixing_storage_type), POINTER :: mixing_store
    END TYPE subspace_env_type
@@ -118,8 +118,8 @@ MODULE qs_scf_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
       TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, ortho_m1, s_half, s_minus_one
       TYPE(krylov_space_type), POINTER :: krylov_space
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta, p_mix_new
-      TYPE(cp_dbcsr_type), POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta, p_mix_new
+      TYPE(dbcsr_type), POINTER :: ortho_dbcsr, buf1_dbcsr, buf2_dbcsr
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
       TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
       TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
@@ -243,10 +243,10 @@ CONTAINS
       CPASSERT(scf_env%ref_count > 0)
 
       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
+         CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
       END IF
       IF (ASSOCIATED(scf_env%p_delta)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta)
+         CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
       END IF
 
       CALL timestop(handle)
@@ -282,29 +282,29 @@ CONTAINS
             IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
                ! we should not end up here, and give back using the pools
                CPASSERT(.TRUE.)
-               CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
+               CALL dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
             END IF
             IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
                ! we should not end up here, and give back using the pools
                CPASSERT(.TRUE.)
-               CALL cp_dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
+               CALL dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
             END IF
             IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
                ! we should not end up here, and give back using the pools
                CPASSERT(.TRUE.)
-               CALL cp_dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
+               CALL dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
             END IF
             CALL cp_fm_release(scf_env%s_half)
             CALL cp_fm_release(scf_env%s_minus_one)
             IF (ASSOCIATED(scf_env%p_mix_new)) THEN
                ! we should not end up here, and give back using the pools
                CPASSERT(.TRUE.)
-               CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
+               CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
             END IF
             IF (ASSOCIATED(scf_env%p_delta)) THEN
                ! we should not end up here, and give back using the pools
                CPASSERT(.TRUE.)
-               CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta)
+               CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
             END IF
             IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
                DO i = 1, SIZE(scf_env%ot_preconditioner)
@@ -539,7 +539,7 @@ CONTAINS
          IF (ASSOCIATED(subspace_env%p_matrix_store)) THEN
 
             CPASSERT(.TRUE.)
-            CALL cp_dbcsr_deallocate_matrix_set(subspace_env%p_matrix_store)
+            CALL dbcsr_deallocate_matrix_set(subspace_env%p_matrix_store)
          ENDIF
          DO i = 1, SIZE(subspace_env%chc_mat)
             CALL cp_fm_release(subspace_env%chc_mat(i)%matrix)

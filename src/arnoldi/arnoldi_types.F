@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 
 MODULE arnoldi_types
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_type
    USE kinds,                           ONLY: real_4,&
                                               real_8
 
@@ -86,10 +86,10 @@ MODULE arnoldi_types
    END TYPE arnoldi_data_type
 
    TYPE m_x_v_vectors_type
-      TYPE(cp_dbcsr_type)                          :: input_vec
-      TYPE(cp_dbcsr_type)                          :: result_vec
-      TYPE(cp_dbcsr_type)                          :: rep_col_vec
-      TYPE(cp_dbcsr_type)                          :: rep_row_vec
+      TYPE(dbcsr_type)                          :: input_vec
+      TYPE(dbcsr_type)                          :: result_vec
+      TYPE(dbcsr_type)                          :: rep_col_vec
+      TYPE(dbcsr_type)                          :: rep_row_vec
    END TYPE m_x_v_vectors_type
 
    PRIVATE

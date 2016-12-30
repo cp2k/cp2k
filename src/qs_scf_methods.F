@@ -16,10 +16,6 @@
 ! **************************************************************************************************
 MODULE qs_scf_methods
 
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_desymmetrize, cp_dbcsr_get_block_p, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -41,6 +37,10 @@ MODULE qs_scf_methods
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_type
    USE input_constants,                 ONLY: cholesky_inverse,&
                                               cholesky_off,&
                                               cholesky_reduce,&
@@ -93,9 +93,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scf_env_density_mixing(p_mix_new, mixing_store, rho_ao, para_env, &
                                      iter_delta, iter_count, diis, invert)
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: p_mix_new
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: p_mix_new
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(INOUT)                       :: iter_delta
       INTEGER, INTENT(IN)                                :: iter_count
@@ -126,10 +126,10 @@ CONTAINS
             IF (my_invert) THEN
                CPASSERT(my_p_mix /= 0.0_dp)
                IF (my_p_mix /= 1.0_dp) THEN
-                  CALL cp_dbcsr_add(matrix_a=p_mix_new(ispin, ic)%matrix, &
-                                    alpha_scalar=1.0_dp/my_p_mix, &
-                                    matrix_b=rho_ao(ispin, ic)%matrix, &
-                                    beta_scalar=(my_p_mix-1.0_dp)/my_p_mix)
+                  CALL dbcsr_add(matrix_a=p_mix_new(ispin, ic)%matrix, &
+                                 alpha_scalar=1.0_dp/my_p_mix, &
+                                 matrix_b=rho_ao(ispin, ic)%matrix, &
+                                 beta_scalar=(my_p_mix-1.0_dp)/my_p_mix)
                END IF
             ELSE
                CALL cp_sm_mix(m1=p_mix_new(ispin, ic)%matrix, &
@@ -266,10 +266,10 @@ CONTAINS
 !> \param work ...
 ! **************************************************************************************************
    SUBROUTINE eigensolver_dbcsr(matrix_ks, matrix_ks_fm, mo_set, ortho_dbcsr, ksbuf1, ksbuf2, work)
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_ks
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks
       TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: ortho_dbcsr, ksbuf1, ksbuf2
+      TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr, ksbuf1, ksbuf2
       TYPE(cp_fm_type), POINTER                          :: work
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_dbcsr', &
@@ -291,9 +291,9 @@ CONTAINS
                       mo_coeff=mo_coeff)
 
 !    Reduce KS matrix
-      CALL cp_dbcsr_desymmetrize(matrix_ks, ksbuf2)
-      CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, ksbuf2, ortho_dbcsr, 0.0_dp, ksbuf1)
-      CALL cp_dbcsr_multiply('T', 'N', 1.0_dp, ortho_dbcsr, ksbuf1, 0.0_dp, ksbuf2)
+      CALL dbcsr_desymmetrize(matrix_ks, ksbuf2)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, ksbuf2, ortho_dbcsr, 0.0_dp, ksbuf1)
+      CALL dbcsr_multiply('T', 'N', 1.0_dp, ortho_dbcsr, ksbuf1, 0.0_dp, ksbuf2)
 
 !    Solve the eigenvalue problem
       CALL copy_dbcsr_to_fm(ksbuf2, matrix_ks_fm)
@@ -473,31 +473,31 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_sm_mix(m1, m2, p_mix, delta, para_env, m3)
 
-      TYPE(cp_dbcsr_type), POINTER                       :: m1, m2
+      TYPE(dbcsr_type), POINTER                          :: m1, m2
       REAL(KIND=dp), INTENT(IN)                          :: p_mix
       REAL(KIND=dp), INTENT(OUT)                         :: delta
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: m3
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: m3
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, j
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_delta_block, p_new_block, p_old_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
       delta = 0.0_dp
 
-      CALL cp_dbcsr_iterator_start(iter, m1)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, blk)
-         CALL cp_dbcsr_get_block_p(matrix=m2, row=iblock_row, col=iblock_col, &
-                                   BLOCK=p_old_block, found=found)
+      CALL dbcsr_iterator_start(iter, m1)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, blk)
+         CALL dbcsr_get_block_p(matrix=m2, row=iblock_row, col=iblock_col, &
+                                BLOCK=p_old_block, found=found)
          CPASSERT(ASSOCIATED(p_old_block))
          IF (PRESENT(m3)) THEN
-            CALL cp_dbcsr_get_block_p(matrix=m3, row=iblock_row, col=iblock_col, &
-                                      BLOCK=p_delta_block, found=found)
+            CALL dbcsr_get_block_p(matrix=m3, row=iblock_row, col=iblock_col, &
+                                   BLOCK=p_delta_block, found=found)
             CPASSERT(ASSOCIATED(p_delta_block))
 
             DO j = 1, SIZE(p_new_block, 2)
@@ -516,7 +516,7 @@ CONTAINS
             END DO
          ENDIF
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       CALL mp_max(delta, para_env%group)
 

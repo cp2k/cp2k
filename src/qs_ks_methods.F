@@ -30,11 +30,6 @@ MODULE qs_ks_methods
    USE cp_control_types,                ONLY: becke_restraint_type,&
                                               dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_name, &
-        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -61,6 +56,10 @@ MODULE qs_ks_methods
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_distribution, dbcsr_filter, dbcsr_init, dbcsr_multiply, dbcsr_name, dbcsr_p_type, &
+        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: efield_potential
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -209,7 +208,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_active
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ext_ks_matrix
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
@@ -224,11 +223,11 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(becke_restraint_type), POINTER                :: becke
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ksmat, matrix_vxc, mo_derivs
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix, matrix_h, matrix_s, my_rho, &
-                                                            rho_ao
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_s, my_rho, &
+                                                            rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, v_hartree_rspace, &
@@ -640,8 +639,8 @@ CONTAINS
             ! (sets ks sparsity equal to matrix_h sparsity)
             DO ispin = 1, nspins
                DO img = 1, nimages
-                  CALL cp_dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix, &
-                                     name=cp_dbcsr_name(ks_matrix(ispin, img)%matrix))
+                  CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix, &
+                                  name=dbcsr_name(ks_matrix(ispin, img)%matrix))
                END DO
             END DO
          END IF
@@ -715,8 +714,8 @@ CONTAINS
       ! At this point the ks matrix should be up to date, filter it if requested
       DO ispin = 1, nspins
          DO img = 1, nimages
-            CALL cp_dbcsr_filter(ks_matrix(ispin, img)%matrix, &
-                                 dft_control%qs_control%eps_filter_matrix)
+            CALL dbcsr_filter(ks_matrix(ispin, img)%matrix, &
+                              dft_control%qs_control%eps_filter_matrix)
          END DO
       ENDDO
 
@@ -818,8 +817,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: edisp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, matrix_h, matrix_p, mo_derivs
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_h, matrix_p, mo_derivs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_density_type), POINTER                    :: lri_density
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -914,8 +913,8 @@ CONTAINS
       IF (.NOT. just_energy) THEN
          ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
          DO ispin = 1, nspins
-            CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix, matrix_h(1)%matrix, &
-                               name=cp_dbcsr_name(ks_matrix(ispin)%matrix))
+            CALL dbcsr_copy(ks_matrix(ispin)%matrix, matrix_h(1)%matrix, &
+                            name=dbcsr_name(ks_matrix(ispin)%matrix))
          END DO
       END IF
 
@@ -978,8 +977,8 @@ CONTAINS
 
       ! At this point the ks matrix should be up to date, filter it if requested
       DO ispin = 1, nspins
-         CALL cp_dbcsr_filter(ks_matrix(ispin)%matrix, &
-                              dft_control%qs_control%eps_filter_matrix)
+         CALL dbcsr_filter(ks_matrix(ispin)%matrix, &
+                           dft_control%qs_control%eps_filter_matrix)
       ENDDO
 
       ! Right now we can compute the orbital derivative here, as it depends currently only on the available
@@ -1075,7 +1074,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_mo_derivatives(qs_env, ks_matrix, mo_derivs)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ks_matrix, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, mo_derivs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mo_derivatives', &
          routineP = moduleN//':'//routineN
@@ -1083,10 +1082,10 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL                                            :: uniform_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_b
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit, mo_derivs_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array, mos_aux_fit
 
@@ -1112,8 +1111,8 @@ CONTAINS
 
          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff, &
                          mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers)
-         CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff_b, &
-                                0.0_dp, mo_derivs(ispin)%matrix)
+         CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff_b, &
+                             0.0_dp, mo_derivs(ispin)%matrix)
 
          IF (dft_control%do_admm_mo) THEN
             CALL get_qs_env(qs_env, &
@@ -1145,8 +1144,8 @@ CONTAINS
             CPASSERT(uniform_occupation)
 
             CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff_b=mo_coeff_b)
-            CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(2)%matrix, mo_coeff_b, &
-                                   1.0_dp, mo_derivs(1)%matrix, match_matrix_sizes=.TRUE.)
+            CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(2)%matrix, mo_coeff_b, &
+                                1.0_dp, mo_derivs(1)%matrix, match_matrix_sizes=.TRUE.)
          ENDIF
 
       ENDDO
@@ -1254,7 +1253,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrixkp_h, matrixkp_t, rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_h, matrixkp_t, rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1350,7 +1349,7 @@ CONTAINS
    SUBROUTINE calculate_w_matrix_1(mo_set, w_matrix)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: w_matrix
+      TYPE(dbcsr_type), POINTER                          :: w_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
          routineP = moduleN//':'//routineN
@@ -1362,7 +1361,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (weighted_vectors)
 
-      CALL cp_dbcsr_set(w_matrix, 0.0_dp)
+      CALL dbcsr_set(w_matrix, 0.0_dp)
       CALL cp_fm_create(weighted_vectors, mo_set%mo_coeff%matrix_struct, "weighted_vectors")
       CALL cp_fm_to_fm(mo_set%mo_coeff, weighted_vectors)
 
@@ -1402,7 +1401,7 @@ CONTAINS
    SUBROUTINE calculate_w_matrix_ot(mo_set, mo_deriv, w_matrix, s_matrix)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_deriv, w_matrix, s_matrix
+      TYPE(dbcsr_type), POINTER                          :: mo_deriv, w_matrix, s_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot', &
          routineP = moduleN//':'//routineN
@@ -1456,7 +1455,7 @@ CONTAINS
       CALL cp_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
                    mo_set%mo_coeff, h_block, 0.0_dp, weighted_vectors)
 
-      CALL cp_dbcsr_set(w_matrix, 0.0_dp)
+      CALL dbcsr_set(w_matrix, 0.0_dp)
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix, &
                                  matrix_v=mo_set%mo_coeff, &
                                  matrix_g=weighted_vectors, &
@@ -1496,7 +1495,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_w_matrix_roks(mo_set, matrix_ks, matrix_p, matrix_w)
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_ks, matrix_p, matrix_w
+      TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_p, matrix_w
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks', &
          routineP = moduleN//':'//routineN
@@ -1530,7 +1529,7 @@ CONTAINS
       CALL cp_fm_upper_to_full(p, work)
       CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ks, p, 0.0_dp, work)
       CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, p, work, 0.0_dp, ks)
-      CALL cp_dbcsr_set(matrix_w, 0.0_dp)
+      CALL dbcsr_set(matrix_w, 0.0_dp)
       CALL copy_fm_to_dbcsr(ks, matrix_w, keep_sparsity=.TRUE.)
 
       CALL cp_fm_release(work)
@@ -1557,11 +1556,11 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: ic, ispin, nimg
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_dft, &
                                                             matrix_ks_aux_fit_hfx, matrix_s_aux_fit
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s_kp, matrixkp_ks
-      TYPE(cp_dbcsr_type), POINTER                       :: refmatrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrixkp_ks
+      TYPE(dbcsr_type), POINTER                          :: refmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit, sab_orb
@@ -1579,7 +1578,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(matrixkp_ks)) THEN
          nimg = dft_control%nimages
-         CALL cp_dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, nimg)
+         CALL dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, nimg)
          refmatrix => matrix_s_kp(1, 1)%matrix
          DO ispin = 1, dft_control%nspins
             DO ic = 1, nimg
@@ -1593,15 +1592,15 @@ CONTAINS
                   headline = "KOHN-SHAM MATRIX"
                END IF
                ALLOCATE (matrixkp_ks(ispin, ic)%matrix)
-               CALL cp_dbcsr_init(matrixkp_ks(ispin, ic)%matrix)
-               CALL cp_dbcsr_create(matrix=matrixkp_ks(ispin, ic)%matrix, &
-                                    name=TRIM(headline), &
-                                    dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                    row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
-                                    col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
-                                    nze=0)
+               CALL dbcsr_init(matrixkp_ks(ispin, ic)%matrix)
+               CALL dbcsr_create(matrix=matrixkp_ks(ispin, ic)%matrix, &
+                                 name=TRIM(headline), &
+                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
+                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
+                                 nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin, ic)%matrix, sab_orb)
-               CALL cp_dbcsr_set(matrixkp_ks(ispin, ic)%matrix, 0.0_dp)
+               CALL dbcsr_set(matrixkp_ks(ispin, ic)%matrix, 0.0_dp)
             ENDDO
          ENDDO
          CALL set_ks_env(ks_env, matrix_ks_kp=matrixkp_ks)
@@ -1618,54 +1617,54 @@ CONTAINS
                          matrix_s_aux_fit=matrix_s_aux_fit)
          IF (.NOT. ASSOCIATED(matrix_ks_aux_fit)) THEN
             refmatrix => matrix_s_aux_fit(1)%matrix
-            CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins)
+            CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins)
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit(ispin)%matrix)
-               CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
-               CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
-                                    name="KOHN-SHAM_MATRIX for ADMM", &
-                                    dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                    row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
-                                    col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
-                                    nze=0)
+               CALL dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
+               CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
+                                 name="KOHN-SHAM_MATRIX for ADMM", &
+                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
+                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
+                                 nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix, sab_aux_fit)
-               CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
             ENDDO
             CALL set_ks_env(ks_env, matrix_ks_aux_fit=matrix_ks_aux_fit)
          END IF
          ! same allocation procedure for matrix_ks_aux_fit_dft
          IF (.NOT. ASSOCIATED(matrix_ks_aux_fit_dft)) THEN
             refmatrix => matrix_s_aux_fit(1)%matrix
-            CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit_dft, dft_control%nspins)
+            CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_dft, dft_control%nspins)
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit_dft(ispin)%matrix)
-               CALL cp_dbcsr_init(matrix_ks_aux_fit_dft(ispin)%matrix)
-               CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit_dft(ispin)%matrix, &
-                                    name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY DFT EXCHANGE", &
-                                    dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                    row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
-                                    col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
-                                    nze=0)
+               CALL dbcsr_init(matrix_ks_aux_fit_dft(ispin)%matrix)
+               CALL dbcsr_create(matrix=matrix_ks_aux_fit_dft(ispin)%matrix, &
+                                 name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY DFT EXCHANGE", &
+                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
+                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
+                                 nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_dft(ispin)%matrix, sab_aux_fit)
-               CALL cp_dbcsr_set(matrix_ks_aux_fit_dft(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(matrix_ks_aux_fit_dft(ispin)%matrix, 0.0_dp)
             ENDDO
             CALL set_ks_env(ks_env, matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft)
          END IF
          ! same allocation procedure for matrix_ks_aux_fit_hfx
          IF (.NOT. ASSOCIATED(matrix_ks_aux_fit_hfx)) THEN
             refmatrix => matrix_s_aux_fit(1)%matrix
-            CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit_hfx, dft_control%nspins)
+            CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_hfx, dft_control%nspins)
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit_hfx(ispin)%matrix)
-               CALL cp_dbcsr_init(matrix_ks_aux_fit_hfx(ispin)%matrix)
-               CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit_hfx(ispin)%matrix, &
-                                    name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY HF EXCHANGE", &
-                                    dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                    row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
-                                    col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
-                                    nze=0)
+               CALL dbcsr_init(matrix_ks_aux_fit_hfx(ispin)%matrix)
+               CALL dbcsr_create(matrix=matrix_ks_aux_fit_hfx(ispin)%matrix, &
+                                 name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY HF EXCHANGE", &
+                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
+                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
+                                 nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_hfx(ispin)%matrix, sab_aux_fit)
-               CALL cp_dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
             ENDDO
             CALL set_ks_env(ks_env, matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
          END IF

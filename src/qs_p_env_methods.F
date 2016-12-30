@@ -14,13 +14,6 @@
 MODULE qs_p_env_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
-                                              cp_dbcsr_copy,&
-                                              cp_dbcsr_init,&
-                                              cp_dbcsr_p_type,&
-                                              cp_dbcsr_scale,&
-                                              cp_dbcsr_set,&
-                                              cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
@@ -54,6 +47,13 @@ MODULE qs_p_env_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE hartree_local_methods,           ONLY: init_coulomb_local
    USE hartree_local_types,             ONLY: hartree_local_create
    USE input_constants,                 ONLY: ot_precond_none
@@ -121,7 +121,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_kpp1_env_type), OPTIONAL, POINTER          :: kpp1_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: p1_option
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: psi0d
@@ -132,10 +132,10 @@ CONTAINS
 
       INTEGER                                            :: handle, n_ao, n_mo, n_spins, natom, spin
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools, mo_mo_fm_pools
       TYPE(cp_fm_type), POINTER                          :: qs_env_c
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
 
 ! code
@@ -194,14 +194,14 @@ CONTAINS
          p_env%p1 => p1_option
       ELSE
 
-         CALL cp_dbcsr_allocate_matrix_set(p_env%p1, n_spins)
+         CALL dbcsr_allocate_matrix_set(p_env%p1, n_spins)
          DO spin = 1, n_spins
             ALLOCATE (p_env%p1(spin)%matrix)
-            CALL cp_dbcsr_init(p_env%p1(spin)%matrix)
-            CALL cp_dbcsr_copy(p_env%p1(spin)%matrix, matrix_s(1)%matrix, &
-                               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
-                               "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
-            CALL cp_dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp)
+            CALL dbcsr_init(p_env%p1(spin)%matrix)
+            CALL dbcsr_copy(p_env%p1(spin)%matrix, matrix_s(1)%matrix, &
+                            name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
+                            "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
+            CALL dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp)
          END DO
       END IF
 
@@ -317,7 +317,7 @@ CONTAINS
       CHARACTER(len=25)                                  :: name
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: gapw_xc
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -332,14 +332,14 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          nspins = dft_control%nspins
 
-         CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1, nspins)
+         CALL dbcsr_allocate_matrix_set(p_env%kpp1, nspins)
          name = "p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
          CALL compress(name, full=.TRUE.)
          DO ispin = 1, nspins
             ALLOCATE (p_env%kpp1(ispin)%matrix)
-            CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix)
-            CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix, matrix_s(1)%matrix, &
-                               name=TRIM(name)//ADJUSTL(cp_to_string(ispin)))
+            CALL dbcsr_init(p_env%kpp1(ispin)%matrix)
+            CALL dbcsr_copy(p_env%kpp1(ispin)%matrix, matrix_s(1)%matrix, &
+                            name=TRIM(name)//ADJUSTL(cp_to_string(ispin)))
          END DO
 
          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env)
@@ -379,11 +379,11 @@ CONTAINS
                                                             output_unit, spin
       LOGICAL                                            :: was_present
       REAL(KIND=dp)                                      :: maxocc
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s, rho_ao
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: my_psi0
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -489,12 +489,12 @@ CONTAINS
             CALL get_mo_set(mos(spin)%mo_set, lfomo=lfomo, &
                             nmo=nmo, maxocc=maxocc)
             IF (lfomo > nmo) THEN
-               CALL cp_dbcsr_set(rho_ao(spin)%matrix, 0.0_dp)
+               CALL dbcsr_set(rho_ao(spin)%matrix, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho_ao(spin)%matrix, &
                                           matrix_v=my_psi0(spin)%matrix, &
                                           matrix_g=p_env%psi0d(spin)%matrix, &
                                           ncol=p_env%n_mo(spin))
-               CALL cp_dbcsr_scale(rho_ao(spin)%matrix, alpha_scalar=maxocc)
+               CALL dbcsr_scale(rho_ao(spin)%matrix, alpha_scalar=maxocc)
             ELSE
                CPABORT("symmetrized onesided smearing to do")
             END IF
@@ -637,11 +637,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ncol
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_s
-      TYPE(cp_dbcsr_type), POINTER                       :: k_p
       TYPE(cp_fm_pool_type), POINTER                     :: maxao_maxmo_fm_pool
       TYPE(cp_fm_type), POINTER                          :: tmp
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_type), POINTER                          :: k_p
       TYPE(dft_control_type), POINTER                    :: dft_control
 
 ! code
@@ -705,7 +705,7 @@ CONTAINS
 
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: p1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p1
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
 
@@ -716,7 +716,7 @@ CONTAINS
       INTEGER, SAVE                                      :: iter = 0
       LOGICAL                                            :: gapw, gapw_xc
       REAL(KIND=dp)                                      :: my_alpha, my_beta
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: rho1_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_rho_type), POINTER                         :: rho
 
@@ -744,7 +744,7 @@ CONTAINS
       DO ispin = 1, SIZE(p1)
          ! hack to avoid crashes in ep regs
          IF (.NOT. ASSOCIATED(rho1_ao(ispin)%matrix, p1(ispin)%matrix)) THEN
-            CALL cp_dbcsr_copy(rho1_ao(ispin)%matrix, p1(ispin)%matrix)
+            CALL dbcsr_copy(rho1_ao(ispin)%matrix, p1(ispin)%matrix)
          ENDIF
       ENDDO
       CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env)

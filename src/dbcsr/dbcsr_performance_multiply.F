@@ -38,7 +38,7 @@ MODULE dbcsr_performance_multiply
    USE dbcsr_transformations,           ONLY: dbcsr_redistribute
    USE dbcsr_types,                     ONLY: &
         dbcsr_conjugate_transpose, dbcsr_distribution_obj, dbcsr_mp_obj, dbcsr_no_transpose, &
-        dbcsr_obj, dbcsr_scalar_type, dbcsr_transpose, dbcsr_type_antisymmetric, &
+        dbcsr_scalar_type, dbcsr_transpose, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
         dbcsr_type_real_8
    USE dbcsr_util,                      ONLY: dbcsr_checksum
@@ -235,8 +235,8 @@ CONTAINS
       LOGICAL                                            :: do_complex
       LOGICAL, DIMENSION(2)                              :: trs
       TYPE(dbcsr_distribution_obj)                       :: dist_a, dist_b, dist_c
-      TYPE(dbcsr_obj)                                    :: matrix_a, matrix_b, matrix_c
       TYPE(dbcsr_scalar_type)                            :: alpha, beta
+      TYPE(dbcsr_type)                                   :: matrix_a, matrix_b, matrix_c
 
 !   ---------------------------------------------------------------------------
 
@@ -461,7 +461,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mp_group
       TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
       INTEGER, INTENT(IN)                                :: io_unit
-      TYPE(dbcsr_obj), INTENT(in)                        :: matrix_a, matrix_b, matrix_c
+      TYPE(dbcsr_type), INTENT(in)                       :: matrix_a, matrix_b, matrix_c
       CHARACTER, INTENT(in)                              :: transa, transb
       TYPE(dbcsr_scalar_type), INTENT(in)                :: alpha, beta
       INTEGER, DIMENSION(6), INTENT(in)                  :: limits
@@ -484,7 +484,7 @@ CONTAINS
                                                             load_imb, t, t_max, t_min
       REAL(real_8), ALLOCATABLE, DIMENSION(:, :)         :: times
       TYPE(dbcsr_distribution_obj)                       :: dist_a, dist_b, dist_c
-      TYPE(dbcsr_obj)                                    :: m_a, m_b, m_c, m_c_orig
+      TYPE(dbcsr_type)                                   :: m_a, m_b, m_c, m_c_orig
 
 !   ---------------------------------------------------------------------------
 

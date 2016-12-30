@@ -22,10 +22,6 @@ MODULE mp2
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, cp_dbcsr_get_diag, &
-        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-        cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -47,6 +43,10 @@ MODULE mp2
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_get_diag, dbcsr_get_info, &
+        dbcsr_init, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, &
+        dbcsr_set, dbcsr_type
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: &
         alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, &
@@ -144,12 +144,12 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_ks_aux, matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_ks, fm_matrix_s, &
                                                             fm_matrix_work, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type)                          :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
@@ -278,7 +278,7 @@ CONTAINS
       NULLIFY (fm_matrix_ks)
       NULLIFY (fm_matrix_work)
       NULLIFY (fm_struct)
-      CALL cp_dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
+      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
       CALL cp_fm_create(fm_matrix_s, fm_struct, name="fm_matrix_s")
@@ -1056,9 +1056,9 @@ CONTAINS
 
       INTEGER                                            :: handle, i, irep, n_rep_hf, ns
       REAL(KIND=dp)                                      :: t1, t2
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_ks_aux_fit, rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks_2d, rho_ao_2d
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
@@ -1096,9 +1096,9 @@ CONTAINS
 
       ! put matrix_ks to zero
       DO i = 1, SIZE(matrix_ks)
-         CALL cp_dbcsr_set(matrix_ks(i)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_ks(i)%matrix, 0.0_dp)
          IF (do_admm) THEN
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(i)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_ks_aux_fit(i)%matrix, 0.0_dp)
          END IF
       END DO
 
@@ -1175,12 +1175,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: frac_exx, hfx_fraction, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_Sigma_x_minus_vxc_gw
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, matrix_ks_aux_fit, &
-                                                            matrix_sigma_x_minus_vxc, rho_ao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_ks_2d, rho_ao_2d
-      TYPE(cp_dbcsr_type)                                :: matrix_tmp, matrix_tmp_2, mo_coeff_b
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
+                                                            matrix_sigma_x_minus_vxc, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
+      TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_tmp_2, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy_dummy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1235,10 +1235,10 @@ CONTAINS
       ALLOCATE (matrix_sigma_x_minus_vxc(SIZE(matrix_ks)))
       DO ispin = 1, SIZE(matrix_ks)
          NULLIFY (matrix_sigma_x_minus_vxc(ispin)%matrix)
-         CALL cp_dbcsr_init_p(matrix_sigma_x_minus_vxc(ispin)%matrix)
-         CALL cp_dbcsr_copy(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, &
-                            name="Matrix VXC of spin "//cp_to_string(ispin))
-         CALL cp_dbcsr_set(matrix_ks(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_init_p(matrix_sigma_x_minus_vxc(ispin)%matrix)
+         CALL dbcsr_copy(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, &
+                         name="Matrix VXC of spin "//cp_to_string(ispin))
+         CALL dbcsr_set(matrix_ks(ispin)%matrix, 0.0_dp)
       ENDDO
 
       ! set DFT functional to none and hfx_fraction to zero
@@ -1285,7 +1285,7 @@ CONTAINS
       ! and therefore we should set it to zero
       IF (do_admm_rpa) THEN
          DO ispin = 1, dft_control%nspins
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
          END DO
 
 !      ! set the hf fraction to minus one to get the ADMM correction negatively
@@ -1329,13 +1329,13 @@ CONTAINS
 
       ! remove the single-particle part (kin. En + Hartree pot) and change the sign
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, -1.0_dp, 1.0_dp)
+         CALL dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, -1.0_dp, 1.0_dp)
       END DO
 
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_set(matrix_ks(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(matrix_ks(ispin)%matrix, 0.0_dp)
          IF (do_admm_rpa) THEN
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
          END IF
       END DO
 
@@ -1384,16 +1384,16 @@ CONTAINS
       END IF
 
       DO ispin = 1, dft_control%nspins
-         CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, frac_exx)
+         CALL dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, frac_exx)
       END DO
 
       energy_ex = energy_dummy%ex
 
       CALL deallocate_qs_energy(energy_dummy)
 
-      CALL cp_dbcsr_init(mo_coeff_b)
-      CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix, mo_coeff_b)
-      CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp)
+      CALL dbcsr_init(mo_coeff_b)
+      CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, mo_coeff_b)
+      CALL dbcsr_set(mo_coeff_b, 0.0_dp)
 
       ! Transform matrix_sigma_x_minus_vxc to MO basis
       DO ispin = 1, dft_control%nspins
@@ -1409,20 +1409,20 @@ CONTAINS
             vec_Sigma_x_minus_vxc_gw = 0.0_dp
          END IF
 
-         CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp)
+         CALL dbcsr_set(mo_coeff_b, 0.0_dp)
          CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b, keep_sparsity=.TRUE.)
 
          ! initialize matrix_tmp and matrix_tmp2
          IF (ispin == 1) THEN
-            CALL cp_dbcsr_init(matrix_tmp)
-            CALL cp_dbcsr_create(matrix_tmp, template=mo_coeff_b)
-            CALL cp_dbcsr_copy(matrix_tmp, mo_coeff_b)
-            CALL cp_dbcsr_set(matrix_tmp, 0.0_dp)
+            CALL dbcsr_init(matrix_tmp)
+            CALL dbcsr_create(matrix_tmp, template=mo_coeff_b)
+            CALL dbcsr_copy(matrix_tmp, mo_coeff_b)
+            CALL dbcsr_set(matrix_tmp, 0.0_dp)
 
-            CALL cp_dbcsr_init(matrix_tmp_2)
-            CALL cp_dbcsr_create(matrix_tmp_2, template=mo_coeff_b)
-            CALL cp_dbcsr_copy(matrix_tmp_2, mo_coeff_b)
-            CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp)
+            CALL dbcsr_init(matrix_tmp_2)
+            CALL dbcsr_create(matrix_tmp_2, template=mo_coeff_b)
+            CALL dbcsr_copy(matrix_tmp_2, mo_coeff_b)
+            CALL dbcsr_set(matrix_tmp_2, 0.0_dp)
          END IF
 
          gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
@@ -1446,29 +1446,29 @@ CONTAINS
 
          END IF
 
-         CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, matrix_sigma_x_minus_vxc(ispin)%matrix, &
-                                mo_coeff_b, 0.0_dp, matrix_tmp, first_column=homo+1-gw_corr_lev_occ, &
-                                last_column=homo+gw_corr_lev_virt)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sigma_x_minus_vxc(ispin)%matrix, &
+                             mo_coeff_b, 0.0_dp, matrix_tmp, first_column=homo+1-gw_corr_lev_occ, &
+                             last_column=homo+gw_corr_lev_virt)
 
-         CALL cp_dbcsr_multiply('T', 'N', 1.0_dp, mo_coeff_b, &
-                                matrix_tmp, 0.0_dp, matrix_tmp_2, first_row=homo+1-gw_corr_lev_occ, &
-                                last_row=homo+gw_corr_lev_virt)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, mo_coeff_b, &
+                             matrix_tmp, 0.0_dp, matrix_tmp_2, first_row=homo+1-gw_corr_lev_occ, &
+                             last_row=homo+gw_corr_lev_virt)
 
-         CALL cp_dbcsr_get_diag(matrix_tmp_2, vec_Sigma_x_minus_vxc_gw(:, ispin))
+         CALL dbcsr_get_diag(matrix_tmp_2, vec_Sigma_x_minus_vxc_gw(:, ispin))
 
-         CALL cp_dbcsr_set(matrix_tmp, 0.0_dp)
-         CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp)
+         CALL dbcsr_set(matrix_tmp, 0.0_dp)
+         CALL dbcsr_set(matrix_tmp_2, 0.0_dp)
 
       END DO
 
       CALL mp_sum(vec_Sigma_x_minus_vxc_gw, para_env%group)
 
-      CALL cp_dbcsr_release(mo_coeff_b)
-      CALL cp_dbcsr_release(matrix_tmp)
-      CALL cp_dbcsr_release(matrix_tmp_2)
+      CALL dbcsr_release(mo_coeff_b)
+      CALL dbcsr_release(matrix_tmp)
+      CALL dbcsr_release(matrix_tmp_2)
 
       DO ispin = 1, SIZE(matrix_ks)
-         CALL cp_dbcsr_release_p(matrix_sigma_x_minus_vxc(ispin)%matrix)
+         CALL dbcsr_release_p(matrix_sigma_x_minus_vxc(ispin)%matrix)
       END DO
 
       ALLOCATE (mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo, dft_control%nspins))

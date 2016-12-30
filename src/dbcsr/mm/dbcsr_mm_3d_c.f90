@@ -131,17 +131,17 @@ END SUBROUTINE calc_max_image_norms_c
   !$omp         rbs,cbs,local_rows,local_cols) &
   !$omp shared(norms,images,uf,ul)
   DO ui=uf,ul
-     IF (images%mats(ui)%m%nblks.EQ.0) CYCLE
-     row => images%mats(ui)%m%coo_l(1::3)
-     col => images%mats(ui)%m%coo_l(2::3)
-     bps => images%mats(ui)%m%coo_l(3::3)
-     rbs => array_data(images%mats(ui)%m%row_blk_size)
-     cbs => array_data(images%mats(ui)%m%col_blk_size)
-     local_rows => array_data(images%mats(ui)%m%local_rows)
-     local_cols => array_data(images%mats(ui)%m%local_cols)
-     data => dbcsr_get_data_p_c (images%mats(ui)%m%data_area)
+     IF (images%mats(ui)%nblks.EQ.0) CYCLE
+     row => images%mats(ui)%coo_l(1::3)
+     col => images%mats(ui)%coo_l(2::3)
+     bps => images%mats(ui)%coo_l(3::3)
+     rbs => array_data(images%mats(ui)%row_blk_size)
+     cbs => array_data(images%mats(ui)%col_blk_size)
+     local_rows => array_data(images%mats(ui)%local_rows)
+     local_cols => array_data(images%mats(ui)%local_cols)
+     data => dbcsr_get_data_p_c (images%mats(ui)%data_area)
      !$omp do
-     DO blk = 1, images%mats(ui)%m%nblks
+     DO blk = 1, images%mats(ui)%nblks
         IF (bps(blk).NE.0) THEN
            bpe = bps(blk) + rbs(local_rows(row(blk))) * cbs(local_cols(col(blk))) - 1
            norms(blk,ui) = SQRT (REAL (SUM(ABS(data(bps(blk):bpe))**2), KIND=sp))

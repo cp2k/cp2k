@@ -5,12 +5,12 @@
 
 MODULE qs_fb_com_tasks_types
 
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
-                                              cp_dbcsr_get_block_p,&
-                                              cp_dbcsr_put_block,&
-                                              cp_dbcsr_row_block_sizes,&
-                                              cp_dbcsr_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_col_block_sizes,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_put_block,&
+                                              dbcsr_row_block_sizes,&
+                                              dbcsr_type
    USE kinds,                           ONLY: dp,&
                                               int_4,&
                                               int_8
@@ -1056,7 +1056,7 @@ CONTAINS
                                             atom_pairs_recv, &
                                             para_env, &
                                             matrix_storage)
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs_send, atom_pairs_recv
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fb_matrix_data_obj), INTENT(INOUT)            :: matrix_storage
@@ -1099,8 +1099,8 @@ CONTAINS
       numprocs = para_env%num_pe
 
       ! get dbcsr row and col block sizes
-      row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
-      col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
+      row_block_size_data => dbcsr_row_block_sizes(dbcsr_mat)
+      col_block_size_data => dbcsr_col_block_sizes(dbcsr_mat)
 
       ! allocate temporary arrays for send
       ALLOCATE (send_sizes(numprocs))
@@ -1149,9 +1149,9 @@ CONTAINS
                                           pe, iatom, jatom, send_encode)
             nrows_blk = row_block_size_data(iatom)
             ncols_blk = col_block_size_data(jatom)
-            CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
-                                      row=iatom, col=jatom, block=mat_block, &
-                                      found=found)
+            CALL dbcsr_get_block_p(matrix=dbcsr_mat, &
+                                   row=iatom, col=jatom, block=mat_block, &
+                                   found=found)
             IF (.NOT. found) THEN
                CPABORT("Matrix block not found")
             ELSE
@@ -1247,7 +1247,7 @@ CONTAINS
       TYPE(fb_matrix_data_obj), INTENT(IN)               :: matrix_storage
       TYPE(fb_com_atom_pairs_obj), INTENT(IN)            :: atom_pairs_send, atom_pairs_recv
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_mat
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_distribute_blks', &
          routineP = moduleN//':'//routineN
@@ -1287,8 +1287,8 @@ CONTAINS
       numprocs = para_env%num_pe
 
       ! get dbcsr row and col block sizes
-      row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
-      col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
+      row_block_size_data => dbcsr_row_block_sizes(dbcsr_mat)
+      col_block_size_data => dbcsr_col_block_sizes(dbcsr_mat)
 
       ! allocate temporary arrays for send
       ALLOCATE (send_sizes(numprocs))
@@ -1376,9 +1376,9 @@ CONTAINS
             nrows_blk = row_block_size_data(iatom)
             ncols_blk = col_block_size_data(jatom)
             ind = recv_disps(ipe)+recv_sizes(ipe)
-            CALL cp_dbcsr_put_block(dbcsr_mat, &
-                                    iatom, jatom, &
-                                    recv_buf((ind+1):(ind+nrows_blk*ncols_blk)))
+            CALL dbcsr_put_block(dbcsr_mat, &
+                                 iatom, jatom, &
+                                 recv_buf((ind+1):(ind+nrows_blk*ncols_blk)))
             recv_sizes(ipe) = recv_sizes(ipe)+nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe

@@ -13,12 +13,12 @@ MODULE pao_param_gth
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-        cp_dbcsr_reserve_all_blocks, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, &
-        cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_set, &
+        dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
@@ -62,8 +62,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pri, col_blk_size, nterms, &
                                                             row_blk_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_V_term, vec_V_terms
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(pao_potential_type), DIMENSION(:), POINTER    :: pao_potentials
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -88,25 +88,25 @@ CONTAINS
       CALL init_orbital_pointers(maxl) ! needs to be called before gth_calc_term()
 
       ! allocate matrix_V_terms
-      blk_sizes_pri => cp_dbcsr_row_block_sizes(matrix_s(1)%matrix)
+      blk_sizes_pri => dbcsr_row_block_sizes(matrix_s(1)%matrix)
       col_blk_size = SUM(nterms)
       row_blk_size = blk_sizes_pri**2
-      CALL cp_dbcsr_init(pao%matrix_V_terms)
-      CALL cp_dbcsr_create(pao%matrix_V_terms, &
-                           name="PAO matrix_V_terms", &
-                           dist=pao%diag_distribution, &
-                           matrix_type="N", &
-                           row_blk_size=row_blk_size, &
-                           col_blk_size=col_blk_size)
-      CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_V_terms)
-      CALL cp_dbcsr_set(pao%matrix_V_terms, 0.0_dp)
+      CALL dbcsr_init(pao%matrix_V_terms)
+      CALL dbcsr_create(pao%matrix_V_terms, &
+                        name="PAO matrix_V_terms", &
+                        dist=pao%diag_distribution, &
+                        matrix_type="N", &
+                        row_blk_size=row_blk_size, &
+                        col_blk_size=col_blk_size)
+      CALL dbcsr_reserve_diag_blocks(pao%matrix_V_terms)
+      CALL dbcsr_set(pao%matrix_V_terms, 0.0_dp)
 
       ! calculate and store poential terms
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env,blk_sizes_pri,natoms,nterms) &
 !$OMP PRIVATE(iter,arow,acol,iatom,jatom,N,idx,vec_V_terms,block_V_term)
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, vec_V_terms)
+      CALL dbcsr_iterator_start(iter, pao%matrix_V_terms)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, vec_V_terms)
          iatom = arow; CPASSERT(arow == acol)
          n = blk_sizes_pri(iatom)
          DO jatom = 1, natoms
@@ -118,7 +118,7 @@ CONTAINS
             ENDDO
          ENDDO
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
       IF (pao%precondition) &
@@ -135,10 +135,10 @@ CONTAINS
    SUBROUTINE pao_param_finalize_gth(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CALL cp_dbcsr_release(pao%matrix_V_terms)
+      CALL dbcsr_release(pao%matrix_V_terms)
       IF (pao%precondition) THEN
-         CALL cp_dbcsr_release(pao%matrix_precon)
-         CALL cp_dbcsr_release(pao%matrix_precon_inv)
+         CALL dbcsr_release(pao%matrix_precon)
+         CALL dbcsr_release(pao%matrix_precon_inv)
       ENDIF
 
    END SUBROUTINE pao_param_finalize_gth
@@ -162,24 +162,24 @@ CONTAINS
       LOGICAL                                            :: arnoldi_converged, converged, found
       REAL(dp)                                           :: eval_max, eval_min
       REAL(dp), DIMENSION(:, :), POINTER                 :: block, block_overlap, block_V_term
-      TYPE(cp_dbcsr_iterator)                            :: iter
-      TYPE(cp_dbcsr_type)                                :: matrix_gth_overlap
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type)                                   :: matrix_gth_overlap
       TYPE(ls_scf_env_type), POINTER                     :: ls_scf_env
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
-      group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_V_terms)))
+      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(pao%matrix_V_terms)))
       natoms = SIZE(nterms)
 
-      CALL cp_dbcsr_init(matrix_gth_overlap)
-      CALL cp_dbcsr_create(matrix_gth_overlap, &
-                           template=pao%matrix_V_terms, &
-                           matrix_type="N", &
-                           row_blk_size=nterms, &
-                           col_blk_size=nterms)
-      CALL cp_dbcsr_reserve_all_blocks(matrix_gth_overlap)
-      CALL cp_dbcsr_set(matrix_gth_overlap, 0.0_dp)
+      CALL dbcsr_init(matrix_gth_overlap)
+      CALL dbcsr_create(matrix_gth_overlap, &
+                        template=pao%matrix_V_terms, &
+                        matrix_type="N", &
+                        row_blk_size=nterms, &
+                        col_blk_size=nterms)
+      CALL dbcsr_reserve_all_blocks(matrix_gth_overlap)
+      CALL dbcsr_set(matrix_gth_overlap, 0.0_dp)
 
       DO iatom = 1, natoms
       DO jatom = 1, natoms
@@ -192,9 +192,9 @@ CONTAINS
          block = 0.0_dp
 
          ! can't use OpenMP here block is a pointer and hence REDUCTION(+:block) does work
-         CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_term)
+         CALL dbcsr_iterator_start(iter, pao%matrix_V_terms)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, arow, acol, block_V_term)
             CPASSERT(arow == acol)
             DO i = 1, n
             DO j = 1, m
@@ -202,11 +202,11 @@ CONTAINS
             ENDDO
             ENDDO
          ENDDO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
 
          CALL mp_sum(block, group)
 
-         CALL cp_dbcsr_get_block_p(matrix=matrix_gth_overlap, row=iatom, col=jatom, block=block_overlap, found=found)
+         CALL dbcsr_get_block_p(matrix=matrix_gth_overlap, row=iatom, col=jatom, block=block_overlap, found=found)
          IF (ASSOCIATED(block_overlap)) &
             block_overlap = block
 
@@ -220,10 +220,10 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| GTH-preconditioner converged, min, max, max/min:", &
          arnoldi_converged, eval_min, eval_max, eval_max/eval_min
 
-      CALL cp_dbcsr_init(pao%matrix_precon)
-      CALL cp_dbcsr_create(pao%matrix_precon, template=matrix_gth_overlap)
-      CALL cp_dbcsr_init(pao%matrix_precon_inv)
-      CALL cp_dbcsr_create(pao%matrix_precon_inv, template=matrix_gth_overlap)
+      CALL dbcsr_init(pao%matrix_precon)
+      CALL dbcsr_create(pao%matrix_precon, template=matrix_gth_overlap)
+      CALL dbcsr_init(pao%matrix_precon_inv)
+      CALL dbcsr_create(pao%matrix_precon_inv, template=matrix_gth_overlap)
 
       CALL matrix_sqrt_Newton_Schulz(pao%matrix_precon_inv, pao%matrix_precon, matrix_gth_overlap, &
                                      threshold=ls_scf_env%eps_filter, &
@@ -231,7 +231,7 @@ CONTAINS
                                      max_iter_lanczos=ls_scf_env%max_iter_lanczos, &
                                      eps_lanczos=ls_scf_env%eps_lanczos, &
                                      converged=converged)
-      CALL cp_dbcsr_release(matrix_gth_overlap)
+      CALL dbcsr_release(matrix_gth_overlap)
 
       IF (.NOT. converged) &
          CPABORT("PAO: Sqrt of GTH-preconditioner did not converge.")
@@ -249,7 +249,7 @@ CONTAINS
    SUBROUTINE pao_calc_U_gth(pao, penalty, matrix_M1, matrix_G)
       TYPE(pao_env_type), POINTER                        :: pao
       REAL(dp), INTENT(INOUT), OPTIONAL                  :: penalty
-      TYPE(cp_dbcsr_type), OPTIONAL                      :: matrix_M1, matrix_G
+      TYPE(dbcsr_type), OPTIONAL                         :: matrix_M1, matrix_G
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_gth'
 
@@ -262,38 +262,38 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_G, block_M1, block_M2, block_U, &
                                                             block_V, block_V_term, block_X, &
                                                             vec_V_terms
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
-      nterms => cp_dbcsr_row_block_sizes(pao%matrix_X)
+      nterms => dbcsr_row_block_sizes(pao%matrix_X)
       natoms = SIZE(nterms)
       ALLOCATE (gaps(natoms))
       gaps(:) = HUGE(dp)
-      group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_X)))
+      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(pao%matrix_X)))
 
       ! allocate arrays for world-view
       ALLOCATE (world_X(SUM(nterms)), world_G(SUM(nterms)))
       world_X = 0.0_dp; world_G = 0.0_dp
 
       ! collect world_X from atomic blocks
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+      CALL dbcsr_iterator_start(iter, pao%matrix_X)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
          iatom = arow; CPASSERT(arow == acol)
          idx = SUM(nterms(1:iatom-1))
          world_X(idx+1:idx+nterms(iatom)) = block_X(:, 1)
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
       CALL mp_sum(world_X, group) ! sync world view across MPI ranks
 
       ! loop over atoms
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_U)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U)
+      CALL dbcsr_iterator_start(iter, pao%matrix_U)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_U)
          iatom = arow; CPASSERT(arow == acol)
          n = SIZE(block_U, 1)
-         CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=vec_V_terms, found=found)
+         CALL dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=vec_V_terms, found=found)
          CPASSERT(ASSOCIATED(vec_V_terms))
 
          ! calculate potential V of i'th atom
@@ -310,7 +310,7 @@ CONTAINS
 
          ELSE ! TURNING POINT (if calc grad) ------------------------------------
             CPASSERT(PRESENT(matrix_M1))
-            CALL cp_dbcsr_get_block_p(matrix=matrix_M1, row=iatom, col=iatom, block=block_M1, found=found)
+            CALL dbcsr_get_block_p(matrix=matrix_M1, row=iatom, col=iatom, block=block_M1, found=found)
             ALLOCATE (block_M2(n, n))
             CALL pao_calc_U_block_fock(pao, iatom=iatom, penalty=penalty, V=block_V, U=block_U, &
                                        M1=block_M1, G=block_M2, gap=gaps(iatom))
@@ -322,19 +322,19 @@ CONTAINS
          ENDIF
          DEALLOCATE (block_V)
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       ! distribute world_G across atomic blocks
       IF (PRESENT(matrix_G)) THEN
          CALL mp_sum(world_G, group) ! sync world view across MPI ranks
-         CALL cp_dbcsr_iterator_start(iter, matrix_G)
-         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-            CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_G)
+         CALL dbcsr_iterator_start(iter, matrix_G)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, arow, acol, block_G)
             iatom = arow; CPASSERT(arow == acol)
             idx = SUM(nterms(1:iatom-1))
             block_G(:, 1) = world_G(idx+1:idx+nterms(iatom))
          ENDDO
-         CALL cp_dbcsr_iterator_stop(iter)
+         CALL dbcsr_iterator_stop(iter)
       ENDIF
 
       DEALLOCATE (world_X, world_G)
@@ -469,13 +469,13 @@ CONTAINS
 
       INTEGER                                            :: acol, arow
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_X
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao) &
 !$OMP PRIVATE(iter,arow,acol,block_X)
-      CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+      CALL dbcsr_iterator_start(iter, pao%matrix_X)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, arow, acol, block_X)
          CPASSERT(arow == acol)
          CPASSERT(SIZE(block_X, 2) == 1)
 
@@ -483,7 +483,7 @@ CONTAINS
          block_X = 0.0_dp
          block_X(1, 1) = 0.01_dp
       ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
    END SUBROUTINE pao_param_initguess_gth

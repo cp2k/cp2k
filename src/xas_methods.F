@@ -26,10 +26,6 @@ MODULE xas_methods
    USE cp_array_utils_r,                ONLY: cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_interface,              ONLY: &
-        convert_offsets_to_sizes, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_obj, &
-        dbcsr_type_antisymmetric
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
@@ -55,6 +51,10 @@ MODULE xas_methods
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
+        dbcsr_distribution_obj, dbcsr_init, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: &
         do_loc_none, state_loc_list, state_loc_range, xas_1s_type, xas_2p_type, xas_2s_type, &
         xas_dip_len, xas_dip_vel, xas_dscf, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
@@ -171,12 +171,12 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: vecbuffer
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks, op_sm, ostrength_sm
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_b
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: groundstate_coeff
       TYPE(cp_fm_type), POINTER                          :: all_vectors, excvec_coeff, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, op_sm, ostrength_sm
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -597,11 +597,11 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: sto_zet
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -836,14 +836,14 @@ CONTAINS
       ALLOCATE (xas_env%all_evals(nvirtual))
 
       IF (xas_control%dipole_form == xas_dip_len) THEN
-         CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm, 3)
+         CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm, 3)
          DO i = 1, 3
             ALLOCATE (xas_env%ostrength_sm(i)%matrix)
-            CALL cp_dbcsr_init(xas_env%ostrength_sm(i)%matrix)
-            CALL cp_dbcsr_copy(xas_env%ostrength_sm(i)%matrix, matrix_s(1)%matrix, &
-                               "xas_env%ostrength_sm"// &
-                               "-"//TRIM(ADJUSTL(cp_to_string(i))))
-            CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix, 0.0_dp)
+            CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
+            CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix, matrix_s(1)%matrix, &
+                            "xas_env%ostrength_sm"// &
+                            "-"//TRIM(ADJUSTL(cp_to_string(i))))
+            CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix, 0.0_dp)
          END DO
       ELSEIF (xas_control%dipole_form == xas_dip_vel) THEN
          !
@@ -860,22 +860,22 @@ CONTAINS
          DEALLOCATE (last_sgf)
          !
          !
-         CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm, 3)
+         CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm, 3)
          ALLOCATE (xas_env%ostrength_sm(1)%matrix)
-         CALL cp_dbcsr_init(xas_env%ostrength_sm(1)%matrix)
-         CALL cp_dbcsr_create(matrix=xas_env%ostrength_sm(1)%matrix, &
-                              name="xas_env%ostrength_sm", &
-                              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
-                              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0, mutable_work=.TRUE.)
+         CALL dbcsr_init(xas_env%ostrength_sm(1)%matrix)
+         CALL dbcsr_create(matrix=xas_env%ostrength_sm(1)%matrix, &
+                           name="xas_env%ostrength_sm", &
+                           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                           nze=0, mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(xas_env%ostrength_sm(1)%matrix, sab_orb)
-         CALL cp_dbcsr_set(xas_env%ostrength_sm(1)%matrix, 0.0_dp)
+         CALL dbcsr_set(xas_env%ostrength_sm(1)%matrix, 0.0_dp)
          DO i = 2, 3
             ALLOCATE (xas_env%ostrength_sm(i)%matrix)
-            CALL cp_dbcsr_init(xas_env%ostrength_sm(i)%matrix)
-            CALL cp_dbcsr_copy(xas_env%ostrength_sm(i)%matrix, xas_env%ostrength_sm(1)%matrix, &
-                               "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))))
-            CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix, 0.0_dp)
+            CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
+            CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix, xas_env%ostrength_sm(1)%matrix, &
+                            "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))))
+            CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix, 0.0_dp)
          END DO
 
          DEALLOCATE (row_blk_sizes)
@@ -1024,10 +1024,10 @@ CONTAINS
       REAL(dp)                                           :: rc(3)
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_ab, sp_em
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op_sm, ostrength_sm
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dip_fm_set
       TYPE(cp_fm_type), POINTER                          :: all_vectors, excvec_coeff, fm_work
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_sm, ostrength_sm
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -1066,7 +1066,7 @@ CONTAINS
                                   all_vectors, all_evals, fm_work, &
                                   sp_em, sp_ab, xas_estate, nvirtual)
             DO i = 1, SIZE(ostrength_sm, 1)
-               CALL cp_dbcsr_set(ostrength_sm(i)%matrix, 0.0_dp)
+               CALL dbcsr_set(ostrength_sm(i)%matrix, 0.0_dp)
             END DO
          ELSE
             DO i = 1, 3
@@ -1312,7 +1312,7 @@ CONTAINS
                                all_vectors, all_evals, fm_work, sp_em, sp_ab, estate, nstate)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_set
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: op_sm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_sm
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(cp_fm_type), POINTER                          :: excvec, all_vectors
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals

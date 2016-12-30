@@ -12,13 +12,6 @@ MODULE qs_condnum
    USE arnoldi_api,                     ONLY: arnoldi_conjugate_gradient,&
                                               arnoldi_extremal
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-        cp_dbcsr_gershgorin_norm, cp_dbcsr_get_block_diag, cp_dbcsr_get_info, &
-        cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_norm
    USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -28,6 +21,12 @@ MODULE qs_condnum
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_gershgorin_norm, &
+        dbcsr_get_block_diag, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invmat
 #include "./base/base_uses.f90"
@@ -61,7 +60,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE overlap_condnum(matrixkp_s, iunit, norml1, norml2, use_arnoldi, blacs_env)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrixkp_s
       INTEGER, INTENT(IN)                                :: iunit
       LOGICAL, INTENT(IN)                                :: norml1, norml2, use_arnoldi
@@ -75,10 +74,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: amnorm, anorm, eps_ev, max_ev, min_ev, &
                                                             threshold
       REAL(KIND=dp), DIMENSION(2)                        :: eigvals
-      TYPE(cp_dbcsr_type)                                :: tempmat
-      TYPE(cp_dbcsr_type), POINTER                       :: smat
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: fmsmat, fmwork
+      TYPE(dbcsr_type)                                   :: tempmat
+      TYPE(dbcsr_type), POINTER                          :: smat
 
       CALL timeset(routineN, handle)
 
@@ -89,19 +88,19 @@ CONTAINS
       ELSE
          IF (iunit > 0) WRITE (iunit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER AT GAMMA POINT"
          ALLOCATE (smat)
-         CALL cp_dbcsr_init(smat)
-         CALL cp_dbcsr_create(smat, template=matrixkp_s(1, 1)%matrix)
-         CALL cp_dbcsr_copy(smat, matrixkp_s(1, 1)%matrix)
+         CALL dbcsr_init(smat)
+         CALL dbcsr_create(smat, template=matrixkp_s(1, 1)%matrix)
+         CALL dbcsr_copy(smat, matrixkp_s(1, 1)%matrix)
          DO ic = 2, SIZE(matrixkp_s, 2)
-            CALL cp_dbcsr_add(smat, matrixkp_s(1, ic)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(smat, matrixkp_s(1, ic)%matrix, 1.0_dp, 1.0_dp)
          END DO
       END IF
       !
       IF (ASSOCIATED(smat)) THEN
-         CPASSERT(cp_dbcsr_get_matrix_type(smat) .EQ. dbcsr_type_symmetric)
+         CPASSERT(dbcsr_get_matrix_type(smat) .EQ. dbcsr_type_symmetric)
          IF (norml1) THEN
             ! norm of S
-            anorm = cp_dbcsr_gershgorin_norm(smat)
+            anorm = dbcsr_gershgorin_norm(smat)
             CALL estimate_norm_invmat(smat, amnorm)
             IF (iunit > 0) THEN
                WRITE (iunit, '(T2,A)') "1-Norm Condition Number (Estimate)"
@@ -113,15 +112,15 @@ CONTAINS
 
             eps_ev = 1.0E-14_dp
             ! diagonalization
-            CALL cp_dbcsr_get_info(smat, nfullrows_total=nbas)
+            CALL dbcsr_get_info(smat, nfullrows_total=nbas)
             CALL cp_fm_struct_create(fmstruct=matrix_struct, context=blacs_env, &
                                      nrow_global=nbas, ncol_global=nbas)
             CALL cp_fm_create(fmsmat, matrix_struct)
             CALL cp_fm_create(fmwork, matrix_struct)
             ! transfer to FM
-            CALL cp_dbcsr_init(tempmat)
-            CALL cp_dbcsr_create(tempmat, template=smat, matrix_type=dbcsr_type_no_symmetry)
-            CALL cp_dbcsr_desymmetrize(smat, tempmat)
+            CALL dbcsr_init(tempmat)
+            CALL dbcsr_create(tempmat, template=smat, matrix_type=dbcsr_type_no_symmetry)
+            CALL dbcsr_desymmetrize(smat, tempmat)
             CALL copy_dbcsr_to_fm(tempmat, fmsmat)
 
             ! diagonalize
@@ -131,7 +130,7 @@ CONTAINS
             max_ev = eigvals(2)
             amnorm = cp_fm_norm(fmsmat, "1")
 
-            CALL cp_dbcsr_release(tempmat)
+            CALL dbcsr_release(tempmat)
             CALL cp_fm_release(fmsmat)
             CALL cp_fm_release(fmwork)
             CALL cp_fm_struct_release(matrix_struct)
@@ -181,7 +180,7 @@ CONTAINS
       IF (SIZE(matrixkp_s, 2) == 1) THEN
          NULLIFY (smat)
       ELSE
-         CALL cp_dbcsr_release(smat)
+         CALL dbcsr_release(smat)
          DEALLOCATE (smat)
       END IF
 
@@ -201,7 +200,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE estimate_norm_invmat(amat, anorm)
-      TYPE(cp_dbcsr_type), POINTER                       :: amat
+      TYPE(dbcsr_type), POINTER                          :: amat
       REAL(KIND=dp), INTENT(OUT)                         :: anorm
 
       INTEGER                                            :: i, k, nbas
@@ -210,18 +209,18 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x, xsi
       REAL(KIND=dp), DIMENSION(2)                        :: work
       REAL(KIND=dp), EXTERNAL                            :: dlange
-      TYPE(cp_dbcsr_type)                                :: pmat
+      TYPE(dbcsr_type)                                   :: pmat
 
       ! generate a block diagonal preconditioner
-      CALL cp_dbcsr_init(pmat)
-      CALL cp_dbcsr_create(pmat, name="SMAT Preconditioner", template=amat)
+      CALL dbcsr_init(pmat)
+      CALL dbcsr_create(pmat, name="SMAT Preconditioner", template=amat)
       ! replicate the diagonal blocks of the overlap matrix
-      CALL cp_dbcsr_get_block_diag(amat, pmat)
+      CALL dbcsr_get_block_diag(amat, pmat)
       ! invert preconditioner
       CALL smat_precon_diag(pmat)
 
       anorm = 1.0_dp
-      CALL cp_dbcsr_get_info(amat, nfullrows_total=nbas)
+      CALL dbcsr_get_info(amat, nfullrows_total=nbas)
       ALLOCATE (x(nbas), xsi(nbas))
       x(1:nbas) = 1._dp/REAL(nbas, KIND=dp)
       CALL dbcsr_solve(amat, x, pmat)
@@ -259,7 +258,7 @@ CONTAINS
       gg = 2._dp*gg/REAL(3*nbas, dp)
       anorm = MAX(g, gg)
       DEALLOCATE (x, xsi)
-      CALL cp_dbcsr_release(pmat)
+      CALL dbcsr_release(pmat)
 
    END SUBROUTINE estimate_norm_invmat
 
@@ -270,15 +269,15 @@ CONTAINS
 !> \param pmat ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_solve(amat, x, pmat)
-      TYPE(cp_dbcsr_type), POINTER                       :: amat
+      TYPE(dbcsr_type), POINTER                          :: amat
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: x
-      TYPE(cp_dbcsr_type)                                :: pmat
+      TYPE(dbcsr_type)                                   :: pmat
 
       INTEGER                                            :: max_iter, nbas
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: threshold
 
-      CALL cp_dbcsr_get_info(amat, nfullrows_total=nbas)
+      CALL dbcsr_get_info(amat, nfullrows_total=nbas)
       max_iter = MIN(1000, nbas)
       threshold = 1.e-6_dp
       CALL arnoldi_conjugate_gradient(amat, x, pmat, converged=converged, threshold=threshold, max_iter=max_iter)
@@ -290,24 +289,24 @@ CONTAINS
 !> \param pmat ...
 ! **************************************************************************************************
    SUBROUTINE smat_precon_diag(pmat)
-      TYPE(cp_dbcsr_type)                                :: pmat
+      TYPE(dbcsr_type)                                   :: pmat
 
       CHARACTER(len=*), PARAMETER :: routineN = 'smat_precon_diag', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: iatom, info, jatom, n
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: sblock
-      TYPE(cp_dbcsr_iterator)                            :: dbcsr_iter
+      TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
 
-      CALL cp_dbcsr_iterator_start(dbcsr_iter, pmat)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(dbcsr_iter))
-         CALL cp_dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, sblock)
+      CALL dbcsr_iterator_start(dbcsr_iter, pmat)
+      DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
+         CALL dbcsr_iterator_next_block(dbcsr_iter, iatom, jatom, sblock)
          CPASSERT(iatom == jatom)
          n = SIZE(sblock, 1)
          CALL invmat(sblock(1:n, 1:n), info)
          CPASSERT(info == 0)
       END DO
-      CALL cp_dbcsr_iterator_stop(dbcsr_iter)
+      CALL dbcsr_iterator_stop(dbcsr_iter)
 
    END SUBROUTINE smat_precon_diag
 

@@ -20,11 +20,11 @@ MODULE dm_ls_scf_create
                                               VandeVondele2012,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_para_env,                     ONLY: cp_para_env_retain
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_constants,                 ONLY: &
         ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, ls_s_inversion_none, &
@@ -80,8 +80,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_create', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, unit_nr
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(ls_scf_env_type), POINTER                     :: ls_scf_env
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set

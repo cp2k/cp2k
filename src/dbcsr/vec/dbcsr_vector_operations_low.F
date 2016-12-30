@@ -33,7 +33,7 @@ MODULE dbcsr_vector_operations_low
                                               dbcsr_get_info,&
                                               dbcsr_set
    USE dbcsr_types,                     ONLY: &
-        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_obj, dbcsr_scalar_type, &
+        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_scalar_type, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
         dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
    USE dbcsr_work_operations,           ONLY: dbcsr_create
@@ -106,9 +106,9 @@ CONTAINS
 !> \param work_col ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_matrix_colvec_multiply_low_any(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-      TYPE(dbcsr_obj)                                    :: matrix, vec_in, vec_out
+      TYPE(dbcsr_type)                                   :: matrix, vec_in, vec_out
       TYPE(dbcsr_scalar_type)                            :: alpha, beta
-      TYPE(dbcsr_obj)                                    :: work_row, work_col
+      TYPE(dbcsr_type)                                   :: work_row, work_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_low_any', &
          routineP = moduleN//':'//routineN
@@ -117,7 +117,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      matrix_type = matrix%m%data_type
+      matrix_type = matrix%data_type
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_real_8)
          CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%r_dp, beta%r_dp, work_row, work_col)
@@ -140,10 +140,10 @@ CONTAINS
 !>        this is not a sparse object (and must never be)
 !> \param dbcsr_vec  the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
-!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param ncol number of vectors in the dbcsr_typeect (1 for vector, n for skinny matrix)
 ! **************************************************************************************************
    SUBROUTINE create_col_vec_from_matrix(dbcsr_vec, matrix, ncol)
-      TYPE(dbcsr_obj)                                    :: dbcsr_vec, matrix
+      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
       INTEGER                                            :: ncol
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_col_vec_from_matrix', &
@@ -167,7 +167,7 @@ CONTAINS
                                   row_dist_cluster=dbcsr_distribution_row_clusters(dbcsr_distribution(matrix)))
       CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
                         dbcsr_row_block_sizes(matrix), col_sizes, &
-                        nze=0, data_type=matrix%m%data_type)
+                        nze=0, data_type=matrix%data_type)
 
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
@@ -185,10 +185,10 @@ CONTAINS
 !>        this is not a sparse object (and must never be)
 !> \param dbcsr_vec ...
 !> \param matrix a dbcsr matrix used as template
-!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param nrow number of vectors in the dbcsr_typeect (1 for vector, n for skinny matrix)
 ! **************************************************************************************************
    SUBROUTINE create_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
-      TYPE(dbcsr_obj)                                    :: dbcsr_vec, matrix
+      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
       INTEGER                                            :: nrow
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_row_vec_from_matrix', &
@@ -213,7 +213,7 @@ CONTAINS
 
       CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
                         row_sizes, dbcsr_col_block_sizes(matrix), &
-                        nze=0, data_type=matrix%m%data_type)
+                        nze=0, data_type=matrix%data_type)
 
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
@@ -231,10 +231,10 @@ CONTAINS
 !>        this is not a sparse object (and must never be)
 !> \param dbcsr_vec the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
-!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param ncol number of vectors in the dbcsr_typeect (1 for vector, n for skinny matrix)
 ! **************************************************************************************************
    SUBROUTINE create_replicated_col_vec_from_matrix(dbcsr_vec, matrix, ncol)
-      TYPE(dbcsr_obj)                                    :: dbcsr_vec, matrix
+      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
       INTEGER                                            :: ncol
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_col_vec_from_matrix', &
@@ -262,7 +262,7 @@ CONTAINS
 
       CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
                         dbcsr_row_block_sizes(matrix), col_sizes, &
-                        nze=0, data_type=matrix%m%data_type)
+                        nze=0, data_type=matrix%data_type)
 
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
@@ -280,10 +280,10 @@ CONTAINS
 !>        this is not a sparse object (and must never be)
 !> \param dbcsr_vec the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
-!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param nrow number of vectors in the dbcsr_typeect (1 for vector, n for skinny matrix)
 ! **************************************************************************************************
    SUBROUTINE create_replicated_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
-      TYPE(dbcsr_obj)                                    :: dbcsr_vec, matrix
+      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
       INTEGER                                            :: nrow
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_row_vec_from_matrix', &
@@ -311,7 +311,7 @@ CONTAINS
 
       CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
                         row_sizes, dbcsr_col_block_sizes(matrix), &
-                        nze=0, data_type=matrix%m%data_type)
+                        nze=0, data_type=matrix%data_type)
 
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
@@ -328,7 +328,7 @@ CONTAINS
 !> \param fast_vec_access ...
 ! **************************************************************************************************
    SUBROUTINE create_fast_col_vec_access(vec, fast_vec_access)
-      TYPE(dbcsr_obj)                                    :: vec
+      TYPE(dbcsr_type)                                   :: vec
       TYPE(fast_vec_access_type)                         :: fast_vec_access
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access', &
@@ -338,7 +338,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      SELECT CASE (vec%m%data_type)
+      SELECT CASE (vec%data_type)
       CASE (dbcsr_type_real_8)
          CALL create_fast_col_vec_access_d(vec, fast_vec_access)
       CASE (dbcsr_type_real_4)
@@ -359,7 +359,7 @@ CONTAINS
 !> \param fast_vec_access ...
 ! **************************************************************************************************
    SUBROUTINE create_fast_row_vec_access(vec, fast_vec_access)
-      TYPE(dbcsr_obj)                                    :: vec
+      TYPE(dbcsr_type)                                   :: vec
       TYPE(fast_vec_access_type)                         :: fast_vec_access
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access', &
@@ -369,7 +369,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      SELECT CASE (vec%m%data_type)
+      SELECT CASE (vec%data_type)
       CASE (dbcsr_type_real_8)
          CALL create_fast_row_vec_access_d(vec, fast_vec_access)
       CASE (dbcsr_type_real_4)

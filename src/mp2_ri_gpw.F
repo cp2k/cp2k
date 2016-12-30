@@ -25,15 +25,6 @@ MODULE mp2_ri_gpw
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-        cp_dbcsr_deallocate_matrix, cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-        cp_dbcsr_finalize, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_get_info, &
-        cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_iterator, &
-        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_put_block, &
-        cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
-        cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_2c_integrate,&
@@ -57,6 +48,14 @@ MODULE mp2_ri_gpw
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution, dbcsr_distribution_obj, &
+        dbcsr_finalize, dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
+        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, &
+        dbcsr_reserve_blocks, dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -245,7 +244,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, fm_matrix_L_RI_metric
       INTEGER                                            :: nmo, homo
       TYPE(pw_p_type)                                    :: rho_r, rho_g, pot_g
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_munu_mao_occ_virt, &
+      TYPE(dbcsr_p_type)                                 :: mat_munu, mat_munu_mao_occ_virt, &
                                                             mat_munu_mao_virt_occ
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub, sab_orb_all
@@ -253,7 +252,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(task_list_type), POINTER                      :: task_list_sub
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                                             mo_coeff_gw
       REAL(KIND=dp)                                      :: eps_filter
       INTEGER                                            :: unit_nr
@@ -264,8 +263,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: starts_B_all, sizes_B_all, ends_B_all
       INTEGER                                            :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL                                            :: do_im_time, do_mao
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int, &
-         mat_3c_overl_int_mao_for_occ, mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_3c_overl_int, mat_3c_overl_int_mao_for_occ, &
+         mat_3c_overl_int_mao_for_virt, mao_coeff_occ, mao_coeff_virt
       INTEGER                                            :: ri_metric, ri_metric_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          OPTIONAL                                        :: BIb_C_beta, BIb_C_gw_beta
@@ -273,7 +272,7 @@ CONTAINS
                                                             sizes_B_virtual_beta, &
                                                             starts_B_virtual_beta
       INTEGER, OPTIONAL                                  :: homo_beta
-      TYPE(cp_dbcsr_type), OPTIONAL, POINTER             :: mo_coeff_o_beta, mo_coeff_v_beta, &
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_o_beta, mo_coeff_v_beta, &
                                                             mo_coeff_all_beta, mo_coeff_gw_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
@@ -296,13 +295,13 @@ CONTAINS
       REAL(KIND=dp)                                      :: cond_num, mem_for_iaK, pair_energy, &
                                                             wfn_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_munu_local_L
-      TYPE(cp_dbcsr_type) :: matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, &
-         matrix_in_jm, matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_gw, fm_BIb_gw_beta, fm_BIb_jb, &
                                                             fm_BIb_jb_beta, fm_matrix_L
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
+      TYPE(dbcsr_type) :: matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, matrix_ia_jnu_beta, &
+         matrix_in_jm, matrix_in_jm_beta, matrix_in_jnu, matrix_in_jnu_beta
       TYPE(pw_p_type)                                    :: psi_L
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: mao_coeff_repl_occ, mao_coeff_repl_virt
@@ -537,9 +536,9 @@ CONTAINS
             DO LLL = 1, my_group_L_size
                NULLIFY (mat_munu_local_L(LLL)%matrix)
                ALLOCATE (mat_munu_local_L(LLL)%matrix)
-               CALL cp_dbcsr_init(mat_munu_local_L(LLL)%matrix)
-               CALL cp_dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
-               CALL cp_dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
+               CALL dbcsr_init(mat_munu_local_L(LLL)%matrix)
+               CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
+               CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
             ENDDO
             CALL cp_eri_mme_3c_integrate(eri_param, para_env_sub, qs_env, &
                                          first_c=my_group_L_start, last_c=my_group_L_end, &
@@ -576,7 +575,7 @@ CONTAINS
             ENDDO
 
             DO LLL = 1, my_group_L_size
-               CALL cp_dbcsr_release_p(mat_munu_local_L(LLL)%matrix)
+               CALL dbcsr_release_p(mat_munu_local_L(LLL)%matrix)
             ENDDO
             DEALLOCATE (mat_munu_local_L)
          CASE (do_eri_gpw)
@@ -608,7 +607,7 @@ CONTAINS
 
                ! and finally (K|mu nu)
                CALL timeset(routineN//"_int", handle3)
-               CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
+               CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
                CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
                                        calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                        pw_env_external=pw_env_sub, task_list_external=task_list_sub)
@@ -712,7 +711,7 @@ CONTAINS
 
             ! and finally (K|mu nu)
             CALL timeset(routineN//"_int_trunc", handle3)
-            CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
+            CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
             CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                     pw_env_external=pw_env_sub, task_list_external=task_list_sub)
@@ -798,11 +797,11 @@ CONTAINS
          CALL cp_fm_release(fm_BIb_jb)
          DEALLOCATE (local_col_row_info)
 
-         CALL cp_dbcsr_release(matrix_ia_jnu)
-         CALL cp_dbcsr_release(matrix_ia_jb)
+         CALL dbcsr_release(matrix_ia_jnu)
+         CALL dbcsr_release(matrix_ia_jb)
          IF (do_alpha_beta) THEN
-            CALL cp_dbcsr_release(matrix_ia_jnu_beta)
-            CALL cp_dbcsr_release(matrix_ia_jb_beta)
+            CALL dbcsr_release(matrix_ia_jnu_beta)
+            CALL dbcsr_release(matrix_ia_jb_beta)
             CALL cp_fm_release(fm_BIb_jb_beta)
             DEALLOCATE (local_col_row_info_beta)
          END IF
@@ -812,13 +811,13 @@ CONTAINS
       END IF
 
       IF (my_do_gw) THEN
-         CALL cp_dbcsr_release(matrix_in_jnu)
-         CALL cp_dbcsr_release(matrix_in_jm)
+         CALL dbcsr_release(matrix_in_jnu)
+         CALL dbcsr_release(matrix_in_jm)
          CALL cp_fm_release(fm_BIb_gw)
          DEALLOCATE (local_col_row_info_gw)
          IF (do_alpha_beta) THEN
-            CALL cp_dbcsr_release(matrix_in_jnu_beta)
-            CALL cp_dbcsr_release(matrix_in_jm_beta)
+            CALL dbcsr_release(matrix_in_jnu_beta)
+            CALL dbcsr_release(matrix_in_jm_beta)
             CALL cp_fm_release(fm_BIb_gw_beta)
          END IF
       END IF
@@ -856,7 +855,7 @@ CONTAINS
                                            ncol_local, blacs_env_sub, &
                                            para_env_sub, local_col_row_info)
 
-      TYPE(cp_dbcsr_type)                                :: matrix_ia_jnu, matrix_ia_jb, &
+      TYPE(dbcsr_type)                                   :: matrix_ia_jnu, matrix_ia_jb, &
                                                             mo_coeff_templ
       INTEGER                                            :: size_1, size_2
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
@@ -877,22 +876,22 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! initialize and create the matrix (K|jnu)
-      CALL cp_dbcsr_init(matrix_ia_jnu)
-      CALL cp_dbcsr_create(matrix_ia_jnu, template=mo_coeff_templ)
+      CALL dbcsr_init(matrix_ia_jnu)
+      CALL dbcsr_create(matrix_ia_jnu, template=mo_coeff_templ)
 
       ! Allocate Sparse matrices: (K|jb)
-      CALL cp_dbcsr_init(matrix_ia_jb)
+      CALL dbcsr_init(matrix_ia_jb)
       CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb, template=mo_coeff_templ, m=size_2, n=size_1, &
                                          sym=dbcsr_type_no_symmetry)
 
       ! set all to zero in such a way that the memory is actually allocated
-      CALL cp_dbcsr_set(matrix_ia_jnu, 0.0_dp)
-      CALL cp_dbcsr_set(matrix_ia_jb, 0.0_dp)
+      CALL dbcsr_set(matrix_ia_jnu, 0.0_dp)
+      CALL dbcsr_set(matrix_ia_jb, 0.0_dp)
 
       ! create the analogous of matrix_ia_jb in fm type
       NULLIFY (fm_BIb_jb)
       NULLIFY (fm_struct)
-      CALL cp_dbcsr_get_info(matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
+      CALL dbcsr_get_info(matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env_sub)
       CALL cp_fm_create(fm_BIb_jb, fm_struct, name=matrix_name_2)
@@ -998,11 +997,11 @@ CONTAINS
                                    max_row_col_local, sub_proc_map, local_col_row_info, &
                                    my_B_end, my_B_start, descr)
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu
-      TYPE(cp_dbcsr_type)                                :: matrix_ia_jnu, matrix_ia_jb
+      TYPE(dbcsr_p_type)                                 :: mat_munu
+      TYPE(dbcsr_type)                                   :: matrix_ia_jnu, matrix_ia_jb
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :)                     :: BIb_jb
-      TYPE(cp_dbcsr_type), POINTER                       :: mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp)                                      :: eps_filter
       INTEGER                                            :: max_row_col_local
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
@@ -1016,10 +1015,10 @@ CONTAINS
 
       CALL timeset(routineN//"_mult_"//descr, handle1)
 
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                             0.0_dp, matrix_ia_jnu, filter_eps=eps_filter)
-      CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
-                             0.0_dp, matrix_ia_jb, filter_eps=eps_filter)
+      CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
+                          0.0_dp, matrix_ia_jnu, filter_eps=eps_filter)
+      CALL dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
+                          0.0_dp, matrix_ia_jb, filter_eps=eps_filter)
       CALL timestop(handle1)
 
       CALL timeset(routineN//"_E_Ex_"//descr, handle2)
@@ -1224,11 +1223,11 @@ CONTAINS
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_RI_aux
-      TYPE(cp_dbcsr_type), POINTER                       :: matrix_s_RI_aux_desymm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_S_global
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_RI_aux
+      TYPE(dbcsr_type), POINTER                          :: matrix_s_RI_aux_desymm
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
 
@@ -1252,15 +1251,15 @@ CONTAINS
 
       NULLIFY (matrix_s_RI_aux_desymm)
       ALLOCATE (matrix_s_RI_aux_desymm)
-      CALL cp_dbcsr_init(matrix_s_RI_aux_desymm)
-      CALL cp_dbcsr_create(matrix_s_RI_aux_desymm, 'S_RI non_ysmm', &
-                           cp_dbcsr_distribution(matrix_s_RI_aux(1)%matrix), dbcsr_type_no_symmetry, &
-                           cp_dbcsr_row_block_sizes(matrix_s_RI_aux(1)%matrix), &
-                           cp_dbcsr_col_block_sizes(matrix_s_RI_aux(1)%matrix), &
-                           cp_dbcsr_get_data_size(matrix_s_RI_aux(1)%matrix), &
-                           cp_dbcsr_get_data_type(matrix_s_RI_aux(1)%matrix))
+      CALL dbcsr_init(matrix_s_RI_aux_desymm)
+      CALL dbcsr_create(matrix_s_RI_aux_desymm, 'S_RI non_ysmm', &
+                        dbcsr_distribution(matrix_s_RI_aux(1)%matrix), dbcsr_type_no_symmetry, &
+                        dbcsr_row_block_sizes(matrix_s_RI_aux(1)%matrix), &
+                        dbcsr_col_block_sizes(matrix_s_RI_aux(1)%matrix), &
+                        dbcsr_get_data_size(matrix_s_RI_aux(1)%matrix), &
+                        dbcsr_get_data_type(matrix_s_RI_aux(1)%matrix))
 
-      CALL cp_dbcsr_desymmetrize(matrix_s_RI_aux(1)%matrix, matrix_s_RI_aux_desymm)
+      CALL dbcsr_desymmetrize(matrix_s_RI_aux(1)%matrix, matrix_s_RI_aux_desymm)
 
       CALL cp_fm_create(fm_matrix_L_RI_metric, fm_matrix_L%matrix_struct)
       CALL cp_fm_set_all(fm_matrix_L_RI_metric, 0.0_dp)
@@ -1276,7 +1275,7 @@ CONTAINS
 
       CALL copy_dbcsr_to_fm(matrix_s_RI_aux_desymm, fm_matrix_S_global)
 
-      CALL cp_dbcsr_deallocate_matrix(matrix_s_RI_aux_desymm)
+      CALL dbcsr_deallocate_matrix(matrix_s_RI_aux_desymm)
 
       CALL cp_fm_struct_release(fm_struct)
 
@@ -6087,7 +6086,7 @@ CONTAINS
                                      my_group_L_end, dimen_RI, sab_orb_sub, sab_orb_all, &
                                      reserve_blocks, compute_3c)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mat_B_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: my_group_L_size, my_group_L_start, &
@@ -6169,11 +6168,11 @@ CONTAINS
 
       END DO
 
-      CALL cp_dbcsr_get_info(mat_B_munu(1)%matrix, &
-                             row_blk_offset=row_blk_offset, &
-                             row_blk_size=row_blk_sizes, &
-                             col_blk_size=col_blk_sizes, &
-                             nblkrows_total=nblkrows_total)
+      CALL dbcsr_get_info(mat_B_munu(1)%matrix, &
+                          row_blk_offset=row_blk_offset, &
+                          row_blk_size=row_blk_sizes, &
+                          col_blk_size=col_blk_sizes, &
+                          nblkrows_total=nblkrows_total)
 
       IF (reserve_blocks) THEN
 
@@ -6481,7 +6480,7 @@ CONTAINS
 
                                  CALL timeset(routineN//"_put_dbcsr", handle2)
 
-                                 CALL cp_dbcsr_put_block(mat_B_munu(LLL)%matrix, row=row, col=col, block=block, summation=.TRUE.)
+                                 CALL dbcsr_put_block(mat_B_munu(LLL)%matrix, row=row, col=col, block=block, summation=.TRUE.)
                                  DEALLOCATE (block)
 
                                  CALL timestop(handle2)
@@ -6522,11 +6521,11 @@ CONTAINS
 
             blk_cnt = SIZE(rows_to_alloc(LLL)%array)
 
-            CALL cp_dbcsr_reserve_blocks(mat_B_munu(LLL)%matrix, &
-                                         rows=rows_to_alloc(LLL)%array(1:blk_cnt), &
-                                         cols=cols_to_alloc(LLL)%array(1:blk_cnt))
+            CALL dbcsr_reserve_blocks(mat_B_munu(LLL)%matrix, &
+                                      rows=rows_to_alloc(LLL)%array(1:blk_cnt), &
+                                      cols=cols_to_alloc(LLL)%array(1:blk_cnt))
 
-            CALL cp_dbcsr_finalize(mat_B_munu(LLL)%matrix)
+            CALL dbcsr_finalize(mat_B_munu(LLL)%matrix)
 
             DEALLOCATE (rows_to_alloc(LLL)%array)
             DEALLOCATE (cols_to_alloc(LLL)%array)
@@ -6577,10 +6576,10 @@ CONTAINS
                                          cut_RI, sab_orb_sub, sab_orb_all, do_mao, mao_coeff_repl_occ, &
                                          mao_coeff_repl_virt)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int, &
                                                             mat_3c_overl_int_mao_for_occ, &
                                                             mat_3c_overl_int_mao_for_virt
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu, mat_munu_mao_occ_virt
+      TYPE(dbcsr_p_type)                                 :: mat_munu, mat_munu_mao_occ_virt
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_group_L_starts_im_time, &
                                                             my_group_L_ends_im_time, &
@@ -6667,15 +6666,15 @@ CONTAINS
 
       END DO
 
-      CALL cp_dbcsr_get_info(mat_munu%matrix, &
-                             row_blk_size=row_blk_sizes, &
-                             col_blk_size=col_blk_sizes)
+      CALL dbcsr_get_info(mat_munu%matrix, &
+                          row_blk_size=row_blk_sizes, &
+                          col_blk_size=col_blk_sizes)
 
       IF (do_mao) THEN
 
-         CALL cp_dbcsr_get_info(mat_munu_mao_occ_virt%matrix, &
-                                row_blk_size=blk_sizes_mao_occ, &
-                                col_blk_size=blk_sizes_mao_virt)
+         CALL dbcsr_get_info(mat_munu_mao_occ_virt%matrix, &
+                             row_blk_size=blk_sizes_mao_occ, &
+                             col_blk_size=blk_sizes_mao_virt)
 
       END IF
 
@@ -6942,13 +6941,13 @@ CONTAINS
 
                                  CALL timeset(routineN//"_put_dbcsr", handle2)
 
-                                 CALL cp_dbcsr_put_block(mat_3c_overl_int(i_cut_RI)%matrix, &
-                                                         row=row, col=col, block=block, summation=.TRUE.)
+                                 CALL dbcsr_put_block(mat_3c_overl_int(i_cut_RI)%matrix, &
+                                                      row=row, col=col, block=block, summation=.TRUE.)
 
                                  IF (row .NE. col) THEN
 
-                                    CALL cp_dbcsr_put_block(mat_3c_overl_int(i_cut_RI)%matrix, &
-                                                            row=col, col=row, block=block_transposed, summation=.TRUE.)
+                                    CALL dbcsr_put_block(mat_3c_overl_int(i_cut_RI)%matrix, &
+                                                         row=col, col=row, block=block_transposed, summation=.TRUE.)
 
                                  END IF
 
@@ -7048,21 +7047,21 @@ CONTAINS
 
                                     END IF
 
-                                    CALL cp_dbcsr_put_block(mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix, &
-                                                            row=row, col=col, block=block_mao_for_occ, summation=.TRUE.)
+                                    CALL dbcsr_put_block(mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix, &
+                                                         row=row, col=col, block=block_mao_for_occ, summation=.TRUE.)
 
-                                    CALL cp_dbcsr_put_block(mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix, &
-                                                            row=row, col=col, block=block_mao_for_virt, summation=.TRUE.)
+                                    CALL dbcsr_put_block(mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix, &
+                                                         row=row, col=col, block=block_mao_for_virt, summation=.TRUE.)
 
                                     IF (row .NE. col) THEN
 
-                                       CALL cp_dbcsr_put_block(mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix, &
-                                                               row=col, col=row, block=block_mao_for_occ_transposed, &
-                                                               summation=.TRUE.)
+                                       CALL dbcsr_put_block(mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix, &
+                                                            row=col, col=row, block=block_mao_for_occ_transposed, &
+                                                            summation=.TRUE.)
 
-                                       CALL cp_dbcsr_put_block(mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix, &
-                                                               row=col, col=row, block=block_mao_for_virt_transposed, &
-                                                               summation=.TRUE.)
+                                       CALL dbcsr_put_block(mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix, &
+                                                            row=col, col=row, block=block_mao_for_virt_transposed, &
+                                                            summation=.TRUE.)
 
                                     END IF
 
@@ -7126,8 +7125,8 @@ CONTAINS
                                 my_group_L_sizes_im_time, sab_orb_sub, sab_orb_all, &
                                 local_atoms_for_mao_basis)
 
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mat_3c_overl_int
-      TYPE(cp_dbcsr_p_type)                              :: mat_munu
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_3c_overl_int
+      TYPE(dbcsr_p_type)                                 :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_RI, cut_RI
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_group_L_starts_im_time, &
@@ -7175,7 +7174,7 @@ CONTAINS
 
       ! allocate matrix for storing 3c overlap integrals
       NULLIFY (mat_3c_overl_int)
-      CALL cp_dbcsr_allocate_matrix_set(mat_3c_overl_int, cut_RI)
+      CALL dbcsr_allocate_matrix_set(mat_3c_overl_int, cut_RI)
 
       ! get stuff
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
@@ -7207,10 +7206,10 @@ CONTAINS
 
       END DO
 
-      CALL cp_dbcsr_get_info(mat_munu%matrix, &
-                             row_blk_offset=row_blk_offset, &
-                             row_blk_size=row_blk_sizes, &
-                             nblkrows_total=nblkrows_total)
+      CALL dbcsr_get_info(mat_munu%matrix, &
+                          row_blk_offset=row_blk_offset, &
+                          row_blk_size=row_blk_sizes, &
+                          nblkrows_total=nblkrows_total)
 
       ALLOCATE (kind_of(natom))
 
@@ -7500,34 +7499,34 @@ CONTAINS
 
          blk_cnt = SIZE(rows_to_alloc)
 
-         CALL cp_dbcsr_get_info(mat_munu%matrix, &
-                                row_blk_size=row_blk_sizes, &
-                                col_blk_size=col_blk_sizes, &
-                                distribution=dist_sub)
+         CALL dbcsr_get_info(mat_munu%matrix, &
+                             row_blk_size=row_blk_sizes, &
+                             col_blk_size=col_blk_sizes, &
+                             distribution=dist_sub)
 
          ALLOCATE (col_blk_sizes_scaled(SIZE(col_blk_sizes)))
          col_blk_sizes_scaled(:) = col_blk_sizes(:)*my_group_L_size
 
          ALLOCATE (mat_3c_overl_int(i_cut_RI)%matrix)
-         CALL cp_dbcsr_init(mat_3c_overl_int(i_cut_RI)%matrix)
+         CALL dbcsr_init(mat_3c_overl_int(i_cut_RI)%matrix)
 
-         CALL cp_dbcsr_create(matrix=mat_3c_overl_int(i_cut_RI)%matrix, &
-                              name="(munuP)", &
-                              dist=dist_sub, &
-                              matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=row_blk_sizes, &
-                              col_blk_size=col_blk_sizes_scaled, &
-                              nze=0)
+         CALL dbcsr_create(matrix=mat_3c_overl_int(i_cut_RI)%matrix, &
+                           name="(munuP)", &
+                           dist=dist_sub, &
+                           matrix_type=dbcsr_type_no_symmetry, &
+                           row_blk_size=row_blk_sizes, &
+                           col_blk_size=col_blk_sizes_scaled, &
+                           nze=0)
 
          IF (rows_to_alloc(1) .NE. 0) THEN
 
-            CALL cp_dbcsr_reserve_blocks(mat_3c_overl_int(i_cut_RI)%matrix, &
-                                         rows=rows_to_alloc(1:blk_cnt), &
-                                         cols=cols_to_alloc(1:blk_cnt))
+            CALL dbcsr_reserve_blocks(mat_3c_overl_int(i_cut_RI)%matrix, &
+                                      rows=rows_to_alloc(1:blk_cnt), &
+                                      cols=cols_to_alloc(1:blk_cnt))
 
          END IF
 
-         CALL cp_dbcsr_finalize(mat_3c_overl_int(i_cut_RI)%matrix)
+         CALL dbcsr_finalize(mat_3c_overl_int(i_cut_RI)%matrix)
 
          DEALLOCATE (col_blk_sizes_scaled)
          DEALLOCATE (rows_to_alloc)
@@ -7557,7 +7556,7 @@ CONTAINS
    SUBROUTINE replicate_mao_coeff(mao_coeff_repl, mao_coeff, local_atoms_for_mao_basis, natom, para_env)
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: mao_coeff_repl
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mao_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coeff
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_atoms_for_mao_basis
       INTEGER                                            :: natom
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -7574,15 +7573,15 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes_mao, row_blk_sizes_prim
       INTEGER, DIMENSION(:, :), POINTER                  :: req_array
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      TYPE(cp_dbcsr_iterator)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
       CALL timeset(routineN, handle)
 
-      CALL cp_dbcsr_get_info(mao_coeff(1)%matrix, &
-                             row_blk_size=row_blk_sizes_prim, &
-                             col_blk_size=col_blk_sizes_mao)
+      CALL dbcsr_get_info(mao_coeff(1)%matrix, &
+                          row_blk_size=row_blk_sizes_prim, &
+                          col_blk_size=col_blk_sizes_mao)
 
       ALLOCATE (mao_coeff_repl(1:natom))
 
@@ -7601,7 +7600,7 @@ CONTAINS
             mao_size = col_blk_sizes_mao(iatom)
             ALLOCATE (mao_coeff_repl(iatom)%array(prim_size, mao_size))
 
-            CALL cp_dbcsr_get_stored_coordinates(mao_coeff(1)%matrix, iatom, iatom, imepos)
+            CALL dbcsr_get_stored_coordinates(mao_coeff(1)%matrix, iatom, iatom, imepos)
 
             num_entries_atoms_rec(2*imepos) = num_entries_atoms_rec(2*imepos)+prim_size*mao_size
             num_entries_atoms_rec(2*imepos+1) = num_entries_atoms_rec(2*imepos+1)+1
@@ -7647,7 +7646,7 @@ CONTAINS
          ! check whether local atom is there
          IF (local_atoms_for_mao_basis(iatom) == iatom) THEN
 
-            CALL cp_dbcsr_get_stored_coordinates(mao_coeff(1)%matrix, iatom, iatom, imepos)
+            CALL dbcsr_get_stored_coordinates(mao_coeff(1)%matrix, iatom, iatom, imepos)
 
             atom_counter(imepos) = atom_counter(imepos)+1
 
@@ -7678,12 +7677,12 @@ CONTAINS
 
       atom_counter(:) = 0
 
-      CALL cp_dbcsr_iterator_start(iter, mao_coeff(1)%matrix)
+      CALL dbcsr_iterator_start(iter, mao_coeff(1)%matrix)
 
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, &
-                                           row_size=row_size, col_size=col_size)
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                        row_size=row_size, col_size=col_size)
 
          ! for the mao trafo matrix, only the diagonal blocks should be allocated
          CPASSERT(row == col)
@@ -7713,7 +7712,7 @@ CONTAINS
 
       END DO ! blocks
 
-      CALL cp_dbcsr_iterator_stop(iter)
+      CALL dbcsr_iterator_stop(iter)
 
       ! communicate the mao coefficients
       CALL communicate_buffer(para_env, sizes_rec, sizes_send, buffer_rec, buffer_send, req_array)

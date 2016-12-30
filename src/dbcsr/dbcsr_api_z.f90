@@ -10,11 +10,11 @@
 !> \param matrix ...
 !> \retval encapsulated ...
 ! **************************************************************************************************
-  FUNCTION make_conformant_scalar_d (scalar, matrix) RESULT (encapsulated)
-    REAL(kind=real_8), INTENT(IN)                      :: scalar
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+  FUNCTION make_conformant_scalar_z (scalar, matrix) RESULT (encapsulated)
+    COMPLEX(kind=real_8), INTENT(IN)                      :: scalar
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_conformant_scalar_d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_conformant_scalar_z', &
       routineP = moduleN//':'//routineN
 
     TYPE(dbcsr_scalar_type)                  :: encapsulated
@@ -22,7 +22,7 @@
 
     encapsulated = dbcsr_scalar (scalar)
     CALL dbcsr_scalar_fill_all (encapsulated)
-    data_type = dbcsr_get_data_type (matrix%matrix)
+    data_type = dbcsr_get_data_type_prv(matrix%prv)
     scalar_data_type = dbcsr_scalar_get_type(encapsulated)
     IF (scalar_data_type .EQ. dbcsr_type_complex_4 .OR.&
         scalar_data_type .EQ. dbcsr_type_complex_8) THEN
@@ -30,7 +30,7 @@
           CPABORT("Can not conform a complex to a real number")
     END IF
     CALL dbcsr_scalar_set_type (encapsulated,data_type)
-  END FUNCTION make_conformant_scalar_d
+  END FUNCTION make_conformant_scalar_z
 
 
 ! **************************************************************************************************
@@ -42,21 +42,20 @@
 !> \param transposed ...
 !> \param existed ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_reserve_block2d_d (matrix, row, col, block,&
-       transposed, existed) 
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+  SUBROUTINE dbcsr_reserve_block2d_z (matrix, row, col, block, transposed, existed)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
-    REAL(kind=real_8), DIMENSION(:, :), POINTER        :: block
+    COMPLEX(kind=real_8), DIMENSION(:, :), POINTER        :: block
     LOGICAL, INTENT(IN), OPTIONAL            :: transposed
     LOGICAL, INTENT(OUT), OPTIONAL           :: existed
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_block2d_z', &
       routineP = moduleN//':'//routineN
 
-    CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
+    CALL dbcsr_reserve_block2d_prv(matrix%prv, row, col, block,&
          transposed, existed)
 
-  END SUBROUTINE cp_dbcsr_reserve_block2d_d
+  END SUBROUTINE dbcsr_reserve_block2d_z
 
 
 ! **************************************************************************************************
@@ -71,28 +70,23 @@
 !> \param row_offset ...
 !> \param col_offset ...
 ! **************************************************************************************************
-  SUBROUTINE cp_iterator_next_2d_block_d (iterator, row, column,&
-       block,&
+  SUBROUTINE dbcsr_iterator_next_2d_block_z (iterator, row, column, block,&
        block_number, row_size, col_size, row_offset, col_offset)
-    TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
+    TYPE(dbcsr_iterator_type), INTENT(INOUT) :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
-    REAL(kind=real_8), DIMENSION(:, :), POINTER        :: block
+    COMPLEX(kind=real_8), DIMENSION(:, :), POINTER        :: block
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_2d_block_d', &
-      routineP = moduleN//':'//routineN
-
     LOGICAL                                  :: transposed
 
-    CALL dbcsr_iterator_next_block (iterator%iter, row, column,&
-       block, transposed,&
+    CALL dbcsr_iterator_next_block_prv (iterator%prv, row, column, block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)
     IF(transposed)&
        CPABORT("CP2K does not handle transposed blocks.")
 
-  END SUBROUTINE cp_iterator_next_2d_block_d
+  END SUBROUTINE dbcsr_iterator_next_2d_block_z
 
 
 ! **************************************************************************************************
@@ -106,27 +100,24 @@
 !> \param col_size ...
 !> \param row_offset ...
 !> \param col_offset ...
-! **************************************************************************************************
-  SUBROUTINE cp_iterator_next_1d_block_d (iterator, row, column, block,&
+! *************************************************************************************************
+  SUBROUTINE dbcsr_iterator_next_1d_block_z (iterator, row, column, block,&
        block_number, row_size, col_size, row_offset, col_offset)
-    TYPE(cp_dbcsr_iterator), INTENT(INOUT)    :: iterator
+    TYPE(dbcsr_iterator_type), INTENT(INOUT)  :: iterator
     INTEGER, INTENT(OUT)                      :: row, column
-    REAL(kind=real_8), DIMENSION(:), POINTER            :: block
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER            :: block
     INTEGER, INTENT(OUT), OPTIONAL            :: block_number, row_size, &
                                                  col_size, row_offset, &
                                                  col_offset
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_1d_block_d', &
-      routineP = moduleN//':'//routineN
-
     LOGICAL                                   :: transposed
 
-    CALL dbcsr_iterator_next_block (iterator%iter, row, column, block,&
+    CALL dbcsr_iterator_next_block_prv(iterator%prv, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
     IF(transposed)&
        CPABORT("CP2K does not handle transposed blocks.")
 
-  END SUBROUTINE cp_iterator_next_1d_block_d
+  END SUBROUTINE dbcsr_iterator_next_1d_block_z
 
 
 ! **************************************************************************************************
@@ -138,21 +129,16 @@
 !> \param summation ...
 !> \param scale ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_put_block2d_d (matrix, row, col, block,&
+  SUBROUTINE dbcsr_put_block2d_z (matrix, row, col, block,&
        summation, scale)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
-    REAL(kind=real_8), DIMENSION(:, :), INTENT(IN)     :: block
+    COMPLEX(kind=real_8), DIMENSION(:, :), INTENT(IN)     :: block
     LOGICAL, INTENT(IN), OPTIONAL            :: summation
-    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: scale
+    COMPLEX(kind=real_8), INTENT(IN), OPTIONAL            :: scale
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_d', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
-       summation=summation, scale=scale)
-
-  END SUBROUTINE cp_dbcsr_put_block2d_d
+    CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation, scale=scale)
+  END SUBROUTINE dbcsr_put_block2d_z
 
 
 ! **************************************************************************************************
@@ -164,21 +150,16 @@
 !> \param summation ...
 !> \param scale ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_put_block_d (matrix, row, col, block,&
+  SUBROUTINE dbcsr_put_block_z (matrix, row, col, block,&
        summation, scale)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
-    REAL(kind=real_8), DIMENSION(:), INTENT(IN)        :: block
+    COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN)        :: block
     LOGICAL, INTENT(IN), OPTIONAL            :: summation
-    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: scale
+    COMPLEX(kind=real_8), INTENT(IN), OPTIONAL            :: scale
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_d', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
-       summation=summation, scale=scale)
-
-  END SUBROUTINE cp_dbcsr_put_block_d
+    CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation, scale=scale)
+  END SUBROUTINE dbcsr_put_block_z
 
 
 ! **************************************************************************************************
@@ -191,24 +172,19 @@
 !> \param row_size ...
 !> \param col_size ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_get_2d_block_p_d (matrix,row,col,block,found,&
-       row_size, col_size)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+  SUBROUTINE dbcsr_get_2d_block_p_z (matrix,row,col,block,found, row_size, col_size)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
-    REAL(kind=real_8), DIMENSION(:, :), POINTER        :: block
+    COMPLEX(kind=real_8), DIMENSION(:, :), POINTER        :: block
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_d', &
-      routineP = moduleN//':'//routineN
-
     LOGICAL                                  :: tr
 
-    CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
-         row_size, col_size)
+    CALL dbcsr_get_block_p_prv(matrix%prv,row,col,block,tr,found, row_size, col_size)
     IF(tr)&
        CPABORT("CP2K does not handle transposed blocks.")
-  END SUBROUTINE cp_dbcsr_get_2d_block_p_d
+  END SUBROUTINE dbcsr_get_2d_block_p_z
 
 
 ! **************************************************************************************************
@@ -221,25 +197,20 @@
 !> \param row_size ...
 !> \param col_size ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_get_block_p_d (matrix,row,col,block,found,&
-       row_size, col_size)
-    TYPE(cp_dbcsr_type), INTENT(IN)           :: matrix
+  SUBROUTINE dbcsr_get_block_p_z (matrix,row,col,block,found, row_size, col_size)
+    TYPE(dbcsr_type), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                       :: row, col
-    REAL(kind=real_8), DIMENSION(:), POINTER            :: block
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER            :: block
     LOGICAL, INTENT(OUT)                      :: found
     INTEGER, INTENT(OUT), OPTIONAL            :: row_size, col_size
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_d', &
-      routineP = moduleN//':'//routineN
-
     LOGICAL                                   :: tr
 
-    CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
-       row_size, col_size)
+    CALL dbcsr_get_block_p_prv(matrix%prv,row,col,block,tr,found, row_size, col_size)
     IF(tr)&
        CPABORT("CP2K does not handle transposed blocks.")
 
-  END SUBROUTINE cp_dbcsr_get_block_p_d
+  END SUBROUTINE dbcsr_get_block_p_z
 
 
 ! **************************************************************************************************
@@ -247,20 +218,17 @@
 !> \param matrix_a ...
 !> \param trace ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_trace_a_d (matrix_a, trace)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
-    REAL(kind=real_8), INTENT(OUT)                     :: trace
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_a_d', &
-      routineP = moduleN//':'//routineN
+  SUBROUTINE dbcsr_trace_a_z (matrix_a, trace)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    COMPLEX(kind=real_8), INTENT(OUT)                     :: trace
 
     TYPE(dbcsr_scalar_type)                  :: trace_scalar
 
-    trace_scalar = dbcsr_scalar_zero (cp_dbcsr_get_data_type(matrix_a))
-    CALL dbcsr_trace(matrix_a%matrix, trace_scalar)
-    CALL dbcsr_scalar_fill_all (trace_scalar)
-    CALL dbcsr_scalar_get_value (trace_scalar, trace)
-  END SUBROUTINE cp_dbcsr_trace_a_d
+    trace_scalar = dbcsr_scalar_zero (dbcsr_get_data_type(matrix_a))
+    CALL dbcsr_trace_prv(matrix_a%prv, trace_scalar)
+    CALL dbcsr_scalar_fill_all(trace_scalar)
+    CALL dbcsr_scalar_get_value(trace_scalar, trace)
+  END SUBROUTINE dbcsr_trace_a_z
 
 
 ! **************************************************************************************************
@@ -269,15 +237,12 @@
 !> \param matrix_b ...
 !> \param trace ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_trace_ab_d (matrix_a, matrix_b, trace)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a, matrix_b
-    REAL(kind=real_8), INTENT(INOUT)                   :: trace
+  SUBROUTINE dbcsr_trace_ab_z (matrix_a, matrix_b, trace)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a, matrix_b
+    COMPLEX(kind=real_8), INTENT(INOUT)                   :: trace
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_ab_d', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace)
-  END SUBROUTINE cp_dbcsr_trace_ab_d
+    CALL dbcsr_trace_prv(matrix_a%prv, matrix_b%prv, trace)
+  END SUBROUTINE dbcsr_trace_ab_z
 
 
 ! **************************************************************************************************
@@ -301,17 +266,17 @@
 !> \param filter_eps ...
 !> \param flop ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_multiply_d (transa, transb,&
+  SUBROUTINE dbcsr_multiply_z (transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, match_matrix_sizes, &
        filter_eps,&
        flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    REAL(kind=real_8), INTENT(IN)                      :: alpha
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
-    REAL(kind=real_8), INTENT(IN)                      :: beta
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_c
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
+    COMPLEX(kind=real_8), INTENT(IN)                      :: beta
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_c
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_column, last_column, &
                                                 first_k, last_k
@@ -319,45 +284,45 @@
     REAL(kind=real_8), INTENT(IN), OPTIONAL :: filter_eps
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_z', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
                                                 trans_b
     LOGICAL                                  :: my_match_matrix_sizes
-    TYPE(cp_dbcsr_type)                      :: new_a, new_b
+    TYPE(dbcsr_type)                      :: new_a, new_b
 
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
     CALL uppercase(trans_b)
     shape_a='R'
-    IF(cp_dbcsr_nfullcols_total(matrix_a).EQ.cp_dbcsr_nfullrows_total(matrix_a)) shape_a='S'
+    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
     shape_b='R'
-    IF(cp_dbcsr_nfullcols_total(matrix_b).EQ.cp_dbcsr_nfullrows_total(matrix_b)) shape_b='S'
+    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
 
     my_match_matrix_sizes=.FALSE.
     IF(PRESENT(match_matrix_sizes)) my_match_matrix_sizes=match_matrix_sizes
     IF(my_match_matrix_sizes)THEN
        CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb, new_a, new_b)
     ELSE
-       CALL cp_dbcsr_init(new_a)
-       CALL cp_dbcsr_init(new_b)
-       CALL cp_dbcsr_copy (new_a, matrix_a, shallow_data=.TRUE.)
-       CALL cp_dbcsr_copy (new_b, matrix_b, shallow_data=.TRUE.)
+       CALL dbcsr_init(new_a)
+       CALL dbcsr_init(new_b)
+       CALL dbcsr_copy_prv(new_a%prv, matrix_a%prv, shallow_data=.TRUE.)
+       CALL dbcsr_copy_prv(new_b%prv, matrix_b%prv, shallow_data=.TRUE.)
     END IF
 
-    CALL dbcsr_multiply(transa, transb,&
-         alpha, new_a%matrix, new_b%matrix, beta, matrix_c%matrix,&
+    CALL dbcsr_multiply_prv(transa, transb,&
+         alpha, new_a%prv, new_b%prv, beta, matrix_c%prv,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, &
          filter_eps=filter_eps,&
          flop=flop)
 
-    CALL cp_dbcsr_release (new_a)
-    CALL cp_dbcsr_release (new_b)
+    CALL dbcsr_release (new_a)
+    CALL dbcsr_release (new_b)
 
-  END SUBROUTINE cp_dbcsr_multiply_d
+  END SUBROUTINE dbcsr_multiply_z
 
 
 ! **************************************************************************************************
@@ -366,16 +331,13 @@
 !> \param alpha ...
 !> \param side ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_scale_by_vector_d (matrix_a, alpha, side)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)        :: matrix_a
-    REAL(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: alpha
+  SUBROUTINE dbcsr_scale_by_vector_z (matrix_a, alpha, side)
+    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix_a
+    COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: alpha
     CHARACTER(LEN=*), INTENT(IN)              :: side
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_d ', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side)
-  END SUBROUTINE cp_dbcsr_scale_by_vector_d
+    CALL dbcsr_scale_by_vector_prv(matrix_a%prv, alpha, side)
+  END SUBROUTINE dbcsr_scale_by_vector_z
 
 
 ! **************************************************************************************************
@@ -384,16 +346,13 @@
 !> \param alpha_scalar ...
 !> \param last_column ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_scale_d (matrix_a, alpha_scalar, last_column)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
-    REAL(kind=real_8), INTENT(IN)                      :: alpha_scalar
+  SUBROUTINE dbcsr_scale_z (matrix_a, alpha_scalar, last_column)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha_scalar
     INTEGER, INTENT(IN), OPTIONAL            :: last_column
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_d', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column)
-  END SUBROUTINE cp_dbcsr_scale_d
+    CALL dbcsr_scale_prv(matrix_a%prv, alpha_scalar, last_column)
+  END SUBROUTINE dbcsr_scale_z
 
 
 ! **************************************************************************************************
@@ -401,15 +360,12 @@
 !> \param matrix ...
 !> \param alpha ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_set_d (matrix, alpha)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    REAL(kind=real_8), INTENT(IN)                      :: alpha
+  SUBROUTINE dbcsr_set_z (matrix, alpha)
+    TYPE(dbcsr_type), INTENT(INOUT)       :: matrix
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_d', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix))
-  END SUBROUTINE cp_dbcsr_set_d
+    CALL dbcsr_set_prv(matrix%prv, dbcsr_conform_scalar (alpha, matrix))
+  END SUBROUTINE dbcsr_set_z
 
 
 ! **************************************************************************************************
@@ -419,16 +375,13 @@
 !> \param alpha_scalar ...
 !> \param beta_scalar ...
 ! **************************************************************************************************
-  SUBROUTINE cp_dbcsr_add_d (matrix_a, matrix_b, alpha_scalar, beta_scalar)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
-    REAL(kind=real_8), INTENT(IN)                      :: alpha_scalar, beta_scalar
+  SUBROUTINE dbcsr_add_z (matrix_a, matrix_b, alpha_scalar, beta_scalar)
+    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix_a
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix_b
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha_scalar, beta_scalar
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_d', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar)
-  END SUBROUTINE cp_dbcsr_add_d
+    CALL dbcsr_add_prv(matrix_a%prv, matrix_b%prv, alpha_scalar, beta_scalar)
+  END SUBROUTINE dbcsr_add_z
 
 ! **************************************************************************************************
 !> \brief ...
@@ -438,16 +391,16 @@
 !> \param ub ...
 !> \retval DATA ...
 ! **************************************************************************************************
-  FUNCTION cp_dbcsr_get_wms_data_d (matrix, index_matrix, select_data_type, lb, ub) RESULT (DATA)
-    TYPE(cp_dbcsr_type), INTENT(IN)  :: matrix
+  FUNCTION dbcsr_get_wms_data_z (matrix, index_matrix, select_data_type, lb, ub) RESULT (DATA)
+    TYPE(dbcsr_type), INTENT(IN)     :: matrix
     INTEGER, INTENT(IN)              :: index_matrix
-    REAL(kind=real_8), INTENT(IN)              :: select_data_type
-    REAL(kind=real_8), DIMENSION(:), POINTER   :: DATA
+    COMPLEX(kind=real_8), INTENT(IN)              :: select_data_type
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER   :: DATA
     INTEGER, INTENT(IN), OPTIONAL    :: lb, ub
 
-    DATA => dbcsr_get_data_p(matrix%matrix%m%wms(index_matrix)%data_area,select_data_type,lb,ub)
+    DATA => dbcsr_get_data_p_prv(matrix%prv%wms(index_matrix)%data_area,select_data_type,lb,ub)
 
-  END FUNCTION cp_dbcsr_get_wms_data_d
+  END FUNCTION dbcsr_get_wms_data_z
 
 ! **************************************************************************************************
 !> \brief ...
@@ -457,15 +410,15 @@
 !> \param ub ...
 !> \retval DATA ...
 ! **************************************************************************************************
-  FUNCTION cp_dbcsr_get_data_d (matrix, select_data_type, lb, ub) RESULT (DATA)
-    TYPE(cp_dbcsr_type), INTENT(IN)  :: matrix
-    REAL(kind=real_8), INTENT(IN)              :: select_data_type
-    REAL(kind=real_8), DIMENSION(:), POINTER   :: DATA
+  FUNCTION dbcsr_get_data_z (matrix, select_data_type, lb, ub) RESULT (DATA)
+    TYPE(dbcsr_type), INTENT(IN)     :: matrix
+    COMPLEX(kind=real_8), INTENT(IN)              :: select_data_type
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER   :: DATA
     INTEGER, INTENT(IN), OPTIONAL    :: lb, ub
 
-    DATA => dbcsr_get_data_p(matrix%matrix%m%data_area,select_data_type,lb,ub)
+    DATA => dbcsr_get_data_p_prv(matrix%prv%data_area,select_data_type,lb,ub)
 
-  END FUNCTION cp_dbcsr_get_data_d
+  END FUNCTION dbcsr_get_data_z
 
 ! **************************************************************************************************
 !> \brief ...
@@ -477,13 +430,12 @@
 !> \param work_row ...
 !> \param work_col ...
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_matrix_colvec_multiply_d(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
-      TYPE(cp_dbcsr_type)                                :: matrix, vec_in, vec_out
-      REAL(kind=real_8)                                            :: alpha, beta
-      TYPE(cp_dbcsr_type)                                :: work_row, work_col
+   SUBROUTINE dbcsr_matrix_colvec_multiply_z(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
+      TYPE(dbcsr_type)                                   :: matrix, vec_in, vec_out
+      COMPLEX(kind=real_8)                                            :: alpha, beta
+      TYPE(dbcsr_type)                                   :: work_row, work_col
 
-      CALL dbcsr_matrix_colvec_multiply(matrix%matrix, vec_in%matrix, vec_out%matrix,&
-                                        alpha, beta, &
-                                        work_row%matrix, work_col%matrix)
+      CALL dbcsr_matrix_colvec_multiply_prv(matrix%prv, vec_in%prv, vec_out%prv,&
+                                        alpha, beta, work_row%prv, work_col%prv)
 
-   END SUBROUTINE cp_dbcsr_matrix_colvec_multiply_d
+   END SUBROUTINE dbcsr_matrix_colvec_multiply_z

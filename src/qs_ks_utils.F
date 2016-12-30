@@ -21,11 +21,6 @@ MODULE qs_ks_utils
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: becke_restraint_type,&
                                               dft_control_type
-   USE cp_dbcsr_interface,              ONLY: &
-        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_deallocate_matrix, &
-        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
-        cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_scale, &
-        cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -48,6 +43,11 @@ MODULE qs_ks_utils
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_deallocate_matrix, &
+        dbcsr_deallocate_matrix_set, dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_trace, &
+        dbcsr_type
    USE input_constants,                 ONLY: do_ppl_grid,&
                                               sic_ad,&
                                               sic_eo,&
@@ -149,8 +149,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_scaling, rvec, scaling
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_h, matrix_p, mo_derivs, rho_ao
-      TYPE(cp_dbcsr_type), POINTER                       :: dbcsr_deriv, fm_deriv, fm_scaled, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_p, mo_derivs, rho_ao
+      TYPE(dbcsr_type), POINTER                          :: dbcsr_deriv, fm_deriv, fm_scaled, &
                                                             mo_coeff
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -193,15 +193,15 @@ CONTAINS
       CPASSERT(uniform_occupation)
 
       NULLIFY (dbcsr_deriv)
-      CALL cp_dbcsr_init_p(dbcsr_deriv)
-      CALL cp_dbcsr_copy(dbcsr_deriv, mo_derivs(1)%matrix)
-      CALL cp_dbcsr_set(dbcsr_deriv, 0.0_dp)
+      CALL dbcsr_init_p(dbcsr_deriv)
+      CALL dbcsr_copy(dbcsr_deriv, mo_derivs(1)%matrix)
+      CALL dbcsr_set(dbcsr_deriv, 0.0_dp)
 
       ! basic info
       CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff_b=mo_coeff)
-      CALL cp_dbcsr_get_info(mo_coeff, nfullcols_total=k_alpha)
+      CALL dbcsr_get_info(mo_coeff, nfullcols_total=k_alpha)
       CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff_b=mo_coeff)
-      CALL cp_dbcsr_get_info(mo_coeff, nfullcols_total=k_beta)
+      CALL dbcsr_get_info(mo_coeff, nfullcols_total=k_beta)
 
       ! read the input
       low_spin_roks_section => section_vals_get_subs_vals(input, "DFT%LOW_SPIN_ROKS")
@@ -232,23 +232,23 @@ CONTAINS
       ! density matrices, kohn-sham matrices
 
       NULLIFY (matrix_p)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_p, Nspin)
+      CALL dbcsr_allocate_matrix_set(matrix_p, Nspin)
       DO ispin = 1, Nspin
          ALLOCATE (matrix_p(ispin)%matrix)
-         CALL cp_dbcsr_init(matrix_p(ispin)%matrix)
-         CALL cp_dbcsr_copy(matrix_p(ispin)%matrix, rho_ao(1)%matrix, &
-                            name="density matrix low spin roks")
-         CALL cp_dbcsr_set(matrix_p(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_init(matrix_p(ispin)%matrix)
+         CALL dbcsr_copy(matrix_p(ispin)%matrix, rho_ao(1)%matrix, &
+                         name="density matrix low spin roks")
+         CALL dbcsr_set(matrix_p(ispin)%matrix, 0.0_dp)
       ENDDO
 
       NULLIFY (matrix_h)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_h, Nspin)
+      CALL dbcsr_allocate_matrix_set(matrix_h, Nspin)
       DO ispin = 1, Nspin
          ALLOCATE (matrix_h(ispin)%matrix)
-         CALL cp_dbcsr_init(matrix_h(ispin)%matrix)
-         CALL cp_dbcsr_copy(matrix_h(ispin)%matrix, rho_ao(1)%matrix, &
-                            name="KS matrix low spin roks")
-         CALL cp_dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_init(matrix_h(ispin)%matrix)
+         CALL dbcsr_copy(matrix_h(ispin)%matrix, rho_ao(1)%matrix, &
+                         name="KS matrix low spin roks")
+         CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
       ENDDO
 
       ! grids in real and g space for rho and vxc
@@ -274,10 +274,10 @@ CONTAINS
       ! we will base all on the alpha spin matrix, obviously possible in ROKS
       CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff_b=mo_coeff)
       NULLIFY (fm_scaled, fm_deriv)
-      CALL cp_dbcsr_init_p(fm_scaled)
-      CALL cp_dbcsr_init_p(fm_deriv)
-      CALL cp_dbcsr_copy(fm_scaled, mo_coeff)
-      CALL cp_dbcsr_copy(fm_deriv, mo_coeff)
+      CALL dbcsr_init_p(fm_scaled)
+      CALL dbcsr_init_p(fm_deriv)
+      CALL dbcsr_copy(fm_scaled, mo_coeff)
+      CALL dbcsr_copy(fm_deriv, mo_coeff)
 
       ALLOCATE (scaling(k_alpha))
 
@@ -286,13 +286,13 @@ CONTAINS
 
          DO ispin = 1, Nspin
             ! compute the proper density matrices with the required occupations
-            CALL cp_dbcsr_set(matrix_p(ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(matrix_p(ispin)%matrix, 0.0_dp)
             scaling = 1.0_dp
             scaling(k_alpha-Nelectron+1:k_alpha) = occupations(ispin, :, iterm)
-            CALL cp_dbcsr_copy(fm_scaled, mo_coeff)
-            CALL cp_dbcsr_scale_by_vector(fm_scaled, scaling, side='right')
-            CALL cp_dbcsr_multiply('n', 't', 1.0_dp, mo_coeff, fm_scaled, &
-                                   0.0_dp, matrix_p(ispin)%matrix, retain_sparsity=.TRUE.)
+            CALL dbcsr_copy(fm_scaled, mo_coeff)
+            CALL dbcsr_scale_by_vector(fm_scaled, scaling, side='right')
+            CALL dbcsr_multiply('n', 't', 1.0_dp, mo_coeff, fm_scaled, &
+                                0.0_dp, matrix_p(ispin)%matrix, retain_sparsity=.TRUE.)
             ! compute the densities on the grid
             CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
                                     rho=rho_r(ispin), rho_gspace=rho_g(ispin), total_rho=total_rho, &
@@ -320,7 +320,7 @@ CONTAINS
                work_v_rspace%pw%cr3d = (energy_scaling(iterm)*vxc(ispin)%pw%pw_grid%dvol)* &
                                        vxc(ispin)%pw%cr3d
                ! zero first ?!
-               CALL cp_dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
+               CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin)%pw)
@@ -329,13 +329,13 @@ CONTAINS
 
             ! add this to the mo_derivs, again based on the alpha mo_coeff
             DO ispin = 1, Nspin
-               CALL cp_dbcsr_multiply('n', 'n', 1.0_dp, matrix_h(ispin)%matrix, mo_coeff, &
-                                      0.0_dp, dbcsr_deriv, last_column=k_alpha)
+               CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_h(ispin)%matrix, mo_coeff, &
+                                   0.0_dp, dbcsr_deriv, last_column=k_alpha)
 
                scaling = 1.0_dp
                scaling(k_alpha-Nelectron+1:k_alpha) = occupations(ispin, :, iterm)
-               CALL cp_dbcsr_scale_by_vector(dbcsr_deriv, scaling, side='right')
-               CALL cp_dbcsr_add(mo_derivs(1)%matrix, dbcsr_deriv, 1.0_dp, 1.0_dp)
+               CALL dbcsr_scale_by_vector(dbcsr_deriv, scaling, side='right')
+               CALL dbcsr_add(mo_derivs(1)%matrix, dbcsr_deriv, 1.0_dp, 1.0_dp)
             ENDDO
 
          ENDIF
@@ -348,19 +348,19 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin)%pw)
       ENDDO
       DEALLOCATE (rho_r, rho_g)
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_p)
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_h)
+      CALL dbcsr_deallocate_matrix_set(matrix_p)
+      CALL dbcsr_deallocate_matrix_set(matrix_h)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace%pw)
 
-      CALL cp_dbcsr_release_p(fm_deriv)
-      CALL cp_dbcsr_release_p(fm_scaled)
+      CALL dbcsr_release_p(fm_deriv)
+      CALL dbcsr_release_p(fm_scaled)
 
       DEALLOCATE (occupations)
       DEALLOCATE (energy_scaling)
       DEALLOCATE (scaling)
 
-      CALL cp_dbcsr_release_p(dbcsr_deriv)
+      CALL dbcsr_release_p(dbcsr_deriv)
 
       CALL timestop(handle)
 
@@ -394,12 +394,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: ener, exc, total_rho
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type)                              :: orb_density_matrix_p, orb_h_p
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: mo_derivs, rho_ao, tmp_dbcsr
-      TYPE(cp_dbcsr_type), POINTER                       :: orb_density_matrix, orb_h
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_local
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: matrix_hv, matrix_v, mo_coeff
+      TYPE(dbcsr_p_type)                                 :: orb_density_matrix_p, orb_h_p
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, rho_ao, tmp_dbcsr
+      TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: orb_rho_g, orb_rho_r, tmp_g, tmp_r, &
@@ -451,13 +451,13 @@ CONTAINS
       CPASSERT(uniform_occupation)
 
       NULLIFY (tmp_dbcsr)
-      CALL cp_dbcsr_allocate_matrix_set(tmp_dbcsr, SIZE(mo_derivs, 1))
+      CALL dbcsr_allocate_matrix_set(tmp_dbcsr, SIZE(mo_derivs, 1))
       DO i = 1, SIZE(mo_derivs, 1) !fm->dbcsr
          !
          NULLIFY (tmp_dbcsr(i)%matrix)
-         CALL cp_dbcsr_init_p(tmp_dbcsr(i)%matrix)
-         CALL cp_dbcsr_copy(tmp_dbcsr(i)%matrix, mo_derivs(i)%matrix)
-         CALL cp_dbcsr_set(tmp_dbcsr(i)%matrix, 0.0_dp)
+         CALL dbcsr_init_p(tmp_dbcsr(i)%matrix)
+         CALL dbcsr_copy(tmp_dbcsr(i)%matrix, mo_derivs(i)%matrix)
+         CALL dbcsr_set(tmp_dbcsr(i)%matrix, 0.0_dp)
       ENDDO !fm->dbcsr
 
       k_alpha = 0; k_beta = 0
@@ -543,17 +543,17 @@ CONTAINS
                              in_space=REALSPACE)
 
       ALLOCATE (orb_density_matrix)
-      CALL cp_dbcsr_init(orb_density_matrix)
-      CALL cp_dbcsr_copy(orb_density_matrix, rho_ao(1)%matrix, &
-                         name="orb_density_matrix")
-      CALL cp_dbcsr_set(orb_density_matrix, 0.0_dp)
+      CALL dbcsr_init(orb_density_matrix)
+      CALL dbcsr_copy(orb_density_matrix, rho_ao(1)%matrix, &
+                      name="orb_density_matrix")
+      CALL dbcsr_set(orb_density_matrix, 0.0_dp)
       orb_density_matrix_p%matrix => orb_density_matrix
 
       ALLOCATE (orb_h)
-      CALL cp_dbcsr_init(orb_h)
-      CALL cp_dbcsr_copy(orb_h, rho_ao(1)%matrix, &
-                         name="orb_density_matrix")
-      CALL cp_dbcsr_set(orb_h, 0.0_dp)
+      CALL dbcsr_init(orb_h)
+      CALL dbcsr_copy(orb_h, rho_ao(1)%matrix, &
+                      name="orb_density_matrix")
+      CALL dbcsr_set(orb_h, 0.0_dp)
       orb_h_p%matrix => orb_h
 
       CALL get_mo_set(mo_set=mo_array(1)%mo_set, mo_coeff=mo_coeff)
@@ -595,7 +595,7 @@ CONTAINS
          CALL cp_fm_to_fm(mo_coeff, matrix_v, 1, sic_orbital_list(2, iorb), 1)
 
          ! construct the density matrix and the corresponding density
-         CALL cp_dbcsr_set(orb_density_matrix, 0.0_dp)
+         CALL dbcsr_set(orb_density_matrix, 0.0_dp)
          CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix, matrix_v=matrix_v, ncol=1, &
                                     alpha=1.0_dp)
 
@@ -613,7 +613,7 @@ CONTAINS
          IF (.NOT. just_energy) THEN
             CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
             CALL pw_scale(work_v_rspace%pw, -dft_control%sic_scaling_a*work_v_rspace%pw%pw_grid%dvol)
-            CALL cp_dbcsr_set(orb_h, 0.0_dp)
+            CALL dbcsr_set(orb_h, 0.0_dp)
          ENDIF
 
          IF (just_energy) THEN
@@ -642,8 +642,8 @@ CONTAINS
             CALL cp_fm_to_fm(matrix_hv, mo_derivs_local(sic_orbital_list(3, iorb))%matrix, 1, 1, sic_orbital_list(2, iorb))
             CALL copy_fm_to_dbcsr(mo_derivs_local(sic_orbital_list(3, iorb))%matrix, &
                                   tmp_dbcsr(sic_orbital_list(3, iorb))%matrix)
-            CALL cp_dbcsr_add(mo_derivs(sic_orbital_list(3, iorb))%matrix, &
-                              tmp_dbcsr(sic_orbital_list(3, iorb))%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(mo_derivs(sic_orbital_list(3, iorb))%matrix, &
+                           tmp_dbcsr(sic_orbital_list(3, iorb))%matrix, 1.0_dp, 1.0_dp)
             !
             ! need to deallocate vxc
             CALL pw_pool_give_back_pw(xc_pw_pool, vxc(1)%pw)
@@ -661,8 +661,8 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace%pw)
 
-      CALL cp_dbcsr_deallocate_matrix(orb_density_matrix)
-      CALL cp_dbcsr_deallocate_matrix(orb_h)
+      CALL dbcsr_deallocate_matrix(orb_density_matrix)
+      CALL dbcsr_deallocate_matrix(orb_h)
       CALL cp_fm_release(matrix_v)
       CALL cp_fm_release(matrix_hv)
       DO I = 1, SIZE(mo_derivs_local, 1)
@@ -672,7 +672,7 @@ CONTAINS
       DEALLOCATE (rho_r)
       DEALLOCATE (rho_g)
 
-      CALL cp_dbcsr_deallocate_matrix_set(tmp_dbcsr) !fm->dbcsr
+      CALL dbcsr_deallocate_matrix_set(tmp_dbcsr) !fm->dbcsr
 
       CALL timestop(handle)
 
@@ -826,8 +826,8 @@ CONTAINS
                                                             trace_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r_arr
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_s, rho_ao
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -859,7 +859,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, scf_section, "PRINT%TOTAL_DENSITIES"), cp_p_file)) THEN
          DO ispin = 1, dft_control%nspins
             DO img = 1, dft_control%nimages
-               CALL cp_dbcsr_trace(rho_ao(ispin, img)%matrix, matrix_s(1, img)%matrix, trace_tmp)
+               CALL dbcsr_trace(rho_ao(ispin, img)%matrix, matrix_s(1, img)%matrix, trace_tmp)
                trace = trace+trace_tmp
             END DO
          END DO
@@ -1110,30 +1110,30 @@ CONTAINS
    SUBROUTINE compute_matrix_vxc(qs_env, v_rspace, matrix_vxc)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_vxc
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin
       LOGICAL                                            :: gapw
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
       ! create the matrix using matrix_ks as a template
       IF (ASSOCIATED(matrix_vxc)) THEN
-         CALL cp_dbcsr_deallocate_matrix_set(matrix_vxc)
+         CALL dbcsr_deallocate_matrix_set(matrix_vxc)
       ENDIF
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
       ALLOCATE (matrix_vxc(SIZE(matrix_ks)))
       DO ispin = 1, SIZE(matrix_ks)
          NULLIFY (matrix_vxc(ispin)%matrix)
-         CALL cp_dbcsr_init_p(matrix_vxc(ispin)%matrix)
-         CALL cp_dbcsr_copy(matrix_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, &
-                            name="Matrix VXC of spin "//cp_to_string(ispin))
-         CALL cp_dbcsr_set(matrix_vxc(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_init_p(matrix_vxc(ispin)%matrix)
+         CALL dbcsr_copy(matrix_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, &
+                         name="Matrix VXC of spin "//cp_to_string(ispin))
+         CALL dbcsr_set(matrix_vxc(ispin)%matrix, 0.0_dp)
       ENDDO
 
       ! and integrate
@@ -1146,7 +1146,7 @@ CONTAINS
                                  calculate_forces=.FALSE., &
                                  gapw=gapw)
          ! scale by the volume element... should really become part of integrate_v_rspace
-         CALL cp_dbcsr_scale(matrix_vxc(ispin)%matrix, v_rspace(ispin)%pw%pw_grid%dvol)
+         CALL dbcsr_scale(matrix_vxc(ispin)%matrix, v_rspace(ispin)%pw%pw_grid%dvol)
       ENDDO
 
       CALL timestop(handle)
@@ -1184,9 +1184,9 @@ CONTAINS
                                    v_sccs_rspace, becke, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: my_rho
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_rho
       TYPE(pw_p_type), POINTER                           :: vppl_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_rspace_new_aux_fit, &
                                                             v_tau_rspace, v_tau_rspace_aux_fit
@@ -1201,10 +1201,10 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: do_ppl, gapw, gapw_xc
       REAL(dp)                                           :: dvol
-      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: ksmat, matrix_ks_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_dft, rho_ao, &
                                                             rho_ao_aux
-      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_rspace
@@ -1402,8 +1402,8 @@ CONTAINS
                   v_rspace_new_aux_fit(ispin)%pw%cr3d
 
                ! set matrix_ks_aux_fit_dft = matrix_ks_aux_fit(k_HF)
-               CALL cp_dbcsr_copy(matrix_ks_aux_fit_dft(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, &
-                                  name="DFT exch. part of matrix_ks_aux_fit")
+               CALL dbcsr_copy(matrix_ks_aux_fit_dft(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, &
+                               name="DFT exch. part of matrix_ks_aux_fit")
 
                ! Add potential to ks_matrix aux_fit
 
@@ -1418,8 +1418,8 @@ CONTAINS
                                        basis_type="AUX_FIT")
 
                ! matrix_ks_aux_fit_dft(x_DFT)=matrix_ks_aux_fit_dft(old,k_HF)-matrix_ks_aux_fit(k_HF-x_DFT)
-               CALL cp_dbcsr_add(matrix_ks_aux_fit_dft(ispin)%matrix, &
-                                 matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, -1.0_dp)
+               CALL dbcsr_add(matrix_ks_aux_fit_dft(ispin)%matrix, &
+                              matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, -1.0_dp)
 
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new_aux_fit(ispin)%pw)
             END DO
