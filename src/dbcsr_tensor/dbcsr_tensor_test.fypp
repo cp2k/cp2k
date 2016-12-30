@@ -14,7 +14,7 @@ ${fypp_header(_FILE_)}$
 MODULE dbcsr_tensor_test
    USE dbcsr_api,                       ONLY: ${uselist(dtype_float_param)}$
    USE dbcsr_tensor,                    ONLY: &
-        dbcsr_t_copy, dbcsr_t_get_block, dbcsr_t_iterator, dbcsr_t_iterator_blocks_left, &
+        dbcsr_t_copy, dbcsr_t_get_block, dbcsr_t_iterator_type, dbcsr_t_iterator_blocks_left, &
         dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_ndims, &
         dbcsr_t_reserve_blocks, dbcsr_t_get_stored_coordinates, dbcsr_t_put_block
    USE dbcsr_tensor_block,              ONLY: block_nd
@@ -56,7 +56,7 @@ CONTAINS
 
       INTEGER                                    :: blk
       TYPE(dbcsr_t_type)                         :: tensor2_tmp
-      TYPE(dbcsr_t_iterator)                     :: iter
+      TYPE(dbcsr_t_iterator_type)                :: iter
       TYPE(block_nd)                             :: blk_data1, blk_data2
       INTEGER, DIMENSION(dbcsr_t_ndims(tensor1)) :: blk_size, ind_nd
 
@@ -390,7 +390,7 @@ CONTAINS
       REAL(KIND=real_8), ALLOCATABLE, &
          DIMENSION(${shape_colon(ndim)}$)                :: blk_values_${ndim}$
 #:endfor
-      TYPE(dbcsr_t_iterator)                             :: iterator
+      TYPE(dbcsr_t_iterator_type)                        :: iterator
 
       nblks_alloc = SIZE(blk_ind_1)
       CALL mp_environ(numnodes, mynode, mp_comm)
@@ -502,7 +502,7 @@ CONTAINS
       REAL(KIND=real_8), ALLOCATABLE, &
          DIMENSION(${shape_colon(ndim)}$)                :: blk_values_${ndim}$
 #:endfor
-      TYPE(dbcsr_t_iterator)                             :: iterator
+      TYPE(dbcsr_t_iterator_type)                        :: iterator
       INTEGER                                            :: proc
 
       IF(io_unit_master > 0) THEN
