@@ -12,7 +12,7 @@ def main():
     usage = "Write a new kernel parameter file as an unique merge of an old parameter file and a new one called parameters.txt as created by collect.py"
     parser = OptionParser(usage)
     parser.add_option("-p", "--params", metavar="filename.txt",
-          default="parameters_K20X.txt",
+          default="parameters_P100.txt",
           help="Default: %default")
 
     (options, args) = parser.parse_args()
