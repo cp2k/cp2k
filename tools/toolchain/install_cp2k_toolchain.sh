@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
 # +-----------------------------------------------------------------------+
 # |  CP2K: A general program to perform molecular dynamics simulations    |
-# |  Copyright (C) 2000 - 2016  CP2K developers group                     |
+# |  Copyright (C) 2000 - 2017  CP2K developers group                     |
 # +-----------------------------------------------------------------------+
 #
 # *****************************************************************************

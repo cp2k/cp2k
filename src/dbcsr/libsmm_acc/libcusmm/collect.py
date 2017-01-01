@@ -36,7 +36,7 @@ def main():
     f = open("parameters.txt","w")
     f.write("# *****************************************************************************\n")
     f.write("# * CP2K: A general program to perform molecular dynamics simulations         *\n")
-    f.write("# * Copyright (C) 2000 - 2016 the CP2K developers group                       *\n")
+    f.write("# * Copyright (C) 2000 - 2017  CP2K developers group                          *\n")
     f.write("# *****************************************************************************\n")
     f.write("\n[\n")
 
