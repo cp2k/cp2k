@@ -1270,7 +1270,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, "OVERLAP_CONDITION", &
                                        description="Controls the the checking and printing of and estimate "// &
                                        "of the overlap matrix condition number", &
-                                       print_level=medium_print_level, filename="__STD_OUT__")
+                                       print_level=debug_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, name="1-NORM", &
                           description="Calculate an estimate of the 1-norm condition number", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)

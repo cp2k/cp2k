@@ -485,9 +485,9 @@ CONTAINS
                      END DO
                      IF (k > 0) THEN
                         integrals%hnl(1:n, 1:n, l) = MATMUL(spmat(1:n, 1:k), &
-                                                            MATMUL(potential%gth_pot%hnl(1:k, 1:k, l), TRANSPOSE(spmat(1:n, 1:k))))
+                                                            MATMUL(potential%gth_pot%hnl(1:k, 1:k, l), &
+                                                                   TRANSPOSE(spmat(1:n, 1:k))))
                      END IF
-
                      DEALLOCATE (omat, spmat, xmat)
                   END IF
                END DO
@@ -568,12 +568,10 @@ CONTAINS
                      END DO
                   END DO
                   integrals%hnl(1:n, 1:n, l) = MATMUL(spmat(1:n, 1:k), &
-                                                      MATMUL(potential%gth_pot%hnl(1:k, 1:k, l), TRANSPOSE(spmat(1:n, 1:k))))
-
+                                                      MATMUL(potential%gth_pot%hnl(1:k, 1:k, l), &
+                                                             TRANSPOSE(spmat(1:n, 1:k))))
                   DEALLOCATE (spmat)
-
                END DO
-
                DEALLOCATE (cpot)
 
             CASE (upf_pseudo)
@@ -642,8 +640,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: spmat
       TYPE(atom_basis_type)                              :: gbasis
 
-! get basis representation on UPF grid
-
+      ! get basis representation on UPF grid
       CALL atom_basis_gridrep(basis, gbasis, potential%upf_pot%r, potential%upf_pot%rab)
 
       ! local pseudopotential
@@ -651,7 +648,7 @@ CONTAINS
       CALL numpot_matrix(integrals%core, potential%upf_pot%vlocal, gbasis, 0)
 
       ptype = ADJUSTL(TRIM(potential%upf_pot%pseudo_type))
-      IF (ptype(1:2) == "NC") THEN
+      IF (ptype(1:2) == "NC" .OR. ptype(1:2) == "US") THEN
          ! non local pseudopotential
          n = MAXVAL(integrals%n(:))
          m = potential%upf_pot%number_of_proj
@@ -679,11 +676,12 @@ CONTAINS
          END DO
          DEALLOCATE (spmat)
       ELSE IF (ptype(1:2) == "SL") THEN
+         ! semi local pseudopotential
          DO la = 0, potential%upf_pot%l_max
             CALL numpot_matrix(integrals%core, potential%upf_pot%vsemi(:, la+1), gbasis, 0)
          END DO
       ELSE
-         CPABORT("")
+         CPABORT("Pseudopotential type: ["//ADJUSTL(TRIM(ptype))//"] not known")
       END IF
 
       ! release basis representation on UPF grid

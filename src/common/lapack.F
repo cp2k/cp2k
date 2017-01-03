@@ -22,7 +22,7 @@ MODULE lapack
    PUBLIC :: lapack_ssyev, lapack_chpev, &
              lapack_sgesvd, lapack_cgesvd, &
              lapack_sgesv, lapack_sgelss, &
-             lapack_ssygv
+             lapack_ssygv, lapack_sgbsv
 
    INTERFACE lapack_ssyev
 ! **************************************************************************************************
@@ -334,6 +334,31 @@ MODULE lapack
       INTEGER                                            :: INFO
 
       END SUBROUTINE dgesv
+   END INTERFACE
+
+   INTERFACE lapack_sgbsv
+! **************************************************************************************************
+!> \brief ...
+!> \param n ...
+!> \param kl ...
+!> \param ku ...
+!> \param nrhs ...
+!> \param ab ...
+!> \param ldab ...
+!> \param ipiv ...
+!> \param b ...
+!> \param ldb ...
+!> \param info ...
+! **************************************************************************************************
+      SUBROUTINE dgbsv(n, kl, ku, nrhs, ab, ldab, ipiv, b, ldb, info)
+       USE kinds, ONLY: dp
+      INTEGER                                            :: N, KL, KU, NRHS
+      REAL(KIND=dp)                                      :: AB(LDAB, *)
+      INTEGER                                            :: IPIV(*), LDB
+      REAL(KIND=dp)                                      :: B(LDB, *)
+      INTEGER                                            :: INFO
+
+      END SUBROUTINE dgbsv
    END INTERFACE
 
    INTERFACE lapack_sgelss

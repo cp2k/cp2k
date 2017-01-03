@@ -222,7 +222,6 @@ CONTAINS
          nlcc = atom%potential%gth_pot%nlcc
       ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
          nlcc = atom%potential%upf_pot%core_correction
-         CPASSERT(.NOT. nlcc)
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN
@@ -265,14 +264,14 @@ CONTAINS
                ALLOCATE (rho(nr, 1))
                CALL atom_density(rho(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, typ="RHO")
                IF (nlcc) THEN
-                  CALL atom_core_density(rho(:, 1), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+                  CALL atom_core_density(rho(:, 1), atom%potential, typ="RHO", rr=atom%basis%grid%rad)
                END IF
             END IF
             IF (needs%norm_drho) THEN
                ALLOCATE (drho(nr, 1))
                CALL atom_density(drho(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, typ="DER")
                IF (nlcc) THEN
-                  CALL atom_core_density(drho(:, 1), atom%potential%gth_pot, typ="DER", rr=atom%basis%grid%rad)
+                  CALL atom_core_density(drho(:, 1), atom%potential, typ="DER", rr=atom%basis%grid%rad)
                END IF
             END IF
             IF (needs%tau) THEN
@@ -285,7 +284,7 @@ CONTAINS
                CALL atom_density(lap(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, &
                                  typ="LAP", rr=atom%basis%grid%rad2)
                IF (nlcc) THEN
-                  CALL atom_core_density(lap(:, 1), atom%potential%gth_pot, typ="LAP", rr=atom%basis%grid%rad)
+                  CALL atom_core_density(lap(:, 1), atom%potential, typ="LAP", rr=atom%basis%grid%rad)
                END IF
             END IF
 
@@ -372,7 +371,7 @@ CONTAINS
 
          CALL atom_density(rho(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, typ="RHO")
          IF (nlcc) THEN
-            CALL atom_core_density(rho(:, 1), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+            CALL atom_core_density(rho(:, 1), atom%potential, typ="RHO", rr=atom%basis%grid%rad)
          END IF
          CALL lda_pade(rho(:, 1), exc, vxc)
 
@@ -474,7 +473,7 @@ CONTAINS
                CALL atom_density(rho(:, 2), atom%orbitals%pmatb, atom%basis, atom%state%maxl_occ, typ="RHO")
                IF (nlcc) THEN
                   xfun = 0.0_dp
-                  CALL atom_core_density(xfun(:), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+                  CALL atom_core_density(xfun(:), atom%potential, typ="RHO", rr=atom%basis%grid%rad)
                   rho(:, 1) = rho(:, 1)+0.5_dp*xfun(:)
                   rho(:, 2) = rho(:, 2)+0.5_dp*xfun(:)
                END IF
@@ -485,7 +484,7 @@ CONTAINS
                CALL atom_density(drho(:, 2), atom%orbitals%pmatb, atom%basis, atom%state%maxl_occ, typ="DER")
                IF (nlcc) THEN
                   xfun = 0.0_dp
-                  CALL atom_core_density(xfun(:), atom%potential%gth_pot, typ="DER", rr=atom%basis%grid%rad)
+                  CALL atom_core_density(xfun(:), atom%potential, typ="DER", rr=atom%basis%grid%rad)
                   drho(:, 1) = drho(:, 1)+0.5_dp*xfun(:)
                   drho(:, 2) = drho(:, 2)+0.5_dp*xfun(:)
                END IF
@@ -505,7 +504,7 @@ CONTAINS
                                  typ="LAP", rr=atom%basis%grid%rad2)
                IF (nlcc) THEN
                   xfun = 0.0_dp
-                  CALL atom_core_density(xfun(:), atom%potential%gth_pot, typ="LAP", rr=atom%basis%grid%rad)
+                  CALL atom_core_density(xfun(:), atom%potential, typ="LAP", rr=atom%basis%grid%rad)
                   lap(:, 1) = lap(:, 1)+0.5_dp*xfun(:)
                   lap(:, 2) = lap(:, 2)+0.5_dp*xfun(:)
                END IF
@@ -605,7 +604,7 @@ CONTAINS
          CALL atom_density(rho(:, 2), atom%orbitals%pmatb, atom%basis, atom%state%maxl_occ, typ="RHO")
          IF (nlcc) THEN
             xfun(:) = 0.0_dp
-            CALL atom_core_density(xfun(:), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+            CALL atom_core_density(xfun(:), atom%potential, typ="RHO", rr=atom%basis%grid%rad)
             rho(:, 1) = rho(:, 1)+0.5_dp*xfun(:)
             rho(:, 2) = rho(:, 2)+0.5_dp*xfun(:)
          END IF

@@ -18,56 +18,56 @@ MODULE atom_upf
    IMPLICIT NONE
 
    TYPE atom_upfpot_type
-      CHARACTER(LEN=2)                             :: symbol
-      CHARACTER(LEN=default_string_length)         :: pname
-      INTEGER, DIMENSION(0:3)                       :: econf
-      REAL(dp)                                      :: zion
-      CHARACTER(LEN=default_string_length)         :: version
+      CHARACTER(LEN=2)                               :: symbol
+      CHARACTER(LEN=default_string_length)           :: pname
+      INTEGER, DIMENSION(0:3)                        :: econf
+      REAL(dp)                                       :: zion
+      CHARACTER(LEN=default_string_length)           :: version
       ! <INFO>
-      INTEGER                                       :: maxinfo = 100
+      INTEGER                                        :: maxinfo = 100
       CHARACTER(LEN=default_string_length), DIMENSION(100) &
          :: info
       ! <HEADER>
-      CHARACTER(LEN=default_string_length)         :: generated
-      CHARACTER(LEN=default_string_length)         :: author
-      CHARACTER(LEN=default_string_length)         :: date
-      CHARACTER(LEN=default_string_length)         :: comment
-      CHARACTER(LEN=4)                             :: pseudo_type
-      CHARACTER(LEN=15)                            :: relativistic
-      CHARACTER(LEN=default_string_length)         :: functional
-      LOGICAL                                       :: is_ultrasoft = .FALSE.
-      LOGICAL                                       :: is_paw = .FALSE.
-      LOGICAL                                       :: is_coulomb = .FALSE.
-      LOGICAL                                       :: has_so = .FALSE.
-      LOGICAL                                       :: has_wfc = .FALSE.
-      LOGICAL                                       :: has_gipaw = .FALSE.
-      LOGICAL                                       :: paw_as_gipaw = .FALSE.
-      LOGICAL                                       :: core_correction = .FALSE.
-      REAL(dp)                                      :: total_psenergy
-      REAL(dp)                                      :: wfc_cutoff
-      REAL(dp)                                      :: rho_cutoff
-      INTEGER                                       :: l_max
-      INTEGER                                       :: l_max_rho
-      INTEGER                                       :: l_local
-      INTEGER                                       :: mesh_size
-      INTEGER                                       :: number_of_wfc
-      INTEGER                                       :: number_of_proj
+      CHARACTER(LEN=default_string_length)           :: generated
+      CHARACTER(LEN=default_string_length)           :: author
+      CHARACTER(LEN=default_string_length)           :: date
+      CHARACTER(LEN=default_string_length)           :: comment
+      CHARACTER(LEN=4)                               :: pseudo_type
+      CHARACTER(LEN=15)                              :: relativistic
+      CHARACTER(LEN=default_string_length)           :: functional
+      LOGICAL                                        :: is_ultrasoft = .FALSE.
+      LOGICAL                                        :: is_paw = .FALSE.
+      LOGICAL                                        :: is_coulomb = .FALSE.
+      LOGICAL                                        :: has_so = .FALSE.
+      LOGICAL                                        :: has_wfc = .FALSE.
+      LOGICAL                                        :: has_gipaw = .FALSE.
+      LOGICAL                                        :: paw_as_gipaw = .FALSE.
+      LOGICAL                                        :: core_correction = .FALSE.
+      REAL(dp)                                       :: total_psenergy
+      REAL(dp)                                       :: wfc_cutoff
+      REAL(dp)                                       :: rho_cutoff
+      INTEGER                                        :: l_max
+      INTEGER                                        :: l_max_rho
+      INTEGER                                        :: l_local
+      INTEGER                                        :: mesh_size
+      INTEGER                                        :: number_of_wfc
+      INTEGER                                        :: number_of_proj
       ! <MESH>
-      REAL(dp)                                      :: dx
-      REAL(dp)                                      :: xmin
-      REAL(dp)                                      :: rmax
-      REAL(dp)                                      :: zmesh
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: r, rab
+      REAL(dp)                                       :: dx
+      REAL(dp)                                       :: xmin
+      REAL(dp)                                       :: rmax
+      REAL(dp)                                       :: zmesh
+      REAL(dp), DIMENSION(:), ALLOCATABLE            :: r, rab
       ! <NLCC>
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: rho_nlcc
+      REAL(dp), DIMENSION(:), ALLOCATABLE            :: rho_nlcc
       ! <LOCAL>
-      REAL(dp), DIMENSION(:), ALLOCATABLE             :: vlocal
+      REAL(dp), DIMENSION(:), ALLOCATABLE            :: vlocal
       ! <NONLOCAL>
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE           :: dion
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE           :: beta
-      INTEGER, DIMENSION(:), ALLOCATABLE              :: lbeta
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: dion
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: beta
+      INTEGER, DIMENSION(:), ALLOCATABLE             :: lbeta
       ! <SEMILOCAL>
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE           :: vsemi
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: vsemi
    END TYPE atom_upfpot_type
 
    PRIVATE
@@ -166,8 +166,20 @@ CONTAINS
       ! rescale projectors
       IF (ALLOCATED(pot%beta)) THEN
          DO ib = 1, pot%number_of_proj
-            pot%beta(:, ib) = pot%beta(:, ib)/pot%r(:)
+            IF (pot%r(1) == 0.0_dp) THEN
+               pot%beta(2:, ib) = pot%beta(2:, ib)/pot%r(2:)
+            ELSE
+               pot%beta(:, ib) = pot%beta(:, ib)/pot%r(:)
+            END IF
          END DO
+      END IF
+
+      ! test for not supported options
+      IF (pot%is_ultrasoft) THEN
+         CPABORT("UPF ultrasoft pseudopotential not implemented")
+      END IF
+      IF (pot%is_paw) THEN
+         CPABORT("UPF PAW potential not implemented")
       END IF
 
    END SUBROUTINE atom_read_upf
@@ -338,7 +350,9 @@ CONTAINS
             il = LEN_TRIM(line)
             READ (line(2:il-1), *) pot%number_of_proj
          CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPWARN(string)
+            CALL cp_abort(__LOCATION__, "Error while parsing UPF header: "// &
+                          "Adjust format of delimiters ... only double quotes are admissible.")
          END SELECT
       END DO
 
@@ -788,7 +802,7 @@ CONTAINS
                END IF
                IF (icount > ms) EXIT
             END DO
-         ELSE IF (string(1:7) == "<PP_QIJ") THEN
+         ELSE IF (string(1:7) == "<PP_QIJL") THEN
             ! skip this option
          ELSE IF (string(1:14) == "</PP_NONLOCAL>") THEN
             EXIT

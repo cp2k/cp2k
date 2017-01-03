@@ -18,7 +18,8 @@ MODULE atom_utils
    USE ao_util,                         ONLY: exp_radius
    USE atom_types,                      ONLY: &
         CGTO_BASIS, GTO_BASIS, NUM_BASIS, STO_BASIS, atom_basis_type, atom_gthpot_type, &
-        atom_state, atom_type, eri, gth_pseudo, upf_pseudo
+        atom_potential_type, atom_state, atom_type, ecp_pseudo, eri, gth_pseudo, no_pseudo, &
+        upf_pseudo
    USE basis_set_types,                 ONLY: srules
    USE cp_files,                        ONLY: close_file,&
                                               get_unit_number,&
@@ -46,6 +47,7 @@ MODULE atom_utils
                                               ptable
    USE physcon,                         ONLY: bohr
    USE qs_grid_atom,                    ONLY: grid_atom_type
+   USE splines,                         ONLY: spline3ders
    USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
@@ -683,13 +685,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param corden ...
-!> \param gthpot ...
+!> \param potential ...
 !> \param typ ...
 !> \param rr ...
 ! **************************************************************************************************
-   SUBROUTINE atom_core_density(corden, gthpot, typ, rr)
+   SUBROUTINE atom_core_density(corden, potential, typ, rr)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: corden
-      TYPE(atom_gthpot_type), INTENT(IN)                 :: gthpot
+      TYPE(atom_potential_type), INTENT(IN)              :: potential
       CHARACTER(LEN=*), OPTIONAL                         :: typ
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rr
 
@@ -698,46 +700,91 @@ CONTAINS
 
       CHARACTER(LEN=3)                                   :: my_typ
       INTEGER                                            :: i, j, m, n
-      REAL(KIND=dp)                                      :: a, a2, fb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fe, rc
+      LOGICAL                                            :: reverse
+      REAL(KIND=dp)                                      :: a, a2, cval, fb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fe, rc, rhoc, rval
 
       my_typ = "RHO"
       IF (PRESENT(typ)) my_typ = typ(1:3)
 
-      IF (gthpot%nlcc) THEN
-         m = SIZE(corden)
-         ALLOCATE (fe(m), rc(m))
-         n = gthpot%nexp_nlcc
-         DO i = 1, n
-            a = gthpot%alpha_nlcc(i)
-            a2 = a*a
-            ! note that all terms are computed with rc, not rr
-            rc(:) = rr(:)/a
-            fe(:) = EXP(-0.5_dp*rc(:)*rc(:))
-            DO j = 1, gthpot%nct_nlcc(i)
-               IF (my_typ == "RHO") THEN
-                  corden(:) = corden(:)+fe(:)*rc**(2*j-2)*gthpot%cval_nlcc(j, i)
-               ELSE IF (my_typ == "DER") THEN
-                  corden(:) = corden(:)-fe(:)*rc**(2*j-1)*gthpot%cval_nlcc(j, i)/a
-                  IF (j > 1) THEN
-                     corden(:) = corden(:)+REAL(2*j-2, dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j, i)/a
+      SELECT CASE (potential%ppot_type)
+      CASE (no_pseudo, ecp_pseudo)
+         ! we do nothing
+      CASE (gth_pseudo)
+         IF (potential%gth_pot%nlcc) THEN
+            m = SIZE(corden)
+            ALLOCATE (fe(m), rc(m))
+            n = potential%gth_pot%nexp_nlcc
+            DO i = 1, n
+               a = potential%gth_pot%alpha_nlcc(i)
+               a2 = a*a
+               ! note that all terms are computed with rc, not rr
+               rc(:) = rr(:)/a
+               fe(:) = EXP(-0.5_dp*rc(:)*rc(:))
+               DO j = 1, potential%gth_pot%nct_nlcc(i)
+                  cval = potential%gth_pot%cval_nlcc(j, i)
+                  IF (my_typ == "RHO") THEN
+                     corden(:) = corden(:)+fe(:)*rc**(2*j-2)*cval
+                  ELSE IF (my_typ == "DER") THEN
+                     corden(:) = corden(:)-fe(:)*rc**(2*j-1)*cval/a
+                     IF (j > 1) THEN
+                        corden(:) = corden(:)+REAL(2*j-2, dp)*fe(:)*rc**(2*j-3)*cval/a
+                     END IF
+                  ELSE IF (my_typ == "LAP") THEN
+                     fb = 2._dp*cval/a
+                     corden(:) = corden(:)-fb*fe(:)/rr(:)*rc**(2*j-1)
+                     corden(:) = corden(:)+fe(:)*rc**(2*j)*cval/a2
+                     IF (j > 1) THEN
+                        corden(:) = corden(:)+fb*REAL(2*j-2, dp)*fe(:)/rr(:)*rc**(2*j-3)
+                        corden(:) = corden(:)+REAL((2*j-2)*(2*j-3), dp)*fe(:)*rc**(2*j-4)*cval/a2
+                        corden(:) = corden(:)-REAL(2*j-2, dp)*fe(:)*rc**(2*j-2)*cval/a2
+                     END IF
+                  ELSE
+                     CPABORT("")
                   END IF
-               ELSE IF (my_typ == "LAP") THEN
-                  fb = 2._dp*gthpot%cval_nlcc(j, i)/a
-                  corden(:) = corden(:)-fb*fe(:)/rr(:)*rc**(2*j-1)
-                  corden(:) = corden(:)+fe(:)*rc**(2*j)*gthpot%cval_nlcc(j, i)/a2
-                  IF (j > 1) THEN
-                     corden(:) = corden(:)+fb*REAL(2*j-2, dp)*fe(:)/rr(:)*rc**(2*j-3)
-                     corden(:) = corden(:)+REAL((2*j-2)*(2*j-3), dp)*fe(:)*rc**(2*j-4)*gthpot%cval_nlcc(j, i)/a2
-                     corden(:) = corden(:)-REAL(2*j-2, dp)*fe(:)*rc**(2*j-2)*gthpot%cval_nlcc(j, i)/a2
-                  END IF
-               ELSE
-                  CPABORT("")
-               END IF
+               END DO
             END DO
-         END DO
-         DEALLOCATE (fe, rc)
-      END IF
+            DEALLOCATE (fe, rc)
+         END IF
+      CASE (upf_pseudo)
+         IF (potential%upf_pot%core_correction) THEN
+            m = SIZE(corden)
+            n = potential%upf_pot%mesh_size
+            reverse = .FALSE.
+            IF (rr(1) > rr(m)) reverse = .TRUE.
+            ALLOCATE (rhoc(m), rval(m))
+            IF (reverse) THEN
+               DO i = 1, m
+                  rval(i) = rr(m-i+1)
+               END DO
+            ELSE
+               rval(1:m) = rr(1:m)
+            END IF
+            IF (my_typ == "RHO") THEN
+               CALL spline3ders(potential%upf_pot%r(1:n), potential%upf_pot%rho_nlcc(1:n), rval(1:m), &
+                                ynew=rhoc(1:m))
+            ELSE IF (my_typ == "DER") THEN
+               CALL spline3ders(potential%upf_pot%r(1:n), potential%upf_pot%rho_nlcc(1:n), rval(1:m), &
+                                dynew=rhoc(1:m))
+            ELSE IF (my_typ == "LAP") THEN
+               CALL spline3ders(potential%upf_pot%r(1:n), potential%upf_pot%rho_nlcc(1:n), rval(1:m), &
+                                d2ynew=rhoc(1:m))
+            ELSE
+               CPABORT("")
+            END IF
+            IF (reverse) THEN
+               DO i = 1, m
+                  rval(i) = rr(m-i+1)
+                  corden(i) = corden(i)+rhoc(m-i+1)
+               END DO
+            ELSE
+               corden(1:m) = corden(1:m)+rhoc(1:m)
+            END IF
+            DEALLOCATE (rhoc, rval)
+         END IF
+      CASE DEFAULT
+         CPABORT("Unknown PP type")
+      END SELECT
 
    END SUBROUTINE atom_core_density
 ! **************************************************************************************************
@@ -1940,7 +1987,6 @@ CONTAINS
          nlcc = atom%potential%gth_pot%nlcc
       ELSE IF (atom%potential%ppot_type == upf_pseudo) THEN
          nlcc = atom%potential%upf_pot%core_correction
-         CPASSERT(.NOT. nlcc)
       END IF
       IF (nlcc) THEN
          ALLOCATE (xfun(nr))
@@ -1968,7 +2014,7 @@ CONTAINS
          CALL atom_density(rho(:, 2), atom%orbitals%pmatb, atom%basis, atom%state%maxl_occ, typ="RHO")
          IF (nlcc) THEN
             xfun = 0.0_dp
-            CALL atom_core_density(xfun(:), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+            CALL atom_core_density(xfun(:), atom%potential, typ="RHO", rr=atom%basis%grid%rad)
             rho(:, 1) = rho(:, 1)+0.5_dp*xfun(:)
             rho(:, 2) = rho(:, 2)+0.5_dp*xfun(:)
          END IF
@@ -1977,7 +2023,7 @@ CONTAINS
          ALLOCATE (rho(nr, 1))
          CALL atom_density(rho(:, 1), atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, typ="RHO")
          IF (nlcc) THEN
-            CALL atom_core_density(rho(:, 1), atom%potential%gth_pot, typ="RHO", rr=atom%basis%grid%rad)
+            CALL atom_core_density(rho(:, 1), atom%potential, typ="RHO", rr=atom%basis%grid%rad)
          END IF
       END IF
       d0 = rho(m0, 1)
