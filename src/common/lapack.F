@@ -352,7 +352,7 @@ MODULE lapack
 ! **************************************************************************************************
       SUBROUTINE dgbsv(n, kl, ku, nrhs, ab, ldab, ipiv, b, ldb, info)
        USE kinds, ONLY: dp
-      INTEGER                                            :: N, KL, KU, NRHS
+      INTEGER                                            :: N, KL, KU, NRHS, LDAB
       REAL(KIND=dp)                                      :: AB(LDAB, *)
       INTEGER                                            :: IPIV(*), LDB
       REAL(KIND=dp)                                      :: B(LDB, *)
