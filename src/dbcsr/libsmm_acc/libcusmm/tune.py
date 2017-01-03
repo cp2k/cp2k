@@ -132,7 +132,7 @@ def gen_benchmark(outdir, m, n, k):
 
         for j in range(B-A):
             output += "launchers[%d]    = %s;\n"%(j, launchers[A+j])
-            output += 'kernel_descr[%d] = "%s";\n'%(j, kernel_descr[A+j])
+            output += 'kernel_descr[%d] = (char *) "%s";\n'%(j, kernel_descr[A+j])
         output += "libcusmm_benchmark_init(&handle, true, %d, %d, %d);\n"%(m, n, k)
         output += "return libcusmm_benchmark(handle, %d, %d, %d, %d, launchers, kernel_descr);\n"%(m, n, k, B-A)
         output += "libcusmm_benchmark_finalize(handle);\n"
@@ -150,11 +150,16 @@ def gen_jobfile(outdir, m, n, k):
     output  = "#!/bin/bash -l\n"
     output += "#SBATCH --nodes=%d\n"%len(all_exe)
     output += "#SBATCH --time=0:30:00\n"
-    output += "#SBATCH --account=ch5\n"
+    output += "#SBATCH --account=s238\n"
+    output += "#SBATCH --partition=normal\n"
+    output += "#SBATCH --constraint=gpu\n"
     output += "\n"
     output += "source ${MODULESHOME}/init/sh;\n"
+    output += "module load daint-gpu\n"
     output += "module unload PrgEnv-cray\n"
-    output += "module load cudatoolkit PrgEnv-gnu\n"
+    output += "module load PrgEnv-gnu/6.0.3\n"
+    output += "module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1\n"
+    output += "module swap gcc/6.2.0 gcc/5.3.0\n"
     output += "module list\n"
     output += "export CRAY_CUDA_MPS=1\n"
     output += "cd $SLURM_SUBMIT_DIR \n"
@@ -162,13 +167,13 @@ def gen_jobfile(outdir, m, n, k):
     output += "date\n"
     for exe in all_exe:
         # output += "aprun -b -n 1 -N 1 -d 8 make -j 16 %s &\n"%exe
-        output += "srun --bcast=/tmp/${USER} --ntasks 1 --ntasks-per-node 1 --cpus-per-task 8 make -j 16 %s &\n"%exe
+        output += "srun --bcast=/tmp/${USER} --ntasks=1 --ntasks-per-node=1 --cpus-per-task=12 make -j 24 %s &\n"%exe
     output += "wait\n"
     output += "date\n"
     output += "\n"
     for exe in all_exe:
         # output += "aprun -b -n 1 -N 1 -d 1 ./"+exe+" >"+exe+".log 2>&1 & \n"
-        output += "srun --bcast=/tmp/${USER} --ntasks 1 --ntasks-per-node 1 --cpus-per-task 1 ./"+exe+" >"+exe+".log 2>&1 & \n"
+        output += "srun --bcast=/tmp/${USER} --ntasks=1 --ntasks-per-node=1 --cpus-per-task=1 ./"+exe+" >"+exe+".log 2>&1 & \n"
     output += "wait\n"
     output += "date\n"
     output += "\n"
@@ -197,7 +202,7 @@ def gen_makefile(outdir):
 
     headers = " ".join( ["."+fn for fn in glob("./kernels/*.h")] )
     output += "%.o : %.cu "+headers+"\n"
-    output += "\tnvcc -arch=sm_35 -c $<\n\n"
+    output += "\tnvcc -O3 -arch=sm_60 -c $<\n\n"
 
     for exe_src in all_exe_src:
         absparts = sorted(glob(outdir+"/"+exe_src.replace("_main.cu", "_part*")))
@@ -206,7 +211,7 @@ def gen_makefile(outdir):
         deps_obj = " ".join([fn.replace(".cu", ".o") for fn in deps])
         exe = exe_src.replace("_main.cu", "")
         output += exe + " : " + deps_obj +"\n"
-        output += "\tnvcc -arch=sm_35 -o $@ $^\n\n"
+        output += "\tnvcc -O3 -arch=sm_60 -o $@ $^\n\n"
 
     writefile(outdir+"/Makefile", output)
 

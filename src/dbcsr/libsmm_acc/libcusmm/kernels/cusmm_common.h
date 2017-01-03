@@ -35,4 +35,12 @@ static __device__ double atomicAdd(double *address, double val) {
 #define __ldg(x)  (*(x))
 #endif
 
+/******************************************************************************
+ * A simple __ldg replacement for older cuda devices.                         *
+ ******************************************************************************/
+
+#if (__CUDACC_VER_MAJOR__ >= 8) || ( defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 600) )
+#define syncthreads(x) __syncthreads(x)
+#endif
+
 #endif
