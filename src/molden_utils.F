@@ -16,7 +16,9 @@ MODULE molden_utils
                                               cp_fm_get_submatrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
@@ -59,13 +61,16 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: print_section
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_molden', &
+         routineP = moduleN//':'//routineN
+
       CHARACTER(LEN=1)                                   :: angmom
       CHARACTER(LEN=12), DIMENSION(15)                   :: shell_symbol
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
       CHARACTER(LEN=15)                                  :: fmtstr1
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER :: digits, i, iatom, icgf, ico, icol, ikind, ipgf, irow, irow_in, iset, isgf, &
-         ishell, ispin, iw, lshell, ncgf, ncol_global, nrow_global, nset, nsgf, shellgf, z
+      INTEGER :: digits, handle, i, iatom, icgf, ico, icol, ikind, ipgf, irow, irow_in, iset, &
+         isgf, ishell, ispin, iw, lshell, ncgf, ncol_global, nrow_global, nset, nsgf, shellgf, z
       INTEGER, DIMENSION(15)                             :: orbmap
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
@@ -74,6 +79,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cmatrix, smatrix
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+
+      CALL timeset(routineN, handle)
 
       NULLIFY (nshell)
       NULLIFY (bcgf_symbol)
@@ -87,7 +94,8 @@ CONTAINS
       WRITE (UNIT=fmtstr1(10:11), FMT="(I2)") digits+7
       WRITE (UNIT=fmtstr1(13:14), FMT="(I2)") digits
 
-      IF (mos(1)%mo_set%use_mo_coeff_b) THEN
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, "MOS_MOLDEN"), cp_p_file) .AND. &
+          mos(1)%mo_set%use_mo_coeff_b) THEN
          ! we are using the dbcsr mo_coeff
          ! we copy it to the fm anyway
          DO ispin = 1, SIZE(mos)
@@ -285,6 +293,10 @@ CONTAINS
          END IF
       END DO
 
+      CALL cp_print_key_finished_output(iw, logger, print_section, "MOS_MOLDEN")
+
+      CALL timestop(handle)
+
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -344,8 +356,10 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=2)                                   :: element_symbol
-      INTEGER                                            :: i, iw, j, k, l
+      INTEGER                                            :: handle, i, iw, j, k, l
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_list
+
+      CALL timeset(routineN, handle)
 
       iw = cp_print_key_unit_nr(logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB", &
                                 extension=".mol", file_status='REPLACE')
@@ -404,6 +418,9 @@ CONTAINS
          DEALLOCATE (my_list)
       END IF
       CALL cp_print_key_finished_output(iw, logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB")
+
+      CALL timestop(handle)
+
    END SUBROUTINE write_vibrations_molden
 
 END MODULE molden_utils
