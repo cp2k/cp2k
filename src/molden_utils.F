@@ -86,214 +86,217 @@ CONTAINS
       NULLIFY (bcgf_symbol)
 
       logger => cp_get_default_logger()
-      iw = cp_print_key_unit_nr(logger, print_section, "MOS_MOLDEN", &
-                                extension=".molden", file_status='REPLACE')
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, "MOS_MOLDEN"), cp_p_file)) THEN
 
-      CALL section_vals_val_get(print_section, "MOS_MOLDEN%NDIGITS", i_val=digits)
-      fmtstr1 = "(I6,1X,ES  .  )"
-      WRITE (UNIT=fmtstr1(10:11), FMT="(I2)") digits+7
-      WRITE (UNIT=fmtstr1(13:14), FMT="(I2)") digits
+         iw = cp_print_key_unit_nr(logger, print_section, "MOS_MOLDEN", &
+                                   extension=".molden", file_status='REPLACE')
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, print_section, "MOS_MOLDEN"), cp_p_file) .AND. &
-          mos(1)%mo_set%use_mo_coeff_b) THEN
-         ! we are using the dbcsr mo_coeff
-         ! we copy it to the fm anyway
-         DO ispin = 1, SIZE(mos)
-            IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN
-               CPASSERT(.FALSE.)
-            ENDIF
-            CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &
-                                  mos(ispin)%mo_set%mo_coeff) !fm->dbcsr
-         ENDDO
-      ENDIF
+         CALL section_vals_val_get(print_section, "MOS_MOLDEN%NDIGITS", i_val=digits)
+         fmtstr1 = "(I6,1X,ES  .  )"
+         WRITE (UNIT=fmtstr1(10:11), FMT="(I2)") digits+7
+         WRITE (UNIT=fmtstr1(13:14), FMT="(I2)") digits
 
-      IF (iw .GT. 0) THEN
-         WRITE (iw, '(T2,A)') "[Molden Format]"
-         WRITE (iw, '(T2,A)') "[Atoms] AU"
-         DO i = 1, SIZE(particle_set)
-            CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, &
-                                 element_symbol=element_symbol)
-            CALL get_ptable_info(element_symbol, number=z)
+         IF (mos(1)%mo_set%use_mo_coeff_b) THEN
+            ! we are using the dbcsr mo_coeff
+            ! we copy it to the fm anyway
+            DO ispin = 1, SIZE(mos)
+               IF (.NOT. ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) THEN
+                  CPASSERT(.FALSE.)
+               ENDIF
+               CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &
+                                     mos(ispin)%mo_set%mo_coeff) !fm->dbcsr
+            ENDDO
+         ENDIF
 
-            WRITE (iw, '(T2,A2,I8,I8,3X,3(F12.6,3X))') &
-               element_symbol, i, z, particle_set(i)%r(:)
+         IF (iw .GT. 0) THEN
+            WRITE (iw, '(T2,A)') "[Molden Format]"
+            WRITE (iw, '(T2,A)') "[Atoms] AU"
+            DO i = 1, SIZE(particle_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, &
+                                    element_symbol=element_symbol)
+               CALL get_ptable_info(element_symbol, number=z)
 
-         END DO
+               WRITE (iw, '(T2,A2,I8,I8,3X,3(F12.6,3X))') &
+                  element_symbol, i, z, particle_set(i)%r(:)
 
-         WRITE (iw, '(T2,A)') "[GTO] "
+            END DO
 
-         DO i = 1, SIZE(particle_set)
-            CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=ikind, &
-                                 element_symbol=element_symbol)
-            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-            IF (ASSOCIATED(orb_basis_set)) THEN
-               WRITE (iw, '(T2,I8,I8)') i, 0
-               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                      nset=nset, &
-                                      nshell=nshell, &
-                                      l=l)
+            WRITE (iw, '(T2,A)') "[GTO] "
 
-               DO iset = 1, orb_basis_set%nset
-                  DO ishell = 1, orb_basis_set%nshell(iset)
-                     IF (orb_basis_set%l(ishell, iset) == 0) angmom = 's'
-                     IF (orb_basis_set%l(ishell, iset) == 1) angmom = 'p'
-                     IF (orb_basis_set%l(ishell, iset) == 2) angmom = 'd'
-                     IF (orb_basis_set%l(ishell, iset) == 3) angmom = 'f'
-                     IF (orb_basis_set%l(ishell, iset) == 4) angmom = 'g'
-                     WRITE (UNIT=iw, &
-                            FMT="(T25,A2,4X,I4,4X,F4.2)") &
-                        angmom, &
-                        orb_basis_set%npgf(iset), 1.0
-                     ! MOLDEN expects the contaction coefficient of spherical NOT CARTESIAN NORMALISED
-                     ! functions. So we undo the normalisation factors included in the gccs
-                     ! Reverse engineered from basis_set_types, normalise_gcc_orb
-                     prefac = 2_dp**orb_basis_set%l(ishell, iset)*(2/pi)**0.75_dp
-                     expzet = 0.25_dp*(2*orb_basis_set%l(ishell, iset)+3.0_dp)
-                     WRITE (UNIT=iw, &
-                            FMT="((T51,2F15.6))") &
-                        (orb_basis_set%zet(ipgf, iset), &
-                         orb_basis_set%gcc(ipgf, ishell, iset)/(prefac*orb_basis_set%zet(ipgf, iset)**expzet), &
-                         ipgf=1, orb_basis_set%npgf(iset))
-                  END DO
-               END DO
-
-               WRITE (iw, '(A4)') "    "
-
-            END IF
-
-         END DO
-
-         WRITE (iw, '(T2,A)') "[MO] "
-
-      END IF
-
-      DO ispin = 1, SIZE(mos)
-         CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, &
-                             nrow_global=nrow_global, &
-                             ncol_global=ncol_global)
-         ALLOCATE (smatrix(nrow_global, ncol_global))
-         CALL cp_fm_get_submatrix(mos(ispin)%mo_set%mo_coeff, smatrix)
-         IF (.NOT. iw > 0) THEN
-            DEALLOCATE (smatrix)
-         END IF
-
-         IF (iw > 0) THEN
-            CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
-
-            ALLOCATE (cmatrix(ncgf, ncgf))
-
-            cmatrix = 0.0_dp
-
-            ! Transform spherical MOs to Cartesian MOs
-
-            icgf = 1
-            isgf = 1
-            DO iatom = 1, SIZE(particle_set)
-               NULLIFY (orb_basis_set)
-               CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), &
-                                basis_set=orb_basis_set)
+            DO i = 1, SIZE(particle_set)
+               CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=ikind, &
+                                    element_symbol=element_symbol)
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
                IF (ASSOCIATED(orb_basis_set)) THEN
+                  WRITE (iw, '(T2,I8,I8)') i, 0
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                          nset=nset, &
                                          nshell=nshell, &
                                          l=l)
-                  DO iset = 1, nset
-                     DO ishell = 1, nshell(iset)
-                        lshell = l(ishell, iset)
-                        CALL dgemm("T", "N", nco(lshell), mos(ispin)%mo_set%nmo, nso(lshell), 1.0_dp, &
-                                   orbtramat(lshell)%s2c, nso(lshell), &
-                                   smatrix(isgf, 1), nsgf, 0.0_dp, &
-                                   cmatrix(icgf, 1), ncgf)
-                        icgf = icgf+nco(lshell)
-                        isgf = isgf+nso(lshell)
+
+                  DO iset = 1, orb_basis_set%nset
+                     DO ishell = 1, orb_basis_set%nshell(iset)
+                        IF (orb_basis_set%l(ishell, iset) == 0) angmom = 's'
+                        IF (orb_basis_set%l(ishell, iset) == 1) angmom = 'p'
+                        IF (orb_basis_set%l(ishell, iset) == 2) angmom = 'd'
+                        IF (orb_basis_set%l(ishell, iset) == 3) angmom = 'f'
+                        IF (orb_basis_set%l(ishell, iset) == 4) angmom = 'g'
+                        WRITE (UNIT=iw, &
+                               FMT="(T25,A2,4X,I4,4X,F4.2)") &
+                           angmom, &
+                           orb_basis_set%npgf(iset), 1.0
+                        ! MOLDEN expects the contaction coefficient of spherical NOT CARTESIAN NORMALISED
+                        ! functions. So we undo the normalisation factors included in the gccs
+                        ! Reverse engineered from basis_set_types, normalise_gcc_orb
+                        prefac = 2_dp**orb_basis_set%l(ishell, iset)*(2/pi)**0.75_dp
+                        expzet = 0.25_dp*(2*orb_basis_set%l(ishell, iset)+3.0_dp)
+                        WRITE (UNIT=iw, &
+                               FMT="((T51,2F15.6))") &
+                           (orb_basis_set%zet(ipgf, iset), &
+                            orb_basis_set%gcc(ipgf, ishell, iset)/(prefac*orb_basis_set%zet(ipgf, iset)**expzet), &
+                            ipgf=1, orb_basis_set%npgf(iset))
                      END DO
                   END DO
+
+                  WRITE (iw, '(A4)') "    "
+
                END IF
-            END DO ! iatom
 
-            DO icol = 1, mos(ispin)%mo_set%nmo
+            END DO
 
-               irow = 1
-               IF (iw > 0) WRITE (iw, *) 'Ene=', mos(ispin)%mo_set%eigenvalues(icol)
-               IF (ispin < 2) THEN
-                  IF (iw > 0) WRITE (iw, *) 'Spin= Alpha'
-               ELSE
-                  IF (iw > 0) WRITE (iw, *) 'Spin= Beta'
-               END IF
-               IF (iw > 0) WRITE (iw, *) 'Occup=', mos(ispin)%mo_set%occupation_numbers(icol)
+            WRITE (iw, '(T2,A)') "[MO] "
 
+         END IF
+
+         DO ispin = 1, SIZE(mos)
+            CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff, &
+                                nrow_global=nrow_global, &
+                                ncol_global=ncol_global)
+            ALLOCATE (smatrix(nrow_global, ncol_global))
+            CALL cp_fm_get_submatrix(mos(ispin)%mo_set%mo_coeff, smatrix)
+            IF (.NOT. iw > 0) THEN
+               DEALLOCATE (smatrix)
+            END IF
+
+            IF (iw > 0) THEN
+               CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
+
+               ALLOCATE (cmatrix(ncgf, ncgf))
+
+               cmatrix = 0.0_dp
+
+               ! Transform spherical MOs to Cartesian MOs
+
+               icgf = 1
+               isgf = 1
                DO iatom = 1, SIZE(particle_set)
                   NULLIFY (orb_basis_set)
-                  CALL get_atomic_kind(particle_set(iatom)%atomic_kind, &
-                                       element_symbol=element_symbol, kind_number=ikind)
+                  CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                   CALL get_qs_kind(qs_kind_set(ikind), &
                                    basis_set=orb_basis_set)
                   IF (ASSOCIATED(orb_basis_set)) THEN
                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                             nset=nset, &
                                             nshell=nshell, &
-                                            l=l, &
-                                            cgf_symbol=bcgf_symbol)
-                     icgf = 1
+                                            l=l)
                      DO iset = 1, nset
                         DO ishell = 1, nshell(iset)
                            lshell = l(ishell, iset)
-                           irow_in = irow
-                           shellgf = 1
-                           DO ico = 1, nco(lshell)
-                              mo_coeff(shellgf) = cmatrix(irow, icol)
-                              shell_symbol(shellgf) = bcgf_symbol(icgf)
-                              icgf = icgf+1
-                              shellgf = shellgf+1
-                              irow = irow+1
-                           END DO ! ico
-                           !------------------------------------------------------------------------
-                           ! convert from CP2K MOLDEN format ordering
-                           ! http://www.cmbi.ru.nl/molden/molden_format.html
-                           !"The following order of D, F and G functions is expected:
-                           !
-                           !   5D: D 0, D+1, D-1, D+2, D-2
-                           !   6D: xx, yy, zz, xy, xz, yz
-                           !
-                           !   7F: F 0, F+1, F-1, F+2, F-2, F+3, F-3
-                           !  10F: xxx, yyy, zzz, xyy, xxy, xxz, xzz, yzz, yyz, xyz
-                           !
-                           !   9G: G 0, G+1, G-1, G+2, G-2, G+3, G-3, G+4, G-4
-                           !  15G: xxxx yyyy zzzz xxxy xxxz yyyx yyyz zzzx zzzy,
-                           !       xxyy xxzz yyzz xxyz yyxz zzxy
-                           !"
-                           ! CP2K has x in the outer (slower loop), so
-                           ! xx, xy, xz, yy, yz,zz for l=2, for instance
-                           ! Always use cartesian (6D, 10F, 15G) as this is only format
-                           ! VMD can process anyway
-                           ! -----------------------------------------------------------------------
-                           IF (lshell .EQ. 0) THEN
-                              orbmap = (/1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
-                           ELSE IF (lshell .EQ. 1) THEN
-                              orbmap = (/1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
-                           ELSE IF (lshell .EQ. 2) THEN
-                              orbmap = (/1, 4, 6, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
-                           ELSE IF (lshell .EQ. 3) THEN
-                              orbmap = (/1, 7, 10, 4, 2, 3, 6, 9, 8, 5, 0, 0, 0, 0, 0/)
-                           ELSE IF (lshell .EQ. 4) THEN
-                              orbmap = (/1, 11, 15, 2, 3, 7, 12, 10, 14, 4, 6, 13, 5, 8, 9/)
-                           ELSE
-                              orbmap = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
-                           END IF
-
-                           CALL print_coeffs(iw, fmtstr1, digits, irow_in, orbmap, mo_coeff)
-
-                        END DO ! ishell
+                           CALL dgemm("T", "N", nco(lshell), mos(ispin)%mo_set%nmo, nso(lshell), 1.0_dp, &
+                                      orbtramat(lshell)%s2c, nso(lshell), &
+                                      smatrix(isgf, 1), nsgf, 0.0_dp, &
+                                      cmatrix(icgf, 1), ncgf)
+                           icgf = icgf+nco(lshell)
+                           isgf = isgf+nso(lshell)
+                        END DO
                      END DO
                   END IF
                END DO ! iatom
-            END DO
-            DEALLOCATE (smatrix, cmatrix)
-         END IF
-      END DO
 
-      CALL cp_print_key_finished_output(iw, logger, print_section, "MOS_MOLDEN")
+               DO icol = 1, mos(ispin)%mo_set%nmo
+
+                  irow = 1
+                  IF (iw > 0) WRITE (iw, *) 'Ene=', mos(ispin)%mo_set%eigenvalues(icol)
+                  IF (ispin < 2) THEN
+                     IF (iw > 0) WRITE (iw, *) 'Spin= Alpha'
+                  ELSE
+                     IF (iw > 0) WRITE (iw, *) 'Spin= Beta'
+                  END IF
+                  IF (iw > 0) WRITE (iw, *) 'Occup=', mos(ispin)%mo_set%occupation_numbers(icol)
+
+                  DO iatom = 1, SIZE(particle_set)
+                     NULLIFY (orb_basis_set)
+                     CALL get_atomic_kind(particle_set(iatom)%atomic_kind, &
+                                          element_symbol=element_symbol, kind_number=ikind)
+                     CALL get_qs_kind(qs_kind_set(ikind), &
+                                      basis_set=orb_basis_set)
+                     IF (ASSOCIATED(orb_basis_set)) THEN
+                        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                               nset=nset, &
+                                               nshell=nshell, &
+                                               l=l, &
+                                               cgf_symbol=bcgf_symbol)
+                        icgf = 1
+                        DO iset = 1, nset
+                           DO ishell = 1, nshell(iset)
+                              lshell = l(ishell, iset)
+                              irow_in = irow
+                              shellgf = 1
+                              DO ico = 1, nco(lshell)
+                                 mo_coeff(shellgf) = cmatrix(irow, icol)
+                                 shell_symbol(shellgf) = bcgf_symbol(icgf)
+                                 icgf = icgf+1
+                                 shellgf = shellgf+1
+                                 irow = irow+1
+                              END DO ! ico
+                              !------------------------------------------------------------------------
+                              ! convert from CP2K MOLDEN format ordering
+                              ! http://www.cmbi.ru.nl/molden/molden_format.html
+                              !"The following order of D, F and G functions is expected:
+                              !
+                              !   5D: D 0, D+1, D-1, D+2, D-2
+                              !   6D: xx, yy, zz, xy, xz, yz
+                              !
+                              !   7F: F 0, F+1, F-1, F+2, F-2, F+3, F-3
+                              !  10F: xxx, yyy, zzz, xyy, xxy, xxz, xzz, yzz, yyz, xyz
+                              !
+                              !   9G: G 0, G+1, G-1, G+2, G-2, G+3, G-3, G+4, G-4
+                              !  15G: xxxx yyyy zzzz xxxy xxxz yyyx yyyz zzzx zzzy,
+                              !       xxyy xxzz yyzz xxyz yyxz zzxy
+                              !"
+                              ! CP2K has x in the outer (slower loop), so
+                              ! xx, xy, xz, yy, yz,zz for l=2, for instance
+                              ! Always use cartesian (6D, 10F, 15G) as this is only format
+                              ! VMD can process anyway
+                              ! -----------------------------------------------------------------------
+                              IF (lshell .EQ. 0) THEN
+                                 orbmap = (/1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
+                              ELSE IF (lshell .EQ. 1) THEN
+                                 orbmap = (/1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
+                              ELSE IF (lshell .EQ. 2) THEN
+                                 orbmap = (/1, 4, 6, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
+                              ELSE IF (lshell .EQ. 3) THEN
+                                 orbmap = (/1, 7, 10, 4, 2, 3, 6, 9, 8, 5, 0, 0, 0, 0, 0/)
+                              ELSE IF (lshell .EQ. 4) THEN
+                                 orbmap = (/1, 11, 15, 2, 3, 7, 12, 10, 14, 4, 6, 13, 5, 8, 9/)
+                              ELSE
+                                 orbmap = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0/)
+                              END IF
+
+                              CALL print_coeffs(iw, fmtstr1, digits, irow_in, orbmap, mo_coeff)
+
+                           END DO ! ishell
+                        END DO
+                     END IF
+                  END DO ! iatom
+               END DO
+               DEALLOCATE (smatrix, cmatrix)
+            END IF
+         END DO
+
+         CALL cp_print_key_finished_output(iw, logger, print_section, "MOS_MOLDEN")
+
+      END IF
 
       CALL timestop(handle)
 
