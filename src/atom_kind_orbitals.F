@@ -45,7 +45,8 @@ MODULE atom_kind_orbitals
                                               grid_atom_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               init_atom_electronic_state,&
-                                              qs_kind_type
+                                              qs_kind_type,&
+                                              set_gth_state
    USE rel_control_types,               ONLY: rel_control_type
 #include "./base/base_uses.f90"
 
@@ -495,10 +496,10 @@ CONTAINS
       INTEGER                                            :: i, ii, j, k, l, ll, lm, m, mb, mo, n, &
                                                             ne, nexp_lpot, nexp_lsd, nexp_nlcc, &
                                                             ngp, nn, nr, quadtype, relativistic, z
-      INTEGER, DIMENSION(0:3)                            :: econfx, starti
+      INTEGER, DIMENSION(0:3)                            :: starti
       INTEGER, DIMENSION(0:3, 10)                        :: ncalc, ncore, nelem
-      INTEGER, DIMENSION(:), POINTER                     :: econf, nct_lpot, nct_lsd, nct_nlcc, &
-                                                            nppnl, ppeconf
+      INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nct_nlcc, nppnl, &
+                                                            ppeconf
       LOGICAL                                            :: lpot_present, lsd_present, nlcc_present
       REAL(KIND=dp)                                      :: ac, al, aval, cc, cval, ear, rk, xx, zeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_nlcc, ap, ce
@@ -734,62 +735,8 @@ CONTAINS
       nelem = 0
       ncore = 0
       ncalc = 0
-      NULLIFY (econf)
       IF (ASSOCIATED(gth_potential)) THEN
-         CALL get_potential(gth_potential, elec_conf=econf)
-         econfx = 0
-         econfx(0:SIZE(econf)-1) = econf
-         IF (SUM(econf) >= 0) THEN
-            DO l = 0, 3
-               ll = 2*(2*l+1)
-               nn = ptable(z)%e_conv(l)-econfx(l)
-               ii = 0
-               DO
-                  ii = ii+1
-                  IF (nn <= ll) THEN
-                     ncore(l, ii) = nn
-                     EXIT
-                  ELSE
-                     ncore(l, ii) = ll
-                     nn = nn-ll
-                  END IF
-               END DO
-            END DO
-            DO l = 0, 3
-               ll = 2*(2*l+1)
-               nn = ptable(z)%e_conv(l)
-               ii = 0
-               DO
-                  ii = ii+1
-                  IF (nn <= ll) THEN
-                     nelem(l, ii) = nn
-                     EXIT
-                  ELSE
-                     nelem(l, ii) = ll
-                     nn = nn-ll
-                  END IF
-               END DO
-            END DO
-            ncalc = nelem-ncore
-         ELSE
-            ncore = 0
-            ncalc = 0
-            DO l = 0, 3
-               ll = 2*(2*l+1)
-               nn = ABS(econfx(l))
-               ii = 0
-               DO
-                  ii = ii+1
-                  IF (nn <= ll) THEN
-                     ncalc(l, ii) = -nn
-                     EXIT
-                  ELSE
-                     ncalc(l, ii) = -ll
-                     nn = nn-ll
-                  END IF
-               END DO
-            END DO
-         END IF
+         CALL set_gth_state(gth_potential, z, ncalc, ncore, nelem)
       ELSE
          DO l = 0, 3
             ll = 2*(2*l+1)

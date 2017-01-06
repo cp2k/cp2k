@@ -200,7 +200,7 @@ MODULE qs_kind_types
              set_qs_kind, &
              write_qs_kind_set, &
              write_gto_basis_sets, &
-             init_atom_electronic_state
+             init_atom_electronic_state, set_gth_state
 
    ! Public data types
    PUBLIC :: qs_kind_type, pao_potential_type, pao_descriptor_type
@@ -2379,8 +2379,6 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, ii, l, ll, ne, nn, z
-      INTEGER, DIMENSION(0:3)                            :: econfx
-      INTEGER, DIMENSION(:), POINTER                     :: econf
       INTEGER, DIMENSION(:, :), POINTER                  :: addel, laddel, naddel
       LOGICAL                                            :: bs_occupation
       TYPE(gth_potential_type), POINTER                  :: gth_potential
@@ -2396,62 +2394,8 @@ CONTAINS
       nelem = 0
       ncore = 0
       ncalc = 0
-      NULLIFY (econf)
       IF (ASSOCIATED(gth_potential)) THEN
-         CALL get_potential(gth_potential, elec_conf=econf)
-         econfx = 0
-         econfx(0:SIZE(econf)-1) = econf
-         IF (SUM(econf) >= 0) THEN
-            DO l = 0, 3
-               ll = 2*(2*l+1)
-               nn = ptable(z)%e_conv(l)-econfx(l)
-               ii = 0
-               DO
-                  ii = ii+1
-                  IF (nn <= ll) THEN
-                     ncore(l, ii) = nn
-                     EXIT
-                  ELSE
-                     ncore(l, ii) = ll
-                     nn = nn-ll
-                  END IF
-               END DO
-            END DO
-            DO l = 0, 3
-               ll = 2*(2*l+1)
-               nn = ptable(z)%e_conv(l)
-               ii = 0
-               DO
-                  ii = ii+1
-                  IF (nn <= ll) THEN
-                     nelem(l, ii) = nn
-                     EXIT
-                  ELSE
-                     nelem(l, ii) = ll
-                     nn = nn-ll
-                  END IF
-               END DO
-            END DO
-            ncalc = nelem-ncore
-         ELSE
-            ncore = 0
-            ncalc = 0
-            DO l = 0, 3
-               ll = 2*(2*l+1)
-               nn = ABS(econfx(l))
-               ii = 0
-               DO
-                  ii = ii+1
-                  IF (nn <= ll) THEN
-                     ncalc(l, ii) = -nn
-                     EXIT
-                  ELSE
-                     ncalc(l, ii) = -ll
-                     nn = nn-ll
-                  END IF
-               END DO
-            END DO
-         END IF
+         CALL set_gth_state(gth_potential, z, ncalc, ncore, nelem)
       ELSE
          DO l = 0, 3
             ll = 2*(2*l+1)
@@ -2513,6 +2457,95 @@ CONTAINS
       END IF
 
    END SUBROUTINE init_atom_electronic_state
+
+! **************************************************************************************************
+!> \brief ...
+!> \param gth_potential ...
+!> \param z ...
+!> \param ncalc ...
+!> \param ncore ...
+!> \param nelem ...
+! **************************************************************************************************
+   SUBROUTINE set_gth_state(gth_potential, z, ncalc, ncore, nelem)
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      INTEGER, INTENT(IN)                                :: z
+      INTEGER, DIMENSION(0:3, 10), INTENT(OUT)           :: ncalc, ncore, nelem
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'set_gth_state', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ii, l, ll, lx, nn
+      INTEGER, DIMENSION(0:3)                            :: econfx
+      INTEGER, DIMENSION(:), POINTER                     :: econf
+
+      CALL get_potential(gth_potential, elec_conf=econf)
+      econfx = 0
+      econfx(0:SIZE(econf)-1) = econf
+      IF (SUM(econf) >= 0) THEN
+         DO l = 0, 3
+            ll = 2*(2*l+1)
+            nn = ptable(z)%e_conv(l)-econfx(l)
+            IF (MOD(nn, ll) == 0) CYCLE
+            IF (econfx(l) == 0) CYCLE
+            IF (MOD(nn, 2) == 0) CYCLE
+            DO lx = 3, l+1, -1
+               IF (econfx(lx) == 0) CYCLE
+               econfx(l) = econfx(l)+1
+               econfx(lx) = econfx(lx)-1
+               EXIT
+            END DO
+         END DO
+         DO l = 0, 3
+            ll = 2*(2*l+1)
+            nn = ptable(z)%e_conv(l)-econfx(l)
+            ii = 0
+            DO
+               ii = ii+1
+               IF (nn <= ll) THEN
+                  ncore(l, ii) = nn
+                  EXIT
+               ELSE
+                  ncore(l, ii) = ll
+                  nn = nn-ll
+               END IF
+            END DO
+         END DO
+         DO l = 0, 3
+            ll = 2*(2*l+1)
+            nn = ptable(z)%e_conv(l)
+            ii = 0
+            DO
+               ii = ii+1
+               IF (nn <= ll) THEN
+                  nelem(l, ii) = nn
+                  EXIT
+               ELSE
+                  nelem(l, ii) = ll
+                  nn = nn-ll
+               END IF
+            END DO
+         END DO
+         ncalc = nelem-ncore
+      ELSE
+         ncore = 0
+         ncalc = 0
+         DO l = 0, 3
+            ll = 2*(2*l+1)
+            nn = ABS(econfx(l))
+            ii = 0
+            DO
+               ii = ii+1
+               IF (nn <= ll) THEN
+                  ncalc(l, ii) = -nn
+                  EXIT
+               ELSE
+                  ncalc(l, ii) = -ll
+                  nn = nn-ll
+               END IF
+            END DO
+         END DO
+      END IF
+
+   END SUBROUTINE set_gth_state
 
 ! **************************************************************************************************
 
