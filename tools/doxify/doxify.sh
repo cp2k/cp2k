@@ -5,6 +5,8 @@ SCRIPTDIR=$(cd $(dirname "$0"); pwd) # Pick up full path to scripts from whereve
 
 for file in "$@"; do
 
+   if $(python $SCRIPTDIR/is_fypp.py $file) ; then exit 0; fi
+
    # generate temp-file names
    tmp_file1=`mktemp`
    tmp_file2=`mktemp`

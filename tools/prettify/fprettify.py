@@ -96,6 +96,11 @@ def prettifyFile(infile, filename, normalize_use, decl_linelength, decl_offset,
     max_pretty_iter = 5
     n_pretty_iter = 0
 
+    if is_fypp(ifile):
+        logger = logging.getLogger('prettify-logger')
+        logger.error(orig_filename + ": fypp directives not supported.\n")
+        return ifile
+
     while True:
         n_pretty_iter += 1
         hash_prev = md5()
@@ -208,6 +213,20 @@ def prettfyInplace(fileName, bkDir=None, stdout=False, **kwargs):
         newFile.close()
     infile.close()
     outfile.close()
+
+def is_fypp(infile):
+    FYPP_SYMBOLS = r"(#|\$|@)"
+    FYPP_LINE = r"^\s*" + FYPP_SYMBOLS + r":"
+    FYPP_INLINE = r"(" + FYPP_SYMBOLS + r"{|}" + FYPP_SYMBOLS + r")"
+    FYPP_RE = re.compile(r"(" + FYPP_LINE + r"|" + FYPP_INLINE + r")")
+
+    infile.seek(0)
+    for line in infile.readlines():
+        if FYPP_RE.match(line):
+            return True
+
+    infile.seek(0)
+    return False
 
 
 def main(argv=None):
