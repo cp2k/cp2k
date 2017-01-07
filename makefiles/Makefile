@@ -23,7 +23,6 @@ MAINOBJDIR   := $(CP2KHOME)/obj
 MAINTSTDIR   := $(CP2KHOME)/regtesting
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
 DOXIFYOBJDIR := $(CP2KHOME)/obj/doxified
-FYPPOBJDIR   := $(CP2KHOME)/obj/fypped
 INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
@@ -63,7 +62,6 @@ endif
          pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates \
          instantiationdir templatesclean \
-         fypp fyppdebug fyppclean \
          test testbg testclean testrealclean
 
 
@@ -79,7 +77,6 @@ OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cxx")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cc")
 ALL_INST_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.instantiation")
-ALL_FYPP_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.fypp")
 
 ifneq ($(NVCC),)
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
@@ -270,26 +267,6 @@ mrproper:
 	cd $(CP2KHOME); ./tools/clean_cwd.sh
 OTHER_HELP += "mrproper : Remove ALL files not in SVN"
 
-# Fypp stuff ================================================================
-vpath %.fypped $(FYPPOBJDIR)
-FYPPFLAGS += --indentation 3
-
-fypp: $(addprefix $(FYPPOBJDIR)/, $(notdir $(ALL_FYPP_FILES:.fypp=.fypped)))
-TOOL_HELP += "fypp : generate *.F from *.fypp using Fypp preprocessor. "
-
-fyppdebug: FYPPFLAGS += -n
-fyppdebug: fypp
-TOOL_HELP += "fyppdebug : same as fypp but with compiler and runtime messages referring to the original *.fypp files."
-
-fyppclean:
-	-rm -rf $(FYPPOBJDIR)
-TOOL_HELP += "fyppclean : remove all Fypp marker files."
-
-$(FYPPOBJDIR)/%.fypped: %.fypp
-	@mkdir -p $(FYPPOBJDIR)
-	$(TOOLSRC)/fypp/bin/fypp $(FYPPFLAGS) -i $(SRCDIR)/base/fyppinit.py $(if $(wildcard $(dir $<)fyppinit.py), -i $(dir $<)fyppinit.py) $< $(<:.fypp=.F)
-	@touch $@
-
 # Template stuff ============================================================
 vpath %.instantiation   $(ALL_SRC_DIRS)
 
@@ -300,7 +277,7 @@ instantiateddir:
 	-rm -fR $(INSTANTIATEDDIR)
 	@mkdir -p $(dir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated)))
 
-templates: fypp instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
+templates: instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
 TOOL_HELP += "templates : instantiate all templates"
 
 $(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
@@ -421,7 +398,6 @@ vpath %.c     $(ALL_SRC_DIRS)
 vpath %.cpp   $(ALL_SRC_DIRS)
 vpath %.cxx   $(ALL_SRC_DIRS)
 vpath %.cc    $(ALL_SRC_DIRS)
-vpath %.fypp  $(ALL_SRC_DIRS)
 
 #
 # Add additional dependency of cp2k_info.F to SVN-entry or git-HEAD.
@@ -461,10 +437,12 @@ endif
 # This is used e.g. by the convention checker.
 %.o: %.F
 ifneq ($(CPP),)
-	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" $< > $*.f90
-	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
+	$(TOOLSRC)/build_utils/fypp -n $< $*.fypped
+	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.F03
+	$(FC) -c $(FCFLAGS) $*.F03 $(FCLOGPIPE)
 else
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" $< $(FCLOGPIPE)
+	$(TOOLSRC)/build_utils/fypp -n $< $*.F03
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F03 $(FCLOGPIPE)
 endif
 
 %.o: %.c

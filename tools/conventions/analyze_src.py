@@ -20,6 +20,11 @@ BANNER_F = "!-------------------------------------------------------------------
           +"!   Copyright (C) 2000 - %d  CP2K developers group                                               !\n"%year \
           +"!--------------------------------------------------------------------------------------------------!\n"
 
+BANNER_Fypp = "#!-------------------------------------------------------------------------------------------------!\n" \
+             +"#!   CP2K: A general program to perform molecular dynamics simulations                             !\n" \
+             +"#!   Copyright (C) 2000 - %d  CP2K developers group                                              !\n"%year \
+             +"#!-------------------------------------------------------------------------------------------------!\n"
+
 BANNER_C = "/*****************************************************************************\n" \
           +" *  CP2K: A general program to perform molecular dynamics simulations        *\n" \
           +" *  Copyright (C) 2000 - %d  CP2K developers group                         *\n"%year \
@@ -46,6 +51,7 @@ def main():
 
             # check banner
             if((fn_ext in ("F", ) and not content.startswith(BANNER_F)) or
+               (fn_ext in ("fypp", ) and not content.startswith(BANNER_Fypp)) or
                (fn_ext in ("c", "cu", "cpp", "h", "hpp") and not content.startswith(BANNER_C))):
                     print(fn+": Copyright banner malformed")
                     #print('"'+ '"\n"'.join(content.split("\n")[:4]) + '"')
@@ -104,7 +110,7 @@ def main():
                 print("Text file %s contains DOS linebreaks"%shortfn)
 
             # check for non-ascii chars
-            if(fn.endswith(".py") and "# -*- coding: utf-8 -*-" in content):
+            if("# -*- coding: utf-8 -*-" in content):
                 continue
             if(not re.search("[\x80-\xFF]", content)):
                 continue

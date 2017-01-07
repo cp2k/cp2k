@@ -10,8 +10,11 @@ re_module = re.compile(r"(?:^|\n)\s*module\s+(\w+)\s.*\n\s*end\s*module",re.DOTA
 re_program = re.compile(r"\n\s*end\s*program")
 re_main   = re.compile(r"\sint\s+main\s*\(")
 re_use    = re.compile(r"\n\s*use\s+(\w+)")
-re_incl1  = re.compile(r"\n\s*include\s+['\"](.+)['\"]")
-re_incl2  = re.compile(r"\n#include\s+['\"](.+)['\"]")
+re_incl_fypp = re.compile(r"\n#:include\s+['\"](.+)['\"]")
+re_incl_cpp = re.compile(r"\n#include\s+['\"](.+)['\"]")
+re_incl_fort = re.compile(r"\n\s*include\s+['\"](.+)['\"]")
+
+
 
 
 #=============================================================================
@@ -159,15 +162,16 @@ def parse_file(parsed_files, fn):
     content_lower = content.lower()
 
     # all files are parsed for cpp includes
-    incls = re_incl2.findall(content) #cpp includes, those are case-sensitiv
+    incls = re_incl_cpp.findall(content) #CPP includes (case-sensitiv)
 
     mods=[]; uses=[]; prog=False;
-    if(fn[-2:]==".F" or fn[-4:]==".f90"):
+    if(fn[-2:]==".F" or fn[-4:]==".f90" or fn[-5:]==".fypp"):
         mods += re_module.findall(content_lower)
         prog  = re_program.search(content_lower) != None
         uses += re_use.findall(content_lower)
-        incl1_iter = re_incl1.finditer(content_lower) # fortran includes
-        incls += [ content[m.start(1):m.end(1)] for m in incl1_iter ]
+        incls += re_incl_fypp.findall(content) # Fypp includes (case-sensitiv)
+        incl_fort_iter = re_incl_fort.finditer(content_lower) # fortran includes
+        incls += [ content[m.start(1):m.end(1)] for m in incl_fort_iter]
 
     if(fn[-2:] == ".c" or fn[-3:]==".cu"):
         prog = re_main.search(content) != None # C is case-sensitiv

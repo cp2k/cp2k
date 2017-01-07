@@ -241,7 +241,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_mp_get_process
    PUBLIC :: dbcsr_mp_grid_setup
    PUBLIC :: dbcsr_setname
-
    PUBLIC :: dbcsr_get_matrix_type
    PUBLIC :: dbcsr_get_occupation
    PUBLIC :: dbcsr_nblkrows_total

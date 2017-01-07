@@ -3,17 +3,16 @@
 !   Copyright (C) 2000 - 2017  CP2K developers group                                               !
 !--------------------------------------------------------------------------------------------------!
 
-!--------------------------------------------------------------------------------------------------!
-! Generated from dbcsr_tensor_types.fypp using Fypp.                                               !
-! **DO NOT** modify this file, edit dbcsr_tensor_types.fypp instead.                               !
-!--------------------------------------------------------------------------------------------------!
-
 ! **************************************************************************************************
 !> \brief DBCSR tensor framework for block-sparse tensor contraction: Types and create/destroy
 !>        routines.
 !> \author Patrick Seewald
 ! **************************************************************************************************
 MODULE dbcsr_tensor_types
+
+#:include "dbcsr_tensor.fypp"
+#:setvar maxdim maxrank
+
    USE array_list_methods,              ONLY: array_list,&
                                               array_offsets,&
                                               create_array_list,&
@@ -22,21 +21,22 @@ MODULE dbcsr_tensor_types
                                               sizes_of_arrays,&
                                               sum_of_arrays
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution, dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
-        dbcsr_distribution_row_dist, dbcsr_finalize, dbcsr_get_info, dbcsr_mp_group, dbcsr_mp_new, &
-        dbcsr_mp_obj, dbcsr_mp_release, dbcsr_release, dbcsr_type
-   USE dbcsr_tensor_index,              ONLY: create_nd_to_2d_mapping,&
-                                              destroy_nd_to_2d_mapping,&
-                                              get_2d_indices,&
-                                              get_mapping_info,&
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_col_dist, &
+        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+        dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_finalize, &
+        dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_mp_release, dbcsr_get_info, dbcsr_type, dbcsr_release
+   USE dbcsr_tensor_index,              ONLY: get_2d_indices,&
                                               get_nd_indices,&
+                                              create_nd_to_2d_mapping,&
+                                              destroy_nd_to_2d_mapping,&
+                                              get_mapping_info,&
                                               nd_to_2d_mapping
    USE kinds,                           ONLY: default_string_length
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_cart_rank,&
-                                              mp_dims_create,&
-                                              mp_environ
+                                              mp_environ, &
+                                              mp_dims_create
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -93,15 +93,16 @@ CONTAINS
 !> \retval communicator with nd cartesian grid
 ! **************************************************************************************************
    FUNCTION dbcsr_t_nd_mp_comm(comm_2d, map1_2d, map2_2d)
-      INTEGER, INTENT(IN)                                :: comm_2d
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
-      INTEGER                                            :: dbcsr_t_nd_mp_comm
-
-      INTEGER                                            :: i, ndim1, ndim2, numtask
-      INTEGER, DIMENSION(2)                              :: dims_2d, task_coor
-      INTEGER, DIMENSION(SIZE(map1_2d))                  :: dims1_nd
-      INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: dims_nd, pos
-      INTEGER, DIMENSION(SIZE(map2_2d))                  :: dims2_nd
+      INTEGER, INTENT(IN)                               :: comm_2d
+      INTEGER, DIMENSION(:), INTENT(IN)                 :: map1_2d, map2_2d
+      INTEGER                                           :: ndim1, ndim2
+      INTEGER                                           :: numtask
+      INTEGER                                           :: i
+      INTEGER, DIMENSION(2)                             :: dims_2d, task_coor
+      INTEGER, DIMENSION(SIZE(map1_2d))                 :: dims1_nd
+      INTEGER, DIMENSION(SIZE(map2_2d))                 :: dims2_nd
+      INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: dims_nd, pos
+      INTEGER                                           :: dbcsr_t_nd_mp_comm
 
       ndim1 = SIZE(map1_2d); ndim2 = SIZE(map2_2d)
 
@@ -139,32 +140,33 @@ CONTAINS
 !> \param nd_dist_2 distribution vector for second dimension
 !> \param nd_dist_3 ...
 !> \param nd_dist_4 ...
+!> \param nd_dist_5 ...
+!> \param nd_dist_6 ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_t_distribution_new(dist, comm_nd, comm_2d, map1_2d, map2_2d, nd_dist_1, nd_dist_2, nd_dist_3, nd_dist_4)
+   SUBROUTINE dbcsr_t_distribution_new(dist, comm_nd, comm_2d, map1_2d, map2_2d, ${varlist("nd_dist")}$)
 
-      TYPE(dbcsr_t_distribution_type), INTENT(OUT)       :: dist
-      INTEGER, INTENT(IN)                                :: comm_nd, comm_2d
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: nd_dist_1, nd_dist_2, nd_dist_3, &
-                                                            nd_dist_4
-
-      INTEGER                                            :: bcol, brow, mynode, ndims, numnodes, &
-                                                            pcol, prow
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pgrid
-      INTEGER, DIMENSION(2)                              :: bdims_2d, coord, dist_2d, pdims_2d, &
-                                                            pdims_2d_check, task_coor_2d
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, row_dist
-      INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: dims, ind, nblks_nd, task_coor
-      LOGICAL, DIMENSION(2)                              :: periods_2d
-      LOGICAL, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: periods
-      TYPE(array_list)                                   :: nd_dist
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
-      TYPE(nd_to_2d_mapping)                             :: map_blks, map_grid
+      TYPE(dbcsr_t_distribution_type), INTENT(OUT)    :: dist
+      INTEGER, INTENT(IN)                             :: comm_nd, comm_2d
+      INTEGER, DIMENSION(:), INTENT(IN)               :: map1_2d, map2_2d
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist")}$
+      INTEGER                                         :: bcol, brow, mynode, ndims, &
+                                                         numnodes, pcol, prow
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)           :: pgrid
+      INTEGER, DIMENSION(2)                           :: bdims_2d, pdims_2d_check, &
+                                                         coord, dist_2d, &
+                                                         pdims_2d, task_coor_2d
+      INTEGER, DIMENSION(:), POINTER                  :: col_dist, row_dist
+      INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d)) :: dims, ind, nblks_nd, task_coor
+      LOGICAL, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d)) :: periods
+      LOGICAL, DIMENSION(2)                           :: periods_2d
+      TYPE(array_list)                                :: nd_dist
+      TYPE(dbcsr_mp_obj)                              :: mp_env
+      TYPE(nd_to_2d_mapping)                          :: map_blks, map_grid
 
       ndims = SIZE(map1_2d)+SIZE(map2_2d)
-      CPASSERT(ndims .GE. 2 .AND. ndims .LE. 4)
+      CPASSERT(ndims .GE. 2 .AND. ndims .LE. ${maxdim}$)
 
-      CALL create_array_list(nd_dist, ndims, nd_dist_1, nd_dist_2, nd_dist_3, nd_dist_4)
+      CALL create_array_list(nd_dist, ndims, ${varlist("nd_dist")}$)
 
       nblks_nd(:) = sizes_of_arrays(nd_dist)
 
@@ -234,7 +236,7 @@ CONTAINS
 !> \param dist ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_distribution_destroy(dist)
-      TYPE(dbcsr_t_distribution_type), INTENT(INOUT)     :: dist
+      TYPE(dbcsr_t_distribution_type), INTENT(INOUT) :: dist
 
       CALL dbcsr_distribution_release(dist%dist)
       CALL destroy_array_list(dist%nd_dist)
@@ -252,26 +254,26 @@ CONTAINS
 !> \param blk_size_2 ...
 !> \param blk_size_3 ...
 !> \param blk_size_4 ...
+!> \param blk_size_5 ...
+!> \param blk_size_6 ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_create_new(tensor, name, dist, map1_2d, map2_2d, data_type, &
-                                 blk_size_1, blk_size_2, blk_size_3, blk_size_4)
-      TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
-      CHARACTER(len=*), INTENT(IN)                       :: name
-      TYPE(dbcsr_t_distribution_type), INTENT(INOUT)     :: dist
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: map1_2d, map2_2d
-      INTEGER, INTENT(IN), OPTIONAL                      :: data_type
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: blk_size_1, blk_size_2, blk_size_3, &
-                                                            blk_size_4
-
-      INTEGER                                            :: icol, imap, irow, ndims
-      INTEGER, DIMENSION(2)                              :: dims_2d
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d))    :: blk_dims, dims, nd_ind
-      TYPE(array_list)                                   :: blk_size
-      TYPE(nd_to_2d_mapping)                             :: map
+                                 ${varlist("blk_size")}$)
+      TYPE(dbcsr_t_type), INTENT(OUT)                   :: tensor
+      CHARACTER(len=*), INTENT(IN)                      :: name
+      TYPE(dbcsr_t_distribution_type), INTENT(INOUT)    :: dist
+      INTEGER, DIMENSION(:), INTENT(IN)                 :: map1_2d, map2_2d
+      INTEGER, INTENT(IN), OPTIONAL                     :: data_type
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL       :: ${varlist("blk_size")}$
+      INTEGER                                           :: icol, imap, irow, ndims
+      INTEGER, DIMENSION(2)                             :: dims_2d
+      INTEGER, DIMENSION(SIZE(map1_2d) + SIZE(map2_2d)) :: blk_dims, dims, nd_ind
+      INTEGER, DIMENSION(:), POINTER                    :: col_blk_size, row_blk_size
+      TYPE(array_list)                                  :: blk_size
+      TYPE(nd_to_2d_mapping)                            :: map
 
       ndims = SIZE(map1_2d)+SIZE(map2_2d)
-      CALL create_array_list(blk_size, ndims, blk_size_1, blk_size_2, blk_size_3, blk_size_4)
+      CALL create_array_list(blk_size, ndims, ${varlist("blk_size")}$)
       dims = sizes_of_arrays(blk_size)
 
       CALL create_nd_to_2d_mapping(map, dims, map1_2d, map2_2d)
@@ -334,9 +336,9 @@ CONTAINS
 !> \param name ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_create_template(tensor_in, tensor, name)
-      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor_in
-      TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
+      TYPE(dbcsr_t_type), INTENT(INOUT)      :: tensor_in
+      TYPE(dbcsr_t_type), INTENT(OUT)        :: tensor
+      CHARACTER(len=*), INTENT(IN), OPTIONAL :: name
 
       CALL dbcsr_create(tensor%matrix_rep, template=tensor_in%matrix_rep)
       CALL dbcsr_finalize(tensor%matrix_rep)
@@ -363,17 +365,17 @@ CONTAINS
 !> \param name ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_create_matrix(matrix_in, tensor, order, name)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
-      TYPE(dbcsr_t_type), INTENT(OUT)                    :: tensor
-      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: order
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
+      TYPE(dbcsr_type), INTENT(IN)                 :: matrix_in
+      TYPE(dbcsr_t_type), INTENT(OUT)             :: tensor
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: order
+      CHARACTER(len=*), INTENT(IN), OPTIONAL      :: name
 
-      CHARACTER(len=default_string_length)               :: name_in
-      INTEGER                                            :: comm_2d, comm_nd, data_type
-      INTEGER, DIMENSION(2)                              :: order_in
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      TYPE(dbcsr_distribution_obj)                       :: matrix_dist
-      TYPE(dbcsr_t_distribution_type)                    :: dist
+      CHARACTER(len=default_string_length)        :: name_in
+      INTEGER, DIMENSION(2)                       :: order_in
+      INTEGER                                     :: comm_nd, comm_2d, data_type
+      TYPE(dbcsr_distribution_obj)                :: matrix_dist
+      TYPE(dbcsr_t_distribution_type)             :: dist
+      INTEGER, DIMENSION(:), POINTER              :: row_blk_size, col_blk_size
 
       IF (PRESENT(name)) THEN
          name_in = name
@@ -416,7 +418,7 @@ CONTAINS
 !> \param tensor ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_destroy(tensor)
-      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
+      TYPE(dbcsr_t_type), INTENT(INOUT) :: tensor
 
       CALL dbcsr_release(tensor%matrix_rep)
       CALL destroy_nd_to_2d_mapping(tensor%nd_index_blk)
@@ -434,8 +436,8 @@ CONTAINS
 !> \retval ndims_tensor ...
 ! **************************************************************************************************
    PURE FUNCTION ndims_tensor(tensor)
-      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
-      INTEGER                                            :: ndims_tensor
+      TYPE(dbcsr_t_type), INTENT(IN) :: tensor
+      INTEGER                        :: ndims_tensor
 
       ndims_tensor = tensor%nd_index%ndim_nd
    END FUNCTION
@@ -446,9 +448,9 @@ CONTAINS
 !> \param dims ...
 ! **************************************************************************************************
    SUBROUTINE dims_tensor(tensor, dims)
-      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
+      TYPE(dbcsr_t_type), INTENT(IN)              :: tensor
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
-         INTENT(OUT)                                     :: dims
+         INTENT(OUT)                              :: dims
 
       CPASSERT(tensor%valid)
       dims(:) = tensor%nd_index%dims_nd(:)
@@ -460,8 +462,8 @@ CONTAINS
 !> \retval dbcsr_t_get_data_type ...
 ! **************************************************************************************************
    FUNCTION dbcsr_t_get_data_type(tensor) RESULT(data_type)
-      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
-      INTEGER                                            :: data_type
+      TYPE(dbcsr_t_type), INTENT(IN) :: tensor
+      INTEGER                        :: data_type
 
       CALL dbcsr_get_info(tensor%matrix_rep, data_type=data_type)
    END FUNCTION
@@ -473,11 +475,11 @@ CONTAINS
 !> \param blk_size block size
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_blk_sizes(tensor, ind, blk_size)
-      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
+      TYPE(dbcsr_t_type), INTENT(IN)              :: tensor
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
-         INTENT(IN)                                      :: ind
+         INTENT(IN)                               :: ind
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
-         INTENT(OUT)                                     :: blk_size
+         INTENT(OUT)                              :: blk_size
 
       blk_size(:) = get_array_elements(tensor%blk_sizes, ind)
    END SUBROUTINE
@@ -489,11 +491,11 @@ CONTAINS
 !> \param blk_offset block offset
 ! **************************************************************************************************
    SUBROUTINE dbcsr_t_blk_offsets(tensor, ind, blk_offset)
-      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
+      TYPE(dbcsr_t_type), INTENT(IN)              :: tensor
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
-         INTENT(IN)                                      :: ind
+         INTENT(IN)                               :: ind
       INTEGER, DIMENSION(ndims_tensor(tensor)), &
-         INTENT(OUT)                                     :: blk_offset
+         INTENT(OUT)                              :: blk_offset
 
       CPASSERT(tensor%valid)
       blk_offset(:) = get_array_elements(tensor%blk_offsets, ind)
