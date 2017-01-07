@@ -12,6 +12,9 @@
 !>   \notes original available with BSD style license
 ! **************************************************************************************************
 MODULE gauss_colloc
+
+#:include "colloc_int_kloop.fypp"
+
    USE d3_poly,                         ONLY: &
         grad_size3, poly_affine_t3, poly_affine_t3t, poly_p_eval2b, poly_p_eval3b, &
         poly_padd_uneval2b, poly_padd_uneval3b, poly_size1, poly_size2, poly_size3
@@ -844,205 +847,55 @@ CONTAINS
          IF (integrate) THEN
             SELECT CASE (grad)
             CASE (1)
-               CALL kloop1_int
+               CALL kloop1_int()
             CASE (2)
-               CALL kloop2_int
+               CALL kloop2_int()
             CASE (3)
-               CALL kloop3_int
+               CALL kloop3_int()
             CASE (4)
-               CALL kloop4_int
+               CALL kloop4_int()
             CASE (5)
-               CALL kloop5_int
+               CALL kloop5_int()
             CASE (6)
-               CALL kloop6_int
+               CALL kloop6_int()
             CASE (7)
-               CALL kloop7_int
+               CALL kloop7_int()
             CASE (8)
-               CALL kloop8_int
+               CALL kloop8_int()
             CASE default
-               CALL kloopdefault_int
+               CALL kloopdefault_int(grad)
             END SELECT
          ELSE
             SELECT CASE (grad)
             CASE (1)
-               CALL kloop1_col
+               CALL kloop1_col()
             CASE (2)
-               CALL kloop2_col
+               CALL kloop2_col()
             CASE (3)
-               CALL kloop3_col
+               CALL kloop3_col()
             CASE (4)
-               CALL kloop4_col
+               CALL kloop4_col()
             CASE (5)
-               CALL kloop5_col
+               CALL kloop5_col()
             CASE (6)
-               CALL kloop6_col
+               CALL kloop6_col()
             CASE (7)
-               CALL kloop7_col
+               CALL kloop7_col()
             CASE (8)
-               CALL kloop8_col
+               CALL kloop8_col()
             CASE default
-               CALL kloopdefault_col
+               CALL kloopdefault_col(grad)
             END SELECT
          ENDIF
       END SUBROUTINE
 
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop1_int()
-         INTEGER, PARAMETER :: grad_val = 1
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop1.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop2_int()
-         INTEGER, PARAMETER :: grad_val = 2
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop2.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop3_int()
-         INTEGER, PARAMETER :: grad_val = 3
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop3.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop4_int()
-         INTEGER, PARAMETER :: grad_val = 4
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop4.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop5_int()
-         INTEGER, PARAMETER :: grad_val = 5
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop5.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop6_int()
-         INTEGER, PARAMETER :: grad_val = 6
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop6.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop7_int()
-         INTEGER, PARAMETER :: grad_val = 7
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop7.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop8_int()
-         INTEGER, PARAMETER :: grad_val = 8
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop8.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloopdefault_int()
-      INTEGER                                            :: grad_val
+$:colloc_int_kloop()
+$:colloc_int_kloop(FMG_INTEGRATE_FULL=True)
 
-         grad_val = grad
-#define FMG_INTEGRATE_FULL
-#include "colloc_int_kloop.f90"
-#undef FMG_INTEGRATE_FULL
-      END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop1_col()
-      INTEGER, PARAMETER                                 :: grad_val = 1
-
-#include "colloc_int_kloop1.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop2_col()
-      INTEGER, PARAMETER                                 :: grad_val = 2
-
-#include "colloc_int_kloop2.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop3_col()
-      INTEGER, PARAMETER                                 :: grad_val = 3
-
-#include "colloc_int_kloop3.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop4_col()
-      INTEGER, PARAMETER                                 :: grad_val = 4
-
-#include "colloc_int_kloop4.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop5_col()
-      INTEGER, PARAMETER                                 :: grad_val = 5
-
-#include "colloc_int_kloop5.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop6_col()
-      INTEGER, PARAMETER                                 :: grad_val = 6
-
-#include "colloc_int_kloop6.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop7_col()
-      INTEGER, PARAMETER                                 :: grad_val = 7
-
-#include "colloc_int_kloop7.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloop8_col()
-      INTEGER, PARAMETER                                 :: grad_val = 8
-
-#include "colloc_int_kloop8.f90"
-      END SUBROUTINE
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-      SUBROUTINE kloopdefault_col()
-      INTEGER                                            :: grad_val
-
-         grad_val = grad
-#include "colloc_int_kloop.f90"
-      END SUBROUTINE
+#:for i in range(1, 9)
+$:colloc_int_kloop(grad_val=i)
+$:colloc_int_kloop(grad_val=i, FMG_INTEGRATE_FULL=True)
+#:endfor
 
 #undef IF_FLAT
    END SUBROUTINE colloc_int_body

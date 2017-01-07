@@ -1,36 +1,52 @@
-! to generate the unrolled loops use the following python scripts
-!import os,re
-!
-!doStart=re.compile(r" *do +kgrad *= *(?P<start>[0-9]+) *, *grad_val *$",re.IGNORECASE)
-!doEnd=re.compile(r" *end do",re.IGNORECASE)
-!for i in xrange(1,9):
-!    fIn=file('colloc_int_kloop.f90')
-!    fout=file('colloc_int_kloop%d.f90'%(i),'w')
-!    while 1:
-!        line=fIn.readline()
-!        if not line:
-!            break
-!        m=doStart.match(line)
-!        if m:
-!            body=""
-!            while 1:
-!                line=fIn.readline()
-!                if not line:
-!                    raise Exception('missing end do')
-!                if doEnd.match(line):
-!                    print 'unrolling',repr(body)
-!                    for j in xrange(int(m.group('start')),i+1):
-!                        fout.write(body.replace('kgrad',str(j)))
-!                    break
-!                body+=line
-!        else:
-!            fout.write(line)
-!    fout.close()
-!
-#ifndef FMG_INTEGRATE_FULL
-    CALL poly_p_eval2b(IF_CHECK(poly_jk,poly_jk(1)),size_jk,REAL(j,dp),&
-         IF_CHECK(poly_k,poly_k(0)),size_k,npoly=npoly,grad=grad_val,xi=IF_CHECK(xi,xi(1)))
-#endif
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright (C) 2000 - 2017  CP2K developers group                                              !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+
+#:def colloc_int_kloop(grad_val=None, FMG_INTEGRATE_FULL=False, FMG_INTEGRATE=False, FM_FLAT_GRID=False)
+
+#!--------------------------------------------------------------------------------------------------
+#:def kgrad_loop(body)
+#:if grad_val is None
+DO kgrad=1,grad_val
+$:  body
+ENDDO
+#:else
+#:for i in range(1, grad_val+1)
+$:  body.replace('kgrad',str(i))
+#:endfor
+#:endif
+#:enddef kgrad_loop
+#!--------------------------------------------------------------------------------------------------
+
+#:set postfix = "int" if FMG_INTEGRATE_FULL else "col"
+#:if grad_val is None
+! **************************************************************************************************
+!> \brief Default version for any grad with Fortran loops
+!> \param grad_val ...
+! **************************************************************************************************
+   SUBROUTINE kloopdefault_${postfix}$(grad_val)
+   INTEGER, INTENT(IN)                             :: grad_val
+#:else
+! **************************************************************************************************
+!> \brief Optimized version for grad=${grad_val}$ with unrolled loops.
+! **************************************************************************************************
+  SUBROUTINE kloop${grad_val}$_${postfix}$()
+  INTEGER, PARAMETER                               :: grad_val = ${grad_val}$
+#:endif
+
+#:if not FMG_INTEGRATE_FULL
+    CALL poly_p_eval2b(p=IF_CHECK(poly_jk,poly_jk(1)), &
+                       size_p=size_jk, &
+                       x=REAL(j,dp), &
+                       pRes=IF_CHECK(poly_k,poly_k(0)), &
+                       size_pRes=size_k, &
+                       npoly=npoly, &
+                       grad=grad_val, &
+                       xi=IF_CHECK(xi,xi(1)))
+#:endif
+
     ! starting point
     kJump=ndim(2)-l_bounds(2,2)+l_bounds(1,2)
     kstart=MAX(0,kmin)
@@ -50,9 +66,10 @@
     kend2=MAX(ikShift2+l_bounds(1,2),kmin)
     ikstart2=kstart2-ikShift2-l_bounds(1,2)+l_shift(2)
 
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
+#:if FMG_INTEGRATE or FMG_INTEGRATE_FULL
     k_vals=0.0_dp
-#endif
+#:endif
+
     IF (kJump/=1 .AND. (ikstart+kmax-kstart>=ndim(2)+l_shift(2) .OR.&
         ikstart2+kmin-kstart2<=l_ub(2)-ndim(2))) THEN
         ! will wrap
@@ -68,24 +85,24 @@
         END IF
         DO
             DO k=kstart,kend
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
+#:if FMG_INTEGRATE or FMG_INTEGRATE_FULL
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(1)=k_vals(1)+p_kk
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(2)=k_vals(2)+p_kk
-#else
+#:call kgrad_loop
+                p_kk=p_kk*REAL(k,dp)
+                k_vals(kgrad)=k_vals(kgrad)+p_kk
+#:endcall kgrad_loop
+#:else
                 p_v=poly_k(0)
                 p_kk=REAL(k,dp)
-                    p_v=p_v+poly_k(1)*p_kk
-                    p_kk=p_kk*REAL(k,dp)
-                    p_v=p_v+poly_k(2)*p_kk
-                    p_kk=p_kk*REAL(k,dp)
-#if defined(FM_FLAT_GRID)
+#:call kgrad_loop
+                p_v=p_v+poly_k(kgrad)*p_kk
+                p_kk=p_kk*REAL(k,dp)
+#:endcall kgrad_loop
+#:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
-#else
+#:else
                 IF ( PRESENT ( lgrid ) ) THEN
                   ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
                        ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
@@ -93,8 +110,8 @@
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
                 END IF
-#endif
-#endif
+#:endif
+#:endif
 
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
@@ -122,24 +139,24 @@
             DO k=kstart2,kend2,-1
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
+#:if FMG_INTEGRATE or FMG_INTEGRATE_FULL
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(1)=k_vals(1)+p_kk
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(2)=k_vals(2)+p_kk
-#else
+#:call kgrad_loop
+                p_kk=p_kk*REAL(k,dp)
+                k_vals(kgrad)=k_vals(kgrad)+p_kk
+#:endcall kgrad_loop
+#:else
                 p_v=poly_k(0)
                 p_kk=k
-                    p_v=p_v+poly_k(1)*p_kk
+#:call kgrad_loop
+                    p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*k
-                    p_v=p_v+poly_k(2)*p_kk
-                    p_kk=p_kk*k
-#if defined(FM_FLAT_GRID)
+#:endcall kgrad_loop
+#:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
-#else
+#:else
                 IF ( PRESENT ( lgrid ) ) THEN
                   ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
                        ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
@@ -147,8 +164,8 @@
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
                 END IF
-#endif
-#endif
+#:endif
+#:endif
                 ik=ik-1
             END DO
             kstart2=kend2-kJump
@@ -172,24 +189,24 @@
         END IF
         DO
             DO k=kstart,kend
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
+#:if FMG_INTEGRATE or FMG_INTEGRATE_FULL
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
+#:call kgrad_loop
                     p_kk=p_kk*REAL(k,dp)
-                    k_vals(1)=k_vals(1)+p_kk
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(2)=k_vals(2)+p_kk
-#else
+                    k_vals(kgrad)=k_vals(kgrad)+p_kk
+#:endcall kgrad_loop
+#:else
                 p_v=poly_k(0)
                 p_kk=REAL(k,dp)
-                    p_v=p_v+poly_k(1)*p_kk
+#:call kgrad_loop
+                    p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*REAL(k,dp)
-                    p_v=p_v+poly_k(2)*p_kk
-                    p_kk=p_kk*REAL(k,dp)
-#if defined(FM_FLAT_GRID)
+#:endcall kgrad_loop
+#:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
-#else
+#:else
                 IF ( PRESENT ( lgrid ) ) THEN
                   ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
                        ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
@@ -197,8 +214,8 @@
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
                 END IF
-#endif
-#endif
+#:endif
+#:endif
 
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
@@ -224,24 +241,24 @@
             DO k=kstart2,kend2,-1
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
+#:if FMG_INTEGRATE or FMG_INTEGRATE_FULL
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
+#:call kgrad_loop
                     p_kk=p_kk*REAL(k,dp)
-                    k_vals(1)=k_vals(1)+p_kk
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(2)=k_vals(2)+p_kk
-#else
+                    k_vals(kgrad)=k_vals(kgrad)+p_kk
+#:endcall kgrad_loop
+#:else
                 p_v=poly_k(0)
                 p_kk=k
-                    p_v=p_v+poly_k(1)*p_kk
+#:call kgrad_loop
+                    p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*k
-                    p_v=p_v+poly_k(2)*p_kk
-                    p_kk=p_kk*k
-#if defined(FM_FLAT_GRID)
+#:endcall kgrad_loop
+#:if FM_FLAT_GRID
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
-#else
+#:else
                 IF ( PRESENT ( lgrid ) ) THEN
                   ig = ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
                        ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
@@ -249,8 +266,8 @@
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
                 END IF
-#endif
-#endif
+#:endif
+#:endif
                 ik=ik-1
             END DO
             kstart2=kend2-kJump
@@ -259,17 +276,33 @@
             ik=l_ub(2)
         END DO
     END IF
-#ifdef FMG_INTEGRATE
+#:if FMG_INTEGRATE
     pShift=0
     DO ipoly=1,npoly
         p_v=0.0_dp
-            p_v=p_v+poly_k(pShift+0)*k_vals(0)
-            p_v=p_v+poly_k(pShift+1)*k_vals(1)
-            p_v=p_v+poly_k(pShift+2)*k_vals(2)
+        p_v=p_v+poly_k(pShift)*k_vals(0)
+#:call kgrad_loop
+            p_v=p_v+poly_k(pShift+kgrad)*k_vals(kgrad)
+#:endcall kgrad_loop
         mres(ipoly)=mres(ipoly)+p_v
         pShift=pShift+grad_val+1
     END DO
-#elif defined(FMG_INTEGRATE_FULL)
-    CALL poly_padd_uneval2b(IF_CHECK(poly_jk,poly_jk(1)),size_jk,REAL(j,dp),IF_CHECK(k_vals,k_vals(0)),&
-        size_k,npoly=npoly,grad=grad_val,xi=IF_CHECK(xi,xi(1)))
-#endif
+#:elif FMG_INTEGRATE_FULL
+    CALL poly_padd_uneval2b(p=IF_CHECK(poly_jk,poly_jk(1)), &
+                            size_p=size_jk, &
+                            x=REAL(j,dp), &
+                            pRes=IF_CHECK(k_vals,k_vals(0)), &
+                            size_pRes=size_k, &
+                            npoly=npoly, &
+                            grad=grad_val, &
+                            xi=IF_CHECK(xi,xi(1)))
+#:endif
+
+#:if grad_val is None
+   END SUBROUTINE kloopdefault_${postfix}$
+#:else
+  END SUBROUTINE kloop${grad_val}$_${postfix}$
+#:endif
+
+#:enddef colloc_int_kloop
+#:endmute
