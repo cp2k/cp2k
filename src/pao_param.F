@@ -10,11 +10,11 @@
 MODULE pao_param
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_frobenius_norm, dbcsr_get_block_p, &
+        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_distribution, &
+        dbcsr_distribution_mp, dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_type
+        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
@@ -317,8 +317,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       delta_max = 0.0_dp
 
-      blk_sizes_pri => dbcsr_row_block_sizes(pao%matrix_Y)
-      blk_sizes_pao => dbcsr_col_block_sizes(pao%matrix_Y)
+      CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri, col_blk_size=blk_sizes_pao)
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,blk_sizes_pri,blk_sizes_pao,delta_max) &
 !$OMP PRIVATE(iter,arow,acol,iatom,N,M,block_test,tmp1,tmp2)

@@ -10,8 +10,8 @@
 MODULE pao_optimizer
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_init, &
-        dbcsr_multiply, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, &
+        dbcsr_get_info, dbcsr_init, dbcsr_multiply, dbcsr_release, dbcsr_reserve_diag_blocks, &
         dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_opt_bfgs,&
@@ -60,7 +60,7 @@ CONTAINS
 
       INTEGER, DIMENSION(:), POINTER                     :: nparams
 
-      nparams => dbcsr_row_block_sizes(pao%matrix_X)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nparams)
 
       CALL dbcsr_init(pao%matrix_BFGS)
       CALL dbcsr_create(pao%matrix_BFGS, &

@@ -52,10 +52,9 @@ MODULE qs_scf_diagonalization
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution, dbcsr_init, dbcsr_p_type, &
-        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_desymmetrize, dbcsr_init, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
         core_guess, general_roks, high_spin_roks, restart_guess
@@ -792,12 +791,8 @@ CONTAINS
          DO i = 1, nspin
             ALLOCATE (subspace_env%p_matrix_store(i)%matrix)
             CALL dbcsr_init(subspace_env%p_matrix_store(i)%matrix)
-            CALL dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
-                              name="DENSITY_STORE", &
-                              dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                              col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                              nze=0)
+            CALL dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, template=matrix_s(1)%matrix, &
+                              name="DENSITY_STORE", matrix_type=dbcsr_type_symmetric, nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix, &
                                                sab_orb)
             CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix, 0.0_dp)

@@ -24,12 +24,11 @@ MODULE rt_propagation_forces
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_distribution, dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_get_block_p, &
-        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_init, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution, &
+        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: one,&
                                               zero
@@ -93,7 +92,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, im, ispin, nao, natom, nmo, re
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       REAL(KIND=dp)                                      :: alpha
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
@@ -139,11 +138,11 @@ CONTAINS
 
          NULLIFY (col_blk_size)
          CALL dbcsr_create_dist_r_unrot(dist, dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
+         CALL dbcsr_get_info(SinvB(ispin)%matrix, row_blk_size=row_blk_size)
 
          CALL dbcsr_init(db_mos_re)
          CALL dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
-                           dbcsr_row_block_sizes(SinvB(ispin)%matrix), col_blk_size, &
-                           nze=0)
+                           row_blk_size, col_blk_size, nze=0)
          CALL dbcsr_init(db_mos_im)
          CALL dbcsr_create(db_mos_im, template=db_mos_re)
          CALL dbcsr_init(db_mo_tmp1)
@@ -419,12 +418,8 @@ CONTAINS
 
       ALLOCATE (matrix_w_s)
       CALL dbcsr_init(matrix_w_s)
-      CALL dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
-                        dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
-                        dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                        dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
-                        dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix), &
-                        dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix))
+      CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &
+                        name='W MATRIX AUX S', matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s, sab_aux_fit_asymm)
 
       ALLOCATE (matrix_w_q)

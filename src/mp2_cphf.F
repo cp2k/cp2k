@@ -30,9 +30,8 @@ MODULE mp2_cphf
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution, dbcsr_init, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, &
-        dbcsr_scale, dbcsr_set, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_init, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type_symmetric
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
@@ -256,12 +255,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          ALLOCATE (mat_mu_nu(ispin)%matrix)
          CALL dbcsr_init(mat_mu_nu(ispin)%matrix)
-         CALL dbcsr_create(matrix=mat_mu_nu(ispin)%matrix, &
-                           name="T_mu_nu", &
-                           dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                           col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                           nze=0)
+         CALL dbcsr_create(matrix=mat_mu_nu(ispin)%matrix, template=matrix_s(1)%matrix, &
+                           name="T_mu_nu", matrix_type=dbcsr_type_symmetric, nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix, sab_orb)
          CALL dbcsr_set(mat_mu_nu(ispin)%matrix, 0.0_dp)
       END DO

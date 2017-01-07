@@ -37,9 +37,12 @@ MODULE qs_scf_initialization
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_init_p, dbcsr_p_type, &
-        dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry,&
+                                              dbcsr_type_real_default
    USE input_constants,                 ONLY: &
         broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
         diag_block_davidson, diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, &
@@ -511,9 +514,8 @@ CONTAINS
                CALL get_mo_set(mos(ispin)%mo_set, mo_coeff_b=mo_coeff_b)
                NULLIFY (mo_derivs(ispin)%matrix)
                CALL dbcsr_init_p(mo_derivs(ispin)%matrix)
-               CALL dbcsr_create(mo_derivs(ispin)%matrix, "mo_derivs", &
-                                 dbcsr_distribution(mo_coeff_b), dbcsr_type_no_symmetry, &
-                                 dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b), &
+               CALL dbcsr_create(mo_derivs(ispin)%matrix, template=mo_coeff_b, &
+                                 name="mo_derivs", matrix_type=dbcsr_type_no_symmetry, &
                                  nze=0, data_type=dbcsr_type_real_default)
             ENDDO
             CALL set_qs_env(qs_env, mo_derivs=mo_derivs)

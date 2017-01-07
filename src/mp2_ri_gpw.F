@@ -49,13 +49,12 @@ MODULE mp2_ri_gpw
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution, dbcsr_distribution_obj, &
-        dbcsr_finalize, dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
+        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, &
-        dbcsr_reserve_blocks, dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -1252,12 +1251,8 @@ CONTAINS
       NULLIFY (matrix_s_RI_aux_desymm)
       ALLOCATE (matrix_s_RI_aux_desymm)
       CALL dbcsr_init(matrix_s_RI_aux_desymm)
-      CALL dbcsr_create(matrix_s_RI_aux_desymm, 'S_RI non_ysmm', &
-                        dbcsr_distribution(matrix_s_RI_aux(1)%matrix), dbcsr_type_no_symmetry, &
-                        dbcsr_row_block_sizes(matrix_s_RI_aux(1)%matrix), &
-                        dbcsr_col_block_sizes(matrix_s_RI_aux(1)%matrix), &
-                        dbcsr_get_data_size(matrix_s_RI_aux(1)%matrix), &
-                        dbcsr_get_data_type(matrix_s_RI_aux(1)%matrix))
+      CALL dbcsr_create(matrix_s_RI_aux_desymm, template=matrix_s_RI_aux(1)%matrix, &
+                        name='S_RI non_ysmm', matrix_type=dbcsr_type_no_symmetry)
 
       CALL dbcsr_desymmetrize(matrix_s_RI_aux(1)%matrix, matrix_s_RI_aux_desymm)
 

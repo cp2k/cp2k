@@ -64,9 +64,6 @@ MODULE dbcsr_api
         dbcsr_get_matrix_type_prv           => dbcsr_get_matrix_type, &
         dbcsr_get_num_blocks_prv            => dbcsr_get_num_blocks, &
         dbcsr_has_symmetry_prv              => dbcsr_has_symmetry, &
-        dbcsr_max_col_size_prv              => dbcsr_max_col_size, &
-        dbcsr_max_row_size_prv              => dbcsr_max_row_size, &
-        dbcsr_name_prv                      => dbcsr_name, &
         dbcsr_nblkcols_total_prv            => dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total_prv            => dbcsr_nblkrows_total, &
         dbcsr_nfullcols_total_prv           => dbcsr_nfullcols_total, &
@@ -244,11 +241,7 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_mp_get_process
    PUBLIC :: dbcsr_mp_grid_setup
    PUBLIC :: dbcsr_setname
-   PUBLIC :: dbcsr_name
-   PUBLIC :: dbcsr_max_row_size
-   PUBLIC :: dbcsr_max_col_size
-   PUBLIC :: dbcsr_col_block_sizes
-   PUBLIC :: dbcsr_row_block_sizes
+
    PUBLIC :: dbcsr_get_matrix_type
    PUBLIC :: dbcsr_get_occupation
    PUBLIC :: dbcsr_nblkrows_total
@@ -487,21 +480,6 @@ MODULE dbcsr_api
    PRIVATE
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief cp2k interface to libdbcsr.
-!>     The cp2k error is passed as an argument.
-!>     Those procedure can de timed with the cp2k timer.
-!> \param matrix ...
-!> \retval name ...
-!> \author vw
-! **************************************************************************************************
-   FUNCTION dbcsr_name(matrix) RESULT(name)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      CHARACTER(len=default_string_length)               :: name
-
-      name = dbcsr_name_prv(matrix%prv)
-   END FUNCTION dbcsr_name
 
 ! **************************************************************************************************
 !> \brief ...
@@ -783,30 +761,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval max_row_size ...
-! **************************************************************************************************
-   FUNCTION dbcsr_max_row_size(matrix) RESULT(max_row_size)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER                                            :: max_row_size
-
-      max_row_size = dbcsr_max_row_size_prv(matrix%prv)
-   END FUNCTION dbcsr_max_row_size
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \retval max_col_size ...
-! **************************************************************************************************
-   FUNCTION dbcsr_max_col_size(matrix) RESULT(max_col_size)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER                                            :: max_col_size
-
-      max_col_size = dbcsr_max_col_size_prv(matrix%prv)
-   END FUNCTION dbcsr_max_col_size
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
 !> \retval distribution ...
 ! **************************************************************************************************
    FUNCTION dbcsr_distribution(matrix) RESULT(distribution)
@@ -921,8 +875,8 @@ CONTAINS
       TYPE(dbcsr_distribution_obj), INTENT(OUT), &
          OPTIONAL                                        :: distribution
       CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
-      CHARACTER, OPTIONAL                                :: matrix_type
-      INTEGER, OPTIONAL                                  :: data_type
+      CHARACTER, INTENT(OUT), OPTIONAL                   :: matrix_type
+      INTEGER, INTENT(OUT), OPTIONAL                     :: data_type
 
       CALL dbcsr_get_info_prv(matrix=matrix%prv, &
                               nblkrows_total=nblkrows_total, &
@@ -1398,7 +1352,10 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(dbcsr_type), INTENT(INOUT)                    :: diag
 
-      CALL dbcsr_create(diag, "Diagonal of "//TRIM(dbcsr_name(matrix)), template=matrix)
+      CHARACTER(LEN=default_string_length)               :: name
+
+      CALL dbcsr_get_info(matrix, name=name)
+      CALL dbcsr_create(diag, "Diagonal of "//name, template=matrix)
       CALL dbcsr_get_block_diag_prv(matrix%prv, diag%prv)
    END SUBROUTINE dbcsr_get_block_diag
 
@@ -1678,7 +1635,7 @@ CONTAINS
                new_col_dist => dbcsr_distribution_col_dist(b_dist)
                new_col_clusters => dbcsr_distribution_col_clusters(b_dist)
             ENDIF
-            new_col_size => dbcsr_col_block_sizes(matrix_c)
+            CALL dbcsr_get_info(matrix_c, col_blk_size=new_col_size)
             IF (new_b_rows) THEN
                IF (.NOT. atr) THEN
                   CALL match_1_dist(new_row_dist, &
@@ -1688,7 +1645,7 @@ CONTAINS
                                     dbcsr_distribution_row_clusters(b_dist), &
                                     dbcsr_distribution_col_clusters(a_dist))
                   create_row_dist = .TRUE.
-                  new_row_size => dbcsr_col_block_sizes(matrix_a)
+                  CALL dbcsr_get_info(matrix_a, col_blk_size=new_row_size)
                ELSE
                   CALL match_1_dist(new_row_dist, &
                                     dbcsr_distribution_row_dist(b_dist), &
@@ -1697,12 +1654,12 @@ CONTAINS
                                     dbcsr_distribution_row_clusters(b_dist), &
                                     dbcsr_distribution_row_clusters(a_dist))
                   create_row_dist = .TRUE.
-                  new_row_size => dbcsr_row_block_sizes(matrix_a)
+                  CALL dbcsr_get_info(matrix_a, row_blk_size=new_row_size)
                ENDIF
             ELSE
                new_row_dist => dbcsr_distribution_row_dist(b_dist)
                new_row_clusters => dbcsr_distribution_row_clusters(b_dist)
-               new_row_size => dbcsr_row_block_sizes(matrix_b)
+               CALL dbcsr_get_info(matrix_b, row_blk_size=new_row_size)
             ENDIF
          ELSE
             IF (new_b_cols) THEN
@@ -1717,7 +1674,7 @@ CONTAINS
                new_row_dist => dbcsr_distribution_row_dist(b_dist)
                new_row_clusters => dbcsr_distribution_row_clusters(b_dist)
             ENDIF
-            new_row_size => dbcsr_col_block_sizes(matrix_c)
+            CALL dbcsr_get_info(matrix_c, col_blk_size=new_row_size)
             IF (new_b_rows) THEN
                IF (.NOT. atr) THEN
                   CALL match_1_dist(new_col_dist, &
@@ -1727,7 +1684,7 @@ CONTAINS
                                     dbcsr_distribution_col_clusters(b_dist), &
                                     dbcsr_distribution_col_clusters(a_dist))
                   create_col_dist = .TRUE.
-                  new_col_size => dbcsr_col_block_sizes(matrix_a)
+                  CALL dbcsr_get_info(matrix_a, col_blk_size=new_col_size)
                ELSE
                   CALL match_1_dist(new_col_dist, &
                                     dbcsr_distribution_col_dist(b_dist), &
@@ -1736,12 +1693,12 @@ CONTAINS
                                     dbcsr_distribution_col_clusters(b_dist), &
                                     dbcsr_distribution_row_clusters(a_dist))
                   create_col_dist = .TRUE.
-                  new_col_size => dbcsr_row_block_sizes(matrix_a)
+                  CALL dbcsr_get_info(matrix_a, row_blk_size=new_col_size)
                ENDIF
             ELSE
                new_col_dist => dbcsr_distribution_col_dist(b_dist)
                new_col_clusters => dbcsr_distribution_col_clusters(b_dist)
-               new_col_size => dbcsr_col_block_sizes(matrix_b)
+               CALL dbcsr_get_info(matrix_b, col_blk_size=new_col_size)
             ENDIF
          ENDIF
          CALL dbcsr_distribution_new(new_dist, dbcsr_distribution_mp(c_dist), &
@@ -1778,7 +1735,7 @@ CONTAINS
          IF (atr) THEN
             new_row_dist => dbcsr_distribution_row_dist(a_dist)
             new_row_clusters => dbcsr_distribution_row_clusters(a_dist)
-            new_row_size => dbcsr_row_block_sizes(matrix_a)
+            CALL dbcsr_get_info(matrix_a, row_blk_size=new_row_size)
             CALL match_1_dist(new_col_dist, &
                               dbcsr_distribution_col_dist(a_dist), &
                               dbcsr_distribution_row_dist(c_dist), &
@@ -1786,7 +1743,7 @@ CONTAINS
                               dbcsr_distribution_col_clusters(a_dist), &
                               dbcsr_distribution_row_clusters(c_dist))
             create_col_dist = .TRUE.
-            new_col_size => dbcsr_row_block_sizes(matrix_c)
+            CALL dbcsr_get_info(matrix_c, row_blk_size=new_col_size)
          ELSE
             CALL match_1_dist(new_row_dist, &
                               dbcsr_distribution_row_dist(a_dist), &
@@ -1795,10 +1752,10 @@ CONTAINS
                               dbcsr_distribution_row_clusters(a_dist), &
                               dbcsr_distribution_row_clusters(c_dist))
             create_row_dist = .TRUE.
-            new_row_size => dbcsr_row_block_sizes(matrix_c)
+            CALL dbcsr_get_info(matrix_c, row_blk_size=new_row_size)
             new_col_dist => dbcsr_distribution_col_dist(a_dist)
             new_col_clusters => dbcsr_distribution_col_clusters(a_dist)
-            new_col_size => dbcsr_col_block_sizes(matrix_a)
+            CALL dbcsr_get_info(matrix_a, col_blk_size=new_col_size)
          ENDIF
          CALL dbcsr_distribution_new(new_dist, dbcsr_distribution_mp(a_dist), &
                                      new_row_dist, new_col_dist, &
@@ -1868,30 +1825,6 @@ CONTAINS
          END DO
       ENDIF
    END SUBROUTINE match_1_dist
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \retval row_blk_sizes ...
-! **************************************************************************************************
-   FUNCTION dbcsr_row_block_sizes(matrix) RESULT(row_blk_sizes)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
-
-      CALL dbcsr_get_info(matrix, row_blk_size=row_blk_sizes)
-   END FUNCTION dbcsr_row_block_sizes
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \retval col_blk_sizes ...
-! **************************************************************************************************
-   FUNCTION dbcsr_col_block_sizes(matrix) RESULT(col_blk_sizes)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
-
-      CALL dbcsr_get_info(matrix, col_blk_size=col_blk_sizes)
-   END FUNCTION dbcsr_col_block_sizes
 
 ! **************************************************************************************************
 !> \brief Deallocates a DBCSR matrix for compatibility with CP2K

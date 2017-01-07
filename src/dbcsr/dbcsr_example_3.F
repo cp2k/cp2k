@@ -15,13 +15,11 @@
 ! **************************************************************************************************
 PROGRAM dbcsr_example_3
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
-        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_stored_coordinates, dbcsr_init_lib, &
-        dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
+        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
+        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, &
         dbcsr_mp_release, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, &
-        dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
+        dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE kinds,                           ONLY: real_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
@@ -38,12 +36,12 @@ PROGRAM dbcsr_example_3
    TYPE(dbcsr_type)                          :: matrix_a, matrix_b, matrix_c
 
    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
-   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
    INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-                                               prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
-                                               row, col, row_s, col_s, io_unit
+                                               prow, pcol, nblkrows_total, nblkcols_total, &
+                                               node_holds_blk, max_nze, nze, row, col, row_s, col_s, &
+                                               io_unit, max_row_size, max_col_size
    INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
-   INTEGER, DIMENSION(:, :), POINTER         :: pgrid
+   INTEGER, DIMENSION(:, :), POINTER        :: pgrid
    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
    TYPE(dbcsr_distribution_obj)             :: dist
    TYPE(dbcsr_mp_obj)                       :: mp_env
@@ -127,12 +125,14 @@ PROGRAM dbcsr_example_3
                      col_blk_size=col_blk_sizes, &
                      data_type=dbcsr_type_real_8)
 
+   ! get the maximum block size of the matrix
+   max_row_size = MAXVAL(row_blk_sizes)
+   max_col_size = MAXVAL(col_blk_sizes)
+   max_nze = max_row_size*max_col_size
+
    !
    ! set up the a matrix
-   rbs => dbcsr_row_block_sizes(matrix_a)
-   cbs => dbcsr_col_block_sizes(matrix_a)
    mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix_a)))
-   max_nze = dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_a)
    ALLOCATE (values(max_nze))
    DO row = 1, dbcsr_nblkrows_total(matrix_a)
       DO col = MAX(row-1, 1), MIN(row+1, dbcsr_nblkcols_total(matrix_a))
@@ -140,7 +140,7 @@ PROGRAM dbcsr_example_3
          row_s = row; col_s = col
          CALL dbcsr_get_stored_coordinates(matrix_a, row_s, col_s, node_holds_blk)
          IF (node_holds_blk .EQ. mynode) THEN
-            nze = rbs(row_s)*cbs(col_s)
+            nze = row_blk_sizes(row_s)*col_blk_sizes(col_s)
             CALL RANDOM_NUMBER(values(1:nze))
             CALL dbcsr_put_block(matrix_a, row_s, col_s, values(1:nze))
          ENDIF
@@ -150,10 +150,7 @@ PROGRAM dbcsr_example_3
 
    !
    ! set up the b matrix
-   rbs => dbcsr_row_block_sizes(matrix_b)
-   cbs => dbcsr_col_block_sizes(matrix_b)
    mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix_b)))
-   max_nze = dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_b)
    ALLOCATE (values(max_nze))
    DO row = 1, dbcsr_nblkrows_total(matrix_b)
       DO col = MAX(row-1, 1), MIN(row+1, dbcsr_nblkcols_total(matrix_b))
@@ -161,7 +158,7 @@ PROGRAM dbcsr_example_3
          row_s = row; col_s = col
          CALL dbcsr_get_stored_coordinates(matrix_b, row_s, col_s, node_holds_blk)
          IF (node_holds_blk .EQ. mynode) THEN
-            nze = rbs(row_s)*cbs(col_s)
+            nze = row_blk_sizes(row_s)*col_blk_sizes(col_s)
             CALL RANDOM_NUMBER(values(1:nze))
             CALL dbcsr_put_block(matrix_b, row_s, col_s, values(1:nze))
          ENDIF

@@ -10,8 +10,8 @@ MODULE qs_fb_filter_matrix_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_put_block, dbcsr_row_block_sizes, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_put_block, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE fermi_utils,                     ONLY: Fermi,&
                                               FermiFixed
    USE kinds,                           ONLY: default_string_length,&
@@ -530,7 +530,7 @@ CONTAINS
                             functions=tfns)
 
       ! obtain row and col block size data for filter matrix
-      row_block_size_data => dbcsr_row_block_sizes(H_mat)
+      CALL dbcsr_get_info(H_mat, row_blk_size=row_block_size_data)
       natoms_global = SIZE(particle_set)
       ALLOCATE (col_block_size_data(natoms_global))
       DO jatom_global = 1, natoms_global
@@ -823,7 +823,7 @@ CONTAINS
                             functions=tfns)
 
       ! obtain row and col block size data for filter matrix
-      row_block_size_data => dbcsr_row_block_sizes(H_mat)
+      CALL dbcsr_get_info(H_mat, row_blk_size=row_block_size_data)
       natoms_global = SIZE(particle_set)
       ALLOCATE (col_block_size_data(natoms_global))
       DO jatom_global = 1, natoms_global

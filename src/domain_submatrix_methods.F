@@ -15,13 +15,13 @@ MODULE domain_submatrix_methods
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
+        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_mp_mynode, &
         dbcsr_mp_numnodes, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_reserve_block2d, &
-        dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, &
+        dbcsr_work_create
    USE domain_submatrix_types,          ONLY: domain_map_type,&
                                               domain_submatrix_type,&
                                               select_row_col
@@ -1162,8 +1162,7 @@ CONTAINS
       DEALLOCATE (offset2_block)
 
       ! copy blocks into submatrices
-      col_blk_size => dbcsr_col_block_sizes(matrix)
-      row_blk_size => dbcsr_row_block_sizes(matrix)
+      CALL dbcsr_get_info(matrix, col_blk_size=col_blk_size, row_blk_size=row_blk_size)
 !    ALLOCATE(subm_row_size(ndomains),subm_col_size(ndomains))
 !    subm_row_size(:)=0
 !    subm_col_size(:)=0
@@ -1572,8 +1571,7 @@ CONTAINS
       DEALLOCATE (offset2_block)
 
       ! copy recieved data into dbcsr matrix
-      col_blk_size => dbcsr_col_block_sizes(matrix)
-      row_blk_size => dbcsr_row_block_sizes(matrix)
+      CALL dbcsr_get_info(matrix, col_blk_size=col_blk_size, row_blk_size=row_blk_size)
       DO iNode = 1, nNodes
          block_offset = 0
          DO iBlock = 1, recv_size2_cpu(iNode)/2

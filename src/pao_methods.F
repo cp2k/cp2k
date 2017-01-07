@@ -20,14 +20,13 @@ MODULE pao_methods
                                               cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_col_block_sizes, &
-        dbcsr_complete_redistribute, dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
+        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_filter, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_scale, dbcsr_set, &
-        dbcsr_trace, dbcsr_type
+        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type
    USE dm_ls_scf_methods,               ONLY: density_matrix_trs4,&
                                               ls_scf_init_matrix_S
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
@@ -145,14 +144,11 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: pao_basis, param_cols, param_rows, &
                                                             pri_basis
 
-      pri_basis => dbcsr_row_block_sizes(pao%matrix_Y)
-      pao_basis => dbcsr_col_block_sizes(pao%matrix_Y)
-
+      CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=pri_basis, col_blk_size=pao_basis)
       CPASSERT(SIZE(pao_basis) == SIZE(pri_basis))
       natoms = SIZE(pao_basis)
 
-      param_rows => dbcsr_row_block_sizes(pao%matrix_X)
-      param_cols => dbcsr_col_block_sizes(pao%matrix_X)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=param_rows, col_blk_size=param_cols)
       CPASSERT(SIZE(param_rows) == natoms .AND. SIZE(param_cols) == natoms)
 
       IF (pao%iw_atoms > 0) THEN
@@ -275,7 +271,8 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set)
 
-      blk_sizes_pri => dbcsr_col_block_sizes(matrix_s(1)%matrix)
+      CALL dbcsr_get_info(matrix_s(1)%matrix, col_blk_size=blk_sizes_pri)
+
       ALLOCATE (blk_sizes_aux(natoms))
       DO iatom = 1, natoms
          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
@@ -732,7 +729,8 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       nspin = dft_control%nspins
       filter_eps = ls_scf_env%eps_filter
-      pao_blk_sizes => dbcsr_col_block_sizes(ls_mstruct%matrix_A)
+
+      CALL dbcsr_get_info(ls_mstruct%matrix_A, col_blk_size=pao_blk_sizes)
 
       IF (nspin /= 1) CPABORT("open shell not yet implemented")
       !TODO: handle openshell case properly
@@ -974,8 +972,7 @@ CONTAINS
       eps = pao%num_grad_eps
       delta_max = 0.0_dp
 
-      blk_sizes_col => dbcsr_col_block_sizes(pao%matrix_X)
-      blk_sizes_row => dbcsr_row_block_sizes(pao%matrix_X)
+      CALL dbcsr_get_info(pao%matrix_X, col_blk_size=blk_sizes_col, row_blk_size=blk_sizes_row)
 
       ! can not use an iterator here, because other DBCSR routines are called within loop.
       DO iatom = 1, natoms

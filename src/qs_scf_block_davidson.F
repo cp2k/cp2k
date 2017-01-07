@@ -43,9 +43,8 @@ MODULE qs_scf_block_davidson
                                               cp_fm_vectorsnorm
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_distribution, &
-        dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_norm, &
-        dbcsr_norm_column, dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_scale_by_vector, &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_multiply, dbcsr_norm, dbcsr_norm_column, dbcsr_release_p, dbcsr_scale_by_vector, &
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
@@ -533,13 +532,15 @@ CONTAINS
          NULLIFY (c_out, mo_conv, mo_notconv_fm, mo_notconv)
          ! Prepare HC and SC, using mo_coeff_b (sparse), these are still sparse
          CALL dbcsr_init_p(matrix_hc)
-         CALL dbcsr_create(matrix_hc, "matrix_hc", dbcsr_distribution(mo_coeff_b), &
-                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(mo_coeff_b), &
-                           dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_create(matrix_hc, template=mo_coeff_b, &
+                           name="matrix_hc", &
+                           matrix_type=dbcsr_type_no_symmetry, &
+                           nze=0, data_type=dbcsr_type_real_default)
          CALL dbcsr_init_p(matrix_sc)
-         CALL dbcsr_create(matrix_sc, "matrix_sc", dbcsr_distribution(mo_coeff_b), &
-                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(mo_coeff_b), &
-                           dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_create(matrix_sc, template=mo_coeff_b, &
+                           name="matrix_sc", &
+                           matrix_type=dbcsr_type_no_symmetry, &
+                           nze=0, data_type=dbcsr_type_real_default)
 
          CALL dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_h, mo_coeff_b, 0.0_dp, matrix_hc, last_column=k)
@@ -560,9 +561,10 @@ CONTAINS
 
          ! extended subspace P Z = P [H - theta S]C  this ia another matrix of type and size as mo_coeff_b
          CALL dbcsr_init_p(matrix_z)
-         CALL dbcsr_create(matrix_z, "matrix_z", dbcsr_distribution(mo_coeff_b), &
-                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(mo_coeff_b), &
-                           dbcsr_col_block_sizes(mo_coeff_b), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_create(matrix_z, template=mo_coeff_b, &
+                           name="matrix_z", &
+                           matrix_type=dbcsr_type_no_symmetry, &
+                           nze=0, data_type=dbcsr_type_real_default)
          CALL dbcsr_copy(matrix_z, matrix_sc)
          CALL dbcsr_scale_by_vector(matrix_z, ritz_coeff, side='right')
          CALL dbcsr_add(matrix_z, matrix_hc, -1.0_dp, 1.0_dp)
@@ -674,9 +676,10 @@ CONTAINS
 
             ! allocate c_out sparse matrix, to project out the converged MOS
             CALL dbcsr_init_p(c_out)
-            CALL dbcsr_create(c_out, "c_out", dbcsr_distribution(matrix_s), &
-                              dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_s), &
-                              dbcsr_col_block_sizes(matrix_s), nze=0, data_type=dbcsr_type_real_default)
+            CALL dbcsr_create(c_out, template=matrix_s, &
+                              name="c_out", &
+                              matrix_type=dbcsr_type_symmetric, &
+                              nze=0, data_type=dbcsr_type_real_default)
 
             ! allocate mo_conv sparse
             CALL dbcsr_init_p(mo_conv)
@@ -765,9 +768,10 @@ CONTAINS
 
          ! allocate matrix_pz using as template matrix_z
          CALL dbcsr_init_p(matrix_pz)
-         CALL dbcsr_create(matrix_pz, "matrix_pz", dbcsr_distribution(matrix_z), &
-                           dbcsr_type_no_symmetry, dbcsr_row_block_sizes(matrix_z), &
-                           dbcsr_col_block_sizes(matrix_z), nze=0, data_type=dbcsr_type_real_default)
+         CALL dbcsr_create(matrix_pz, template=matrix_z, &
+                           name="matrix_pz", &
+                           matrix_type=dbcsr_type_no_symmetry, &
+                           nze=0, data_type=dbcsr_type_real_default)
 
          IF (do_apply_preconditioner) THEN
             IF (preconditioner%in_use /= 0) THEN

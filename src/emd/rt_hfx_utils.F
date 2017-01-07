@@ -13,12 +13,14 @@
 MODULE rt_hfx_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_init, dbcsr_p_type, &
-        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type_antisymmetric
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_create,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_init,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type_antisymmetric
+   USE kinds,                           ONLY: dp
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
@@ -113,7 +115,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_matrices', &
          routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: i
 
       IF (ASSOCIATED(matrix_p)) THEN
@@ -122,15 +123,10 @@ CONTAINS
       ! Create a new density matrix set
       CALL dbcsr_allocate_matrix_set(matrix_p, nspins)
       DO i = 1, nspins
-         headline = "Imaginary density matrix"
          ALLOCATE (matrix_p(i)%matrix)
          CALL dbcsr_init(matrix_p(i)%matrix)
-         CALL dbcsr_create(matrix=matrix_p(i)%matrix, &
-                           name=TRIM(headline), &
-                           dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric, &
-                           row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                           col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                           nze=0)
+         CALL dbcsr_create(matrix=matrix_p(i)%matrix, template=matrix_s(1)%matrix, &
+                           name="Imaginary density matrix", matrix_type=dbcsr_type_antisymmetric, nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_p(i)%matrix, sab_orb)
          CALL dbcsr_set(matrix_p(i)%matrix, 0.0_dp)
       END DO
@@ -141,15 +137,10 @@ CONTAINS
       ! Create a new density matrix set
       CALL dbcsr_allocate_matrix_set(matrix_ks, nspins)
       DO i = 1, nspins
-         headline = "Imaginary Kohn-Sham matrix"
          ALLOCATE (matrix_ks(i)%matrix)
          CALL dbcsr_init(matrix_ks(i)%matrix)
-         CALL dbcsr_create(matrix=matrix_ks(i)%matrix, &
-                           name=TRIM(headline), &
-                           dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_antisymmetric, &
-                           row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                           col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-                           nze=0)
+         CALL dbcsr_create(matrix=matrix_ks(i)%matrix, template=matrix_s(1)%matrix, &
+                           name="Imaginary Kohn-Sham matrix", matrix_type=dbcsr_type_antisymmetric, nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(i)%matrix, sab_orb)
          CALL dbcsr_set(matrix_ks(i)%matrix, 0.0_dp)
       END DO

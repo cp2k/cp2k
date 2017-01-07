@@ -63,7 +63,7 @@ MODULE qs_scf
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_name,&
+                                              dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: history_guess,&
@@ -247,7 +247,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', routineP = moduleN//':'//routineN
 
-      CHARACTER(LEN=default_string_length)               :: description
+      CHARACTER(LEN=default_string_length)               :: description, name
       INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, ispin, iter_count, &
          output_unit, scf_energy_message_tag, total_steps
       LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, exit_outer_loop, &
@@ -435,8 +435,8 @@ CONTAINS
             IF (scf_env%mixing_method > 0) THEN
                DO ic = 1, SIZE(rho_ao_kp, 2)
                   DO ispin = 1, dft_control%nspins
-                     CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
-                                     name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+                     CALL dbcsr_get_info(rho_ao_kp(ispin, ic)%matrix, name=name) ! keep the name
+                     CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, name=name)
                   END DO
                END DO
             END IF

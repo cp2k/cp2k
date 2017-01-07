@@ -15,13 +15,11 @@
 ! **************************************************************************************************
 PROGRAM dbcsr_example_2
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
-        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_stored_coordinates, dbcsr_init_lib, &
-        dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
+        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
+        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, &
         dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, &
-        dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
+        dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE kinds,                           ONLY: real_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
@@ -38,10 +36,9 @@ PROGRAM dbcsr_example_2
    TYPE(dbcsr_type)                          :: matrix_a
 
    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
-   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
    INTEGER                                  :: mp_comm, group, numnodes, mynode, &
                                                prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
-                                               row, col, row_s, col_s, io_unit
+                                               row, col, row_s, col_s, io_unit, max_row_size, max_col_size
    INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
    INTEGER, DIMENSION(:, :), POINTER         :: pgrid
    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
@@ -109,13 +106,7 @@ PROGRAM dbcsr_example_2
                      matrix_type=dbcsr_type_no_symmetry, &
                      row_blk_size=row_blk_sizes, &
                      col_blk_size=col_blk_sizes, &
-                     data_type=dbcsr_type_real_8, &
-                     reuse_arrays=.TRUE.)
-
-   !
-   ! get the block sizes from the matrix
-   rbs => dbcsr_row_block_sizes(matrix_a)
-   cbs => dbcsr_col_block_sizes(matrix_a)
+                     data_type=dbcsr_type_real_8)
 
    !
    ! get the node id from the matrix
@@ -123,7 +114,9 @@ PROGRAM dbcsr_example_2
 
    !
    ! get the maximum block size of the matrix
-   max_nze = dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_a)
+   max_row_size = MAXVAL(row_blk_sizes)
+   max_col_size = MAXVAL(col_blk_sizes)
+   max_nze = max_row_size*max_col_size
 
    !
    ! allocate a 1d buffer that is needed to put a block
@@ -144,7 +137,7 @@ PROGRAM dbcsr_example_2
          IF (node_holds_blk .EQ. mynode) THEN
             !
             ! get the size of the block
-            nze = rbs(row_s)*cbs(col_s)
+            nze = row_blk_sizes(row_s)*col_blk_sizes(col_s)
             !
             ! fill the matrix with the random block
             CALL RANDOM_NUMBER(values(1:nze))
@@ -168,6 +161,7 @@ PROGRAM dbcsr_example_2
 
    CALL dbcsr_distribution_release(dist)
    CALL dbcsr_mp_release(mp_env)
+   DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
    !***************************************************************************************
    !

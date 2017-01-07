@@ -33,9 +33,8 @@ MODULE preconditioner_solvers
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_filter, dbcsr_get_info, &
-        dbcsr_get_occupation, dbcsr_init_p, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE input_constants,                 ONLY: ot_precond_solver_default,&
                                               ot_precond_solver_direct,&
                                               ot_precond_solver_inv_chol,&
@@ -321,9 +320,9 @@ CONTAINS
       IF (ASSOCIATED(fm_matrix)) THEN
          IF (.NOT. ASSOCIATED(dbcsr_matrix)) THEN
             CALL dbcsr_init_p(dbcsr_matrix)
-            CALL dbcsr_create(dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
-                              dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
-                              dbcsr_row_block_sizes(template_mat), dbcsr_col_block_sizes(template_mat), &
+            CALL dbcsr_create(dbcsr_matrix, template=template_mat, &
+                              name="preconditioner_env%dbcsr_matrix", &
+                              matrix_type=dbcsr_type_no_symmetry, &
                               nze=0, data_type=dbcsr_type_real_8)
          ENDIF
 !       CALL cp_fm_create(fm_tmp, matrix_struct=fm_matrix%matrix_struct)

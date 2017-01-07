@@ -14,10 +14,14 @@ MODULE admm_utils
    USE admm_types,                      ONLY: admm_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_distribution, dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_init, &
-        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_init,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_purify_cauchy,&
                                               do_admm_purify_cauchy_subspace,&
                                               do_admm_purify_mo_diag,&
@@ -62,11 +66,7 @@ CONTAINS
             NULLIFY (work)
             ALLOCATE (work)
             CALL dbcsr_init(work)
-            CALL dbcsr_create(work, 'work', &
-                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
-                              dbcsr_col_block_sizes(ks_matrix), &
-                              dbcsr_get_data_size(ks_matrix), &
-                              dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)
@@ -92,10 +92,7 @@ CONTAINS
             NULLIFY (work)
             ALLOCATE (work)
             CALL dbcsr_init(work)
-            CALL dbcsr_create(work, 'work', &
-                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
-                              dbcsr_col_block_sizes(ks_matrix), dbcsr_get_data_size(ks_matrix), &
-                              dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)
@@ -145,10 +142,7 @@ CONTAINS
             NULLIFY (work)
             ALLOCATE (work)
             CALL dbcsr_init(work)
-            CALL dbcsr_create(work, 'work', &
-                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
-                              dbcsr_col_block_sizes(ks_matrix), dbcsr_get_data_size(ks_matrix), &
-                              dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)
@@ -168,10 +162,7 @@ CONTAINS
             NULLIFY (work)
             ALLOCATE (work)
             CALL dbcsr_init(work)
-            CALL dbcsr_create(work, 'work', &
-                              dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix), &
-                              dbcsr_col_block_sizes(ks_matrix), dbcsr_get_data_size(ks_matrix), &
-                              dbcsr_get_data_type(ks_matrix))
+            CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)
             CALL dbcsr_set(work, 0.0_dp)

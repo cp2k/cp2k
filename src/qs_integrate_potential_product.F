@@ -37,10 +37,9 @@ MODULE qs_integrate_potential_product
    USE cp_control_types,                ONLY: dft_control_type
    USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add_block_node, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_distribution_has_threads, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_data_size, dbcsr_get_matrix_type, dbcsr_init, &
-        dbcsr_p_type, dbcsr_row_block_sizes, dbcsr_type, dbcsr_work_create
+        dbcsr_add_block_node, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
+        dbcsr_distribution, dbcsr_distribution_has_threads, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_init, dbcsr_p_type, dbcsr_type, dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&
@@ -348,10 +347,7 @@ CONTAINS
             NULLIFY (dhmat(img)%matrix)
             ALLOCATE (dhmat(img)%matrix)
             CALL dbcsr_init(dhmat(img)%matrix)
-            CALL dbcsr_create(dhmat(img)%matrix, 'LocalH', &
-                              dbcsr_distribution(href), &
-                              dbcsr_get_matrix_type(href), dbcsr_row_block_sizes(href), &
-                              dbcsr_col_block_sizes(href), dbcsr_get_data_size(href))
+            CALL dbcsr_create(dhmat(img)%matrix, template=href, name='LocalH')
          END DO
       END IF
 

@@ -13,10 +13,10 @@ MODULE pao_param_linpot
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, &
-        dbcsr_get_block_p, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
-        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_type
+        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: diamat_all
@@ -89,7 +89,7 @@ CONTAINS
       ENDDO
 
       ! allocate matrix_V_terms
-      blk_sizes_pri => dbcsr_row_block_sizes(pao%matrix_Y)
+      CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri)
       row_blk_size = blk_sizes_pri**2
       CALL dbcsr_init(pao%matrix_V_terms)
       CALL dbcsr_create(pao%matrix_V_terms, &
@@ -153,7 +153,7 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Building linpot regularizer"
 
-      blk_sizes_nterms => dbcsr_col_block_sizes(pao%matrix_V_terms)
+      CALL dbcsr_get_info(pao%matrix_V_terms, col_blk_size=blk_sizes_nterms)
 
       ! build regularization metric
       CALL dbcsr_init(pao%matrix_R)
@@ -230,7 +230,7 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Building linpot preconditioner"
 
-      blk_sizes_nterms => dbcsr_col_block_sizes(pao%matrix_V_terms)
+      CALL dbcsr_get_info(pao%matrix_V_terms, col_blk_size=blk_sizes_nterms)
 
       CALL dbcsr_init(pao%matrix_precon)
       CALL dbcsr_create(pao%matrix_precon, &
@@ -564,7 +564,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      pri_basis_size => dbcsr_row_block_sizes(pao%matrix_Y)
+      CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=pri_basis_size)
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,qs_env,pri_basis_size) &
 !$OMP PRIVATE(iter,arow,acol,iatom,block_X,N,nterms,V_terms,found,V_guess,V_guess_vec,S,S_evecs,S_evals,S_inv,k,i,j,w)

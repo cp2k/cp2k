@@ -11,14 +11,14 @@
 ! **************************************************************************************************
 MODULE mscfg_types
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_col_block_sizes, dbcsr_complete_redistribute, dbcsr_create, &
-        dbcsr_distribution, dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
-        dbcsr_finalize, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution, &
+        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
+        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
+        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, dbcsr_finalize, &
+        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nfullcols_total, &
-        dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, dbcsr_row_block_sizes, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_work_create
 !dbcsr_copy, &
 !dbcsr_filter, &
 !, dbcsr_nblkcols_total, &
@@ -247,11 +247,11 @@ CONTAINS
 
          IF (dimen == 1) THEN !rows
             blk_distr => dbcsr_distribution_row_dist(dist_qs)
-            blk_sizes => dbcsr_row_block_sizes(submatrix_in)
+            CALL dbcsr_get_info(submatrix_in, row_blk_size=blk_sizes)
             cluster_distr => dbcsr_distribution_row_clusters(dist_qs)
          ELSE !columns
             blk_distr => dbcsr_distribution_col_dist(dist_qs)
-            blk_sizes => dbcsr_col_block_sizes(submatrix_in)
+            CALL dbcsr_get_info(submatrix_in, col_blk_size=blk_sizes)
             cluster_distr => dbcsr_distribution_col_clusters(dist_qs)
          ENDIF
          nblocks = SIZE(blk_sizes) ! number of blocks in the small matrix

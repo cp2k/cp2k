@@ -58,8 +58,8 @@ MODULE dbcsr_operations
         dbcsr_col_block_offsets, dbcsr_distribution, dbcsr_get_data_size, dbcsr_get_data_type, &
         dbcsr_get_index_memory_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
         dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_max_col_size, dbcsr_max_row_size, &
-        dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-        dbcsr_nfullrows_total, dbcsr_row_block_offsets, dbcsr_valid_index
+        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+        dbcsr_row_block_offsets, dbcsr_valid_index
    USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                               dbcsr_mp_mynode,&
                                               dbcsr_mp_mypcol,&
@@ -77,8 +77,8 @@ MODULE dbcsr_operations
         dbcsr_mp_obj, dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_gershgorin, &
         dbcsr_norm_maxabsnorm, dbcsr_repl_full, dbcsr_repl_none, dbcsr_scalar_type, dbcsr_type, &
         dbcsr_type_antihermitian, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
-        dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_invalid, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
+        dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+        dbcsr_type_real_8, dbcsr_type_symmetric
    USE dbcsr_util,                      ONLY: find_block_of_element
    USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                               dbcsr_finalize,&
@@ -1525,7 +1525,6 @@ CONTAINS
                               data_type=new_type)
          ELSE
             CALL dbcsr_create(matrix_b, &
-                              name='copy of '//TRIM(dbcsr_name(matrix_a)), &
                               data_type=new_type, &
                               matrix_type=new_matrix_type, &
                               template=matrix_a)
@@ -2887,24 +2886,20 @@ CONTAINS
       IF (PRESENT(distribution)) distribution = matrix%dist
       IF (PRESENT(name)) name = matrix%name
       IF (PRESENT(data_area)) data_area = matrix%data_area
-      IF (PRESENT(matrix_type)) THEN
-         matrix_type = dbcsr_get_matrix_type(matrix)
-         IF (matrix_type .EQ. dbcsr_type_invalid) &
-            CPABORT("Incorrect symmetry")
-      ENDIF
       IF (PRESENT(data_type)) data_type = matrix%data_type
-      IF (PRESENT(local_rows)) &
-         local_rows => dbcsr_distribution_local_rows(matrix%dist)
-      IF (PRESENT(local_cols)) &
-         local_cols => dbcsr_distribution_local_cols(matrix%dist)
-      IF (PRESENT(proc_row_dist)) &
-         proc_row_dist => dbcsr_distribution_row_dist(matrix%dist)
-      IF (PRESENT(proc_col_dist)) &
-         proc_col_dist => dbcsr_distribution_col_dist(matrix%dist)
-      IF (PRESENT(my_prow)) &
-         my_prow = dbcsr_mp_myprow(dbcsr_distribution_mp(matrix%dist))
-      IF (PRESENT(my_pcol)) &
-         my_pcol = dbcsr_mp_mypcol(dbcsr_distribution_mp(matrix%dist))
+      IF (PRESENT(local_rows)) local_rows => dbcsr_distribution_local_rows(matrix%dist)
+      IF (PRESENT(local_cols)) local_cols => dbcsr_distribution_local_cols(matrix%dist)
+      IF (PRESENT(proc_row_dist)) proc_row_dist => dbcsr_distribution_row_dist(matrix%dist)
+      IF (PRESENT(proc_col_dist)) proc_col_dist => dbcsr_distribution_col_dist(matrix%dist)
+      IF (PRESENT(my_prow)) my_prow = dbcsr_mp_myprow(dbcsr_distribution_mp(matrix%dist))
+      IF (PRESENT(my_pcol)) my_pcol = dbcsr_mp_mypcol(dbcsr_distribution_mp(matrix%dist))
+      IF (PRESENT(matrix_type)) matrix_type = dbcsr_get_matrix_type(matrix)
+
+      !IF (PRESENT(matrix_type)) THEN
+      !   matrix_type = dbcsr_get_matrix_type(matrix)
+      !   IF (matrix_type .EQ. dbcsr_type_invalid) &
+      !      CPABORT("Incorrect symmetry")
+      !ENDIF
    END SUBROUTINE dbcsr_get_info
 
 ! **************************************************************************************************

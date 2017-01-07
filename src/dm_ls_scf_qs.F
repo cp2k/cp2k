@@ -20,14 +20,14 @@ MODULE dm_ls_scf_qs
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
+        dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
         dbcsr_distribution_hold, dbcsr_distribution_mp, dbcsr_distribution_new, &
         dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-        dbcsr_distribution_row_dist, dbcsr_finalize, dbcsr_init, dbcsr_mp_obj, dbcsr_multiply, &
-        dbcsr_name, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_distribution_row_dist, dbcsr_finalize, dbcsr_get_info, dbcsr_init, dbcsr_mp_obj, &
+        dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_real_4, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular,&
@@ -35,7 +35,8 @@ MODULE dm_ls_scf_qs
                                               ls_scf_env_type
    USE input_constants,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -104,6 +105,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_create', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: handle, iatom, imol, jatom, &
                                                             ls_data_type, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
@@ -116,15 +118,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Defaults -----------------------------------------------------------------------------------
-      ls_blk_sizes => dbcsr_col_block_sizes(matrix_qs)
-      ls_dist = dbcsr_distribution(matrix_qs)
+      CALL dbcsr_get_info(matrix_qs, col_blk_size=ls_blk_sizes, distribution=ls_dist)
       CALL dbcsr_distribution_hold(ls_dist)
       ls_data_type = dbcsr_type_real_8
       IF (ls_mstruct%single_precision) ls_data_type = dbcsr_type_real_4
 
       ! PAO ----------------------------------------------------------------------------------------
       IF (ls_mstruct%do_pao) THEN
-         ls_blk_sizes => dbcsr_col_block_sizes(ls_mstruct%matrix_A)
+         CALL dbcsr_get_info(ls_mstruct%matrix_A, col_blk_size=ls_blk_sizes)
       ENDIF
 
       ! Clustering ---------------------------------------------------------------------------------
@@ -206,9 +207,10 @@ CONTAINS
       END SELECT
 
       ! Create actual matrix -----------------------------------------------------------------------
+      CALL dbcsr_get_info(matrix_qs, name=name)
       CALL dbcsr_init(matrix_ls)
       CALL dbcsr_create(matrix_ls, &
-                        name=dbcsr_name(matrix_qs), &
+                        name=name, &
                         dist=ls_dist, &
                         matrix_type="S", &
                         data_type=ls_data_type, &
@@ -253,7 +255,7 @@ CONTAINS
 
       ELSE ! using pao
          CALL dbcsr_init(matrix_pao)
-         pao_blk_sizes => dbcsr_col_block_sizes(ls_mstruct%matrix_A)
+         CALL dbcsr_get_info(ls_mstruct%matrix_A, col_blk_size=pao_blk_sizes)
          CALL dbcsr_create(matrix_pao, &
                            matrix_type="N", &
                            template=matrix_qs, &
@@ -372,8 +374,8 @@ CONTAINS
          CALL dbcsr_release(matrix_declustered)
 
       ELSE ! using pao
+         CALL dbcsr_get_info(ls_mstruct%matrix_A, col_blk_size=pao_blk_sizes)
          CALL dbcsr_init(matrix_declustered)
-         pao_blk_sizes => dbcsr_col_block_sizes(ls_mstruct%matrix_A)
          CALL dbcsr_create(matrix_declustered, &
                            template=matrix_qs, &
                            row_blk_size=pao_blk_sizes, &

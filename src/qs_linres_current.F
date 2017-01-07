@@ -47,12 +47,10 @@ MODULE qs_linres_current
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: &
-        convert_offsets_to_sizes, dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
-        dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_distribution_obj, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_get_data_size, dbcsr_get_matrix_type, dbcsr_init, dbcsr_p_type, &
-        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry
+        convert_offsets_to_sizes, dbcsr_add_block_node, dbcsr_allocate_matrix_set, dbcsr_copy, &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
+        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, &
+        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -773,22 +771,10 @@ CONTAINS
             CALL dbcsr_init(deltajp_d(1)%matrix)
          ENDIF
 
-         CALL dbcsr_create(deltajp_a(1)%matrix, ' deltajp_a ', dbcsr_distribution(mat_a), dbcsr_get_matrix_type(mat_a), &
-                           dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
-                           dbcsr_get_data_size(mat_a))
-
-         CALL dbcsr_create(deltajp_b(1)%matrix, ' deltajp_b ', dbcsr_distribution(mat_a), dbcsr_get_matrix_type(mat_a), &
-                           dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
-                           dbcsr_get_data_size(mat_a))
-
-         CALL dbcsr_create(deltajp_c(1)%matrix, ' deltajp_c ', dbcsr_distribution(mat_a), dbcsr_get_matrix_type(mat_a), &
-                           dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
-                           dbcsr_get_data_size(mat_a))
-
-         IF (do_igaim) CALL dbcsr_create( &
-            deltajp_d(1)%matrix, ' deltajp_d ', dbcsr_distribution(mat_a), &
-            dbcsr_get_matrix_type(mat_a), dbcsr_row_block_sizes(mat_a), dbcsr_col_block_sizes(mat_a), &
-            dbcsr_get_data_size(mat_a))
+         CALL dbcsr_create(deltajp_a(1)%matrix, template=mat_a, name='deltajp_a')
+         CALL dbcsr_create(deltajp_b(1)%matrix, template=mat_a, name='deltajp_b')
+         CALL dbcsr_create(deltajp_c(1)%matrix, template=mat_a, name='deltajp_c')
+         IF (do_igaim) CALL dbcsr_create(deltajp_d(1)%matrix, template=mat_a, name='deltajp_d')
       ELSE
          deltajp_a(1)%matrix => mat_a !mat_jp
          deltajp_b(1)%matrix => mat_b !mat_jp_rii

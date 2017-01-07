@@ -21,10 +21,14 @@ MODULE task_list_methods
                                               cube_info_type,&
                                               return_cube,&
                                               return_cube_nonortho
-   USE dbcsr_api,                       ONLY: &
-        convert_sizes_to_offsets, dbcsr_col_block_sizes, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_p_type, dbcsr_put_block, dbcsr_row_block_sizes, dbcsr_type, &
-        dbcsr_work_create
+   USE dbcsr_api,                       ONLY: convert_sizes_to_offsets,&
+                                              dbcsr_finalize,&
+                                              dbcsr_get_block_p,&
+                                              dbcsr_get_info,&
+                                              dbcsr_p_type,&
+                                              dbcsr_put_block,&
+                                              dbcsr_type,&
+                                              dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                               gridlevel_info_type
    USE kinds,                           ONLY: default_string_length,&
@@ -2218,6 +2222,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, last_row, recv_disps, &
          recv_pair_count, recv_pair_disps, recv_sizes, send_disps, send_pair_count, &
          send_pair_disps, send_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf_r, send_buf_r
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block, p_block
@@ -2247,12 +2252,14 @@ CONTAINS
 
       pmat => pmats(1)%matrix
       CALL dbcsr_get_info(pmat, &
+                          row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size, &
                           nblkrows_total=nblkrows_total, &
                           nblkcols_total=nblkcols_total)
       ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total), &
                 first_col(nblkcols_total), last_col(nblkcols_total))
-      CALL convert_sizes_to_offsets(dbcsr_row_block_sizes(pmat), first_row, last_row)
-      CALL convert_sizes_to_offsets(dbcsr_col_block_sizes(pmat), first_col, last_col)
+      CALL convert_sizes_to_offsets(row_blk_size, first_row, last_row)
+      CALL convert_sizes_to_offsets(col_blk_size, first_col, last_col)
       ! set up send buffer sizes
       natom8 = natoms
       nim8 = nimages

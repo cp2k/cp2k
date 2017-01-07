@@ -14,11 +14,11 @@ MODULE pao_param_gth
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_set, &
-        dbcsr_type
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, &
+        dbcsr_set, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
@@ -88,7 +88,7 @@ CONTAINS
       CALL init_orbital_pointers(maxl) ! needs to be called before gth_calc_term()
 
       ! allocate matrix_V_terms
-      blk_sizes_pri => dbcsr_row_block_sizes(matrix_s(1)%matrix)
+      CALL dbcsr_get_info(matrix_s(1)%matrix, row_blk_size=blk_sizes_pri)
       col_blk_size = SUM(nterms)
       row_blk_size = blk_sizes_pri**2
       CALL dbcsr_init(pao%matrix_V_terms)
@@ -266,7 +266,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nterms => dbcsr_row_block_sizes(pao%matrix_X)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms)
       natoms = SIZE(nterms)
       ALLOCATE (gaps(natoms))
       gaps(:) = HUGE(dp)

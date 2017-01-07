@@ -6,11 +6,9 @@
 MODULE qs_fb_atomic_matrix_methods
 
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_col_block_sizes,&
-                                              dbcsr_get_block_p,&
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
                                               dbcsr_get_info,&
                                               dbcsr_get_stored_coordinates,&
-                                              dbcsr_row_block_sizes,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -84,8 +82,7 @@ CONTAINS
 
       NULLIFY (halo_atoms, row_block_size_data, col_block_size_data)
 
-      row_block_size_data => dbcsr_row_block_sizes(dbcsr_mat)
-      col_block_size_data => dbcsr_col_block_sizes(dbcsr_mat)
+      CALL dbcsr_get_info(dbcsr_mat, row_blk_size=row_block_size_data, col_blk_size=col_block_size_data)
       CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                               natoms=natoms_in_halo, &
                               halo_atoms=halo_atoms)
@@ -188,8 +185,7 @@ CONTAINS
       numprocs = para_env%num_pe
 
       ! get dbcsr row and col block sizes
-      row_block_size_data => dbcsr_row_block_sizes(dbcsr_mat)
-      col_block_size_data => dbcsr_col_block_sizes(dbcsr_mat)
+      CALL dbcsr_get_info(dbcsr_mat, row_blk_size=row_block_size_data, col_blk_size=col_block_size_data)
 
       ! allocate temporary arrays for send
       ALLOCATE (send_sizes(numprocs))

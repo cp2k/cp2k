@@ -18,15 +18,15 @@ MODULE almo_scf_methods
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_desymmetrize, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
-        dbcsr_init, dbcsr_init_random, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
+        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, dbcsr_init, &
+        dbcsr_init_random, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
-        dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, &
-        dbcsr_norm_maxabsnorm, dbcsr_print, dbcsr_release, dbcsr_reserve_block2d, &
-        dbcsr_row_block_sizes, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_norm, &
+        dbcsr_norm_maxabsnorm, dbcsr_print, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
+        dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: &
         add_submatrices, construct_dbcsr_from_submatrices, construct_submatrices, &
         copy_submatrices, copy_submatrix_data, init_submatrices, multiply_submatrices, &
@@ -2217,9 +2217,10 @@ CONTAINS
          CPABORT("TRIMMER MATRIX IS REQUIRED")
       ENDIF
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
-      nblkrows_tot = dbcsr_nblkrows_total(dpattern)
-      nmos => dbcsr_col_block_sizes(dpattern)
+      CALL dbcsr_get_info(dpattern, &
+                          nblkcols_total=ndomains, &
+                          nblkrows_total=nblkrows_tot, &
+                          col_blk_size=nmos)
 
       ALLOCATE (subm_main(ndomains))
       CALL init_submatrices(subm_main)
@@ -3136,11 +3137,13 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      nblkrows_tot = dbcsr_nblkrows_total(quench_t)
-      nblkcols_tot = dbcsr_nblkcols_total(quench_t)
+      CALL dbcsr_get_info(quench_t, &
+                          nblkrows_total=nblkrows_tot, &
+                          nblkcols_total=nblkcols_tot, &
+                          col_blk_size=mo_blk_sizes, &
+                          row_blk_size=ao_blk_sizes)
+
       CPASSERT(nblkrows_tot == nblkcols_tot)
-      mo_blk_sizes => dbcsr_col_block_sizes(quench_t)
-      ao_blk_sizes => dbcsr_row_block_sizes(quench_t)
       ALLOCATE (mo_block_sizes(nblkcols_tot), ao_block_sizes(nblkcols_tot))
       ALLOCATE (ao_domain_sizes(nblkcols_tot))
       mo_block_sizes(:) = mo_blk_sizes(:)

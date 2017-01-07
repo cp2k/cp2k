@@ -40,8 +40,8 @@ MODULE almo_scf_qs
         dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, &
         dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_mp_group, dbcsr_mp_mynode, &
         dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_row_block_sizes, dbcsr_set, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_work_create
    USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
                                               almo_constraint_block_diagonal,&
                                               almo_constraint_distance,&
@@ -178,7 +178,7 @@ CONTAINS
          IF (size_keys(dimen) == almo_mat_dim_aobasis) THEN ! this dimension is AO
 
             ! structure of an AO dimension can be copied from matrix_qs
-            blk_sizes => dbcsr_row_block_sizes(matrix_qs)
+            CALL dbcsr_get_info(matrix_qs, row_blk_size=blk_sizes)
 
             ! atomic clustering of AOs
             IF (almo_scf_env%mat_distr_aos == almo_mat_distr_atomic) THEN

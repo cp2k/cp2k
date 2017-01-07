@@ -10,10 +10,9 @@
 MODULE pao_param_exp
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_create, dbcsr_get_block_p, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_diag_blocks, dbcsr_row_block_sizes, dbcsr_set, dbcsr_type
+        dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_potentials,                  ONLY: pao_guess_initial_potential
@@ -189,8 +188,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      blk_sizes_pri => dbcsr_row_block_sizes(pao%matrix_Y)
-      blk_sizes_pao => dbcsr_col_block_sizes(pao%matrix_Y)
+      CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri, col_blk_size=blk_sizes_pao)
 
 !$OMP PARALLEL DEFAULT(NONE) SHARED(pao,matrix_M,matrix_G,blk_sizes_pri,blk_sizes_pao) &
 !$OMP PRIVATE(iter,arow,acol,iatom,N,M,nparams,i,j,k,found) &

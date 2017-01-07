@@ -8,9 +8,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_param_fock
-   USE dbcsr_api,                       ONLY: dbcsr_col_block_sizes,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_row_block_sizes
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_get_info
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE pao_types,                       ONLY: pao_env_type
@@ -67,8 +66,7 @@ CONTAINS
       IF (MAXVAL(ABS(V-TRANSPOSE(V))) > 1e-14_dp) CPABORT("Expect symmetric matrix")
 
       ! figure out basis sizes
-      blk_sizes_pri => dbcsr_row_block_sizes(pao%matrix_Y)
-      blk_sizes_pao => dbcsr_col_block_sizes(pao%matrix_Y)
+      CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri, col_blk_size=blk_sizes_pao)
       n = blk_sizes_pri(iatom) ! size of primary basis
       m = blk_sizes_pao(iatom) ! size of pao basis
 

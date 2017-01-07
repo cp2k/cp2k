@@ -22,11 +22,10 @@ MODULE dbcsr_tensor_types
                                               sizes_of_arrays,&
                                               sum_of_arrays
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, dbcsr_distribution_col_dist, &
-        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_finalize, &
-        dbcsr_get_data_type, dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
-        dbcsr_name, dbcsr_release, dbcsr_row_block_sizes, dbcsr_type
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
+        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
+        dbcsr_distribution_row_dist, dbcsr_finalize, dbcsr_get_info, dbcsr_mp_group, dbcsr_mp_new, &
+        dbcsr_mp_obj, dbcsr_mp_release, dbcsr_release, dbcsr_type
    USE dbcsr_tensor_index,              ONLY: create_nd_to_2d_mapping,&
                                               destroy_nd_to_2d_mapping,&
                                               get_2d_indices,&
@@ -370,15 +369,16 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
 
       CHARACTER(len=default_string_length)               :: name_in
-      INTEGER                                            :: comm_2d, comm_nd
+      INTEGER                                            :: comm_2d, comm_nd, data_type
       INTEGER, DIMENSION(2)                              :: order_in
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       TYPE(dbcsr_distribution_obj)                       :: matrix_dist
       TYPE(dbcsr_t_distribution_type)                    :: dist
 
       IF (PRESENT(name)) THEN
          name_in = name
       ELSE
-         name_in = dbcsr_name(matrix_in)
+         CALL dbcsr_get_info(matrix_in, name=name_in)
       ENDIF
 
       IF (PRESENT(order)) THEN
@@ -399,11 +399,16 @@ CONTAINS
          dbcsr_distribution_row_dist(matrix_dist), &
          dbcsr_distribution_col_dist(matrix_dist))
 
+      CALL dbcsr_get_info(matrix_in, &
+                          data_type=data_type, &
+                          row_blk_size=row_blk_size, &
+                          col_blk_size=col_blk_size)
+
       CALL dbcsr_t_create_new(tensor, name_in, dist, &
                               [order_in(1)], [order_in(2)], &
-                              dbcsr_get_data_type(matrix_in), &
-                              dbcsr_row_block_sizes(matrix_in), &
-                              dbcsr_col_block_sizes(matrix_in))
+                              data_type, &
+                              row_blk_size, &
+                              col_blk_size)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -454,11 +459,11 @@ CONTAINS
 !> \param tensor ...
 !> \retval dbcsr_t_get_data_type ...
 ! **************************************************************************************************
-   PURE FUNCTION dbcsr_t_get_data_type(tensor)
+   FUNCTION dbcsr_t_get_data_type(tensor) RESULT(data_type)
       TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
-      INTEGER                                            :: dbcsr_t_get_data_type
+      INTEGER                                            :: data_type
 
-      dbcsr_t_get_data_type = dbcsr_get_data_type(tensor%matrix_rep)
+      CALL dbcsr_get_info(tensor%matrix_rep, data_type=data_type)
    END FUNCTION
 
 ! **************************************************************************************************

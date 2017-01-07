@@ -10,8 +10,7 @@ MODULE qs_gspace_mixing
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution, dbcsr_init, dbcsr_name, dbcsr_p_type, dbcsr_row_block_sizes, &
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_init, dbcsr_p_type, &
         dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invert_matrix
@@ -184,8 +183,7 @@ CONTAINS
             END DO
             IF (mixing_store%gmix_p) THEN
                DO i = 1, nimg
-                  CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, i)%matrix, rho_ao_kp(ispin, i)%matrix, &
-                                  name=TRIM(dbcsr_name(rho_ao_kp(ispin, i)%matrix)))
+                  CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, i)%matrix, rho_ao_kp(ispin, i)%matrix)
                END DO
             END IF
          END DO
@@ -323,8 +321,7 @@ CONTAINS
                               p_mix=alpha, &
                               delta=tmp, &
                               para_env=para_env)
-               CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, ic)%matrix, rho_ao_kp(ispin, ic)%matrix, &
-                               name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+               CALL dbcsr_copy(mixing_store%rho_ao_in(ispin, ic)%matrix, rho_ao_kp(ispin, ic)%matrix)
             END DO
          END IF
       END DO
@@ -592,8 +589,7 @@ CONTAINS
                   END DO
                   CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, ic)%matrix, alpha_scalar=alpha_pulay, &
                                  matrix_b=rho_ao_mix, beta_scalar=(1.0_dp-alpha_pulay))
-                  CALL dbcsr_copy(mixing_store%rho_ao_in_buffer(ispin, ic, ibb)%matrix, rho_ao_kp(ispin, ic)%matrix, &
-                                  name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+                  CALL dbcsr_copy(mixing_store%rho_ao_in_buffer(ispin, ic, ibb)%matrix, rho_ao_kp(ispin, ic)%matrix)
                END DO
             END IF
             IF (mixing_store%gmix_p .AND. gapw) THEN
@@ -1801,12 +1797,8 @@ CONTAINS
                DO ic = 1, nimg
                   ALLOCATE (p_mix_new(i, ic)%matrix)
                   CALL dbcsr_init(p_mix_new(i, ic)%matrix)
-                  CALL dbcsr_create(matrix=p_mix_new(i, ic)%matrix, &
-                                    name="SCF DENSITY", &
-                                    dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                    row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                    col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                    nze=0)
+                  CALL dbcsr_create(matrix=p_mix_new(i, ic)%matrix, template=refmatrix, &
+                                    name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                   CALL cp_dbcsr_alloc_block_from_nbl(p_mix_new(i, ic)%matrix, sab_orb)
                   CALL dbcsr_set(p_mix_new(i, ic)%matrix, 0.0_dp)
                ENDDO
@@ -1823,12 +1815,8 @@ CONTAINS
                   DO ic = 1, nimg
                      ALLOCATE (p_delta(i, ic)%matrix)
                      CALL dbcsr_init(p_delta(i, ic)%matrix)
-                     CALL dbcsr_create(matrix=p_delta(i, ic)%matrix, &
-                                       name="SCF DENSITY", &
-                                       dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                       row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                       col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                       nze=0)
+                     CALL dbcsr_create(matrix=p_delta(i, ic)%matrix, template=refmatrix, &
+                                       name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                      CALL cp_dbcsr_alloc_block_from_nbl(p_delta(i, ic)%matrix, sab_orb)
                      CALL dbcsr_set(p_delta(i, ic)%matrix, 0.0_dp)
                   ENDDO
@@ -1855,12 +1843,8 @@ CONTAINS
                   DO ic = 1, nimg
                      ALLOCATE (mixing_store%rho_ao_in(i, ic)%matrix)
                      CALL dbcsr_init(mixing_store%rho_ao_in(i, ic)%matrix)
-                     CALL dbcsr_create(matrix=mixing_store%rho_ao_in(i, ic)%matrix, &
-                                       name="SCF DENSITY", &
-                                       dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                       row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                       col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                       nze=0)
+                     CALL dbcsr_create(matrix=mixing_store%rho_ao_in(i, ic)%matrix, template=refmatrix, &
+                                       name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                      CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in(i, ic)%matrix, sab_orb)
                      CALL dbcsr_set(mixing_store%rho_ao_in(i, ic)%matrix, 0.0_dp)
                   ENDDO
@@ -1869,12 +1853,8 @@ CONTAINS
             IF (.NOT. ASSOCIATED(mixing_store%rho_ao_mix)) THEN
                ALLOCATE (mixing_store%rho_ao_mix)
                CALL dbcsr_init(mixing_store%rho_ao_mix)
-               CALL dbcsr_create(matrix=mixing_store%rho_ao_mix, &
-                                 name="DENSITY MIX", &
-                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                 nze=0)
+               CALL dbcsr_create(matrix=mixing_store%rho_ao_mix, template=refmatrix, &
+                                 name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_mix, sab_orb)
                CALL dbcsr_set(mixing_store%rho_ao_mix, 0.0_dp)
             END IF
@@ -1933,11 +1913,8 @@ CONTAINS
                         ALLOCATE (mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix)
                         CALL dbcsr_init(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix)
                         CALL dbcsr_create(matrix=mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, &
-                                          name="SCF DENSITY", &
-                                          dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                          row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                          col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                          nze=0)
+                                          template=refmatrix, name="SCF DENSITY", &
+                                          matrix_type=dbcsr_type_symmetric, nze=0)
                         CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, sab_orb)
                         CALL dbcsr_set(mixing_store%rho_ao_in_buffer(ispin, ic, i)%matrix, 0.0_dp)
                      END DO
@@ -1987,12 +1964,8 @@ CONTAINS
             IF (.NOT. ASSOCIATED(mixing_store%rho_ao_res)) THEN
                ALLOCATE (mixing_store%rho_ao_res)
                CALL dbcsr_init(mixing_store%rho_ao_res)
-               CALL dbcsr_create(matrix=mixing_store%rho_ao_res, &
-                                 name="DENSITY MIX", &
-                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                 nze=0)
+               CALL dbcsr_create(matrix=mixing_store%rho_ao_res, template=refmatrix, &
+                                 name="DENSITY MIX", matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res, sab_orb)
                CALL dbcsr_set(mixing_store%rho_ao_res, 0.0_dp)
             END IF
@@ -2003,12 +1976,8 @@ CONTAINS
                   DO ic = 1, nimg
                      ALLOCATE (mixing_store%rho_ao_in_old(i, ic)%matrix)
                      CALL dbcsr_init(mixing_store%rho_ao_in_old(i, ic)%matrix)
-                     CALL dbcsr_create(matrix=mixing_store%rho_ao_in_old(i, ic)%matrix, &
-                                       name="SCF DENSITY", &
-                                       dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                       row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                       col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                       nze=0)
+                     CALL dbcsr_create(matrix=mixing_store%rho_ao_in_old(i, ic)%matrix, template=refmatrix, &
+                                       name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                      CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_in_old(i, ic)%matrix, sab_orb)
                      CALL dbcsr_set(mixing_store%rho_ao_in_old(i, ic)%matrix, 0.0_dp)
                   ENDDO
@@ -2021,12 +1990,8 @@ CONTAINS
                   DO ic = 1, nimg
                      ALLOCATE (mixing_store%rho_ao_lastres(i, ic)%matrix)
                      CALL dbcsr_init(mixing_store%rho_ao_lastres(i, ic)%matrix)
-                     CALL dbcsr_create(matrix=mixing_store%rho_ao_lastres(i, ic)%matrix, &
-                                       name="SCF DENSITY", &
-                                       dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                       row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                       col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                       nze=0)
+                     CALL dbcsr_create(matrix=mixing_store%rho_ao_lastres(i, ic)%matrix, template=refmatrix, &
+                                       name="SCF DENSITY", matrix_type=dbcsr_type_symmetric, nze=0)
                      CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_lastres(i, ic)%matrix, sab_orb)
                      CALL dbcsr_set(mixing_store%rho_ao_lastres(i, ic)%matrix, 0.0_dp)
                   ENDDO
@@ -2074,11 +2039,8 @@ CONTAINS
                         ALLOCATE (mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix)
                         CALL dbcsr_init(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix)
                         CALL dbcsr_create(matrix=mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, &
-                                          name="SCF DENSITY", &
-                                          dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                          row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                          col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                          nze=0)
+                                          template=refmatrix, name="SCF DENSITY", &
+                                          matrix_type=dbcsr_type_symmetric, nze=0)
                         CALL cp_dbcsr_alloc_block_from_nbl(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, sab_orb)
                         CALL dbcsr_set(mixing_store%rho_ao_res_buffer(ispin, ic, i)%matrix, 0.0_dp)
                      END DO

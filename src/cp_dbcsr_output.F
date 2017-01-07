@@ -24,11 +24,10 @@ MODULE cp_dbcsr_output
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_col_block_sizes, dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_get_num_blocks, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_name, &
-        dbcsr_row_block_sizes, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -246,7 +245,7 @@ CONTAINS
          my_omit_headers = .FALSE.
       END IF
 
-      matrix_name = dbcsr_name(sparse_matrix)
+      CALL dbcsr_get_info(sparse_matrix, name=matrix_name)
       IF (print_sym) THEN
          CALL write_matrix_sym(matrix, matrix_name, before, after, qs_env, para_env, &
                                row1, row2, col1, col2, output_unit, my_omit_headers)
@@ -286,11 +285,10 @@ CONTAINS
       IF (ASSOCIATED(fm)) DEALLOCATE (fm)
 
       CALL dbcsr_get_info(matrix=sparse_matrix, &
+                          col_blk_size=col_blk_size, &
+                          row_blk_size=row_blk_size, &
                           nblkrows_total=nblkrows_total, &
                           nblkcols_total=nblkcols_total)
-
-      col_blk_size => dbcsr_col_block_sizes(sparse_matrix)
-      row_blk_size => dbcsr_row_block_sizes(sparse_matrix)
 
       !> this should be precomputed somewhere else
       ALLOCATE (r_offset(nblkrows_total), c_offset(nblkcols_total))

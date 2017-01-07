@@ -19,9 +19,8 @@ MODULE pao_io
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_col_block_sizes,&
-                                              dbcsr_get_block_p,&
-                                              dbcsr_row_block_sizes,&
+   USE dbcsr_api,                       ONLY: dbcsr_get_block_p,&
+                                              dbcsr_get_info,&
                                               dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -145,8 +144,7 @@ CONTAINS
 
       ! scatter xblocks across ranks to fill pao%matrix_X
       ! this could probably be done more efficiently
-      row_blk_sizes => dbcsr_row_block_sizes(pao%matrix_X)
-      col_blk_sizes => dbcsr_col_block_sizes(pao%matrix_X)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
       DO iatom = 1, natoms
          ALLOCATE (buffer(row_blk_sizes(iatom), col_blk_sizes(iatom)))
          IF (para_env%mepos == para_env%source) THEN
@@ -438,8 +436,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: local_block, mpi_buffer
 
       !TODO: this is a serial algorithm
-      row_blk_sizes => dbcsr_row_block_sizes(matrix)
-      col_blk_sizes => dbcsr_col_block_sizes(matrix)
+      CALL dbcsr_get_info(matrix, row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
       CPASSERT(SIZE(row_blk_sizes) == SIZE(col_blk_sizes))
       natoms = SIZE(row_blk_sizes)
 

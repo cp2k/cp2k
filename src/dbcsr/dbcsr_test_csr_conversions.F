@@ -12,14 +12,13 @@
 PROGRAM dbcsr_test_csr_conversions
    USE dbcsr_api,                       ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_destroy, &
-        csr_eqrow_ceil_dist, csr_type, dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+        csr_eqrow_ceil_dist, csr_type, dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution, &
+        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
         dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
-        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
-        dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_put_block, dbcsr_release, &
-        dbcsr_row_block_sizes, dbcsr_to_csr_filter, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
+        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, &
+        dbcsr_norm_maxabsnorm, dbcsr_put_block, dbcsr_release, dbcsr_to_csr_filter, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE kinds,                           ONLY: dp,&
                                               real_8
    USE machine,                         ONLY: default_output_unit
@@ -208,9 +207,9 @@ CONTAINS
                                                             row_dist
       REAL(real_8), INTENT(IN)                           :: sparsity
 
-      INTEGER                                            :: col, col_s, max_nze, node_holds_blk, &
-                                                            nze, row, row_s
-      INTEGER, DIMENSION(:), POINTER                     :: cbs, rbs
+      INTEGER                                            :: col, col_s, max_col_size, max_nze, &
+                                                            max_row_size, node_holds_blk, nze, &
+                                                            row, row_s
       LOGICAL                                            :: tr
       REAL(real_8)                                       :: rn
       REAL(real_8), ALLOCATABLE, DIMENSION(:)            :: values
@@ -224,13 +223,14 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_sizes, &
                         col_blk_size=col_blk_sizes, &
-                        data_type=dbcsr_type_real_8, &
-                        reuse_arrays=.TRUE.)
+                        data_type=dbcsr_type_real_8)
 
-      rbs => dbcsr_row_block_sizes(matrix_a)
-      cbs => dbcsr_col_block_sizes(matrix_a)
       mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix_a)))
-      max_nze = dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_a)
+
+      ! get the maximum block size of the matrix
+      max_row_size = MAXVAL(row_blk_sizes)
+      max_col_size = MAXVAL(col_blk_sizes)
+      max_nze = max_row_size*max_col_size
 
       ALLOCATE (values(max_nze))
 
@@ -242,7 +242,7 @@ CONTAINS
                row_s = row; col_s = col
                CALL dbcsr_get_stored_coordinates(matrix_a, row_s, col_s, node_holds_blk)
                IF (node_holds_blk .EQ. mynode) THEN
-                  nze = rbs(row_s)*cbs(col_s)
+                  nze = row_blk_sizes(row_s)*col_blk_sizes(col_s)
                   CALL RANDOM_NUMBER(values(1:nze))
                   CALL dbcsr_put_block(matrix_a, row_s, col_s, values(1:nze))
                ENDIF
@@ -253,6 +253,7 @@ CONTAINS
 
       CALL dbcsr_finalize(matrix_a)
       CALL dbcsr_distribution_release(dist)
+      DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
    END SUBROUTINE make_random_dbcsr_matrix
 

@@ -28,10 +28,9 @@ MODULE rtp_admm_methods
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_desymmetrize, dbcsr_distribution, dbcsr_get_data_size, dbcsr_get_data_type, &
-        dbcsr_get_matrix_type, dbcsr_init, dbcsr_p_type, dbcsr_release, dbcsr_row_block_sizes, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_get_info, dbcsr_init, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_none
@@ -474,6 +473,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_merge_ks_matrix_none', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER                                          :: matrix_type_fit
       INTEGER                                            :: handle, nao_aux_fit, nao_orb, nmo
       INTEGER, SAVE                                      :: counter = 0
       TYPE(dbcsr_type)                                   :: matrix_ks_nosym
@@ -502,16 +502,13 @@ CONTAINS
                    1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
                    admm_env%work_orb_orb)
 
+      CALL dbcsr_get_info(matrix_ks_aux_fit(ispin)%matrix, matrix_type=matrix_type_fit)
+
       NULLIFY (matrix_k_tilde)
       ALLOCATE (matrix_k_tilde)
       CALL dbcsr_init(matrix_k_tilde)
-      CALL dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-                        dbcsr_distribution(matrix_ks(ispin)%matrix), &
-                        dbcsr_get_matrix_type(matrix_ks_aux_fit(ispin)%matrix), &
-                        dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
-                        dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
-                        dbcsr_get_data_size(matrix_ks(ispin)%matrix), &
-                        dbcsr_get_data_type(matrix_ks(ispin)%matrix))
+      CALL dbcsr_create(matrix_k_tilde, template=matrix_ks(ispin)%matrix, &
+                        name='MATRIX K_tilde', matrix_type=matrix_type_fit)
 
       CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
       CALL dbcsr_set(matrix_k_tilde, 0.0_dp)

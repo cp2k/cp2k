@@ -40,12 +40,11 @@ MODULE qs_fb_env_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_matrix_type, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_blocks, dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_distribution, &
+        dbcsr_finalize, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&
                                               cholesky_off,&
@@ -304,10 +303,12 @@ CONTAINS
       ! and col_block_sizes equal to that of the filtered.  We assume
       ! also that the matrix dimensions are identical for both spin
       ! channels.
-      original_rowORcol_block_sizes => dbcsr_row_block_sizes(matrix_ks(1)%matrix)
-      filtered_rowORcol_block_sizes => dbcsr_col_block_sizes(matrix_filter(1)%matrix)
-      original_nfullrowsORcols_total = dbcsr_nfullrows_total(matrix_ks(1)%matrix)
-      filtered_nfullrowsORcols_total = dbcsr_nfullcols_total(matrix_filter(1)%matrix)
+      CALL dbcsr_get_info(matrix_ks(1)%matrix, &
+                          row_blk_size=original_rowORcol_block_sizes, &
+                          nfullrows_total=original_nfullrowsORcols_total)
+      CALL dbcsr_get_info(matrix_filter(1)%matrix, &
+                          col_blk_size=filtered_rowORcol_block_sizes, &
+                          nfullcols_total=filtered_nfullrowsORcols_total)
 
       ! filter diagonalisation works on a smaller basis set, and thus
       ! requires a new mo_set (molecular orbitals | eigenvectors) and

@@ -11,11 +11,12 @@ MODULE qs_scf_loop_utils
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_name,&
+                                              dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_new_nr,&
                                               broyden_mixing_nr,&
@@ -552,6 +553,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_undo_mixing', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: ic, ispin, nc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
 
@@ -568,16 +570,16 @@ CONTAINS
                                         invert=.TRUE.)
             DO ic = 1, nc
                DO ispin = 1, dft_control%nspins
-                  CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
-                                  name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+                  CALL dbcsr_get_info(rho_ao_kp(ispin, ic)%matrix, name=name) ! keep the name
+                  CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, name=name)
                END DO
             END DO
          CASE (gspace_mixing_nr, pulay_mixing_nr, broyden_mixing_nr, &
                broyden_mixing_new_nr, multisecant_mixing_nr)
             DO ic = 1, nc
                DO ispin = 1, dft_control%nspins
-                  CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, &
-                                  name=TRIM(dbcsr_name(rho_ao_kp(ispin, ic)%matrix)))
+                  CALL dbcsr_get_info(rho_ao_kp(ispin, ic)%matrix, name=name) ! keep the name
+                  CALL dbcsr_copy(rho_ao_kp(ispin, ic)%matrix, scf_env%p_mix_new(ispin, ic)%matrix, name=name)
                END DO
             END DO
          END SELECT

@@ -57,9 +57,8 @@ MODULE qs_ks_methods
                                               cp_print_key_should_output
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_col_block_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution, dbcsr_filter, dbcsr_init, dbcsr_multiply, dbcsr_name, dbcsr_p_type, &
-        dbcsr_row_block_sizes, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, &
+        dbcsr_init, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: efield_potential
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -214,6 +213,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: handle, img, ispin, nimages, ns, nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, just_energy_xc, my_print, use_virial
@@ -639,8 +639,8 @@ CONTAINS
             ! (sets ks sparsity equal to matrix_h sparsity)
             DO ispin = 1, nspins
                DO img = 1, nimages
-                  CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix, &
-                                  name=dbcsr_name(ks_matrix(ispin, img)%matrix))
+                  CALL dbcsr_get_info(ks_matrix(ispin, img)%matrix, name=name) ! keep the name
+                  CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix, name=name)
                END DO
             END DO
          END IF
@@ -812,6 +812,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_build_ks_matrix', &
          routineP = moduleN//':'//routineN
 
+      CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: just_energy_xc, my_print, use_virial
       REAL(KIND=dp)                                      :: edisp
@@ -913,8 +914,8 @@ CONTAINS
       IF (.NOT. just_energy) THEN
          ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
          DO ispin = 1, nspins
-            CALL dbcsr_copy(ks_matrix(ispin)%matrix, matrix_h(1)%matrix, &
-                            name=dbcsr_name(ks_matrix(ispin)%matrix))
+            CALL dbcsr_get_info(ks_matrix(ispin)%matrix, name=name) ! keep the name
+            CALL dbcsr_copy(ks_matrix(ispin)%matrix, matrix_h(1)%matrix, name=name)
          END DO
       END IF
 
@@ -1593,12 +1594,8 @@ CONTAINS
                END IF
                ALLOCATE (matrixkp_ks(ispin, ic)%matrix)
                CALL dbcsr_init(matrixkp_ks(ispin, ic)%matrix)
-               CALL dbcsr_create(matrix=matrixkp_ks(ispin, ic)%matrix, &
-                                 name=TRIM(headline), &
-                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                 nze=0)
+               CALL dbcsr_create(matrix=matrixkp_ks(ispin, ic)%matrix, template=refmatrix, &
+                                 name=TRIM(headline), matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin, ic)%matrix, sab_orb)
                CALL dbcsr_set(matrixkp_ks(ispin, ic)%matrix, 0.0_dp)
             ENDDO
@@ -1621,12 +1618,9 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit(ispin)%matrix)
                CALL dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
-               CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
+               CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, template=refmatrix, &
                                  name="KOHN-SHAM_MATRIX for ADMM", &
-                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                 nze=0)
+                                 matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix, sab_aux_fit)
                CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
             ENDDO
@@ -1639,12 +1633,9 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit_dft(ispin)%matrix)
                CALL dbcsr_init(matrix_ks_aux_fit_dft(ispin)%matrix)
-               CALL dbcsr_create(matrix=matrix_ks_aux_fit_dft(ispin)%matrix, &
+               CALL dbcsr_create(matrix=matrix_ks_aux_fit_dft(ispin)%matrix, template=refmatrix, &
                                  name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY DFT EXCHANGE", &
-                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                 nze=0)
+                                 matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_dft(ispin)%matrix, sab_aux_fit)
                CALL dbcsr_set(matrix_ks_aux_fit_dft(ispin)%matrix, 0.0_dp)
             ENDDO
@@ -1657,12 +1648,9 @@ CONTAINS
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit_hfx(ispin)%matrix)
                CALL dbcsr_init(matrix_ks_aux_fit_hfx(ispin)%matrix)
-               CALL dbcsr_create(matrix=matrix_ks_aux_fit_hfx(ispin)%matrix, &
+               CALL dbcsr_create(matrix=matrix_ks_aux_fit_hfx(ispin)%matrix, template=refmatrix, &
                                  name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY HF EXCHANGE", &
-                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=dbcsr_row_block_sizes(refmatrix), &
-                                 col_blk_size=dbcsr_col_block_sizes(refmatrix), &
-                                 nze=0)
+                                 matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_hfx(ispin)%matrix, sab_aux_fit)
                CALL dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
             ENDDO
