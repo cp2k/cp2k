@@ -71,6 +71,7 @@ def check_warnings(fn):
         if("Non-significant digits in 'REAL(8)'" in warning): continue
         if("CHARACTER expression" in warning and "truncated" in warning): continue
         if("POINTER-valued function appears on right-hand side" in warning): continue
+        if("style of line directive is a GCC extension" in warning): continue
 
         # ok this warning we should handle
         if("called with an implicit interface" in warning):
