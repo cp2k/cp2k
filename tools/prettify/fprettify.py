@@ -222,7 +222,7 @@ def is_fypp(infile):
 
     infile.seek(0)
     for line in infile.readlines():
-        if FYPP_RE.match(line):
+        if FYPP_RE.search(line):
             return True
 
     infile.seek(0)
