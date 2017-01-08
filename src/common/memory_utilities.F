@@ -40,6 +40,55 @@ MODULE memory_utilities
 
 CONTAINS
 
+#! *************************************************************************************************
+#!> \brief Fypp macro for common subroutine body
+#!> \author Ole Schuett
+#! *************************************************************************************************
+#:def reallocate(rank)
+
+      INTEGER :: istat
+#:for i in range(1, rank+1)
+      INTEGER :: lb${i}$, lb${i}$_old, ub${i}$, ub${i}$_old
+#:endfor
+
+    IF (ASSOCIATED(p)) THEN
+
+#:for i in range(1, rank+1)
+       lb${i}$_old = LBOUND(p,${i}$)
+       ub${i}$_old = UBOUND(p,${i}$)
+       lb${i}$ = MAX(lb${i}$_new,lb${i}$_old)
+       ub${i}$ = MIN(ub${i}$_new,ub${i}$_old)
+#:endfor
+
+#:set old_bounds = ','.join(['lb{0}:ub{0}'.format(i) for i in range(1, rank+1)])
+#:set old_size  = '*'.join(['(ub{0}-lb{0}+1)'.format(i) for i in range(1, rank+1)])
+
+       ALLOCATE (work( ${old_bounds}$ ), STAT=istat)
+       IF (istat /= 0) THEN
+          CALL stop_memory(routineN,moduleN,__LINE__,&
+                           "work",t_size*${old_size}$)
+       END IF
+       work(${old_bounds}$) = p(${old_bounds}$)
+       DEALLOCATE (p)
+    END IF
+
+#:set new_bounds = ','.join(['lb{0}_new:ub{0}_new'.format(i) for i in range(1, rank+1)])
+#:set new_size  = '*'.join(['(ub{0}_new-lb{0}_new+1)'.format(i) for i in range(1, rank+1)])
+
+    ALLOCATE (p(${new_bounds}$),STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,&
+                        "p",t_size*${new_size}$)
+    END IF
+    p = zero
+
+    IF (ASSOCIATED(p).AND.ALLOCATED(work)) THEN
+       p(${old_bounds}$) = work(${old_bounds}$)
+       DEALLOCATE (work)
+    END IF
+
+#:enddef
+
 ! **************************************************************************************************
 !> \brief (Re)Allocate a complex vector with a new dimension
 !> \param p ...
@@ -60,7 +109,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: work
 
-#include "reallocate_1.f90"
+$: reallocate(rank=1)
 
    END SUBROUTINE reallocate_c1
 
@@ -86,7 +135,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: work
 
-#include "reallocate_2.f90"
+$: reallocate(rank=2)
 
    END SUBROUTINE reallocate_c2
 
@@ -115,7 +164,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: work
 
-#include "reallocate_3.f90"
+$: reallocate(rank=3)
 
    END SUBROUTINE reallocate_c3
 
@@ -148,7 +197,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: work
 
-#include "reallocate_4.f90"
+$: reallocate(rank=4)
 
    END SUBROUTINE reallocate_c4
 
@@ -171,7 +220,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work
 
-#include "reallocate_1.f90"
+$: reallocate(rank=1)
 
    END SUBROUTINE reallocate_i1
 
@@ -196,7 +245,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: work
 
-#include "reallocate_2.f90"
+$: reallocate(rank=2)
 
    END SUBROUTINE reallocate_i2
 
@@ -224,7 +273,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: work
 
-#include "reallocate_3.f90"
+$: reallocate(rank=3)
 
    END SUBROUTINE reallocate_i3
 
@@ -255,7 +304,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: work
 
-#include "reallocate_4.f90"
+$: reallocate(rank=4)
 
    END SUBROUTINE reallocate_i4
 
@@ -279,7 +328,7 @@ CONTAINS
 
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: work
 
-#include "reallocate_1.f90"
+$: reallocate(rank=1)
 
    END SUBROUTINE reallocate_8i1
 
@@ -305,7 +354,7 @@ CONTAINS
 
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: work
 
-#include "reallocate_2.f90"
+$: reallocate(rank=2)
 
    END SUBROUTINE reallocate_8i2
 
@@ -329,7 +378,7 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
 
-#include "reallocate_1.f90"
+$: reallocate(rank=1)
 
    END SUBROUTINE reallocate_r1
 
@@ -355,7 +404,7 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
 
-#include "reallocate_2.f90"
+$: reallocate(rank=2)
 
    END SUBROUTINE reallocate_r2
 
@@ -384,7 +433,7 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work
 
-#include "reallocate_3.f90"
+$: reallocate(rank=3)
 
    END SUBROUTINE reallocate_r3
 
@@ -416,7 +465,7 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: work
 
-#include "reallocate_4.f90"
+$: reallocate(rank=4)
 
    END SUBROUTINE reallocate_r4
 
@@ -452,7 +501,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: work
 
-#include "reallocate_5.f90"
+$: reallocate(rank=5)
 
    END SUBROUTINE reallocate_r5
 
@@ -476,7 +525,7 @@ CONTAINS
 
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: work
 
-#include "reallocate_1.f90"
+$: reallocate(rank=1)
 
    END SUBROUTINE reallocate_l1
 
@@ -539,7 +588,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          ALLOCATABLE, DIMENSION(:)                       :: work
 
-#include "reallocate_1.f90"
+$: reallocate(rank=1)
 
    END SUBROUTINE reallocate_ss1
 
@@ -568,7 +617,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length), ALLOCATABLE, &
          DIMENSION(:)                                    :: work
 
-#include "reallocate_1.f90"
+$: reallocate(rank=1)
 
    END SUBROUTINE reallocate_ls1
 
