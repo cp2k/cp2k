@@ -11,7 +11,7 @@ MODULE acc_devmem
 #if  defined (__ACC)
   USE ISO_C_BINDING, ONLY: C_INT, C_SIZE_T, C_PTR, C_LOC, C_NULL_PTR
 #endif
-  USE acc_kinds,                       ONLY: int_4,&
+  USE kinds,                           ONLY: int_4,&
                                              int_4_size,&
                                              int_8,&
                                              int_8_size,&
@@ -482,12 +482,12 @@ CONTAINS
    END SUBROUTINE dev2host_raw
 #endif
 
-#:set instances = [ ('i4', 'int_4_size',     'INTEGER(kind=int_4)'), &
-                 &  ('i8', 'int_8_size',     'INTEGER(kind=int_8)'), &
-                 &  ('r4', 'real_4_size',    'REAL(kind=real_4)'), &
-                 &  ('r8', 'real_8_size',    'REAL(kind=real_8)'), &
-                 &  ('c4', 'complex_4_size', 'COMPLEX(kind=real_4)'), &
-                 &  ('c8', 'complex_8_size', 'COMPLEX(kind=real_8)') ]
+#:set instances = [ ('i4', 'int_4_size',    'INTEGER(kind=int_4)'), &
+                 &  ('i8', 'int_8_size',    'INTEGER(kind=int_8)'), &
+                 &  ('r4', 'real_4_size',   'REAL(kind=real_4)'), &
+                 &  ('r8', 'real_8_size',   'REAL(kind=real_8)'), &
+                 &  ('c4', '2*real_4_size', 'COMPLEX(kind=real_4)'), &
+                 &  ('c8', '2*real_8_size', 'COMPLEX(kind=real_8)') ]
 
 #:for nametype, size, type in instances
 
