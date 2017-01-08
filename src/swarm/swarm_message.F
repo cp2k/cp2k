@@ -35,17 +35,17 @@ MODULE swarm_message
    INTEGER, PARAMETER  :: key_length = 20
 
    TYPE message_entry_type
-      CHARACTER(LEN=key_length)                        :: key
-      TYPE(message_entry_type), POINTER     :: next => Null()
-      CHARACTER(LEN=default_string_length), POINTER     :: value_str => Null()
-      INTEGER(KIND=int_4), POINTER     :: value_i4 => Null()
-      INTEGER(KIND=int_8), POINTER     :: value_i8 => Null()
-      REAL(KIND=real_4), POINTER     :: value_r4 => Null()
-      REAL(KIND=real_8), POINTER     :: value_r8 => Null()
+      CHARACTER(LEN=key_length)                      :: key
+      TYPE(message_entry_type), POINTER              :: next => Null()
+      CHARACTER(LEN=default_string_length), POINTER  :: value_str => Null()
+      INTEGER(KIND=int_4), POINTER                   :: value_i4 => Null()
+      INTEGER(KIND=int_8), POINTER                   :: value_i8 => Null()
+      REAL(KIND=real_4), POINTER                     :: value_r4 => Null()
+      REAL(KIND=real_8), POINTER                     :: value_r8 => Null()
       INTEGER(KIND=int_4), DIMENSION(:), POINTER     :: value_1d_i4 => Null()
       INTEGER(KIND=int_8), DIMENSION(:), POINTER     :: value_1d_i8 => Null()
-      REAL(KIND=real_4), DIMENSION(:), POINTER     :: value_1d_r4 => Null()
-      REAL(KIND=real_8), DIMENSION(:), POINTER     :: value_1d_r8 => Null()
+      REAL(KIND=real_4), DIMENSION(:), POINTER       :: value_1d_r4 => Null()
+      REAL(KIND=real_8), DIMENSION(:), POINTER       :: value_1d_r8 => Null()
    END TYPE message_entry_type
 
 ! **************************************************************************************************
@@ -546,7 +546,6 @@ CONTAINS
       CASE (4)
          ALLOCATE (entry%value_r8)
          CALL mp_recv(entry%value_r8, src, tag, group)
-
       CASE (5)
          CALL mp_recv(s, src, tag, group)
          ALLOCATE (entry%value_1d_i4(s))
@@ -867,15 +866,103 @@ CONTAINS
       ENDDO
    END FUNCTION iarr2str
 
-#include "swarm_message_str.f90"
-#include "swarm_message_i4.f90"
-#include "swarm_message_i8.f90"
-#include "swarm_message_r4.f90"
-#include "swarm_message_r8.f90"
-#include "swarm_message_1d_i4.f90"
-#include "swarm_message_1d_i8.f90"
-#include "swarm_message_1d_r4.f90"
-#include "swarm_message_1d_r8.f90"
+
+#:set instances = {'str'   : 'CHARACTER(LEN=*)', &
+                &  'i4'    : 'INTEGER(KIND=int_4)', &
+                &  'i8'    : 'INTEGER(KIND=int_8)', &
+                &  'r4'    : 'REAL(KIND=real_4)', &
+                &  'r8'    : 'REAL(KIND=real_8)', &
+                &  '1d_i4' : 'INTEGER(KIND=int_4), DIMENSION(:)', &
+                &  '1d_i8' : 'INTEGER(KIND=int_8), DIMENSION(:)', &
+                &  '1d_r4' : 'REAL(KIND=real_4), DIMENSION(:)', &
+                &  '1d_r8' : 'REAL(KIND=real_8), DIMENSION(:)' }
+
+#:for label, type in instances.items()
+
+! **************************************************************************************************
+!> \brief Addes an entry from a swarm-message.
+!> \param msg ...
+!> \param key ...
+!> \param value ...
+!> \author Ole Schuett
+! **************************************************************************************************
+ SUBROUTINE swarm_message_add_${label}$(msg, key, value)
+   TYPE(swarm_message_type), INTENT(INOUT)   :: msg
+   CHARACTER(LEN=*), INTENT(IN)              :: key
+   ${type}$, INTENT(IN)                      :: value
+
+   TYPE(message_entry_type), POINTER :: new_entry
+
+   IF(swarm_message_haskey(msg, key)) &
+      CPABORT("swarm_message_add_${label}$: key already exists: "//TRIM(key))
+
+   ALLOCATE(new_entry)
+   new_entry%key = key
+
+#:if label.startswith("1d_")
+   ALLOCATE(new_entry%value_${label}$(SIZE(value)))
+#:else
+   ALLOCATE(new_entry%value_${label}$)
+#:endif
+
+   new_entry%value_${label}$ = value
+
+   !WRITE (*,*) "swarm_message_add_${label}$: key=",key, " value=",new_entry%value_${label}$
+
+   IF(.NOT. ASSOCIATED(msg%root)) THEN
+      msg%root => new_entry
+   ELSE
+      new_entry%next => msg%root
+      msg%root => new_entry
+   ENDIF
+
+ END SUBROUTINE swarm_message_add_${label}$
+
+
+! **************************************************************************************************
+!> \brief Returns an entry from a swarm-message.
+!> \param msg ...
+!> \param key ...
+!> \param value ...
+!> \author Ole Schuett
+! **************************************************************************************************
+ SUBROUTINE swarm_message_get_${label}$(msg, key, value)
+   TYPE(swarm_message_type), INTENT(IN)  :: msg
+   CHARACTER(LEN=*), INTENT(IN)          :: key
+
+#:if label=="str"
+   CHARACTER(LEN=default_string_length)  :: value
+#:elif label.startswith("1d_")
+   ${type}$, POINTER                     :: value
+#:else
+   ${type}$, INTENT(OUT)                 :: value
+#:endif
+
+   TYPE(message_entry_type), POINTER :: curr_entry
+   !WRITE (*,*) "swarm_message_get_${label}$: key=",key
+
+#:if label.startswith("1d_")
+   IF(ASSOCIATED(value)) CPABORT("swarm_message_get_${label}$: value already associated")
+#:endif
+
+   curr_entry => msg%root
+   DO WHILE(ASSOCIATED(curr_entry))
+      IF(TRIM(curr_entry%key) == TRIM(key)) THEN
+         IF(.NOT. ASSOCIATED(curr_entry%value_${label}$)) &
+            CPABORT("swarm_message_get_${label}$: value not associated key: "//TRIM(key))
+#:if label.startswith("1d_")
+         ALLOCATE(value(SIZE(curr_entry%value_${label}$)))
+#:endif
+         value = curr_entry%value_${label}$
+         !WRITE (*,*) "swarm_message_get_${label}$: value=",value
+         RETURN
+      ENDIF
+      curr_entry => curr_entry%next
+   END DO
+   CPABORT("swarm_message_get: key not found: "//TRIM(key))
+ END SUBROUTINE swarm_message_get_${label}$
+
+#:endfor
 
 END MODULE swarm_message
 
