@@ -482,11 +482,83 @@ CONTAINS
    END SUBROUTINE dev2host_raw
 #endif
 
-#include "acc_devmem_i4.f90"
-#include "acc_devmem_i8.f90"
-#include "acc_devmem_r4.f90"
-#include "acc_devmem_r8.f90"
-#include "acc_devmem_c4.f90"
-#include "acc_devmem_c8.f90"
+#:set instances = [ ('i4', 'int_4_size',     'INTEGER(kind=int_4)'), &
+                 &  ('i8', 'int_8_size',     'INTEGER(kind=int_8)'), &
+                 &  ('r4', 'real_4_size',    'REAL(kind=real_4)'), &
+                 &  ('r8', 'real_8_size',    'REAL(kind=real_8)'), &
+                 &  ('c4', 'complex_4_size', 'COMPLEX(kind=real_4)'), &
+                 &  ('c8', 'complex_8_size', 'COMPLEX(kind=real_8)') ]
+
+#:for nametype, size, type in instances
+
+! **************************************************************************************************
+!> \brief Transfers 1D fortran-array from host to cuda devmem.
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
+!> \author  Ole Schuett
+! **************************************************************************************************
+ SUBROUTINE host2dev_${nametype}$_1D(this, hostmem, stream)
+    TYPE(acc_devmem_type), INTENT(IN)        :: this
+    ${type}$, DIMENSION(:), POINTER          :: hostmem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+
+#if ! defined (__ACC)
+    MARK_USED(this)
+    MARK_USED(hostmem)
+    MARK_USED(stream)
+    CPABORT("__ACC not compiled in.")
+#else
+    CALL host2dev_raw(this, C_LOC(hostmem(1)), ${size}$*SIZE(hostmem), stream)
+#endif
+ END SUBROUTINE host2dev_${nametype}$_1D
+
+
+! **************************************************************************************************
+!> \brief Transfers 2D fortran-array from host to cuda devmem.
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
+!> \author  Ole Schuett
+! **************************************************************************************************
+ SUBROUTINE host2dev_${nametype}$_2D(this, hostmem, stream)
+    TYPE(acc_devmem_type), INTENT(IN)        :: this
+    ${type}$, DIMENSION(:, :), POINTER       :: hostmem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+
+#if ! defined (__ACC)
+    MARK_USED(this)
+    MARK_USED(hostmem)
+    MARK_USED(stream)
+    CPABORT("__ACC not compiled in.")
+#else
+    CALL host2dev_raw(this, C_LOC(hostmem(1,1)), ${size}$*SIZE(hostmem), stream)
+#endif
+ END SUBROUTINE host2dev_${nametype}$_2D
+
+
+! **************************************************************************************************
+!> \brief Transfers cuda devmem to 1D fortran-array.
+!> \param[in] this device memory
+!> \param hostmem host memory
+!> \param[in] stream stream
+!> \author  Ole Schuett
+! **************************************************************************************************
+ SUBROUTINE dev2host_${nametype}$_1D(this, hostmem, stream)
+    TYPE(acc_devmem_type), INTENT(IN)        :: this
+    ${type}$, DIMENSION(:), POINTER          :: hostmem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+
+#if ! defined (__ACC)
+    MARK_USED(this)
+    MARK_USED(hostmem)
+    MARK_USED(stream)
+    CPABORT("__ACC not compiled in.")
+#else
+    CALL dev2host_raw(this, C_LOC(hostmem(1)), ${size}$*SIZE(hostmem), stream)
+#endif
+ END SUBROUTINE dev2host_${nametype}$_1D
+
+#:endfor
 
 END MODULE acc_devmem

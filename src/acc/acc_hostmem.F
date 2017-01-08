@@ -36,21 +36,21 @@ MODULE acc_hostmem
    PUBLIC :: acc_hostmem_allocate, acc_hostmem_deallocate
 
    INTERFACE acc_hostmem_allocate
-      MODULE PROCEDURE acc_hostmem_alloc_i, acc_hostmem_alloc_l
-      MODULE PROCEDURE acc_hostmem_alloc_r, acc_hostmem_alloc_d
-      MODULE PROCEDURE acc_hostmem_alloc_c, acc_hostmem_alloc_z
-      MODULE PROCEDURE acc_hostmem_alloc_i_2D, acc_hostmem_alloc_l_2D
-      MODULE PROCEDURE acc_hostmem_alloc_r_2D, acc_hostmem_alloc_d_2D
-      MODULE PROCEDURE acc_hostmem_alloc_c_2D, acc_hostmem_alloc_z_2D
+      MODULE PROCEDURE acc_hostmem_alloc_i4, acc_hostmem_alloc_i8
+      MODULE PROCEDURE acc_hostmem_alloc_r4, acc_hostmem_alloc_r8
+      MODULE PROCEDURE acc_hostmem_alloc_c4, acc_hostmem_alloc_c8
+      MODULE PROCEDURE acc_hostmem_alloc_i4_2D, acc_hostmem_alloc_i8_2D
+      MODULE PROCEDURE acc_hostmem_alloc_r4_2D, acc_hostmem_alloc_r8_2D
+      MODULE PROCEDURE acc_hostmem_alloc_c4_2D, acc_hostmem_alloc_c8_2D
    END INTERFACE
 
    INTERFACE acc_hostmem_deallocate
-      MODULE PROCEDURE acc_hostmem_dealloc_i, acc_hostmem_dealloc_l
-      MODULE PROCEDURE acc_hostmem_dealloc_r, acc_hostmem_dealloc_d
-      MODULE PROCEDURE acc_hostmem_dealloc_c, acc_hostmem_dealloc_z
-      MODULE PROCEDURE acc_hostmem_dealloc_i_2D, acc_hostmem_dealloc_l_2D
-      MODULE PROCEDURE acc_hostmem_dealloc_r_2D, acc_hostmem_dealloc_d_2D
-      MODULE PROCEDURE acc_hostmem_dealloc_c_2D, acc_hostmem_dealloc_z_2D
+      MODULE PROCEDURE acc_hostmem_dealloc_i4, acc_hostmem_dealloc_i8
+      MODULE PROCEDURE acc_hostmem_dealloc_r4, acc_hostmem_dealloc_r8
+      MODULE PROCEDURE acc_hostmem_dealloc_c4, acc_hostmem_dealloc_c8
+      MODULE PROCEDURE acc_hostmem_dealloc_i4_2D, acc_hostmem_dealloc_i8_2D
+      MODULE PROCEDURE acc_hostmem_dealloc_r4_2D, acc_hostmem_dealloc_r8_2D
+      MODULE PROCEDURE acc_hostmem_dealloc_c4_2D, acc_hostmem_dealloc_c8_2D
    END INTERFACE
 
 #if defined (__ACC)
@@ -80,12 +80,6 @@ MODULE acc_hostmem
 
 CONTAINS
 
-#include "acc_hostmem_i.f90"
-#include "acc_hostmem_l.f90"
-#include "acc_hostmem_r.f90"
-#include "acc_hostmem_d.f90"
-#include "acc_hostmem_c.f90"
-#include "acc_hostmem_z.f90"
 
 ! **************************************************************************************************
 !> \brief Helper-routine performing allocation of host-pinned cuda memory.
@@ -110,8 +104,7 @@ CONTAINS
 
       stream_cptr = acc_stream_cptr(stream)
 
-      istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, &
-                                     INT(n_bytes, KIND=C_SIZE_T), stream_cptr)
+      istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, INT(n_bytes, KIND=C_SIZE_T), stream_cptr)
       IF (istat /= 0) &
          CPABORT("acc_hostmem_alloc_raw: Could not allocate host pinned memory")
    END SUBROUTINE acc_hostmem_alloc_raw
@@ -143,5 +136,117 @@ CONTAINS
          CPABORT("acc_hostmem_dealloc_raw: Could not deallocate host pinned memory")
    END SUBROUTINE acc_hostmem_dealloc_raw
 #endif
+
+
+#:set instances = [ ('i4', 'int_4_size',     'INTEGER(kind=int_4)'), &
+                 &  ('i8', 'int_8_size',     'INTEGER(kind=int_8)'), &
+                 &  ('r4', 'real_4_size',    'REAL(kind=real_4)'), &
+                 &  ('r8', 'real_8_size',    'REAL(kind=real_8)'), &
+                 &  ('c4', 'complex_4_size', 'COMPLEX(kind=real_4)'), &
+                 &  ('c8', 'complex_8_size', 'COMPLEX(kind=real_8)') ]
+
+#:for nametype, size, type in instances
+
+! **************************************************************************************************
+!> \brief Allocates 1D fortan-array as cuda host-pinned memory.
+!> \param host_mem pointer to array
+!> \param n size given in terms of item-count (not bytes!)
+!> \param stream ...
+!> \author  Ole Schuett
+! **************************************************************************************************
+  SUBROUTINE acc_hostmem_alloc_${nametype}$ (host_mem, n, stream)
+    ${type}$, DIMENSION(:), POINTER          :: host_mem
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+#if defined (__ACC)
+    TYPE(C_PTR)                              :: host_mem_c_ptr
+
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*${size}$, stream)
+    CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
+#else
+    MARK_USED(host_mem)
+    MARK_USED(n)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_alloc_${nametype}$: ACC not compiled in.")
+#endif
+  END SUBROUTINE acc_hostmem_alloc_${nametype}$
+
+
+
+! **************************************************************************************************
+!> \brief Allocates 2D fortan-array as cuda host-pinned memory.
+!> \param host_mem pointer to array
+!> \param n1 sizes given in terms of item-count (not bytes!)
+!> \param n2 sizes given in terms of item-count (not bytes!)
+!> \param stream ...
+!> \author  Ole Schuett
+! **************************************************************************************************
+  SUBROUTINE acc_hostmem_alloc_${nametype}$_2D (host_mem, n1, n2, stream)
+    ${type}$, DIMENSION(:,:), POINTER        :: host_mem
+    INTEGER, INTENT(IN)                      :: n1, n2
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+#if defined (__ACC)
+    TYPE(C_PTR)                              :: host_mem_c_ptr
+    INTEGER                                  :: n_bytes
+
+    n_bytes = MAX(1,n1)*MAX(1,n2)*${size}$
+    CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
+    CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
+#else
+    MARK_USED(host_mem)
+    MARK_USED(n1)
+    MARK_USED(n2)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_alloc_${nametype}$_2D: ACC not compiled in.")
+#endif
+  END SUBROUTINE acc_hostmem_alloc_${nametype}$_2D
+
+
+! **************************************************************************************************
+!> \brief Deallocates a 1D fortan-array, which is cuda host-pinned memory.
+!> \param host_mem pointer to array
+!> \param stream ...
+!> \author  Ole Schuett
+! **************************************************************************************************
+  SUBROUTINE acc_hostmem_dealloc_${nametype}$ (host_mem, stream)
+    ${type}$, DIMENSION(:), POINTER          :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+    CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_${nametype}$', &
+      routineP = moduleN//':'//routineN
+
+    IF (SIZE (host_mem) == 0) RETURN
+#if defined (__ACC)
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1)), stream)
+#else
+    MARK_USED(host_mem)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_dealloc_${nametype}$: ACC not compiled in.")
+#endif
+  END SUBROUTINE acc_hostmem_dealloc_${nametype}$
+
+
+! **************************************************************************************************
+!> \brief Deallocates a 2D fortan-array, which is cuda host-pinned memory.
+!> \param host_mem pointer to array
+!> \param stream ...
+!> \author  Ole Schuett
+! **************************************************************************************************
+  SUBROUTINE acc_hostmem_dealloc_${nametype}$_2D (host_mem, stream)
+    ${type}$, DIMENSION(:,:), POINTER        :: host_mem
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+    CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_${nametype}$_2D', &
+      routineP = moduleN//':'//routineN
+
+    IF (SIZE (host_mem) == 0) RETURN
+#if defined (__ACC)
+    CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1)), stream)
+#else
+    MARK_USED(host_mem)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_dealloc_${nametype}$: ACC not compiled in.")
+#endif
+  END SUBROUTINE acc_hostmem_dealloc_${nametype}$_2D
+
+#:endfor
 
 END MODULE acc_hostmem
