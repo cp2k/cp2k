@@ -27,6 +27,8 @@ MODULE se_fock_matrix_integrals
                                               semi_empirical_type
 #include "./base/base_uses.f90"
 
+#:include "ewalds_multipole_sr.fypp"
+
    IMPLICIT NONE
    PRIVATE
 
@@ -1127,7 +1129,7 @@ CONTAINS
       fac_ij = 1.0_dp
       IF (atom_a == atom_b) fac_ij = 0.5_dp
 
-#include "ewalds_multipole_sr_pure.f90"
+$: ewalds_multipole_sr_macro(mode="PURE_COULOMB")
 
       IF (PRESENT(integral_value)) THEN
          integral_value = eloc

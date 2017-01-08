@@ -1,3 +1,10 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright (C) 2000 - 2017  CP2K developers group                                              !
+#!-------------------------------------------------------------------------------------------------!
+#:mute
+
+#:def ewalds_multipole_sr_macro(mode, damping=False, store_energy=False, store_forces=False)
                 ! Compute the Short Range constribution according the task
                 IF (debug_this_module) THEN
                    f         = HUGE(0.0_dp)
@@ -13,7 +20,7 @@
                 ir    = 1.0_dp/r
 
                 ! Compute the radial function
-#if 0
+#:if mode=="SCREENED_COULOMB_ERFC"
                 ! code for point multipole with screening
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
@@ -27,8 +34,8 @@
                    fac  = fac*REAL(2*i-1,KIND=dp)
                    f(i) = irab2*(f(i-1)+ tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
                 END DO
-#endif
-#if 0
+
+#:elif mode=="SCREENED_COULOMB_GAUSS"
                 ! code for gaussian multipole with screening
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
@@ -44,8 +51,8 @@
                    fac  = fac*REAL(2*i-1,KIND=dp)
                    f(i) = irab2*(f(i-1) + tmp1*((2.0_dp*alpha**2)**i)/(fac*alpha) - tmp2*((2.0_dp*beta**2)**i)/(fac*beta))
                 END DO
-#endif
-#if 1
+
+#:elif mode=="SCREENED_COULOMB_ERF"
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
                    tmp   = 0.0_dp
@@ -58,15 +65,15 @@
                    fac  = fac*REAL(2*i-1,KIND=dp)
                    f(i) = irab2*(f(i-1) - tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
                 END DO
-#endif
-#if 0
+
+#:elif mode=="PURE_COULOMB"
                 ! code for point multipole without screening
                 f(0)  = ir
                 DO i = 1, 5
                    f(i) = irab2*f(i-1)
                 END DO
-#endif
-#if 0
+
+#:elif mode=="PURE_COULOMB_GAUSS"
                 ! code for gaussian multipole without screening
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
@@ -81,7 +88,10 @@
                    fac  = fac*REAL(2*i-1,KIND=dp)
                    f(i) = irab2*(f(i-1) - tmp*((2.0_dp*beta**2)**i)/(fac*beta))
                 END DO
-#endif
+#:else
+#:stop "Unkown mode: "+mode
+#:endif
+
                 ! Compute the Tensor components
                 force_eval = do_stress
                 IF (task(1,1)) THEN
@@ -221,7 +231,7 @@
                 ef2_j = 0.0_dp
                 ef2_i = 0.0_dp
 
-#if 0
+#:if damping
 
                 ! Initialize the damping function.
                 IF (kind_a==ikind) THEN
@@ -321,7 +331,7 @@
                    END DO
                 END DO
 
-#endif
+#:endif
 
                 ! Initialize the charge, dipole and quadrupole for atom A and B
                 IF (debug_this_module) THEN
@@ -371,7 +381,7 @@
                          ef1_j(2) = ef1_j(2) + tij_a(2) * ch_i
                          ef1_j(3) = ef1_j(3) + tij_a(3) * ch_i
 
-#if 0
+#:if damping
                          ef1_i(1) = ef1_i(1) + damptij_a(1) * ch_j
                          ef1_i(2) = ef1_i(2) + damptij_a(2) * ch_j
                          ef1_i(3) = ef1_i(3) + damptij_a(3) * ch_j
@@ -379,7 +389,7 @@
                          ef1_j(1) = ef1_j(1) - damptji_a(1) * ch_i
                          ef1_j(2) = ef1_j(2) - damptji_a(2) * ch_i
                          ef1_j(3) = ef1_j(3) - damptji_a(3) * ch_i
-#endif
+#:endif
 
                       END IF
                       ! Electric field gradient
@@ -534,14 +544,14 @@
                         - ch_i*(tij_a(1)*dp_j(1)+&
                                 tij_a(2)*dp_j(2)+&
                                 tij_a(3)*dp_j(3))
-#if 0
+#:if damping
                    tmp=  tmp- ch_j*(damptij_a(1)*dp_i(1)+&
                                 damptij_a(2)*dp_i(2)+&
                                 damptij_a(3)*dp_i(3))&
                         + ch_i*(damptji_a(1)*dp_j(1)+&
                                 damptji_a(2)*dp_j(2)+&
                                 damptji_a(3)*dp_j(3))
-#endif
+#:endif
                    eloc = eloc + tmp
                    ! Forces on particle i (locally b)
                    IF (do_forces.OR.do_stress) THEN
@@ -552,14 +562,14 @@
                                        +  ch_i *(tij_ab(1,k)*dp_j(1)+&
                                                  tij_ab(2,k)*dp_j(2)+&
                                                  tij_ab(3,k)*dp_j(3))
-#if 0
+#:if damping
                          fr(k) = fr(k) +  ch_j *(damptij_ab(1,k)*dp_i(1)+&
                                                  damptij_ab(2,k)*dp_i(2)+&
                                                  damptij_ab(3,k)*dp_i(3))&
                                        -  ch_i *(damptji_ab(1,k)*dp_j(1)+&
                                                  damptji_ab(2,k)*dp_j(2)+&
                                                  damptji_ab(3,k)*dp_j(3))
-#endif
+#:endif
                       END DO
                    END IF
                 END IF
@@ -1092,10 +1102,10 @@
                       END DO
                    END IF
                 END IF
-#if 1
+#:if store_energy
                 energy = energy + eloc
-#endif
-#if 1
+#:endif
+#:if store_forces
                 IF (do_forces) THEN
                    forces(1,atom_a) = forces(1,atom_a) - fr(1)
                    forces(2,atom_a) = forces(2,atom_a) - fr(2)
@@ -1104,7 +1114,7 @@
                    forces(2,atom_b) = forces(2,atom_b) + fr(2)
                    forces(3,atom_b) = forces(3,atom_b) + fr(3)
                 END IF
-#endif
+#:endif
                 ! Electric fields
                 IF (do_efield) THEN
                    ! Potential
@@ -1157,3 +1167,7 @@
                    ptens23 = ptens23 + rab(2) * fr(3)
                    ptens33 = ptens33 + rab(3) * fr(3)
                 END IF
+
+#:enddef ewalds_multipole_sr_macro
+
+#:endmute
