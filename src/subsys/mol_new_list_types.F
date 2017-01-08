@@ -5,185 +5,22 @@
 
 ! **************************************************************************************************
 !> \brief represent a simple array based list of the given type
-!> \note
-!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
-!>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
-!>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
-!>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
-!>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>                                                        |___/
-!>      ____ _                  ___                              _ _       _       _
-!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _
-!>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
-!>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
-!>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!>                                                                                   |___/
-!>     _____ _     _       _____ _ _      _
-!>    |_   _| |__ (_)___  |  ___(_) | ___| |
-!>      | | | '_ \| / __| | |_  | | |/ _ \ |
-!>      | | | | | | \__ \ |  _| | | |  __/_|
-!>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!>
-!>      This is a template
-!>
-!>      **** DO NOT MODIFY THE .F FILES ****
-!>      modify the .template and .instantition instead
 !> \par History
 !>      08.2003 created [fawzi]
+!>      01.2017 ported to Fypp [Ole Schuett]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE mol_new_list_types
    USE molecule_types_new,              ONLY: deallocate_molecule_set,&
                                               molecule_type
+
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_new_list_types'
-   INTEGER, PRIVATE, SAVE :: last_mol_new_list_id = 0
+#:include "subsys_list.fypp"
 
-   !API
-   PUBLIC :: mol_new_list_type, mol_new_list_p_type, &
-             mol_new_list_create, mol_new_list_retain, &
-             mol_new_list_release
-
-!***
-
-! **************************************************************************************************
-!> \brief represent a list of objects
-!> \param id_nr identification number of this list
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param n_el the number of elements in the list
-!> \param owns_list if the els are owned by this structure, and
-!>        should be deallocated by it
-!> \param list the array of object, might be oversized,
-!>        only the fist n_el have some meaning
-!> \par History
-!>      08.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE mol_new_list_type
-      INTEGER :: id_nr, ref_count, n_els
-      LOGICAL :: owns_els
-      TYPE(molecule_type), DIMENSION(:), POINTER :: els
-   END TYPE mol_new_list_type
-
-! **************************************************************************************************
-!> \brief represents a pointer to a list
-!> \param list the pointer to the list
-!> \par History
-!>      08.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE mol_new_list_p_type
-      TYPE(mol_new_list_type), POINTER :: list
-   END TYPE mol_new_list_p_type
-
-CONTAINS
-
-! **************************************************************************************************
-!> \brief creates a list
-!> \param list the list to allocate and initialize
-!> \param els_ptr the elements to store in the list (the array is only,
-!>        referenced, not copied!)
-!> \param owns_els if the list takes the ownership of els_ptr and
-!>        will deallocate it (defaults to true)
-!> \param n_els number of elements in the list (at least one els_ptr or
-!>        n_els should be given)
-!> \par History
-!>      08.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE mol_new_list_create(list, els_ptr, &
-                                  owns_els, n_els)
-      TYPE(mol_new_list_type), OPTIONAL, POINTER         :: list
-      TYPE(molecule_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: els_ptr
-      LOGICAL, INTENT(in), OPTIONAL                      :: owns_els
-      INTEGER, INTENT(in), OPTIONAL                      :: n_els
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_create', &
-         routineP = moduleN//':'//routineN
-
-      CPASSERT(PRESENT(els_ptr) .OR. PRESENT(n_els))
-
-      ALLOCATE (list)
-      last_mol_new_list_id = last_mol_new_list_id+1
-      list%id_nr = last_mol_new_list_id
-      list%ref_count = 1
-      list%owns_els = .TRUE.
-      list%n_els = 0
-      IF (PRESENT(owns_els)) list%owns_els = owns_els
-      NULLIFY (list%els)
-      IF (PRESENT(els_ptr)) THEN
-         list%els => els_ptr
-         IF (ASSOCIATED(els_ptr)) THEN
-            list%n_els = SIZE(els_ptr)
-         END IF
-      END IF
-      IF (PRESENT(n_els)) list%n_els = n_els
-      IF (.NOT. ASSOCIATED(list%els)) THEN
-         ALLOCATE (list%els(list%n_els))
-         CPASSERT(list%owns_els)
-      END IF
-   END SUBROUTINE mol_new_list_create
-
-! **************************************************************************************************
-!> \brief retains a list (see doc/ReferenceCounting.html)
-!> \param list the list to retain
-!> \par History
-!>      08.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE mol_new_list_retain(list)
-      TYPE(mol_new_list_type), POINTER                   :: list
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_retain', &
-         routineP = moduleN//':'//routineN
-
-      CPASSERT(ASSOCIATED(list))
-      CPASSERT(list%ref_count > 0)
-      list%ref_count = list%ref_count+1
-   END SUBROUTINE mol_new_list_retain
-
-! **************************************************************************************************
-!> \brief releases a  list (see doc/ReferenceCounting.html)
-!> \param list the list to release
-!> \par History
-!>      08.2003 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE mol_new_list_release(list)
-      TYPE(mol_new_list_type), POINTER                   :: list
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_release', &
-         routineP = moduleN//':'//routineN
-
-      IF (ASSOCIATED(list)) THEN
-         CPASSERT(list%ref_count > 0)
-         list%ref_count = list%ref_count-1
-         IF (list%ref_count == 0) THEN
-            IF (list%owns_els) THEN
-               IF (ASSOCIATED(list%els)) THEN
-                  CALL deallocate_molecule_set(list%els)
-               END IF
-            END IF
-            NULLIFY (list%els)
-            DEALLOCATE (list)
-         END IF
-      END IF
-      NULLIFY (list)
-   END SUBROUTINE mol_new_list_release
-
-! template def put here so that line numbers in template and derived
-! files are almost the same (multi-line use change it a bit)
-! [template(el_typename,el_type,USE,deallocate_els_code)]
-! ARGS:
-!  USE = "use molecule_types_new, only: molecule_type, deallocate_molecule_set"
-!  deallocate_els_code = "call deallocate_molecule_set(list%els)"
-!  el_type = "type(molecule_type)"
-!  el_typename = "mol_new"
+$:subsys_list_macro(shortname='mol_new', longname='molecule')
 
 END MODULE mol_new_list_types
