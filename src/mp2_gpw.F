@@ -76,7 +76,7 @@ MODULE mp2_gpw
                                               mp_sendrecv,&
                                               mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE mp2_cphf,                        ONLY: solve_z_vector_eq
    USE mp2_ri_gpw,                      ONLY: mp2_ri_gpw_compute_en,&
                                               mp2_ri_gpw_compute_in

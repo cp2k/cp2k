@@ -16,7 +16,7 @@ MODULE csvr_system_dynamics
                                               npt_info_type
    USE kinds,                           ONLY: dp
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE parallel_rng_types,              ONLY: rng_stream_type
    USE particle_types,                  ONLY: particle_type
    USE thermostat_utils,                ONLY: ke_region_baro,&

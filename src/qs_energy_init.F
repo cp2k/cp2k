@@ -29,7 +29,7 @@ MODULE qs_energy_init
    USE kpoint_types,                    ONLY: kpoint_type
    USE lri_environment_methods,         ONLY: build_lri_matrices
    USE lri_environment_types,           ONLY: lri_environment_type
-   USE molecule_types_new,              ONLY: molecule_of_atom,&
+   USE molecule_types,                  ONLY: molecule_of_atom,&
                                               molecule_type
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ecore_self

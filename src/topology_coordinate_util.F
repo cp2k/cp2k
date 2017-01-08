@@ -36,7 +36,7 @@ MODULE topology_coordinate_util
                                               get_molecule_kind,&
                                               molecule_kind_type,&
                                               set_molecule_kind
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE particle_types,                  ONLY: allocate_particle_set,&
                                               particle_type

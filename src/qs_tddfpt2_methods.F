@@ -97,7 +97,7 @@ MODULE qs_tddfpt2_methods
                                               mp_sum,&
                                               mp_wait
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt

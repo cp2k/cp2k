@@ -26,14 +26,14 @@ MODULE eip_environment_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                              mol_kind_new_list_release,&
-                                              mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                              mol_new_list_release,&
-                                              mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
+                                              molecule_kind_list_release,&
+                                              molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_list_types,             ONLY: molecule_list_create,&
+                                              molecule_list_release,&
+                                              molecule_list_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_create,&
                                               particle_list_release,&
                                               particle_list_type
@@ -247,13 +247,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_get', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
-      TYPE(mol_new_list_type), POINTER                   :: molecules_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
 !   ------------------------------------------------------------------------
 
-      NULLIFY (atomic_kinds, particles, molecules_new, molecule_kinds_new)
+      NULLIFY (atomic_kinds, particles, molecules, molecule_kinds)
 
       CPASSERT(ASSOCIATED(eip_env))
       CPASSERT(eip_env%ref_count > 0)
@@ -276,16 +276,16 @@ CONTAINS
       CALL cp_subsys_get(eip_env%subsys, &
                          atomic_kinds=atomic_kinds, &
                          particles=particles, &
-                         molecule_kinds_new=molecule_kinds_new, &
-                         molecules_new=molecules_new, &
-                         local_molecules_new=local_molecules, &
+                         molecule_kinds=molecule_kinds, &
+                         molecules=molecules, &
+                         local_molecules=local_molecules, &
                          local_particles=local_particles, &
                          virial=virial, &
                          cell=cell)
       IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
       IF (PRESENT(particle_set)) particle_set => particles%els
-      IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
-      IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
+      IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds%els
+      IF (PRESENT(molecule_set)) molecule_set => molecules%els
 
       IF (PRESENT(eip_input)) eip_input => eip_env%eip_input
       IF (PRESENT(force_env_input)) force_env_input => eip_env%force_env_input
@@ -357,8 +357,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_set', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
-      TYPE(mol_new_list_type), POINTER                   :: molecules_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
 !   ------------------------------------------------------------------------
@@ -386,40 +386,30 @@ CONTAINS
          eip_env%subsys => subsys
       END IF
       IF (PRESENT(atomic_kind_set)) THEN
-         CALL atomic_kind_list_create(atomic_kinds, &
-                                      els_ptr=atomic_kind_set)
-         CALL cp_subsys_set(eip_env%subsys, &
-                            atomic_kinds=atomic_kinds)
+         CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)
+         CALL cp_subsys_set(eip_env%subsys, atomic_kinds=atomic_kinds)
          CALL atomic_kind_list_release(atomic_kinds)
       END IF
       IF (PRESENT(particle_set)) THEN
-         CALL particle_list_create(particles, &
-                                   els_ptr=particle_set)
-         CALL cp_subsys_set(eip_env%subsys, &
-                            particles=particles)
+         CALL particle_list_create(particles, els_ptr=particle_set)
+         CALL cp_subsys_set(eip_env%subsys, particles=particles)
          CALL particle_list_release(particles)
       END IF
       IF (PRESENT(molecule_kind_set)) THEN
-         CALL mol_kind_new_list_create(molecule_kinds_new, &
-                                       els_ptr=molecule_kind_set)
-         CALL cp_subsys_set(eip_env%subsys, &
-                            molecule_kinds_new=molecule_kinds_new)
-         CALL mol_kind_new_list_release(molecule_kinds_new)
+         CALL molecule_kind_list_create(molecule_kinds, els_ptr=molecule_kind_set)
+         CALL cp_subsys_set(eip_env%subsys, molecule_kinds=molecule_kinds)
+         CALL molecule_kind_list_release(molecule_kinds)
       END IF
       IF (PRESENT(molecule_set)) THEN
-         CALL mol_new_list_create(molecules_new, &
-                                  els_ptr=molecule_set)
-         CALL cp_subsys_set(eip_env%subsys, &
-                            molecules_new=molecules_new)
-         CALL mol_new_list_release(molecules_new)
+         CALL molecule_list_create(molecules, els_ptr=molecule_set)
+         CALL cp_subsys_set(eip_env%subsys, molecules=molecules)
+         CALL molecule_list_release(molecules)
       END IF
       IF (PRESENT(local_particles)) THEN
-         CALL cp_subsys_set(eip_env%subsys, &
-                            local_particles=local_particles)
+         CALL cp_subsys_set(eip_env%subsys, local_particles=local_particles)
       END IF
       IF (PRESENT(local_molecules)) THEN
-         CALL cp_subsys_set(eip_env%subsys, &
-                            local_molecules_new=local_molecules)
+         CALL cp_subsys_set(eip_env%subsys, local_molecules=local_molecules)
       END IF
 
       IF (PRESENT(eip_input)) eip_env%eip_input => eip_input

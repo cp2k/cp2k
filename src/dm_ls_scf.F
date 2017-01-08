@@ -56,7 +56,7 @@ MODULE dm_ls_scf
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathlib,                         ONLY: binomial
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE pao_main,                        ONLY: pao_optimization_end,&
                                               pao_optimization_start,&
                                               pao_post_scf,&

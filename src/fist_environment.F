@@ -57,7 +57,7 @@ MODULE fist_environment
    USE kinds,                           ONLY: dp
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE multipole_types,                 ONLY: create_multipole_type,&
                                               multipole_type,&
                                               release_multipole_type
@@ -162,7 +162,7 @@ CONTAINS
       CALL fist_env_set(fist_env, subsys=subsys, exclusions=exclusions)
 
       CALL force_field_control(subsys%atomic_kinds%els, subsys%particles%els, &
-                               subsys%molecule_kinds_new%els, subsys%molecules_new%els, &
+                               subsys%molecule_kinds%els, subsys%molecules%els, &
                                ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm, &
                                qmmm_env=qmmm_env, subsys_section=subsys_section, &
                                mm_section=mm_section, shell_particle_set=shell_particle_set, &
@@ -248,12 +248,12 @@ CONTAINS
       NULLIFY (thermo, ewald_pw, local_molecules, local_particles, multipoles)
       particle_set => subsys%particles%els
       atomic_kind_set => subsys%atomic_kinds%els
-      molecule_set => subsys%molecules_new%els
-      molecule_kind_set => subsys%molecule_kinds_new%els
+      molecule_set => subsys%molecules%els
+      molecule_kind_set => subsys%molecule_kinds%els
 
       IF (PRESENT(prev_subsys)) THEN
-         prev_molecule_kind_set => prev_subsys%molecule_kinds_new%els
-         prev_local_molecules => prev_subsys%local_molecules_new
+         prev_molecule_kind_set => prev_subsys%molecule_kinds%els
+         prev_local_molecules => prev_subsys%local_molecules
       ELSE
          NULLIFY (prev_molecule_kind_set)
          NULLIFY (prev_local_molecules)

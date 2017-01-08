@@ -30,7 +30,7 @@ MODULE qs_loc_molecules
                                               mp_sum
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: debye

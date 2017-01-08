@@ -52,7 +52,7 @@ MODULE constraint
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE particle_types,                  ONLY: particle_type
    USE simpar_types,                    ONLY: simpar_type

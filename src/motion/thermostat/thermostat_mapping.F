@@ -36,7 +36,7 @@ MODULE thermostat_mapping
                                               g4x6_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               molecule_type
    USE simpar_types,                    ONLY: simpar_type

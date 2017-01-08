@@ -57,10 +57,10 @@ MODULE thermostat_methods
                                               section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -129,8 +129,8 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
-      TYPE(mol_new_list_type), POINTER                   :: molecules_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
       TYPE(section_vals_type), POINTER :: adiabatic_fast_section, adiabatic_slow_section, &
@@ -186,9 +186,9 @@ CONTAINS
          region_section_slow => section_vals_get_subs_vals(adiabatic_slow_section, "DEFINE_REGION")
          IF (explicit_adiabatic_fast) CALL section_vals_val_get(adiabatic_fast_section, "REGION", i_val=region)
          IF (explicit_adiabatic_slow) CALL section_vals_val_get(adiabatic_slow_section, "REGION", i_val=region)
-         CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules, &
-                            molecules_new=molecules_new, gci=gci, particles=particles)
-         CALL compute_nfree(cell, simpar, molecule_kinds_new%els, &
+         CALL cp_subsys_get(subsys, molecule_kinds=molecule_kinds, local_molecules=local_molecules, &
+                            molecules=molecules, gci=gci, particles=particles)
+         CALL compute_nfree(cell, simpar, molecule_kinds%els, &
                             print_section, particles, gci)
          IF (explicit_adiabatic_fast .AND. explicit_adiabatic_slow) THEN
             IF (apply_thermo_adiabatic) THEN
@@ -197,24 +197,24 @@ CONTAINS
                CALL create_thermostat_type(thermostats%thermostat_slow, simpar, adiabatic_slow_section, &
                                            label="SLOW")
                CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_fast, &
-                                                    molecule_kinds_new%els, local_molecules, molecules_new, particles, &
+                                                    molecule_kinds%els, local_molecules, molecules, particles, &
                                                     region, simpar%ensemble, region_sections=region_section_fast, &
                                                     qmmm_env=qmmm_env)
 
                CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_slow, &
-                                                    molecule_kinds_new%els, local_molecules, molecules_new, particles, &
+                                                    molecule_kinds%els, local_molecules, molecules, particles, &
                                                     region, simpar%ensemble, region_sections=region_section_slow, &
                                                     qmmm_env=qmmm_env)
 
                ! Initialize or possibly restart Nose on Particles
                work_section => section_vals_get_subs_vals(adiabatic_fast_section, "NOSE")
                CALL initialize_nhc_fast(thermostats%thermostat_info_fast, simpar, local_molecules, &
-                                        molecules_new%els, molecule_kinds_new%els, para_env, globenv, &
+                                        molecules%els, molecule_kinds%els, para_env, globenv, &
                                         thermostats%thermostat_fast%nhc, nose_section=work_section, gci=gci, &
                                         save_mem=save_mem)
                work_section => section_vals_get_subs_vals(adiabatic_slow_section, "NOSE")
                CALL initialize_nhc_slow(thermostats%thermostat_info_slow, simpar, local_molecules, &
-                                        molecules_new%els, molecule_kinds_new%els, para_env, globenv, &
+                                        molecules%els, molecule_kinds%els, para_env, globenv, &
                                         thermostats%thermostat_slow%nhc, nose_section=work_section, gci=gci, &
                                         save_mem=save_mem)
             ENDIF
@@ -229,10 +229,10 @@ CONTAINS
          region = do_region_global
          region_sections => section_vals_get_subs_vals(thermo_part_section, "DEFINE_REGION")
          IF (explicit_part) CALL section_vals_val_get(thermo_part_section, "REGION", i_val=region)
-         CALL cp_subsys_get(subsys, molecule_kinds_new=molecule_kinds_new, local_molecules_new=local_molecules, &
-                            molecules_new=molecules_new, gci=gci, particles=particles)
-         CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds_new%els, &
-                                         local_molecules, molecules_new, particles, print_section, region_sections, gci, &
+         CALL cp_subsys_get(subsys, molecule_kinds=molecule_kinds, local_molecules=local_molecules, &
+                            molecules=molecules, gci=gci, particles=particles)
+         CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds%els, &
+                                         local_molecules, molecules, particles, print_section, region_sections, gci, &
                                          region, qmmm_env)
 
          ! Particles
@@ -246,28 +246,28 @@ CONTAINS
                   ! Initialize or possibly restart Nose on Particles
                   work_section => section_vals_get_subs_vals(thermo_part_section, "NOSE")
                   CALL initialize_nhc_part(thermostats%thermostat_info_part, simpar, local_molecules, &
-                                           molecules_new%els, molecule_kinds_new%els, para_env, globenv, &
+                                           molecules%els, molecule_kinds%els, para_env, globenv, &
                                            thermostats%thermostat_part%nhc, nose_section=work_section, gci=gci, &
                                            save_mem=save_mem, binary_restart_file_name=binary_restart_file_name)
                ELSE IF (thermostats%thermostat_part%type_of_thermostat == do_thermo_csvr) THEN
                   ! Initialize or possibly restart CSVR thermostat on Particles
                   work_section => section_vals_get_subs_vals(thermo_part_section, "CSVR")
                   CALL initialize_csvr_part(thermostats%thermostat_info_part, simpar, local_molecules, &
-                                            molecules_new%els, molecule_kinds_new%els, para_env, &
+                                            molecules%els, molecule_kinds%els, para_env, &
                                             thermostats%thermostat_part%csvr, csvr_section=work_section, &
                                             gci=gci)
                ELSE IF (thermostats%thermostat_part%type_of_thermostat == do_thermo_al) THEN
                   ! Initialize or possibly restart Ad-Langevin thermostat on Particles
                   work_section => section_vals_get_subs_vals(thermo_part_section, "AD_LANGEVIN")
                   CALL initialize_al_part(thermostats%thermostat_info_part, simpar, local_molecules, &
-                                          molecules_new%els, molecule_kinds_new%els, para_env, &
+                                          molecules%els, molecule_kinds%els, para_env, &
                                           thermostats%thermostat_part%al, al_section=work_section, &
                                           gci=gci)
                ELSE IF (thermostats%thermostat_part%type_of_thermostat == do_thermo_gle) THEN
                   ! Initialize or possibly restart GLE thermostat on Particles
                   work_section => section_vals_get_subs_vals(thermo_part_section, "GLE")
                   CALL initialize_gle_part(thermostats%thermostat_info_part, simpar, local_molecules, &
-                                           molecules_new%els, molecule_kinds_new%els, para_env, &
+                                           molecules%els, molecule_kinds%els, para_env, &
                                            thermostats%thermostat_part%gle, gle_section=work_section, &
                                            gci=gci, save_mem=save_mem)
                END IF
@@ -299,8 +299,8 @@ CONTAINS
                   region_sections => section_vals_get_subs_vals(thermo_shell_section, "DEFINE_REGION")
                   CALL section_vals_val_get(thermo_shell_section, "REGION", i_val=region)
                   CALL setup_thermostat_info( &
-                     thermostats%thermostat_info_shell, molecule_kinds_new%els, &
-                     local_molecules, molecules_new, particles, region, simpar%ensemble, shell=shell_adiabatic, &
+                     thermostats%thermostat_info_shell, molecule_kinds%els, &
+                     local_molecules, molecules, particles, region, simpar%ensemble, shell=shell_adiabatic, &
                      region_sections=region_sections, qmmm_env=qmmm_env)
                   IF (shell_adiabatic) THEN
                      ! Initialize thermostat
@@ -308,14 +308,14 @@ CONTAINS
                         ! Initialize or possibly restart Nose on Shells
                         work_section => section_vals_get_subs_vals(thermo_shell_section, "NOSE")
                         CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules, &
-                                                  molecules_new%els, molecule_kinds_new%els, para_env, globenv, &
+                                                  molecules%els, molecule_kinds%els, para_env, globenv, &
                                                   thermostats%thermostat_shell%nhc, nose_section=work_section, gci=gci, &
                                                   save_mem=save_mem, binary_restart_file_name=binary_restart_file_name)
                      ELSE IF (thermostats%thermostat_shell%type_of_thermostat == do_thermo_csvr) THEN
                         ! Initialize or possibly restart CSVR thermostat on Shells
                         work_section => section_vals_get_subs_vals(thermo_shell_section, "CSVR")
                         CALL initialize_csvr_shell(thermostats%thermostat_info_shell, simpar, local_molecules, &
-                                                   molecules_new%els, molecule_kinds_new%els, para_env, &
+                                                   molecules%els, molecule_kinds%els, para_env, &
                                                    thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci)
                      END IF
                      CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &

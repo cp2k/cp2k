@@ -31,7 +31,7 @@ MODULE mixed_environment
                                               set_mixed_env
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 
@@ -140,8 +140,8 @@ CONTAINS
       NULLIFY (mixed_energy, local_molecules, local_particles)
       particle_set => subsys%particles%els
       atomic_kind_set => subsys%atomic_kinds%els
-      molecule_set => subsys%molecules_new%els
-      molecule_kind_set => subsys%molecule_kinds_new%els
+      molecule_set => subsys%molecules%els
+      molecule_kind_set => subsys%molecule_kinds%els
 
       ! Create the mixed_energy_type
       CALL allocate_mixed_energy(mixed_energy)

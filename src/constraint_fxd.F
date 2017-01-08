@@ -26,12 +26,12 @@ MODULE constraint_fxd
                                               force_env_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               local_fixd_constraint_type,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: local_g3x3_constraint_type,&
+   USE molecule_types,                  ONLY: local_g3x3_constraint_type,&
                                               local_g4x6_constraint_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -76,7 +76,7 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
       TYPE(local_fixd_constraint_type), POINTER          :: lfixd_list(:)
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
@@ -99,7 +99,7 @@ CONTAINS
                          atomic_kinds=atomic_kinds, &
                          core_particles=core_particles, &
                          local_particles=local_particles, &
-                         molecule_kinds_new=molecule_kinds, &
+                         molecule_kinds=molecule_kinds, &
                          natom=natom, &
                          ncore=ncore, &
                          nshell=nshell, &

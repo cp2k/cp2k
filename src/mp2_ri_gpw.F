@@ -75,7 +75,7 @@ MODULE mp2_ri_gpw
                                               mp_sum,&
                                               mp_sync
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type,&

@@ -68,10 +68,10 @@ MODULE integrator
                                               set_md_env
    USE metadynamics,                    ONLY: metadyn_integrator,&
                                               metadyn_velocities_colvar
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE parallel_rng_types,              ONLY: next_random_number,&
                                               rng_stream_type
@@ -149,9 +149,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -183,9 +183,9 @@ CONTAINS
                        atomic_kinds=atomic_kinds,&
                        gci=gci,&
                        local_particles=local_particles,&
-                       local_molecules_new=local_molecules,&
-                       molecules_new=molecules,&
-                       molecule_kinds_new=molecule_kinds,&
+                       local_molecules=local_molecules,&
+                       molecules=molecules,&
+                       molecule_kinds=molecule_kinds,&
                        nshell=nshell,&
                        particles=particles,&
                        virial=virial)
@@ -405,9 +405,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
@@ -434,8 +434,8 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial)
+         particles=particles,local_molecules=local_molecules,molecules=molecules, &
+         molecule_kinds=molecule_kinds,gci=gci,virial=virial)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -735,9 +735,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
@@ -769,8 +769,8 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial)
+         particles=particles,local_molecules=local_molecules,molecules=molecules,&
+         molecule_kinds=molecule_kinds,gci=gci,virial=virial)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -948,9 +948,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
@@ -982,8 +982,8 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial)
+         particles=particles,local_molecules=local_molecules,molecules=molecules,&
+         molecule_kinds=molecule_kinds,gci=gci,virial=virial)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1084,8 +1084,8 @@ CONTAINS
     CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-       particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-       molecule_kinds_new=molecule_kinds,gci=gci,virial=virial)
+       particles=particles,local_molecules=local_molecules,molecules=molecules,&
+       molecule_kinds=molecule_kinds,gci=gci,virial=virial)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1198,9 +1198,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(npt_info_type), POINTER                       :: npt(:,:)
       TYPE(old_variables_type), POINTER                  :: old
@@ -1235,8 +1235,8 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         gci=gci,molecule_kinds_new=molecule_kinds,virial=virial)
+         particles=particles,local_molecules=local_molecules,molecules=molecules, &
+         gci=gci,molecule_kinds=molecule_kinds,virial=virial)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1670,9 +1670,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(npt_info_type), POINTER                       :: npt( :, : )
       TYPE(old_variables_type), POINTER                  :: old
@@ -1702,8 +1702,8 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules, molecules_new=molecules, gci=gci,&
-         molecule_kinds_new=molecule_kinds,virial=virial)
+         particles=particles,local_molecules=local_molecules, molecules=molecules, gci=gci,&
+         molecule_kinds=molecule_kinds,virial=virial)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1917,9 +1917,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(npt_info_type), POINTER                       :: npt( :, : )
       TYPE(old_variables_type), POINTER                  :: old
@@ -1947,8 +1947,8 @@ CONTAINS
     CALL force_env_get(force_env, subsys=subsys, cell = cell)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,gci=gci,&
-         molecule_kinds_new=molecule_kinds,virial=virial)
+         particles=particles,local_molecules=local_molecules,molecules=molecules,gci=gci,&
+         molecule_kinds=molecule_kinds,virial=virial)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -2175,9 +2175,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(npt_info_type), POINTER                       :: npt( :, : )
       TYPE(old_variables_type), POINTER                  :: old
@@ -2211,8 +2211,8 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds, local_particles=local_particles,&
-         particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         gci=gci,molecule_kinds_new=molecule_kinds,virial=virial)
+         particles=particles,local_molecules=local_molecules,molecules=molecules, &
+         gci=gci,molecule_kinds=molecule_kinds,virial=virial)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -2476,9 +2476,9 @@ CONTAINS
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles, particles_respa
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set, particle_set_respa
@@ -2500,8 +2500,8 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles, local_molecules_new=local_molecules, molecules_new=molecules,&
-         gci=gci, molecule_kinds_new=molecule_kinds)
+         particles=particles, local_molecules=local_molecules, molecules=molecules,&
+         gci=gci, molecule_kinds=molecule_kinds)
 
     CALL cp_subsys_get (subsys=subsys_respa, particles=particles_respa)
     particle_set_respa => particles_respa%els

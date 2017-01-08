@@ -8,18 +8,18 @@
 #!> \brief Fypp macro to create a simple a simple array based list of the given type
 #!> \author Ole Schuett
 #! *************************************************************************************************
-#:def subsys_list_macro(shortname, longname)
+#:def subsys_list_macro(name)
 
-#:set el_type = "TYPE("+longname+"_type)"
+#:set el_type = "TYPE("+name+"_type)"
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='${shortname}$_list_types'
-  INTEGER, PRIVATE, SAVE :: last_${shortname}$_list_id=0
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='${name}$_list_types'
+  INTEGER, PRIVATE, SAVE :: last_${name}$_list_id=0
 
   !API
-  PUBLIC :: ${shortname}$_list_type,   ${shortname}$_list_p_type,&
-            ${shortname}$_list_create, ${shortname}$_list_retain,&
-            ${shortname}$_list_release
+  PUBLIC :: ${name}$_list_type,   ${name}$_list_p_type,&
+            ${name}$_list_create, ${name}$_list_retain,&
+            ${name}$_list_release
 
 ! **************************************************************************************************
 !> \brief represent a list of objects
@@ -34,11 +34,11 @@
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-  TYPE ${shortname}$_list_type
+  TYPE ${name}$_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
      ${el_type}$, DIMENSION(:), POINTER :: els
-  END TYPE ${shortname}$_list_type
+  END TYPE ${name}$_list_type
 
 ! **************************************************************************************************
 !> \brief represents a pointer to a list
@@ -47,9 +47,9 @@
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-  TYPE ${shortname}$_list_p_type
-     TYPE(${shortname}$_list_type), POINTER :: list
-  END TYPE ${shortname}$_list_p_type
+  TYPE ${name}$_list_p_type
+     TYPE(${name}$_list_type), POINTER :: list
+  END TYPE ${name}$_list_p_type
 
 CONTAINS
 
@@ -66,21 +66,21 @@ CONTAINS
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-SUBROUTINE ${shortname}$_list_create(list, els_ptr, &
+SUBROUTINE ${name}$_list_create(list, els_ptr, &
      owns_els, n_els)
-  TYPE(${shortname}$_list_type), POINTER, OPTIONAL :: list
+  TYPE(${name}$_list_type), POINTER, OPTIONAL :: list
   ${el_type}$, DIMENSION(:), POINTER, OPTIONAL :: els_ptr
   LOGICAL, INTENT(in), OPTIONAL :: owns_els
   INTEGER, INTENT(in), OPTIONAL :: n_els
 
-  CHARACTER(len=*), PARAMETER :: routineN='${shortname}$_list_create',&
+  CHARACTER(len=*), PARAMETER :: routineN='${name}$_list_create',&
         routineP=moduleN//':'//routineN
 
   CPASSERT(PRESENT(els_ptr).OR.PRESENT(n_els))
 
   ALLOCATE(list)
-  last_${shortname}$_list_id=last_${shortname}$_list_id+1
-  list%id_nr=last_${shortname}$_list_id
+  last_${name}$_list_id=last_${name}$_list_id+1
+  list%id_nr=last_${name}$_list_id
   list%ref_count=1
   list%owns_els=.TRUE.
   list%n_els=0
@@ -97,7 +97,7 @@ SUBROUTINE ${shortname}$_list_create(list, els_ptr, &
      ALLOCATE(list%els(list%n_els))
      CPASSERT(list%owns_els)
   END IF
-END SUBROUTINE ${shortname}$_list_create
+END SUBROUTINE ${name}$_list_create
 
 ! **************************************************************************************************
 !> \brief retains a list (see doc/ReferenceCounting.html)
@@ -106,17 +106,17 @@ END SUBROUTINE ${shortname}$_list_create
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-SUBROUTINE ${shortname}$_list_retain(list)
-  TYPE(${shortname}$_list_type), POINTER :: list
+SUBROUTINE ${name}$_list_retain(list)
+  TYPE(${name}$_list_type), POINTER :: list
 
-  CHARACTER(len=*), PARAMETER :: routineN='${shortname}$_list_retain',&
+  CHARACTER(len=*), PARAMETER :: routineN='${name}$_list_retain',&
         routineP=moduleN//':'//routineN
 
 
   CPASSERT(ASSOCIATED(list))
   CPASSERT(list%ref_count>0)
   list%ref_count=list%ref_count+1
-END SUBROUTINE ${shortname}$_list_retain
+END SUBROUTINE ${name}$_list_retain
 
 ! **************************************************************************************************
 !> \brief releases a  list (see doc/ReferenceCounting.html)
@@ -125,10 +125,10 @@ END SUBROUTINE ${shortname}$_list_retain
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-SUBROUTINE ${shortname}$_list_release(list)
-  TYPE(${shortname}$_list_type), POINTER :: list
+SUBROUTINE ${name}$_list_release(list)
+  TYPE(${name}$_list_type), POINTER :: list
 
-  CHARACTER(len=*), PARAMETER :: routineN='${shortname}$_list_release',&
+  CHARACTER(len=*), PARAMETER :: routineN='${name}$_list_release',&
         routineP=moduleN//':'//routineN
 
   IF (ASSOCIATED(list)) THEN
@@ -137,7 +137,7 @@ SUBROUTINE ${shortname}$_list_release(list)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              CALL deallocate_${longname}$_set(list%els)
+              CALL deallocate_${name}$_set(list%els)
            END IF
         END IF
         NULLIFY(list%els)
@@ -145,7 +145,7 @@ SUBROUTINE ${shortname}$_list_release(list)
      END IF
   END IF
   NULLIFY(list)
-END SUBROUTINE ${shortname}$_list_release
+END SUBROUTINE ${name}$_list_release
 
 #:enddef subsys_list_macro
 #:endmute

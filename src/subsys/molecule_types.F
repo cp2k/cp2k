@@ -11,7 +11,7 @@
 !>                                       (patch by Marcel Baer)
 !> \author MK (29.08.2003)
 ! **************************************************************************************************
-MODULE molecule_types_new
+MODULE molecule_types
 
    USE colvar_types,                    ONLY: colvar_counters,&
                                               colvar_release,&
@@ -34,7 +34,7 @@ MODULE molecule_types_new
 
 ! *** Global parameters (in this module) ***
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types_new'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types'
 
 ! *** Data types ***
 ! **************************************************************************************************
@@ -579,4 +579,4 @@ CONTAINS
 
    END SUBROUTINE get_molecule_set_info
 
-END MODULE molecule_types_new
+END MODULE molecule_types

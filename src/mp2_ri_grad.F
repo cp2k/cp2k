@@ -43,7 +43,7 @@ MODULE mp2_ri_grad
         mp_alltoall, mp_comm_split_direct, mp_irecv, mp_isend, mp_request_null, mp_sendrecv, &
         mp_sum, mp_wait, mp_waitall
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type

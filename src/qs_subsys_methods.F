@@ -124,7 +124,7 @@ CONTAINS
       CALL create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, &
                               para_env, force_env_section)
 
-      CALL num_ao_el_per_molecule(my_cp_subsys%molecule_kinds_new%els, &
+      CALL num_ao_el_per_molecule(my_cp_subsys%molecule_kinds%els, &
                                   qs_kind_set)
 
       ! finally create qs_subsys

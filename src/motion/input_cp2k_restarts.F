@@ -61,8 +61,8 @@ MODULE input_cp2k_restarts
                                               mp_bcast,&
                                               mp_sum
    USE metadynamics_types,              ONLY: meta_env_type
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
+   USE molecule_list_types,             ONLY: molecule_list_type
    USE neb_types,                       ONLY: neb_var_type
    USE parallel_rng_types,              ONLY: dump_rng_stream,&
                                               get_rng_stream,&
@@ -2370,8 +2370,8 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(force_env_type), POINTER                      :: my_force_env
       TYPE(lnhc_parameters_type), POINTER                :: nhc
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(thermostat_type), POINTER                     :: thermostat_part, thermostat_shell
@@ -2428,8 +2428,8 @@ CONTAINS
                          ncore=ncore, &
                          shell_particles=shell_particles, &
                          nshell=nshell, &
-                         molecule_kinds_new=molecule_kinds, &
-                         molecules_new=molecules)
+                         molecule_kinds=molecule_kinds, &
+                         molecules=molecules)
 
       natomkind = atomic_kinds%n_els
       IF (ASSOCIATED(molecule_kinds)) THEN

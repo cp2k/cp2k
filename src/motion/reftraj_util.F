@@ -41,11 +41,11 @@ MODULE reftraj_util
                                               md_environment_type
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_sum
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -173,10 +173,10 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(force_env_type), POINTER                      :: force_env
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(molecule_type), POINTER                       :: molecule
       TYPE(particle_list_type), POINTER                  :: particles
@@ -264,8 +264,8 @@ CONTAINS
     END IF
 
     IF(msd%msd_molecule) THEN
-      CALL cp_subsys_get(subsys=subsys, molecules_new=molecules,&
-           molecule_kinds_new=molecule_kinds)
+      CALL cp_subsys_get(subsys=subsys, molecules=molecules,&
+           molecule_kinds=molecule_kinds)
       nmolkind =  molecule_kinds%n_els
       ALLOCATE(msd%val_msd_molecule(4,nmolkind))
 
@@ -338,10 +338,10 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(force_env_type), POINTER                      :: force_env
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(molecule_type), POINTER                       :: molecule
 
@@ -426,8 +426,8 @@ CONTAINS
     CALL mp_sum(reftraj%msd%disp_atom_dr,para_env%group)
 
     IF(reftraj%msd%msd_molecule) THEN
-      CALL cp_subsys_get(subsys=subsys, local_molecules_new=local_molecules, &
-           molecules_new=molecules, molecule_kinds_new=molecule_kinds)
+      CALL cp_subsys_get(subsys=subsys, local_molecules=local_molecules, &
+           molecules=molecules, molecule_kinds=molecule_kinds)
 
       nmolkind =  molecule_kinds%n_els
       molecule_kind_set => molecule_kinds%els

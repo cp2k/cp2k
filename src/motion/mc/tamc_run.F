@@ -93,10 +93,10 @@ MODULE tamc_run
    USE metadynamics_types,              ONLY: meta_env_type,&
                                               metavar_type,&
                                               set_meta_env
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               create_rng_stream,&
@@ -905,9 +905,9 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_constraint_type), POINTER              :: gci
       TYPE(mc_simpar_type), POINTER                      :: mc_par
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -941,8 +941,8 @@ CONTAINS
       CALL apply_qmmm_walls_reflective(force_env)
 
       CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, local_particles=local_particles, &
-                         particles=particles, local_molecules_new=local_molecules, molecules_new=molecules, &
-                         molecule_kinds_new=molecule_kinds, gci=gci, virial=virial)
+                         particles=particles, local_molecules=local_molecules, molecules=molecules, &
+                         molecule_kinds=molecule_kinds, gci=gci, virial=virial)
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els

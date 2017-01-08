@@ -38,14 +38,14 @@ MODULE cp_subsys_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                              mol_kind_new_list_release,&
-                                              mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                              mol_new_list_release,&
-                                              mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
+                                              molecule_kind_list_release,&
+                                              molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_list_types,             ONLY: molecule_list_create,&
+                                              molecule_list_release,&
+                                              molecule_list_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_create,&
                                               particle_list_release,&
                                               particle_list_type
@@ -113,9 +113,9 @@ CONTAINS
                                                             pv_numerical
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(mol_kind_new_list_type), POINTER              :: mol_kinds
-      TYPE(mol_new_list_type), POINTER                   :: mols
+      TYPE(molecule_kind_list_type), POINTER             :: mol_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: mols
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -163,16 +163,16 @@ CONTAINS
 
       CALL particle_list_create(particles, els_ptr=particle_set)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)
-      CALL mol_new_list_create(mols, els_ptr=molecule_set)
-      CALL mol_kind_new_list_create(mol_kinds, els_ptr=molecule_kind_set)
+      CALL molecule_list_create(mols, els_ptr=molecule_set)
+      CALL molecule_kind_list_create(mol_kinds, els_ptr=molecule_kind_set)
 
       CALL cp_subsys_set(subsys, particles=particles, atomic_kinds=atomic_kinds, &
-                         molecules_new=mols, molecule_kinds_new=mol_kinds)
+                         molecules=mols, molecule_kinds=mol_kinds)
 
       CALL particle_list_release(particles)
       CALL atomic_kind_list_release(atomic_kinds)
-      CALL mol_new_list_release(mols)
-      CALL mol_kind_new_list_release(mol_kinds)
+      CALL molecule_list_release(mols)
+      CALL molecule_kind_list_release(mol_kinds)
 
       ! Should we compute the virial?
       CALL section_vals_val_get(my_force_env_section, "STRESS_TENSOR", i_val=stress_tensor)
@@ -284,9 +284,9 @@ CONTAINS
       INTEGER                                            :: iat, id_, nat
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(mol_kind_new_list_type), POINTER              :: mol_kinds
-      TYPE(mol_new_list_type), POINTER                   :: mols
+      TYPE(molecule_kind_list_type), POINTER             :: mol_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_list_type), POINTER                  :: mols
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -388,14 +388,14 @@ CONTAINS
       small_subsys%para_env => para_env
       CALL particle_list_create(particles, els_ptr=particle_set)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set)
-      CALL mol_new_list_create(mols, els_ptr=molecule_set)
-      CALL mol_kind_new_list_create(mol_kinds, els_ptr=molecule_kind_set)
+      CALL molecule_list_create(mols, els_ptr=molecule_set)
+      CALL molecule_kind_list_create(mol_kinds, els_ptr=molecule_kind_set)
       CALL cp_subsys_set(small_subsys, particles=particles, atomic_kinds=atomic_kinds, &
-                         molecules_new=mols, molecule_kinds_new=mol_kinds)
+                         molecules=mols, molecule_kinds=mol_kinds)
       CALL particle_list_release(particles)
       CALL atomic_kind_list_release(atomic_kinds)
-      CALL mol_new_list_release(mols)
-      CALL mol_kind_new_list_release(mol_kinds)
+      CALL molecule_list_release(mols)
+      CALL molecule_kind_list_release(mol_kinds)
 
       CALL virial_create(small_subsys%virial)
       CALL atprop_create(small_subsys%atprop)

@@ -40,7 +40,7 @@ MODULE topology
    USE mm_mapping_library,              ONLY: create_ff_map,&
                                               destroy_ff_map
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE particle_types,                  ONLY: particle_type
    USE qmmm_topology_util,              ONLY: qmmm_connectivity_control,&

@@ -35,14 +35,14 @@ MODULE mixed_environment_types
                                               dp
    USE mixed_energy_types,              ONLY: deallocate_mixed_energy,&
                                               mixed_energy_type
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                              mol_kind_new_list_release,&
-                                              mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                              mol_new_list_release,&
-                                              mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
+                                              molecule_kind_list_release,&
+                                              molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_list_types,             ONLY: molecule_list_create,&
+                                              molecule_list_release,&
+                                              molecule_list_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_create,&
                                               particle_list_release,&
                                               particle_list_type
@@ -148,11 +148,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_mixed_env', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
-      TYPE(mol_new_list_type), POINTER                   :: molecules_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
-      NULLIFY (atomic_kinds, particles, molecules_new, molecule_kinds_new)
+      NULLIFY (atomic_kinds, particles, molecules, molecule_kinds)
       CPASSERT(ASSOCIATED(mixed_env%subsys))
 
       IF (PRESENT(input)) input => mixed_env%input
@@ -163,17 +163,17 @@ CONTAINS
       IF (PRESENT(subsys)) subsys => mixed_env%subsys
       CALL cp_subsys_get(mixed_env%subsys, &
                          atomic_kinds=atomic_kinds, &
-                         local_molecules_new=local_molecules, &
+                         local_molecules=local_molecules, &
                          local_particles=local_particles, &
                          particles=particles, &
-                         molecule_kinds_new=molecule_kinds_new, &
-                         molecules_new=molecules_new, &
+                         molecule_kinds=molecule_kinds, &
+                         molecules=molecules, &
                          results=results, &
                          cell=cell)
       IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
       IF (PRESENT(particle_set)) particle_set => particles%els
-      IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
-      IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
+      IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds%els
+      IF (PRESENT(molecule_set)) molecule_set => molecules%els
 
    END SUBROUTINE get_mixed_env
 
@@ -241,8 +241,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'set_mixed_env', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
-      TYPE(mol_new_list_type), POINTER                   :: molecules_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
       CPASSERT(mixed_env%ref_count > 0)
@@ -286,21 +286,17 @@ CONTAINS
       END IF
       IF (PRESENT(local_molecules)) THEN
          CALL cp_subsys_set(mixed_env%subsys, &
-                            local_molecules_new=local_molecules)
+                            local_molecules=local_molecules)
       END IF
       IF (PRESENT(molecule_kind_set)) THEN
-         CALL mol_kind_new_list_create(molecule_kinds_new, &
-                                       els_ptr=molecule_kind_set)
-         CALL cp_subsys_set(mixed_env%subsys, &
-                            molecule_kinds_new=molecule_kinds_new)
-         CALL mol_kind_new_list_release(molecule_kinds_new)
+         CALL molecule_kind_list_create(molecule_kinds, els_ptr=molecule_kind_set)
+         CALL cp_subsys_set(mixed_env%subsys, molecule_kinds=molecule_kinds)
+         CALL molecule_kind_list_release(molecule_kinds)
       END IF
       IF (PRESENT(molecule_set)) THEN
-         CALL mol_new_list_create(molecules_new, &
-                                  els_ptr=molecule_set)
-         CALL cp_subsys_set(mixed_env%subsys, &
-                            molecules_new=molecules_new)
-         CALL mol_new_list_release(molecules_new)
+         CALL molecule_list_create(molecules, els_ptr=molecule_set)
+         CALL cp_subsys_set(mixed_env%subsys, molecules=molecules)
+         CALL molecule_list_release(molecules)
       END IF
 
    END SUBROUTINE set_mixed_env

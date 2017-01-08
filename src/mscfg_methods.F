@@ -39,7 +39,7 @@ MODULE mscfg_methods
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_string_length
-   USE molecule_types_new,              ONLY: get_molecule_set_info,&
+   USE molecule_types,                  ONLY: get_molecule_set_info,&
                                               molecule_type
    USE mscfg_types,                     ONLY: molecular_scf_guess_env_init,&
                                               molecular_scf_guess_env_type,&

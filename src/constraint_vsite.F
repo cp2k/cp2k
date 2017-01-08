@@ -16,12 +16,12 @@ MODULE constraint_vsite
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
    USE kinds,                           ONLY: dp
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type,&
                                               vsite_constraint_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               molecule_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -56,10 +56,10 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(molecule_type), POINTER                       :: molecule
       TYPE(particle_list_type), POINTER                  :: particles
@@ -71,8 +71,8 @@ CONTAINS
       CALL force_env_get(force_env=force_env, subsys=subsys)
 
       CALL cp_subsys_get(subsys=subsys, local_particles=local_particles, &
-                         particles=particles, local_molecules_new=local_molecules, &
-                         molecule_kinds_new=molecule_kinds, gci=gci, molecules_new=molecules)
+                         particles=particles, local_molecules=local_molecules, &
+                         molecule_kinds=molecule_kinds, gci=gci, molecules=molecules)
 
       molecule_kind_set => molecule_kinds%els
       molecule_set => molecules%els

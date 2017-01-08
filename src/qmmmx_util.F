@@ -32,8 +32,8 @@ MODULE qmmmx_util
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
-   USE mol_new_list_types,              ONLY: mol_new_list_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -134,7 +134,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(fist_neighbor_type), POINTER                  :: nlist
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -172,7 +172,7 @@ CONTAINS
 
       ! get particles, molecules
       NULLIFY (particles, molecules)
-      CALL cp_subsys_get(subsys=subsys, particles=particles, molecules_new=molecules)
+      CALL cp_subsys_get(subsys=subsys, particles=particles, molecules=molecules)
       particle_set => particles%els
       molecule_set => molecules%els
 

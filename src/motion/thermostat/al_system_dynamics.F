@@ -17,7 +17,7 @@ MODULE al_system_dynamics
    USE force_env_types,                 ONLY: force_env_type
    USE kinds,                           ONLY: dp
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE parallel_rng_types,              ONLY: next_random_number,&
                                               rng_stream_type

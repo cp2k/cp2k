@@ -23,10 +23,10 @@ MODULE qs_subsys_types
                                               cp_subsys_set,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE multipole_types,                 ONLY: multipole_type
    USE particle_list_types,             ONLY: particle_list_type
@@ -119,11 +119,11 @@ CONTAINS
 !> \param particles ...
 !> \param particle_set ...
 !> \param local_particles ...
-!> \param molecules_new ...
+!> \param molecules ...
 !> \param molecule_set ...
-!> \param molecule_kinds_new ...
+!> \param molecule_kinds ...
 !> \param molecule_kind_set ...
-!> \param local_molecules_new ...
+!> \param local_molecules ...
 !> \param para_env ...
 !> \param colvar_p ...
 !> \param shell_particles ...
@@ -149,9 +149,9 @@ CONTAINS
 !> \param nelectron_spin ...
 ! **************************************************************************************************
    SUBROUTINE qs_subsys_get(subsys, atomic_kinds, atomic_kind_set, particles, particle_set, &
-                            local_particles, molecules_new, molecule_set, &
-                            molecule_kinds_new, molecule_kind_set, &
-                            local_molecules_new, para_env, colvar_p, &
+                            local_particles, molecules, molecule_set, &
+                            molecule_kinds, molecule_kind_set, &
+                            local_molecules, para_env, colvar_p, &
                             shell_particles, core_particles, gci, multipoles, &
                             natom, nparticle, ncore, nshell, nkind, atprop, virial, &
                             results, cell, cell_ref, use_ref_cell, energy, force, &
@@ -164,13 +164,13 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles
-      TYPE(mol_new_list_type), OPTIONAL, POINTER         :: molecules_new
+      TYPE(molecule_list_type), OPTIONAL, POINTER        :: molecules
       TYPE(molecule_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: molecule_set
-      TYPE(mol_kind_new_list_type), OPTIONAL, POINTER    :: molecule_kinds_new
+      TYPE(molecule_kind_list_type), OPTIONAL, POINTER   :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: molecule_kind_set
-      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules_new
+      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(colvar_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: colvar_p
@@ -200,11 +200,11 @@ CONTAINS
                          particles=particles, &
                          particle_set=particle_set, &
                          local_particles=local_particles, &
-                         molecules_new=molecules_new, &
+                         molecules=molecules, &
                          molecule_set=molecule_set, &
-                         molecule_kinds_new=molecule_kinds_new, &
+                         molecule_kinds=molecule_kinds, &
                          molecule_kind_set=molecule_kind_set, &
-                         local_molecules_new=local_molecules_new, &
+                         local_molecules=local_molecules, &
                          para_env=para_env, &
                          colvar_p=colvar_p, &
                          shell_particles=shell_particles, &
@@ -236,7 +236,7 @@ CONTAINS
 !> \param subsys ...
 !> \param cp_subsys ...
 !> \param local_particles ...
-!> \param local_molecules_new ...
+!> \param local_molecules ...
 !> \param cell ...
 !> \param cell_ref ...
 !> \param use_ref_cell ...
@@ -247,12 +247,12 @@ CONTAINS
 !> \param nelectron_spin ...
 ! **************************************************************************************************
    SUBROUTINE qs_subsys_set(subsys, cp_subsys, &
-                            local_particles, local_molecules_new, cell, &
+                            local_particles, local_molecules, cell, &
                             cell_ref, use_ref_cell, energy, force, &
                             qs_kind_set, nelectron_total, nelectron_spin)
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(cp_subsys_type), OPTIONAL, POINTER            :: cp_subsys
-      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules_new
+      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell, cell_ref
       LOGICAL, OPTIONAL                                  :: use_ref_cell
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
@@ -273,7 +273,7 @@ CONTAINS
 
       CALL cp_subsys_set(subsys%cp_subsys, &
                          local_particles=local_particles, &
-                         local_molecules_new=local_molecules_new, &
+                         local_molecules=local_molecules, &
                          cell=cell)
 
       IF (PRESENT(cell_ref)) THEN

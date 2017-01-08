@@ -99,7 +99,7 @@ MODULE qs_environment
    USE machine,                         ONLY: m_flush
    USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                               write_molecule_kind_set
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE mp2_setup,                       ONLY: read_mp2_section
    USE mp2_types,                       ONLY: mp2_env_create
    USE multipole_types,                 ONLY: do_multipole_none
@@ -747,7 +747,7 @@ CONTAINS
       CALL get_qs_env(qs_env, ks_env=ks_env)
       CALL set_ks_env(ks_env, dft_control=dft_control)
 
-      CALL qs_subsys_set(subsys, local_molecules_new=local_molecules, &
+      CALL qs_subsys_set(subsys, local_molecules=local_molecules, &
                          local_particles=local_particles, cell=cell)
 
       CALL distribution_1d_release(local_particles)

@@ -52,7 +52,7 @@ MODULE almo_scf_qs
                                               do_bondparm_vdw
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_allgather
-   USE molecule_types_new,              ONLY: get_molecule_set_info,&
+   USE molecule_types,                  ONLY: get_molecule_set_info,&
                                               molecule_type
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type

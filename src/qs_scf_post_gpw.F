@@ -97,7 +97,7 @@ MODULE qs_scf_post_gpw
    USE minbas_wfn_analysis,             ONLY: minbas_analysis
    USE molden_utils,                    ONLY: write_mos_molden
    USE molecular_states,                ONLY: construct_molecular_states
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
    USE mulliken,                        ONLY: mulliken_charges
    USE orbital_pointers,                ONLY: indso

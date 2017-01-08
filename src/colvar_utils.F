@@ -27,13 +27,13 @@ MODULE colvar_utils
    USE mathlib,                         ONLY: invert_matrix
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               local_colvar_constraint_type,&
                                               molecule_type
@@ -78,9 +78,9 @@ CONTAINS
       TYPE(colvar_counters)                              :: ncolv
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind, molecule_kind_set(:)
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), POINTER                       :: molecule, molecule_set(:)
 
       NULLIFY (subsys, molecules, molecule_kind, molecule, molecule_set, gci)
@@ -91,8 +91,8 @@ CONTAINS
       IF (PRESENT(unique)) my_unique = unique
       ntot = 0
       CALL force_env_get(force_env=force_env, subsys=subsys)
-      CALL cp_subsys_get(subsys=subsys, molecules_new=molecules, gci=gci, &
-                         molecule_kinds_new=molecule_kinds)
+      CALL cp_subsys_get(subsys=subsys, molecules=molecules, gci=gci, &
+                         molecule_kinds=molecule_kinds)
 
       molecule_set => molecules%els
       ! Intramolecular Colvar
@@ -143,13 +143,13 @@ CONTAINS
       TYPE(colvar_counters)                              :: ncolv
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
 
       NULLIFY (cell, subsys, molecule_kinds, molecule_kind, gci, colv_list)
       CALL timeset(routineN, handle)
       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
-      CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds_new=molecule_kinds)
+      CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds=molecule_kinds)
 
       nkind = molecule_kinds%n_els
       ! Set Target for Intramolecular Colvars
@@ -212,9 +212,9 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), POINTER                       :: molecule, molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -235,10 +235,10 @@ CONTAINS
       cvalues = 0.0_dp
       CALL cp_subsys_get(subsys=subsys, &
                          particles=particles, &
-                         molecules_new=molecules, &
-                         local_molecules_new=local_molecules, &
+                         molecules=molecules, &
+                         local_molecules=local_molecules, &
                          gci=gci, &
-                         molecule_kinds_new=molecule_kinds)
+                         molecule_kinds=molecule_kinds)
 
       nkind = molecule_kinds%n_els
       particle_set => particles%els

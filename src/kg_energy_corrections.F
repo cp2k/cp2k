@@ -55,7 +55,7 @@ MODULE kg_energy_corrections
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mao_basis,                       ONLY: mao_generate_basis
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type

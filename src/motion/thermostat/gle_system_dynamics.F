@@ -26,7 +26,7 @@ MODULE gle_system_dynamics
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE parallel_rng_types,              ONLY: next_random_number,&
                                               read_rng_stream,&

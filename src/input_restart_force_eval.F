@@ -43,9 +43,9 @@ MODULE input_restart_force_eval
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_sum
-   USE mol_new_list_types,              ONLY: mol_new_list_type
    USE molecule_kind_types,             ONLY: get_molecule_kind
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE multipole_types,                 ONLY: multipole_type
    USE parallel_rng_types,              ONLY: dump_rng_stream,&
@@ -276,7 +276,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(multipole_type), POINTER                      :: multipoles
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
@@ -287,7 +287,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL force_env_get(force_env, subsys=subsys, cell=cell, para_env=para_env)
 
-      CALL cp_subsys_get(subsys, particles=particles, molecules_new=molecules, &
+      CALL cp_subsys_get(subsys, particles=particles, molecules=molecules, &
                          shell_particles=shell_particles, core_particles=core_particles, &
                          multipoles=multipoles)
 
@@ -467,7 +467,7 @@ CONTAINS
                                     scale, cell, shell)
       TYPE(section_vals_type), POINTER                   :: coord_section
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       REAL(KIND=dp)                                      :: conv_factor
       LOGICAL, INTENT(IN)                                :: scale
       TYPE(cell_type), POINTER                           :: cell
@@ -780,7 +780,7 @@ CONTAINS
                                     scaled_coordinates)
 
       TYPE(particle_list_type), POINTER                  :: particles
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), INTENT(IN)                          :: conv_factor
       INTEGER, INTENT(IN)                                :: output_unit

@@ -60,7 +60,7 @@ MODULE qs_neighbor_lists
    USE kpoint_types,                    ONLY: kpoint_type
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sum
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                               paw_proj_set_type

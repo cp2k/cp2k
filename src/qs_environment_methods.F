@@ -29,7 +29,7 @@ MODULE qs_environment_methods
    USE input_constants,                 ONLY: do_ppl_grid
    USE kinds,                           ONLY: dp
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_methods,                  ONLY: pw_env_create,&
                                               pw_env_rebuild

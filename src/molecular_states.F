@@ -45,7 +45,7 @@ MODULE molecular_states
                                               int_size
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_maxloc
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type

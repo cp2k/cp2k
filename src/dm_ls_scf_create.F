@@ -44,7 +44,7 @@ MODULE dm_ls_scf_create
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE molecule_types_new,              ONLY: molecule_of_atom,&
+   USE molecule_types,                  ONLY: molecule_of_atom,&
                                               molecule_type
    USE pao_main,                        ONLY: pao_init
    USE particle_types,                  ONLY: particle_type

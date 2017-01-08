@@ -22,7 +22,7 @@ MODULE mc_coordinates
    USE mc_types,                        ONLY: get_mc_molecule_info,&
                                               mc_molecule_info_type
    USE message_passing,                 ONLY: mp_bcast
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE parallel_rng_types,              ONLY: next_random_number,&
                                               rng_stream_type
    USE particle_list_types,             ONLY: particle_list_type

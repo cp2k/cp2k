@@ -44,7 +44,7 @@ MODULE mc_types
                                               dp_size,&
                                               int_size
    USE mathconstants,                   ONLY: pi
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_p_type
    USE molecule_kind_types,             ONLY: atom_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
@@ -1813,8 +1813,8 @@ CONTAINS
       TYPE(atom_type), DIMENSION(:), POINTER             :: atom_list
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(mol_kind_new_list_p_type), DIMENSION(:), &
-         POINTER                                         :: molecule_kinds_new
+      TYPE(molecule_kind_list_p_type), DIMENSION(:), &
+         POINTER                                         :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles
 
@@ -1839,14 +1839,14 @@ CONTAINS
 ! distinguish molecules based on names from the .psf files...
 ! this is only really a problem when we have more than one simulation
 ! box
-      NULLIFY (subsys, molecule_kinds_new, molecule_kind)
+      NULLIFY (subsys, molecule_kinds, molecule_kind)
 
       ALLOCATE (particles(1:nboxes), STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                        "particles", nboxes)
-      ALLOCATE (molecule_kinds_new(1:nboxes), STAT=istat)
+      ALLOCATE (molecule_kinds(1:nboxes), STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                       "molecule_kinds_new", nboxes)
+                                       "molecule_kinds", nboxes)
 
       ! find out how many types we have
       ntypes = 0
@@ -1855,9 +1855,9 @@ CONTAINS
          CALL force_env_get(force_env(ibox)%force_env, &
                             subsys=subsys)
          CALL cp_subsys_get(subsys, &
-                            molecule_kinds_new=molecule_kinds_new(ibox)%list, &
+                            molecule_kinds=molecule_kinds(ibox)%list, &
                             particles=particles(ibox)%list)
-         ntypes = ntypes+SIZE(molecule_kinds_new(ibox)%list%els(:))
+         ntypes = ntypes+SIZE(molecule_kinds(ibox)%list%els(:))
       ENDDO
 
       ALLOCATE (names_init(1:ntypes), STAT=istat)
@@ -1870,8 +1870,8 @@ CONTAINS
       natoms_large = 0
       DO ibox = 1, nboxes
          IF (ibox == skip_box) CYCLE
-         DO imolecule = 1, SIZE(molecule_kinds_new(ibox)%list%els(:))
-            molecule_kind => molecule_kinds_new(ibox)%list%els(imolecule)
+         DO imolecule = 1, SIZE(molecule_kinds(ibox)%list%els(:))
+            molecule_kind => molecule_kinds(ibox)%list%els(imolecule)
             CALL get_molecule_kind(molecule_kind, name=names_init(itype), &
                                    natom=natom)
             IF (natom .GT. natoms_large) natoms_large = natom
@@ -1923,12 +1923,12 @@ CONTAINS
       itype = 0
       DO ibox = 1, nboxes
          IF (ibox == skip_box) CYCLE
-         DO imolecule = 1, SIZE(molecule_kinds_new(ibox)%list%els(:))
+         DO imolecule = 1, SIZE(molecule_kinds(ibox)%list%els(:))
             itype = itype+1
             IF (names_init(itype) .EQ. '') CYCLE
             iunique = iunique+1
             mc_molecule_info%names(iunique) = names_init(itype)
-            molecule_kind => molecule_kinds_new(ibox)%list%els(imolecule)
+            molecule_kind => molecule_kinds(ibox)%list%els(imolecule)
             CALL get_molecule_kind(molecule_kind, natom=mc_molecule_info%nunits(iunique), &
                                    nbond=nbond, nbend=nbend, ntorsion=ntorsion, atom_list=atom_list)
 
@@ -1969,8 +1969,8 @@ CONTAINS
       DO iunique = 1, nmol_types
          DO ibox = 1, nboxes
             IF (ibox == skip_box) CYCLE
-            DO imolecule = 1, SIZE(molecule_kinds_new(ibox)%list%els(:))
-               molecule_kind => molecule_kinds_new(ibox)%list%els(imolecule)
+            DO imolecule = 1, SIZE(molecule_kinds(ibox)%list%els(:))
+               molecule_kind => molecule_kinds(ibox)%list%els(imolecule)
                CALL get_molecule_kind(molecule_kind, nmolecule=nmolecule, &
                                       name=name)
                IF (TRIM(name) .NE. mc_molecule_info%names(iunique)) CYCLE
@@ -2004,8 +2004,8 @@ CONTAINS
          first_mol = last_mol+1
          last_mol = first_mol+SUM(mc_molecule_info%nchains(:, ibox))-1
          mc_molecule_info%in_box(first_mol:last_mol) = ibox
-         DO imolecule = 1, SIZE(molecule_kinds_new(ibox)%list%els(:))
-            molecule_kind => molecule_kinds_new(ibox)%list%els(imolecule)
+         DO imolecule = 1, SIZE(molecule_kinds(ibox)%list%els(:))
+            molecule_kind => molecule_kinds(ibox)%list%els(imolecule)
             CALL get_molecule_kind(molecule_kind, nmolecule=nmolecule, &
                                    name=name, molecule_list=molecule_list)
 ! figure out which molecule number this is
@@ -2023,7 +2023,7 @@ CONTAINS
 
 ! get rid of stuff we don't need
       DEALLOCATE (names_init)
-      DEALLOCATE (molecule_kinds_new)
+      DEALLOCATE (molecule_kinds)
       DEALLOCATE (particles)
 
    END SUBROUTINE MC_DETERMINE_MOLECULE_INFO

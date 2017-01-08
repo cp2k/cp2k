@@ -45,7 +45,7 @@ MODULE mc_moves
                                               mc_simpar_type
    USE md_run,                          ONLY: qs_mol_dyn
    USE message_passing,                 ONLY: mp_bcast
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: bend_type,&
                                               bond_type,&
                                               get_molecule_kind,&
@@ -164,7 +164,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: r_new, r_old
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind, molecule_kind_test
       TYPE(particle_list_type), POINTER                  :: particles
 
@@ -173,7 +173,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 ! nullify some pointers
-      NULLIFY (particles, subsys, molecule_kinds_new, molecule_kind, &
+      NULLIFY (particles, subsys, molecule_kinds, molecule_kind, &
                molecule_kind_test)
 
 ! get a bunch of stuff from mc_par
@@ -228,12 +228,12 @@ CONTAINS
 
 ! now find the molecule type associated with this guy
       CALL cp_subsys_get(subsys, &
-                         particles=particles, molecule_kinds_new=molecule_kinds_new)
-      DO imol_type = 1, SIZE(molecule_kinds_new%els(:))
-         molecule_kind_test => molecule_kinds_new%els(imol_type)
+                         particles=particles, molecule_kinds=molecule_kinds)
+      DO imol_type = 1, SIZE(molecule_kinds%els(:))
+         molecule_kind_test => molecule_kinds%els(imol_type)
          CALL get_molecule_kind(molecule_kind_test, name=name)
          IF (TRIM(ADJUSTL(name)) == TRIM(ADJUSTL(names(molecule_type)))) THEN
-            molecule_kind => molecule_kinds_new%els(imol_type)
+            molecule_kind => molecule_kinds%els(imol_type)
             EXIT
          ENDIF
       ENDDO
@@ -2021,7 +2021,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_force
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: particles, particles_force
 
@@ -2047,7 +2047,7 @@ CONTAINS
       end_mol = start_mol+SUM(nchains(:, box_number))-1
 
 ! nullify some pointers
-      NULLIFY (particles, subsys, molecule_kinds_new, molecule_kind, &
+      NULLIFY (particles, subsys, molecule_kinds, molecule_kind, &
                particles_force, subsys_force)
 
 ! do some allocation
@@ -2062,8 +2062,8 @@ CONTAINS
 ! grab the coordinates
          CALL force_env_get(bias_env, cell=cell, subsys=subsys)
          CALL cp_subsys_get(subsys, &
-                            particles=particles, molecule_kinds_new=molecule_kinds_new)
-         molecule_kind => molecule_kinds_new%els(1)
+                            particles=particles, molecule_kinds=molecule_kinds)
+         molecule_kind => molecule_kinds%els(1)
          CALL get_molecule_kind(molecule_kind, natom=natom)
          CALL get_cell(cell, abc=abc)
 
@@ -2075,8 +2075,8 @@ CONTAINS
 ! grab the coordinates
          CALL force_env_get(force_env, cell=cell, subsys=subsys)
          CALL cp_subsys_get(subsys, &
-                            particles=particles, molecule_kinds_new=molecule_kinds_new)
-         molecule_kind => molecule_kinds_new%els(1)
+                            particles=particles, molecule_kinds=molecule_kinds)
+         molecule_kind => molecule_kinds%els(1)
          CALL get_molecule_kind(molecule_kind, natom=natom)
          CALL get_cell(cell, abc=abc)
 

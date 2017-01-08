@@ -18,7 +18,7 @@ MODULE al_system_init
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE simpar_types,                    ONLY: simpar_type
    USE thermostat_types,                ONLY: thermostat_info_type

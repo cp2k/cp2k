@@ -48,7 +48,7 @@ MODULE kg_environment
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_gather,&
                                               mp_max
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE qs_dispersion_nonloc,            ONLY: qs_dispersion_nonloc_init
    USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init

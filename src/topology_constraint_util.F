@@ -44,7 +44,7 @@ MODULE topology_constraint_util
         atom_type, bond_type, colvar_constraint_type, fixd_constraint_type, g3x3_constraint_type, &
         g4x6_constraint_type, get_molecule_kind, molecule_kind_type, set_molecule_kind, &
         setup_colvar_counters, vsite_constraint_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               local_colvar_constraint_type,&
                                               local_constraint_type,&

@@ -41,7 +41,7 @@ MODULE glbopt_master
                                               int_8
    USE molecule_kind_types,             ONLY: deallocate_molecule_kind_set,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: deallocate_global_constraint,&
+   USE molecule_types,                  ONLY: deallocate_global_constraint,&
                                               deallocate_molecule_set,&
                                               global_constraint_type,&
                                               molecule_type

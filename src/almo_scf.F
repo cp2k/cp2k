@@ -71,7 +71,7 @@ MODULE almo_scf
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathlib,                         ONLY: binomial
-   USE molecule_types_new,              ONLY: get_molecule_set_info,&
+   USE molecule_types,                  ONLY: get_molecule_set_info,&
                                               molecule_type
    USE mscfg_types,                     ONLY: get_matrix_from_submatrices,&
                                               molecular_scf_guess_env_type

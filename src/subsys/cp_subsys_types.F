@@ -35,14 +35,14 @@ MODULE cp_subsys_types
                                               distribution_1d_retain,&
                                               distribution_1d_type
    USE kinds,                           ONLY: dp
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_release,&
-                                              mol_kind_new_list_retain,&
-                                              mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_release,&
-                                              mol_new_list_retain,&
-                                              mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_release,&
+                                              molecule_kind_list_retain,&
+                                              molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: deallocate_global_constraint,&
+   USE molecule_list_types,             ONLY: molecule_list_release,&
+                                              molecule_list_retain,&
+                                              molecule_list_type
+   USE molecule_types,                  ONLY: deallocate_global_constraint,&
                                               global_constraint_type,&
                                               molecule_type
    USE multipole_types,                 ONLY: multipole_type,&
@@ -96,10 +96,10 @@ MODULE cp_subsys_types
       TYPE(particle_list_type), POINTER          :: core_particles => Null()
       TYPE(distribution_1d_type), POINTER        :: local_particles => Null()
       TYPE(cp_para_env_type), POINTER            :: para_env => Null()
-      ! New molecules kinds
-      TYPE(mol_new_list_type), POINTER           :: molecules_new => Null()
-      TYPE(mol_kind_new_list_type), POINTER      :: molecule_kinds_new => Null()
-      TYPE(distribution_1d_type), POINTER        :: local_molecules_new => Null()
+      ! molecules kinds
+      TYPE(molecule_list_type), POINTER          :: molecules => Null()
+      TYPE(molecule_kind_list_type), POINTER     :: molecule_kinds => Null()
+      TYPE(distribution_1d_type), POINTER        :: local_molecules => Null()
       ! Definitions of the collective variables
       TYPE(colvar_p_type), DIMENSION(:), POINTER :: colvar_p => Null()
       ! Intermolecular constraints
@@ -166,9 +166,9 @@ CONTAINS
             CALL particle_list_release(subsys%shell_particles)
             CALL particle_list_release(subsys%core_particles)
             CALL distribution_1d_release(subsys%local_particles)
-            CALL mol_kind_new_list_release(subsys%molecule_kinds_new)
-            CALL mol_new_list_release(subsys%molecules_new)
-            CALL distribution_1d_release(subsys%local_molecules_new)
+            CALL molecule_kind_list_release(subsys%molecule_kinds)
+            CALL molecule_list_release(subsys%molecules)
+            CALL distribution_1d_release(subsys%local_molecules)
             CALL cp_para_env_release(subsys%para_env)
             CALL release_multipole_type(subsys%multipoles)
             CALL colvar_p_release(subsys%colvar_p)
@@ -189,9 +189,9 @@ CONTAINS
 !> \param atomic_kinds ...
 !> \param particles ...
 !> \param local_particles ...
-!> \param molecules_new ...
-!> \param molecule_kinds_new ...
-!> \param local_molecules_new ...
+!> \param molecules ...
+!> \param molecule_kinds ...
+!> \param local_molecules ...
 !> \param para_env ...
 !> \param colvar_p ...
 !> \param shell_particles ...
@@ -205,15 +205,15 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles, &
-                            molecules_new, molecule_kinds_new, local_molecules_new, para_env, &
+                            molecules, molecule_kinds, local_molecules, para_env, &
                             colvar_p, shell_particles, core_particles, gci, multipoles, results, cell)
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(atomic_kind_list_type), OPTIONAL, POINTER     :: atomic_kinds
       TYPE(particle_list_type), OPTIONAL, POINTER        :: particles
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles
-      TYPE(mol_new_list_type), OPTIONAL, POINTER         :: molecules_new
-      TYPE(mol_kind_new_list_type), OPTIONAL, POINTER    :: molecule_kinds_new
-      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules_new
+      TYPE(molecule_list_type), OPTIONAL, POINTER        :: molecules
+      TYPE(molecule_kind_list_type), OPTIONAL, POINTER   :: molecule_kinds
+      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(colvar_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: colvar_p
@@ -247,20 +247,20 @@ CONTAINS
          CALL distribution_1d_release(subsys%local_particles)
          subsys%local_particles => local_particles
       END IF
-      IF (PRESENT(local_molecules_new)) THEN
-         CALL distribution_1d_retain(local_molecules_new)
-         CALL distribution_1d_release(subsys%local_molecules_new)
-         subsys%local_molecules_new => local_molecules_new
+      IF (PRESENT(local_molecules)) THEN
+         CALL distribution_1d_retain(local_molecules)
+         CALL distribution_1d_release(subsys%local_molecules)
+         subsys%local_molecules => local_molecules
       END IF
-      IF (PRESENT(molecule_kinds_new)) THEN
-         CALL mol_kind_new_list_retain(molecule_kinds_new)
-         CALL mol_kind_new_list_release(subsys%molecule_kinds_new)
-         subsys%molecule_kinds_new => molecule_kinds_new
+      IF (PRESENT(molecule_kinds)) THEN
+         CALL molecule_kind_list_retain(molecule_kinds)
+         CALL molecule_kind_list_release(subsys%molecule_kinds)
+         subsys%molecule_kinds => molecule_kinds
       END IF
-      IF (PRESENT(molecules_new)) THEN
-         CALL mol_new_list_retain(molecules_new)
-         CALL mol_new_list_release(subsys%molecules_new)
-         subsys%molecules_new => molecules_new
+      IF (PRESENT(molecules)) THEN
+         CALL molecule_list_retain(molecules)
+         CALL molecule_list_release(subsys%molecules)
+         subsys%molecules => molecules
       END IF
       IF (PRESENT(para_env)) THEN
          CALL cp_para_env_retain(para_env)
@@ -314,11 +314,11 @@ CONTAINS
 !> \param particles ...
 !> \param particle_set ...
 !> \param local_particles ...
-!> \param molecules_new ...
+!> \param molecules ...
 !> \param molecule_set ...
-!> \param molecule_kinds_new ...
+!> \param molecule_kinds ...
 !> \param molecule_kind_set ...
-!> \param local_molecules_new ...
+!> \param local_molecules ...
 !> \param para_env ...
 !> \param colvar_p ...
 !> \param shell_particles ...
@@ -341,8 +341,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_subsys_get(subsys, ref_count, atomic_kinds, atomic_kind_set, &
                             particles, particle_set, &
-                            local_particles, molecules_new, molecule_set, molecule_kinds_new, &
-                            molecule_kind_set, local_molecules_new, para_env, colvar_p, &
+                            local_particles, molecules, molecule_set, molecule_kinds, &
+                            molecule_kind_set, local_molecules, para_env, colvar_p, &
                             shell_particles, core_particles, gci, multipoles, &
                             natom, nparticle, ncore, nshell, nkind, atprop, virial, &
                             results, cell)
@@ -355,13 +355,13 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles
-      TYPE(mol_new_list_type), OPTIONAL, POINTER         :: molecules_new
+      TYPE(molecule_list_type), OPTIONAL, POINTER        :: molecules
       TYPE(molecule_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: molecule_set
-      TYPE(mol_kind_new_list_type), OPTIONAL, POINTER    :: molecule_kinds_new
+      TYPE(molecule_kind_list_type), OPTIONAL, POINTER   :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: molecule_kind_set
-      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules_new
+      TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_molecules
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(colvar_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: colvar_p
@@ -391,11 +391,11 @@ CONTAINS
       IF (PRESENT(particles)) particles => subsys%particles
       IF (PRESENT(particle_set)) particle_set => subsys%particles%els
       IF (PRESENT(local_particles)) local_particles => subsys%local_particles
-      IF (PRESENT(molecules_new)) molecules_new => subsys%molecules_new
-      IF (PRESENT(molecule_set)) molecule_set => subsys%molecules_new%els
-      IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => subsys%molecule_kinds_new
-      IF (PRESENT(molecule_kind_set)) molecule_kind_set => subsys%molecule_kinds_new%els
-      IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
+      IF (PRESENT(molecules)) molecules => subsys%molecules
+      IF (PRESENT(molecule_set)) molecule_set => subsys%molecules%els
+      IF (PRESENT(molecule_kinds)) molecule_kinds => subsys%molecule_kinds
+      IF (PRESENT(molecule_kind_set)) molecule_kind_set => subsys%molecule_kinds%els
+      IF (PRESENT(local_molecules)) local_molecules => subsys%local_molecules
       IF (PRESENT(para_env)) para_env => subsys%para_env
       IF (PRESENT(colvar_p)) colvar_p => subsys%colvar_p
       IF (PRESENT(shell_particles)) shell_particles => subsys%shell_particles

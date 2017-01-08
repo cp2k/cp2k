@@ -1556,9 +1556,9 @@ CONTAINS
       ! check if molecules in list carry constraints
       num_const_atom = 0
       fix_xyz = .TRUE.
-      IF (ASSOCIATED(subsys_mm%molecule_kinds_new)) THEN
-         IF (ASSOCIATED(subsys_mm%molecule_kinds_new%els)) THEN
-            molecule_kind => subsys_mm%molecule_kinds_new%els
+      IF (ASSOCIATED(subsys_mm%molecule_kinds)) THEN
+         IF (ASSOCIATED(subsys_mm%molecule_kinds%els)) THEN
+            molecule_kind => subsys_mm%molecule_kinds%els
             DO i = 1, SIZE(molecule_kind)
                IF (.NOT. ASSOCIATED(molecule_kind(i)%fixd_list)) EXIT
                IF (.NOT. fix_xyz) EXIT

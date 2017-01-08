@@ -59,7 +59,7 @@ MODULE distribution_methods
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               create_rng_stream,&
                                               delete_rng_stream,&

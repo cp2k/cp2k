@@ -44,14 +44,14 @@ MODULE fist_environment_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_retain,&
                                               section_vals_type
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                              mol_kind_new_list_release,&
-                                              mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                              mol_new_list_release,&
-                                              mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_create,&
+                                              molecule_kind_list_release,&
+                                              molecule_kind_list_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_list_types,             ONLY: molecule_list_create,&
+                                              molecule_list_release,&
+                                              molecule_list_type
+   USE molecule_types,                  ONLY: molecule_type
    USE multipole_types,                 ONLY: multipole_type
    USE particle_list_types,             ONLY: particle_list_create,&
                                               particle_list_release,&
@@ -180,13 +180,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_get', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
-      TYPE(mol_new_list_type), POINTER                   :: molecules_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(multipole_type), POINTER                      :: fist_multipoles
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
 
-      NULLIFY (atomic_kinds, particles, molecules_new, molecule_kinds_new, fist_multipoles)
+      NULLIFY (atomic_kinds, particles, molecules, molecule_kinds, fist_multipoles)
 
       IF (PRESENT(input)) input => fist_env%input
       IF (PRESENT(qmmm)) qmmm = fist_env%qmmm
@@ -205,11 +205,11 @@ CONTAINS
       IF (ASSOCIATED(fist_env%subsys)) &
          CALL cp_subsys_get(fist_env%subsys, &
                             atomic_kinds=atomic_kinds, &
-                            local_molecules_new=local_molecules, &
+                            local_molecules=local_molecules, &
                             local_particles=local_particles, &
                             particles=particles, &
-                            molecule_kinds_new=molecule_kinds_new, &
-                            molecules_new=molecules_new, &
+                            molecule_kinds=molecule_kinds, &
+                            molecules=molecules, &
                             shell_particles=shell_particles, &
                             core_particles=core_particles, &
                             multipoles=fist_multipoles, &
@@ -217,8 +217,8 @@ CONTAINS
                             cell=cell)
       IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
       IF (PRESENT(particle_set)) particle_set => particles%els
-      IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
-      IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
+      IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds%els
+      IF (PRESENT(molecule_set)) molecule_set => molecules%els
       IF (PRESENT(shell_particle_set)) shell_particle_set => shell_particles%els
       IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
       IF (PRESENT(multipoles)) multipoles => fist_multipoles
@@ -312,8 +312,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_set', routineP = moduleN//':'//routineN
 
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
-      TYPE(mol_new_list_type), POINTER                   :: molecules_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
       CPASSERT(fist_env%ref_count > 0)
@@ -375,21 +375,21 @@ CONTAINS
       END IF
       IF (PRESENT(local_molecules)) THEN
          CALL cp_subsys_set(fist_env%subsys, &
-                            local_molecules_new=local_molecules)
+                            local_molecules=local_molecules)
       END IF
       IF (PRESENT(molecule_kind_set)) THEN
-         CALL mol_kind_new_list_create(molecule_kinds_new, &
-                                       els_ptr=molecule_kind_set)
+         CALL molecule_kind_list_create(molecule_kinds, &
+                                        els_ptr=molecule_kind_set)
          CALL cp_subsys_set(fist_env%subsys, &
-                            molecule_kinds_new=molecule_kinds_new)
-         CALL mol_kind_new_list_release(molecule_kinds_new)
+                            molecule_kinds=molecule_kinds)
+         CALL molecule_kind_list_release(molecule_kinds)
       END IF
       IF (PRESENT(molecule_set)) THEN
-         CALL mol_new_list_create(molecules_new, &
-                                  els_ptr=molecule_set)
+         CALL molecule_list_create(molecules, &
+                                   els_ptr=molecule_set)
          CALL cp_subsys_set(fist_env%subsys, &
-                            molecules_new=molecules_new)
-         CALL mol_new_list_release(molecules_new)
+                            molecules=molecules)
+         CALL molecule_list_release(molecules)
       END IF
       IF (PRESENT(exclusions)) fist_env%exclusions => exclusions
       IF (PRESENT(shell_model)) THEN

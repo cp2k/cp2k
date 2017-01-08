@@ -40,11 +40,11 @@ MODULE thermostat_utils
                                               dp
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_sum
-   USE mol_new_list_types,              ONLY: mol_new_list_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               get_molecule_kind_set,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               molecule_type
    USE motion_utils,                    ONLY: rot_ana
@@ -155,7 +155,7 @@ CONTAINS
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_molecules
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(section_vals_type), POINTER                   :: print_section, region_sections
       TYPE(global_constraint_type), POINTER              :: gci
@@ -239,7 +239,7 @@ CONTAINS
       TYPE(thermostat_info_type), POINTER                :: thermostat_info
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_molecules
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: region, ensemble
       INTEGER, INTENT(INOUT), OPTIONAL                   :: nfree
@@ -431,7 +431,7 @@ CONTAINS
       INTEGER, INTENT(INOUT), OPTIONAL                   :: sum_of_thermostats
       INTEGER, DIMENSION(:), POINTER                     :: thermolist(:)
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
 
@@ -562,7 +562,7 @@ CONTAINS
       TYPE(thermostat_info_type), POINTER                :: thermostat_info
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
       TYPE(distribution_1d_type), POINTER                :: local_molecules
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: region, ensemble
       INTEGER, INTENT(INOUT), OPTIONAL                   :: nfree
@@ -712,7 +712,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: map_loc_thermo_gen
       TYPE(distribution_1d_type), POINTER                :: local_molecules
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind_set(:)
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(qmmm_env_type), POINTER                       :: qmmm_env
 

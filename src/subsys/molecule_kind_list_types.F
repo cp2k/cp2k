@@ -10,7 +10,7 @@
 !>      01.2017 ported to Fypp [Ole Schuett]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-MODULE mol_kind_new_list_types
+MODULE molecule_kind_list_types
     use molecule_kind_types, only: molecule_kind_type, deallocate_molecule_kind_set
 
 #include "../base/base_uses.f90"
@@ -20,6 +20,6 @@ MODULE mol_kind_new_list_types
 
 #:include "subsys_list.fypp"
 
-$:subsys_list_macro(shortname='mol_kind_new', longname='molecule_kind')
+$:subsys_list_macro(name='molecule_kind')
 
-END MODULE mol_kind_new_list_types
+END MODULE molecule_kind_list_types

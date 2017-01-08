@@ -56,7 +56,7 @@ MODULE force_fields_all
    USE molecule_kind_types,             ONLY: &
         bend_type, bond_type, get_molecule_kind, impr_type, molecule_kind_type, opbend_type, &
         set_molecule_kind, shell_type, torsion_type, ub_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE pair_potential,                  ONLY: get_nonbond_storage,&
                                               spline_nonbond_control

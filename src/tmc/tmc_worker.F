@@ -46,7 +46,7 @@ MODULE tmc_worker
                                               force_env_get_natom
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_list_types,             ONLY: molecule_list_type
    USE parallel_rng_types,              ONLY: get_rng_stream,&
                                               next_random_number,&
                                               set_rng_stream
@@ -774,7 +774,7 @@ CONTAINS
       INTEGER                                            :: handle, ierr, mol, ndim, nr_atoms
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
-      TYPE(mol_new_list_type), POINTER                   :: molecule_new
+      TYPE(molecule_list_type), POINTER                  :: molecule_new
 
       CPASSERT(.NOT. ASSOCIATED(init_conf))
 
@@ -794,7 +794,7 @@ CONTAINS
       CALL f_env_get_from_id(env_id, f_env)
       CALL force_env_get(f_env%force_env, subsys=subsys)
 
-      CALL cp_subsys_get(subsys=subsys, molecules_new=molecule_new)
+      CALL cp_subsys_get(subsys=subsys, molecules=molecule_new)
       loop_mol: DO mol = 1, SIZE(molecule_new%els(:))
          init_conf%mol(molecule_new%els(mol)%first_atom: &
                        molecule_new%els(mol)%last_atom) = mol

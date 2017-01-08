@@ -39,7 +39,7 @@ MODULE integrator_utils
    USE message_passing,                 ONLY: mp_max,&
                                               mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               molecule_type
    USE particle_types,                  ONLY: particle_type,&

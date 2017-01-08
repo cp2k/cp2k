@@ -43,7 +43,7 @@ MODULE mc_control
                                               mc_simpar_type,&
                                               set_mc_par
    USE message_passing,                 ONLY: mp_bcast
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: atom_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
@@ -98,7 +98,7 @@ CONTAINS
       TYPE(atom_type), DIMENSION(:), POINTER             :: atom_list
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds_new
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: particles
 
@@ -116,7 +116,7 @@ CONTAINS
       CALL force_env_get(force_env, cell=cell, subsys=subsys)
       CALL get_cell(cell, abc=abc)
       CALL cp_subsys_get(subsys, &
-                         molecule_kinds_new=molecule_kinds_new, &
+                         molecule_kinds=molecule_kinds, &
                          particles=particles)
 
       nunits_tot = SIZE(particles%els(:))
@@ -131,10 +131,10 @@ CONTAINS
       ! can't do a simple particles%els%atomic_kind%element_symbol because
       ! of the classical force_env
       IF (nunits_tot .GT. 0) THEN
-         nmol_types = SIZE(molecule_kinds_new%els(:))
+         nmol_types = SIZE(molecule_kinds%els(:))
          iparticle = 1
          DO imol_type = 1, nmol_types
-            molecule_kind => molecule_kinds_new%els(imol_type)
+            molecule_kind => molecule_kinds%els(imol_type)
             CALL get_molecule_kind(molecule_kind, atom_list=atom_list, &
                                    nmolecule=nmolecule, natom=natom)
             ! write the coordinates out

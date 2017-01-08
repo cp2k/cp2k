@@ -70,7 +70,7 @@ MODULE qs_environment_types
                                               lri_env_release,&
                                               lri_environment_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE mp2_types,                       ONLY: mp2_env_release,&
                                               mp2_type
    USE mscfg_types,                     ONLY: molecular_scf_guess_env_destroy,&

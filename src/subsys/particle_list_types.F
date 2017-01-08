@@ -21,6 +21,6 @@ MODULE particle_list_types
 
 #:include "subsys_list.fypp"
 
-$:subsys_list_macro(shortname='particle', longname='particle')
+$:subsys_list_macro(name='particle')
 
 END MODULE particle_list_types

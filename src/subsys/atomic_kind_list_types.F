@@ -20,6 +20,6 @@ MODULE atomic_kind_list_types
 
 #:include "subsys_list.fypp"
 
-$:subsys_list_macro(shortname='atomic_kind', longname='atomic_kind')
+$:subsys_list_macro(name='atomic_kind')
 
 END MODULE atomic_kind_list_types

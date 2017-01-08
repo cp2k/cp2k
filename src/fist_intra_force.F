@@ -29,7 +29,7 @@ MODULE fist_intra_force
    USE molecule_kind_types,             ONLY: &
         bend_type, bond_type, get_molecule_kind, impr_type, molecule_kind_type, opbend_type, &
         shell_type, torsion_type, ub_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"

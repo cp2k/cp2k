@@ -60,7 +60,7 @@ MODULE md_vel_utils
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE md_util,                         ONLY: read_vib_eigs_unformatted
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               get_molecule_kind_set,&
@@ -569,7 +569,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(md_environment_type), POINTER                 :: md_env
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       CHARACTER(LEN=*), INTENT(IN)                       :: label
       TYPE(section_vals_type), POINTER                   :: print_section, subsys_section
       LOGICAL, INTENT(IN)                                :: shell_present
@@ -2014,7 +2014,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: particles
@@ -2032,7 +2032,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".mdLog")
 
-          CALL cp_subsys_get(subsys,molecule_kinds_new=molecule_kinds,&
+          CALL cp_subsys_get(subsys,molecule_kinds=molecule_kinds,&
                particles=particles)
 
           natoms = SIZE(particles%els)
@@ -2111,7 +2111,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
@@ -2138,7 +2138,7 @@ CONTAINS
     CALL cp_subsys_get(subsys,&
                        atomic_kinds=atomic_kinds,&
                        core_particles=core_particles,&
-                       molecule_kinds_new=molecule_kinds,&
+                       molecule_kinds=molecule_kinds,&
                        particles=particles,&
                        shell_particles=shell_particles)
 
@@ -2246,7 +2246,7 @@ CONTAINS
 
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(section_vals_type), POINTER                   :: md_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_cascade', &

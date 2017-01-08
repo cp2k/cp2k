@@ -28,7 +28,7 @@ MODULE dimer_types
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
@@ -279,7 +279,7 @@ CONTAINS
       INTEGER                                            :: ii, ikind, ind, iparticle, nfixed_atoms, &
                                                             nkinds
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
 
@@ -287,7 +287,7 @@ CONTAINS
 
       ! need to get constraint information from molecule information
       CALL cp_subsys_get(subsys=subsys, &
-                         molecule_kinds_new=molecule_kinds)
+                         molecule_kinds=molecule_kinds)
       molecule_kind_set => molecule_kinds%els
 
       ! get total number of fixed atoms

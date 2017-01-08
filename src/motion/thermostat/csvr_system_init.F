@@ -19,7 +19,7 @@ MODULE csvr_system_init
                                               section_vals_type,&
                                               section_vals_val_get
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: global_constraint_type,&
+   USE molecule_types,                  ONLY: global_constraint_type,&
                                               molecule_type
    USE parallel_rng_types,              ONLY: read_rng_stream,&
                                               rng_record_length

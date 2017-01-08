@@ -44,8 +44,8 @@ MODULE vibrational_analysis
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: diamat_all
    USE mode_selective,                  ONLY: ms_vb_anal
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
    USE molden_utils,                    ONLY: write_vibrations_molden
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               get_molecule_kind,&
                                               molecule_kind_type
@@ -506,7 +506,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ifixd_list, work
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind
       TYPE(particle_list_type), POINTER                  :: particles
@@ -516,7 +516,7 @@ CONTAINS
       CALL force_env_get(force_env=force_env, subsys=subsys)
 
       CALL cp_subsys_get(subsys=subsys, particles=particles, &
-                         molecule_kinds_new=molecule_kinds)
+                         molecule_kinds=molecule_kinds)
 
       nkind = molecule_kinds%n_els
       molecule_kind_set => molecule_kinds%els

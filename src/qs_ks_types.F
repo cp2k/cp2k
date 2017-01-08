@@ -44,7 +44,7 @@ MODULE qs_ks_types
    USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_release,&
                                               pw_env_retain,&
@@ -502,7 +502,7 @@ CONTAINS
 
       IF (PRESENT(subsys)) subsys => ks_env%subsys
       CALL qs_subsys_get(ks_env%subsys, &
-                         local_molecules_new=local_molecules, &
+                         local_molecules=local_molecules, &
                          local_particles=local_particles, &
                          atprop=atprop, &
                          virial=virial, &

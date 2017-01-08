@@ -26,9 +26,9 @@ MODULE force_env_utils
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: det_3x3,&
                                               jacobi
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
-   USE molecule_types_new,              ONLY: global_constraint_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: global_constraint_type
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: update_particle_set
    USE physcon,                         ONLY: pascal
@@ -89,8 +89,8 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
       CALL timeset(routineN, handle)
@@ -111,10 +111,10 @@ CONTAINS
       CALL force_env_get(force_env, subsys=subsys, cell=cell)
       CALL cp_subsys_get(subsys, &
                          atomic_kinds=atomic_kinds, &
-                         local_molecules_new=local_molecules, &
+                         local_molecules=local_molecules, &
                          local_particles=local_particles, &
-                         molecules_new=molecules, &
-                         molecule_kinds_new=molecule_kinds, &
+                         molecules=molecules, &
+                         molecule_kinds=molecule_kinds, &
                          particles=particles, &
                          gci=gci)
       nparticle_kind = atomic_kinds%n_els
@@ -258,8 +258,8 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
       TYPE(global_constraint_type), POINTER              :: gci
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(particle_list_type), POINTER                  :: particles
 
       CALL timeset(routineN, handle)
@@ -279,10 +279,10 @@ CONTAINS
       CALL force_env_get(force_env, subsys=subsys, cell=cell)
       CALL cp_subsys_get(subsys, &
                          atomic_kinds=atomic_kinds, &
-                         local_molecules_new=local_molecules, &
+                         local_molecules=local_molecules, &
                          local_particles=local_particles, &
-                         molecules_new=molecules, &
-                         molecule_kinds_new=molecule_kinds, &
+                         molecules=molecules, &
+                         molecule_kinds=molecule_kinds, &
                          particles=particles, &
                          gci=gci)
       nparticle_kind = atomic_kinds%n_els

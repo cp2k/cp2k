@@ -64,7 +64,7 @@ MODULE fist_force
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: molecule_kind_type
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
    USE multipole_types,                 ONLY: multipole_type
    USE particle_types,                  ONLY: particle_type

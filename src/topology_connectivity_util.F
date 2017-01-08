@@ -27,7 +27,7 @@ MODULE topology_connectivity_util
    USE molecule_kind_types,             ONLY: &
         allocate_molecule_kind_set, atom_type, bend_type, bond_type, get_molecule_kind, impr_type, &
         molecule_kind_type, opbend_type, set_molecule_kind, torsion_type, ub_type
-   USE molecule_types_new,              ONLY: allocate_molecule_set,&
+   USE molecule_types,                  ONLY: allocate_molecule_set,&
                                               get_molecule,&
                                               local_molecule_type,&
                                               molecule_type,&

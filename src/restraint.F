@@ -31,8 +31,7 @@ MODULE restraint
                                               force_env_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
-   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_list_types,        ONLY: molecule_kind_list_type
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
                                               g3x3_constraint_type,&
@@ -40,7 +39,8 @@ MODULE restraint
                                               get_molecule_kind,&
                                               local_fixd_constraint_type,&
                                               molecule_kind_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_list_types,             ONLY: molecule_list_type
+   USE molecule_types,                  ONLY: get_molecule,&
                                               global_constraint_type,&
                                               local_colvar_constraint_type,&
                                               molecule_type
@@ -84,9 +84,9 @@ CONTAINS
       TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list
       TYPE(global_constraint_type), POINTER              :: gci
       TYPE(local_fixd_constraint_type), POINTER          :: lfixd_list(:)
-      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
-      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_list_type), POINTER             :: molecule_kinds
       TYPE(molecule_kind_type), POINTER                  :: molecule_kind, molecule_kind_set(:)
+      TYPE(molecule_list_type), POINTER                  :: molecules
       TYPE(molecule_type), POINTER                       :: molecule, molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), POINTER                       :: particle_set(:)
@@ -101,9 +101,9 @@ CONTAINS
       energy_colv = 0.0_dp
       energy_fixd = 0.0_dp
       n_restraint = 0
-      CALL cp_subsys_get(subsys=subsys, particles=particles, molecules_new=molecules, &
-                         local_particles=local_particles, local_molecules_new=local_molecules, &
-                         gci=gci, molecule_kinds_new=molecule_kinds)
+      CALL cp_subsys_get(subsys=subsys, particles=particles, molecules=molecules, &
+                         local_particles=local_particles, local_molecules=local_molecules, &
+                         gci=gci, molecule_kinds=molecule_kinds)
 
       nkind = molecule_kinds%n_els
       particle_set => particles%els

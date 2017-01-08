@@ -63,7 +63,7 @@ MODULE force_fields_util
         atom_type, bend_type, bond_type, colvar_constraint_type, g3x3_constraint_type, &
         g4x6_constraint_type, get_molecule_kind, impr_type, molecule_kind_type, opbend_type, &
         set_molecule_kind, torsion_type, ub_type
-   USE molecule_types_new,              ONLY: get_molecule,&
+   USE molecule_types,                  ONLY: get_molecule,&
                                               molecule_type
    USE pair_potential_types,            ONLY: pair_potential_pp_type
    USE particle_types,                  ONLY: particle_type

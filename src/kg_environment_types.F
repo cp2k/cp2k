@@ -16,7 +16,7 @@ MODULE kg_environment_types
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE molecule_types_new,              ONLY: molecule_type
+   USE molecule_types,                  ONLY: molecule_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
    USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
