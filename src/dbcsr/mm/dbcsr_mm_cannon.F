@@ -2116,14 +2116,14 @@ CONTAINS
       CALL acc_event_synchronize(trs_stackbuf%d%acc_ready)
       CALL timestop(handle1)
 
-      mi_max = SIZE(enum2row_blk_sizes); ni_max = SIZE(enum2col_blk_sizes)      
+      mi_max = SIZE(enum2row_blk_sizes); ni_max = SIZE(enum2col_blk_sizes)
       ALLOCATE (counters(mi_max, ni_max), offsets(mi_max, ni_max))
       counters(:, :) = 0; offsets(:, :) = 0
 
       CALL timeset(routineN//"_comp", handle1)
 
       ! Simplified algorithm for single size blocks
-      IF (mi_max.EQ.1 .AND. ni_max.EQ.1) THEN
+      IF (mi_max .EQ. 1 .AND. ni_max .EQ. 1) THEN
          counters(1, 1) = 0
          DO i = 1, nblks
             blk_p = blk_index(3*(i-1)+3)
@@ -2179,7 +2179,7 @@ CONTAINS
          DO ni = 1, ni_max
             DO mi = 1, mi_max
                IF (filled(mi, ni) /= counters(mi, ni)) &
-                    CPABORT("acc_transpose_blocks: bug")
+                  CPABORT("acc_transpose_blocks: bug")
             END DO
          END DO
       ENDIF
@@ -2202,13 +2202,13 @@ CONTAINS
                m = enum2row_blk_sizes(mi)
                n = enum2col_blk_sizes(ni)
                CALL dbcsr_acc_transpose( &
-                    trs_stack=trs_stackbuf%d%acc_devmem, &
-                    offset=offsets(mi, ni), &
-                    nblks=counters(mi, ni), &
-                    datatype=matrix%data_type, &
-                    buffer=matrix%data_area%d%acc_devmem, &
-                    m=m, n=n, &
-                    stream=trs_stackbuf%d%memory_type%acc_stream)
+                  trs_stack=trs_stackbuf%d%acc_devmem, &
+                  offset=offsets(mi, ni), &
+                  nblks=counters(mi, ni), &
+                  datatype=matrix%data_type, &
+                  buffer=matrix%data_area%d%acc_devmem, &
+                  m=m, n=n, &
+                  stream=trs_stackbuf%d%memory_type%acc_stream)
             END IF
          ENDDO
       ENDDO
