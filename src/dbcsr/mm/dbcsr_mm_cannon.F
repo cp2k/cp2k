@@ -2106,14 +2106,14 @@ CONTAINS
       blk_index => matrix%coo_l
       nblks = matrix%nblks
 
-      CALL timeset(routineN//"_ensure", handle1)
-      CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE.)
-      trs_stack => trs_stackbuf%d%i4
-      CALL timestop(handle1)
-
       ! make sure buffer from previous cannon-tick was uploaded
       CALL timeset(routineN//"_sync", handle1)
       CALL acc_event_synchronize(trs_stackbuf%d%acc_ready)
+      CALL timestop(handle1)
+
+      CALL timeset(routineN//"_ensure", handle1)
+      CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE.)
+      trs_stack => trs_stackbuf%d%i4
       CALL timestop(handle1)
 
       mi_max = SIZE(enum2row_blk_sizes); ni_max = SIZE(enum2col_blk_sizes)
@@ -2124,7 +2124,6 @@ CONTAINS
 
       ! Simplified algorithm for single size blocks
       IF (mi_max .EQ. 1 .AND. ni_max .EQ. 1) THEN
-         counters(1, 1) = 0
          DO i = 1, nblks
             blk_p = blk_index(3*(i-1)+3)
             IF (blk_p == 0) CYCLE
@@ -2136,9 +2135,6 @@ CONTAINS
          col_blk_sizes => array_data(matrix%col_blk_size)
          local2global_rows => array_data(matrix%local_rows)
          local2global_cols => array_data(matrix%local_cols)
-
-         ALLOCATE (filled(mi_max, ni_max))
-         filled(:, :) = 0
 
          ! collect block addresses and dimensions in a temporary stack
          ! while doing so, also count number of blocks per block-dimensions
@@ -2167,6 +2163,8 @@ CONTAINS
             ENDDO
          ENDDO
          ! write all sub-stacks into the host-pinned buffer
+         ALLOCATE (filled(mi_max, ni_max))
+         filled(:, :) = 0
          DO i = 1, nblks
             mi = tmp_stack(1, i)
             ni = tmp_stack(2, i)

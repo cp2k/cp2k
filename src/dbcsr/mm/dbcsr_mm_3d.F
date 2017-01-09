@@ -1824,8 +1824,8 @@ CONTAINS
                                                             right_displ_vunmerged
       INTEGER, DIMENSION(2)                              :: requests_reduction_size
       INTEGER, DIMENSION(4)                              :: requests_reduction
-      INTEGER, DIMENSION(:), POINTER                     :: product_matrix_meta_recv, &
-                                                            product_matrix_meta_send
+      INTEGER, DIMENSION(:), POINTER :: col_blk_sizes2enum, enum2col_blk_sizes, &
+         enum2row_blk_sizes, product_matrix_meta_recv, product_matrix_meta_send, row_blk_sizes2enum
       INTEGER, DIMENSION(:, :), POINTER                  :: left_refs_meta_size_layers3D, &
                                                             right_refs_meta_size_layers3D
       INTEGER, DIMENSION(:, :, :), POINTER :: left_refs_displ_unmerged_layers3D, &
@@ -1853,6 +1853,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
+      !
+      NULLIFY (row_blk_sizes2enum, enum2row_blk_sizes)
+      NULLIFY (col_blk_sizes2enum, enum2col_blk_sizes)
       !
       IF (PRESENT(retain_sparsity)) THEN
          keep_sparsity = retain_sparsity
@@ -2181,6 +2184,11 @@ CONTAINS
                                            capacity=nbuffers/2+MOD(nbuffers, 2))
          CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, &
                                            capacity=nbuffers/2+MOD(nbuffers, 2))
+         ! enumerate the blocksizes to keep the following 2D-arrays small.
+         CALL enumerate_blk_sizes(dbcsr_row_block_sizes(matrix_right), &
+                                  row_blk_sizes2enum, enum2row_blk_sizes)
+         CALL enumerate_blk_sizes(dbcsr_col_block_sizes(matrix_right), &
+                                  col_blk_sizes2enum, enum2col_blk_sizes)
       ENDIF
       IF (nranks3D .GT. 1) THEN
          CALL dbcsr_mempool_limit_capacity(memtype_mpi_product%pool, &
@@ -2669,6 +2677,8 @@ CONTAINS
                      CALL acc_transpose_blocks_images(right_buffer_p%buffer, &
                                                       right_buffer_p%data(1), &
                                                       right_buffer_p%trs_stackbuf(1), &
+                                                      row_blk_sizes2enum, enum2row_blk_sizes, &
+                                                      col_blk_sizes2enum, enum2col_blk_sizes, &
                                                       (/1/))
                   ENDIF
                ENDIF
@@ -2912,6 +2922,10 @@ CONTAINS
       DEALLOCATE (left_buffers, right_buffers)
       DEALLOCATE (do_comm_left, do_comm_right)
       DEALLOCATE (right_vcol, left_vrow)
+      IF (has_acc) THEN
+         DEALLOCATE (row_blk_sizes2enum, enum2row_blk_sizes)
+         DEALLOCATE (col_blk_sizes2enum, enum2col_blk_sizes)
+      ENDIF
       !
       IF (debug_mod) THEN
          v_ki = 0
@@ -3189,7 +3203,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: left_recv_filtered, left_vunmerged, &
                                                             right_recv_filtered, right_vunmerged
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: left_vmerged, right_vmerged
-      INTEGER, DIMENSION(:), POINTER                     :: blk_p, col_i
+      INTEGER, DIMENSION(:), POINTER                     :: blk_p, col_blk_sizes2enum, col_i, &
+                                                            enum2col_blk_sizes, &
+                                                            enum2row_blk_sizes, row_blk_sizes2enum
       INTEGER, DIMENSION(dbcsr_slot_nblkrows_total:&
          dbcsr_slot_nfullcols_local)                     :: left_global_indices, right_global_indices
       LOGICAL :: do_bcast, do_diagonal, do_k_scatter, do_rec, do_scatter, is_diagonal, &
@@ -3211,6 +3227,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (buffers_calc, buffers_comm, buffers)
+      NULLIFY (row_blk_sizes2enum, enum2row_blk_sizes)
+      NULLIFY (col_blk_sizes2enum, enum2col_blk_sizes)
       !
       IF (PRESENT(retain_sparsity)) THEN
          keep_sparsity = retain_sparsity
@@ -3581,6 +3599,10 @@ CONTAINS
                                            capacity=left_col_nimages+right_row_nimages)
          CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_1%pool, capacity=1)
          CALL dbcsr_mempool_limit_capacity(memtype_trsbuffer_2%pool, capacity=1)
+         CALL enumerate_blk_sizes(dbcsr_row_block_sizes(matrix_right), &
+                                  row_blk_sizes2enum, enum2row_blk_sizes)
+         CALL enumerate_blk_sizes(dbcsr_col_block_sizes(matrix_right), &
+                                  col_blk_sizes2enum, enum2col_blk_sizes)
       ENDIF
       !
       ! Wait refs and max norms (sent in make_buffers)
@@ -4039,7 +4061,9 @@ CONTAINS
                                   right_global_indices, right_vunmerged(:, metronome-1), &
                                   right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                   right_norms, left_norms, &
-                                  common_unmerged, indices_common_unmerged, has_acc)
+                                  common_unmerged, indices_common_unmerged, has_acc, &
+                                  row_blk_sizes2enum, enum2row_blk_sizes, &
+                                  col_blk_sizes2enum, enum2col_blk_sizes)
                ENDIF
                IF (left_nrequests .GT. 0) THEN
                   CALL mp_waitall(buffers_calc%left%get_requests(:, 1:left_nrequests))
@@ -4055,7 +4079,9 @@ CONTAINS
                                   left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                   right_norms, left_norms, &
                                   common_unmerged, indices_common_unmerged, &
-                                  has_acc, nthreads, buffers_calc%right%trs_stackbuf)
+                                  has_acc, row_blk_sizes2enum, enum2row_blk_sizes, &
+                                  col_blk_sizes2enum, enum2col_blk_sizes, &
+                                  nthreads, buffers_calc%right%trs_stackbuf)
                ENDIF
             ELSE
                !
@@ -4087,7 +4113,9 @@ CONTAINS
                                               right_global_indices, right_vunmerged(:, metronome-1), &
                                               right_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                               right_norms, left_norms, &
-                                              common_unmerged, indices_common_unmerged)
+                                              common_unmerged, indices_common_unmerged, &
+                                              row_blk_sizes2enum, enum2row_blk_sizes, &
+                                              col_blk_sizes2enum, enum2col_blk_sizes)
                   ENDIF
                   IF (left_nrequests .GT. 0) THEN
                      CALL wait_merge_calc_low(buffers_calc%right, &
@@ -4101,6 +4129,8 @@ CONTAINS
                                               left_vmerged(:, :, metronome-1), otf_filtering, data_type, &
                                               right_norms, left_norms, &
                                               common_unmerged, indices_common_unmerged, &
+                                              row_blk_sizes2enum, enum2row_blk_sizes, &
+                                              col_blk_sizes2enum, enum2col_blk_sizes, &
                                               nthreads)
                   ENDIF
                ENDDO
@@ -4218,6 +4248,10 @@ CONTAINS
       CALL dbcsr_destroy_array(buffers_2%left%buffer)
       !
       CALL dbcsr_finalize(product_matrix)
+      IF (has_acc) THEN
+         DEALLOCATE (row_blk_sizes2enum, enum2row_blk_sizes)
+         DEALLOCATE (col_blk_sizes2enum, enum2col_blk_sizes)
+      ENDIF
       !
       ! clean-up wins
       CALL mp_win_unlock_all(buffers_orig%right%data_win)
@@ -4619,6 +4653,10 @@ CONTAINS
 !> \param left_norms ...
 !> \param common_unmerged ...
 !> \param indices_common_unmerged ...
+!> \param row_blk_sizes2enum ...
+!> \param enum2row_blk_sizes ...
+!> \param col_blk_sizes2enum ...
+!> \param enum2col_blk_sizes ...
 !> \param nthreads ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
@@ -4633,6 +4671,8 @@ CONTAINS
                                   otf_filtering, data_type, &
                                   right_norms, left_norms, &
                                   common_unmerged, indices_common_unmerged, &
+                                  row_blk_sizes2enum, enum2row_blk_sizes, &
+                                  col_blk_sizes2enum, enum2col_blk_sizes, &
                                   nthreads)
       TYPE(dbcsr_buffer), INTENT(INOUT), TARGET          :: right_buffer, left_buffer
       INTEGER, INTENT(INOUT)                             :: in_nrequests
@@ -4651,6 +4691,8 @@ CONTAINS
       REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT)      :: right_norms, left_norms
       LOGICAL, DIMENSION(:), INTENT(INOUT)               :: common_unmerged
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: indices_common_unmerged
+      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_blk_sizes2enum, enum2row_blk_sizes, &
+                                                            col_blk_sizes2enum, enum2col_blk_sizes
       INTEGER, INTENT(IN), OPTIONAL                      :: nthreads
 
       INTEGER                                            :: iget, nrequests, uf, ul
@@ -4681,7 +4723,9 @@ CONTAINS
                                otf_filtering, data_type, &
                                right_norms, left_norms, &
                                common_unmerged, indices_common_unmerged, &
-                               .FALSE., nthreads)
+                               .FALSE., row_blk_sizes2enum, enum2row_blk_sizes, &
+                               col_blk_sizes2enum, enum2col_blk_sizes, &
+                               nthreads)
             ENDIF
          ELSE
             nrequests = nrequests+1
@@ -4721,6 +4765,10 @@ CONTAINS
 !> \param common_unmerged ...
 !> \param indices_common_unmerged ...
 !> \param has_acc ...
+!> \param row_blk_sizes2enum ...
+!> \param enum2row_blk_sizes ...
+!> \param col_blk_sizes2enum ...
+!> \param enum2col_blk_sizes ...
 !> \param nthreads ...
 !> \param trs_stackbuf ...
 !> \author Alfio Lazzaro
@@ -4735,7 +4783,9 @@ CONTAINS
                          otf_filtering, data_type, &
                          right_norms, left_norms, &
                          common_unmerged, indices_common_unmerged, &
-                         has_acc, nthreads, trs_stackbuf)
+                         has_acc, row_blk_sizes2enum, enum2row_blk_sizes, &
+                         col_blk_sizes2enum, enum2col_blk_sizes, &
+                         nthreads, trs_stackbuf)
       TYPE(dbcsr_buffer), INTENT(INOUT), TARGET          :: right_buffer, left_buffer
       TYPE(dbcsr_mm_multrec_type_p), DIMENSION(0:), &
          INTENT(INOUT)                                   :: multrec
@@ -4754,6 +4804,8 @@ CONTAINS
       LOGICAL, DIMENSION(:), INTENT(INOUT)               :: common_unmerged
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: indices_common_unmerged
       LOGICAL, INTENT(IN)                                :: has_acc
+      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_blk_sizes2enum, enum2row_blk_sizes, &
+                                                            col_blk_sizes2enum, enum2col_blk_sizes
       INTEGER, INTENT(IN), OPTIONAL                      :: nthreads
       TYPE(dbcsr_data_obj), DIMENSION(:), &
          INTENT(INOUT), OPTIONAL                         :: trs_stackbuf
@@ -4796,6 +4848,8 @@ CONTAINS
             CALL acc_transpose_blocks_images(right_buffer%buffer, &
                                              right_buffer%data(1), &
                                              trs_stackbuf(1), &
+                                             row_blk_sizes2enum, enum2row_blk_sizes, &
+                                             col_blk_sizes2enum, enum2col_blk_sizes, &
                                              indices_common_unmerged(1:ncommons_unmerged))
          ENDIF
          !
@@ -5099,117 +5153,147 @@ CONTAINS
 !> \param matrices ...
 !> \param DATA ...
 !> \param trs_stackbuf ...
+!> \param row_blk_sizes2enum ...
+!> \param enum2row_blk_sizes ...
+!> \param col_blk_sizes2enum ...
+!> \param enum2col_blk_sizes ...
 !> \param indices ...
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   SUBROUTINE acc_transpose_blocks_images(matrices, DATA, trs_stackbuf, indices)
+   SUBROUTINE acc_transpose_blocks_images(matrices, DATA, trs_stackbuf, &
+                                          row_blk_sizes2enum, enum2row_blk_sizes, col_blk_sizes2enum, enum2col_blk_sizes, &
+                                          indices)
       TYPE(dbcsr_1d_array_type), INTENT(IN)              :: matrices
       TYPE(dbcsr_data_obj), INTENT(INOUT)                :: DATA, trs_stackbuf
+      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_blk_sizes2enum, enum2row_blk_sizes, &
+                                                            col_blk_sizes2enum, enum2col_blk_sizes
       INTEGER, DIMENSION(:), INTENT(IN)                  :: indices
 
       CHARACTER(len=*), PARAMETER :: routineN = 'acc_transpose_blocks_images', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk_p, col, handle, i, imat, m, mi, &
-                                                            mi_max, n, nblks, nblks_total, ni, &
+      INTEGER                                            :: blk_p, col, handle, handle1, i, imat, m, &
+                                                            mi, mi_max, n, nblks, nblks_total, ni, &
                                                             ni_max, offset, row, x
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: counters, filled, offsets, tmp_stack
-      INTEGER, DIMENSION(:), POINTER :: blk_index, col_blk_sizes, col_blk_sizes2enum, &
-         enum2col_blk_sizes, enum2row_blk_sizes, local2global_cols, local2global_rows, &
-         row_blk_sizes, row_blk_sizes2enum, trs_stack
+      INTEGER, DIMENSION(:), POINTER                     :: blk_index, col_blk_sizes, &
+                                                            local2global_cols, local2global_rows, &
+                                                            row_blk_sizes, trs_stack
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (row_blk_sizes2enum, enum2row_blk_sizes)
-      NULLIFY (col_blk_sizes2enum, enum2col_blk_sizes)
+      !
       NULLIFY (local2global_rows, local2global_cols, trs_stack)
-
+      !
       IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4) &
          CPABORT("build_trs_stack: stac_buf has wrong datatype")
-
-      row_blk_sizes => array_data(matrices%mats(indices(1))%row_blk_size)
-      col_blk_sizes => array_data(matrices%mats(indices(1))%col_blk_size)
-
-      ! enumerate the blocksizes to keep the following 2D-arrays small.
-      CALL enumerate_blk_sizes(row_blk_sizes, row_blk_sizes2enum, enum2row_blk_sizes)
-      CALL enumerate_blk_sizes(col_blk_sizes, col_blk_sizes2enum, enum2col_blk_sizes)
-      mi_max = SIZE(enum2row_blk_sizes); ni_max = SIZE(enum2col_blk_sizes)
-      ALLOCATE (counters(mi_max, ni_max), offsets(mi_max, ni_max), filled(mi_max, ni_max))
-      counters(:, :) = 0; offsets(:, :) = 0; filled(:, :) = 0
-
-      ! make sure block-buffer is uploaded befor running the kernels
-      CALL acc_stream_wait_event(trs_stackbuf%d%memory_type%acc_stream, data%d%acc_ready)
-
+      !
       nblks_total = 0
       DO imat = 1, SIZE(indices)
          nblks_total = nblks_total+matrices%mats(indices(imat))%nblks
       ENDDO
-      ALLOCATE (tmp_stack(3, nblks_total))
-
-      nblks_total = 0
-      DO imat = 1, SIZE(indices)
-         blk_index => matrices%mats(indices(imat))%coo_l
-         local2global_rows => array_data(matrices%mats(indices(imat))%local_rows)
-         local2global_cols => array_data(matrices%mats(indices(imat))%local_cols)
-         nblks = matrices%mats(indices(imat))%nblks
-
-         ! collect block addresses and dimensions in a temporary stack
-         ! while doing so, also count number of blocks per block-dimensions
-         DO i = 1, nblks
-            row = blk_index(3*(i-1)+1)
-            col = blk_index(3*(i-1)+2)
-            blk_p = blk_index(3*(i-1)+3)
-            IF (blk_p == 0) CYCLE
-            row = local2global_rows(row)
-            col = local2global_cols(col)
-            m = row_blk_sizes(row)
-            n = col_blk_sizes(col)
-            mi = row_blk_sizes2enum(m)
-            ni = col_blk_sizes2enum(n)
-            tmp_stack(1, nblks_total+i) = mi
-            tmp_stack(2, nblks_total+i) = ni
-            tmp_stack(3, nblks_total+i) = blk_p-1
-            counters(mi, ni) = counters(mi, ni)+1
-         ENDDO
-         nblks_total = nblks_total+nblks
-      ENDDO
-
-      ! calculate offsets for first element of each sub-stack
-      offset = 0
-      DO mi = 1, mi_max
-         DO ni = 1, ni_max
-            offsets(mi, ni) = offset
-            offset = offset+counters(mi, ni)
-         ENDDO
-      ENDDO
-
+      !
       ! make sure buffer from previous cannon-tick was uploaded
+      CALL timeset(routineN//"_sync", handle1)
       CALL acc_event_synchronize(trs_stackbuf%d%acc_ready)
+      CALL timestop(handle1)
+      !
+      CALL timeset(routineN//"_ensure", handle1)
       CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks_total, nocopy=.TRUE.)
       CALL dbcsr_data_set_size_referenced(trs_stackbuf, nblks_total)
       trs_stack => trs_stackbuf%d%i4
-
-      ! write all sub-stacks into the host-pinned buffer
-      DO i = 1, nblks_total
-         mi = tmp_stack(1, i)
-         ni = tmp_stack(2, i)
-         blk_p = tmp_stack(3, i)
-         x = offsets(mi, ni)+filled(mi, ni)+1
-         trs_stack(x) = blk_p
-         filled(mi, ni) = filled(mi, ni)+1
+      CALL timestop(handle1)
+      !
+      mi_max = SIZE(enum2row_blk_sizes); ni_max = SIZE(enum2col_blk_sizes)
+      ALLOCATE (counters(mi_max, ni_max), offsets(mi_max, ni_max))
+      counters(:, :) = 0; offsets(:, :) = 0
+      !
+      CALL timeset(routineN//"_comp", handle1)
+      IF (mi_max .NE. 1 .OR. ni_max .NE. 1) THEN
+         row_blk_sizes => array_data(matrices%mats(indices(1))%row_blk_size)
+         col_blk_sizes => array_data(matrices%mats(indices(1))%col_blk_size)
+         ALLOCATE (tmp_stack(3, nblks_total))
+         nblks_total = 0
+      ENDIF
+      !
+      DO imat = 1, SIZE(indices)
+         blk_index => matrices%mats(indices(imat))%coo_l
+         nblks = matrices%mats(indices(imat))%nblks
+         !
+         ! collect block addresses and dimensions in a temporary stack
+         ! while doing so, also count number of blocks per block-dimensions
+         !
+         ! Simplified algorithm for single size blocks
+         IF (mi_max .EQ. 1 .AND. ni_max .EQ. 1) THEN
+            DO i = 1, nblks
+               blk_p = blk_index(3*(i-1)+3)
+               IF (blk_p == 0) CYCLE
+               counters(1, 1) = counters(1, 1)+1
+               trs_stack(counters(1, 1)) = blk_p-1
+            ENDDO
+         ELSE
+            local2global_rows => array_data(matrices%mats(indices(imat))%local_rows)
+            local2global_cols => array_data(matrices%mats(indices(imat))%local_cols)
+            DO i = 1, nblks
+               row = blk_index(3*(i-1)+1)
+               col = blk_index(3*(i-1)+2)
+               blk_p = blk_index(3*(i-1)+3)
+               IF (blk_p == 0) CYCLE
+               row = local2global_rows(row)
+               col = local2global_cols(col)
+               m = row_blk_sizes(row)
+               n = col_blk_sizes(col)
+               mi = row_blk_sizes2enum(m)
+               ni = col_blk_sizes2enum(n)
+               tmp_stack(1, nblks_total+i) = mi
+               tmp_stack(2, nblks_total+i) = ni
+               tmp_stack(3, nblks_total+i) = blk_p-1
+               counters(mi, ni) = counters(mi, ni)+1
+            ENDDO
+            nblks_total = nblks_total+nblks
+         ENDIF
       ENDDO
-
-      !sanity check
-      DO mi = 1, mi_max
+      !
+      IF (mi_max .NE. 1 .OR. ni_max .NE. 1) THEN
+         ! calculate offsets for first element of each sub-stack
+         offset = 0
+         DO mi = 1, mi_max
+            DO ni = 1, ni_max
+               offsets(mi, ni) = offset
+               offset = offset+counters(mi, ni)
+            ENDDO
+         ENDDO
+         !
+         ! write all sub-stacks into the host-pinned buffer
+         ALLOCATE (filled(mi_max, ni_max))
+         filled(:, :) = 0
+         DO i = 1, nblks_total
+            mi = tmp_stack(1, i)
+            ni = tmp_stack(2, i)
+            blk_p = tmp_stack(3, i)
+            x = offsets(mi, ni)+filled(mi, ni)+1
+            trs_stack(x) = blk_p
+            filled(mi, ni) = filled(mi, ni)+1
+         ENDDO
+         !sanity check
          DO ni = 1, ni_max
-            IF (filled(mi, ni) /= counters(mi, ni)) &
-               CPABORT("acc_transpose_blocks: bug")
+            DO mi = 1, mi_max
+               IF (filled(mi, ni) /= counters(mi, ni)) &
+                  CPABORT("acc_transpose_blocks: bug")
+            END DO
          END DO
-      END DO
+         !
+         DEALLOCATE (tmp_stack)
+      ENDIF
+      CALL timestop(handle1)
 
+      CALL timeset(routineN//"_sync", handle1)
       !transfer all stacks
       CALL dbcsr_data_host2dev(trs_stackbuf)
-
+      ! make sure block-buffer is uploaded befor running the kernels
+      CALL acc_stream_wait_event(trs_stackbuf%d%memory_type%acc_stream, data%d%acc_ready)
+      CALL timestop(handle1)
+      !
+      CALL timeset(routineN//"_kernels", handle1)
       ! launch kernels
       DO mi = 1, mi_max
          DO ni = 1, ni_max
@@ -5227,16 +5311,15 @@ CONTAINS
             END IF
          ENDDO
       ENDDO
-
-      DEALLOCATE (tmp_stack)
-
+      CALL timestop(handle1)
+      !
+      CALL timeset(routineN//"_sync", handle1)
       ! make sure block-buffer are not used until transpose kernels finished
       CALL acc_event_record(trs_stackbuf%d%acc_ready, trs_stackbuf%d%memory_type%acc_stream)
       CALL acc_stream_wait_event(data%d%memory_type%acc_stream, trs_stackbuf%d%acc_ready)
       CALL acc_event_record(data%d%acc_ready, data%d%memory_type%acc_stream)
+      CALL timestop(handle1)
 
-      DEALLOCATE (row_blk_sizes2enum, enum2row_blk_sizes)
-      DEALLOCATE (col_blk_sizes2enum, enum2col_blk_sizes)
       CALL timestop(handle)
    END SUBROUTINE acc_transpose_blocks_images
 
@@ -5310,7 +5393,7 @@ CONTAINS
             IF (new_trs_stackbuf) THEN
                CALL dbcsr_data_init(buffer%trs_stackbuf(idata))
                CALL dbcsr_data_new(buffer%trs_stackbuf(idata), &
-                                   data_type=dbcsr_type_int_4, data_size=1000, &
+                                   data_type=dbcsr_type_int_4, data_size=2*meta_size, &
                                    memory_type=trs_memory_type)
             ENDIF
          ENDDO
