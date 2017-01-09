@@ -438,11 +438,11 @@ endif
 %.o: %.F
 ifneq ($(CPP),)
 	$(TOOLSRC)/build_utils/fypp -n $< $*.fypped
-	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.F03
-	$(FC) -c $(FCFLAGS) $*.F03 $(FCLOGPIPE)
+	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.fypped > $*.f90
+	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
 else
-	$(TOOLSRC)/build_utils/fypp -n $< $*.F03
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F03 $(FCLOGPIPE)
+	$(TOOLSRC)/build_utils/fypp -n $< $*.F90
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $*.F90 $(FCLOGPIPE)
 endif
 
 %.o: %.c
