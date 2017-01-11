@@ -148,16 +148,16 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
 
 ==== 2l. ELPA (optional, improved performance for diagonalization) ====
 Library ELPA for the solution of the eigenvalue problem
-  * One version of ELPA need to be downloaded (http://elpa.rzg.mpg.de/software or directly
+  * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
+  * A version of ELPA can to be downloaded (http://elpa.rzg.mpg.de/software or directly
     http://elpa.rzg.mpg.de/elpa-tar-archive ) and installed.
     During the installation the libelpa.a (or libelpa_mt.a if omp active) is created.
-    We tested the version of November 2013, with generic kernel and with/without omp
-  * Add -D__ELPA to  DFLAGS for versions of the library released before June 2014
-  * Add -D__ELPA2 to DFLAGS for versions of the library released from June 2014 until
-    (but not including) November 2015
-  * Add -D__ELPA3 to DFLAGS for versions of the library released from November 2015 on
-  * Add -L$(ELPA_DIR) -lelpa to LIBS
-  * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
+  * Add -D__ELPA=YYYYMM to DFLAGS, where YYYYMM denotes the release date of the library.
+  * Currently supported versions are: 201112, 201308, 201311, 201406, 201502,
+    201511, 201605, and 201611.
+  * Add -I$(ELPA_INCLUDE_DIR)/modules -I$(ELPA_INCLUDE_DIR)/elpa to FCFLAGS
+  * Add -L$(ELPA_DIR) to LDFLAGS
+  * Add -lelpa to LIBS
   * For specific architectures it can be better to install specifically
     optimized kernels (see BG) and/or employ a higher optimization level to compile it.
 

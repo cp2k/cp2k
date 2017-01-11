@@ -112,11 +112,8 @@ CONTAINS
       flags = TRIM(flags)//" pexsi"
 #endif
 #if defined(__ELPA)
-      flags = TRIM(flags)//" elpa"
-#elif defined(__ELPA2)
-      flags = TRIM(flags)//" elpa2"
-#elif defined(__ELPA3)
-      flags = TRIM(flags)//" elpa3"
+      CALL integer_to_string(__ELPA, tmp_str)
+      flags = TRIM(flags)//" elpa="//TRIM(tmp_str)
 #endif
 #if defined(__parallel)
       flags = TRIM(flags)//" parallel"
