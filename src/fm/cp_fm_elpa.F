@@ -120,11 +120,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: kernel
 
 #:def pick_macro(kernel_const)
-#if defined(${kernel_const}$)
-   elpa_kernel = ${kernel_const}$
-#else
-   CPABORT("${kernel_const}$ not available")
-#endif
+#! use Fypp's eval directive to hide ELPA flags from convention checker
+$: "#if defined("+kernel_const+")"
+$: "   elpa_kernel = "+kernel_const
+$: "#else"
+$: "   CPABORT('"+kernel_const+" not available')"
+$: "#endif"
 #:enddef
 
       SELECT CASE(kernel)

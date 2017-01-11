@@ -107,7 +107,7 @@ CONTAINS
       IF (try_library) THEN
          IF (diag_lib .EQ. "ELPA") THEN
 
-#if defined (__ELPA) || defined (__ELPA2) || defined (__ELPA3)
+#if defined (__ELPA)
             diag_type = 3
 #else
             ! ELPA library not linked, switch to SL
