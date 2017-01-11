@@ -14,6 +14,7 @@
 ! **************************************************************************************************
 MODULE cp_fm_diag
 USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_default_unit_nr, cp_logger_get_unit_nr
+  USE cp_fm_elpa,                      ONLY: cp_fm_diag_elpa, set_elpa_kernel
   USE machine,                         ONLY: m_memory
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
@@ -53,13 +54,6 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
                                              ieee_all
 #endif
 
-#if defined (__ELPA) || defined(__ELPA2) || defined(__ELPA3)
-!#if defined (__ELPA) || defined(__ELPA2)
-  USE ELPA2, ONLY: solve_evp_real_2stage          ! ELPA[1-2] and deprecated ELPA3 interface
-!#elif defined (__ELPA3)
-!  USE ELPA2, ONLY: elpa_solve_evp_real_2stage    ! new ELPA3 interface
-#endif
-
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -70,7 +64,6 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
 
    ! these saved variables are DIAGONALIZATION global
    INTEGER, SAVE :: diag_type = 0
-   INTEGER, SAVE :: kernel_type = 0
 
    ! Public subroutines
 
@@ -133,9 +126,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (diag_type == 3) THEN
-         kernel_type = k_elpa
-      END IF
+      CALL set_elpa_kernel(k_elpa)
 
       ! Check that one of the diagonalization type is set
       IF (diag_type < 1) THEN
@@ -175,7 +166,7 @@ CONTAINS
       CALL m_memory()
 
       IF (diag_type == 3) THEN
-         CALL cp_fm_elpa(matrix, eigenvectors, eigenvalues)
+         CALL cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
       ELSE IF (diag_type == 2) THEN
          CALL cp_fm_syevr(matrix, eigenvectors, eigenvalues, 1, nmo)
       ELSE IF (diag_type == 1) THEN
@@ -905,109 +896,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_syevr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
-! **************************************************************************************************
-   SUBROUTINE cp_fm_elpa(matrix, eigenvectors, eigenvalues)
-
-      TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_elpa', &
-                                     routineP = moduleN//':'//routineN
-
-      INTEGER                                  :: handle
-#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2) || defined(__ELPA3))
-      INTEGER                                  :: comm_col, comm_row, group, &
-                                                  mypcol, myprow, n, &
-                                                  n_rows, n_cols, &
-                                                  nblk, neig
-      LOGICAL                                  :: success
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
-      TYPE(cp_blacs_env_type), POINTER         :: context
-#endif
-
-      CALL timeset(routineN, handle)
-#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2) || defined (__ELPA3))
-
-      success = .TRUE.
-
-      n = matrix%matrix_struct%nrow_global
-      m => matrix%local_data
-      context => matrix%matrix_struct%context
-      myprow = context%mepos(1)
-      mypcol = context%mepos(2)
-      group = matrix%matrix_struct%para_env%group
-
-      ! For ELPA, the MPI communicators along rows/cols are sufficient
-      ! mpi communicators are created, needed for communicating within
-      ! rows or columns of processes
-      CALL mp_comm_split_direct(group, comm_row, mypcol, myprow)
-      CALL mp_comm_split_direct(group, comm_col, myprow, mypcol)
-
-      v => eigenvectors%local_data
-
-      ! elpa needs the full matrix
-      CALL cp_fm_upper_to_full(matrix, eigenvectors)
-
-      CALL cp_fm_struct_get(matrix%matrix_struct, &
-                            local_leading_dimension=n_rows, &
-                            ncol_local=n_cols, &
-                            nrow_block=nblk)
-
-      neig = SIZE(eigenvalues, 1)
-
-      ! ELPA will fail in 'solve_tridi', with no useful error message
-      IF (n_cols == 0) &
-         CPABORT("ELPA [pre-fail]: Problem contains processor column with zero width.")
-
-      ! the full eigenvalues vector is needed
-      ALLOCATE (eval(n))
-
-      ! Calculate eigenvalues/eigenvectors
-#if defined (__ELPA)
-      CALL solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, comm_row, comm_col, group)
-#elif defined (__ELPA2)
-      success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, comm_row, comm_col, group, &
-                                      THIS_REAL_ELPA_KERNEL_API=kernel_type, useQR=.FALSE.)
-#else
-! deprecated ELPA3 interface
-      success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, comm_row, comm_col, group, &
-                                      THIS_REAL_ELPA_KERNEL_API=kernel_type, useQR=.FALSE.)
-! new ELPA3 interface
-!      success = elpa_solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, n_cols, &
-!                                           comm_row, comm_col, group, &
-!                                           THIS_REAL_ELPA_KERNEL_API=kernel_type, useQR=.FALSE.)
-#endif
-
-      IF (.NOT. success) &
-         CPABORT("ELPA failed to diagonalize a matrix")
-
-      eigenvalues(1:neig) = eval(1:neig)
-
-      DEALLOCATE (eval)
-
-      ! mpi communicators are freed
-      CALL mp_comm_free(comm_row)
-      CALL mp_comm_free(comm_col)
-
-#else
-
-      MARK_USED(matrix)
-      MARK_USED(eigenvectors)
-      MARK_USED(eigenvalues)
-
-      CPABORT("CP2K compiled without the ELPA library.")
-#endif
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_fm_elpa
 
 ! **************************************************************************************************
 !> \brief ...
