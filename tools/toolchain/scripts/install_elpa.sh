@@ -48,8 +48,8 @@ case "$with_elpa" in
             tar -xzf elpa-${elpa_ver}.tar.gz
 
             # fix wrong dependency order (at least in elpa 2016.05.003)
-            sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.in
-            sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.am
+            # sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.in
+            # sed -i "s/build_lib = libelpa@SUFFIX@.la libelpatest@SUFFIX@.la/build_lib = libelpatest@SUFFIX@.la libelpa@SUFFIX@.la/g" elpa-${elpa_ver}/Makefile.am
 
             # need both flavors ?
 
@@ -58,51 +58,54 @@ case "$with_elpa" in
             cd elpa-${elpa_ver}
             # shared libraries cannot be built if linked with
             # reflapack (the case when valgrind is enabled)
-            if [ $ENABLE_VALGRIND = "__TRUE__" ] ; then
+            if [ "$ENABLE_VALGRIND" = "__TRUE__" ] ; then
                 shared_flag=no
             else
                 shared_flag=yes
             fi
             # specific settings needed on CRAY Linux Environment
-            if [ $ENABLE_CRAY = "__TRUE__" ] ; then
+            if [ "$ENABLE_CRAY" = "__TRUE__" ] ; then
                 # extra LDFLAGS needed
                 cray_ldflags="-dynamic"
             fi
             # non-threaded version
-            ./configure  --prefix=${pkg_install_dir} \
-                         --libdir="${pkg_install_dir}/lib" \
-                         --enable-openmp=no \
-                         --enable-shared=$shared_flag \
-                         --enable-static=yes \
-                         FC=${MPIFC} \
-                         CC=${MPICC} \
-                         CXX=${MPICXX} \
-                         FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none" \
-                         CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
-                         CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
-                         LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
-                         LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
-                         > configure.log 2>&1
+            mkdir -p obj_no_thread; cd obj_no_thread
+            ../configure  --prefix=${pkg_install_dir} \
+                          --libdir="${pkg_install_dir}/lib" \
+                          --enable-openmp=no \
+                          --enable-shared=$shared_flag \
+                          --enable-static=yes \
+                          FC=${MPIFC} \
+                          CC=${MPICC} \
+                          CXX=${MPICXX} \
+                          FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none" \
+                          CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
+                          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
+                          LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
+                          LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
+                          > configure.log 2>&1
             make -j $NPROCS >  make.log 2>&1
             make install > install.log 2>&1
+            cd ..
             # threaded version
             if [ "$ENABLE_OMP" = "__TRUE__" ] ; then
-                make -j $NPROCS clean > clean.log 2>&1
-                ./configure  --prefix=${pkg_install_dir} \
-                             --enable-openmp=yes \
-                             --enable-shared=$shared_flag \
-                             --enable-static=yes \
-                             FC=${MPIFC} \
-                             CC=${MPICC} \
-                             CXX=${MPICXX} \
-                             FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none" \
-                             CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
-                             CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
-                             LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
-                             LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
-                             > configure.log 2>&1
+                mkdir -p obj_thread; cd obj_thread
+                ../configure  --prefix=${pkg_install_dir} \
+                              --enable-openmp=yes \
+                              --enable-shared=$shared_flag \
+                              --enable-static=yes \
+                              FC=${MPIFC} \
+                              CC=${MPICC} \
+                              CXX=${MPICXX} \
+                              FCFLAGS="${FCFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} -ffree-line-length-none" \
+                              CFLAGS="${CFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
+                              CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
+                              LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
+                              LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
+                              > configure.log 2>&1
                 make -j $NPROCS >  make.log 2>&1
                 make install > install.log 2>&1
+                cd ..
             fi
             cd ..
             touch "${install_lock_file}"

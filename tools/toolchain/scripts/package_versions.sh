@@ -1,7 +1,7 @@
 # default package versions
 binutils_ver=${binutils_ver:-2.25}
 cmake_ver=${cmake_ver:-3.1.1}
-elpa_ver=${elpa_ver:-2016.05.003}
+elpa_ver=${elpa_ver:-2016.05.004}
 fftw_ver=${fftw_ver:-3.3.4}
 gcc_ver=${gcc_ver:-6.2.0}
 lcov_ver=${lcov_ver:-1.11}
@@ -19,5 +19,5 @@ scalapack_ver=${scalapack_ver:-2.0.2}
 scotch_ver=${scotch_ver:-6.0.0}
 superlu_ver=${superlu_ver:-5.1.2}
 valgrind_ver=${valgrind_ver:-3.11.0}
-libxsmm_ver=${libxsmm_ver:-1.4.4}
+libxsmm_ver=${libxsmm_ver:-1.6.4}
 make_ver=${make_ver:-4.1}
