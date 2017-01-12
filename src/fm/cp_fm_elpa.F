@@ -189,6 +189,7 @@ $: "#endif"
       INTEGER                                  :: handle
 #if defined(__ELPA)
       INTEGER                                  :: comm_col, comm_row, group, &
+                                                  kernel_type, &
                                                   mypcol, myprow, n, &
                                                   n_rows, n_cols, &
                                                   nblk, neig
