@@ -13,41 +13,43 @@
 !> \author Joost VandeVondele (2003-08)
 ! **************************************************************************************************
 MODULE cp_fm_diag
-USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_default_unit_nr, cp_logger_get_unit_nr
-  USE cp_fm_elpa,                      ONLY: cp_fm_diag_elpa, set_elpa_kernel
-  USE machine,                         ONLY: m_memory
-  USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
-                                             cp_blacs_gridinit
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
-                                             cp_fm_gemm,&
-                                             cp_fm_scale,&
-                                             cp_fm_column_scale,&
-                                             cp_fm_triangular_multiply,&
-                                             cp_fm_triangular_invert,&
-                                             cp_fm_upper_to_full
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type,&
-                                             cp_fm_struct_get
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_release,&
-                                             cp_fm_get_info,&
-                                             cp_fm_set_element,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
-  USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                             cp_para_env_release
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_comm_free,&
-                                             mp_comm_split,&
-                                             mp_comm_split_direct,&
-                                             mp_sync
+   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
+                                              cp_blacs_gridinit
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_gemm,&
+                                              cp_fm_scale,&
+                                              cp_fm_syrk,&
+                                              cp_fm_triangular_invert,&
+                                              cp_fm_triangular_multiply,&
+                                              cp_fm_upper_to_full
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+   USE cp_fm_elpa,                      ONLY: cp_fm_diag_elpa,&
+                                              set_elpa_kernel
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_element,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_get_unit_nr,&
+                                              cp_logger_type
+   USE cp_para_env,                     ONLY: cp_para_env_create,&
+                                              cp_para_env_release
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_memory
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_free,&
+                                              mp_comm_split,&
+                                              mp_sync
 #if defined (__HAS_IEEE_EXCEPTIONS)
   USE ieee_exceptions,                 ONLY: ieee_get_halting_mode,&
                                              ieee_set_halting_mode,&

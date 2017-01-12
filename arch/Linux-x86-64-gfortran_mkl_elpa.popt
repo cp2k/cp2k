@@ -1,7 +1,7 @@
 #
 #
 ELPA_LIB = /users/archive/marcella/DEV/ELPA/20131105/elpa_lib/ELPA_2013.08/build_generic/lib64
-ELPA_INC = /users/archive/marcella/DEV/ELPA/20131105/elpa_lib/ELPA_2013.08/build_generic/include/elpa/modules
+ELPA_INC = /users/archive/marcella/DEV/ELPA/20131105/elpa_lib/ELPA_2013.08/build_generic/include/elpa
 #
 CC       = cc
 CPP      =
@@ -9,8 +9,8 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 CPPFLAGS = 
-DFLAGS   = -D__parallel -D__SCALAPACK -D__LIBINT -D__LIBXC2 -D__FFTW3  -D__ELPA
-FCFLAGS  = -O3 -ffast-math -funroll-loops -ftree-vectorize -march=native -ffree-form  $(DFLAGS)  -g -I${FFTW3_PATH}/include -I${ELPA_INC}
+DFLAGS   = -D__parallel -D__SCALAPACK -D__LIBINT -D__LIBXC2 -D__FFTW3  -D__ELPA=201308
+FCFLAGS  = -O3 -ffast-math -funroll-loops -ftree-vectorize -march=native -ffree-form  $(DFLAGS)  -g -I${FFTW3_PATH}/include -I${ELPA_INC}/modules -I${ELPA_INC}/elpa
 LDFLAGS  = $(FCFLAGS) -L$(LIBINT_PATH)  -L${FFTW3_PATH}/lib64  -L$(INTEL_MKL_LIB) -L$(LIBXC_PATH)/lib64
 LIBS     =  \
   -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64  -lmkl_sequential -lmkl_core \
