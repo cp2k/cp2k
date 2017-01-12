@@ -243,7 +243,7 @@ $: "#endif"
       success = .TRUE.
 
 !---------------------------------------------------------------------------------------------------
-#elif (__ELPA==201406) || (__ELPA==201502)
+#elif (__ELPA==201406) || (__ELPA==201502) || (__ELPA==201505)
       IF (elpa_kernel == -1) THEN ! auto
          success = solve_evp_real_2stage(n, neig, m, n_rows, eval, v, n_rows, nblk, &
                                          comm_row, comm_col, group, &
