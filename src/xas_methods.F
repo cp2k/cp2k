@@ -53,8 +53,7 @@ MODULE xas_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution_obj, dbcsr_init, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric
+        dbcsr_distribution_obj, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: &
         do_loc_none, state_loc_list, state_loc_range, xas_1s_type, xas_2p_type, xas_2s_type, &
         xas_dip_len, xas_dip_vel, xas_dscf, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
@@ -839,7 +838,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm, 3)
          DO i = 1, 3
             ALLOCATE (xas_env%ostrength_sm(i)%matrix)
-            CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
             CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix, matrix_s(1)%matrix, &
                             "xas_env%ostrength_sm"// &
                             "-"//TRIM(ADJUSTL(cp_to_string(i))))
@@ -862,7 +860,6 @@ CONTAINS
          !
          CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm, 3)
          ALLOCATE (xas_env%ostrength_sm(1)%matrix)
-         CALL dbcsr_init(xas_env%ostrength_sm(1)%matrix)
          CALL dbcsr_create(matrix=xas_env%ostrength_sm(1)%matrix, &
                            name="xas_env%ostrength_sm", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
@@ -872,7 +869,6 @@ CONTAINS
          CALL dbcsr_set(xas_env%ostrength_sm(1)%matrix, 0.0_dp)
          DO i = 2, 3
             ALLOCATE (xas_env%ostrength_sm(i)%matrix)
-            CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
             CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix, xas_env%ostrength_sm(1)%matrix, &
                             "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))))
             CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix, 0.0_dp)

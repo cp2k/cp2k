@@ -25,7 +25,6 @@ MODULE mscfg_methods
                                               cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
-                                              dbcsr_init,&
                                               dbcsr_type_no_symmetry
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
@@ -278,7 +277,6 @@ CONTAINS
          mscfg_env%nmosets_of_frag(ifrag) = nmosets_of_frag
          DO imo = 1, nmosets_of_frag
             ! the matrices have been allocated already - copy the results there
-            CALL dbcsr_init(mscfg_env%mos_of_frag(ifrag, imo))
             CALL dbcsr_create(mscfg_env%mos_of_frag(ifrag, imo), &
                               template=mos_of_frag(imo)%mo_set%mo_coeff_b, &
                               matrix_type=dbcsr_type_no_symmetry)

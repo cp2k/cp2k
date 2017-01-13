@@ -39,10 +39,9 @@ MODULE rt_propagation_methods
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
         dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_filter, dbcsr_frobenius_norm, &
-        dbcsr_get_block_p, dbcsr_init, dbcsr_init_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
-        dbcsr_type
+        dbcsr_get_block_p, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type
    USE input_constants,                 ONLY: do_arnoldi,&
                                               do_bch,&
                                               do_em,&
@@ -391,7 +390,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL get_rtp(rtp=rtp, S_inv=S_inv, S_minus_half=S_minus_half, exp_H_new=exp_H, dt=t)
-      CALL dbcsr_init(matrix_ks_nosym)
       CALL dbcsr_create(matrix_ks_nosym, template=matrix_ks(1)%matrix, matrix_type="N")
       DO ispin = 1, SIZE(matrix_ks)
          re = ispin*2-1
@@ -512,7 +510,6 @@ CONTAINS
 
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=mat_re)
       !make sure the tmp has the same sparsity pattern as the real and the complex part combined
       CALL dbcsr_add(tmp, mat_re, zero, one)
@@ -826,7 +823,6 @@ CONTAINS
                CALL dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix)
             END IF
             ALLOCATE (rtp%history%s_history(ihist)%matrix)
-            CALL dbcsr_init(rtp%history%s_history(ihist)%matrix)
             CALL dbcsr_copy(rtp%history%s_history(ihist)%matrix, s_mat(1)%matrix)
          END IF
       END IF

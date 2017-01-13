@@ -29,8 +29,7 @@ MODULE rtp_admm_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_get_info, dbcsr_init, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_get_info, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section
    USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_none
@@ -485,7 +484,6 @@ CONTAINS
       nao_aux_fit = admm_env%nao_aux_fit
       nao_orb = admm_env%nao_orb
       nmo = admm_env%nmo(ispin)
-      CALL dbcsr_init(matrix_ks_nosym)
       CALL dbcsr_create(matrix_ks_nosym, template=matrix_ks_aux_fit(ispin)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_set(matrix_ks_nosym, 0.0_dp)
@@ -506,7 +504,6 @@ CONTAINS
 
       NULLIFY (matrix_k_tilde)
       ALLOCATE (matrix_k_tilde)
-      CALL dbcsr_init(matrix_k_tilde)
       CALL dbcsr_create(matrix_k_tilde, template=matrix_ks(ispin)%matrix, &
                         name='MATRIX K_tilde', matrix_type=matrix_type_fit)
 

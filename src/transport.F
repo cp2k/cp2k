@@ -32,7 +32,7 @@ MODULE transport
    USE dbcsr_api,                       ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
         csr_dbcsr_blkrow_dist, csr_print_sparsity, csr_type, dbcsr_copy, dbcsr_copy_into_existing, &
-        dbcsr_create, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_init, dbcsr_set, dbcsr_type, &
+        dbcsr_create, dbcsr_desymmetrize, dbcsr_has_symmetry, dbcsr_set, dbcsr_type, &
         dbcsr_type_real_8
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -114,9 +114,6 @@ CONTAINS
       ALLOCATE (transport_env)
       CALL transport_init_read_input(input, transport_env)
       CALL transport_set_contact_params(qs_env, transport_env)
-      CALL dbcsr_init(transport_env%template_matrix_sym)
-      CALL dbcsr_init(transport_env%template_matrix_nosym)
-      CALL dbcsr_init(transport_env%csr_sparsity)
       CALL set_qs_env(qs_env, transport_env=transport_env)
 
       CALL timestop(handle)

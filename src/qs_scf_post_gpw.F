@@ -59,7 +59,7 @@ MODULE qs_scf_post_gpw
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
         dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_frobenius_norm, dbcsr_get_info, &
-        dbcsr_init, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
@@ -3266,16 +3266,10 @@ CONTAINS
       ALLOCATE (window, rho_ao_ortho)
       CALL dbcsr_get_info(matrix=matrix_ks(1)%matrix, nfullrows_total=nao)
       ALLOCATE (eigenvalues(nao))
-      CALL dbcsr_init(matrix_ks_nosym)
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_init(S_minus_half)
       CALL dbcsr_create(S_minus_half, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_init(S_half)
       CALL dbcsr_create(S_half, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_init(window)
       CALL dbcsr_create(window, template=matrix_s(1)%matrix, matrix_type="N")
-      CALL dbcsr_init(rho_ao_ortho)
       CALL dbcsr_create(rho_ao_ortho, template=matrix_s(1)%matrix, matrix_type="N")
       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, context=blacs_env, nrow_global=nao, ncol_global=nao)
       CALL cp_fm_create(P_window_fm, ao_ao_fmstruct)

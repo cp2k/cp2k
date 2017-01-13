@@ -16,7 +16,6 @@ MODULE rt_hfx_utils
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type_antisymmetric
@@ -124,7 +123,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_p, nspins)
       DO i = 1, nspins
          ALLOCATE (matrix_p(i)%matrix)
-         CALL dbcsr_init(matrix_p(i)%matrix)
          CALL dbcsr_create(matrix=matrix_p(i)%matrix, template=matrix_s(1)%matrix, &
                            name="Imaginary density matrix", matrix_type=dbcsr_type_antisymmetric, nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_p(i)%matrix, sab_orb)
@@ -138,7 +136,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_ks, nspins)
       DO i = 1, nspins
          ALLOCATE (matrix_ks(i)%matrix)
-         CALL dbcsr_init(matrix_ks(i)%matrix)
          CALL dbcsr_create(matrix=matrix_ks(i)%matrix, template=matrix_s(1)%matrix, &
                            name="Imaginary Kohn-Sham matrix", matrix_type=dbcsr_type_antisymmetric, nze=0)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(i)%matrix, sab_orb)

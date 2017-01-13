@@ -37,7 +37,7 @@ MODULE rt_propagation_output
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_get_occupation, dbcsr_init, &
+        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_get_occupation, &
         dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_p_type, dbcsr_set, &
         dbcsr_type
@@ -485,7 +485,6 @@ CONTAINS
       END DO
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=delta_P(1)%matrix, matrix_type="N")
       DO ispin = 1, SIZE(delta_P)/2
          CALL dbcsr_desymmetrize(delta_P(2*ispin-1)%matrix, tmp)
@@ -700,7 +699,6 @@ CONTAINS
       ALLOCATE (rs, gs)
       NULLIFY (rs%pw, gs%pw)
       ALLOCATE (zero)
-      CALL dbcsr_init(zero)
       CALL dbcsr_create(zero, template=P_im)
       CALL dbcsr_copy(zero, P_im)
       CALL dbcsr_set(zero, 0.0_dp)

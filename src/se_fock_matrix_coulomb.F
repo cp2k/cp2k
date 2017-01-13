@@ -28,8 +28,8 @@ MODULE se_fock_matrix_coulomb
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_distribute, &
-        dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, dbcsr_replicate_all, &
-        dbcsr_set, dbcsr_sum_replicated
+        dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_p_type, dbcsr_replicate_all, dbcsr_set, &
+        dbcsr_sum_replicated
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
@@ -204,8 +204,6 @@ CONTAINS
       DO ispin = 1, nspins
          ! Allocate diagonal block matrices
          ALLOCATE (diagmat_p(ispin)%matrix, diagmat_ks(ispin)%matrix) !sm->dbcsr
-         CALL dbcsr_init(diagmat_p(ispin)%matrix)
-         CALL dbcsr_init(diagmat_ks(ispin)%matrix)
          CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
          CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
          CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
@@ -562,8 +560,6 @@ CONTAINS
       DO ispin = 1, nspins
          ! Allocate diagonal block matrices
          ALLOCATE (diagmat_p(ispin)%matrix, diagmat_ks(ispin)%matrix) !sm->dbcsr
-         CALL dbcsr_init(diagmat_p(ispin)%matrix)
-         CALL dbcsr_init(diagmat_ks(ispin)%matrix)
          CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
          CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
          CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)
@@ -1301,8 +1297,6 @@ CONTAINS
       DO ispin = 1, nspins
          ! Allocate diagonal block matrices
          ALLOCATE (diagmat_p(ispin)%matrix, diagmat_ks(ispin)%matrix) !sm->dbcsr
-         CALL dbcsr_init(diagmat_p(ispin)%matrix)
-         CALL dbcsr_init(diagmat_ks(ispin)%matrix)
          CALL dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix)
          CALL dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix)
          CALL dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp)

@@ -18,7 +18,6 @@ MODULE admm_utils
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_init,&
                                               dbcsr_set,&
                                               dbcsr_type,&
                                               dbcsr_type_symmetric
@@ -65,7 +64,6 @@ CONTAINS
             !* remove what has been added and add the correction
             NULLIFY (work)
             ALLOCATE (work)
-            CALL dbcsr_init(work)
             CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)
@@ -91,7 +89,6 @@ CONTAINS
             !* remove what has been added and add the correction
             NULLIFY (work)
             ALLOCATE (work)
-            CALL dbcsr_init(work)
             CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)
@@ -141,7 +138,6 @@ CONTAINS
             !* remove what has been added and add the correction
             NULLIFY (work)
             ALLOCATE (work)
-            CALL dbcsr_init(work)
             CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)
@@ -161,7 +157,6 @@ CONTAINS
          CASE (do_admm_purify_mo_diag)
             NULLIFY (work)
             ALLOCATE (work)
-            CALL dbcsr_init(work)
             CALL dbcsr_create(work, template=ks_matrix, name='work', matrix_type=dbcsr_type_symmetric)
 
             CALL dbcsr_copy(work, ks_matrix)

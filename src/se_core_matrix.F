@@ -23,7 +23,7 @@ MODULE se_core_matrix
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_deallocate_matrix, &
-        dbcsr_distribute, dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, &
+        dbcsr_distribute, dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_p_type, &
         dbcsr_replicate_all, dbcsr_set, dbcsr_sum_replicated, dbcsr_type
    USE input_constants,                 ONLY: do_method_am1,&
                                               do_method_mndo,&
@@ -175,7 +175,6 @@ CONTAINS
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                   atom_of_kind=atom_of_kind)
          ALLOCATE (diagmat_p)
-         CALL dbcsr_init(diagmat_p)
          CALL dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p)
          CALL dbcsr_replicate_all(diagmat_p)
       END IF
@@ -183,13 +182,11 @@ CONTAINS
       ! Allocate the core Hamiltonian matrix
       CALL dbcsr_allocate_matrix_set(matrix_h, 1)
       ALLOCATE (matrix_h(1)%matrix)
-      CALL dbcsr_init(matrix_h(1)%matrix)
       CALL dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, "CORE HAMILTONIAN MATRIX")
       CALL dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
 
       ! Allocate a diagonal block matrix
       ALLOCATE (diagmat_h)
-      CALL dbcsr_init(diagmat_h)
       CALL dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h)
       CALL dbcsr_set(diagmat_h, 0.0_dp)
       CALL dbcsr_replicate_all(diagmat_h)

@@ -21,7 +21,7 @@ MODULE qs_ot
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution, dbcsr_distribution_mp, &
         dbcsr_filter, dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init, dbcsr_init_p, &
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_multiply, dbcsr_release, &
         dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_transposed, &
@@ -877,8 +877,6 @@ CONTAINS
       CALL dbcsr_get_info(qs_ot_env%rot_mat_x, nfullrows_total=k)
 
       IF (k /= 0) THEN
-         CALL dbcsr_init(cmat_x)
-         CALL dbcsr_init(cmat_u)
          CALL dbcsr_copy(cmat_x, qs_ot_env%rot_mat_evec, name='cmat_x')
          CALL dbcsr_copy(cmat_u, qs_ot_env%rot_mat_evec, name='cmat_u')
          ALLOCATE (evals_exp(k))
@@ -948,8 +946,6 @@ CONTAINS
       IF (k /= 0) THEN
          CALL dbcsr_copy(qs_ot_env%matrix_buf1, qs_ot_env%rot_mat_dedu)
          ! now we get to the derivative wrt the antisymmetric matrix rot_mat_x
-         CALL dbcsr_init(cmat_buf1)
-         CALL dbcsr_init(cmat_buf2)
          CALL dbcsr_copy(cmat_buf1, qs_ot_env%rot_mat_evec, "cmat_buf1")
          CALL dbcsr_copy(cmat_buf2, qs_ot_env%rot_mat_evec, "cmat_buf2")
 

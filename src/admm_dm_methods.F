@@ -16,7 +16,7 @@ MODULE admm_dm_methods
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_frobenius_norm, &
-        dbcsr_get_block_p, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: do_admm_basis_projection,&
@@ -159,13 +159,11 @@ CONTAINS
 
       IF (s_mstruct_changed) THEN
          ! Calculate A = S_aux^(-1) * S_mixed
-         CALL dbcsr_init(matrix_s_aux_inv)
          CALL dbcsr_create(matrix_s_aux_inv, template=matrix_s_aux(1)%matrix, matrix_type="N")
          CALL invert_Hotelling(matrix_s_aux_inv, matrix_s_aux(1)%matrix, admm_dm%eps_filter)
 
          IF (.NOT. ASSOCIATED(admm_dm%matrix_A)) THEN
             ALLOCATE (admm_dm%matrix_A)
-            CALL dbcsr_init(admm_dm%matrix_A)
             CALL dbcsr_create(admm_dm%matrix_A, template=matrix_s_mixed(1)%matrix, matrix_type="N")
          ENDIF
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_aux_inv, matrix_s_mixed(1)%matrix, &
@@ -174,7 +172,6 @@ CONTAINS
       ENDIF
 
       ! Calculate P_aux = A * P * A^T
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=admm_dm%matrix_A)
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_multiply("N", "N", 1.0_dp, admm_dm%matrix_A, rho_ao(ispin)%matrix, &
@@ -299,7 +296,6 @@ CONTAINS
                       matrix_ks=matrix_ks)
 
       ! Calculate K += A^T * K_aux * A
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=admm_dm%matrix_A, matrix_type="N")
 
       DO ispin = 1, dft_control%nspins
@@ -384,11 +380,8 @@ CONTAINS
       CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
 
       matrix_p => rho_ao_aux(1)%matrix
-      CALL dbcsr_init(matrix_PS)
       CALL dbcsr_create(matrix_PS, template=matrix_p, matrix_type="N")
-      CALL dbcsr_init(matrix_PSP)
       CALL dbcsr_create(matrix_PSP, template=matrix_p, matrix_type="S")
-      CALL dbcsr_init(matrix_test)
       CALL dbcsr_create(matrix_test, template=matrix_p, matrix_type="S")
 
       nspins = dft_control%nspins
@@ -406,7 +399,6 @@ CONTAINS
             history => new_hist_entry
             history%count = istep
             NULLIFY (new_hist_entry)
-            CALL dbcsr_init(history%m)
             CALL dbcsr_create(history%m, template=matrix_p, matrix_type="N")
             CALL dbcsr_copy(history%m, matrix_p, name="P from McWeeny")
 
@@ -483,7 +475,6 @@ CONTAINS
       DO ispin = 1, nspins
          ALLOCATE (matrix_ks_merge(ispin)%matrix)
          matrix_k => matrix_ks_merge(ispin)%matrix
-         CALL dbcsr_init(matrix_k)
          CALL dbcsr_copy(matrix_k, matrix_ks_aux_fit(ispin)%matrix, name="K")
          history_curr => admm_dm%mcweeny_history(ispin)%p
          NULLIFY (admm_dm%mcweeny_history(ispin)%p)
@@ -526,13 +517,9 @@ CONTAINS
                                                             matrix_tmp
 
       CALL timeset(routineN, handle)
-      CALL dbcsr_init(matrix_ps)
       CALL dbcsr_create(matrix_ps, template=matrix_p, matrix_type="N")
-      CALL dbcsr_init(matrix_sp)
       CALL dbcsr_create(matrix_sp, template=matrix_p, matrix_type="N")
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix_p, matrix_type="N")
-      CALL dbcsr_init(matrix_sum)
       CALL dbcsr_create(matrix_sum, template=matrix_p, matrix_type="N")
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p, matrix_s, &

@@ -13,9 +13,9 @@
 MODULE mao_optimizer
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_get_info, dbcsr_init, &
-        dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, &
-        dbcsr_type, dbcsr_type_symmetric
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_get_info, dbcsr_norm, &
+        dbcsr_norm_maxabsnorm, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type, &
+        dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE mao_methods,                     ONLY: mao_function,&
                                               mao_function_gradient,&
@@ -83,7 +83,6 @@ CONTAINS
       IF (max_iter < 1) THEN
          ! projection only
          CALL dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-         CALL dbcsr_init(binv)
          CALL dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                            row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
          DO ispin = 1, nspin
@@ -101,17 +100,13 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(mao_grad, nspin)
          DO ispin = 1, nspin
             ALLOCATE (mao_grad(ispin)%matrix)
-            CALL dbcsr_init(mao_grad(ispin)%matrix)
             CALL dbcsr_create(matrix=mao_grad(ispin)%matrix, name="MAO_GRAD", template=mao_coef(1)%matrix)
             CALL dbcsr_reserve_diag_blocks(matrix=mao_grad(ispin)%matrix)
          END DO
          CALL dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
-         CALL dbcsr_init(binv)
          CALL dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                            row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
-         CALL dbcsr_init(cgmat)
          CALL dbcsr_create(cgmat, template=mao_grad(1)%matrix)
-         CALL dbcsr_init(amat)
          CALL dbcsr_create(amat, template=mao_coef(1)%matrix)
          DO ispin = 1, nspin
             alpha = 0.25_dp

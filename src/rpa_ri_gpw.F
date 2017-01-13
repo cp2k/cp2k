@@ -43,7 +43,7 @@ MODULE rpa_ri_gpw
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_desymmetrize, dbcsr_filter, dbcsr_get_info, dbcsr_init, dbcsr_init_p, &
+        dbcsr_desymmetrize, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_release_p, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
@@ -2048,7 +2048,6 @@ CONTAINS
             DO i_cut_RI = 1, cut_RI
 
                ALLOCATE (mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix)
-               CALL dbcsr_init(mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix)
                CALL dbcsr_create(matrix=mat_dm_loc_occ_cut(i_cut_RI, i_mem)%matrix, &
                                  !                                    template=mat_dm_loc)
                                  template=mat_dm_loc_occ)
@@ -2066,7 +2065,6 @@ CONTAINS
             DO i_cut_RI = 1, cut_RI
 
                ALLOCATE (mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix)
-               CALL dbcsr_init(mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix)
                CALL dbcsr_create(matrix=mat_dm_loc_virt_cut(i_cut_RI, i_mem)%matrix, &
                                  !                                    template=mat_dm_loc)
                                  template=mat_dm_loc_virt)
@@ -2079,12 +2077,10 @@ CONTAINS
 
          NULLIFY (mat_M_P_munu_occ%matrix)
          ALLOCATE (mat_M_P_munu_occ%matrix)
-         CALL dbcsr_init(mat_M_P_munu_occ%matrix)
          CALL dbcsr_create(mat_M_P_munu_occ%matrix, template=mat_M%matrix)
 
          NULLIFY (mat_M_P_munu_virt%matrix)
          ALLOCATE (mat_M_P_munu_virt%matrix)
-         CALL dbcsr_init(mat_M_P_munu_virt%matrix)
          CALL dbcsr_create(mat_M_P_munu_virt%matrix, template=mat_M%matrix)
 
          IF (.NOT. do_mao) THEN
@@ -2096,7 +2092,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(mat_M_mu_Pnu_occ, cut_RI)
          DO i_cut_RI = 1, cut_RI
             ALLOCATE (mat_M_mu_Pnu_occ(i_cut_RI)%matrix)
-            CALL dbcsr_init(mat_M_mu_Pnu_occ(i_cut_RI)%matrix)
             CALL dbcsr_create(matrix=mat_M_mu_Pnu_occ(i_cut_RI)%matrix, &
                               !                                 template=mat_3c_overl_int(i_cut_RI)%matrix)
                               template=mat_3c_overl_int_mao_for_occ(i_cut_RI)%matrix)
@@ -2106,7 +2101,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(mat_M_mu_Pnu_virt, cut_RI)
          DO i_cut_RI = 1, cut_RI
             ALLOCATE (mat_M_mu_Pnu_virt(i_cut_RI)%matrix)
-            CALL dbcsr_init(mat_M_mu_Pnu_virt(i_cut_RI)%matrix)
             CALL dbcsr_create(matrix=mat_M_mu_Pnu_virt(i_cut_RI)%matrix, &
                               !                                 template=mat_3c_overl_int(i_cut_RI)%matrix)
                               template=mat_3c_overl_int_mao_for_virt(i_cut_RI)%matrix)
@@ -2116,7 +2110,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(mat_P_omega, num_integ_points)
          DO jquad = 1, num_integ_points
             ALLOCATE (mat_P_omega(jquad)%matrix)
-            CALL dbcsr_init(mat_P_omega(jquad)%matrix)
             CALL dbcsr_create(matrix=mat_P_omega(jquad)%matrix, &
                               template=mat_P_global%matrix)
             CALL dbcsr_set(mat_P_omega(jquad)%matrix, 0.0_dp)
@@ -2124,7 +2117,6 @@ CONTAINS
 
          NULLIFY (mat_P_global_copy%matrix)
          ALLOCATE (mat_P_global_copy%matrix)
-         CALL dbcsr_init(mat_P_global_copy%matrix)
          CALL dbcsr_create(mat_P_global_copy%matrix, template=mat_P_global%matrix)
          CALL dbcsr_copy(mat_P_global_copy%matrix, mat_P_global%matrix)
 
@@ -2308,7 +2300,6 @@ CONTAINS
 
          NULLIFY (mat_L%matrix)
          ALLOCATE (mat_L%matrix)
-         CALL dbcsr_init(mat_L%matrix)
          CALL dbcsr_create(mat_L%matrix, template=mat_P_global%matrix)
 
          CALL copy_fm_to_dbcsr(fm_mat_L, mat_L%matrix)

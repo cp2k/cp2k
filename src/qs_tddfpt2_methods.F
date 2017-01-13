@@ -63,8 +63,8 @@ MODULE qs_tddfpt2_methods
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
         dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_distribution_release, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
@@ -1377,7 +1377,6 @@ CONTAINS
       ELSE
          ALLOCATE (matrix)
       END IF
-      CALL dbcsr_init(matrix)
 
       CALL dbcsr_create(matrix, matrix_name, dbcsr_dist, matrix_type, row_blk_sizes, col_blk_sizes, nze=0)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix, sab)

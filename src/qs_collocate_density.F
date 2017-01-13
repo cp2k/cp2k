@@ -53,7 +53,6 @@ MODULE qs_collocate_density
                                               dbcsr_copy,&
                                               dbcsr_deallocate_matrix_set,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE external_potential_types,        ONLY: get_potential,&
@@ -1667,7 +1666,6 @@ CONTAINS
       IF (distributed_rs_grids) THEN
          DO img = 1, nimages
             ALLOCATE (deltap(img)%matrix)
-            CALL dbcsr_init(deltap(img)%matrix)
          END DO
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1
@@ -2152,7 +2150,6 @@ CONTAINS
       ALLOCATE (deltap(nimages))
       IF (distributed_rs_grids) THEN
          DO img = 1, nimages
-            CALL dbcsr_init(deltap(img)%matrix)
          END DO
          ! this matrix has no strict sparsity pattern in parallel
          ! deltap%sparsity_id=-1

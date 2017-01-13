@@ -24,7 +24,6 @@ MODULE scptb_core_matrix
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_init,&
                                               dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -212,7 +211,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimg)
       DO ic = 1, nimg
          ALLOCATE (matrix_h(1, ic)%matrix)
-         CALL dbcsr_init(matrix_h(1, ic)%matrix)
          CALL dbcsr_copy(matrix_h(1, ic)%matrix, matrix_t(1, ic)%matrix, &
                          name="CORE HAMILTONIAN MATRIX")
       END DO

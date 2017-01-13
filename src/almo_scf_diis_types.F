@@ -16,7 +16,6 @@ MODULE almo_scf_diis_types
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
-                                              dbcsr_init,&
                                               dbcsr_release,&
                                               dbcsr_set,&
                                               dbcsr_trace,&
@@ -121,10 +120,8 @@ CONTAINS
 
       ! create matrices
       DO im = 1, diis_env%max_buffer_length
-         CALL dbcsr_init(diis_env%m_err(im))
          CALL dbcsr_create(diis_env%m_err(im), &
                            template=sample_err)
-         CALL dbcsr_init(diis_env%m_var(im))
          CALL dbcsr_create(diis_env%m_var(im), &
                            template=sample_var)
       ENDDO

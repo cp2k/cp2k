@@ -41,8 +41,8 @@ MODULE preconditioner_makes
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
    USE input_constants,                 ONLY: &
         cholesky_inverse, cholesky_reduce, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
@@ -156,7 +156,6 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
          ALLOCATE (preconditioner_env%sparse_matrix)
-         CALL dbcsr_init(preconditioner_env%sparse_matrix)
       END IF
       CALL dbcsr_copy(preconditioner_env%sparse_matrix, matrix_s, name="full_kinetic")
 
@@ -191,7 +190,6 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
          ALLOCATE (preconditioner_env%sparse_matrix)
-         CALL dbcsr_init(preconditioner_env%sparse_matrix)
       END IF
       CALL dbcsr_copy(preconditioner_env%sparse_matrix, matrix_t, name="full_kinetic")
 
@@ -703,21 +701,16 @@ CONTAINS
 
       ! Allocate all working matrices needed
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
-      CALL dbcsr_init(mo_dbcsr)
       ! copy the fm MO's to a sparse matrix, can be solved better if the sparse version is already present
       ! but for the time beeing this will do
       CALL cp_fm_to_dbcsr_row_template(mo_dbcsr, matrix_c0, matrix_h)
-      CALL dbcsr_init(dbcsr_sc)
       CALL dbcsr_create(dbcsr_sc, template=mo_dbcsr)
-      CALL dbcsr_init(dbcsr_hc)
       CALL dbcsr_create(dbcsr_hc, template=mo_dbcsr)
-      CALL dbcsr_init(dbcsr_cThc)
       CALL cp_dbcsr_m_by_n_from_template(dbcsr_cThc, matrix_h, k, k, sym=dbcsr_type_symmetric)
 
       ! Check whether the output matrix was already created, if not do it now
       IF (.NOT. ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
          ALLOCATE (preconditioner_env%sparse_matrix)
-         CALL dbcsr_init(preconditioner_env%sparse_matrix)
       END IF
 
       ! Put the first term of the preconditioner (H) into the output matrix

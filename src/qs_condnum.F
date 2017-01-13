@@ -23,10 +23,9 @@ MODULE qs_condnum
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_gershgorin_norm, &
-        dbcsr_get_block_diag, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_get_block_diag, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: invmat
 #include "./base/base_uses.f90"
@@ -88,7 +87,6 @@ CONTAINS
       ELSE
          IF (iunit > 0) WRITE (iunit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER AT GAMMA POINT"
          ALLOCATE (smat)
-         CALL dbcsr_init(smat)
          CALL dbcsr_create(smat, template=matrixkp_s(1, 1)%matrix)
          CALL dbcsr_copy(smat, matrixkp_s(1, 1)%matrix)
          DO ic = 2, SIZE(matrixkp_s, 2)
@@ -118,7 +116,6 @@ CONTAINS
             CALL cp_fm_create(fmsmat, matrix_struct)
             CALL cp_fm_create(fmwork, matrix_struct)
             ! transfer to FM
-            CALL dbcsr_init(tempmat)
             CALL dbcsr_create(tempmat, template=smat, matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_desymmetrize(smat, tempmat)
             CALL copy_dbcsr_to_fm(tempmat, fmsmat)
@@ -212,7 +209,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: pmat
 
       ! generate a block diagonal preconditioner
-      CALL dbcsr_init(pmat)
       CALL dbcsr_create(pmat, name="SMAT Preconditioner", template=amat)
       ! replicate the diagonal blocks of the overlap matrix
       CALL dbcsr_get_block_diag(amat, pmat)

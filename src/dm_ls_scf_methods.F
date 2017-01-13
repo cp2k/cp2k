@@ -17,7 +17,7 @@ MODULE dm_ls_scf_methods
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
         dbcsr_finalize, dbcsr_frobenius_norm, dbcsr_get_data_type, dbcsr_get_occupation, &
-        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_put_block, dbcsr_release, &
         dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_4
    USE dm_ls_scf_qs,                    ONLY: matrix_qs_to_ls
@@ -95,10 +95,8 @@ CONTAINS
 
       ! needs a preconditioner for S
       IF (ls_scf_env%has_s_preconditioner) THEN
-         CALL dbcsr_init(ls_scf_env%matrix_bs_sqrt)
          CALL dbcsr_create(ls_scf_env%matrix_bs_sqrt, template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(ls_scf_env%matrix_bs_sqrt_inv)
          CALL dbcsr_create(ls_scf_env%matrix_bs_sqrt_inv, template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
          CALL compute_matrix_preconditioner(ls_scf_env%matrix_s, &
@@ -116,8 +114,6 @@ CONTAINS
 
       ! compute sqrt(S) and inv(sqrt(S))
       IF (ls_scf_env%use_s_sqrt) THEN
-         CALL dbcsr_init(ls_scf_env%matrix_s_sqrt)
-         CALL dbcsr_init(ls_scf_env%matrix_s_sqrt_inv)
          CALL dbcsr_create(ls_scf_env%matrix_s_sqrt, template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(ls_scf_env%matrix_s_sqrt_inv, template=ls_scf_env%matrix_s, &
@@ -129,10 +125,8 @@ CONTAINS
                                         ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
 
          IF (ls_scf_env%check_s_inv) THEN
-            CALL dbcsr_init(matrix_tmp1)
             CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
                               matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_init(matrix_tmp2)
             CALL dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, &
                               matrix_type=dbcsr_type_no_symmetry)
 
@@ -156,7 +150,6 @@ CONTAINS
 
       ! compute the inverse of S
       IF (ls_scf_env%needs_s_inv) THEN
-         CALL dbcsr_init(ls_scf_env%matrix_s_inv)
          CALL dbcsr_create(ls_scf_env%matrix_s_inv, template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
          IF (.NOT. ls_scf_env%use_s_sqrt) THEN
@@ -166,7 +159,6 @@ CONTAINS
                                 0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter)
          ENDIF
          IF (ls_scf_env%check_s_inv) THEN
-            CALL dbcsr_init(matrix_tmp1)
             CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_inv, ls_scf_env%matrix_s, &
@@ -228,7 +220,6 @@ CONTAINS
       datatype = dbcsr_get_data_type(matrix_s) ! could be single or double precision
 
       ! first generate a block diagonal copy of s
-      CALL dbcsr_init(matrix_bs)
       CALL dbcsr_create(matrix_bs, template=matrix_s)
 
       SELECT CASE (preconditioner_type)
@@ -327,7 +318,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix, matrix_type=dbcsr_type_no_symmetry)
 
       SELECT CASE (direction)
@@ -470,20 +460,17 @@ CONTAINS
       ENDIF
 
       ! get inv(S)*H-I*mu
-      CALL dbcsr_init(matrix_sinv_ks)
       CALL dbcsr_create(matrix_sinv_ks, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_inv, matrix_ks, &
                           0.0_dp, matrix_sinv_ks, filter_eps=threshold)
       CALL dbcsr_add_on_diag(matrix_sinv_ks, -mu)
 
       ! compute sign(inv(S)*H-I*mu)
-      CALL dbcsr_init(matrix_sign)
       CALL dbcsr_create(matrix_sign, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
       CALL matrix_sign_Newton_Schulz(matrix_sign, matrix_sinv_ks, threshold)
       CALL dbcsr_release(matrix_sinv_ks)
 
       ! now construct the density matrix PS=0.5*(I-sign(inv(S)H-I*mu))
-      CALL dbcsr_init(matrix_p_ud)
       CALL dbcsr_create(matrix_p_ud, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(matrix_p_ud, matrix_sign)
       CALL dbcsr_scale(matrix_p_ud, -0.5_dp)
@@ -494,7 +481,6 @@ CONTAINS
       CALL dbcsr_trace(matrix_p_ud, trace)
 
       ! we can also check it is idempotent PS*PS=PS
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_p_ud, matrix_p_ud, &
                           0.0_dp, matrix_tmp, filter_eps=threshold)
@@ -585,11 +571,9 @@ CONTAINS
       IF (PRESENT(converged)) converged = .FALSE.
 
       ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
-      CALL dbcsr_init(matrix_x)
       CALL dbcsr_create(matrix_x, template=matrix_ks, matrix_type="S")
 
       ! at some points the non-symmetric version of x is required
-      CALL dbcsr_init(matrix_x_nosym)
       CALL dbcsr_create(matrix_x_nosym, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks, &
@@ -598,7 +582,6 @@ CONTAINS
                           0.0_dp, matrix_x, filter_eps=threshold)
       CALL dbcsr_desymmetrize(matrix_x, matrix_x_nosym)
 
-      CALL dbcsr_init(matrix_k0)
       CALL dbcsr_create(matrix_k0, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(matrix_k0, matrix_x_nosym)
 
@@ -644,13 +627,10 @@ CONTAINS
          scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
       ENDIF
 
-      CALL dbcsr_init(matrix_xsq)
       CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type="S")
 
-      CALL dbcsr_init(matrix_xidsq)
       CALL dbcsr_create(matrix_xidsq, template=matrix_ks, matrix_type="S")
 
-      CALL dbcsr_init(tmp_gx)
       CALL dbcsr_create(tmp_gx, template=matrix_ks, matrix_type="S")
 
       ALLOCATE (gamma_values(max_iter))
@@ -872,7 +852,6 @@ CONTAINS
       IF (PRESENT(non_monotonic)) do_non_monotonic = non_monotonic
 
       ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
-      CALL dbcsr_init(matrix_x)
       CALL dbcsr_create(matrix_x, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_ks, &
@@ -900,11 +879,9 @@ CONTAINS
       CALL dbcsr_add_on_diag(matrix_x, eps_max)
       CALL dbcsr_scale(matrix_x, 1/(eps_max-eps_min))
 
-      CALL dbcsr_init(matrix_xsq)
       CALL dbcsr_create(matrix_xsq, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(matrix_xsq, matrix_x)
 
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry)
 
       ALLOCATE (poly(max_iter))
@@ -1110,13 +1087,10 @@ CONTAINS
 
 ! temporary matrices used for HOMO/LUMO calculation
 
-      CALL dbcsr_init(tmp1)
       CALL dbcsr_create(tmp1, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
 
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
 
-      CALL dbcsr_init(tmp3)
       CALL dbcsr_create(tmp3, template=matrix_k, matrix_type=dbcsr_type_no_symmetry)
 
       shift1 = -eps_min

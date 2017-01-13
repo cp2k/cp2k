@@ -38,10 +38,9 @@ MODULE almo_scf_qs
         dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
         dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, dbcsr_filter, &
         dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, &
-        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_mp_group, dbcsr_mp_mynode, &
-        dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_get_stored_coordinates, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, &
+        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
                                               almo_constraint_block_diagonal,&
                                               almo_constraint_distance,&
@@ -300,7 +299,6 @@ CONTAINS
                                   reuse_arrays=.TRUE.)
 
       ! Create the matrix
-      CALL dbcsr_init(matrix_new)
       CALL dbcsr_create(matrix_new, name_new, &
                         dist_new, symmetry_new, &
                         row_sizes_new, col_sizes_new, reuse_arrays=.TRUE.)
@@ -434,7 +432,6 @@ CONTAINS
                          keep_sparsity=keep_sparsity)
       CASE (almo_mat_distr_molecular)
          ! desymmetrize the qs matrix
-         CALL dbcsr_init(matrix_qs_nosym)
          CALL dbcsr_create(matrix_qs_nosym, template=matrix_qs, &
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_desymmetrize(matrix_qs, matrix_qs_nosym)
@@ -560,7 +557,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(matrix_ks, nspin)
          DO ispin = 1, nspin
             ALLOCATE (matrix_ks(ispin)%matrix)
-            CALL dbcsr_init(matrix_ks(ispin)%matrix)
             CALL dbcsr_create(matrix_ks(ispin)%matrix, &
                               template=matrix_s(1)%matrix)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix, sab_orb)
@@ -770,7 +766,6 @@ CONTAINS
       ENDIF
 
       ! create a symmetrized copy of the ao overlap
-      CALL dbcsr_init(matrix_s_sym)
       CALL dbcsr_create(matrix_s_sym, &
                         template=almo_scf_env%matrix_s(1), &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -1438,16 +1433,12 @@ CONTAINS
 
       DO ispin = 1, almo_scf_env%nspins
 
-         CALL dbcsr_init(tmp_nn1)
          CALL dbcsr_create(tmp_nn1, template=almo_scf_env%matrix_s(1), &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(tmp_no1)
          CALL dbcsr_create(tmp_no1, template=almo_scf_env%matrix_t(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(tmp_oo1)
          CALL dbcsr_create(tmp_oo1, template=almo_scf_env%matrix_sigma_inv(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(tmp_oo2)
          CALL dbcsr_create(tmp_oo2, template=almo_scf_env%matrix_sigma_inv(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
 

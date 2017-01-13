@@ -35,9 +35,14 @@ MODULE qs_wannier90
                                               cp_logger_type
    USE cp_para_env,                     ONLY: cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_init, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_antisymmetric,&
+                                              dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -455,8 +460,6 @@ CONTAINS
       CALL cp_fm_create(mmn_imag, matrix_struct_mmn)
       ! allocate some work matrices
       ALLOCATE (rmatrix, cmatrix)
-      CALL dbcsr_init(rmatrix)
-      CALL dbcsr_init(cmatrix)
       CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, &
                         matrix_type=dbcsr_type_symmetric)
       CALL dbcsr_create(cmatrix, template=matrix_s(1, 1)%matrix, &

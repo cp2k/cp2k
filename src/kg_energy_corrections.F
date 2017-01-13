@@ -41,8 +41,8 @@ MODULE kg_energy_corrections
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_filter, &
-        dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, &
+        dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE external_potential_types,        ONLY: get_potential,&
@@ -269,7 +269,6 @@ CONTAINS
       ! initialize H matrix
       CALL dbcsr_allocate_matrix_set(ec_env%matrix_h, 1, 1)
       ALLOCATE (ec_env%matrix_h(1, 1)%matrix)
-      CALL dbcsr_init(ec_env%matrix_h(1, 1)%matrix)
       CALL dbcsr_create(ec_env%matrix_h(1, 1)%matrix, template=ec_env%matrix_s(1, 1)%matrix)
       CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_h(1, 1)%matrix, sab_orb)
 
@@ -350,7 +349,6 @@ CONTAINS
       DO ispin = 1, nspins
          headline = "KOHN-SHAM MATRIX"
          ALLOCATE (ec_env%matrix_ks(ispin, 1)%matrix)
-         CALL dbcsr_init(ec_env%matrix_ks(ispin, 1)%matrix)
          CALL dbcsr_create(ec_env%matrix_ks(ispin, 1)%matrix, name=TRIM(headline), &
                            template=ec_env%matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_ks(ispin, 1)%matrix, ec_env%sab_orb)
@@ -497,7 +495,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(ec_env%matrix_p, nspins, 1)
          DO ispin = 1, nspins
             ALLOCATE (ec_env%matrix_p(ispin, 1)%matrix)
-            CALL dbcsr_init(ec_env%matrix_p(ispin, 1)%matrix)
             CALL dbcsr_create(ec_env%matrix_p(ispin, 1)%matrix, name=TRIM(headline), &
                               template=ec_env%matrix_s(1, 1)%matrix)
             CALL cp_dbcsr_alloc_block_from_nbl(ec_env%matrix_p(ispin, 1)%matrix, ec_env%sab_orb)
@@ -563,18 +560,15 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(smat, nspins, 1)
       DO ispin = 1, nspins
          ALLOCATE (ksmat(ispin, 1)%matrix)
-         CALL dbcsr_init(ksmat(ispin, 1)%matrix)
          CALL dbcsr_create(ksmat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO KS mat", &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
                            col_blk_size=col_blk_sizes, nze=0)
          ALLOCATE (smat(ispin, 1)%matrix)
-         CALL dbcsr_init(smat(ispin, 1)%matrix)
          CALL dbcsr_create(smat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO S mat", &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
                            col_blk_size=col_blk_sizes, nze=0)
       END DO
       !
-      CALL dbcsr_init(cgmat)
       CALL dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
       DO ispin = 1, nspins
          CALL dbcsr_multiply("N", "N", 1.0_dp, ec_env%matrix_s(1, 1)%matrix, mao_coef(ispin)%matrix, &
@@ -589,7 +583,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(pmat, nspins, 1)
       DO ispin = 1, nspins
          ALLOCATE (pmat(ispin, 1)%matrix)
-         CALL dbcsr_init(pmat(ispin, 1)%matrix)
          CALL dbcsr_create(pmat(ispin, 1)%matrix, template=smat(1, 1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(pmat(ispin, 1)%matrix, ec_env%sab_orb)
       END DO
@@ -627,7 +620,6 @@ CONTAINS
       nspins = SIZE(mao_coef, 1)
 
       ! save pmat in full basis format
-      CALL dbcsr_init(cgmat)
       CALL dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
       DO ispin = 1, nspins
          CALL dbcsr_multiply("N", "N", 1.0_dp, mao_coef(ispin)%matrix, pmat(ispin, 1)%matrix, 0.0_dp, cgmat)

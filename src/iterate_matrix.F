@@ -22,9 +22,9 @@ MODULE iterate_matrix
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_filter, &
         dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_get_occupation, dbcsr_init, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
@@ -114,17 +114,14 @@ CONTAINS
          CALL dbcsr_set(matrix_inverse, 0.0_dp)
          CALL dbcsr_add_on_diag(matrix_inverse, 1.0_dp)
          ! everything commutes, therefor our all products will be symmetric
-         CALL dbcsr_init(tmp1)
          CALL dbcsr_create(tmp1, template=matrix_inverse)
       ELSE
          ! It is unlikely that our guess will commute with the matrix, therefore the first product will
          ! be non symmetric
-         CALL dbcsr_init(tmp1)
          CALL dbcsr_create(tmp1, template=matrix_inverse, matrix_type=dbcsr_type_no_symmetry)
       ENDIF
 
       CALL dbcsr_get_info(matrix, nfullrows_total=nrow)
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=matrix_inverse)
 
       IF (unit_nr > 0) WRITE (unit_nr, *)
@@ -249,10 +246,8 @@ CONTAINS
          unit_nr = -1
       ENDIF
 
-      CALL dbcsr_init(tmp1)
       CALL dbcsr_create(tmp1, template=matrix_sign)
 
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=matrix_sign)
 
       CALL dbcsr_copy(matrix_sign, matrix)
@@ -371,12 +366,9 @@ CONTAINS
       IF (PRESENT(converged)) converged = .FALSE.
 
       ! for stability symmetry can not be assumed
-      CALL dbcsr_init(tmp1)
       CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       IF (order .GE. 4) THEN
-         CALL dbcsr_init(tmp3)
          CALL dbcsr_create(tmp3, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       ENDIF
 
@@ -589,12 +581,10 @@ CONTAINS
       END DO
 
       ! copy and scale the input matrix in matrix C and in matrix D
-      CALL dbcsr_init(C)
       CALL dbcsr_create(C, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(C, matrix)
       CALL dbcsr_scale(C, alpha_scalar=alpha/2.0_dp**k)
 
-      CALL dbcsr_init(D)
       CALL dbcsr_create(D, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(D, C)
 
@@ -603,7 +593,6 @@ CONTAINS
       !   CALL dbcsr_print(D, nodata=.FALSE., matlab_format=.TRUE., variable_name="D", unit_nr=6)
 
       ! set the B matrix as B=Identity+D
-      CALL dbcsr_init(B)
       CALL dbcsr_create(B, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(B, D)
       CALL dbcsr_add_on_diag(B, alpha_scalar=one)
@@ -614,7 +603,6 @@ CONTAINS
       norm_C = toll*dbcsr_frobenius_norm(matrix)
 
       ! iteration for the trucated taylor series expansion
-      CALL dbcsr_init(D_product)
       CALL dbcsr_create(D_product, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       i = 1
       DO
@@ -636,7 +624,6 @@ CONTAINS
       END DO
 
       ! start the k iteration for the squaring of the matrix
-      CALL dbcsr_init(B_square)
       CALL dbcsr_create(B_square, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       DO i = 1, k
          !compute B_square=B*B
@@ -688,9 +675,7 @@ CONTAINS
          unit_nr = -1
       ENDIF
 
-      CALL dbcsr_init(matrix_pp)
       CALL dbcsr_create(matrix_pp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_trace(matrix_p(1), trace)
 
@@ -755,11 +740,8 @@ CONTAINS
          unit_nr = -1
       ENDIF
 
-      CALL dbcsr_init(matrix_ps)
       CALL dbcsr_create(matrix_ps, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_psp)
       CALL dbcsr_create(matrix_psp, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_test)
       CALL dbcsr_create(matrix_test, template=matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
 
       DO ispin = 1, SIZE(matrix_p)

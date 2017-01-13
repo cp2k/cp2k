@@ -15,7 +15,7 @@ MODULE pao_param_gth
                                               pbc
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, &
         dbcsr_set, dbcsr_type
@@ -91,7 +91,6 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s(1)%matrix, row_blk_size=blk_sizes_pri)
       col_blk_size = SUM(nterms)
       row_blk_size = blk_sizes_pri**2
-      CALL dbcsr_init(pao%matrix_V_terms)
       CALL dbcsr_create(pao%matrix_V_terms, &
                         name="PAO matrix_V_terms", &
                         dist=pao%diag_distribution, &
@@ -172,7 +171,6 @@ CONTAINS
       group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(pao%matrix_V_terms)))
       natoms = SIZE(nterms)
 
-      CALL dbcsr_init(matrix_gth_overlap)
       CALL dbcsr_create(matrix_gth_overlap, &
                         template=pao%matrix_V_terms, &
                         matrix_type="N", &
@@ -220,9 +218,7 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| GTH-preconditioner converged, min, max, max/min:", &
          arnoldi_converged, eval_min, eval_max, eval_max/eval_min
 
-      CALL dbcsr_init(pao%matrix_precon)
       CALL dbcsr_create(pao%matrix_precon, template=matrix_gth_overlap)
-      CALL dbcsr_init(pao%matrix_precon_inv)
       CALL dbcsr_create(pao%matrix_precon_inv, template=matrix_gth_overlap)
 
       CALL matrix_sqrt_Newton_Schulz(pao%matrix_precon_inv, pao%matrix_precon, matrix_gth_overlap, &

@@ -21,7 +21,6 @@ MODULE qs_kpp1_env_methods
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_set
@@ -540,7 +539,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(ks_2, nspins)
       DO ispin = 1, nspins
          ALLOCATE (ks_2(ispin)%matrix)
-         CALL dbcsr_init(ks_2(ispin)%matrix)
          CALL dbcsr_copy(ks_2(ispin)%matrix, matrix_s(1)%matrix, &
                          name="tmp_ks2-"//ADJUSTL(cp_to_string(ispin)))
       END DO
@@ -632,7 +630,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao, nspins)
          DO ispin = 1, nspins
             ALLOCATE (kpp1_env%v_ao(ispin)%matrix)
-            CALL dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
             CALL dbcsr_copy(kpp1_env%v_ao(ispin)%matrix, matrix_s(1)%matrix, &
                             name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
          END DO

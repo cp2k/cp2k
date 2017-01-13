@@ -9,9 +9,14 @@
 ! **************************************************************************************************
 MODULE pao_main
    USE cp_external_control,             ONLY: external_control
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_init, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_reserve_diag_blocks,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -154,12 +159,9 @@ CONTAINS
       CALL linesearch_init(pao%linesearch, section, "PAO|")
 
       ! create some more matrices
-      CALL dbcsr_init(pao%matrix_X_orig)
-      CALL dbcsr_init(pao%matrix_G)
       CALL dbcsr_copy(pao%matrix_G, pao%matrix_X)
       CALL dbcsr_set(pao%matrix_G, 0.0_dp)
 
-      CALL dbcsr_init(pao%matrix_U)
       CALL dbcsr_create(pao%matrix_U, &
                         name="PAO matrix_U", &
                         matrix_type="N", &
@@ -167,10 +169,8 @@ CONTAINS
                         template=matrix_s(1)%matrix)
       CALL dbcsr_reserve_diag_blocks(pao%matrix_U)
 
-      CALL dbcsr_init(ls_mstruct%matrix_A)
       CALL dbcsr_create(ls_mstruct%matrix_A, template=pao%matrix_Y)
       CALL dbcsr_reserve_diag_blocks(ls_mstruct%matrix_A)
-      CALL dbcsr_init(ls_mstruct%matrix_B)
       CALL dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
       CALL dbcsr_reserve_diag_blocks(ls_mstruct%matrix_B)
 
@@ -230,7 +230,6 @@ CONTAINS
       ! perform mixing once we are well into the optimization
       do_mixing = pao%mixing /= 1.0_dp .AND. pao%istep > 1
       IF (do_mixing) THEN
-         CALL dbcsr_init(matrix_X_mixing)
          CALL dbcsr_copy(matrix_X_mixing, pao%matrix_X)
       ENDIF
 

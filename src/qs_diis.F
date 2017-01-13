@@ -37,8 +37,8 @@ MODULE qs_diis
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_init, dbcsr_maxabs, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_transposed, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_maxabs, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_transposed, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
@@ -625,12 +625,10 @@ CONTAINS
       diis_buffer%ncall = diis_buffer%ncall+1
       nb = MIN(diis_buffer%ncall, diis_buffer%nbuffer)
 ! Create scratch arrays
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, &
                         template=ls_scf_env%matrix_ks(1), &
                         matrix_type='N')
       CALL dbcsr_set(matrix_tmp, 0.0_dp) ! reset matrix
-      CALL dbcsr_init(matrix_KSerr_t)
       CALL dbcsr_create(matrix_KSerr_t, &
                         template=ls_scf_env%matrix_ks(1), &
                         matrix_type='N')
@@ -832,7 +830,6 @@ CONTAINS
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
                ALLOCATE (diis_buffer%error(ibuffer, ispin)%matrix)
-               CALL dbcsr_init(diis_buffer%error(ibuffer, ispin)%matrix)
 
                CALL dbcsr_create(diis_buffer%error(ibuffer, ispin)%matrix, &
                                  template=ls_scf_env%matrix_ks(1), &
@@ -849,7 +846,6 @@ CONTAINS
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
                ALLOCATE (diis_buffer%parameter(ibuffer, ispin)%matrix)
-               CALL dbcsr_init(diis_buffer%parameter(ibuffer, ispin)%matrix)
                CALL dbcsr_create(diis_buffer%parameter(ibuffer, ispin)%matrix, &
                                  template=ls_scf_env%matrix_ks(1), &
                                  matrix_type='N')

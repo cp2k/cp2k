@@ -41,7 +41,6 @@ MODULE rt_delta_pulse
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_filter,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
@@ -331,8 +330,6 @@ CONTAINS
       kvec(:) = dft_control%rtp_control%delta_pulse_scale*kvec
 
       ALLOCATE (cosmat, sinmat)
-      CALL dbcsr_init(cosmat)
-      CALL dbcsr_init(sinmat)
       CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
       CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
       CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)

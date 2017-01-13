@@ -28,9 +28,9 @@ MODULE pexsi_methods
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
         csr_destroy, csr_eqrow_floor_dist, csr_print_sparsity, dbcsr_allocate_matrix_set, &
         dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_has_symmetry, dbcsr_init, &
-        dbcsr_mp_mynode, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_has_symmetry, dbcsr_mp_mynode, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_real_8
    USE dm_ls_scf_qs,                    ONLY: matrix_ls_to_qs
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_vals_type,&
@@ -182,9 +182,6 @@ CONTAINS
       ENDIF
 
       ! Create template matrices fixing sparsity pattern for PEXSI
-      CALL dbcsr_init(pexsi_env%dbcsr_template_matrix_sym)
-      CALL dbcsr_init(pexsi_env%dbcsr_template_matrix_nonsym)
-      CALL dbcsr_init(pexsi_env%csr_sparsity)
 
       IF (dbcsr_has_symmetry(template_matrix)) THEN
          CALL dbcsr_copy(pexsi_env%dbcsr_template_matrix_sym, template_matrix, &
@@ -224,8 +221,6 @@ CONTAINS
 
       DO ispin = 1, pexsi_env%nspin
          ! max_ev_vector only initialised to avoid warning in case max_scf==0
-         CALL dbcsr_init(pexsi_env%max_ev_vector(ispin))
-         CALL dbcsr_init(pexsi_env%matrix_w(ispin)%matrix)
          CALL dbcsr_create(pexsi_env%matrix_w(ispin)%matrix, "W matrix", &
                            template=template_matrix, matrix_type=dbcsr_type_no_symmetry)
       ENDDO

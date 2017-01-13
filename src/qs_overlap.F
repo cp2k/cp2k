@@ -29,8 +29,8 @@ MODULE qs_overlap
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_distribution_obj, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -921,7 +921,6 @@ CONTAINS
          CALL compress(name)
          CALL uppercase(name)
          ALLOCATE (matrix_s(i)%matrix)
-         CALL dbcsr_init(matrix_s(i)%matrix)
          CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
                            name=TRIM(name), &
                            dist=dbcsr_dist, matrix_type=symmetry_string, &
@@ -1015,7 +1014,6 @@ CONTAINS
             CALL compress(name)
             CALL uppercase(name)
             ALLOCATE (matrix_s(i1, i2)%matrix)
-            CALL dbcsr_init(matrix_s(i1, i2)%matrix)
             CALL dbcsr_create(matrix=matrix_s(i1, i2)%matrix, &
                               name=TRIM(name), &
                               dist=dbcsr_dist, matrix_type=symmetry_string, &

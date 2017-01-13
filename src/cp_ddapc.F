@@ -28,7 +28,6 @@ MODULE cp_ddapc
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: do_spin_density
@@ -176,7 +175,6 @@ CONTAINS
                   IF (qs_env%et_coupling%first_run) THEN
                      NULLIFY (qs_env%et_coupling%rest_mat(1)%matrix)
                      ALLOCATE (qs_env%et_coupling%rest_mat(1)%matrix)
-                     CALL dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
@@ -190,7 +188,6 @@ CONTAINS
                   ELSE
                      NULLIFY (qs_env%et_coupling%rest_mat(2)%matrix)
                      ALLOCATE (qs_env%et_coupling%rest_mat(2)%matrix)
-                     CALL dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)

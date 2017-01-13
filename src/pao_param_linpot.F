@@ -14,7 +14,7 @@ MODULE pao_param_linpot
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
         dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
    USE kinds,                           ONLY: dp
@@ -91,7 +91,6 @@ CONTAINS
       ! allocate matrix_V_terms
       CALL dbcsr_get_info(pao%matrix_Y, row_blk_size=blk_sizes_pri)
       row_blk_size = blk_sizes_pri**2
-      CALL dbcsr_init(pao%matrix_V_terms)
       CALL dbcsr_create(pao%matrix_V_terms, &
                         name="PAO matrix_V_terms", &
                         dist=pao%diag_distribution, &
@@ -156,7 +155,6 @@ CONTAINS
       CALL dbcsr_get_info(pao%matrix_V_terms, col_blk_size=blk_sizes_nterms)
 
       ! build regularization metric
-      CALL dbcsr_init(pao%matrix_R)
       CALL dbcsr_create(pao%matrix_R, &
                         template=pao%matrix_V_terms, &
                         matrix_type="N", &
@@ -232,7 +230,6 @@ CONTAINS
 
       CALL dbcsr_get_info(pao%matrix_V_terms, col_blk_size=blk_sizes_nterms)
 
-      CALL dbcsr_init(pao%matrix_precon)
       CALL dbcsr_create(pao%matrix_precon, &
                         template=pao%matrix_V_terms, &
                         matrix_type="N", &
@@ -241,7 +238,6 @@ CONTAINS
                         name="PAO matrix_precon")
       CALL dbcsr_reserve_diag_blocks(pao%matrix_precon)
 
-      CALL dbcsr_init(pao%matrix_precon_inv)
       CALL dbcsr_create(pao%matrix_precon_inv, template=pao%matrix_precon, name="PAO matrix_precon_inv")
       CALL dbcsr_reserve_diag_blocks(pao%matrix_precon_inv)
 

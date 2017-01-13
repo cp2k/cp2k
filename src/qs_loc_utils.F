@@ -43,7 +43,6 @@ MODULE qs_loc_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -605,7 +604,6 @@ CONTAINS
                DO j = 1, SIZE(qs_loc_env%op_sm_set, 1)
                   NULLIFY (qs_loc_env%op_sm_set(j, i)%matrix)
                   ALLOCATE (qs_loc_env%op_sm_set(j, i)%matrix)
-                  CALL dbcsr_init(qs_loc_env%op_sm_set(j, i)%matrix)
                   CALL dbcsr_copy(qs_loc_env%op_sm_set(j, i)%matrix, matrix_s(1)%matrix, &
                                   name="qs_loc_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))))
                   CALL dbcsr_set(qs_loc_env%op_sm_set(j, i)%matrix, 0.0_dp)

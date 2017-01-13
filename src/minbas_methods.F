@@ -29,7 +29,7 @@ MODULE minbas_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_filter, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_distribution_obj, dbcsr_filter, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type, &
         dbcsr_type_no_symmetry
@@ -186,7 +186,6 @@ CONTAINS
          DO ispin = 1, nspin
             ! coeficients
             ALLOCATE (quambo(ispin)%matrix)
-            CALL dbcsr_init(quambo(ispin)%matrix)
             CALL dbcsr_create(matrix=quambo(ispin)%matrix, &
                               name="QUAMBO", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                               row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
@@ -197,7 +196,6 @@ CONTAINS
          CALL mao_generate_basis(qs_env, mao_coef)
 
          ! sortho (nmao x nmao)
-         CALL dbcsr_init(sortho)
          CALL dbcsr_create(sortho, name="SORTHO", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                            row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
          CALL dbcsr_reserve_diag_blocks(matrix=sortho)
@@ -221,7 +219,6 @@ CONTAINS
          DO ispin = 1, nspin
 
             ! SMAO = Overlap*MAOs
-            CALL dbcsr_init(smao)
             CALL dbcsr_create(smao, name="S*MAO", template=mao_coef(1)%matrix)
             CALL dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef(ispin)%matrix, 0.0_dp, smao)
             ! a(nj)* = C(vn)(T) * SMAO(vj)

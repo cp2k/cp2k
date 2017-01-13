@@ -16,7 +16,6 @@ MODULE qs_commutators
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_create,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE kinds,                           ONLY: dp
@@ -81,7 +80,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_hr, 3)
       DO ir = 1, 3
          ALLOCATE (matrix_hr(ir)%matrix)
-         CALL dbcsr_init(matrix_hr(ir)%matrix)
          CALL dbcsr_create(matrix_hr(ir)%matrix, template=matrix_s(1, 1)%matrix, &
                            name="COMMUTATOR")
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_hr(ir)%matrix, sab_orb)

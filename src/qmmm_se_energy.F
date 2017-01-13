@@ -25,7 +25,6 @@ MODULE qmmm_se_energy
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: &
@@ -162,8 +161,6 @@ CONTAINS
       ! Allocate the core Hamiltonian matrix
       CALL dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h, 1)
       ALLOCATE (ks_qmmm_env_loc%matrix_h(1)%matrix)
-
-      CALL dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix)
 
       CALL dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix, matrix_s(1)%matrix, &
                       name="QMMM HAMILTONIAN MATRIX")

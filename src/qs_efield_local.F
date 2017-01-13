@@ -24,7 +24,6 @@ MODULE qs_efield_local
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_trace
@@ -132,7 +131,6 @@ CONTAINS
       ALLOCATE (dipmat(3))
       DO i = 1, 3
          ALLOCATE (dipmat(i)%matrix)
-         CALL dbcsr_init(dipmat(i)%matrix)
          CALL dbcsr_copy(dipmat(i)%matrix, matrix_s(1)%matrix, 'DIP MAT')
          CALL dbcsr_set(dipmat(i)%matrix, 0.0_dp)
       END DO

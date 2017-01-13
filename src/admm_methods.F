@@ -45,7 +45,7 @@ MODULE admm_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_get_block_p, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
@@ -368,7 +368,6 @@ CONTAINS
          ELSE
             NULLIFY (matrix_s_tilde)
             ALLOCATE (matrix_s_tilde)
-            CALL dbcsr_init(matrix_s_tilde)
             CALL dbcsr_create(matrix_s_tilde, template=matrix_s_aux_fit(1)%matrix, &
                               name='MATRIX s_tilde', &
                               matrix_type=dbcsr_type_symmetric)
@@ -816,7 +815,6 @@ CONTAINS
 
          NULLIFY (matrix_k_tilde)
          ALLOCATE (matrix_k_tilde)
-         CALL dbcsr_init(matrix_k_tilde)
          CALL dbcsr_create(matrix_k_tilde, template=matrix_ks(ispin)%matrix, &
                            name='MATRIX K_tilde', &
                            matrix_type=dbcsr_type_symmetric)
@@ -964,7 +962,6 @@ CONTAINS
 
          NULLIFY (matrix_k_tilde)
          ALLOCATE (matrix_k_tilde)
-         CALL dbcsr_init(matrix_k_tilde)
          CALL dbcsr_create(matrix_k_tilde, template=matrix_ks(ispin)%matrix, &
                            name='MATRIX K_tilde', &
                            matrix_type=dbcsr_type_symmetric)
@@ -1219,7 +1216,6 @@ CONTAINS
                 (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
                NULLIFY (matrix_ks_aux_fit_admms_tmp)
                ALLOCATE (matrix_ks_aux_fit_admms_tmp)
-               CALL dbcsr_init(matrix_ks_aux_fit_admms_tmp)
                CALL dbcsr_create(matrix_ks_aux_fit_admms_tmp, template=matrix_ks_aux_fit(ispin)%matrix, &
                                  name='matrix_ks_aux_fit_admms_tmp', matrix_type='s')
                ! matrix_ks_aux_fit_admms_tmp = k(d_Q)
@@ -1247,7 +1243,6 @@ CONTAINS
 
             NULLIFY (matrix_k_tilde)
             ALLOCATE (matrix_k_tilde)
-            CALL dbcsr_init(matrix_k_tilde)
             CALL dbcsr_create(matrix_k_tilde, template=matrix_ks(ispin)%matrix, &
                               name='MATRIX K_tilde', matrix_type='S')
             CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix)
@@ -1331,7 +1326,6 @@ CONTAINS
 
                NULLIFY (matrix_TtsT)
                ALLOCATE (matrix_TtsT)
-               CALL dbcsr_init(matrix_TtsT)
                CALL dbcsr_create(matrix_TtsT, template=matrix_ks(ispin)%matrix, &
                                  name='MATRIX TtsT', matrix_type='S')
                CALL dbcsr_copy(matrix_TtsT, matrix_ks(ispin)%matrix)
@@ -1761,14 +1755,12 @@ CONTAINS
       ! *** Create sparse work matrices
 
       ALLOCATE (matrix_w_s)
-      CALL dbcsr_init(matrix_w_s)
       CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &
                         name='W MATRIX AUX S', &
                         matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s, sab_aux_fit_asymm)
 
       ALLOCATE (matrix_w_q)
-      CALL dbcsr_init(matrix_w_q)
       CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
                       "W MATRIX AUX Q")
 
@@ -1901,7 +1893,6 @@ CONTAINS
             !Create desymmetrized auxiliary density matrix
             NULLIFY (matrix_rho_aux_desymm_tmp)
             ALLOCATE (matrix_rho_aux_desymm_tmp)
-            CALL dbcsr_init(matrix_rho_aux_desymm_tmp)
             CALL dbcsr_create(matrix_rho_aux_desymm_tmp, template=matrix_s_aux_fit(1)%matrix, &
                               name='Rho_aux non-symm', &
                               matrix_type=dbcsr_type_no_symmetry)

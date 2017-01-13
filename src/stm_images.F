@@ -30,7 +30,6 @@ MODULE stm_images
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -153,7 +152,6 @@ CONTAINS
       END IF
 
       ALLOCATE (stm_density_ao)
-      CALL dbcsr_init(stm_density_ao)
       CALL dbcsr_copy(stm_density_ao, rho_ao(1)%matrix, &
                       name="stm_density_ao")
 

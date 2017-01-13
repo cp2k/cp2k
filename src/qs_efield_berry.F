@@ -45,7 +45,6 @@ MODULE qs_efield_berry
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix_set,&
                                               dbcsr_get_block_p,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -160,8 +159,6 @@ CONTAINS
       ALLOCATE (cosmat(3), sinmat(3))
       DO i = 1, 3
          ALLOCATE (cosmat(i)%matrix, sinmat(i)%matrix)
-         CALL dbcsr_init(cosmat(i)%matrix)
-         CALL dbcsr_init(sinmat(i)%matrix)
 
          CALL dbcsr_copy(cosmat(i)%matrix, matrix_s(1)%matrix, 'COS MAT')
          CALL dbcsr_copy(sinmat(i)%matrix, matrix_s(1)%matrix, 'SIN MAT')
@@ -344,8 +341,6 @@ CONTAINS
          ALLOCATE (tempmat(2, dft_control%nspins))
          DO ispin = 1, dft_control%nspins
             ALLOCATE (tempmat(1, ispin)%matrix, tempmat(2, ispin)%matrix)
-            CALL dbcsr_init(tempmat(1, ispin)%matrix)
-            CALL dbcsr_init(tempmat(2, ispin)%matrix)
             CALL dbcsr_copy(tempmat(1, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
             CALL dbcsr_copy(tempmat(2, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
             CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
@@ -835,8 +830,6 @@ CONTAINS
          ALLOCATE (tempmat(2, dft_control%nspins))
          DO ispin = 1, dft_control%nspins
             ALLOCATE (tempmat(1, ispin)%matrix, tempmat(2, ispin)%matrix)
-            CALL dbcsr_init(tempmat(1, ispin)%matrix)
-            CALL dbcsr_init(tempmat(2, ispin)%matrix)
             CALL dbcsr_copy(tempmat(1, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
             CALL dbcsr_copy(tempmat(2, ispin)%matrix, matrix_s(1)%matrix, 'TEMPMAT')
             CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)

@@ -18,9 +18,8 @@ MODULE preconditioner_apply
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_release, dbcsr_type
+        dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_type
    USE input_constants,                 ONLY: ot_precond_full_all,&
                                               ot_precond_full_kinetic,&
                                               ot_precond_full_single,&
@@ -284,7 +283,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_copy(matrix_tmp, matrix_in, name="apply_full_all")
       CALL dbcsr_multiply('T', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
                           matrix_in, 0.0_dp, matrix_tmp)

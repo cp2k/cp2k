@@ -18,7 +18,7 @@ MODULE qs_rho_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution, dbcsr_get_info, dbcsr_init, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_distribution, dbcsr_get_info, dbcsr_p_type, dbcsr_set, dbcsr_type, &
         dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -181,7 +181,6 @@ CONTAINS
                END IF
                ALLOCATE (rho_ao_kp(i, ic)%matrix)
                tmatrix => rho_ao_kp(i, ic)%matrix
-               CALL dbcsr_init(tmatrix)
                CALL dbcsr_get_info(refmatrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
                CALL dbcsr_create(matrix=tmatrix, name=TRIM(headline), &
                                  dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
@@ -608,7 +607,6 @@ CONTAINS
          CALL qs_rho_set(rho_output, rho_ao=rho_ao_out)
          DO i = 1, nspins
             ALLOCATE (rho_ao_out(i)%matrix)
-            CALL dbcsr_init(rho_ao_out(i)%matrix)
             CALL dbcsr_copy(rho_ao_out(i)%matrix, rho_ao_in(i)%matrix, &
                             name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))))
             CALL dbcsr_set(rho_ao_out(i)%matrix, 0.0_dp)

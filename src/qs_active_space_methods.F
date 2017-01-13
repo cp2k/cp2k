@@ -45,7 +45,6 @@ MODULE qs_active_space_methods
                                               csr_type,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE input_constants,                 ONLY: &
@@ -555,7 +554,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(active_space_env%pmat_inactive, nspins)
       DO ispin = 1, nspins
          ALLOCATE (denmat)
-         CALL dbcsr_init(denmat)
          CALL dbcsr_copy(denmat, rho_ao(ispin)%matrix)
          mo_set => active_space_env%mos_inactive(ispin)%mo_set
          CALL calculate_density_matrix(mo_set, denmat)

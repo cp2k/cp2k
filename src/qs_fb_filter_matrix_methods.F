@@ -8,10 +8,14 @@ MODULE qs_fb_filter_matrix_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_put_block, dbcsr_type, &
-        dbcsr_type_no_symmetry
+   USE dbcsr_api,                       ONLY: dbcsr_create,&
+                                              dbcsr_distribution_obj,&
+                                              dbcsr_finalize,&
+                                              dbcsr_get_info,&
+                                              dbcsr_get_stored_coordinates,&
+                                              dbcsr_put_block,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE fermi_utils,                     ONLY: Fermi,&
                                               FermiFixed
    USE kinds,                           ONLY: default_string_length,&
@@ -156,7 +160,6 @@ CONTAINS
       symmetry_string = dbcsr_type_no_symmetry
       ! create empty filter matrix
       ALLOCATE (filter_mat)
-      CALL dbcsr_init(filter_mat)
       CALL dbcsr_create(matrix=filter_mat, &
                         name=name_string, &
                         dist=dbcsr_dist, &
@@ -322,7 +325,6 @@ CONTAINS
       CALL uppercase(name_string)
       ! create empty filter matrix (it is always non-symmetric as it is non-square)
       ALLOCATE (filter_mat)
-      CALL dbcsr_init(filter_mat)
       CALL dbcsr_create(matrix=filter_mat, &
                         name=name_string, &
                         dist=dbcsr_dist, &

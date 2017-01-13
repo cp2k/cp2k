@@ -45,8 +45,8 @@ MODULE mp2
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_get_diag, dbcsr_get_info, &
-        dbcsr_init, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, &
-        dbcsr_set, dbcsr_type
+        dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_set, &
+        dbcsr_type
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_types,                       ONLY: &
         alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, &
@@ -1391,7 +1391,6 @@ CONTAINS
 
       CALL deallocate_qs_energy(energy_dummy)
 
-      CALL dbcsr_init(mo_coeff_b)
       CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, mo_coeff_b)
       CALL dbcsr_set(mo_coeff_b, 0.0_dp)
 
@@ -1414,12 +1413,10 @@ CONTAINS
 
          ! initialize matrix_tmp and matrix_tmp2
          IF (ispin == 1) THEN
-            CALL dbcsr_init(matrix_tmp)
             CALL dbcsr_create(matrix_tmp, template=mo_coeff_b)
             CALL dbcsr_copy(matrix_tmp, mo_coeff_b)
             CALL dbcsr_set(matrix_tmp, 0.0_dp)
 
-            CALL dbcsr_init(matrix_tmp_2)
             CALL dbcsr_create(matrix_tmp_2, template=mo_coeff_b)
             CALL dbcsr_copy(matrix_tmp_2, mo_coeff_b)
             CALL dbcsr_set(matrix_tmp_2, 0.0_dp)

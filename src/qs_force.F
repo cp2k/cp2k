@@ -27,7 +27,6 @@ MODULE qs_force
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
@@ -218,7 +217,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(matrix_w, dft_control%nspins)
          DO ispin = 1, dft_control%nspins
             ALLOCATE (matrix_w(ispin)%matrix)
-            CALL dbcsr_init(matrix_w(ispin)%matrix)
             CALL dbcsr_copy(matrix_w(ispin)%matrix, matrix_s(1)%matrix, &
                             name="W MATRIX")
             CALL dbcsr_set(matrix_w(ispin)%matrix, 0.0_dp)

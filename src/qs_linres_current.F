@@ -49,8 +49,8 @@ MODULE qs_linres_current
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_add_block_node, dbcsr_allocate_matrix_set, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, &
-        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: current_gauge_atom
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -287,7 +287,6 @@ CONTAINS
          !
          !density_matrix0
          ALLOCATE (density_matrix0(ispin)%matrix)
-         CALL dbcsr_init(density_matrix0(ispin)%matrix)
          CALL dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
                            name="density_matrix0", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
@@ -297,19 +296,16 @@ CONTAINS
          !
          !density_matrix_a
          ALLOCATE (density_matrix_a(ispin)%matrix)
-         CALL dbcsr_init(density_matrix_a(ispin)%matrix)
          CALL dbcsr_copy(density_matrix_a(ispin)%matrix, density_matrix0(ispin)%matrix, &
                          name="density_matrix_a")
          !
          !density_matrix_ii
          ALLOCATE (density_matrix_ii(ispin)%matrix)
-         CALL dbcsr_init(density_matrix_ii(ispin)%matrix)
          CALL dbcsr_copy(density_matrix_ii(ispin)%matrix, density_matrix0(ispin)%matrix, &
                          name="density_matrix_ii")
          !
          !density_matrix_iii
          ALLOCATE (density_matrix_iii(ispin)%matrix)
-         CALL dbcsr_init(density_matrix_iii(ispin)%matrix)
          CALL dbcsr_copy(density_matrix_iii(ispin)%matrix, density_matrix0(ispin)%matrix, &
                          name="density_matrix_iii")
       ENDDO
@@ -763,12 +759,8 @@ CONTAINS
       ALLOCATE (deltajp_a(1), deltajp_b(1), deltajp_c(1), deltajp_d(1))
       IF (distributed_rs_grids) THEN
          ALLOCATE (deltajp_a(1)%matrix, deltajp_b(1)%matrix, deltajp_c(1)%matrix)
-         CALL dbcsr_init(deltajp_a(1)%matrix)
-         CALL dbcsr_init(deltajp_b(1)%matrix)
-         CALL dbcsr_init(deltajp_c(1)%matrix)
          IF (do_igaim) THEN
             ALLOCATE (deltajp_d(1)%matrix)
-            CALL dbcsr_init(deltajp_d(1)%matrix)
          ENDIF
 
          CALL dbcsr_create(deltajp_a(1)%matrix, template=mat_a, name='deltajp_a')
@@ -2190,7 +2182,6 @@ CONTAINS
       !
       !
       ALLOCATE (op_mom_ao(1)%matrix)
-      CALL dbcsr_init(op_mom_ao(1)%matrix)
       CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
                         name="op_mom", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
@@ -2200,19 +2191,16 @@ CONTAINS
 
       DO idir2 = 1, 3
          ALLOCATE (op_mom_der_ao(1, idir2)%matrix)
-         CALL dbcsr_init(op_mom_der_ao(1, idir2)%matrix)
          CALL dbcsr_copy(op_mom_der_ao(1, idir2)%matrix, op_mom_ao(1)%matrix, &
                          "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
       ENDDO
 
       DO idir = 2, SIZE(op_mom_ao, 1)
          ALLOCATE (op_mom_ao(idir)%matrix)
-         CALL dbcsr_init(op_mom_ao(idir)%matrix)
          CALL dbcsr_copy(op_mom_ao(idir)%matrix, op_mom_ao(1)%matrix, &
                          "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
          DO idir2 = 1, 3
             ALLOCATE (op_mom_der_ao(idir, idir2)%matrix)
-            CALL dbcsr_init(op_mom_der_ao(idir, idir2)%matrix)
             CALL dbcsr_copy(op_mom_der_ao(idir, idir2)%matrix, op_mom_ao(1)%matrix, &
                             "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
          ENDDO
@@ -2220,7 +2208,6 @@ CONTAINS
       !
       CALL dbcsr_allocate_matrix_set(op_p_ao, 3)
       ALLOCATE (op_p_ao(1)%matrix)
-      CALL dbcsr_init(op_p_ao(1)%matrix)
       CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
                         name="op_p_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
@@ -2230,7 +2217,6 @@ CONTAINS
 
       DO idir = 2, 3
          ALLOCATE (op_p_ao(idir)%matrix)
-         CALL dbcsr_init(op_p_ao(idir)%matrix)
          CALL dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
                          "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
       ENDDO
@@ -2611,7 +2597,6 @@ CONTAINS
       !
       !
       ALLOCATE (op_mom_ao(1)%matrix)
-      CALL dbcsr_init(op_mom_ao(1)%matrix)
       CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
                         name="op_mom", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
@@ -2621,19 +2606,16 @@ CONTAINS
 
       DO idir2 = 1, 3
          ALLOCATE (op_mom_der_ao(1, idir2)%matrix)
-         CALL dbcsr_init(op_mom_der_ao(1, idir2)%matrix)
          CALL dbcsr_copy(op_mom_der_ao(1, idir2)%matrix, op_mom_ao(1)%matrix, &
                          "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
       ENDDO
 
       DO idir = 2, SIZE(op_mom_ao, 1)
          ALLOCATE (op_mom_ao(idir)%matrix)
-         CALL dbcsr_init(op_mom_ao(idir)%matrix)
          CALL dbcsr_copy(op_mom_ao(idir)%matrix, op_mom_ao(1)%matrix, &
                          "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
          DO idir2 = 1, 3
             ALLOCATE (op_mom_der_ao(idir, idir2)%matrix)
-            CALL dbcsr_init(op_mom_der_ao(idir, idir2)%matrix)
             CALL dbcsr_copy(op_mom_der_ao(idir, idir2)%matrix, op_mom_ao(1)%matrix, &
                             "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
          ENDDO
@@ -2641,7 +2623,6 @@ CONTAINS
       !
       CALL dbcsr_allocate_matrix_set(op_p_ao, 3)
       ALLOCATE (op_p_ao(1)%matrix)
-      CALL dbcsr_init(op_p_ao(1)%matrix)
       CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
                         name="op_p_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
@@ -2651,7 +2632,6 @@ CONTAINS
 
       DO idir = 2, 3
          ALLOCATE (op_p_ao(idir)%matrix)
-         CALL dbcsr_init(op_p_ao(idir)%matrix)
          CALL dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
                          "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
       ENDDO

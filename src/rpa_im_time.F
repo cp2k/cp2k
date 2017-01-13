@@ -18,10 +18,10 @@ MODULE rpa_im_time
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix_set, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_occupation, dbcsr_get_stored_coordinates, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_occupation, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_reserve_blocks, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_irecv,&
@@ -1422,7 +1422,6 @@ CONTAINS
          DO iquad = 1, num_integ_points
 
             ALLOCATE (mat_dm_occ_global(iquad)%matrix)
-            CALL dbcsr_init(mat_dm_occ_global(iquad)%matrix)
             ! per default, dont do MAOs
             IF (do_mao) THEN
                CALL dbcsr_get_info(mao_coeff_occ(ispin)%matrix, &
@@ -1456,7 +1455,6 @@ CONTAINS
       END IF
 
       ALLOCATE (mat_dm_virt_global(jquad)%matrix)
-      CALL dbcsr_init(mat_dm_virt_global(jquad)%matrix)
       CALL dbcsr_create(matrix=mat_dm_virt_global(jquad)%matrix, &
                         template=matrix_s(1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -2537,7 +2535,6 @@ CONTAINS
       DO i_mem = 1, cut_memory
          DO i_cut_RI = 1, cut_RI
             ALLOCATE (mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix)
-            CALL dbcsr_init(mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix)
             CALL dbcsr_create(matrix=mat_3c_overl_int_cut(i_cut_RI, i_mem)%matrix, &
                               template=mat_3c_overl_int(i_cut_RI)%matrix)
 

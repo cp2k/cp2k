@@ -14,8 +14,8 @@ MODULE ls_matrix_exp
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_filter, dbcsr_frobenius_norm, dbcsr_init, dbcsr_multiply, dbcsr_p_type, dbcsr_scale, &
-        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_complex_8
+        dbcsr_filter, dbcsr_frobenius_norm, dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, &
+        dbcsr_transposed, dbcsr_type, dbcsr_type_complex_8
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -103,19 +103,15 @@ CONTAINS
       !create the work matrices
       NULLIFY (ac)
       ALLOCATE (ac)
-      CALL dbcsr_init(ac)
       CALL dbcsr_create(ac, template=A_re, matrix_type="N")
       NULLIFY (bd)
       ALLOCATE (bd)
-      CALL dbcsr_init(bd)
       CALL dbcsr_create(bd, template=A_re, matrix_type="N")
       NULLIFY (a_plus_b)
       ALLOCATE (a_plus_b)
-      CALL dbcsr_init(a_plus_b)
       CALL dbcsr_create(a_plus_b, template=A_re, matrix_type="N")
       NULLIFY (c_plus_d)
       ALLOCATE (c_plus_d)
-      CALL dbcsr_init(c_plus_d)
       CALL dbcsr_create(c_plus_d, template=A_re, matrix_type="N")
 
       !Do the neccesarry multiplications
@@ -185,19 +181,15 @@ CONTAINS
       !Allocate work matrices
       NULLIFY (T1)
       ALLOCATE (T1)
-      CALL dbcsr_init(T1)
       CALL dbcsr_create(T1, template=im_matrix, matrix_type="N")
       NULLIFY (T2)
       ALLOCATE (T2)
-      CALL dbcsr_init(T2)
       CALL dbcsr_create(T2, template=im_matrix, matrix_type="N")
       NULLIFY (Tres_re)
       ALLOCATE (Tres_re)
-      CALL dbcsr_init(Tres_re)
       CALL dbcsr_create(Tres_re, template=im_matrix, matrix_type="N")
       NULLIFY (Tres_im)
       ALLOCATE (Tres_im)
-      CALL dbcsr_init(Tres_im)
       CALL dbcsr_create(Tres_im, template=im_matrix, matrix_type="N")
 
       !Create the unit matrices
@@ -285,22 +277,18 @@ CONTAINS
       !Allocate work matrices
       NULLIFY (T1)
       ALLOCATE (T1)
-      CALL dbcsr_init(T1)
       CALL dbcsr_create(T1, template=re_part, matrix_type="N", &
                         data_type=dbcsr_type_complex_8)
       NULLIFY (T2)
       ALLOCATE (T2)
-      CALL dbcsr_init(T2)
       CALL dbcsr_create(T2, template=re_part, matrix_type="N", &
                         data_type=dbcsr_type_complex_8)
       NULLIFY (T3)
       ALLOCATE (T3)
-      CALL dbcsr_init(T3)
       CALL dbcsr_create(T3, template=re_part, matrix_type="N", &
                         data_type=dbcsr_type_complex_8)
       NULLIFY (Tres)
       ALLOCATE (Tres)
-      CALL dbcsr_init(Tres)
       CALL dbcsr_create(Tres, template=re_part, matrix_type="N", &
                         data_type=dbcsr_type_complex_8)
 
@@ -377,19 +365,15 @@ CONTAINS
 
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=propagator)
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=propagator)
       NULLIFY (comm)
       ALLOCATE (comm)
-      CALL dbcsr_init(comm)
       CALL dbcsr_create(comm, template=propagator)
       NULLIFY (comm2)
       ALLOCATE (comm2)
-      CALL dbcsr_init(comm2)
       CALL dbcsr_create(comm2, template=propagator)
 
       CALL dbcsr_copy(tmp, density_re)
@@ -473,19 +457,15 @@ CONTAINS
 
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=propagator_re)
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=propagator_re)
       NULLIFY (comm)
       ALLOCATE (comm)
-      CALL dbcsr_init(comm)
       CALL dbcsr_create(comm, template=propagator_re)
       NULLIFY (comm2)
       ALLOCATE (comm2)
-      CALL dbcsr_init(comm2)
       CALL dbcsr_create(comm2, template=propagator_re)
 
       CALL dbcsr_copy(tmp, density_re)

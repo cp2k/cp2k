@@ -29,7 +29,6 @@ MODULE mp2_ri_grad_util
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&
@@ -1696,14 +1695,12 @@ CONTAINS
          ! now create the DBCSR matrix and copy fm_ia into it
          IF (alpha_case) THEN
             ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB)%matrix)
-            CALL dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
             CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB)%matrix, &
                                                template=mp2_env%ri_grad%mo_coeff_o, &
                                                m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
             CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia(kkB)%matrix, keep_sparsity=.FALSE.)
          ELSE
             ALLOCATE (mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
-            CALL dbcsr_init(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
             CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix, &
                                                template=mp2_env%ri_grad%mo_coeff_o_beta, &
                                                m=homo, n=virtual, sym=dbcsr_type_no_symmetry)

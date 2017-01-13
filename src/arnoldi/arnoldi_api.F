@@ -33,7 +33,7 @@ MODULE arnoldi_api
    USE dbcsr_api,                       ONLY: &
         create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
         create_replicated_row_vec_from_matrix, dbcsr_add, dbcsr_copy, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_matrix_colvec_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE kinds,                           ONLY: dp
@@ -111,7 +111,6 @@ CONTAINS
 
 !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
       CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
-      CALL dbcsr_init(vectors%result_vec)
       CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
       CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
       CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
@@ -192,13 +191,11 @@ CONTAINS
       CALL timeset(routineN, handle)
       ALLOCATE (matrix_arnoldi(2))
       ! this matrix will contain +/- A-rho*B
-      CALL dbcsr_init(A_rho_B)
       matrix_arnoldi(1)%matrix => A_rho_B
       matrix_arnoldi(2)%matrix => matrix(2)%matrix
 
 !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
       CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
-      CALL dbcsr_init(vectors%result_vec)
       CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
       CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
       CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
@@ -329,12 +326,10 @@ CONTAINS
       !prepare the vector like matrices needed in the matrix vector products,
       !they will be reused throughout the iterations
       CALL create_col_vec_from_matrix(vectors%input_vec, matrix_a, 1)
-      CALL dbcsr_init(vectors%result_vec)
       CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
       CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix_a, 1)
       CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix_a, 1)
       !
-      CALL dbcsr_init(x)
       CALL dbcsr_copy(x, vectors%input_vec)
       !
       CALL dbcsr_get_info(x, nfullrows_local=nloc, row_blk_size=rb_size, row_blk_offset=rb_offset)
@@ -423,10 +418,6 @@ CONTAINS
 
       IF (ASSOCIATED(pmat)) THEN
          ! Preconditioned conjugate gradients
-         CALL dbcsr_init(apvec)
-         CALL dbcsr_init(pvec)
-         CALL dbcsr_init(rvec)
-         CALL dbcsr_init(zvec)
          CALL dbcsr_copy(vectors%input_vec, xvec)
          CALL dbcsr_matrix_colvec_multiply(pmat, vectors%input_vec, vectors%result_vec, 1.0_dp, &
                                            0.0_dp, vectors%rep_row_vec, vectors%rep_col_vec)
@@ -479,11 +470,8 @@ CONTAINS
          CALL dbcsr_release(apvec)
 
       ELSE
-         CALL dbcsr_init(pvec)
          CALL dbcsr_copy(pvec, xvec)
-         CALL dbcsr_init(rvec)
          CALL dbcsr_copy(rvec, xvec)
-         CALL dbcsr_init(apvec)
          CALL dbcsr_set(xvec, 0.0_dp)
          ! Conjugate gradients
          rsold = vec_dot_vec(rvec, rvec, mpgrp)

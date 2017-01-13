@@ -58,7 +58,7 @@ MODULE qs_ks_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, &
-        dbcsr_init, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: efield_potential
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -1593,7 +1593,6 @@ CONTAINS
                   headline = "KOHN-SHAM MATRIX"
                END IF
                ALLOCATE (matrixkp_ks(ispin, ic)%matrix)
-               CALL dbcsr_init(matrixkp_ks(ispin, ic)%matrix)
                CALL dbcsr_create(matrix=matrixkp_ks(ispin, ic)%matrix, template=refmatrix, &
                                  name=TRIM(headline), matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin, ic)%matrix, sab_orb)
@@ -1617,7 +1616,6 @@ CONTAINS
             CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins)
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit(ispin)%matrix)
-               CALL dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
                CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, template=refmatrix, &
                                  name="KOHN-SHAM_MATRIX for ADMM", &
                                  matrix_type=dbcsr_type_symmetric, nze=0)
@@ -1632,7 +1630,6 @@ CONTAINS
             CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_dft, dft_control%nspins)
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit_dft(ispin)%matrix)
-               CALL dbcsr_init(matrix_ks_aux_fit_dft(ispin)%matrix)
                CALL dbcsr_create(matrix=matrix_ks_aux_fit_dft(ispin)%matrix, template=refmatrix, &
                                  name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY DFT EXCHANGE", &
                                  matrix_type=dbcsr_type_symmetric, nze=0)
@@ -1647,7 +1644,6 @@ CONTAINS
             CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_hfx, dft_control%nspins)
             DO ispin = 1, dft_control%nspins
                ALLOCATE (matrix_ks_aux_fit_hfx(ispin)%matrix)
-               CALL dbcsr_init(matrix_ks_aux_fit_hfx(ispin)%matrix)
                CALL dbcsr_create(matrix=matrix_ks_aux_fit_hfx(ispin)%matrix, template=refmatrix, &
                                  name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY HF EXCHANGE", &
                                  matrix_type=dbcsr_type_symmetric, nze=0)

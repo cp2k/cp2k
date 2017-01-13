@@ -21,7 +21,7 @@ MODULE cp_dbcsr_operations
         convert_sizes_to_offsets, dbcsr_add, &
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_distribution, dbcsr_distribution_new, &
-        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
+        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
         dbcsr_iterator_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_new, dbcsr_mp_release, &
         dbcsr_multiply, dbcsr_norm, dbcsr_release, &
@@ -170,7 +170,6 @@ CONTAINS
       CALL dbcsr_mp_release(mp_env)
 
       ! Create the block-cyclic DBCSR matrix
-      CALL dbcsr_init(bc_mat)
       CALL dbcsr_create(bc_mat, "Block-cyclic ", bc_dist, &
                            dbcsr_type_no_symmetry, row_blk_size, col_blk_size, nze=0, &
                            reuse_arrays=.TRUE., data_type=dbcsr_type_${type.lower()}$_8)
@@ -239,14 +238,12 @@ CONTAINS
                                           dbcsr_distribution_mp(dbcsr_distribution(matrix)), &
                                           row_blk_size, col_blk_size)
 
-      CALL dbcsr_init(bc_mat)
       CALL dbcsr_create(bc_mat, "Block-cyclic"//name, bc_dist, &
                            dbcsr_type_no_symmetry, row_blk_size, col_blk_size, &
                            nze=0, data_type=dbcsr_get_data_type(matrix), &
                            reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(bc_dist)
 
-      CALL dbcsr_init(matrix_nosym)
       CALL dbcsr_create(matrix_nosym, template=matrix, matrix_type="N")
       CALL dbcsr_desymmetrize(matrix, matrix_nosym)
       CALL dbcsr_complete_redistribute(matrix_nosym, bc_mat)
@@ -592,12 +589,10 @@ CONTAINS
          CALL dbcsr_create_dist_r_unrot(dist_right_in, dbcsr_distribution(matrix), k_in, &
                                            col_blk_size_right_in)
 
-         CALL dbcsr_init(in)
          CALL dbcsr_get_info(matrix, row_blk_size=row_blk_size)
          CALL dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
                               row_blk_size, col_blk_size_right_in, nze=0)
 
-         CALL dbcsr_init(out)
          CALL dbcsr_distribution_new(product_dist, &
                                         dbcsr_distribution_mp(dbcsr_distribution(matrix)), &
                                         dbcsr_distribution_row_dist(dbcsr_distribution(matrix)), &
@@ -735,7 +730,6 @@ CONTAINS
                                         dbcsr_distribution_row_clusters(dbcsr_distribution(sparse_matrix)), &
                                         col_dist_cluster)
          DEALLOCATE (col_dist_left)
-         CALL dbcsr_init(mat_v)
          CALL dbcsr_get_info(sparse_matrix, row_blk_size=row_blk_size, data_type=data_type)
          CALL dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_no_symmetry, &
                            row_blk_size, col_blk_size_left, nze=0, data_type=data_type)
@@ -744,7 +738,6 @@ CONTAINS
          !
          ! Setup matrix_g
          IF (PRESENT(matrix_g)) THEN
-            CALL dbcsr_init(mat_g)
             CALL dbcsr_create(mat_g, "DBCSR matrix_g", dist_left, dbcsr_type_no_symmetry, &
                               row_blk_size, col_blk_size_left, data_type=data_type)
             CALL copy_fm_to_dbcsr(matrix_g, mat_g)
@@ -762,7 +755,6 @@ CONTAINS
             CALL cp_fm_create(fm_matrix, fm_struct_tmp, name="fm matrix")
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL copy_dbcsr_to_fm(sparse_matrix, fm_matrix)
-            CALL dbcsr_init(sparse_matrix3)
             CALL dbcsr_copy(sparse_matrix3, sparse_matrix)
          ENDIF
          !
@@ -789,7 +781,6 @@ CONTAINS
                                1.0_dp, fm_matrix)
             ENDIF
 
-            CALL dbcsr_init(sparse_matrix2)
             CALL dbcsr_copy(sparse_matrix2, sparse_matrix)
             CALL dbcsr_scale(sparse_matrix2, alpha_scalar=0.0_dp)
             CALL copy_fm_to_dbcsr(fm_matrix, sparse_matrix2, keep_sparsity=my_keep_sparsity)
@@ -857,7 +848,6 @@ CONTAINS
 
       CALL dbcsr_create_dist_r_unrot(dist_right_in, dbcsr_distribution(template), k_in, &
                                         col_blk_size_right_in)
-      CALL dbcsr_init(matrix)
       CALL dbcsr_get_info(template, row_blk_size=row_blk_size, data_type=data_type)
       CALL dbcsr_create(matrix, "D", dist_right_in, dbcsr_type_no_symmetry, &
                         row_blk_size, col_blk_size_right_in, nze=0, data_type=data_type)

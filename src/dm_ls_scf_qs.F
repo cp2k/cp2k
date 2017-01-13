@@ -26,8 +26,8 @@ MODULE dm_ls_scf_qs
         dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
         dbcsr_distribution_hold, dbcsr_distribution_mp, dbcsr_distribution_new, &
         dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-        dbcsr_distribution_row_dist, dbcsr_finalize, dbcsr_get_info, dbcsr_init, dbcsr_mp_obj, &
-        dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_distribution_row_dist, dbcsr_finalize, dbcsr_get_info, dbcsr_mp_obj, dbcsr_multiply, &
+        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_real_4, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular,&
@@ -208,7 +208,6 @@ CONTAINS
 
       ! Create actual matrix -----------------------------------------------------------------------
       CALL dbcsr_get_info(matrix_qs, name=name)
-      CALL dbcsr_init(matrix_ls)
       CALL dbcsr_create(matrix_ls, &
                         name=name, &
                         dist=ls_dist, &
@@ -254,7 +253,6 @@ CONTAINS
          CALL matrix_cluster(matrix_ls, matrix_qs, ls_mstruct)
 
       ELSE ! using pao
-         CALL dbcsr_init(matrix_pao)
          CALL dbcsr_get_info(ls_mstruct%matrix_A, col_blk_size=pao_blk_sizes)
          CALL dbcsr_create(matrix_pao, &
                            matrix_type="N", &
@@ -264,7 +262,6 @@ CONTAINS
 
          matrix_trafo => ls_mstruct%matrix_A ! contra-variant
          IF (covariant) matrix_trafo => ls_mstruct%matrix_B ! co-variant
-         CALL dbcsr_init(matrix_tmp)
          CALL dbcsr_create(matrix_tmp, template=matrix_trafo)
 
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_qs, matrix_trafo, 0.0_dp, matrix_tmp)
@@ -303,13 +300,11 @@ CONTAINS
 
       CASE (ls_cluster_molecular)
          ! desymmetrize the qs matrix
-         CALL dbcsr_init(matrix_in_nosym)
          CALL dbcsr_create(matrix_in_nosym, template=matrix_in, matrix_type="N")
          CALL dbcsr_desymmetrize(matrix_in, matrix_in_nosym)
 
          ! perform the magic complete redistribute copy
          IF (ls_mstruct%single_precision) THEN
-            CALL dbcsr_init(matrix_tmp)
             CALL dbcsr_create(matrix_tmp, template=matrix_in_nosym, data_type=dbcsr_type_real_4)
             CALL dbcsr_copy(matrix_tmp, matrix_in_nosym)
             CALL dbcsr_complete_redistribute(matrix_tmp, matrix_out); 
@@ -363,7 +358,6 @@ CONTAINS
          my_keep_sparsity = keep_sparsity
 
       IF (.NOT. ls_mstruct%do_pao) THEN
-         CALL dbcsr_init(matrix_declustered)
          CALL dbcsr_create(matrix_declustered, template=matrix_qs)
          CALL matrix_decluster(matrix_declustered, matrix_ls, ls_mstruct)
          IF (my_keep_sparsity) THEN
@@ -375,7 +369,6 @@ CONTAINS
 
       ELSE ! using pao
          CALL dbcsr_get_info(ls_mstruct%matrix_A, col_blk_size=pao_blk_sizes)
-         CALL dbcsr_init(matrix_declustered)
          CALL dbcsr_create(matrix_declustered, &
                            template=matrix_qs, &
                            row_blk_size=pao_blk_sizes, &
@@ -385,9 +378,7 @@ CONTAINS
 
          matrix_trafo => ls_mstruct%matrix_B ! contra-variant
          IF (covariant) matrix_trafo => ls_mstruct%matrix_A ! co-variant
-         CALL dbcsr_init(matrix_tmp1)
          CALL dbcsr_create(matrix_tmp1, template=matrix_trafo)
-         CALL dbcsr_init(matrix_tmp2)
          CALL dbcsr_create(matrix_tmp2, template=matrix_qs)
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_trafo, matrix_declustered, 0.0_dp, matrix_tmp1)
          CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp1, matrix_trafo, 0.0_dp, matrix_tmp2)
@@ -430,7 +421,6 @@ CONTAINS
       CASE (ls_cluster_molecular)
          ! perform the magic complete redistribute copy
          IF (ls_mstruct%single_precision) THEN
-            CALL dbcsr_init(matrix_tmp)
             CALL dbcsr_create(matrix_tmp, template=matrix_in, data_type=dbcsr_type_real_8)
             CALL dbcsr_copy(matrix_tmp, matrix_in)
             CALL dbcsr_complete_redistribute(matrix_tmp, matrix_out)
@@ -493,7 +483,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(matrix_ks, nspin)
          DO ispin = 1, nspin
             ALLOCATE (matrix_ks(ispin)%matrix)
-            CALL dbcsr_init(matrix_ks(ispin)%matrix)
             CALL dbcsr_create(matrix_ks(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix, sab_orb)
             CALL dbcsr_set(matrix_ks(ispin)%matrix, 0.0_dp)
@@ -717,7 +706,6 @@ CONTAINS
 
       ! convert the density matrix (ls style) to QS style
       ALLOCATE (matrix_p_qs)
-      CALL dbcsr_init(matrix_p_qs) !initialization
       CALL dbcsr_copy(matrix_p_qs, matrix_ks(1)%matrix)
       CALL dbcsr_set(matrix_p_qs, 0.0_dp) !zero matrix creation
       CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls, ls_scf_env%ls_mstruct, covariant=.FALSE.)

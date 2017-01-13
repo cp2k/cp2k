@@ -21,7 +21,7 @@ MODULE ct_methods
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_func_inverse, dbcsr_function_of_elements, dbcsr_get_diag, &
-        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_init, &
+        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_mynode, dbcsr_multiply, &
         dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, &
@@ -133,25 +133,20 @@ CONTAINS
       IF (cts_env%use_occ_orbs) THEN
 
          ! create matrices for various ks blocks
-         CALL dbcsr_init(matrix_pp)
          CALL dbcsr_create(matrix_pp, &
                            template=cts_env%p_index_up, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(matrix_qp)
          CALL dbcsr_create(matrix_qp, &
                            template=cts_env%matrix_qp_template, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(matrix_qq)
          CALL dbcsr_create(matrix_qq, &
                            template=cts_env%q_index_up, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(matrix_pq)
          CALL dbcsr_create(matrix_pq, &
                            template=cts_env%matrix_pq_template, &
                            matrix_type=dbcsr_type_no_symmetry)
 
          ! create the residue matrix
-         CALL dbcsr_init(cts_env%matrix_res)
          CALL dbcsr_create(cts_env%matrix_res, &
                            template=cts_env%matrix_qp_template)
 
@@ -171,7 +166,6 @@ CONTAINS
                                     cts_env%eps_filter)
 
          ! create a matrix of single-excitation amplitudes
-         CALL dbcsr_init(cts_env%matrix_x)
          CALL dbcsr_create(cts_env%matrix_x, &
                            template=cts_env%matrix_qp_template)
          IF (ASSOCIATED(cts_env%matrix_x_guess)) THEN
@@ -204,7 +198,6 @@ CONTAINS
 !RZK-warning diagonalization works only with orthogonal tensor!!!
             ! find a better basis by diagonalizing diagonal blocks
             ! first pp
-            CALL dbcsr_init(u_pp)
             CALL dbcsr_create(u_pp, template=matrix_pp, &
                               matrix_type=dbcsr_type_no_symmetry)
             !IF (cts_env%preconditioner_type.eq.prec_eigenvector_full) THEN
@@ -218,7 +211,6 @@ CONTAINS
                CALL diagonalize_diagonal_blocks(matrix_pp, u_pp)
             ENDIF
             ! and now qq
-            CALL dbcsr_init(u_qq)
             CALL dbcsr_create(u_qq, template=matrix_qq, &
                               matrix_type=dbcsr_type_no_symmetry)
             !IF (cts_env%preconditioner_type.eq.prec_eigenvector_full) THEN
@@ -296,7 +288,6 @@ CONTAINS
 
 ! RZK-warning implemented only for orthogonal tensors!!!
 ! generalization to up_down should be easy
-            CALL dbcsr_init(u_pp)
             CALL dbcsr_create(u_pp, template=matrix_pp, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_copy(u_pp, matrix_pp)
@@ -312,7 +303,6 @@ CONTAINS
                                           upper_to_full=.TRUE.)
             !CALL dbcsr_scale(u_pp,-1.0_dp)
 
-            CALL dbcsr_init(u_qq)
             CALL dbcsr_create(u_qq, template=matrix_qq, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_copy(u_qq, matrix_qq)
@@ -327,7 +317,6 @@ CONTAINS
                                           upper_to_full=.TRUE.)
 
             ! transform all riccati matrices (left-right preconditioner)
-            CALL dbcsr_init(tmp1)
             CALL dbcsr_create(tmp1, template=matrix_qq, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_multiply("N", "N", 1.0_dp, u_qq, &
@@ -336,7 +325,6 @@ CONTAINS
             CALL dbcsr_copy(matrix_qq, tmp1)
             CALL dbcsr_release(tmp1)
 
-            CALL dbcsr_init(tmp1)
             CALL dbcsr_create(tmp1, template=matrix_pp, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_pp, &
@@ -345,12 +333,10 @@ CONTAINS
             CALL dbcsr_copy(matrix_pp, tmp1)
             CALL dbcsr_release(tmp1)
 
-            CALL dbcsr_init(matrix_qp_save)
             CALL dbcsr_create(matrix_qp_save, template=matrix_qp, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_copy(matrix_qp_save, matrix_qp)
 
-            CALL dbcsr_init(tmp1)
             CALL dbcsr_create(tmp1, template=matrix_qp, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_qp, &
@@ -422,14 +408,11 @@ CONTAINS
 
             ! transform occupied orbitals
             ! in a way that preserves the overlap metric
-            CALL dbcsr_init(oo1)
             CALL dbcsr_create(oo1, &
                               template=cts_env%p_index_up, &
                               matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_init(oo1_sqrt_inv)
             CALL dbcsr_create(oo1_sqrt_inv, &
                               template=oo1)
-            CALL dbcsr_init(oo1_sqrt)
             CALL dbcsr_create(oo1_sqrt, &
                               template=oo1)
 
@@ -459,7 +442,6 @@ CONTAINS
             CALL dbcsr_release(oo1_sqrt_inv)
 
             ! bring x to contravariant-covariant representation now
-            CALL dbcsr_init(matrix_qp)
             CALL dbcsr_create(matrix_qp, &
                               template=cts_env%matrix_qp_template, &
                               matrix_type=dbcsr_type_no_symmetry)
@@ -473,7 +455,6 @@ CONTAINS
             CALL dbcsr_release(matrix_qp)
 
             ! update T=T+X or T=T+V.X (whichever is appropriate)
-            CALL dbcsr_init(t_corr)
             CALL dbcsr_create(t_corr, template=cts_env%matrix_t)
             IF (cts_env%use_virt_orbs) THEN
                CALL dbcsr_multiply("N", "N", 1.0_dp, cts_env%matrix_v, &
@@ -497,7 +478,6 @@ CONTAINS
 
             IF (cts_env%tensor_type .EQ. tensor_orthogonal) THEN
                ! bring x to contravariant-covariant representation
-               CALL dbcsr_init(matrix_qp)
                CALL dbcsr_create(matrix_qp, &
                                  template=cts_env%matrix_qp_template, &
                                  matrix_type=dbcsr_type_no_symmetry)
@@ -564,9 +544,7 @@ CONTAINS
       IF (use_virt_orbs) THEN
 
          ! orthogonalize the orbitals
-         CALL dbcsr_init(t_or)
          CALL dbcsr_create(t_or, template=t)
-         CALL dbcsr_init(v_or)
          CALL dbcsr_create(v_or, template=v)
          CALL dbcsr_multiply("N", "N", 1.0_dp, t, p_index_up, &
                              0.0_dp, t_or, filter_eps=eps_filter)
@@ -574,7 +552,6 @@ CONTAINS
                              0.0_dp, v_or, filter_eps=eps_filter)
 
          ! KS.T
-         CALL dbcsr_init(kst)
          CALL dbcsr_create(kst, template=t)
          CALL dbcsr_multiply("N", "N", 1.0_dp, ks, t_or, &
                              0.0_dp, kst, filter_eps=eps_filter)
@@ -587,7 +564,6 @@ CONTAINS
          CALL dbcsr_release(kst)
 
          ! KS.V
-         CALL dbcsr_init(ksv)
          CALL dbcsr_create(ksv, template=v)
          CALL dbcsr_multiply("N", "N", 1.0_dp, ks, v_or, &
                              0.0_dp, ksv, filter_eps=eps_filter)
@@ -605,10 +581,8 @@ CONTAINS
       ELSE ! no virtuals, use projected AOs
 
 ! THIS PROCEDURE HAS NOT BEEN UPDATED FOR CHOLESKY p/q_index_up/down
-         CALL dbcsr_init(sp)
          CALL dbcsr_create(sp, template=q_index_down, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_init(spf)
          CALL dbcsr_create(spf, template=q_index_down, &
                            matrix_type=dbcsr_type_no_symmetry)
 
@@ -627,7 +601,6 @@ CONTAINS
          CASE (tensor_up_down)
             CALL dbcsr_add_on_diag(sp, 1.0_dp)
          CASE (tensor_orthogonal)
-            CALL dbcsr_init(q_index_up_nosym)
             CALL dbcsr_create(q_index_up_nosym, template=q_index_up, &
                               matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_desymmetrize(q_index_up, q_index_up_nosym)
@@ -655,7 +628,6 @@ CONTAINS
             IF (library_fixed) THEN
                CALL dbcsr_transposed(qp, pq, transpose_distribution=.FALSE.)
             ELSE
-               CALL dbcsr_init(no)
                CALL dbcsr_create(no, template=qp, &
                                  matrix_type=dbcsr_type_no_symmetry)
                CALL dbcsr_multiply("N", "N", 1.0_dp, qp, p_index_up, 0.0_dp, no, &
@@ -672,10 +644,8 @@ CONTAINS
          SELECT CASE (tensor_type)
          CASE (tensor_up_down)
 
-            CALL dbcsr_init(oo)
             CALL dbcsr_create(oo, template=pp, &
                               matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_init(no)
             CALL dbcsr_create(no, template=qp, &
                               matrix_type=dbcsr_type_no_symmetry)
 
@@ -698,7 +668,6 @@ CONTAINS
 
          CASE (tensor_orthogonal)
 
-            CALL dbcsr_init(oo)
             CALL dbcsr_create(oo, template=pp, &
                               matrix_type=dbcsr_type_no_symmetry)
 
@@ -811,47 +780,35 @@ CONTAINS
       present_vv = PRESENT(vv)
 
       ! create aux1 matrix and init
-      CALL dbcsr_init(aux1)
       CALL dbcsr_create(aux1, template=pp)
       CALL dbcsr_copy(aux1, pp)
       CALL dbcsr_scale(aux1, -1.0_dp)
 
       ! create aux2 matrix and init
-      CALL dbcsr_init(aux2)
       CALL dbcsr_create(aux2, template=qq)
       CALL dbcsr_copy(aux2, qq)
 
       ! create the gradient matrix and init
-      CALL dbcsr_init(grad)
       CALL dbcsr_create(grad, template=x)
       CALL dbcsr_set(grad, 0.0_dp)
 
       ! create a preconditioner
       ! RZK-warning how to apply it to up_down tensor?
-      CALL dbcsr_init(prec)
       CALL dbcsr_create(prec, template=x)
       !CALL create_preconditioner(prec,aux1,aux2,qp,res,tensor_type,eps_filter)
       !CALL dbcsr_set(prec,1.0_dp)
 
       ! create the step matrix and init
-      CALL dbcsr_init(step)
       CALL dbcsr_create(step, template=x)
       !CALL dbcsr_hadamard_product(prec,grad,step)
       !CALL dbcsr_scale(step,-1.0_dp)
 
-      CALL dbcsr_init(n)
       CALL dbcsr_create(n, template=x)
-      CALL dbcsr_init(m)
       CALL dbcsr_create(m, template=x)
-      CALL dbcsr_init(oo1)
       CALL dbcsr_create(oo1, template=pp)
-      CALL dbcsr_init(oo2)
       CALL dbcsr_create(oo2, template=pp)
-      CALL dbcsr_init(res_trial)
       CALL dbcsr_create(res_trial, template=res)
-      CALL dbcsr_init(vv_step)
       CALL dbcsr_create(vv_step, template=res)
-      CALL dbcsr_init(step_oo)
       CALL dbcsr_create(step_oo, template=res)
 
       ! start conjugate gradient iterations
@@ -1265,7 +1222,6 @@ CONTAINS
 !    DEALLOCATE(diagonal)
 !
       ! initialize a matrix to 1.0
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=prec)
       ! use an ugly hack to set all elements of tmp to 1
       ! because dbcsr_set does not do it (despite its name)
@@ -1292,7 +1248,6 @@ CONTAINS
 
       ! copy diagonal elements of pp into cols of a matrix
       CALL dbcsr_get_info(pp, nfullrows_total=p_nrows)
-      CALL dbcsr_init(pp_diag)
       CALL dbcsr_create(pp_diag, template=pp)
       ALLOCATE (p_diagonal(p_nrows))
       CALL dbcsr_get_diag(pp, p_diagonal)
@@ -1300,21 +1255,18 @@ CONTAINS
       CALL dbcsr_set_diag(pp_diag, p_diagonal)
       ! RZK-warning is it possible to use dbcsr_scale_by_vector?
       ! or even insert elements directly in the prev cycles
-      CALL dbcsr_init(t2)
       CALL dbcsr_create(t2, template=prec)
       CALL dbcsr_multiply("N", "N", 1.0_dp, tmp, pp_diag, &
                           0.0_dp, t2, filter_eps=eps_filter)
 
       ! copy diagonal elements qq into rows of a matrix
       CALL dbcsr_get_info(qq, nfullrows_total=q_nrows)
-      CALL dbcsr_init(qq_diag)
       CALL dbcsr_create(qq_diag, template=qq)
       ALLOCATE (q_diagonal(q_nrows))
       CALL dbcsr_get_diag(qq, q_diagonal)
       CALL dbcsr_add_on_diag(qq_diag, 1.0_dp)
       CALL dbcsr_set_diag(qq_diag, q_diagonal)
       CALL dbcsr_set(tmp, 1.0_dp)
-      CALL dbcsr_init(t1)
       CALL dbcsr_create(t1, template=prec)
       CALL dbcsr_multiply("N", "N", 1.0_dp, qq_diag, tmp, &
                           0.0_dp, t1, filter_eps=eps_filter)
@@ -1653,7 +1605,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, u2, 0.0_dp, tmp, &
@@ -1690,7 +1641,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_multiply("N", "T", 1.0_dp, matrix, u2, 0.0_dp, tmp, &

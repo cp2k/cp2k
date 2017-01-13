@@ -33,10 +33,9 @@ MODULE population_analyses
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_setname, &
-        dbcsr_type
+        dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_set, dbcsr_setname, dbcsr_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE machine,                         ONLY: m_flush
@@ -332,7 +331,6 @@ CONTAINS
          sm_s => matrix_s(1, 1)%matrix ! Overlap matrix in sparse format
          ALLOCATE (sm_ps)
          headline = "MULLIKEN NET ATOMIC ORBITAL AND OVERLAP POPULATION MATRIX"
-         CALL dbcsr_init(sm_ps)
          CALL dbcsr_copy(matrix_b=sm_ps, &
                          matrix_a=sm_s, &
                          name=TRIM(headline))

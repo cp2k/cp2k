@@ -40,9 +40,8 @@ MODULE qs_mo_methods
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_release_p, dbcsr_scale_by_vector, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_release_p, dbcsr_scale_by_vector, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
    USE physcon,                         ONLY: evolt
@@ -436,7 +435,6 @@ CONTAINS
       IF (.NOT. mo_set%uniform_occupation) THEN ! not all orbitals 1..homo are equally occupied
 
          IF (my_use_dbcsr) THEN
-            CALL dbcsr_init(dbcsr_tmp)
             CALL dbcsr_copy(dbcsr_tmp, mo_set%mo_coeff_b)
             CALL dbcsr_scale_by_vector(dbcsr_tmp, mo_set%occupation_numbers(1:mo_set%homo), &
                                        side='right')

@@ -39,7 +39,7 @@ MODULE kpoint_methods
                                               cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution, &
-        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_init, dbcsr_iterator_blocks_left, &
+        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_mp_numnodes, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_symmetric
@@ -1032,20 +1032,16 @@ CONTAINS
 
       ! work storage
       ALLOCATE (rpmat)
-      CALL dbcsr_init(rpmat)
       CALL dbcsr_create(rpmat, template=tempmat, matrix_type=dbcsr_type_symmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(rpmat, sab_nl)
       ALLOCATE (cpmat)
-      CALL dbcsr_init(cpmat)
       CALL dbcsr_create(cpmat, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(cpmat, sab_nl)
       IF (.NOT. kpoint%full_grid) THEN
          ALLOCATE (srpmat)
-         CALL dbcsr_init(srpmat)
          CALL dbcsr_create(srpmat, template=rpmat)
          CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
          ALLOCATE (scpmat)
-         CALL dbcsr_init(scpmat)
          CALL dbcsr_create(scpmat, template=cpmat)
          CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
       END IF

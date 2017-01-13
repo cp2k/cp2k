@@ -17,8 +17,8 @@ MODULE kg_tnadd_mat
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_init, dbcsr_p_type, &
-        dbcsr_set, dbcsr_type_symmetric
+        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, &
+        dbcsr_type_symmetric
    USE external_potential_types,        ONLY: get_potential,&
                                               local_potential_type
    USE kg_environment_types,            ONLY: kg_environment_type
@@ -183,7 +183,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_kg, 1)
 
       ALLOCATE (matrix_kg(1)%matrix)
-      CALL dbcsr_init(matrix_kg(1)%matrix)
       CALL dbcsr_create(matrix=matrix_kg(1)%matrix, &
                         name="Nonadditive kinetic energy potential", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &

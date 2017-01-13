@@ -19,9 +19,9 @@ MODULE qs_ot_scf
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_get_diag, dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, &
-        dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -261,7 +261,6 @@ CONTAINS
       ALLOCATE (matrix_dedc_scaled(SIZE(matrix_dedc)))
       DO ispin = 1, SIZE(matrix_dedc)
          ALLOCATE (matrix_dedc_scaled(ispin)%matrix)
-         CALL dbcsr_init(matrix_dedc_scaled(ispin)%matrix)
          CALL dbcsr_copy(matrix_dedc_scaled(ispin)%matrix, matrix_dedc(ispin)%matrix)
 
          ! as a preconditioner, one might want to scale only with a constant, not with f(i)

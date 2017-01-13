@@ -11,8 +11,8 @@ MODULE pao_optimizer
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, &
-        dbcsr_get_info, dbcsr_init, dbcsr_multiply, dbcsr_release, dbcsr_reserve_diag_blocks, &
-        dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type
+        dbcsr_get_info, dbcsr_multiply, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, &
+        dbcsr_set, dbcsr_trace, dbcsr_type
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_opt_bfgs,&
                                               pao_opt_cg
@@ -34,15 +34,12 @@ CONTAINS
    SUBROUTINE pao_opt_init(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      CALL dbcsr_init(pao%matrix_D)
       CALL dbcsr_copy(pao%matrix_D, pao%matrix_G)
       CALL dbcsr_set(pao%matrix_D, 0.0_dp)
 
-      CALL dbcsr_init(pao%matrix_G_prev)
       CALL dbcsr_copy(pao%matrix_G_prev, pao%matrix_D)
 
       IF (pao%precondition) THEN
-         CALL dbcsr_init(pao%matrix_D_preconed)
          CALL dbcsr_copy(pao%matrix_D_preconed, pao%matrix_D)
       ENDIF
 
@@ -62,7 +59,6 @@ CONTAINS
 
       CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nparams)
 
-      CALL dbcsr_init(pao%matrix_BFGS)
       CALL dbcsr_create(pao%matrix_BFGS, &
                         template=pao%matrix_X, &
                         row_blk_size=nparams, &
@@ -111,7 +107,6 @@ CONTAINS
       IF (pao%precondition) THEN
          ! We can't convert matrix_D for and back every time, the numeric noise would disturb the CG,
          ! hence we keep matrix_D_preconed around.
-         CALL dbcsr_init(matrix_G_preconed)
          CALL dbcsr_copy(matrix_G_preconed, pao%matrix_G)
          CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, pao%matrix_G, &
                              0.0_dp, matrix_G_preconed, retain_sparsity=.TRUE.)
@@ -247,12 +242,10 @@ CONTAINS
       ! Notation according to the book from Nocedal and Wright, see chapter 6.
       IF (icycle > 1) THEN
          ! y = G - G_prev
-         CALL dbcsr_init(matrix_y)
          CALL dbcsr_copy(matrix_y, matrix_G)
          CALL dbcsr_add(matrix_y, matrix_G_prev, 1.0_dp, -1.0_dp) ! dG
 
          ! s = X - X_prev
-         CALL dbcsr_init(matrix_s)
          CALL dbcsr_copy(matrix_s, matrix_D)
          CALL dbcsr_scale(matrix_s, pao%linesearch%step_size) ! dX
 
@@ -267,7 +260,6 @@ CONTAINS
          ENDIF
 
          ! Hy = MATMUL(H, y)
-         CALL dbcsr_init(matrix_Hy)
          CALL dbcsr_create(matrix_Hy, template=matrix_G, matrix_type="N")
          CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_BFGS, matrix_y, 0.0_dp, matrix_Hy)
 
@@ -285,7 +277,6 @@ CONTAINS
          ENDIF
 
          ! r = theta*s + (1-theta)*Hy
-         CALL dbcsr_init(matrix_r)
          CALL dbcsr_copy(matrix_r, matrix_s)
          CALL dbcsr_add(matrix_r, matrix_Hy, theta, (1.0_dp-theta))
 
@@ -294,27 +285,22 @@ CONTAINS
          CPASSERT(trace_RY > 0.0_dp)
 
          ! yr = MATMUL(y, TRANSPOSE(r))
-         CALL dbcsr_init(matrix_yr)
          CALL dbcsr_create(matrix_yr, template=pao%matrix_BFGS, matrix_type="N")
          CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_y, matrix_r, 0.0_dp, matrix_yr)
 
          ! Hyr = MATMUL(H, yr)
-         CALL dbcsr_init(matrix_Hyr)
          CALL dbcsr_create(matrix_Hyr, template=pao%matrix_BFGS, matrix_type="N")
          CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_BFGS, matrix_yr, 0.0_dp, matrix_Hyr)
 
          ! ryH = MATMUL(TRANSPOSE(yr), H)
-         CALL dbcsr_init(matrix_ryH)
          CALL dbcsr_create(matrix_ryH, template=pao%matrix_BFGS, matrix_type="N")
          CALL dbcsr_multiply("T", "N", 1.0_dp, matrix_yr, pao%matrix_BFGS, 0.0_dp, matrix_ryH)
 
          ! ryHry = MATMUL(ryH,yr)
-         CALL dbcsr_init(matrix_ryHyr)
          CALL dbcsr_create(matrix_ryHyr, template=pao%matrix_BFGS, matrix_type="N")
          CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_ryH, matrix_yr, 0.0_dp, matrix_ryHyr)
 
          ! rr = MATMUL(r,TRANSPOSE(r))
-         CALL dbcsr_init(matrix_rr)
          CALL dbcsr_create(matrix_rr, template=pao%matrix_BFGS, matrix_type="N")
          CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_r, matrix_r, 0.0_dp, matrix_rr)
 

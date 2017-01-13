@@ -26,7 +26,7 @@ MODULE rt_propagation_forces
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution, &
         dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
@@ -118,9 +118,7 @@ CONTAINS
 
       ALLOCATE (tmp_dbcsr)
       ALLOCATE (rho_im_sparse)
-      CALL dbcsr_init(tmp_dbcsr)
       CALL dbcsr_create(tmp_dbcsr, template=SinvH(1)%matrix)
-      CALL dbcsr_init(rho_im_sparse)
       CALL dbcsr_create(rho_im_sparse, template=SinvH(1)%matrix)
 
       natom = SIZE(particle_set)
@@ -140,14 +138,10 @@ CONTAINS
          CALL dbcsr_create_dist_r_unrot(dist, dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
          CALL dbcsr_get_info(SinvB(ispin)%matrix, row_blk_size=row_blk_size)
 
-         CALL dbcsr_init(db_mos_re)
          CALL dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
                            row_blk_size, col_blk_size, nze=0)
-         CALL dbcsr_init(db_mos_im)
          CALL dbcsr_create(db_mos_im, template=db_mos_re)
-         CALL dbcsr_init(db_mo_tmp1)
          CALL dbcsr_create(db_mo_tmp1, template=db_mos_re)
-         CALL dbcsr_init(db_mo_tmp2)
          CALL dbcsr_create(db_mo_tmp2, template=db_mos_re)
 
          CALL copy_fm_to_dbcsr(mos_new(im)%matrix, db_mos_im)
@@ -239,15 +233,12 @@ CONTAINS
 
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=SinvB(1)%matrix)
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=SinvB(1)%matrix)
       NULLIFY (tmp3)
       ALLOCATE (tmp3)
-      CALL dbcsr_init(tmp3)
       CALL dbcsr_create(tmp3, template=SinvB(1)%matrix)
 
       CALL get_rtp(rtp=rtp, rho_new=rho_new, S_minus_half=S_minus_half)
@@ -417,13 +408,11 @@ CONTAINS
                       ks_env=ks_env)
 
       ALLOCATE (matrix_w_s)
-      CALL dbcsr_init(matrix_w_s)
       CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &
                         name='W MATRIX AUX S', matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s, sab_aux_fit_asymm)
 
       ALLOCATE (matrix_w_q)
-      CALL dbcsr_init(matrix_w_q)
       CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
                       "W MATRIX AUX Q")
 

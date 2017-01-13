@@ -39,7 +39,7 @@ MODULE minbas_wfn_analysis
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_get_occupation, dbcsr_init, &
+        dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_get_occupation, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
@@ -187,12 +187,10 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(pqmat, nspin)
          DO ispin = 1, nspin
             ALLOCATE (sqmat(ispin)%matrix)
-            CALL dbcsr_init(sqmat(ispin)%matrix)
             CALL dbcsr_create(matrix=sqmat(ispin)%matrix, &
                               name="SQMAT", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                               row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
             ALLOCATE (pqmat(ispin)%matrix)
-            CALL dbcsr_init(pqmat(ispin)%matrix)
             CALL dbcsr_create(matrix=pqmat(ispin)%matrix, &
                               name="PQMAT", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                               row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
@@ -229,20 +227,17 @@ CONTAINS
          ecount = 0
          prmao = 0.0_dp
          DO ispin = 1, nspin
-            CALL dbcsr_init(smao)
             CALL dbcsr_create(smao, name="S*QM", template=mao_coef(1)%matrix)
             smat => matrix_s(1, 1)%matrix
             CALL dbcsr_multiply("N", "N", 1.0_dp, smat, quambo(ispin)%matrix, 0.0_dp, smao)
             ! calculate atomic extend of basis
             CALL pm_extend(quambo(ispin)%matrix, smao, ecount(:, :, ispin))
-            CALL dbcsr_init(sinv)
             CALL dbcsr_create(sinv, name="QM*S*QM", template=sqmat(ispin)%matrix)
             CALL dbcsr_multiply("T", "N", 1.0_dp, quambo(ispin)%matrix, smao, 0.0_dp, sqmat(ispin)%matrix)
             ! atomic MAO projection
             CALL project_mao(mao_coef(ispin)%matrix, smao, sqmat(ispin)%matrix, prmao(:, ispin))
             ! invert overlap
             CALL invert_Hotelling(sinv, sqmat(ispin)%matrix, 1.e-6_dp, silent=.TRUE.)
-            CALL dbcsr_init(smaox)
             CALL dbcsr_create(smaox, name="S*QM*SINV", template=smao)
             CALL dbcsr_multiply("N", "N", 1.0_dp, smao, sinv, 0.0_dp, smaox)
             CALL copy_dbcsr_to_fm(smaox, fm1)
@@ -333,9 +328,7 @@ CONTAINS
          IF (do_bondorder) THEN
             ALLOCATE (border(natom, natom))
             border = 0.0_dp
-            CALL dbcsr_init(psmat)
             CALL dbcsr_create(psmat, name="PS", template=sqmat(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_init(spmat)
             CALL dbcsr_create(spmat, name="SP", template=sqmat(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
             filter_eps = 1.e-6_dp
             DO ispin = 1, nspin

@@ -47,7 +47,7 @@ MODULE qs_linres_current_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_init, dbcsr_p_type, dbcsr_set, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_p_type, dbcsr_set, &
         dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: current_gauge_atom,&
                                               current_gauge_r,&
@@ -243,7 +243,6 @@ CONTAINS
          ! rebuild the linear momentum matrices
          CALL dbcsr_allocate_matrix_set(op_p_ao, 3)
          ALLOCATE (op_p_ao(1)%matrix)
-         CALL dbcsr_init(op_p_ao(1)%matrix)
          CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
                            name="OP_P", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
@@ -258,7 +257,6 @@ CONTAINS
          CALL dbcsr_set(op_p_ao(1)%matrix, 0.0_dp)
          DO idir = 2, 3
             ALLOCATE (op_p_ao(idir)%matrix)
-            CALL dbcsr_init(op_p_ao(idir)%matrix)
             CALL dbcsr_copy(op_p_ao(idir)%matrix, op_p_ao(1)%matrix, &
                             "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
             CALL dbcsr_set(op_p_ao(idir)%matrix, 0.0_dp)

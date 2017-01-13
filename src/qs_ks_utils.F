@@ -45,9 +45,8 @@ MODULE qs_ks_utils
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_trace, &
-        dbcsr_type
+        dbcsr_deallocate_matrix_set, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_trace, dbcsr_type
    USE input_constants,                 ONLY: do_ppl_grid,&
                                               sic_ad,&
                                               sic_eo,&
@@ -235,7 +234,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_p, Nspin)
       DO ispin = 1, Nspin
          ALLOCATE (matrix_p(ispin)%matrix)
-         CALL dbcsr_init(matrix_p(ispin)%matrix)
          CALL dbcsr_copy(matrix_p(ispin)%matrix, rho_ao(1)%matrix, &
                          name="density matrix low spin roks")
          CALL dbcsr_set(matrix_p(ispin)%matrix, 0.0_dp)
@@ -245,7 +243,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_h, Nspin)
       DO ispin = 1, Nspin
          ALLOCATE (matrix_h(ispin)%matrix)
-         CALL dbcsr_init(matrix_h(ispin)%matrix)
          CALL dbcsr_copy(matrix_h(ispin)%matrix, rho_ao(1)%matrix, &
                          name="KS matrix low spin roks")
          CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
@@ -543,14 +540,12 @@ CONTAINS
                              in_space=REALSPACE)
 
       ALLOCATE (orb_density_matrix)
-      CALL dbcsr_init(orb_density_matrix)
       CALL dbcsr_copy(orb_density_matrix, rho_ao(1)%matrix, &
                       name="orb_density_matrix")
       CALL dbcsr_set(orb_density_matrix, 0.0_dp)
       orb_density_matrix_p%matrix => orb_density_matrix
 
       ALLOCATE (orb_h)
-      CALL dbcsr_init(orb_h)
       CALL dbcsr_copy(orb_h, rho_ao(1)%matrix, &
                       name="orb_density_matrix")
       CALL dbcsr_set(orb_h, 0.0_dp)

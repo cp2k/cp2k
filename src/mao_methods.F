@@ -32,10 +32,10 @@ MODULE mao_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
-        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_mp_group, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: mao_basis_ext,&
                                               mao_basis_orb,&
                                               mao_basis_prim
@@ -138,11 +138,8 @@ CONTAINS
       threshold = 1.e-8_dp
       convergence = 1.e-6_dp
       ! temp matrices
-      CALL dbcsr_init(scmat)
       CALL dbcsr_create(scmat, template=mao_coef)
-      CALL dbcsr_init(bmat)
       CALL dbcsr_create(bmat, template=binv)
-      CALL dbcsr_init(tmat)
       CALL dbcsr_create(tmat, template=qmat)
       ! calculate B=C(T)*S*C matrix, S=(MAO,MAO) overlap
       CALL dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
@@ -187,13 +184,9 @@ CONTAINS
       threshold = 1.e-8_dp
       convergence = 1.e-6_dp
       ! temp matrices
-      CALL dbcsr_init(scmat)
       CALL dbcsr_create(scmat, template=mao_coef)
-      CALL dbcsr_init(bmat)
       CALL dbcsr_create(bmat, template=binv)
-      CALL dbcsr_init(tmat)
       CALL dbcsr_create(tmat, template=qmat)
-      CALL dbcsr_init(t2mat)
       CALL dbcsr_create(t2mat, template=scmat)
       ! calculate B=C(T)*S*C matrix, S=(MAO,MAO) overlap
       CALL dbcsr_multiply("N", "N", 1.0_dp, smat, mao_coef, 0.0_dp, scmat)
@@ -387,7 +380,6 @@ CONTAINS
       ALLOCATE (eigenvalues(norb))
 
       ! DBCSR matrix
-      CALL dbcsr_init(tempmat)
       CALL dbcsr_create(tempmat, template=smat, matrix_type=dbcsr_type_no_symmetry)
 
       ! transfer to FM
@@ -686,12 +678,10 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_q, nspin)
       DO ispin = 1, nspin
          ALLOCATE (matrix_q(ispin)%matrix)
-         CALL dbcsr_init(matrix_q(ispin)%matrix)
          CALL dbcsr_create(matrix_q(ispin)%matrix, template=matrix_smm(1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_q(ispin)%matrix, smm_list)
       END DO
       ! temp matrix
-      CALL dbcsr_init(tmat)
       CALL dbcsr_create(tmat, template=matrix_smo(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       ! Q=APA(T)
       DO ispin = 1, nspin
@@ -702,11 +692,8 @@ CONTAINS
                                 0.0_dp, matrix_q(ispin)%matrix, filter_eps=eps_filter)
          ELSE
             ! k-points
-            CALL dbcsr_init(pmat)
             CALL dbcsr_create(pmat, template=matrix_s(1, 1)%matrix)
-            CALL dbcsr_init(smat)
             CALL dbcsr_create(smat, template=matrix_s(1, 1)%matrix)
-            CALL dbcsr_init(ksmat)
             CALL dbcsr_create(ksmat, template=matrix_s(1, 1)%matrix)
             CALL cp_dbcsr_alloc_block_from_nbl(pmat, sab_orb)
             CALL cp_dbcsr_alloc_block_from_nbl(smat, sab_orb)

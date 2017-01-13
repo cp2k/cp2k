@@ -51,10 +51,9 @@ MODULE almo_scf
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
         dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_mp_mynode, dbcsr_multiply, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_get_stored_coordinates, dbcsr_mp_mynode, dbcsr_multiply, dbcsr_nblkcols_total, &
+        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: init_submatrices,&
                                               release_submatrices
    USE input_constants,                 ONLY: &
@@ -665,7 +664,6 @@ CONTAINS
             istore = MOD(almo_scf_env%almo_history%istore-1, almo_scf_env%almo_history%nstore)+1
 
             IF (almo_scf_env%almo_history%istore == 1) THEN
-               CALL dbcsr_init(almo_scf_env%almo_history%matrix_t(ispin))
                CALL dbcsr_create(almo_scf_env%almo_history%matrix_t(ispin), &
                                  template=almo_scf_env%matrix_t_blk(ispin), &
                                  matrix_type=dbcsr_type_no_symmetry)
@@ -674,16 +672,13 @@ CONTAINS
                             almo_scf_env%matrix_t_blk(ispin))
 
             IF (almo_scf_env%almo_history%istore <= almo_scf_env%almo_history%nstore) THEN
-               CALL dbcsr_init(almo_scf_env%almo_history%matrix_p_up_down(ispin, istore))
                CALL dbcsr_create(almo_scf_env%almo_history%matrix_p_up_down(ispin, istore), &
                                  template=almo_scf_env%matrix_s(1), &
                                  matrix_type=dbcsr_type_no_symmetry)
             ENDIF
 
-            CALL dbcsr_init(matrix_no_tmp1)
             CALL dbcsr_create(matrix_no_tmp1, template=almo_scf_env%matrix_t_blk(ispin), &
                               matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_init(matrix_no_tmp2)
             CALL dbcsr_create(matrix_no_tmp2, template=almo_scf_env%matrix_t_blk(ispin), &
                               matrix_type=dbcsr_type_no_symmetry)
 
@@ -723,7 +718,6 @@ CONTAINS
             istore = MOD(almo_scf_env%xalmo_history%istore-1, almo_scf_env%xalmo_history%nstore)+1
 
             IF (almo_scf_env%xalmo_history%istore == 1) THEN
-               CALL dbcsr_init(almo_scf_env%xalmo_history%matrix_t(ispin))
                CALL dbcsr_create(almo_scf_env%xalmo_history%matrix_t(ispin), &
                                  template=almo_scf_env%matrix_t(ispin), &
                                  matrix_type=dbcsr_type_no_symmetry)
@@ -736,16 +730,13 @@ CONTAINS
                !CALL dbcsr_create(almo_scf_env%xalmo_history%matrix_x(ispin, istore), &
                !        template=almo_scf_env%matrix_t(ispin), &
                !        matrix_type=dbcsr_type_no_symmetry)
-               CALL dbcsr_init(almo_scf_env%xalmo_history%matrix_p_up_down(ispin, istore))
                CALL dbcsr_create(almo_scf_env%xalmo_history%matrix_p_up_down(ispin, istore), &
                                  template=almo_scf_env%matrix_s(1), &
                                  matrix_type=dbcsr_type_no_symmetry)
             ENDIF
 
-            CALL dbcsr_init(matrix_no_tmp3)
             CALL dbcsr_create(matrix_no_tmp3, template=almo_scf_env%matrix_t(ispin), &
                               matrix_type=dbcsr_type_no_symmetry)
-            CALL dbcsr_init(matrix_no_tmp4)
             CALL dbcsr_create(matrix_no_tmp4, template=almo_scf_env%matrix_t(ispin), &
                               matrix_type=dbcsr_type_no_symmetry)
 
@@ -1149,7 +1140,6 @@ CONTAINS
          ! it is a waste of memory but since matrices are distributed
          ! we can tolerate it for now
          ALLOCATE (no_quench(almo_scf_env%nspins))
-         CALL dbcsr_init(no_quench(1))
          CALL dbcsr_create(no_quench(1), &
                            template=almo_scf_env%matrix_t(1), &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -1182,7 +1172,6 @@ CONTAINS
          CALL dbcsr_finalize(no_quench(1))
          IF (almo_scf_env%nspins .GT. 1) THEN
             DO ispin = 2, almo_scf_env%nspins
-               CALL dbcsr_init(no_quench(ispin))
                CALL dbcsr_create(no_quench(ispin), &
                                  template=almo_scf_env%matrix_t(1), &
                                  matrix_type=dbcsr_type_no_symmetry)
@@ -1383,7 +1372,6 @@ CONTAINS
 
       DO ispin = 1, almo_scf_env%nspins
 
-         CALL dbcsr_init(matrix_t_orthogonal(ispin))
          CALL dbcsr_create(matrix_t_orthogonal(ispin), &
                            template=almo_scf_env%matrix_t(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -1617,8 +1605,6 @@ CONTAINS
             symmetry_new=dbcsr_type_no_symmetry, &
             spin_key=ispin, &
             init_domains=.FALSE.)
-         CALL dbcsr_init(almo_scf_env%matrix_sigma_sqrt(ispin))
-         CALL dbcsr_init(almo_scf_env%matrix_sigma_sqrt_inv(ispin))
          CALL dbcsr_create(almo_scf_env%matrix_sigma_sqrt(ispin), &
                            template=almo_scf_env%matrix_sigma(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -1737,8 +1723,6 @@ CONTAINS
                                     symmetry_new=dbcsr_type_symmetric, &
                                     spin_key=ispin, &
                                     init_domains=.TRUE.)
-            CALL dbcsr_init(almo_scf_env%matrix_sigma_vv_sqrt(ispin))
-            CALL dbcsr_init(almo_scf_env%matrix_sigma_vv_sqrt_inv(ispin))
             CALL dbcsr_create(almo_scf_env%matrix_sigma_vv_sqrt(ispin), &
                               template=almo_scf_env%matrix_sigma_vv(ispin), &
                               matrix_type=dbcsr_type_no_symmetry)
@@ -1873,17 +1857,14 @@ CONTAINS
       IF (almo_scf_env%need_previous_ks) &
          ALLOCATE (almo_scf_env%matrix_ks_0deloc(nspins))
       DO ispin = 1, nspins
-         CALL dbcsr_init(almo_scf_env%matrix_p(ispin))
          ! RZK-warning copy with symmery but remember that this might cause problems
          CALL dbcsr_create(almo_scf_env%matrix_p(ispin), &
                            template=almo_scf_env%matrix_s(1), &
                            matrix_type=dbcsr_type_symmetric)
-         CALL dbcsr_init(almo_scf_env%matrix_ks(ispin))
          CALL dbcsr_create(almo_scf_env%matrix_ks(ispin), &
                            template=almo_scf_env%matrix_s(1), &
                            matrix_type=dbcsr_type_symmetric)
          IF (almo_scf_env%need_previous_ks) THEN
-            CALL dbcsr_init(almo_scf_env%matrix_ks_0deloc(ispin))
             CALL dbcsr_create(almo_scf_env%matrix_ks_0deloc(ispin), &
                               template=almo_scf_env%matrix_s(1), &
                               matrix_type=dbcsr_type_symmetric)

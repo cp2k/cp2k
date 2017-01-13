@@ -22,7 +22,6 @@ MODULE rt_make_propagators
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_type
@@ -155,11 +154,9 @@ CONTAINS
       !I could store these matrices in the type
       NULLIFY (tmp_re)
       ALLOCATE (tmp_re)
-      CALL dbcsr_init(tmp_re)
       CALL dbcsr_create(tmp_re, template=propagator_matrix(1)%matrix, matrix_type="N")
       NULLIFY (tmp_im)
       ALLOCATE (tmp_im)
-      CALL dbcsr_init(tmp_im)
       CALL dbcsr_create(tmp_im, template=propagator_matrix(1)%matrix, matrix_type="N")
 
       DO i = 1, SIZE(exp_H_new)/2

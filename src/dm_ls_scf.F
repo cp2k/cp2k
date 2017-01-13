@@ -21,9 +21,8 @@ MODULE dm_ls_scf
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, &
-        dbcsr_create, dbcsr_distribution, dbcsr_filter, dbcsr_get_occupation, dbcsr_init, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_create, dbcsr_distribution, dbcsr_filter, dbcsr_get_occupation, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
    USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                               dm_ls_curvy_optimization
@@ -192,14 +191,12 @@ CONTAINS
       END IF
 
       DO ispin = 1, nspin
-         CALL dbcsr_init(ls_scf_env%matrix_p(ispin))
          CALL dbcsr_create(ls_scf_env%matrix_p(ispin), template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
       ENDDO
 
       ALLOCATE (ls_scf_env%matrix_ks(nspin))
       DO ispin = 1, nspin
-         CALL dbcsr_init(ls_scf_env%matrix_ks(ispin))
          CALL dbcsr_create(ls_scf_env%matrix_ks(ispin), template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
       ENDDO
@@ -325,7 +322,6 @@ CONTAINS
 
                IF (ls_scf_env%use_s_sqrt) THEN
                   ! need to get P in the non-orthogonal basis if it was stored differently
-                  CALL dbcsr_init(matrix_tmp1)
                   CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
                                     matrix_type=dbcsr_type_no_symmetry)
                   CALL dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_p(ispin), &
@@ -407,15 +403,12 @@ CONTAINS
          ls_scf_env%scf_history%istore = ls_scf_env%scf_history%istore+1
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
             istore = MOD(ls_scf_env%scf_history%istore-1, ls_scf_env%scf_history%nstore)+1
-            IF (ls_scf_env%scf_history%istore <= ls_scf_env%scf_history%nstore) &
-               CALL dbcsr_init(ls_scf_env%scf_history%matrix(ispin, istore))
             CALL dbcsr_copy(ls_scf_env%scf_history%matrix(ispin, istore), ls_scf_env%matrix_p(ispin))
 
             ! if we have the sqrt around, we use it to go to the orthogonal basis
             IF (ls_scf_env%use_s_sqrt) THEN
                ! usualy sqrt(S) * P * sqrt(S) should be available, or could be stored at least,
                ! so that the next multiplications could be saved.
-               CALL dbcsr_init(matrix_tmp1)
                CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, &
                                  matrix_type=dbcsr_type_no_symmetry)
 
@@ -480,10 +473,8 @@ CONTAINS
       ! old quantities, useful for mixing
       ALLOCATE (matrix_mixing_old(nspin), matrix_ks_deviation(nspin))
       DO ispin = 1, nspin
-         CALL dbcsr_init(matrix_mixing_old(ispin))
          CALL dbcsr_create(matrix_mixing_old(ispin), template=ls_scf_env%matrix_ks(ispin))
 
-         CALL dbcsr_init(matrix_ks_deviation(ispin))
          CALL dbcsr_create(matrix_ks_deviation(ispin), template=ls_scf_env%matrix_ks(ispin))
          CALL dbcsr_set(matrix_ks_deviation(ispin), 0.0_dp)
       ENDDO
@@ -887,10 +878,8 @@ CONTAINS
 
       nspin = ls_scf_env%nspins
 
-      CALL dbcsr_init(matrix_p)
       CALL dbcsr_create(matrix_p, template=ls_scf_env%matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
 
-      CALL dbcsr_init(matrix_k)
       CALL dbcsr_create(matrix_k, template=ls_scf_env%matrix_p(1), matrix_type=dbcsr_type_no_symmetry)
 
       DO ispin = 1, nspin
@@ -955,7 +944,6 @@ CONTAINS
 
       nspin = ls_scf_env%nspins
 
-      CALL dbcsr_init(matrix_p)
       CALL dbcsr_create(matrix_p, template=ls_scf_env%matrix_p(1))
 
       nmu = 10
@@ -1035,9 +1023,7 @@ CONTAINS
                                      ls_scf_env%eps_filter)
       ENDDO
 
-      CALL dbcsr_init(matrix_tmp1)
       CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp2)
       CALL dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
 
       DO ispin = 1, nspin
@@ -1128,7 +1114,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix, name=TRIM(title))
       CALL dbcsr_copy(matrix_tmp, matrix, name=TRIM(title))
 
@@ -1172,11 +1157,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_init(matrix_tmp1)
       CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp2)
       CALL dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp3)
       CALL dbcsr_create(matrix_tmp3, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
 
       IF (ls_scf_env%nspins == 1) THEN

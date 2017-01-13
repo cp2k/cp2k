@@ -51,7 +51,7 @@ MODULE almo_scf_optimizer
         dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
         dbcsr_function_of_elements, dbcsr_get_diag, dbcsr_get_info, dbcsr_hadamard_product, &
-        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_norm, &
         dbcsr_norm_maxabsnorm, dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, &
         dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_triu, &
@@ -150,7 +150,6 @@ CONTAINS
       ALLOCATE (matrix_mixing_old_blk(nspin))
       ALLOCATE (almo_diis(nspin))
       DO ispin = 1, nspin
-         CALL dbcsr_init(matrix_mixing_old_blk(ispin))
          CALL dbcsr_create(matrix_mixing_old_blk(ispin), &
                            template=almo_scf_env%matrix_ks_blk(ispin))
          CALL almo_scf_diis_init(diis_env=almo_diis(ispin), &
@@ -558,7 +557,6 @@ CONTAINS
 
                ! save the initial density matrix (to get the perturbative energy lowering)
                IF (iscf .EQ. 1) THEN
-                  CALL dbcsr_init(matrix_p_almo_scf_converged)
                   CALL dbcsr_create(matrix_p_almo_scf_converged, &
                                     template=almo_scf_env%matrix_p(ispin))
                   CALL dbcsr_copy(matrix_p_almo_scf_converged, &
@@ -851,7 +849,6 @@ CONTAINS
       ! after we start writing to matrix_t_out
       ALLOCATE (m_t_in_local(nspins))
       DO ispin = 1, nspins
-         CALL dbcsr_init(m_t_in_local(ispin))
          CALL dbcsr_create(m_t_in_local(ispin), &
                            template=matrix_t_in(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -861,7 +858,6 @@ CONTAINS
       ! init matrices for the initial guess
       ALLOCATE (m_theta(nspins))
       DO ispin = 1, nspins
-         CALL dbcsr_init(m_theta(ispin))
          CALL dbcsr_create(m_theta(ispin), &
                            template=matrix_t_out(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -887,23 +883,6 @@ CONTAINS
       DO ispin = 1, nspins
 
          ! init temporary storage
-         CALL dbcsr_init(prec_vv)
-         CALL dbcsr_init(STsiginv_0)
-         CALL dbcsr_init(m_tmp_no_1)
-         CALL dbcsr_init(m_tmp_no_2)
-         CALL dbcsr_init(m_tmp_no_3)
-         CALL dbcsr_init(ST)
-         CALL dbcsr_init(FTsiginv)
-         CALL dbcsr_init(m_tmp_oo_1)
-         CALL dbcsr_init(m_tmp_nn_1)
-         CALL dbcsr_init(siginvTFTsiginv)
-         CALL dbcsr_init(prec_oo)
-         CALL dbcsr_init(prec_oo_inv)
-         CALL dbcsr_init(prev_grad)
-         CALL dbcsr_init(prev_step)
-         CALL dbcsr_init(grad)
-         CALL dbcsr_init(step)
-         CALL dbcsr_init(prev_minus_prec_grad)
          CALL dbcsr_create(prec_vv, &
                            template=almo_scf_env%matrix_ks(ispin), &
                            matrix_type=dbcsr_type_no_symmetry)
@@ -961,7 +940,6 @@ CONTAINS
 
          md_in_theta_space = .FALSE. ! turn on later after several minimization steps
          IF (do_md) THEN
-            CALL dbcsr_init(velocity)
             CALL dbcsr_create(velocity, &
                               template=matrix_t_out(ispin))
             CALL dbcsr_copy(velocity, quench_t(ispin))
@@ -1624,7 +1602,6 @@ CONTAINS
                               IF (unit_nr > 0) THEN
                                  WRITE (unit_nr, *) 'ZERO OR NEGATIVE EIGENVALUES: ', zero_neg_eiv
                               ENDIF
-                              CALL dbcsr_init(inv_eiv)
                               CALL dbcsr_create(inv_eiv, &
                                                 template=m_tmp_nn_1, &
                                                 matrix_type=dbcsr_type_no_symmetry)
@@ -1935,7 +1912,6 @@ CONTAINS
             IF (perturbation_only) THEN
 
                ! compute Fvo for the zero-delocalization state
-               CALL dbcsr_init(fvo_0)
                CALL dbcsr_create(fvo_0, &
                                  template=matrix_t_out(ispin), &
                                  matrix_type=dbcsr_type_no_symmetry)
@@ -2144,11 +2120,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_init(m_tmp_no_1)
       CALL dbcsr_create(m_tmp_no_1, &
                         template=m_T_in, &
                         matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(m_tmp_oo_1)
       CALL dbcsr_create(m_tmp_oo_1, &
                         template=m_siginv_in, &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -2363,8 +2337,6 @@ CONTAINS
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) "sqrt and inv(sqrt) of MO overlap matrix"
             ENDIF
-            CALL dbcsr_init(almo_scf_env%matrix_sigma_sqrt(ispin))
-            CALL dbcsr_init(almo_scf_env%matrix_sigma_sqrt_inv(ispin))
             CALL dbcsr_create(almo_scf_env%matrix_sigma_sqrt(ispin), &
                               template=almo_scf_env%matrix_sigma(ispin), &
                               matrix_type=dbcsr_type_no_symmetry)
@@ -2381,10 +2353,8 @@ CONTAINS
                                            max_iter_lanczos=almo_scf_env%max_iter_lanczos)
 
             IF (safe_mode) THEN
-               CALL dbcsr_init(matrix_tmp1)
                CALL dbcsr_create(matrix_tmp1, template=almo_scf_env%matrix_sigma(ispin), &
                                  matrix_type=dbcsr_type_no_symmetry)
-               CALL dbcsr_init(matrix_tmp2)
                CALL dbcsr_create(matrix_tmp2, template=almo_scf_env%matrix_sigma(ispin), &
                                  matrix_type=dbcsr_type_no_symmetry)
 
@@ -2442,22 +2412,17 @@ CONTAINS
                   !sig_inv_template=almo_scf_env%matrix_sigma_inv(ispin),&
 
                   ! save initial retained virtuals
-                  CALL dbcsr_init(vr_fixed)
                   CALL dbcsr_create(vr_fixed, &
                                     template=almo_scf_env%matrix_v(ispin))
                   CALL dbcsr_copy(vr_fixed, almo_scf_env%matrix_v(ispin))
 
                   ! init matrices common for optimized and non-optimized virts
-                  CALL dbcsr_init(sigma_vv_sqrt)
-                  CALL dbcsr_init(sigma_vv_sqrt_inv)
                   CALL dbcsr_create(sigma_vv_sqrt, &
                                     template=almo_scf_env%matrix_sigma_vv(ispin), &
                                     matrix_type=dbcsr_type_no_symmetry)
                   CALL dbcsr_create(sigma_vv_sqrt_inv, &
                                     template=almo_scf_env%matrix_sigma_vv(ispin), &
                                     matrix_type=dbcsr_type_no_symmetry)
-                  CALL dbcsr_init(sigma_vv_sqrt_inv_guess)
-                  CALL dbcsr_init(sigma_vv_sqrt_guess)
                   CALL dbcsr_create(sigma_vv_sqrt_inv_guess, &
                                     template=almo_scf_env%matrix_sigma_vv(ispin), &
                                     matrix_type=dbcsr_type_no_symmetry)
@@ -2502,13 +2467,11 @@ CONTAINS
                      !sig_inv_template=almo_scf_env%matrix_sigma_inv(ispin),&
 
                      ! save initial discarded
-                     CALL dbcsr_init(vd_fixed)
                      CALL dbcsr_create(vd_fixed, &
                                        template=almo_scf_env%matrix_v_disc(ispin))
                      CALL dbcsr_copy(vd_fixed, almo_scf_env%matrix_v_disc(ispin))
 
                      !! create the down metric in the retained k-subspace
-                     CALL dbcsr_init(k_vr_index_down)
                      CALL dbcsr_create(k_vr_index_down, &
                                        template=almo_scf_env%matrix_sigma_vv_blk(ispin), &
                                        matrix_type=dbcsr_type_no_symmetry)
@@ -2523,7 +2486,6 @@ CONTAINS
                      !        eps_filter=almo_scf_env%eps_filter)
 
                      !! create the up metric in the discarded k-subspace
-                     CALL dbcsr_init(k_vd_index_down)
                      CALL dbcsr_create(k_vd_index_down, &
                                        template=almo_scf_env%matrix_vv_disc_blk(ispin), &
                                        matrix_type=dbcsr_type_no_symmetry)
@@ -2568,7 +2530,6 @@ CONTAINS
                      ! init matrices necessary for optimization of truncated virts
                      ! init blocked gradient before setting K to zero
                      ! otherwise the block structure might be lost
-                     CALL dbcsr_init(grad)
                      CALL dbcsr_create(grad, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
                      CALL dbcsr_copy(grad, almo_scf_env%matrix_k_blk(ispin))
@@ -2576,7 +2537,6 @@ CONTAINS
                      ! init MD in the k-space
                      md_in_k_space = almo_scf_env%logical01
                      IF (md_in_k_space) THEN
-                        CALL dbcsr_init(velocity)
                         CALL dbcsr_create(velocity, &
                                           template=almo_scf_env%matrix_k_blk(ispin))
                         CALL dbcsr_copy(velocity, almo_scf_env%matrix_k_blk(ispin))
@@ -2584,16 +2544,13 @@ CONTAINS
                         time_step = almo_scf_env%opt_k_trial_step_size
                      ENDIF
 
-                     CALL dbcsr_init(prev_step)
                      CALL dbcsr_create(prev_step, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
 
-                     CALL dbcsr_init(prev_minus_prec_grad)
                      CALL dbcsr_create(prev_minus_prec_grad, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
 
                      ! initialize diagonal blocks of the preconditioner to 1.0_dp
-                     CALL dbcsr_init(prec)
                      CALL dbcsr_create(prec, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
                      CALL dbcsr_copy(prec, almo_scf_env%matrix_k_blk(ispin))
@@ -2603,42 +2560,31 @@ CONTAINS
                      CALL dbcsr_set(almo_scf_env%matrix_k_blk(ispin), 0.0_dp)
                      ! matrix_k_central stores current k because matrix_k_blk is updated
                      ! during linear search
-                     CALL dbcsr_init(matrix_k_central)
                      CALL dbcsr_create(matrix_k_central, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
                      CALL dbcsr_copy(matrix_k_central, &
                                      almo_scf_env%matrix_k_blk(ispin))
-                     CALL dbcsr_init(tmp_k_blk)
                      CALL dbcsr_create(tmp_k_blk, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
-                     CALL dbcsr_init(step)
                      CALL dbcsr_create(step, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
                      CALL dbcsr_set(step, 0.0_dp)
-                     CALL dbcsr_init(t_curr)
                      CALL dbcsr_create(t_curr, &
                                        template=almo_scf_env%matrix_t(ispin))
-                     CALL dbcsr_init(sigma_oo_curr)
-                     CALL dbcsr_init(sigma_oo_curr_inv)
                      CALL dbcsr_create(sigma_oo_curr, &
                                        template=almo_scf_env%matrix_sigma(ispin), &
                                        matrix_type=dbcsr_type_no_symmetry)
                      CALL dbcsr_create(sigma_oo_curr_inv, &
                                        template=almo_scf_env%matrix_sigma(ispin), &
                                        matrix_type=dbcsr_type_no_symmetry)
-                     CALL dbcsr_init(tmp1_n_vr)
                      CALL dbcsr_create(tmp1_n_vr, &
                                        template=almo_scf_env%matrix_v(ispin))
-                     CALL dbcsr_init(tmp3_vd_vr)
                      CALL dbcsr_create(tmp3_vd_vr, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
-                     CALL dbcsr_init(tmp2_n_o)
                      CALL dbcsr_create(tmp2_n_o, &
                                        template=almo_scf_env%matrix_t(ispin))
-                     CALL dbcsr_init(tmp4_o_vr)
                      CALL dbcsr_create(tmp4_o_vr, &
                                        template=almo_scf_env%matrix_ov(ispin))
-                     CALL dbcsr_init(prev_grad)
                      CALL dbcsr_create(prev_grad, &
                                        template=almo_scf_env%matrix_k_blk(ispin))
                      CALL dbcsr_set(prev_grad, 0.0_dp)
@@ -2718,7 +2664,6 @@ CONTAINS
                         CALL dbcsr_filter(sigma_vv_sqrt, almo_scf_env%eps_filter)
                         ! apply SOLVE to compute U^(-1) : U*U^(-1)=I
                         CALL dbcsr_get_info(sigma_vv_sqrt, nfullrows_total=n)
-                        CALL dbcsr_init(matrix_tmp1)
                         CALL dbcsr_create(matrix_tmp1, template=almo_scf_env%matrix_sigma_vv(ispin), &
                                           matrix_type=dbcsr_type_no_symmetry)
                         CALL dbcsr_set(matrix_tmp1, 0.0_dp)
@@ -2774,10 +2719,8 @@ CONTAINS
                         CALL dbcsr_copy(sigma_vv_sqrt_inv_guess, sigma_vv_sqrt_inv)
                         CALL dbcsr_copy(sigma_vv_sqrt_guess, sigma_vv_sqrt)
                         IF (safe_mode) THEN
-                           CALL dbcsr_init(matrix_tmp1)
                            CALL dbcsr_create(matrix_tmp1, template=almo_scf_env%matrix_sigma_vv(ispin), &
                                              matrix_type=dbcsr_type_no_symmetry)
-                           CALL dbcsr_init(matrix_tmp2)
                            CALL dbcsr_create(matrix_tmp2, template=almo_scf_env%matrix_sigma_vv(ispin), &
                                              matrix_type=dbcsr_type_no_symmetry)
 
@@ -2890,7 +2833,6 @@ CONTAINS
                            !CALL dbcsr_copy(sigma_oo_guess,sigma_oo_curr_inv)
                         ENDIF
                         IF (safe_mode) THEN
-                           CALL dbcsr_init(matrix_tmp1)
                            CALL dbcsr_create(matrix_tmp1, template=sigma_oo_curr, &
                                              matrix_type=dbcsr_type_no_symmetry)
                            CALL dbcsr_multiply("N", "N", 1.0_dp, sigma_oo_curr, &
@@ -2909,7 +2851,6 @@ CONTAINS
                            CALL dbcsr_release(matrix_tmp1)
                         ENDIF
                         IF (safe_mode) THEN
-                           CALL dbcsr_init(matrix_tmp1)
                            CALL dbcsr_create(matrix_tmp1, template=sigma_oo_curr, &
                                              matrix_type=dbcsr_type_no_symmetry)
                            CALL dbcsr_multiply("N", "N", 1.0_dp, sigma_oo_curr_inv, &
@@ -3492,10 +3433,8 @@ CONTAINS
                                       metric=almo_scf_env%matrix_s_blk(1), &
                                       retain_overlap_sparsity=.FALSE., &
                                       eps_filter=almo_scf_env%eps_filter)
-                     CALL dbcsr_init(vr_index_sqrt_inv)
                      CALL dbcsr_create(vr_index_sqrt_inv, template=k_vr_index_down, &
                                        matrix_type=dbcsr_type_no_symmetry)
-                     CALL dbcsr_init(vr_index_sqrt)
                      CALL dbcsr_create(vr_index_sqrt, template=k_vr_index_down, &
                                        matrix_type=dbcsr_type_no_symmetry)
                      CALL matrix_sqrt_Newton_Schulz(vr_index_sqrt, &
@@ -3506,10 +3445,8 @@ CONTAINS
                                                     eps_lanczos=almo_scf_env%eps_lanczos, &
                                                     max_iter_lanczos=almo_scf_env%max_iter_lanczos)
                      IF (safe_mode) THEN
-                        CALL dbcsr_init(matrix_tmp1)
                         CALL dbcsr_create(matrix_tmp1, template=k_vr_index_down, &
                                           matrix_type=dbcsr_type_no_symmetry)
-                        CALL dbcsr_init(matrix_tmp2)
                         CALL dbcsr_create(matrix_tmp2, template=k_vr_index_down, &
                                           matrix_type=dbcsr_type_no_symmetry)
 
@@ -3543,10 +3480,8 @@ CONTAINS
                                       metric=almo_scf_env%matrix_s_blk(1), &
                                       retain_overlap_sparsity=.FALSE., &
                                       eps_filter=almo_scf_env%eps_filter)
-                     CALL dbcsr_init(vd_index_sqrt_inv)
                      CALL dbcsr_create(vd_index_sqrt_inv, template=k_vd_index_down, &
                                        matrix_type=dbcsr_type_no_symmetry)
-                     CALL dbcsr_init(vd_index_sqrt)
                      CALL dbcsr_create(vd_index_sqrt, template=k_vd_index_down, &
                                        matrix_type=dbcsr_type_no_symmetry)
                      CALL matrix_sqrt_Newton_Schulz(vd_index_sqrt, &
@@ -3557,10 +3492,8 @@ CONTAINS
                                                     eps_lanczos=almo_scf_env%eps_lanczos, &
                                                     max_iter_lanczos=almo_scf_env%max_iter_lanczos)
                      IF (safe_mode) THEN
-                        CALL dbcsr_init(matrix_tmp1)
                         CALL dbcsr_create(matrix_tmp1, template=k_vd_index_down, &
                                           matrix_type=dbcsr_type_no_symmetry)
-                        CALL dbcsr_init(matrix_tmp2)
                         CALL dbcsr_create(matrix_tmp2, template=k_vd_index_down, &
                                           matrix_type=dbcsr_type_no_symmetry)
 
@@ -3647,8 +3580,6 @@ CONTAINS
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, *) "sqrt and inv(sqrt) of AO overlap matrix"
                ENDIF
-               CALL dbcsr_init(almo_scf_env%matrix_s_sqrt(1))
-               CALL dbcsr_init(almo_scf_env%matrix_s_sqrt_inv(1))
                CALL dbcsr_create(almo_scf_env%matrix_s_sqrt(1), &
                                  template=almo_scf_env%matrix_s(1), &
                                  matrix_type=dbcsr_type_no_symmetry)
@@ -3665,10 +3596,8 @@ CONTAINS
                                               max_iter_lanczos=almo_scf_env%max_iter_lanczos)
 
                IF (safe_mode) THEN
-                  CALL dbcsr_init(matrix_tmp1)
                   CALL dbcsr_create(matrix_tmp1, template=almo_scf_env%matrix_s(1), &
                                     matrix_type=dbcsr_type_no_symmetry)
-                  CALL dbcsr_init(matrix_tmp2)
                   CALL dbcsr_create(matrix_tmp2, template=almo_scf_env%matrix_s(1), &
                                     matrix_type=dbcsr_type_no_symmetry)
 
@@ -3789,7 +3718,6 @@ CONTAINS
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, *) "Inverting AO overlap matrix"
             ENDIF
-            CALL dbcsr_init(almo_scf_env%matrix_s_inv(1))
             CALL dbcsr_create(almo_scf_env%matrix_s_inv(1), &
                               template=almo_scf_env%matrix_s(1), &
                               matrix_type=dbcsr_type_no_symmetry)
@@ -3805,7 +3733,6 @@ CONTAINS
             ENDIF
 
             IF (safe_mode) THEN
-               CALL dbcsr_init(matrix_tmp1)
                CALL dbcsr_create(matrix_tmp1, template=almo_scf_env%matrix_s(1), &
                                  matrix_type=dbcsr_type_no_symmetry)
                CALL dbcsr_multiply("N", "N", 1.0_dp, almo_scf_env%matrix_s_inv(1), &
@@ -3839,7 +3766,6 @@ CONTAINS
 
          ALLOCATE (matrix_p_almo_scf_converged(nspin))
          DO ispin = 1, nspin
-            CALL dbcsr_init(matrix_p_almo_scf_converged(ispin))
             CALL dbcsr_create(matrix_p_almo_scf_converged(ispin), &
                               template=almo_scf_env%matrix_p(ispin))
             CALL dbcsr_copy(matrix_p_almo_scf_converged(ispin), &
@@ -3983,18 +3909,15 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! initialize a matrix to 1.0
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=prec)
       ! in order to use dbcsr_set matrix blocks must exist
       CALL dbcsr_copy(tmp, prec)
       CALL dbcsr_set(tmp, 1.0_dp)
 
       ! compute qq = (Vd^tr)*F*Vd
-      CALL dbcsr_init(tmp_n_vd)
       CALL dbcsr_create(tmp_n_vd, template=vd_prop)
       CALL dbcsr_multiply("N", "N", 1.0_dp, f, vd_prop, &
                           0.0_dp, tmp_n_vd, filter_eps=eps_filter)
-      CALL dbcsr_init(tmp_vd_vd_blk)
       CALL dbcsr_create(tmp_vd_vd_blk, &
                         template=template_vd_vd_blk)
       CALL dbcsr_copy(tmp_vd_vd_blk, template_vd_vd_blk)
@@ -4006,18 +3929,15 @@ CONTAINS
       CALL dbcsr_get_info(tmp_vd_vd_blk, nfullrows_total=q_nrows)
       ALLOCATE (q_diagonal(q_nrows))
       CALL dbcsr_get_diag(tmp_vd_vd_blk, q_diagonal)
-      CALL dbcsr_init(qq_diag)
       CALL dbcsr_create(qq_diag, &
                         template=template_vd_vd_blk)
       CALL dbcsr_add_on_diag(qq_diag, 1.0_dp)
       CALL dbcsr_set_diag(qq_diag, q_diagonal)
-      CALL dbcsr_init(t1)
       CALL dbcsr_create(t1, template=prec)
       CALL dbcsr_multiply("N", "N", 1.0_dp, qq_diag, tmp, &
                           0.0_dp, t1, filter_eps=eps_filter)
 
       ! compute pp = X*sigma_oo_inv*X^tr
-      CALL dbcsr_init(tmp_vr_vr_blk)
       CALL dbcsr_create(tmp_vr_vr_blk, template=template_vr_vr_blk)
       CALL dbcsr_copy(tmp_vr_vr_blk, template_vr_vr_blk)
       CALL dbcsr_multiply("N", "N", 1.0_dp, x, oo_inv_x_tr, &
@@ -4028,12 +3948,10 @@ CONTAINS
       CALL dbcsr_get_info(tmp_vr_vr_blk, nfullrows_total=p_nrows)
       ALLOCATE (p_diagonal(p_nrows))
       CALL dbcsr_get_diag(tmp_vr_vr_blk, p_diagonal)
-      CALL dbcsr_init(pp_diag)
       CALL dbcsr_create(pp_diag, template=template_vr_vr_blk)
       CALL dbcsr_add_on_diag(pp_diag, 1.0_dp)
       CALL dbcsr_set_diag(pp_diag, p_diagonal)
       CALL dbcsr_set(tmp, 1.0_dp)
-      CALL dbcsr_init(t2)
       CALL dbcsr_create(t2, template=prec)
       CALL dbcsr_multiply("N", "N", 1.0_dp, tmp, pp_diag, &
                           0.0_dp, t2, filter_eps=eps_filter)
@@ -4056,9 +3974,7 @@ CONTAINS
                           0.0_dp, t1, filter_eps=eps_filter)
 
       ! compute pp = X*sig_oo_inv*(T^tr)*F*T*sig_oo_inv*(X^tr)
-      CALL dbcsr_init(tmp1_n_vr)
       CALL dbcsr_create(tmp1_n_vr, template=template_n_vr)
-      CALL dbcsr_init(tmp2_n_vr)
       CALL dbcsr_create(tmp2_n_vr, template=template_n_vr)
       CALL dbcsr_multiply("N", "N", 1.0_dp, t, oo_inv_x_tr, &
                           0.0_dp, tmp1_n_vr, filter_eps=eps_filter)
@@ -4150,9 +4066,7 @@ CONTAINS
       eps_filter = almo_scf_env%eps_filter
 
       ! compute S_qq = (Vd^tr)*S*Vd
-      CALL dbcsr_init(tmp_n_vd)
       CALL dbcsr_create(tmp_n_vd, template=almo_scf_env%matrix_v_disc(ispin))
-      CALL dbcsr_init(tmp_vd_vd_blk)
       CALL dbcsr_create(tmp_vd_vd_blk, &
                         template=almo_scf_env%matrix_vv_disc_blk(ispin), &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -4166,7 +4080,6 @@ CONTAINS
                           0.0_dp, tmp_vd_vd_blk, &
                           retain_sparsity=.TRUE.)
 
-      CALL dbcsr_init(s_dd_sqrt)
       CALL dbcsr_create(s_dd_sqrt, &
                         template=almo_scf_env%matrix_vv_disc_blk(ispin), &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -4201,11 +4114,9 @@ CONTAINS
                           0.0_dp, tmp_vd_vd_blk, filter_eps=eps_filter)
 
       ! diagonalize the matrix
-      CALL dbcsr_init(opt_k_e_dd)
       CALL dbcsr_create(opt_k_e_dd, &
                         template=almo_scf_env%matrix_vv_disc_blk(ispin))
       CALL dbcsr_release(s_dd_sqrt)
-      CALL dbcsr_init(s_dd_sqrt)
       CALL dbcsr_create(s_dd_sqrt, &
                         template=almo_scf_env%matrix_vv_disc_blk(ispin), &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -4226,12 +4137,10 @@ CONTAINS
       CALL dbcsr_release(tmp_vd_vd_blk)
 
       ! copy diagonal elements of the result into rows of a matrix
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, &
                         template=almo_scf_env%matrix_k_blk_ones(ispin))
       CALL dbcsr_copy(tmp, &
                       almo_scf_env%matrix_k_blk_ones(ispin))
-      CALL dbcsr_init(t1)
       CALL dbcsr_create(t1, &
                         template=almo_scf_env%matrix_k_blk_ones(ispin))
       CALL dbcsr_multiply("N", "N", 1.0_dp, &
@@ -4240,7 +4149,6 @@ CONTAINS
       CALL dbcsr_release(opt_k_e_dd)
 
       ! compute S_pp = X*sigma_oo_inv*X^tr
-      CALL dbcsr_init(tmp_vr_vr_blk)
       CALL dbcsr_create(tmp_vr_vr_blk, &
                         template=almo_scf_env%matrix_sigma_vv_blk(ispin), &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -4253,7 +4161,6 @@ CONTAINS
                           retain_sparsity=.TRUE.)
 
       ! obtain the orthogonalization matrix
-      CALL dbcsr_init(s_rr_sqrt)
       CALL dbcsr_create(s_rr_sqrt, &
                         template=almo_scf_env%matrix_sigma_vv_blk(ispin), &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -4266,10 +4173,8 @@ CONTAINS
                                      max_iter_lanczos=almo_scf_env%max_iter_lanczos)
 
       ! compute F_pp = X*sig_oo_inv*(T^tr)*F*T*sig_oo_inv*(X^tr)
-      CALL dbcsr_init(tmp1_n_vr)
       CALL dbcsr_create(tmp1_n_vr, &
                         template=almo_scf_env%matrix_v(ispin))
-      CALL dbcsr_init(tmp2_n_vr)
       CALL dbcsr_create(tmp2_n_vr, &
                         template=almo_scf_env%matrix_v(ispin))
       CALL dbcsr_multiply("N", "N", 1.0_dp, t_curr, oo_inv_x_tr, &
@@ -4295,11 +4200,9 @@ CONTAINS
                           0.0_dp, tmp_vr_vr_blk, filter_eps=eps_filter)
 
       ! diagonalize the matrix
-      CALL dbcsr_init(opt_k_e_rr)
       CALL dbcsr_create(opt_k_e_rr, &
                         template=almo_scf_env%matrix_sigma_vv_blk(ispin))
       CALL dbcsr_release(s_rr_sqrt)
-      CALL dbcsr_init(s_rr_sqrt)
       CALL dbcsr_create(s_rr_sqrt, &
                         template=almo_scf_env%matrix_sigma_vv_blk(ispin), &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -4373,7 +4276,6 @@ CONTAINS
 
       eps_filter = almo_scf_env%eps_filter
 
-      CALL dbcsr_init(tmp_k)
       CALL dbcsr_create(tmp_k, template=almo_scf_env%matrix_k_blk(ispin))
 
       ! transform gradient to the correct "diagonal" basis
@@ -5050,23 +4952,18 @@ CONTAINS
       CALL dbcsr_get_info(matrix=m_t, nfullrows_total=nao)
       IF (perturbation_only) CPWARN("Unused option")
 
-      CALL dbcsr_init(m_tmp_no_1)
       CALL dbcsr_create(m_tmp_no_1, &
                         template=m_quench_t, &
                         matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(m_tmp_no_2)
       CALL dbcsr_create(m_tmp_no_2, &
                         template=m_quench_t, &
                         matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(m_tmp_no_3)
       CALL dbcsr_create(m_tmp_no_3, &
                         template=m_quench_t, &
                         matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(m_tmp_oo_1)
       CALL dbcsr_create(m_tmp_oo_1, &
                         template=m_siginv, &
                         matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(m_tmp_oo_2)
       CALL dbcsr_create(m_tmp_oo_2, &
                         template=m_siginv, &
                         matrix_type=dbcsr_type_no_symmetry)

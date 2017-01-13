@@ -44,7 +44,7 @@ MODULE qs_linres_issc_utils
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_init, dbcsr_p_type, dbcsr_set, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_p_type, dbcsr_set, &
         dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -945,7 +945,6 @@ CONTAINS
       ! efg, pso and fc operators
       CALL dbcsr_allocate_matrix_set(issc_env%matrix_efg, 6)
       ALLOCATE (issc_env%matrix_efg(1)%matrix)
-      CALL dbcsr_init(issc_env%matrix_efg(1)%matrix)
       CALL dbcsr_create(matrix=issc_env%matrix_efg(1)%matrix, &
                         name="efg (3xx-rr)/3", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
@@ -956,11 +955,6 @@ CONTAINS
       ALLOCATE (issc_env%matrix_efg(2)%matrix, &
                 issc_env%matrix_efg(3)%matrix, issc_env%matrix_efg(4)%matrix, &
                 issc_env%matrix_efg(5)%matrix, issc_env%matrix_efg(6)%matrix)
-      CALL dbcsr_init(issc_env%matrix_efg(2)%matrix)
-      CALL dbcsr_init(issc_env%matrix_efg(3)%matrix)
-      CALL dbcsr_init(issc_env%matrix_efg(4)%matrix)
-      CALL dbcsr_init(issc_env%matrix_efg(5)%matrix)
-      CALL dbcsr_init(issc_env%matrix_efg(6)%matrix)
       CALL dbcsr_copy(issc_env%matrix_efg(2)%matrix, issc_env%matrix_efg(1)%matrix, &
                       'efg xy')
       CALL dbcsr_copy(issc_env%matrix_efg(3)%matrix, issc_env%matrix_efg(1)%matrix, &
@@ -982,7 +976,6 @@ CONTAINS
       ! PSO
       CALL dbcsr_allocate_matrix_set(issc_env%matrix_pso, 3)
       ALLOCATE (issc_env%matrix_pso(1)%matrix)
-      CALL dbcsr_init(issc_env%matrix_pso(1)%matrix)
       CALL dbcsr_create(matrix=issc_env%matrix_pso(1)%matrix, &
                         name="pso x", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
@@ -991,8 +984,6 @@ CONTAINS
       CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix, sab_orb)
 
       ALLOCATE (issc_env%matrix_pso(2)%matrix, issc_env%matrix_pso(3)%matrix)
-      CALL dbcsr_init(issc_env%matrix_pso(2)%matrix)
-      CALL dbcsr_init(issc_env%matrix_pso(3)%matrix)
       CALL dbcsr_copy(issc_env%matrix_pso(2)%matrix, issc_env%matrix_pso(1)%matrix, &
                       'pso y')
       CALL dbcsr_copy(issc_env%matrix_pso(3)%matrix, issc_env%matrix_pso(1)%matrix, &
@@ -1004,9 +995,6 @@ CONTAINS
       ! DSO
       CALL dbcsr_allocate_matrix_set(issc_env%matrix_dso, 3)
       ALLOCATE (issc_env%matrix_dso(1)%matrix, issc_env%matrix_dso(2)%matrix, issc_env%matrix_dso(3)%matrix)
-      CALL dbcsr_init(issc_env%matrix_dso(1)%matrix)
-      CALL dbcsr_init(issc_env%matrix_dso(2)%matrix)
-      CALL dbcsr_init(issc_env%matrix_dso(3)%matrix)
       CALL dbcsr_copy(issc_env%matrix_dso(1)%matrix, issc_env%matrix_efg(1)%matrix, &
                       'dso x')
       CALL dbcsr_copy(issc_env%matrix_dso(2)%matrix, issc_env%matrix_efg(1)%matrix, &
@@ -1020,7 +1008,6 @@ CONTAINS
       ! FC
       CALL dbcsr_allocate_matrix_set(issc_env%matrix_fc, 1)
       ALLOCATE (issc_env%matrix_fc(1)%matrix)
-      CALL dbcsr_init(issc_env%matrix_fc(1)%matrix)
       CALL dbcsr_copy(issc_env%matrix_fc(1)%matrix, issc_env%matrix_efg(1)%matrix, &
                       'fc')
       CALL dbcsr_set(issc_env%matrix_fc(1)%matrix, 0.0_dp)

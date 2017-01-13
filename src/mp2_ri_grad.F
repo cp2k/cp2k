@@ -33,7 +33,7 @@ MODULE mp2_ri_grad
                                               cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_init, dbcsr_multiply, &
+        dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
@@ -255,17 +255,14 @@ CONTAINS
 
       ! create matrix holding the back transformation (G_P_inu)
       ALLOCATE (matrix_P_inu%matrix)
-      CALL dbcsr_init(matrix_P_inu%matrix)
       CALL dbcsr_create(matrix_P_inu%matrix, template=mo_coeff_o)
       IF (alpha_beta) THEN
          ALLOCATE (matrix_P_inu_beta%matrix)
-         CALL dbcsr_init(matrix_P_inu_beta%matrix)
          CALL dbcsr_create(matrix_P_inu_beta%matrix, template=mo_coeff_o_beta)
       ENDIF
 
       ! non symmetric matrix
       ALLOCATE (matrix_P_munu_nosym%matrix)
-      CALL dbcsr_init(matrix_P_munu_nosym%matrix)
       CALL dbcsr_create(matrix_P_munu_nosym%matrix, template=mat_munu%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
       ! CALL dbcsr_create(matrix_P_munu_nosym%matrix,template=mat_munu%matrix)
@@ -276,29 +273,24 @@ CONTAINS
 
       ! create Lagrangian matrices in mixed AO/MO formalism
       ALLOCATE (Lag_mu_i_1%matrix)
-      CALL dbcsr_init(Lag_mu_i_1%matrix)
       CALL dbcsr_create(Lag_mu_i_1%matrix, template=mo_coeff_o)
       CALL dbcsr_set(Lag_mu_i_1%matrix, 0.0_dp)
       IF (alpha_beta) THEN
          ALLOCATE (Lag_mu_i_1_beta%matrix)
-         CALL dbcsr_init(Lag_mu_i_1_beta%matrix)
          CALL dbcsr_create(Lag_mu_i_1_beta%matrix, template=mo_coeff_o_beta)
          CALL dbcsr_set(Lag_mu_i_1_beta%matrix, 0.0_dp)
       ENDIF
 
       ALLOCATE (Lag_nu_a_2%matrix)
-      CALL dbcsr_init(Lag_nu_a_2%matrix)
       CALL dbcsr_create(Lag_nu_a_2%matrix, template=mo_coeff_v)
       CALL dbcsr_set(Lag_nu_a_2%matrix, 0.0_dp)
       IF (alpha_beta) THEN
          ALLOCATE (Lag_nu_a_2_beta%matrix)
-         CALL dbcsr_init(Lag_nu_a_2_beta%matrix)
          CALL dbcsr_create(Lag_nu_a_2_beta%matrix, template=mo_coeff_v_beta)
          CALL dbcsr_set(Lag_nu_a_2_beta%matrix, 0.0_dp)
       ENDIF
 
       ALLOCATE (matrix_P_munu%matrix)
-      CALL dbcsr_init(matrix_P_munu%matrix)
       CALL dbcsr_create(matrix_P_munu%matrix, template=mat_munu%matrix, &
                         matrix_type=dbcsr_type_symmetric)
       ! CALL dbcsr_set(mat_munu%matrix,0.0_dp)

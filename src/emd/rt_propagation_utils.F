@@ -28,9 +28,9 @@ MODULE rt_propagation_utils
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_copy_into_existing, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
-        dbcsr_distribution, dbcsr_filter, dbcsr_init, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_distribution, dbcsr_filter, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
+        dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: use_restart_wfn,&
                                               use_rt_restart
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -128,7 +128,6 @@ CONTAINS
 
       NULLIFY (tmp_mat)
       ALLOCATE (tmp_mat)
-      CALL dbcsr_init(tmp_mat)
       CALL dbcsr_create(tmp_mat, template=S_der(1)%matrix, matrix_type="N")
 
       IF (rtp%iter < 2) THEN
@@ -142,7 +141,6 @@ CONTAINS
 
          NULLIFY (tmp_mat2)
          ALLOCATE (tmp_mat2)
-         CALL dbcsr_init(tmp_mat2)
          CALL dbcsr_create(tmp_mat2, template=S_der(1)%matrix, matrix_type="S")
          DO m = 1, 9
             CALL dbcsr_copy(tmp_mat2, s_derivs(m+1)%matrix)

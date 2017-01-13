@@ -41,10 +41,10 @@ MODULE qs_fb_env_methods
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_distribution, &
-        dbcsr_finalize, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_finalize, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&
                                               cholesky_off,&
@@ -336,7 +336,6 @@ CONTAINS
 
       ! create DBCSR filtered KS matrix, this is reused for each spin
       ! channel
-      CALL dbcsr_init(matrix_filtered_ks)
       ! both row_blk_size and col_blk_size should be that of
       ! col_blk_size of the filter matrix
       CALL dbcsr_create(matrix=matrix_filtered_ks, &
@@ -355,7 +354,6 @@ CONTAINS
       ! matrix, and does depend on spin, the filtered S also becomes
       ! spin dependent. Nevertheless this matrix is reused for each spin
       ! channel
-      CALL dbcsr_init(matrix_filtered_s)
       ! both row_blk_size and col_blk_size should be that of
       ! col_blk_size of the filter matrix
       CALL dbcsr_create(matrix=matrix_filtered_s, &
@@ -368,7 +366,6 @@ CONTAINS
       CALL dbcsr_finalize(matrix_filtered_s)
 
       ! create temporary matrix for constructing filtered KS and S
-      CALL dbcsr_init(matrix_tmp)
       ! the temporary matrix won't be square
       CALL dbcsr_create(matrix=matrix_tmp, &
                         name=TRIM("TEMPORARY_MATRIX"), &
@@ -461,7 +458,6 @@ CONTAINS
       ! full basis version in scf_env ready to be used outside this
       ! subroutine
       ALLOCATE (matrix_filtered_p)
-      CALL dbcsr_init(matrix_filtered_p)
       ! the filtered density matrix should have the same sparse
       ! structure as the original density matrix, we must copy the
       ! sparse structure here, since construction of the density matrix

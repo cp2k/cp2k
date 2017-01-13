@@ -24,7 +24,6 @@ MODULE xc_pot_saop
                                               dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE input_constants,                 ONLY: do_method_gapw,&
@@ -205,7 +204,6 @@ CONTAINS
       DO ispin = 1, nspins
          rho_r(ispin)%pw => rho_struct_r(ispin)%pw
          ALLOCATE (orbital_density_matrix(ispin)%matrix)
-         CALL dbcsr_init(orbital_density_matrix(ispin)%matrix)
          CALL dbcsr_copy(orbital_density_matrix(ispin)%matrix, &
                          rho_struct_ao(ispin)%matrix, "orbital density")
       END DO
@@ -605,7 +603,6 @@ CONTAINS
          CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
                              nrow_global=nrow(ispin), ncol_global=ncol(ispin))
          ALLOCATE (orbital_density_matrix(ispin)%matrix)
-         CALL dbcsr_init(orbital_density_matrix(ispin)%matrix)
          CALL dbcsr_copy(orbital_density_matrix(ispin)%matrix, &
                          rho_struct_ao(ispin)%matrix, &
                          "orbital density")

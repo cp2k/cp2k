@@ -51,8 +51,8 @@ MODULE mp2_gpw
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_allocate_matrix_set, dbcsr_clear_mempools, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init, &
-        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_distribution_release, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, &
         dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
@@ -1003,11 +1003,9 @@ CONTAINS
           PRESENT(Emp2_AB)) do_alpha_beta = .TRUE.
 
       ! initialize and create the matrix (ia|jnu)
-      CALL dbcsr_init(matrix_ia_jnu)
       CALL dbcsr_create(matrix_ia_jnu, template=mo_coeff_o)
 
       ! Allocate Sparse matrices: (ia|jb)
-      CALL dbcsr_init(matrix_ia_jb)
       CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb, template=mo_coeff_o, m=homo, n=nmo-homo, &
                                          sym=dbcsr_type_no_symmetry)
 
@@ -1049,11 +1047,9 @@ CONTAINS
 
       IF (do_alpha_beta) THEN
          ! initialize and create the matrix (ia|jnu)
-         CALL dbcsr_init(matrix_ia_jnu_beta)
          CALL dbcsr_create(matrix_ia_jnu_beta, template=mo_coeff_o_beta)
 
          ! Allocate Sparse matrices: (ia|jb)
-         CALL dbcsr_init(matrix_ia_jb_beta)
          CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb_beta, template=mo_coeff_o_beta, m=homo_beta, n=nmo-homo_beta, &
                                             sym=dbcsr_type_no_symmetry)
 
@@ -2270,7 +2266,6 @@ CONTAINS
 
       NULLIFY (mat_munu%matrix)
       ALLOCATE (mat_munu%matrix)
-      CALL dbcsr_init(mat_munu%matrix)
 
       IF (my_do_ri_aux_basis) THEN
 
@@ -2954,14 +2949,12 @@ CONTAINS
       ! create mat_dm_occ/virt_local_mao (in case not using MAOs, the size is the Gauss basis)
       NULLIFY (mat_dm_occ_local%matrix)
       ALLOCATE (mat_dm_occ_local%matrix)
-      CALL dbcsr_init(mat_dm_occ_local%matrix)
       CALL dbcsr_create(matrix=mat_dm_occ_local%matrix, template=mat_munu%matrix, &
                         name="mat_dm_occ_local", &
                         row_blk_size=blk_sizes_occ, col_blk_size=blk_sizes_occ)
 
       NULLIFY (mat_dm_virt_local%matrix)
       ALLOCATE (mat_dm_virt_local%matrix)
-      CALL dbcsr_init(mat_dm_virt_local%matrix)
       CALL dbcsr_create(matrix=mat_dm_virt_local%matrix, template=mat_munu%matrix, &
                         name="mat_dm_virt_local", &
                         row_blk_size=blk_sizes_virt, col_blk_size=blk_sizes_virt)
@@ -3096,7 +3089,6 @@ CONTAINS
 
          NULLIFY (mat_dm_occ_global_mao%matrix)
          ALLOCATE (mat_dm_occ_global_mao%matrix)
-         CALL dbcsr_init(mat_dm_occ_global_mao%matrix)
          CALL dbcsr_create(matrix=mat_dm_occ_global_mao%matrix, &
                            name="mat_dm_occ_global_mao", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
@@ -3104,7 +3096,6 @@ CONTAINS
 
          NULLIFY (mat_dm_virt_global_mao%matrix)
          ALLOCATE (mat_dm_virt_global_mao%matrix)
-         CALL dbcsr_init(mat_dm_virt_global_mao%matrix)
          CALL dbcsr_create(matrix=mat_dm_virt_global_mao%matrix, &
                            name="mat_dm_virt_global_mao", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
@@ -3112,14 +3103,12 @@ CONTAINS
 
          NULLIFY (mat_munu_mao_occ_virt%matrix)
          ALLOCATE (mat_munu_mao_occ_virt%matrix)
-         CALL dbcsr_init(mat_munu_mao_occ_virt%matrix)
          CALL dbcsr_create(matrix=mat_munu_mao_occ_virt%matrix, template=mat_munu%matrix, &
                            name="mat_munu_mao_occ_virt", &
                            row_blk_size=blk_sizes_mao_occ, col_blk_size=blk_sizes_mao_virt)
 
          NULLIFY (mat_munu_mao_virt_occ%matrix)
          ALLOCATE (mat_munu_mao_virt_occ%matrix)
-         CALL dbcsr_init(mat_munu_mao_virt_occ%matrix)
          CALL dbcsr_create(matrix=mat_munu_mao_virt_occ%matrix, template=mat_munu%matrix, &
                            name="mat_munu_mao_virt_occ", &
                            row_blk_size=blk_sizes_mao_virt, col_blk_size=blk_sizes_mao_occ)
@@ -3128,7 +3117,6 @@ CONTAINS
 
          NULLIFY (mat_dm_occ_global_mao%matrix)
          ALLOCATE (mat_dm_occ_global_mao%matrix)
-         CALL dbcsr_init(mat_dm_occ_global_mao%matrix)
          CALL dbcsr_create(mat_dm_occ_global_mao%matrix, &
                            name="mat_dm_occ_global_mao", &
                            template=matrix_s(1)%matrix, &
@@ -3136,7 +3124,6 @@ CONTAINS
 
          NULLIFY (mat_dm_virt_global_mao%matrix)
          ALLOCATE (mat_dm_virt_global_mao%matrix)
-         CALL dbcsr_init(mat_dm_virt_global_mao%matrix)
          CALL dbcsr_create(mat_dm_virt_global_mao%matrix, &
                            name="mat_dm_virt_global_mao", &
                            template=matrix_s(1)%matrix, &
@@ -3260,7 +3247,6 @@ CONTAINS
 
       DO ispin = 1, nspins
          ALLOCATE (scaled_dm_for_maos_occ(ispin, 1)%matrix)
-         CALL dbcsr_init(scaled_dm_for_maos_occ(ispin, 1)%matrix)
          CALL dbcsr_create(matrix=scaled_dm_for_maos_occ(ispin, 1)%matrix, &
                            template=rho_ao_kp(1, 1)%matrix)
       END DO
@@ -3309,7 +3295,6 @@ CONTAINS
 
       DO ispin = 1, nspin
          ALLOCATE (id_mat(ispin)%matrix)
-         CALL dbcsr_init(id_mat(ispin)%matrix)
          CALL dbcsr_create(matrix=id_mat(ispin)%matrix, &
                            matrix_type=dbcsr_type_no_symmetry, &
                            template=rho_ao_kp(1, 1)%matrix)
@@ -3347,7 +3332,6 @@ CONTAINS
 
       DO ispin = 1, nspins
          ALLOCATE (mao_coeff_A(ispin)%matrix)
-         CALL dbcsr_init(mao_coeff_A(ispin)%matrix)
          CALL dbcsr_create(matrix=mao_coeff_A(ispin)%matrix, &
                            template=mao_coeff(ispin)%matrix)
          CALL dbcsr_reserve_diag_blocks(matrix=mao_coeff_A(ispin)%matrix)
@@ -3570,7 +3554,6 @@ CONTAINS
 
       NULLIFY (mat_M%matrix)
       ALLOCATE (mat_M%matrix)
-      CALL dbcsr_init(mat_M%matrix)
 
       CALL dbcsr_create(matrix=mat_M%matrix, &
                         name="M_P_alphadelta", &

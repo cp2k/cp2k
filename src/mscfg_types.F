@@ -15,7 +15,7 @@ MODULE mscfg_types
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
         dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
         dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, dbcsr_finalize, &
-        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nfullcols_total, &
         dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_work_create
@@ -149,7 +149,6 @@ CONTAINS
 
       CPASSERT(iset .LE. mscfg_max_moset_size)
 
-      CALL dbcsr_init(matrix_temp)
       CALL dbcsr_create(matrix_temp, &
                         template=matrix_out, &
                         matrix_type=dbcsr_type_no_symmetry)
@@ -301,7 +300,6 @@ CONTAINS
                                   reuse_arrays=.TRUE.)
 
       ! Create big the matrix
-      CALL dbcsr_init(matrix_new)
       CALL dbcsr_create(matrix_new, "BIG_AND_FAKE", &
                         dist_new, dbcsr_type_no_symmetry, &
                         row_sizes_new, col_sizes_new, &

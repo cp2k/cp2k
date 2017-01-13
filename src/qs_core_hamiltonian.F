@@ -92,9 +92,9 @@ MODULE qs_core_hamiltonian
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_init, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_type
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_type
    USE input_constants,                 ONLY: do_admm_purify_none,&
                                               do_ppl_analytic,&
                                               kg_tnadd_atomic,&
@@ -357,7 +357,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_h, 1, nimages)
       DO img = 1, nimages
          ALLOCATE (matrix_h(1, img)%matrix)
-         CALL dbcsr_init(matrix_h(1, img)%matrix)
          CALL dbcsr_create(matrix_h(1, img)%matrix, template=matrix_s(1, 1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
          IF (.NOT. ofdft) THEN
@@ -627,7 +626,6 @@ CONTAINS
             IF (SIZE(matrixkp_h, 2) == 1) THEN
                CALL dbcsr_allocate_matrix_set(matrix_v, 1)
                ALLOCATE (matrix_v(1)%matrix)
-               CALL dbcsr_init(matrix_v(1)%matrix)
                CALL dbcsr_copy(matrix_v(1)%matrix, matrixkp_h(1, 1)%matrix, name="POTENTIAL ENERGY MATRIX")
                CALL dbcsr_add(matrix_v(1)%matrix, matrixkp_t(1, 1)%matrix, &
                               alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)

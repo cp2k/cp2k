@@ -12,7 +12,7 @@ MODULE pao_param
    USE dbcsr_api,                       ONLY: &
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_distribution, &
         dbcsr_distribution_mp, dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_multiply, dbcsr_p_type, &
         dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
@@ -82,7 +82,6 @@ CONTAINS
 
       ! pao%matrix_U uses pao%diag_distribution, need to redistribute using distribution of matrix_s
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
-      CALL dbcsr_init(matrix_U)
       CALL dbcsr_create(matrix_U, matrix_type="N", template=matrix_s(1)%matrix)
       CALL dbcsr_reserve_diag_blocks(matrix_U)
       CALL dbcsr_complete_redistribute(pao%matrix_U, matrix_U)
@@ -246,7 +245,6 @@ CONTAINS
 
       IF (pao%precondition) THEN
          !TODO: multiplying a matrix into itself while retaining sparsity seems to be broken
-         CALL dbcsr_init(matrix_tmp)
          CALL dbcsr_copy(matrix_tmp, pao%matrix_X)
          CALL dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_precon, matrix_tmp, &
                              0.0_dp, pao%matrix_X, retain_sparsity=.TRUE.)

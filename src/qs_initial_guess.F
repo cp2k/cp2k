@@ -32,7 +32,7 @@ MODULE qs_initial_guess
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_checksum, dbcsr_copy, dbcsr_filter, dbcsr_get_diag, dbcsr_get_num_blocks, &
-        dbcsr_get_occupation, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
         dbcsr_set_diag, dbcsr_trace, dbcsr_type, dbcsr_verify_matrix
@@ -771,7 +771,6 @@ CONTAINS
 
                ENDIF
                !
-               CALL dbcsr_init(mo_dbcsr)
                CALL cp_fm_to_dbcsr_row_template(mo_dbcsr, mo_coeff, s_sparse(1)%matrix)
                !CALL dbcsr_verify_matrix(mo_dbcsr)
                checksum = dbcsr_checksum(mo_dbcsr)
@@ -790,7 +789,6 @@ CONTAINS
                END IF
                !
                ! S*C
-               CALL dbcsr_init(mo_tmp_dbcsr)
                CALL dbcsr_copy(mo_tmp_dbcsr, mo_dbcsr, name="mo_tmp")
                CALL dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr, &
                                    0.0_dp, mo_tmp_dbcsr, &

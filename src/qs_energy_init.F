@@ -14,7 +14,6 @@ MODULE qs_energy_init
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -112,7 +111,6 @@ CONTAINS
          DO ispin = 1, nspin
             DO img = 1, nimg
                ALLOCATE (matrix_w(ispin, img)%matrix)
-               CALL dbcsr_init(matrix_w(ispin, img)%matrix)
                CALL dbcsr_copy(matrix_w(ispin, img)%matrix, matrix, name="W MATRIX")
                CALL dbcsr_set(matrix_w(ispin, img)%matrix, 0.0_dp)
             END DO
@@ -123,7 +121,6 @@ CONTAINS
             CALL dbcsr_allocate_matrix_set(matrix_w_mp2, dft_control%nspins)
             DO ispin = 1, nspin
                ALLOCATE (matrix_w_mp2(ispin)%matrix)
-               CALL dbcsr_init(matrix_w_mp2(ispin)%matrix)
                CALL dbcsr_copy(matrix_w_mp2(ispin)%matrix, matrix, &
                                name="W MATRIX MP2")
                CALL dbcsr_set(matrix_w_mp2(ispin)%matrix, 0.0_dp)

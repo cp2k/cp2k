@@ -46,7 +46,7 @@ MODULE dft_plus_u
                                               low_print_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_init, &
+        dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: plus_u_lowdin,&
@@ -378,11 +378,9 @@ CONTAINS
       ! Create local block diagonal matrices
 
       ALLOCATE (sm_q)
-      CALL dbcsr_init(sm_q)
       CALL dbcsr_get_block_diag(sm_s, sm_q)
 
       ALLOCATE (sm_v)
-      CALL dbcsr_init(sm_v)
       CALL dbcsr_get_block_diag(sm_s, sm_v)
 
       ! Loop over all spins
@@ -1000,14 +998,12 @@ CONTAINS
 
          IF (.NOT. ASSOCIATED(sm_q)) THEN
             ALLOCATE (sm_q)
-            CALL dbcsr_init(sm_q)
             CALL dbcsr_get_block_diag(sm_p, sm_q)
          END IF
          CALL dbcsr_set(sm_q, 0.0_dp)
 
          IF (.NOT. ASSOCIATED(sm_v)) THEN
             ALLOCATE (sm_v)
-            CALL dbcsr_init(sm_v)
             CALL dbcsr_get_block_diag(sm_p, sm_v)
          END IF
          CALL dbcsr_set(sm_v, 0.0_dp)

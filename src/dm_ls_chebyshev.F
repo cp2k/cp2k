@@ -20,8 +20,8 @@ MODULE dm_ls_chebyshev
                                               cp_print_key_unit_nr
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, &
-        dbcsr_get_info, dbcsr_get_occupation, dbcsr_init, dbcsr_multiply, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_release, dbcsr_scale, &
+        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE dm_ls_scf_qs,                    ONLY: write_matrix_to_cube
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -173,19 +173,13 @@ CONTAINS
       ENDIF
 
       ! create 3 temporary matrices
-      CALL dbcsr_init(matrix_tmp1) !initialization
       CALL dbcsr_create(matrix_tmp1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp2)
       CALL dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp3)
       CALL dbcsr_create(matrix_tmp3, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_F)
       CALL dbcsr_create(matrix_F, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_dummy1)
       CALL dbcsr_create(matrix_dummy1, template=ls_scf_env%matrix_s, matrix_type=dbcsr_type_no_symmetry)
 
       DO iwindow = 1, nwindow
-         CALL dbcsr_init(matrix_dummy2(iwindow)) ! density matrix
          CALL dbcsr_create(matrix_dummy2(iwindow), template=ls_scf_env%matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
       END DO

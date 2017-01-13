@@ -53,8 +53,8 @@ MODULE qs_scf_diagonalization
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_desymmetrize, dbcsr_init, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_desymmetrize, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
         core_guess, general_roks, high_spin_roks, restart_guess
@@ -375,9 +375,6 @@ CONTAINS
 
       ! allocate some work matrices
       ALLOCATE (rmatrix, cmatrix, tmpmat)
-      CALL dbcsr_init(rmatrix)
-      CALL dbcsr_init(cmatrix)
-      CALL dbcsr_init(tmpmat)
       CALL dbcsr_create(rmatrix, template=matrix_ks(1, 1)%matrix, &
                         matrix_type=dbcsr_type_symmetric)
       CALL dbcsr_create(cmatrix, template=matrix_ks(1, 1)%matrix, &
@@ -790,7 +787,6 @@ CONTAINS
 
          DO i = 1, nspin
             ALLOCATE (subspace_env%p_matrix_store(i)%matrix)
-            CALL dbcsr_init(subspace_env%p_matrix_store(i)%matrix)
             CALL dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, template=matrix_s(1)%matrix, &
                               name="DENSITY_STORE", matrix_type=dbcsr_type_symmetric, nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix, &

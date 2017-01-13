@@ -48,7 +48,6 @@ MODULE qs_wf_history_methods
                                               dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_p_type
    USE input_constants,                 ONLY: &
         wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
@@ -247,7 +246,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(snapshot%rho_ao, nspins)
          DO ispin = 1, nspins
             ALLOCATE (snapshot%rho_ao(ispin)%matrix)
-            CALL dbcsr_init(snapshot%rho_ao(ispin)%matrix)
             CALL dbcsr_copy(snapshot%rho_ao(ispin)%matrix, rho_ao(ispin)%matrix)
          END DO
       END IF
@@ -265,7 +263,6 @@ CONTAINS
          DO ispin = 1, nspins
             DO img = 1, nimg
                ALLOCATE (snapshot%rho_ao_kp(ispin, img)%matrix)
-               CALL dbcsr_init(snapshot%rho_ao_kp(ispin, img)%matrix)
                CALL dbcsr_copy(snapshot%rho_ao_kp(ispin, img)%matrix, &
                                rho_ao_kp(ispin, img)%matrix)
             END DO
@@ -281,7 +278,6 @@ CONTAINS
          CPASSERT(ASSOCIATED(matrix_s))
          CPASSERT(ASSOCIATED(matrix_s(1)%matrix))
          ALLOCATE (snapshot%overlap)
-         CALL dbcsr_init(snapshot%overlap)
          CALL dbcsr_copy(snapshot%overlap, matrix_s(1)%matrix)
       END IF
 

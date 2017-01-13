@@ -47,7 +47,6 @@ MODULE qs_mo_io
    USE dbcsr_api,                       ONLY: dbcsr_binary_write,&
                                               dbcsr_checksum,&
                                               dbcsr_create,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_type
@@ -204,7 +203,6 @@ CONTAINS
       IF (do_dm_restart) THEN
          ALLOCATE (matrix_p_tmp)
          DO ispin = 1, SIZE(mo_array)
-            CALL dbcsr_init(matrix_p_tmp)
             CALL dbcsr_create(matrix_p_tmp, template=tmpl_matrix(ispin)%matrix, name="DM RESTART")
 
             IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) CPABORT("mo_coeff_b NOT ASSOCIATED")

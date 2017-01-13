@@ -44,8 +44,8 @@ MODULE qs_linres_op
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_checksum, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_init, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+        dbcsr_distribution_obj, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -220,9 +220,6 @@ CONTAINS
       !
       CALL dbcsr_allocate_matrix_set(op_ao, 3)
       ALLOCATE (op_ao(1)%matrix, op_ao(2)%matrix, op_ao(3)%matrix)
-      CALL dbcsr_init(op_ao(1)%matrix)
-      CALL dbcsr_init(op_ao(2)%matrix)
-      CALL dbcsr_init(op_ao(3)%matrix)
 
       CALL dbcsr_create(matrix=op_ao(1)%matrix, &
                         name="op_ao", &
@@ -288,9 +285,6 @@ CONTAINS
       ! Calculate the px py pz operators
       CALL dbcsr_allocate_matrix_set(op_ao, 3)
       ALLOCATE (op_ao(1)%matrix, op_ao(2)%matrix, op_ao(3)%matrix)
-      CALL dbcsr_init(op_ao(1)%matrix)
-      CALL dbcsr_init(op_ao(2)%matrix)
-      CALL dbcsr_init(op_ao(3)%matrix)
 
       CALL dbcsr_create(matrix=op_ao(1)%matrix, &
                         name="op_ao", &
@@ -741,8 +735,6 @@ CONTAINS
          !
          NULLIFY (cosmat, sinmat)
          ALLOCATE (cosmat, sinmat)
-         CALL dbcsr_init(cosmat)
-         CALL dbcsr_init(sinmat)
          CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
          CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
          CALL dbcsr_set(cosmat, 0.0_dp)

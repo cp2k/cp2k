@@ -306,8 +306,6 @@
     IF(my_match_matrix_sizes)THEN
        CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb, new_a, new_b)
     ELSE
-       CALL dbcsr_init(new_a)
-       CALL dbcsr_init(new_b)
        CALL dbcsr_copy_prv(new_a%prv, matrix_a%prv, shallow_data=.TRUE.)
        CALL dbcsr_copy_prv(new_b%prv, matrix_b%prv, shallow_data=.TRUE.)
     END IF

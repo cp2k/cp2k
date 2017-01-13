@@ -49,7 +49,6 @@ MODULE qs_p_env_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_copy,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_set,&
@@ -197,7 +196,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(p_env%p1, n_spins)
          DO spin = 1, n_spins
             ALLOCATE (p_env%p1(spin)%matrix)
-            CALL dbcsr_init(p_env%p1(spin)%matrix)
             CALL dbcsr_copy(p_env%p1(spin)%matrix, matrix_s(1)%matrix, &
                             name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
                             "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
@@ -337,7 +335,6 @@ CONTAINS
          CALL compress(name, full=.TRUE.)
          DO ispin = 1, nspins
             ALLOCATE (p_env%kpp1(ispin)%matrix)
-            CALL dbcsr_init(p_env%kpp1(ispin)%matrix)
             CALL dbcsr_copy(p_env%kpp1(ispin)%matrix, matrix_s(1)%matrix, &
                             name=TRIM(name)//ADJUSTL(cp_to_string(ispin)))
          END DO

@@ -25,7 +25,7 @@ MODULE mao_wfn_analysis
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
         dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_get_block_diag, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_trace, &
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
@@ -241,7 +241,6 @@ CONTAINS
       DO ispin = 1, nspin
          ! coeficients
          ALLOCATE (mao_coef(ispin)%matrix)
-         CALL dbcsr_init(mao_coef(ispin)%matrix)
          CALL dbcsr_create(matrix=mao_coef(ispin)%matrix, &
                            name="MAO_COEF", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                            row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
@@ -264,30 +263,22 @@ CONTAINS
       CALL dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
       DO ispin = 1, nspin
          ALLOCATE (mao_dmat(ispin)%matrix)
-         CALL dbcsr_init(mao_dmat(ispin)%matrix)
          CALL dbcsr_create(mao_dmat(ispin)%matrix, name="MAO density", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
                            col_blk_size=col_blk_sizes, nze=0)
          ALLOCATE (mao_smat(ispin)%matrix)
-         CALL dbcsr_init(mao_smat(ispin)%matrix)
          CALL dbcsr_create(mao_smat(ispin)%matrix, name="MAO overlap", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
                            col_blk_size=col_blk_sizes, nze=0)
          ALLOCATE (mao_qmat(ispin)%matrix)
-         CALL dbcsr_init(mao_qmat(ispin)%matrix)
          CALL dbcsr_create(mao_qmat(ispin)%matrix, name="MAO covar density", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
                            col_blk_size=col_blk_sizes, nze=0)
       END DO
-      CALL dbcsr_init(amat)
       CALL dbcsr_create(amat, name="MAO overlap", template=mao_dmat(1)%matrix)
-      CALL dbcsr_init(tmat)
       CALL dbcsr_create(tmat, name="MAO Overlap Inverse", template=amat)
-      CALL dbcsr_init(qmat)
       CALL dbcsr_create(qmat, name="MAO covar density", template=amat)
-      CALL dbcsr_init(cgmat)
       CALL dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)
-      CALL dbcsr_init(axmat)
       CALL dbcsr_create(axmat, name="TEMP", template=amat, matrix_type=dbcsr_type_no_symmetry)
       DO ispin = 1, nspin
          ! calculate MAO overlap matrix
@@ -351,9 +342,7 @@ CONTAINS
       ALLOCATE (occnumAB(natom, natom, nspin))
       occnumAB = 0.0_dp
       DO ispin = 1, nspin
-         CALL dbcsr_init(qmat_diag)
          CALL dbcsr_create(qmat_diag, name="MAO diagonal density", template=mao_dmat(1)%matrix)
-         CALL dbcsr_init(smat_diag)
          CALL dbcsr_create(smat_diag, name="MAO diagonal overlap", template=mao_dmat(1)%matrix)
          ! replicate the diagonal blocks of the density and overlap matrices
          CALL dbcsr_get_block_diag(mao_qmat(ispin)%matrix, qmat_diag)
@@ -434,9 +423,7 @@ CONTAINS
          ALLOCATE (occnumABC(nabc, nspin))
          occnumABC = -1.0_dp
          DO ispin = 1, nspin
-            CALL dbcsr_init(qmat_diag)
             CALL dbcsr_create(qmat_diag, name="MAO diagonal density", template=mao_dmat(1)%matrix)
-            CALL dbcsr_init(smat_diag)
             CALL dbcsr_create(smat_diag, name="MAO diagonal overlap", template=mao_dmat(1)%matrix)
             ! replicate the diagonal blocks of the density and overlap matrices
             CALL dbcsr_get_block_diag(mao_qmat(ispin)%matrix, qmat_diag)
@@ -619,12 +606,9 @@ CONTAINS
          CALL dbcsr_get_info(mao_coef(1)%matrix, row_blk_size=mao_blk_sizes, &
                              col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
          CALL dbcsr_get_info(matrix_s(1, 1)%matrix, row_blk_size=row_blk_sizes)
-         CALL dbcsr_init(amat)
          CALL dbcsr_create(amat, name="temp", template=matrix_s(1, 1)%matrix)
-         CALL dbcsr_init(tmat)
          CALL dbcsr_create(tmat, name="temp", template=mao_coef(1)%matrix)
          ! replicate diagonal of smm matrix
-         CALL dbcsr_init(smat_diag)
          CALL dbcsr_get_block_diag(matrix_smm(1)%matrix, smat_diag)
          CALL dbcsr_replicate_all(smat_diag)
 
@@ -633,18 +617,14 @@ CONTAINS
             orb_blk = row_blk_sizes
             mao_blk = row_blk_sizes
             mao_blk(ia) = col_blk_sizes(ia)
-            CALL dbcsr_init(sumat)
             CALL dbcsr_create(sumat, name="Smat", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                               row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(sumat, sab_orb)
-            CALL dbcsr_init(cholmat)
             CALL dbcsr_create(cholmat, name="Cholesky matrix", dist=dbcsr_dist, &
                               matrix_type=dbcsr_type_no_symmetry, row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
-            CALL dbcsr_init(rumat)
             CALL dbcsr_create(rumat, name="Rmat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                               row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(rumat, sab_orb, .TRUE.)
-            CALL dbcsr_init(crumat)
             CALL dbcsr_create(crumat, name="Rmat*Umat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                               row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
             ! replicate row and col of smo matrix

@@ -31,8 +31,8 @@ MODULE rt_propagator_init
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_init, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: do_arnoldi,&
                                               do_bch,&
                                               do_cn,&
@@ -322,19 +322,15 @@ CONTAINS
 
       NULLIFY (s_half)
       ALLOCATE (s_half)
-      CALL dbcsr_init(s_half)
       CALL dbcsr_create(s_half, template=s_mat(1)%matrix)
       NULLIFY (s_minus_half)
       ALLOCATE (s_minus_half)
-      CALL dbcsr_init(s_minus_half)
       CALL dbcsr_create(s_minus_half, template=s_mat(1)%matrix)
       NULLIFY (tmp)
       ALLOCATE (tmp)
-      CALL dbcsr_init(tmp)
       CALL dbcsr_create(tmp, template=s_mat(1)%matrix, matrix_type="N")
       NULLIFY (tmp2)
       ALLOCATE (tmp2)
-      CALL dbcsr_init(tmp2)
       CALL dbcsr_create(tmp2, template=s_mat(1)%matrix, matrix_type="N")
       scale = 1.0_dp
       IF (rtp_control%propagator == do_etrs) scale = 2.0_dp

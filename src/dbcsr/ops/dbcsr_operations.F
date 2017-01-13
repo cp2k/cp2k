@@ -1587,6 +1587,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
+      IF (.NOT. dbcsr_valid_index(matrix_b)) &
+         CPABORT("Matrix_b is not valid")
       IF (dbcsr_get_data_type(matrix_b) .NE. dbcsr_get_data_type(matrix_a)) &
          CPABORT("Matrices have different data types.")
       data_type = dbcsr_get_data_type(matrix_b)

@@ -19,7 +19,6 @@ MODULE mao_basis
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix_set,&
                                               dbcsr_distribution_obj,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_reserve_diag_blocks,&
                                               dbcsr_type_no_symmetry
@@ -247,7 +246,6 @@ CONTAINS
       DO ispin = 1, nspin
          ! coefficients
          ALLOCATE (mao_coef(ispin)%matrix)
-         CALL dbcsr_init(mao_coef(ispin)%matrix)
          CALL dbcsr_create(matrix=mao_coef(ispin)%matrix, &
                            name="MAO_COEF", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                            row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)

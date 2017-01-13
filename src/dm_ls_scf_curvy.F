@@ -17,9 +17,9 @@ MODULE dm_ls_scf_curvy
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_init, &
-        dbcsr_multiply, dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, &
-        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_multiply, &
+        dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                               ls_scf_env_type
    USE input_constants,                 ONLY: ls_scf_line_search_3point,&
@@ -359,21 +359,13 @@ CONTAINS
       CALL timeset(routineN, handle)
       nspin = SIZE(matrix_p)
 
-      CALL dbcsr_init(matrix_PKs)
       CALL dbcsr_create(matrix_PKs, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_Ax)
       CALL dbcsr_create(matrix_Ax, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp1)
       CALL dbcsr_create(matrix_tmp1, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_res)
       CALL dbcsr_create(matrix_res, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_cg)
       CALL dbcsr_create(matrix_cg, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_b)
       CALL dbcsr_create(matrix_b, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_dp_old)
       CALL dbcsr_create(matrix_dp_old, template=matrix_dp(1), matrix_type=dbcsr_type_no_symmetry)
 
       DO ispin = 1, nspin
@@ -606,7 +598,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_init(work)
       CALL dbcsr_create(work, template=a, matrix_type=dbcsr_type_no_symmetry)
 
       CALL dbcsr_multiply("N", "N", prefac, a, b, 0.0_dp, res, filter_eps=eps_filter)
@@ -659,9 +650,7 @@ CONTAINS
          unit_nr = -1
       ENDIF
 
-      CALL dbcsr_init(matrix)
       CALL dbcsr_create(matrix, template=matrix_p_in(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix_p_in(1), matrix_type=dbcsr_type_no_symmetry)
       nspin = SIZE(matrix_p_in)
 
@@ -753,9 +742,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_init(matrix_work)
       CALL dbcsr_create(matrix_work, template=matrix(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_init(matrix_tmp)
       CALL dbcsr_create(matrix_tmp, template=matrix(1), matrix_type=dbcsr_type_no_symmetry)
 
       DO ispin = 1, SIZE(matrix)
@@ -846,11 +833,9 @@ CONTAINS
       ALLOCATE (curvy_data%matrix_dp(nspins))
       ALLOCATE (curvy_data%matrix_p(nspins))
       DO ispin = 1, nspins
-         CALL dbcsr_init(curvy_data%matrix_dp(ispin))
          CALL dbcsr_create(curvy_data%matrix_dp(ispin), template=matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_set(curvy_data%matrix_dp(ispin), 0.0_dp)
-         CALL dbcsr_init(curvy_data%matrix_p(ispin))
          CALL dbcsr_create(curvy_data%matrix_p(ispin), template=matrix_s, &
                            matrix_type=dbcsr_type_no_symmetry)
          curvy_data%fix_shift = .FALSE.
@@ -865,7 +850,6 @@ CONTAINS
          ALLOCATE (curvy_data%matrix_psave(nspins, 3))
          DO ispin = 1, nspins
             DO j = 1, 3
-               CALL dbcsr_init(curvy_data%matrix_psave(ispin, j))
                CALL dbcsr_create(curvy_data%matrix_psave(ispin, j), template=matrix_s, &
                                  matrix_type=dbcsr_type_no_symmetry)
             END DO
@@ -875,7 +859,6 @@ CONTAINS
          ALLOCATE (curvy_data%matrix_BCH(nspins, curvy_data%n_bch_hist))
          DO ispin = 1, nspins
             DO j = 1, curvy_data%n_bch_hist
-               CALL dbcsr_init(curvy_data%matrix_BCH(ispin, j))
                CALL dbcsr_create(curvy_data%matrix_BCH(ispin, j), template=matrix_s, &
                                  matrix_type=dbcsr_type_no_symmetry)
             END DO

@@ -31,7 +31,7 @@ MODULE qs_dftb_matrices
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_set, &
         dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE erf_fn,                          ONLY: erfc
@@ -1046,7 +1046,6 @@ CONTAINS
       matrix_h => ks_qmmm_env_loc%matrix_h
       CALL dbcsr_allocate_matrix_set(matrix_h, 1)
       ALLOCATE (matrix_h(1)%matrix)
-      CALL dbcsr_init(matrix_h(1)%matrix)
       CALL dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
                       name="QMMM HAMILTONIAN MATRIX")
       CALL dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
@@ -1102,7 +1101,6 @@ CONTAINS
       matrix_h => ks_qmmm_env_loc%matrix_h
       CALL dbcsr_allocate_matrix_set(matrix_h, 1)
       ALLOCATE (matrix_h(1)%matrix)
-      CALL dbcsr_init(matrix_h(1)%matrix)
       CALL dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
                       name="QMMM HAMILTONIAN MATRIX")
       CALL dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
@@ -1318,7 +1316,6 @@ CONTAINS
       matrix_h => ks_qmmm_env_loc%matrix_h
       CALL dbcsr_allocate_matrix_set(matrix_h, 1)
       ALLOCATE (matrix_h(1)%matrix)
-      CALL dbcsr_init(matrix_h(1)%matrix)
       CALL dbcsr_copy(matrix_h(1)%matrix, matrix_s(1)%matrix, &
                       name="QMMM HAMILTONIAN MATRIX")
       CALL dbcsr_set(matrix_h(1)%matrix, 0.0_dp)
@@ -2200,7 +2197,6 @@ CONTAINS
             matnames = TRIM(mnames)//" MATRIX DFTB"
          END IF
          ALLOCATE (matrices(i)%matrix)
-         CALL dbcsr_init(matrices(i)%matrix)
          CALL dbcsr_create(matrix=matrices(i)%matrix, &
                            name=TRIM(matnames), &
                            dist=dbcsr_dist, matrix_type=symmetry_type, &
@@ -2292,7 +2288,6 @@ CONTAINS
                matnames = TRIM(mnames)//" MATRIX DFTB"
             END IF
             ALLOCATE (matrices(i, img)%matrix)
-            CALL dbcsr_init(matrices(i, img)%matrix)
             CALL dbcsr_create(matrix=matrices(i, img)%matrix, &
                               name=TRIM(matnames), &
                               dist=dbcsr_dist, matrix_type=symmetry_type, &
@@ -2350,7 +2345,6 @@ CONTAINS
 
       CALL dbcsr_allocate_matrix_set(gammat, nmat)
       ALLOCATE (gammat(1)%matrix)
-      CALL dbcsr_init(gammat(1)%matrix)
 
       CALL dbcsr_create(matrix=gammat(1)%matrix, &
                         name="GAMMA MATRIX", &
@@ -2360,7 +2354,6 @@ CONTAINS
 
       DO i = 2, nmat
          ALLOCATE (gammat(i)%matrix)
-         CALL dbcsr_init(gammat(i)%matrix)
 
          CALL dbcsr_create(matrix=gammat(i)%matrix, &
                            name="DERIVATIVE GAMMA MATRIX", &

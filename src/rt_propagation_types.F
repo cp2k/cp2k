@@ -37,7 +37,6 @@ MODULE rt_propagation_types
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -242,15 +241,12 @@ CONTAINS
       END DO
       NULLIFY (rtp%S_inv)
       ALLOCATE (rtp%S_inv)
-      CALL dbcsr_init(rtp%S_inv)
       CALL dbcsr_create(rtp%S_inv, template=template, matrix_type="S")
       NULLIFY (rtp%S_half)
       ALLOCATE (rtp%S_half)
-      CALL dbcsr_init(rtp%S_half)
       CALL dbcsr_create(rtp%S_half, template=template, matrix_type="S")
       NULLIFY (rtp%S_minus_half)
       ALLOCATE (rtp%S_minus_half)
-      CALL dbcsr_init(rtp%S_minus_half)
       CALL dbcsr_create(rtp%S_minus_half, template=template, matrix_type="S")
       NULLIFY (rtp%B_mat)
       NULLIFY (rtp%C_mat)
@@ -259,7 +255,6 @@ CONTAINS
       NULLIFY (rtp%SinvB)
       IF (.NOT. rtp_control%fixed_ions) THEN
          ALLOCATE (rtp%B_mat)
-         CALL dbcsr_init(rtp%B_mat)
          CALL dbcsr_create(rtp%B_mat, template=template, matrix_type="N")
          CALL dbcsr_allocate_matrix_set(rtp%C_mat, 3)
          CALL dbcsr_allocate_matrix_set(rtp%S_der, 9)

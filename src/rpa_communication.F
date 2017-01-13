@@ -28,7 +28,6 @@ MODULE rpa_communication
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
@@ -936,7 +935,6 @@ CONTAINS
 
          ! now create the DBCSR matrix and copy fm_ia into it
          ALLOCATE (dbcsr_Gamma_3(kkB)%matrix)
-         CALL dbcsr_init(dbcsr_Gamma_3(kkB)%matrix)
          CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma_3(kkB)%matrix, &
                                             template=mo_coeff_o, &
                                             m=homo, n=virtual, sym=dbcsr_type_no_symmetry)

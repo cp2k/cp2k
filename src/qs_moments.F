@@ -46,8 +46,8 @@ MODULE qs_moments
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_init, &
-        dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_p_type, &
+        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -383,7 +383,6 @@ CONTAINS
 
       DO i = 1, nm
          ALLOCATE (magmom(i)%matrix)
-         CALL dbcsr_init(magmom(i)%matrix)
          CALL dbcsr_copy(magmom(i)%matrix, matrix_s(1)%matrix, "Moments")
          CALL dbcsr_set(magmom(i)%matrix, 0.0_dp)
       END DO
@@ -811,7 +810,6 @@ CONTAINS
       DO i = 1, nimg
          ! sin
          ALLOCATE (sinmat(1, i)%matrix)
-         CALL dbcsr_init(sinmat(1, i)%matrix)
          CALL dbcsr_create(matrix=sinmat(1, i)%matrix, &
                            name="SINMAT", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
@@ -821,7 +819,6 @@ CONTAINS
          CALL dbcsr_set(sinmat(1, i)%matrix, 0.0_dp)
          ! cos
          ALLOCATE (cosmat(1, i)%matrix)
-         CALL dbcsr_init(cosmat(1, i)%matrix)
          CALL dbcsr_create(matrix=cosmat(1, i)%matrix, &
                            name="COSMAT", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
@@ -1033,8 +1030,6 @@ CONTAINS
 
       NULLIFY (cosmat, sinmat)
       ALLOCATE (cosmat, sinmat)
-      CALL dbcsr_init(cosmat)
-      CALL dbcsr_init(sinmat)
       CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
       CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
       CALL dbcsr_set(cosmat, 0.0_dp)
@@ -1514,7 +1509,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(moments, nm)
       DO i = 1, nm
          ALLOCATE (moments(i)%matrix)
-         CALL dbcsr_init(moments(i)%matrix)
          CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
          CALL dbcsr_set(moments(i)%matrix, 0.0_dp)
       END DO

@@ -51,10 +51,10 @@ MODULE mp2_ri_gpw
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
         dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, &
-        dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, dbcsr_reserve_blocks, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -535,7 +535,6 @@ CONTAINS
             DO LLL = 1, my_group_L_size
                NULLIFY (mat_munu_local_L(LLL)%matrix)
                ALLOCATE (mat_munu_local_L(LLL)%matrix)
-               CALL dbcsr_init(mat_munu_local_L(LLL)%matrix)
                CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
                CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
             ENDDO
@@ -875,11 +874,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! initialize and create the matrix (K|jnu)
-      CALL dbcsr_init(matrix_ia_jnu)
       CALL dbcsr_create(matrix_ia_jnu, template=mo_coeff_templ)
 
       ! Allocate Sparse matrices: (K|jb)
-      CALL dbcsr_init(matrix_ia_jb)
       CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb, template=mo_coeff_templ, m=size_2, n=size_1, &
                                          sym=dbcsr_type_no_symmetry)
 
@@ -1250,7 +1247,6 @@ CONTAINS
 
       NULLIFY (matrix_s_RI_aux_desymm)
       ALLOCATE (matrix_s_RI_aux_desymm)
-      CALL dbcsr_init(matrix_s_RI_aux_desymm)
       CALL dbcsr_create(matrix_s_RI_aux_desymm, template=matrix_s_RI_aux(1)%matrix, &
                         name='S_RI non_ysmm', matrix_type=dbcsr_type_no_symmetry)
 
@@ -7503,7 +7499,6 @@ CONTAINS
          col_blk_sizes_scaled(:) = col_blk_sizes(:)*my_group_L_size
 
          ALLOCATE (mat_3c_overl_int(i_cut_RI)%matrix)
-         CALL dbcsr_init(mat_3c_overl_int(i_cut_RI)%matrix)
 
          CALL dbcsr_create(matrix=mat_3c_overl_int(i_cut_RI)%matrix, &
                            name="(munuP)", &

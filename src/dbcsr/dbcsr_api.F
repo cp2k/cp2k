@@ -176,7 +176,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_distribution_release
    PUBLIC :: dbcsr_distribution_new
    PUBLIC :: dbcsr_create
-   PUBLIC :: dbcsr_init
    PUBLIC :: dbcsr_init_p
    PUBLIC :: dbcsr_release
    PUBLIC :: dbcsr_release_p
@@ -334,7 +333,6 @@ MODULE dbcsr_api
    ! the components of this type must remain private to encapsulate better the internals
    ! of the dbcsr library.
    TYPE dbcsr_type
-      INTEGER, PRIVATE                     :: ref_count = 0
       TYPE(dbcsr_prv_type), PRIVATE        :: prv
    END TYPE dbcsr_type
 
@@ -976,16 +974,6 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_init(matrix)
-      TYPE(dbcsr_type), INTENT(OUT)                      :: matrix
-
-      matrix%ref_count = 0
-   END SUBROUTINE dbcsr_init
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-! **************************************************************************************************
    SUBROUTINE dbcsr_init_p(matrix)
       TYPE(dbcsr_type), POINTER                          :: matrix
 
@@ -995,7 +983,6 @@ CONTAINS
       ENDIF
 
       ALLOCATE (matrix)
-      CALL dbcsr_init(matrix)
    END SUBROUTINE dbcsr_init_p
 
 ! **************************************************************************************************
@@ -1239,8 +1226,6 @@ CONTAINS
                             reuse_arrays=reuse_arrays, &
                             mutable_work=mutable_work, replication_type=replication_type)
 
-      matrix%ref_count = 1
-
    END SUBROUTINE dbcsr_create_new
 
 ! **************************************************************************************************
@@ -1283,7 +1268,6 @@ CONTAINS
                             reuse_arrays=reuse_arrays, mutable_work=mutable_work, &
                             replication_type=replication_type)
 
-      matrix%ref_count = 1
    END SUBROUTINE dbcsr_create_template
 
 ! **************************************************************************************************
@@ -1422,9 +1406,6 @@ CONTAINS
                                                             keep_imaginary
       CHARACTER, INTENT(IN), OPTIONAL                    :: matrix_type
 
-      IF (matrix_b%ref_count .EQ. 0) THEN
-         CALL dbcsr_create(matrix_b, template=matrix_a)
-      ENDIF
       CALL dbcsr_copy_prv(matrix_b%prv, matrix_a%prv, name, keep_sparsity, &
                           shalprv_data, keep_imaginary, matrix_type)
    END SUBROUTINE dbcsr_copy
@@ -1438,9 +1419,6 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
 
-      IF (matrix_b%ref_count .EQ. 0) THEN
-         CALL dbcsr_create(matrix_b, template=matrix_a)
-      ENDIF
       CALL dbcsr_copy_into_existing_prv(matrix_b%prv, matrix_a%prv)
    END SUBROUTINE dbcsr_copy_into_existing
 
@@ -1453,9 +1431,6 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
 
-      IF (matrix_b%ref_count .EQ. 0) THEN
-         CALL dbcsr_create(matrix_b, template=matrix_a)
-      ENDIF
       CALL dbcsr_desymmetrize_deep_prv(matrix_a%prv, matrix_b%prv, untransposed_data=.TRUE.)
    END SUBROUTINE dbcsr_desymmetrize
 
@@ -1620,7 +1595,6 @@ CONTAINS
       b_dist = dbcsr_distribution(matrix_b)
       c_dist = dbcsr_distribution(matrix_c)
       IF (new_b_rows .OR. new_b_cols) THEN
-         CALL dbcsr_init(new_b)
          IF (.NOT. btr) THEN
             IF (new_b_cols) THEN
                CALL match_1_dist(new_col_dist, &
@@ -1719,7 +1693,6 @@ CONTAINS
          CALL dbcsr_distribution_release(new_dist)
          CALL dbcsr_complete_redistribute(matrix_b, new_b)
       ELSE
-         CALL dbcsr_init(new_b)
          CALL dbcsr_copy(new_b, matrix_b, shalprv_data=.TRUE.)
       ENDIF
 
@@ -1730,7 +1703,6 @@ CONTAINS
       ! Process matrix A
       new_a_rows = a_rows_total .NE. c_rows_total
       IF (new_a_rows) THEN
-         CALL dbcsr_init(new_a)
          IF (atr) THEN
             new_row_dist => dbcsr_distribution_row_dist(a_dist)
             new_row_clusters => dbcsr_distribution_row_clusters(a_dist)
@@ -1774,7 +1746,6 @@ CONTAINS
          CALL dbcsr_distribution_release(new_dist)
          CALL dbcsr_complete_redistribute(matrix_a, new_a)
       ELSE
-         CALL dbcsr_init(new_a)
          CALL dbcsr_copy(new_a, matrix_a, shalprv_data=.TRUE.)
       ENDIF
    END SUBROUTINE matrix_match_sizes

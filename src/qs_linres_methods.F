@@ -44,7 +44,6 @@ MODULE qs_linres_methods
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_checksum,&
                                               dbcsr_copy,&
-                                              dbcsr_init,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -1219,7 +1218,6 @@ CONTAINS
          !CALL compress(name,full=.TRUE.)
          DO ispin = 1, nspins
             ALLOCATE (p_env%kpp1(ispin)%matrix)
-            CALL dbcsr_init(p_env%kpp1(ispin)%matrix)
             CALL dbcsr_copy(p_env%kpp1(ispin)%matrix, matrix_s(1)%matrix, &
                             name=TRIM(name)//ADJUSTL(cp_to_string(ispin)))
             CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
@@ -1292,7 +1290,6 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao, nspins)
          DO ispin = 1, nspins
             ALLOCATE (kpp1_env%v_ao(ispin)%matrix)
-            CALL dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
             CALL dbcsr_copy(kpp1_env%v_ao(ispin)%matrix, matrix_s(1)%matrix, &
                             name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
          END DO

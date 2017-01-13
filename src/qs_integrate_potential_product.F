@@ -39,7 +39,7 @@ MODULE qs_integrate_potential_product
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_block_node, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
         dbcsr_distribution, dbcsr_distribution_has_threads, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_init, dbcsr_p_type, dbcsr_type, dbcsr_work_create
+        dbcsr_p_type, dbcsr_type, dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&
@@ -346,7 +346,6 @@ CONTAINS
          DO img = 1, nimages
             NULLIFY (dhmat(img)%matrix)
             ALLOCATE (dhmat(img)%matrix)
-            CALL dbcsr_init(dhmat(img)%matrix)
             CALL dbcsr_create(dhmat(img)%matrix, template=href, name='LocalH')
          END DO
       END IF
@@ -367,7 +366,6 @@ CONTAINS
             DO img = 1, nimages
                NULLIFY (deltap(img)%matrix)
                ALLOCATE (deltap(img)%matrix)
-               CALL dbcsr_init(deltap(img)%matrix)
             END DO
             IF (do_kp) THEN
                DO img = 1, nimages
