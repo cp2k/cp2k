@@ -53,8 +53,8 @@ MODULE qs_loc_types
 
 ! **************************************************************************************************
 !> \brief contains all the info needed by quickstep to calculate
-!>      the spread of a selectedset of orbitals and if required
-!>      to minimize or mazimize the spread by rotation of the orbitals
+!>      the spread of a selected set of orbitals and if required
+!>      to minimize or maximize the spread by rotation of the orbitals
 !> \param para_env info for the distribution of the calculations
 !> \param mo_coeff full matrix containing only the selected subset of orbitals
 !> \param local_molecules molecules distributed
@@ -71,7 +71,7 @@ MODULE qs_loc_types
 !>                 when the functional has to be defined directly using the products of MOS
 !>                 as in the case of the Pipek-Mezek definition.
 !> \param weights for a spread defined as extension of the orbitral in the box, these
-!>               factors renormilize with respect to the box size
+!>               factors renormalize with respect to the box size
 !> \note
 !>      this type should replace the previous set up for the localization of the wfn
 !> \par History
@@ -104,7 +104,7 @@ MODULE qs_loc_types
 
 ! **************************************************************************************************
 !> \brief A type that holds controling information for the
-!>    calculation of the spread of wfn and theoptimization of
+!>    calculation of the spread of wfn and the optimization of
 !>    the spread functional
 !> \param ref_count ...
 !> \param localization_method which algorithm is used for the optimization
