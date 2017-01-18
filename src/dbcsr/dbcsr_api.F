@@ -13,6 +13,9 @@
 !> \author  Joost VandeVondele
 ! **************************************************************************************************
 MODULE dbcsr_api
+   USE array_types,                     ONLY: array_data,&
+                                              array_exists,&
+                                              array_size
    USE dbcsr_block_access,              ONLY: dbcsr_get_block_p_prv         => dbcsr_get_block_p,&
                                               dbcsr_put_block_prv           => dbcsr_put_block,&
                                               dbcsr_reserve_all_blocks_prv  => dbcsr_reserve_all_blocks,&
@@ -39,11 +42,8 @@ MODULE dbcsr_api
    USE dbcsr_dist_methods,              ONLY: &
         dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
         dbcsr_distribution_get_num_images => dbcsr_distribution_get_num_images_1d, &
-        dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
-        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_local_cols, &
-        dbcsr_distribution_local_rows, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-        dbcsr_distribution_new_prv => dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_release, &
+        dbcsr_distribution_hold, dbcsr_distribution_mp, &
+        dbcsr_distribution_new_prv => dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist
    USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates_prv => dbcsr_get_stored_coordinates
    USE dbcsr_io,                        ONLY: dbcsr_binary_read_prv            => dbcsr_binary_read,&
@@ -173,6 +173,7 @@ MODULE dbcsr_api
    ! create / release
    PUBLIC :: dbcsr_mp_new
    PUBLIC :: dbcsr_mp_release
+   PUBLIC :: dbcsr_distribution_hold
    PUBLIC :: dbcsr_distribution_release
    PUBLIC :: dbcsr_distribution_new
    PUBLIC :: dbcsr_create
@@ -216,21 +217,7 @@ MODULE dbcsr_api
    ! getters / setters
    PUBLIC :: dbcsr_get_info
    PUBLIC :: dbcsr_distribution
-   PUBLIC :: dbcsr_distribution_local_cols
-   PUBLIC :: dbcsr_distribution_hold
-   PUBLIC :: dbcsr_distribution_nlocal_rows
-   PUBLIC :: dbcsr_distribution_nrows
-   PUBLIC :: dbcsr_distribution_local_rows
-   PUBLIC :: dbcsr_distribution_ncols
-   PUBLIC :: dbcsr_distribution_nlocal_cols
-   PUBLIC :: dbcsr_distribution_get_num_images
-   PUBLIC :: dbcsr_distribution_row_dist
-   PUBLIC :: dbcsr_distribution_col_dist
-   PUBLIC :: dbcsr_distribution_row_clusters
-   PUBLIC :: dbcsr_distribution_col_clusters
-   PUBLIC :: dbcsr_distribution_has_row_clusters
-   PUBLIC :: dbcsr_distribution_has_col_clusters
-   PUBLIC :: dbcsr_distribution_has_threads
+   PUBLIC :: dbcsr_distribution_get
    PUBLIC :: dbcsr_distribution_mp
    PUBLIC :: dbcsr_mp_group
    PUBLIC :: dbcsr_mp_mynode
@@ -274,6 +261,7 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_deallocate_matrix_set
 
    ! misc
+   PUBLIC :: dbcsr_distribution_get_num_images
    PUBLIC :: convert_offsets_to_sizes
    PUBLIC :: convert_sizes_to_offsets
    PUBLIC :: dbcsr_run_tests
@@ -899,6 +887,41 @@ CONTAINS
                               matrix_type=matrix_type, &
                               data_type=data_type)
    END SUBROUTINE dbcsr_get_info
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param row_dist ...
+!> \param col_dist ...
+!> \param row_cluster_dist ...
+!> \param col_cluster_dist ...
+!> \param has_col_clusters ...
+!> \param has_row_clusters ...
+!> \param nrows ...
+!> \param ncols ...
+!> \param has_threads ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_distribution_get(dist, row_dist, col_dist, &
+                                     row_cluster_dist, col_cluster_dist, &
+                                     has_col_clusters, has_row_clusters, nrows, ncols, has_threads)
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_dist, col_dist, row_cluster_dist, &
+                                                            col_cluster_dist
+      LOGICAL, OPTIONAL                                  :: has_col_clusters, has_row_clusters
+      INTEGER, OPTIONAL                                  :: nrows, ncols
+      LOGICAL, OPTIONAL                                  :: has_threads
+
+      IF (PRESENT(row_dist)) row_dist => array_data(dist%d%row_dist_block)
+      IF (PRESENT(col_dist)) col_dist => array_data(dist%d%col_dist_block)
+      IF (PRESENT(row_cluster_dist)) row_cluster_dist => array_data(dist%d%row_dist_cluster)
+      IF (PRESENT(col_cluster_dist)) col_cluster_dist => array_data(dist%d%col_dist_cluster)
+      IF (PRESENT(has_col_clusters)) has_col_clusters = array_exists(dist%d%col_dist_cluster)
+      IF (PRESENT(has_row_clusters)) has_row_clusters = array_exists(dist%d%row_dist_cluster)
+      IF (PRESENT(nrows)) nrows = array_size(dist%d%row_dist_block)
+      IF (PRESENT(ncols)) ncols = array_size(dist%d%col_dist_block)
+      IF (PRESENT(has_threads)) has_threads = dist%d%has_thread_dist
+
+   END SUBROUTINE dbcsr_distribution_get
 
 ! **************************************************************************************************
 !> \brief ...

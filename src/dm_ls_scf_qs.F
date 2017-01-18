@@ -21,14 +21,11 @@ MODULE dm_ls_scf_qs
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-        dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_hold, dbcsr_distribution_mp, dbcsr_distribution_new, &
-        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-        dbcsr_distribution_row_dist, dbcsr_finalize, dbcsr_get_info, dbcsr_mp_obj, dbcsr_multiply, &
-        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_real_4, dbcsr_type_real_8
+        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_finalize, dbcsr_get_info, &
+        dbcsr_mp_obj, dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_type, dbcsr_type_real_4, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular,&
                                               ls_mstruct_type,&
@@ -110,8 +107,10 @@ CONTAINS
                                                             ls_data_type, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
                                                             clustered_blk_sizes, primus_of_mol
-      INTEGER, DIMENSION(:), POINTER :: blk_dist, clustered_col_clusters, clustered_col_dist, &
-         clustered_row_clusters, clustered_row_dist, ls_blk_sizes
+      INTEGER, DIMENSION(:), POINTER :: clustered_col_clusters, clustered_col_dist, &
+         clustered_row_clusters, clustered_row_dist, ls_blk_sizes, ls_col_cluster_dist, &
+         ls_col_dist, ls_row_cluster_dist, ls_row_dist
+      LOGICAL                                            :: ls_has_col_clusters, ls_has_row_clusters
       TYPE(dbcsr_distribution_obj)                       :: ls_dist
       TYPE(dbcsr_mp_obj)                                 :: mp_env
 
@@ -120,6 +119,13 @@ CONTAINS
       ! Defaults -----------------------------------------------------------------------------------
       CALL dbcsr_get_info(matrix_qs, col_blk_size=ls_blk_sizes, distribution=ls_dist)
       CALL dbcsr_distribution_hold(ls_dist)
+      CALL dbcsr_distribution_get(ls_dist, &
+                                  row_dist=ls_row_dist, &
+                                  col_dist=ls_col_dist, &
+                                  row_cluster_dist=ls_row_cluster_dist, &
+                                  col_cluster_dist=ls_col_cluster_dist, &
+                                  has_col_clusters=ls_has_col_clusters, &
+                                  has_row_clusters=ls_has_row_clusters)
       ls_data_type = dbcsr_type_real_8
       IF (ls_mstruct%single_precision) ls_data_type = dbcsr_type_real_4
 
@@ -156,31 +162,27 @@ CONTAINS
 
          ! row
          ALLOCATE (clustered_row_dist(nmol))
-         blk_dist => dbcsr_distribution_row_dist(ls_dist)
          DO imol = 1, nmol
-            clustered_row_dist(imol) = blk_dist(primus_of_mol(imol))
+            clustered_row_dist(imol) = ls_row_dist(primus_of_mol(imol))
          ENDDO
          NULLIFY (clustered_row_clusters)
-         IF (dbcsr_distribution_has_row_clusters(ls_dist)) THEN
+         IF (ls_has_row_clusters) THEN
             ALLOCATE (clustered_row_clusters(nmol))
-            blk_dist => dbcsr_distribution_row_clusters(ls_dist)
             DO imol = 1, nmol
-               clustered_row_clusters(imol) = blk_dist(primus_of_mol(imol))
+               clustered_row_clusters(imol) = ls_row_cluster_dist(primus_of_mol(imol))
             ENDDO
          ENDIF
 
          ! col
          ALLOCATE (clustered_col_dist(nmol))
-         blk_dist => dbcsr_distribution_col_dist(ls_dist)
          DO imol = 1, nmol
-            clustered_col_dist(imol) = blk_dist(primus_of_mol(imol))
+            clustered_col_dist(imol) = ls_col_dist(primus_of_mol(imol))
          ENDDO
          NULLIFY (clustered_col_clusters)
-         IF (dbcsr_distribution_has_col_clusters(ls_dist)) THEN
+         IF (ls_has_col_clusters) THEN
             ALLOCATE (clustered_col_clusters(nmol))
-            blk_dist => dbcsr_distribution_col_clusters(ls_dist)
             DO imol = 1, nmol
-               clustered_col_clusters(imol) = blk_dist(primus_of_mol(imol))
+               clustered_col_clusters(imol) = ls_col_cluster_dist(primus_of_mol(imol))
             ENDDO
          ENDIF
 

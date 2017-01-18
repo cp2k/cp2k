@@ -38,7 +38,7 @@ MODULE qs_integrate_potential_product
    USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_block_node, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution, dbcsr_distribution_has_threads, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_distribution, dbcsr_distribution_get, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_p_type, dbcsr_type, dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
@@ -160,8 +160,8 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, found, h_duplicated, &
-         map_consistent, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, &
-         pab_required, scatter, use_subpatch, use_virial
+         has_threads, map_consistent, my_compute_tau, my_force_adm, my_gapw, new_set_pair_coming, &
+         p_duplicated, pab_required, scatter, use_subpatch, use_virial
       REAL(KIND=dp)                                      :: admm_scal_fac, dab, eps_gvg_rspace, &
                                                             rab2, scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb
@@ -435,7 +435,7 @@ CONTAINS
 !$OMP PRIVATE(p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$OMP PRIVATE(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
 !$OMP PRIVATE(iset_new,jset_new,ipgf_new,jpgf_new,scalef), &
-!$OMP PRIVATE(itask)
+!$OMP PRIVATE(itask,has_threads)
 
       ithread = 0
 !$    ithread = omp_get_thread_num()
@@ -456,7 +456,8 @@ CONTAINS
 
          DO img = 1, nimages
             CALL dbcsr_work_create(dhmat(img)%matrix, work_mutable=.TRUE., n=nthread)
-!$          IF (.NOT. dbcsr_distribution_has_threads(dbcsr_distribution(dhmat(img)%matrix))) &
+            CALL dbcsr_distribution_get(dbcsr_distribution(dhmat(img)%matrix), has_threads=has_threads)
+!$          IF (.NOT. has_threads) &
 !$             CPABORT("No thread distribution defined.")
          END DO
 !$OMP BARRIER

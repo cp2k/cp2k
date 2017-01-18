@@ -21,9 +21,9 @@ MODULE dbcsr_tensor_types
                                               sizes_of_arrays,&
                                               sum_of_arrays
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution, dbcsr_distribution_col_dist, &
+        dbcsr_create, dbcsr_distribution, dbcsr_distribution_get, &
         dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_finalize, &
+        dbcsr_distribution_release, dbcsr_distribution_get, dbcsr_finalize, &
         dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_obj, &
         dbcsr_mp_release, dbcsr_get_info, dbcsr_type, dbcsr_release
    USE dbcsr_tensor_index,              ONLY: get_2d_indices,&
@@ -376,6 +376,7 @@ CONTAINS
       TYPE(dbcsr_distribution_obj)                :: matrix_dist
       TYPE(dbcsr_t_distribution_type)             :: dist
       INTEGER, DIMENSION(:), POINTER              :: row_blk_size, col_blk_size
+      INTEGER, DIMENSION(:), POINTER              :: col_dist, row_dist
 
       IF (PRESENT(name)) THEN
          name_in = name
@@ -393,13 +394,13 @@ CONTAINS
 
       comm_2d = dbcsr_mp_group(dbcsr_distribution_mp(matrix_dist))
       comm_nd = dbcsr_t_nd_mp_comm(comm_2d, [order_in(1)], [order_in(2)])
+      CALL dbcsr_distribution_get(matrix_dist, row_dist=row_dist, col_dist=col_dist)
 
       CALL dbcsr_t_distribution_new( &
          dist, &
          comm_nd, comm_2d, &
          [order_in(1)], [order_in(2)], &
-         dbcsr_distribution_row_dist(matrix_dist), &
-         dbcsr_distribution_col_dist(matrix_dist))
+         row_dist, col_dist)
 
       CALL dbcsr_get_info(matrix_in, &
                           data_type=data_type, &

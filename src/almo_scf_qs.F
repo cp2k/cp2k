@@ -34,13 +34,12 @@ MODULE almo_scf_qs
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
-        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
-        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, &
-        dbcsr_get_stored_coordinates, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, &
-        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_distribution_get, dbcsr_distribution_mp, dbcsr_distribution_new, &
+        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, &
+        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_nblkcols_total, &
+        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
                                               almo_constraint_block_diagonal,&
                                               almo_constraint_distance,&
@@ -165,11 +164,9 @@ CONTAINS
 
          ! distribution pattern is the same for all matrix types (ao, occ, virt)
          IF (dimen == 1) THEN !rows
-            blk_distr => dbcsr_distribution_row_dist(dist_qs)
-            cluster_distr => dbcsr_distribution_row_clusters(dist_qs)
+            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster_dist=cluster_distr)
          ELSE !columns
-            blk_distr => dbcsr_distribution_col_dist(dist_qs)
-            cluster_distr => dbcsr_distribution_col_clusters(dist_qs)
+            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster_dist=cluster_distr)
          ENDIF
 
          NULLIFY (cluster_distr_new)
