@@ -73,7 +73,8 @@ MODULE dbcsr_api
         dbcsr_valid_index_prv               => dbcsr_valid_index, dbcsr_wm_use_mutable
    USE dbcsr_mp_methods,                ONLY: &
         dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
-        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_release
+        dbcsr_mp_new_prv => dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+        dbcsr_mp_release
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_prv => dbcsr_multiply
    USE dbcsr_operations,                ONLY: &
         dbcsr_add_on_diag_prv               => dbcsr_add_on_diag, &
@@ -135,6 +136,8 @@ MODULE dbcsr_api
                                               int_8,&
                                               real_4,&
                                               real_8
+   USE message_passing,                 ONLY: mp_cart_rank,&
+                                              mp_environ
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "../base/base_uses.f90"
@@ -465,6 +468,67 @@ MODULE dbcsr_api
    PRIVATE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Creates a new dbcsr_mp_obj
+!> \param mp_env ...
+!> \param group ...
+!> \param pgrid Optional, if not provided group is assumed to be a 2D cartesian communicator
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE dbcsr_mp_new(mp_env, group, pgrid)
+      TYPE(dbcsr_mp_obj), INTENT(OUT)                    :: mp_env
+      INTEGER, INTENT(IN)                                :: group
+      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
+
+      INTEGER                                            :: mynode, mypcol, myprow, numnodes, pcol, &
+                                                            prow
+      INTEGER, DIMENSION(2)                              :: coord, mycoord, pdims
+      INTEGER, DIMENSION(:, :), POINTER                  :: mypgrid
+      LOGICAL, DIMENSION(2)                              :: periods
+
+      CALL mp_environ(numnodes, mynode, group)
+
+      IF (PRESENT(pgrid)) THEN
+         mypgrid => pgrid
+         CPASSERT(LBOUND(pgrid, 1) == 0 .AND. LBOUND(pgrid, 2) == 0)
+         pdims(1) = SIZE(pgrid, 1)
+         pdims(2) = SIZE(pgrid, 2)
+         myprow = -1; mypcol = -1
+         outer: &
+            DO prow = 0, pdims(1)-1
+            DO pcol = 0, pdims(2)-1
+               IF (pgrid(prow, pcol) == mynode) THEN
+                  myprow = prow
+                  mypcol = pcol
+                  EXIT outer
+               ENDIF
+            ENDDO
+         ENDDO outer
+
+      ELSE
+         CALL mp_environ(group, 2, pdims, mycoord, periods)
+         CPASSERT(pdims(1)*pdims(2) == numnodes)
+         myprow = mycoord(1)
+         mypcol = mycoord(2)
+         ALLOCATE (mypgrid(0:pdims(1)-1, 0:pdims(2)-1))
+         DO prow = 0, pdims(1)-1
+            DO pcol = 0, pdims(2)-1
+               coord = (/prow, pcol/)
+               CALL mp_cart_rank(group, coord, mypgrid(prow, pcol))
+            ENDDO
+         ENDDO
+      ENDIF
+
+      CPASSERT(mynode == mypgrid(myprow, mypcol))
+
+      ! create the new mp enviroment
+      CALL dbcsr_mp_new_prv(mp_env, pgrid=mypgrid, mp_group=group, &
+                            mynode=mynode, numnodes=numnodes, myprow=myprow, mypcol=mypcol)
+
+      IF (.NOT. PRESENT(pgrid)) DEALLOCATE (mypgrid)
+
+   END SUBROUTINE dbcsr_mp_new
 
 ! **************************************************************************************************
 !> \brief ...

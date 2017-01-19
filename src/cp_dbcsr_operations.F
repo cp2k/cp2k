@@ -128,16 +128,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_${fm}$_to_dbcsr_bc'
 
-      INTEGER :: col, group, handle, mypcol, myproc, myprow, &
-                 ncol_block, ncol_global, nrow_block, nrow_global, numproc, row
+      INTEGER :: col, group, handle, ncol_block, ncol_global, nrow_block, nrow_global, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_col, first_row, last_col, last_row
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       ${type}$(KIND=dp), DIMENSION(:, :), POINTER        :: fm_block, dbcsr_block
-      TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(dbcsr_distribution_obj)                       :: bc_dist
       TYPE(dbcsr_mp_obj)                                 :: mp_env
-      TYPE(dbcsr_iterator_type)                            :: iter
+      TYPE(dbcsr_iterator_type)                          :: iter
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
 
       CALL timeset(routineN, handle)
 
@@ -146,14 +144,9 @@ CONTAINS
 #:endif
 
       ! Create processor grid
-      context => fm%matrix_struct%context
-      pgrid => context%blacs2mpi
       group = fm%matrix_struct%para_env%group
-      myproc = fm%matrix_struct%para_env%mepos
-      numproc = fm%matrix_struct%para_env%num_pe
-      myprow = context%mepos(1)
-      mypcol = context%mepos(2)
-      CALL dbcsr_mp_new(mp_env, pgrid, group, myproc, numproc, myprow, mypcol)
+      pgrid => fm%matrix_struct%context%blacs2mpi
+      CALL dbcsr_mp_new(mp_env, group=group, pgrid=pgrid)
 
       ! Create a block-cyclic distribution compatible with the FM matrix.
       nrow_block = fm%matrix_struct%nrow_block
@@ -407,41 +400,26 @@ CONTAINS
 !> \brief Creates a DBCSR distribution from a distribution_2d
 !> \param[in] dist2d          distribution_2d
 !> \param[out] dist           DBCSR distribution
-!> \param mp_obj ...
 !> \par History
 !>    move form dbcsr_operation 01.2010
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_dist2d_to_dist(dist2d, dist, mp_obj)
+   SUBROUTINE cp_dbcsr_dist2d_to_dist(dist2d, dist)
       TYPE(distribution_2d_type), INTENT(IN), TARGET     :: dist2d
       TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
-      TYPE(dbcsr_mp_obj), INTENT(IN), OPTIONAL           :: mp_obj
 
-      INTEGER                                            :: mypcol, myproc, myprow, numproc
-      INTEGER, DIMENSION(:, :), POINTER                  :: col_dist_data, pgrid, row_dist_data
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid, col_dist_data, row_dist_data
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_mp_obj)                                 :: mp_env
       TYPE(distribution_2d_type), POINTER                :: dist2d_p
 
-!
-!   ---------------------------------------------------------------------------
-
       dist2d_p => dist2d
       CALL distribution_2d_get(dist2d_p, &
-                               row_distribution=row_dist_data, col_distribution=col_dist_data, &
+                               row_distribution=row_dist_data, &
+                               col_distribution=col_dist_data, &
                                blacs_env=blacs_env)
-      CALL get_blacs_info(blacs_env, para_env=para_env, &
-                          my_process_row=myprow, my_process_column=mypcol, &
-                          blacs2mpi=pgrid)
-      myproc = para_env%mepos
-      numproc = para_env%num_pe
-      IF (PRESENT(mp_obj)) THEN
-         mp_env = mp_obj
-         CALL dbcsr_mp_hold(mp_env)
-      ELSE
-         CALL dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc, &
-                              myprow, mypcol)
-      ENDIF
+      CALL get_blacs_info(blacs_env, para_env=para_env, blacs2mpi=pgrid)
+      CALL dbcsr_mp_new(mp_env, group=para_env%group, pgrid=pgrid)
       CALL dbcsr_distribution_new(dist, mp_env, row_dist_data, col_dist_data)
       CALL dbcsr_mp_release(mp_env)
    END SUBROUTINE cp_dbcsr_dist2d_to_dist

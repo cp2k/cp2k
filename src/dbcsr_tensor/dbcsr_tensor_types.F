@@ -149,12 +149,9 @@ CONTAINS
       INTEGER, INTENT(IN)                             :: comm_nd, comm_2d
       INTEGER, DIMENSION(:), INTENT(IN)               :: map1_2d, map2_2d
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL     :: ${varlist("nd_dist")}$
-      INTEGER                                         :: bcol, brow, mynode, ndims, &
-                                                         numnodes, pcol, prow
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)           :: pgrid
+      INTEGER                                         :: bcol, brow, ndims
       INTEGER, DIMENSION(2)                           :: bdims_2d, pdims_2d_check, &
-                                                         coord, dist_2d, &
-                                                         pdims_2d, task_coor_2d
+                                                         dist_2d, pdims_2d, task_coor_2d
       INTEGER, DIMENSION(:), POINTER                  :: col_dist, row_dist
       INTEGER, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d)) :: dims, ind, nblks_nd, task_coor
       LOGICAL, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d)) :: periods
@@ -169,8 +166,6 @@ CONTAINS
       CALL create_array_list(nd_dist, ndims, ${varlist("nd_dist")}$)
 
       nblks_nd(:) = sizes_of_arrays(nd_dist)
-
-      CALL mp_environ(numnodes, mynode, comm_nd)
 
       ! check that 2d process topology is consistent with nd topology.
       CALL mp_environ(comm_nd, ndims, dims, task_coor, periods)
@@ -189,19 +184,8 @@ CONTAINS
          CPABORT("inconsistent process grid dimensions")
       ENDIF
 
-      ALLOCATE (pgrid(0:pdims_2d(1)-1, 0:pdims_2d(2)-1))
-      DO prow = 0, pdims_2d(1)-1
-         DO pcol = 0, pdims_2d(2)-1
-            coord = (/prow, pcol/)
-            CALL mp_cart_rank(comm_2d, coord, pgrid(prow, pcol))
-         ENDDO
-      ENDDO
-
-      CALL mp_environ(numnodes, mynode, comm_2d)
-
       ! setup the mp enviroment
-      CALL dbcsr_mp_new(mp_env, pgrid, comm_2d, mynode, numnodes, &
-                        myprow=task_coor_2d(1), mypcol=task_coor_2d(2))
+      CALL dbcsr_mp_new(mp_env, comm_2d)
 
       ! create 2d distribution from nd distribution
       ALLOCATE (row_dist(bdims_2d(1)), col_dist(bdims_2d(2)))

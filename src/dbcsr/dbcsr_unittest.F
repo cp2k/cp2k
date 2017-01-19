@@ -28,7 +28,6 @@ PROGRAM dbcsr_unittest
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_cart_rank,&
                                               mp_comm_free,&
                                               mp_environ,&
                                               mp_world_finalize,&
@@ -39,10 +38,8 @@ PROGRAM dbcsr_unittest
 
    IMPLICIT NONE
 
-   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-                                               prow, pcol, io_unit, handle
+   INTEGER                                  :: mp_comm, group, numnodes, mynode, io_unit, handle
    INTEGER, DIMENSION(2)                    :: npdims, myploc
-   INTEGER, DIMENSION(:, :), POINTER         :: pgrid
    TYPE(dbcsr_mp_obj)                       :: mp_env
 
    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_multiply'
@@ -57,19 +54,12 @@ PROGRAM dbcsr_unittest
    ! initialize mpi
    CALL mp_world_init(mp_comm)
 
-   ! setup the mp environment
+   ! setup the mp enviroment
    npdims(:) = 0
    CALL mp_cart_create(mp_comm, 2, npdims, myploc, group)
+   CALL dbcsr_mp_new(mp_env, group)
+
    CALL mp_environ(numnodes, mynode, group)
-   ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
-   DO prow = 0, npdims(1)-1
-      DO pcol = 0, npdims(2)-1
-         CALL mp_cart_rank(group, (/prow, pcol/), pgrid(prow, pcol))
-      ENDDO
-   ENDDO
-   CALL dbcsr_mp_new(mp_env, pgrid, group, mynode, numnodes, &
-                     myprow=myploc(1), mypcol=myploc(2))
-   DEALLOCATE (pgrid)
 
    !
    ! set standard output parameters

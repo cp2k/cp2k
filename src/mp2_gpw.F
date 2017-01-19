@@ -3508,9 +3508,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mat_M', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: col_size, handle, icol, irow, mypcol, &
-                                                            myproc, myprow, nblkcols_total, &
-                                                            numproc, row_size
+      INTEGER                                            :: col_size, handle, icol, irow, &
+                                                            nblkcols_total, row_size
       INTEGER, DIMENSION(:, :), POINTER                  :: col_dist_data, pgrid, row_dist_data
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_obj)                       :: dist
@@ -3518,15 +3517,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_blacs_info(blacs_env_sub_P, para_env=para_env, &
-                          my_process_row=myprow, my_process_column=mypcol, &
-                          blacs2mpi=pgrid)
-
-      myproc = para_env%mepos
-      numproc = para_env%num_pe
-
-      CALL dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc, &
-                        myprow, mypcol)
+      CALL get_blacs_info(blacs_env_sub_P, para_env=para_env, blacs2mpi=pgrid)
+      CALL dbcsr_mp_new(mp_env, group=para_env%group, pgrid=pgrid)
 
       ! just round robin for row_dist_data and col_dist_data
       row_size = SIZE(pgrid, 1)

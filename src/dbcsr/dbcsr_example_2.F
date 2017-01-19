@@ -23,7 +23,6 @@ PROGRAM dbcsr_example_2
    USE kinds,                           ONLY: real_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
-                                              mp_cart_rank,&
                                               mp_comm_free,&
                                               mp_environ,&
                                               mp_world_finalize,&
@@ -37,10 +36,9 @@ PROGRAM dbcsr_example_2
 
    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
    INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-                                               prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
+                                               nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
                                                row, col, row_s, col_s, io_unit, max_row_size, max_col_size
-   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
-   INTEGER, DIMENSION(:, :), POINTER         :: pgrid
+   INTEGER, DIMENSION(2)                    :: npdims, myploc
    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
    TYPE(dbcsr_distribution_obj)             :: dist
    TYPE(dbcsr_mp_obj)                       :: mp_env
@@ -49,21 +47,18 @@ PROGRAM dbcsr_example_2
 
    !***************************************************************************************
 
+   !
+   ! initialize mpi
    CALL mp_world_init(mp_comm)
+
+   !
+   ! setup the mp enviroment
    npdims(:) = 0
    CALL mp_cart_create(mp_comm, 2, npdims, myploc, group)
+   CALL dbcsr_mp_new(mp_env, group)
+
    CALL mp_environ(numnodes, mynode, group)
-   ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
-   DO prow = 0, npdims(1)-1
-      DO pcol = 0, npdims(2)-1
-         coord = (/prow, pcol/)
-         CALL mp_cart_rank(group, coord, pgrid(prow, pcol))
-      ENDDO
-   ENDDO
-   CALL dbcsr_mp_new(mp_env, pgrid, group, mynode, numnodes, &
-                     myprow=myploc(1), mypcol=myploc(2))
    WRITE (*, *) 'mynode ', mynode, ' numnodes', numnodes
-   DEALLOCATE (pgrid)
 
    !***************************************************************************************
    !
