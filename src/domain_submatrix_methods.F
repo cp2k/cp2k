@@ -15,13 +15,12 @@ MODULE domain_submatrix_methods
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_mp_mynode, &
-        dbcsr_mp_numnodes, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_reserve_block2d, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, &
-        dbcsr_work_create
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+        dbcsr_reserve_block2d, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_types,          ONLY: domain_map_type,&
                                               domain_submatrix_type,&
                                               select_row_col
@@ -740,8 +739,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: curr_norm, send_norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_norm
 
-!TYPE(dbcsr_type), INTENT(IN)                        :: distr_pattern
-
       CALL timeset(routineN, handle)
 
       send_norm = 0.0_dp
@@ -792,8 +789,6 @@ CONTAINS
                                                             ndomainsA, ndomainsB
       REAL(KIND=dp)                                      :: curr_trace, send_trace
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_trace
-
-!TYPE(dbcsr_type), INTENT(IN)                        :: distr_pattern
 
       CALL timeset(routineN, handle)
 
@@ -878,6 +873,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: antifactor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
       REAL(KIND=dp), DIMENSION(:), POINTER               :: block_p
+      TYPE(dbcsr_distribution_obj)                       :: pattern_dist
 
 !INTEGER, PARAMETER                         :: select_row_col = 1
 !INTEGER, PARAMETER                         :: select_row = 2
@@ -890,13 +886,8 @@ CONTAINS
       nblkcols_tot = dbcsr_nblkcols_total(matrix)
 
       ndomains = nblkcols_tot ! RZK-warning not true for atomic distributions
-
-      nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp( &
-                                 dbcsr_distribution(distr_pattern)))
-      GroupID = dbcsr_mp_group(dbcsr_distribution_mp( &
-                               dbcsr_distribution(distr_pattern)))
-      myNode = dbcsr_mp_mynode(dbcsr_distribution_mp( &
-                               dbcsr_distribution(distr_pattern)))
+      CALL dbcsr_get_info(distr_pattern, distribution=pattern_dist)
+      CALL dbcsr_distribution_get(pattern_dist, numnodes=nNodes, group=GroupID, mynode=myNode)
 
       matrix_type = dbcsr_get_matrix_type(matrix)
 
@@ -1373,6 +1364,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_distribution_obj)                       :: pattern_dist
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
@@ -1395,12 +1387,8 @@ CONTAINS
          CPABORT("domain mismatch")
       ENDIF
 
-      nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp( &
-                                 dbcsr_distribution(distr_pattern)))
-      GroupID = dbcsr_mp_group(dbcsr_distribution_mp( &
-                               dbcsr_distribution(distr_pattern)))
-      myNode = dbcsr_mp_mynode(dbcsr_distribution_mp( &
-                               dbcsr_distribution(distr_pattern)))
+      CALL dbcsr_get_info(distr_pattern, distribution=pattern_dist)
+      CALL dbcsr_distribution_get(pattern_dist, numnodes=nNodes, group=GroupID, mynode=myNode)
 
       matrix_type = dbcsr_get_matrix_type(matrix)
       IF (matrix_type .NE. dbcsr_type_no_symmetry) THEN

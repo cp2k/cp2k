@@ -48,11 +48,11 @@ MODULE almo_scf_optimizer
                                               ct_step_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
         dbcsr_function_of_elements, dbcsr_get_diag, dbcsr_get_info, dbcsr_hadamard_product, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_norm, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_norm, &
         dbcsr_norm_maxabsnorm, dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, &
         dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_triu, &
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
@@ -766,6 +766,7 @@ CONTAINS
          t1, t2, t_norm, tau, time_step
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type) :: FTsiginv, fvo_0, grad, inv_eiv, m_tmp_nn_1, m_tmp_no_1, m_tmp_no_2, &
          m_tmp_no_3, m_tmp_oo_1, prec_oo, prec_oo_inv, prec_vv, prev_grad, prev_minus_prec_grad, &
@@ -825,8 +826,8 @@ CONTAINS
       ! control of the line search
       fixed_line_search_niter = 0 ! init to zero, change when eps is small enough
 
-      ncores = dbcsr_mp_numnodes(dbcsr_distribution_mp( &
-                                 dbcsr_distribution(almo_scf_env%matrix_s(1))))
+      CALL dbcsr_get_info(almo_scf_env%matrix_s(1), distribution=dist)
+      CALL dbcsr_distribution_get(dist, numnodes=ncores)
 
       IF (almo_scf_env%nspins == 1) THEN
          spin_factor = 2.0_dp

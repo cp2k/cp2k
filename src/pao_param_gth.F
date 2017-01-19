@@ -14,9 +14,8 @@ MODULE pao_param_gth
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
+        dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, &
         dbcsr_set, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
@@ -168,7 +167,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
-      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(pao%matrix_V_terms)))
+      CALL dbcsr_get_info(pao%matrix_V_terms, group=group)
       natoms = SIZE(nterms)
 
       CALL dbcsr_create(matrix_gth_overlap, &
@@ -262,11 +261,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms, group=group)
       natoms = SIZE(nterms)
       ALLOCATE (gaps(natoms))
       gaps(:) = HUGE(dp)
-      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(pao%matrix_X)))
 
       ! allocate arrays for world-view
       ALLOCATE (world_X(SUM(nterms)), world_G(SUM(nterms)))

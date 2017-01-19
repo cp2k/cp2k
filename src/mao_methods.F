@@ -31,11 +31,10 @@ MODULE mao_methods
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
-        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_mp_group, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_desymmetrize, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: mao_basis_ext,&
                                               mao_basis_orb,&
                                               mao_basis_prim
@@ -335,7 +334,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
-      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(fmat1)))
+      CALL dbcsr_get_info(fmat1, group=group)
       CALL mp_sum(spro, group)
 
    END FUNCTION mao_scalar_product

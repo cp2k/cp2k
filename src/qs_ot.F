@@ -19,13 +19,12 @@ MODULE qs_ot
                                               cp_dbcsr_syevd
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution, dbcsr_distribution_mp, &
-        dbcsr_filter, dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_multiply, dbcsr_release, &
-        dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_transposed, &
-        dbcsr_type
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution_obj, dbcsr_filter, &
+        dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE preconditioner,                  ONLY: apply_preconditioner
@@ -117,10 +116,11 @@ CONTAINS
       INTEGER, PARAMETER                                 :: taylor_order = 50
       REAL(KIND=dp), PARAMETER                           :: alpha = 0.1_dp, f2_eps = 0.01_dp
 
-      INTEGER                                            :: blk, col, col_size, handle, i, k, n, &
-                                                            output_unit, p, row, row_size
+      INTEGER                                            :: blk, col, col_size, group, handle, i, k, &
+                                                            n, output_unit, p, row, row_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: DATA
       REAL(KIND=dp)                                      :: expfactor, f2, norm_fro, norm_gct, tmp
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type), POINTER                          :: C, Gp1, Gp2, GU, U
 
@@ -154,7 +154,8 @@ CONTAINS
          ENDDO
       ENDDO
       CALL dbcsr_iterator_stop(iter)
-      CALL mp_sum(f2, dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(C))))
+      CALL dbcsr_get_info(C, group=group)
+      CALL mp_sum(f2, group)
       output_unit = cp_logger_get_default_io_unit()
       IF (output_unit > 0) WRITE (output_unit, *) routineN//' f2 =', f2
       !
@@ -162,8 +163,9 @@ CONTAINS
       CALL dbcsr_multiply('T', 'N', 1.0_dp, C, C_NEW, 0.0_dp, GU)
       !
       ! antisymetrize
+      CALL dbcsr_get_info(GU, distribution=dist)
       CALL dbcsr_transposed(U, GU, shallow_data_copy=.FALSE., &
-                            use_distribution=dbcsr_distribution(GU), &
+                            use_distribution=dist, &
                             transpose_distribution=.FALSE.)
       CALL dbcsr_add(GU, U, alpha_scalar=-0.5_dp, beta_scalar=0.5_dp)
       !-------------------------------------------------------------------
@@ -939,6 +941,7 @@ CONTAINS
       COMPLEX(dp), DIMENSION(:, :), POINTER :: data_z
       INTEGER::row, col, blk, row_offset, col_offset, row_size, col_size
       LOGICAL::found
+      TYPE(dbcsr_distribution_obj)                       :: dist
 
       CALL timeset(routineN, handle)
 
@@ -991,8 +994,9 @@ CONTAINS
 
          CALL dbcsr_copy(qs_ot_env%matrix_buf1, cmat_buf1)
 
+         CALL dbcsr_get_info(qs_ot_env%matrix_buf3, distribution=dist)
          CALL dbcsr_transposed(qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf1, &
-                               shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(qs_ot_env%matrix_buf3), &
+                               shallow_data_copy=.FALSE., use_distribution=dist, &
                                transpose_distribution=.FALSE.)
          CALL dbcsr_add(qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf2, &
                         alpha_scalar=-1.0_dp, beta_scalar=+1.0_dp)
@@ -1230,6 +1234,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, k, n
+      TYPE(dbcsr_distribution_obj)                       :: dist
 
       CALL timeset(routineN, handle)
 
@@ -1271,8 +1276,9 @@ CONTAINS
                           rzero, qs_ot_env%matrix_buf1)
       CALL dbcsr_multiply('N', 'N', rone, qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
                           rzero, qs_ot_env%matrix_buf3)
+      CALL dbcsr_get_info(qs_ot_env%matrix_buf3, distribution=dist)
       CALL dbcsr_transposed(qs_ot_env%matrix_buf1, qs_ot_env%matrix_buf3, &
-                            shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(qs_ot_env%matrix_buf3), &
+                            shallow_data_copy=.FALSE., use_distribution=dist, &
                             transpose_distribution=.FALSE.)
       CALL dbcsr_add(qs_ot_env%matrix_buf3, qs_ot_env%matrix_buf1, &
                      alpha_scalar=rone, beta_scalar=rone)
@@ -1305,6 +1311,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, k, n
       REAL(KIND=dp)                                      :: cosfactor, sinfactor
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_type), POINTER                          :: matrix_left, matrix_right
 
       CALL timeset(routineN, handle)
@@ -1329,8 +1336,9 @@ CONTAINS
 
       ! overlap hc*x and add its transpose to matrix_left
       CALL dbcsr_multiply('T', 'N', rone, matrix_hc, matrix_x, rzero, matrix_left)
+      CALL dbcsr_get_info(matrix_left, distribution=dist)
       CALL dbcsr_transposed(qs_ot_env%matrix_buf1, matrix_left, &
-                            shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(matrix_left), &
+                            shallow_data_copy=.FALSE., use_distribution=dist, &
                             transpose_distribution=.FALSE.)
       CALL dbcsr_add(matrix_left, qs_ot_env%matrix_buf1, &
                      alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
@@ -1358,8 +1366,9 @@ CONTAINS
 
       ! overlap hc*c0 and add its transpose to matrix_left
       CALL dbcsr_multiply('T', 'N', rone, matrix_hc, qs_ot_env%matrix_c0, rzero, matrix_left)
+      CALL dbcsr_get_info(matrix_left, distribution=dist)
       CALL dbcsr_transposed(qs_ot_env%matrix_buf1, matrix_left, &
-                            shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(matrix_left), &
+                            shallow_data_copy=.FALSE., use_distribution=dist, &
                             transpose_distribution=.FALSE.)
       CALL dbcsr_add(matrix_left, qs_ot_env%matrix_buf1, 1.0_dp, 1.0_dp)
       CALL dbcsr_copy(matrix_right, matrix_left)

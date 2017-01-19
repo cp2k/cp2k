@@ -37,10 +37,9 @@ MODULE rt_propagation_output
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_get_occupation, &
-        dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, dbcsr_p_type, dbcsr_set, &
-        dbcsr_type
+        dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type
    USE input_constants,                 ONLY: ehrenfest,&
                                               real_time_propagation
    USE input_section_types,             ONLY: section_get_ivals,&
@@ -459,7 +458,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: col_atom, handle, i, ispin, row_atom
+      INTEGER                                            :: col_atom, group, handle, i, ispin, &
+                                                            row_atom
       REAL(dp)                                           :: alpha, max_alpha
       REAL(dp), DIMENSION(:), POINTER                    :: block_values
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -501,7 +501,8 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL mp_max(max_alpha, dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(delta_P(1)%matrix))))
+      CALL dbcsr_get_info(delta_P(1)%matrix, group=group)
+      CALL mp_max(max_alpha, group)
       delta_eps = SQRT(max_alpha)
       CALL dbcsr_deallocate_matrix(tmp)
       CALL timestop(handle)

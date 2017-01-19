@@ -21,8 +21,9 @@ MODULE dm_ls_scf
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, dbcsr_copy, &
-        dbcsr_create, dbcsr_distribution, dbcsr_filter, dbcsr_get_occupation, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_create, dbcsr_distribution_obj, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
    USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                               dm_ls_curvy_optimization
@@ -245,6 +246,7 @@ CONTAINS
                                                             ispin, istore, naspc, unit_nr
       REAL(KIND=dp)                                      :: alpha, cs_pos
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_type)                                   :: matrix_tmp1
 
       IF (ls_scf_env%do_pao) RETURN ! pao has its own initial guess
@@ -279,8 +281,8 @@ CONTAINS
          project_name = logger%iter_info%project_name
          DO ispin = 1, SIZE(ls_scf_env%matrix_p)
             WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_", ispin, "_RESTART.dm"
-            CALL dbcsr_binary_read(file_name, distribution=dbcsr_distribution(ls_scf_env%matrix_p(1)), &
-                                   matrix_new=ls_scf_env%matrix_p(ispin))
+            CALL dbcsr_get_info(ls_scf_env%matrix_p(1), distribution=dist)
+            CALL dbcsr_binary_read(file_name, distribution=dist, matrix_new=ls_scf_env%matrix_p(ispin))
             cs_pos = dbcsr_checksum(ls_scf_env%matrix_p(ispin), pos=.TRUE.)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ", cs_pos

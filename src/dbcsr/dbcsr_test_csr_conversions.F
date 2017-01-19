@@ -12,10 +12,10 @@
 PROGRAM dbcsr_test_csr_conversions
    USE dbcsr_api,                       ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_destroy, &
-        csr_eqrow_ceil_dist, csr_type, dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution, &
-        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+        csr_eqrow_ceil_dist, csr_type, dbcsr_add, dbcsr_copy, dbcsr_create, &
+        dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_obj, &
         dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
-        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_new, dbcsr_mp_obj, &
         dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, &
         dbcsr_norm_maxabsnorm, dbcsr_put_block, dbcsr_release, dbcsr_to_csr_filter, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_type_real_8
@@ -212,7 +212,7 @@ CONTAINS
                         col_blk_size=col_blk_sizes, &
                         data_type=dbcsr_type_real_8)
 
-      mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix_a)))
+      CALL dbcsr_distribution_get(dist, mynode=mynode)
 
       ! get the maximum block size of the matrix
       max_row_size = MAXVAL(row_blk_sizes)

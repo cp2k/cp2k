@@ -13,9 +13,8 @@ MODULE pao_param_linpot
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
+        dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
@@ -380,7 +379,7 @@ CONTAINS
       evals(:, :) = 0.0_dp
       gaps(:) = HUGE(1.0_dp)
       regu_energy = 0.0_dp
-      group = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(pao%matrix_U)))
+      CALL dbcsr_get_info(pao%matrix_U, group=group)
 
       CALL dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (dbcsr_iterator_blocks_left(iter))

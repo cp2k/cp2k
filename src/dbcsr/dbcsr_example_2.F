@@ -15,9 +15,9 @@
 ! **************************************************************************************************
 PROGRAM dbcsr_example_2
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
-        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
-        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_obj, &
+        dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
+        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_new, dbcsr_mp_obj, &
         dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, &
         dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE kinds,                           ONLY: real_8
@@ -105,7 +105,7 @@ PROGRAM dbcsr_example_2
 
    !
    ! get the node id from the matrix
-   mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix_a)))
+   CALL dbcsr_distribution_get(dist, mynode=mynode)
 
    !
    ! get the maximum block size of the matrix

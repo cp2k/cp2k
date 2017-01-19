@@ -50,8 +50,8 @@ MODULE almo_scf
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_get_stored_coordinates, dbcsr_mp_mynode, dbcsr_multiply, dbcsr_nblkcols_total, &
+        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
         dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: init_submatrices,&
@@ -447,6 +447,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(molecular_scf_guess_env_type), POINTER        :: mscfg_env
@@ -549,8 +550,8 @@ CONTAINS
 
             DO ispin = 1, nspins
                WRITE (file_name, '(A,I0,A)') TRIM(project_name)//"_ALMO_SPIN_", ispin, "_RESTART.mo"
-               CALL dbcsr_binary_read(file_name, distribution=dbcsr_distribution(almo_scf_env%matrix_t_blk(ispin)), &
-                                      matrix_new=almo_scf_env%matrix_t_blk(ispin))
+               CALL dbcsr_get_info(almo_scf_env%matrix_t_blk(ispin), distribution=dist)
+               CALL dbcsr_binary_read(file_name, distribution=dist, matrix_new=almo_scf_env%matrix_t_blk(ispin))
                cs_pos = dbcsr_checksum(almo_scf_env%matrix_t_blk(ispin), pos=.TRUE.)
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A,E20.8)') "Read restart ALMO "//TRIM(file_name)//" with checksum: ", cs_pos
@@ -1110,6 +1111,7 @@ CONTAINS
       LOGICAL                                            :: almo_experimental, tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: no_quench
       TYPE(optimizer_options_type)                       :: arbitrary_optimizer
 
@@ -1143,8 +1145,8 @@ CONTAINS
          CALL dbcsr_create(no_quench(1), &
                            template=almo_scf_env%matrix_t(1), &
                            matrix_type=dbcsr_type_no_symmetry)
-         mynode = dbcsr_mp_mynode(dbcsr_distribution_mp( &
-                                  dbcsr_distribution(no_quench(1))))
+         CALL dbcsr_get_info(no_quench(1), distribution=dist)
+         CALL dbcsr_distribution_get(dist, mynode=mynode)
          CALL dbcsr_work_create(no_quench(1), &
                                 work_mutable=.TRUE.)
          nblkrows_tot = dbcsr_nblkrows_total(no_quench(1))

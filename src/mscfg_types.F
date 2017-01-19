@@ -11,13 +11,12 @@
 ! **************************************************************************************************
 MODULE mscfg_types
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution, &
-        dbcsr_distribution_get, dbcsr_distribution_mp, dbcsr_distribution_new, &
-        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-        dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_work_create
+        dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, &
+        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
+        dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_obj, &
+        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -216,11 +215,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
       TYPE(dbcsr_distribution_obj)                       :: dist_new, dist_qs
       TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
       TYPE(dbcsr_type)                                   :: matrix_new
 
 ! obtain distribution of the submatrix
 
-      dist_qs = dbcsr_distribution(submatrix_in)
+      CALL dbcsr_get_info(submatrix_in, distribution=dist_qs)
 
       DO dimen = 1, 2 ! 1 - row, 2 - column dimension
 
@@ -286,8 +286,9 @@ CONTAINS
       ENDDO ! both rows and columns are done
 
       ! Create the distribution
+      CALL dbcsr_distribution_get(dist_qs, mp_env=mp_env)
       CALL dbcsr_distribution_new(dist_new, &
-                                  dbcsr_distribution_mp(dist_qs), row_distr_new, col_distr_new, &
+                                  mp_env, row_distr_new, col_distr_new, &
                                   row_cluster_new, col_cluster_new, &
                                   reuse_arrays=.TRUE.)
 

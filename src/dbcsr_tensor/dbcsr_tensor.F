@@ -28,9 +28,9 @@ MODULE dbcsr_tensor
                                               sizes_of_arrays,&
                                               reorder_arrays
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_distribution, dbcsr_distribution_mp, dbcsr_get_block_p, &
+        dbcsr_copy, dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_iterator_type, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_distribution_get, &
         dbcsr_type, dbcsr_put_block, dbcsr_reserve_blocks, ${uselist(dtype_float_param)}$, dbcsr_finalize
    USE dbcsr_tensor_block,              ONLY: &
         block_buffer_add_anyd_block, block_buffer_blocks_left, block_buffer_create, &
@@ -561,7 +561,7 @@ CONTAINS
 
       IF (tensor_out%valid) THEN
 
-         mp_comm = dbcsr_mp_group(dbcsr_distribution_mp(dbcsr_distribution(tensor_in%matrix_rep)))
+         CALL dbcsr_get_info(tensor_in%matrix_rep, group=mp_comm)
          CALL mp_environ(numnodes, mynode, mp_comm)
          ALLOCATE (buffer_send(0:numnodes - 1))
          ALLOCATE (buffer_recv(0:numnodes - 1))

@@ -19,14 +19,13 @@ MODULE almo_scf_methods
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
         dbcsr_init_random, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_group, &
-        dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_norm, &
-        dbcsr_norm_maxabsnorm, dbcsr_print, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
-        dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_nblkcols_total, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_print, dbcsr_release, &
+        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE domain_submatrix_methods,        ONLY: &
         add_submatrices, construct_dbcsr_from_submatrices, construct_submatrices, &
         copy_submatrices, copy_submatrix_data, init_submatrices, multiply_submatrices, &
@@ -2072,9 +2071,6 @@ CONTAINS
                                    subm_in, 0.0_dp, subm_temp)
          CALL multiply_submatrices('N', 'N', -1.0_dp, operator2, &
                                    subm_temp, 1.0_dp, subm_out)
-!GroupID = dbcsr_mp_group(dbcsr_distribution_mp(&
-!   dbcsr_distribution(dpattern)))
-!CALL print_submatrices(subm_out,GroupID)
       ELSE
          CPABORT("ILLEGAL ACTION")
       ENDIF
@@ -2407,10 +2403,6 @@ CONTAINS
 
       CALL construct_submatrices(matrix_s, subm_s, &
                                  dpattern, map, node_of_domain, select_row_col)
-
-      !GroupID = dbcsr_mp_group(dbcsr_distribution_mp(&
-      !   dbcsr_distribution(dpattern)))
-      !CALL print_submatrices(domain_r_down(:,ispin),GroupID)
 
       ! loop over domains - perform inversion
       DO idomain = 1, ndomains
@@ -3609,12 +3601,13 @@ CONTAINS
                                                             ncpus, ndomains
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index0
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpu_load, domain_load
+      TYPE(dbcsr_distribution_obj)                       :: dist
 
       CALL timeset(routineN, handle)
 
       ndomains = almo_scf_env%ndomains
-      ncpus = dbcsr_mp_numnodes(dbcsr_distribution_mp( &
-                                dbcsr_distribution(almo_scf_env%matrix_s(1))))
+      CALL dbcsr_get_info(almo_scf_env%matrix_s(1), distribution=dist)
+      CALL dbcsr_distribution_get(dist, numnodes=ncpus)
 
       ALLOCATE (domain_load(ndomains))
       DO idomain = 1, ndomains
@@ -3669,8 +3662,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ndomains = dbcsr_nblkcols_total(dpattern)
-      GroupID = dbcsr_mp_group(dbcsr_distribution_mp( &
-                               dbcsr_distribution(dpattern)))
+      CALL dbcsr_get_info(dpattern, group=GroupID)
 
       ALLOCATE (subm_no(ndomains), subm_nn(ndomains))
       CALL init_submatrices(subm_no)

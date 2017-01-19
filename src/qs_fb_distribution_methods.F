@@ -11,10 +11,14 @@ MODULE qs_fb_distribution_methods
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_distribution_mp, dbcsr_distribution_obj, dbcsr_get_info, dbcsr_mp_get_process, &
-        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj, dbcsr_nblkcols_total, dbcsr_p_type, &
-        dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_get,&
+                                              dbcsr_distribution_obj,&
+                                              dbcsr_get_info,&
+                                              dbcsr_mp_get_process,&
+                                              dbcsr_mp_obj,&
+                                              dbcsr_nblkcols_total,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE particle_types,                  ONLY: particle_type
@@ -471,8 +475,7 @@ CONTAINS
       CPASSERT(check_ok)
 
       CALL dbcsr_get_info(dbcsr_mat, distribution=dbcsr_dist, proc_col_dist=col_dist)
-      dbcsr_mp = dbcsr_distribution_mp(dbcsr_dist)
-      nprows = dbcsr_mp_nprows(dbcsr_mp)
+      CALL dbcsr_distribution_get(dbcsr_dist, mp_env=dbcsr_mp, nprows=nprows, npcols=n_common_sets)
 
       DO icol = 1, natoms
          IF (ASSOCIATED(preferred_procs_set(icol)%list)) THEN
@@ -491,7 +494,6 @@ CONTAINS
 
       common_set_ids(:) = 0
       common_set_ids(1:natoms) = col_dist(1:natoms)+1
-      n_common_sets = dbcsr_mp_npcols(dbcsr_mp)
 
    END SUBROUTINE fb_build_preferred_procs
 

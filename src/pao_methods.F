@@ -21,12 +21,12 @@ MODULE pao_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
-        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_filter, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_npcols, &
-        dbcsr_mp_nprows, dbcsr_mp_obj, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
+        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_filter, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_obj, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, &
+        dbcsr_set, dbcsr_trace, dbcsr_type
    USE dm_ls_scf_methods,               ONLY: density_matrix_trs4,&
                                               ls_scf_init_matrix_S
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
@@ -331,9 +331,7 @@ CONTAINS
 
       ! get processor grid from matrix_s
       CALL dbcsr_get_info(matrix=matrix_s(1)%matrix, distribution=main_dist)
-      mp_env = dbcsr_distribution_mp(main_dist)
-      pgrid_rows = dbcsr_mp_nprows(mp_env)
-      pgrid_cols = dbcsr_mp_npcols(mp_env)
+      CALL dbcsr_distribution_get(main_dist, mp_env=mp_env, nprows=pgrid_rows, npcols=pgrid_cols)
 
       ! create new mapping of matrix-grid to processor-grid
       ALLOCATE (diag_row_dist(natoms), diag_col_dist(natoms))
@@ -572,6 +570,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: cs_pos
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dbcsr_type)                                   :: matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -590,9 +589,10 @@ CONTAINS
 
       IF (dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
 
+      CALL dbcsr_get_info(matrix_s(1)%matrix, distribution=dist)
+
       DO ispin = 1, dft_control%nspins
-         CALL dbcsr_binary_read(pao%preopt_dm_file, matrix_new=matrix_tmp, &
-                                distribution=dbcsr_distribution(matrix_s(1)%matrix))
+         CALL dbcsr_binary_read(pao%preopt_dm_file, matrix_new=matrix_tmp, distribution=dist)
          cs_pos = dbcsr_checksum(matrix_tmp, pos=.TRUE.)
          IF (pao%iw > 0) WRITE (pao%iw, *) "PAO| Read restart DM "// &
             TRIM(pao%preopt_dm_file)//" with checksum: ", cs_pos

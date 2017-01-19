@@ -38,11 +38,10 @@ MODULE kpoint_methods
    USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                               cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution, &
-        dbcsr_distribution_mp, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_get, &
+        dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_mp_numnodes, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE fermi_utils,                     ONLY: fermikp,&
                                               fermikp2
    USE input_constants,                 ONLY: smear_fermi_dirac
@@ -1231,6 +1230,7 @@ CONTAINS
       LOGICAL                                            :: asym, dorot, found, perm, sym, trans
       REAL(KIND=dp)                                      :: dr, fsign
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, sblock
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
@@ -1265,7 +1265,8 @@ CONTAINS
       IF (dorot .OR. perm) THEN
          CALL dbcsr_set(smat, 0.0_dp)
          IF (perm) THEN
-            numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(dbcsr_distribution(pmat)))
+            CALL dbcsr_get_info(pmat, distribution=dist)
+            CALL dbcsr_distribution_get(dist, numnodes=numnodes)
             IF (numnodes == 1) THEN
                ! the matrices are local to this process
                CALL dbcsr_iterator_start(iter, pmat)

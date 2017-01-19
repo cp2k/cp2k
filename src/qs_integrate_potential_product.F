@@ -38,8 +38,8 @@ MODULE qs_integrate_potential_product
    USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_block_node, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution, dbcsr_distribution_get, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_p_type, dbcsr_type, dbcsr_work_create
+        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_p_type, dbcsr_type, dbcsr_work_create
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&
@@ -176,6 +176,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat, htemp
       TYPE(dbcsr_type), POINTER                          :: href
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -435,7 +436,7 @@ CONTAINS
 !$OMP PRIVATE(p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$OMP PRIVATE(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
 !$OMP PRIVATE(iset_new,jset_new,ipgf_new,jpgf_new,scalef), &
-!$OMP PRIVATE(itask,has_threads)
+!$OMP PRIVATE(itask,dist,has_threads)
 
       ithread = 0
 !$    ithread = omp_get_thread_num()
@@ -456,7 +457,8 @@ CONTAINS
 
          DO img = 1, nimages
             CALL dbcsr_work_create(dhmat(img)%matrix, work_mutable=.TRUE., n=nthread)
-            CALL dbcsr_distribution_get(dbcsr_distribution(dhmat(img)%matrix), has_threads=has_threads)
+            CALL dbcsr_get_info(dhmat(img)%matrix, distribution=dist)
+            CALL dbcsr_distribution_get(dist, has_threads=has_threads)
 !$          IF (.NOT. has_threads) &
 !$             CPABORT("No thread distribution defined.")
          END DO

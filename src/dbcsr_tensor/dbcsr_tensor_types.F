@@ -21,10 +21,10 @@ MODULE dbcsr_tensor_types
                                               sizes_of_arrays,&
                                               sum_of_arrays
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution, dbcsr_distribution_get, &
-        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+        dbcsr_create, dbcsr_distribution_get, &
+        dbcsr_distribution_new, dbcsr_distribution_obj, &
         dbcsr_distribution_release, dbcsr_distribution_get, dbcsr_finalize, &
-        dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_obj, &
+        dbcsr_mp_new, dbcsr_mp_obj, &
         dbcsr_mp_release, dbcsr_get_info, dbcsr_type, dbcsr_release
    USE dbcsr_tensor_index,              ONLY: get_2d_indices,&
                                               get_nd_indices,&
@@ -374,11 +374,9 @@ CONTAINS
          order_in = [1, 2]
       ENDIF
 
-      matrix_dist = dbcsr_distribution(matrix_in)
-
-      comm_2d = dbcsr_mp_group(dbcsr_distribution_mp(matrix_dist))
+      CALL dbcsr_get_info(matrix_in, distribution=matrix_dist)
+      CALL dbcsr_distribution_get(matrix_dist, group=comm_2d, row_dist=row_dist, col_dist=col_dist)
       comm_nd = dbcsr_t_nd_mp_comm(comm_2d, [order_in(1)], [order_in(2)])
-      CALL dbcsr_distribution_get(matrix_dist, row_dist=row_dist, col_dist=col_dist)
 
       CALL dbcsr_t_distribution_new( &
          dist, &

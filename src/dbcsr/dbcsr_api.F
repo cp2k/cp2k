@@ -176,6 +176,7 @@ MODULE dbcsr_api
    ! create / release
    PUBLIC :: dbcsr_mp_new
    PUBLIC :: dbcsr_mp_release
+   PUBLIC :: dbcsr_mp_hold
    PUBLIC :: dbcsr_distribution_hold
    PUBLIC :: dbcsr_distribution_release
    PUBLIC :: dbcsr_distribution_new
@@ -184,7 +185,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_release
    PUBLIC :: dbcsr_release_p
    PUBLIC :: dbcsr_deallocate_matrix
-   PUBLIC :: dbcsr_mp_hold
 
    ! primitive matrix operations
    PUBLIC :: dbcsr_set
@@ -219,14 +219,9 @@ MODULE dbcsr_api
 
    ! getters / setters
    PUBLIC :: dbcsr_get_info
-   PUBLIC :: dbcsr_distribution
    PUBLIC :: dbcsr_distribution_get
-   PUBLIC :: dbcsr_distribution_mp
-   PUBLIC :: dbcsr_mp_group
-   PUBLIC :: dbcsr_mp_mynode
-   PUBLIC :: dbcsr_mp_numnodes
-   PUBLIC :: dbcsr_mp_nprows
-   PUBLIC :: dbcsr_mp_npcols
+
+   ! to remove:
    PUBLIC :: dbcsr_mp_get_process
    PUBLIC :: dbcsr_mp_grid_setup
    PUBLIC :: dbcsr_setname
@@ -903,6 +898,7 @@ CONTAINS
 !> \param name ...
 !> \param matrix_type ...
 !> \param data_type ...
+!> \param group ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total, &
                              nfullrows_total, nfullcols_total, &
@@ -911,7 +907,8 @@ CONTAINS
                              my_prow, my_pcol, &
                              local_rows, local_cols, proc_row_dist, proc_col_dist, &
                              row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, &
-                             distribution, name, matrix_type, data_type)
+                             distribution, name, matrix_type, data_type, &
+                             group)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, nfullrows_total, &
          nfullcols_total, nblkrows_local, nblkcols_local, nfullrows_local, nfullcols_local, &
@@ -925,7 +922,7 @@ CONTAINS
          OPTIONAL                                        :: distribution
       CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
       CHARACTER, INTENT(OUT), OPTIONAL                   :: matrix_type
-      INTEGER, INTENT(OUT), OPTIONAL                     :: data_type
+      INTEGER, INTENT(OUT), OPTIONAL                     :: data_type, group
 
       CALL dbcsr_get_info_prv(matrix=matrix%prv, &
                               nblkrows_total=nblkrows_total, &
@@ -950,6 +947,9 @@ CONTAINS
                               name=name, &
                               matrix_type=matrix_type, &
                               data_type=data_type)
+
+      IF (PRESENT(group)) group = dbcsr_mp_group(matrix%prv%dist%d%mp_env) ! a shortcut
+
    END SUBROUTINE dbcsr_get_info
 
 ! **************************************************************************************************
@@ -964,16 +964,29 @@ CONTAINS
 !> \param nrows ...
 !> \param ncols ...
 !> \param has_threads ...
+!> \param mp_env ...
+!> \param group ...
+!> \param mynode ...
+!> \param numnodes ...
+!> \param nprows ...
+!> \param npcols ...
+!> \param pgrid ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_get(dist, row_dist, col_dist, &
                                      row_cluster_dist, col_cluster_dist, &
-                                     has_col_clusters, has_row_clusters, nrows, ncols, has_threads)
+                                     has_col_clusters, has_row_clusters, &
+                                     nrows, ncols, has_threads, &
+                                     mp_env, &
+                                     group, mynode, numnodes, nprows, npcols, pgrid)
       TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_dist, col_dist, row_cluster_dist, &
                                                             col_cluster_dist
-      LOGICAL, OPTIONAL                                  :: has_col_clusters, has_row_clusters
-      INTEGER, OPTIONAL                                  :: nrows, ncols
-      LOGICAL, OPTIONAL                                  :: has_threads
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: has_col_clusters, has_row_clusters
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nrows, ncols
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: has_threads
+      TYPE(dbcsr_mp_obj), INTENT(OUT), OPTIONAL          :: mp_env
+      INTEGER, INTENT(OUT), OPTIONAL                     :: group, mynode, numnodes, nprows, npcols
+      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
 
       IF (PRESENT(row_dist)) row_dist => array_data(dist%d%row_dist_block)
       IF (PRESENT(col_dist)) col_dist => array_data(dist%d%col_dist_block)
@@ -984,6 +997,13 @@ CONTAINS
       IF (PRESENT(nrows)) nrows = array_size(dist%d%row_dist_block)
       IF (PRESENT(ncols)) ncols = array_size(dist%d%col_dist_block)
       IF (PRESENT(has_threads)) has_threads = dist%d%has_thread_dist
+      IF (PRESENT(mp_env)) mp_env = dist%d%mp_env
+      IF (PRESENT(group)) group = dbcsr_mp_group(dist%d%mp_env)
+      IF (PRESENT(mynode)) mynode = dbcsr_mp_mynode(dist%d%mp_env)
+      IF (PRESENT(numnodes)) numnodes = dbcsr_mp_numnodes(dist%d%mp_env)
+      IF (PRESENT(nprows)) nprows = dbcsr_mp_nprows(dist%d%mp_env)
+      IF (PRESENT(npcols)) npcols = dbcsr_mp_npcols(dist%d%mp_env)
+      IF (PRESENT(pgrid)) pgrid => dist%d%mp_env%mp%pgrid
 
    END SUBROUTINE dbcsr_distribution_get
 

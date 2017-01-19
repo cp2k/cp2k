@@ -16,10 +16,14 @@ MODULE qs_rho_methods
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution, dbcsr_get_info, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-        dbcsr_type_symmetric
+   USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_deallocate_matrix_set,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -91,7 +95,6 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: handle, i, ic, nimg, nspins
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: do_kpoints, my_admm, my_rebuild_ao, &
                                                             my_rebuild_grids
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
@@ -181,12 +184,8 @@ CONTAINS
                END IF
                ALLOCATE (rho_ao_kp(i, ic)%matrix)
                tmatrix => rho_ao_kp(i, ic)%matrix
-               CALL dbcsr_get_info(refmatrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-               CALL dbcsr_create(matrix=tmatrix, name=TRIM(headline), &
-                                 dist=dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
-                                 row_blk_size=row_blk_size, &
-                                 col_blk_size=col_blk_size, &
-                                 nze=0)
+               CALL dbcsr_create(matrix=tmatrix, template=refmatrix, name=TRIM(headline), &
+                                 matrix_type=dbcsr_type_symmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO

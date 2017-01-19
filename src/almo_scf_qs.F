@@ -33,11 +33,10 @@ MODULE almo_scf_qs
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution, &
-        dbcsr_distribution_get, dbcsr_distribution_mp, dbcsr_distribution_new, &
-        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, &
-        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_multiply, dbcsr_nblkcols_total, &
+        dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
+        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_filter, &
+        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, &
+        dbcsr_get_stored_coordinates, dbcsr_mp_obj, dbcsr_multiply, dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
         dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
@@ -129,6 +128,7 @@ CONTAINS
       LOGICAL                                            :: active, tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(dbcsr_distribution_obj)                       :: dist_new, dist_qs
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
 
 ! dimension size: AO, MO, etc
 !                 almo_mat_dim_aobasis - no. of AOs,
@@ -155,7 +155,7 @@ CONTAINS
 
       ! obtain distribution from the qs matrix - it might be useful
       ! to get the structure of the AO dimensions
-      dist_qs = dbcsr_distribution(matrix_qs)
+      CALL dbcsr_get_info(matrix_qs, distribution=dist_qs)
 
       natoms = almo_scf_env%natoms
       nmols = almo_scf_env%nmolecules
@@ -290,8 +290,9 @@ CONTAINS
       ENDDO ! both rows and columns are done
 
       ! Create the distribution
+      CALL dbcsr_distribution_get(dist_qs, mp_env=mp_env)
       CALL dbcsr_distribution_new(dist_new, &
-                                  dbcsr_distribution_mp(dist_qs), row_distr_new, col_distr_new, &
+                                  mp_env, row_distr_new, col_distr_new, &
                                   row_cluster_new, col_cluster_new, &
                                   reuse_arrays=.TRUE.)
 
@@ -305,7 +306,7 @@ CONTAINS
       ! which blocks to keep
       IF (init_domains) THEN
 
-         mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix_new)))
+         CALL dbcsr_distribution_get(dist_new, mynode=mynode)
          CALL dbcsr_work_create(matrix_new, work_mutable=.TRUE.)
 
          ! startQQQ - this part of the code scales quadratically
@@ -724,6 +725,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_distribution_obj)                       :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type)                                   :: matrix_s_sym
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -798,12 +800,8 @@ CONTAINS
       nblkrows_tot = dbcsr_nblkrows_total(almo_scf_env%quench_t(ispin))
       nblkcols_tot = dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
 
-      mynode = dbcsr_mp_mynode(dbcsr_distribution_mp( &
-                               dbcsr_distribution(almo_scf_env%quench_t(ispin))))
-      nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp( &
-                                 dbcsr_distribution(almo_scf_env%quench_t(ispin))))
-      GroupID = dbcsr_mp_group(dbcsr_distribution_mp( &
-                               dbcsr_distribution(almo_scf_env%quench_t(ispin))))
+      CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), distribution=dist)
+      CALL dbcsr_distribution_get(dist, numnodes=nNodes, group=GroupID, mynode=mynode)
 
       ! create global atom neighbor list from the local lists
       ! first, calculate number of local pairs

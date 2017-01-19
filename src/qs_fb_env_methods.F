@@ -40,10 +40,10 @@ MODULE qs_fb_env_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_distribution, &
-        dbcsr_finalize, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_finalize, &
+        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
         dbcsr_type_no_symmetry
    USE input_constants,                 ONLY: cholesky_dbcsr,&
                                               cholesky_inverse,&
@@ -338,9 +338,8 @@ CONTAINS
       ! channel
       ! both row_blk_size and col_blk_size should be that of
       ! col_blk_size of the filter matrix
-      CALL dbcsr_create(matrix=matrix_filtered_ks, &
+      CALL dbcsr_create(matrix=matrix_filtered_ks, template=matrix_ks(1)%matrix, &
                         name=TRIM("FILTERED_KS_MATRIX"), &
-                        dist=dbcsr_distribution(matrix_ks(1)%matrix), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=filtered_rowORcol_block_sizes, &
                         col_blk_size=filtered_rowORcol_block_sizes, &
@@ -356,9 +355,8 @@ CONTAINS
       ! channel
       ! both row_blk_size and col_blk_size should be that of
       ! col_blk_size of the filter matrix
-      CALL dbcsr_create(matrix=matrix_filtered_s, &
+      CALL dbcsr_create(matrix=matrix_filtered_s, template=matrix_s(1)%matrix, &
                         name=TRIM("FILTERED_S_MATRIX"), &
-                        dist=dbcsr_distribution(matrix_s(1)%matrix), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=filtered_rowORcol_block_sizes, &
                         col_blk_size=filtered_rowORcol_block_sizes, &
@@ -367,9 +365,8 @@ CONTAINS
 
       ! create temporary matrix for constructing filtered KS and S
       ! the temporary matrix won't be square
-      CALL dbcsr_create(matrix=matrix_tmp, &
+      CALL dbcsr_create(matrix=matrix_tmp, template=matrix_s(1)%matrix, &
                         name=TRIM("TEMPORARY_MATRIX"), &
-                        dist=dbcsr_distribution(matrix_s(1)%matrix), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=original_rowORcol_block_sizes, &
                         col_blk_size=filtered_rowORcol_block_sizes, &
@@ -465,10 +462,8 @@ CONTAINS
       ! have its blocks allocated here now. We assume the original
       ! density matrix scf_env%p_mix_new has the same sparse structure
       ! in both spin channels.
-      CALL dbcsr_create(matrix=matrix_filtered_p, &
+      CALL dbcsr_create(matrix=matrix_filtered_p, template=scf_env%p_mix_new(1, 1)%matrix, &
                         name=TRIM("FILTERED_MATRIX_P"), &
-                        dist=dbcsr_distribution(scf_env%p_mix_new(1, 1)%matrix), &
-                        matrix_type=dbcsr_get_matrix_type(scf_env%p_mix_new(1, 1)%matrix), &
                         row_blk_size=filtered_rowORcol_block_sizes, &
                         col_blk_size=filtered_rowORcol_block_sizes, &
                         nze=0)

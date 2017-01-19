@@ -22,10 +22,10 @@ MODULE dm_ls_scf_qs
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_hold, dbcsr_distribution_mp, dbcsr_distribution_new, &
-        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_mp_obj, dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
-        dbcsr_set, dbcsr_type, dbcsr_type_real_4, dbcsr_type_real_8
+        dbcsr_distribution_hold, dbcsr_distribution_new, dbcsr_distribution_obj, &
+        dbcsr_distribution_release, dbcsr_finalize, dbcsr_get_info, dbcsr_mp_obj, dbcsr_multiply, &
+        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_real_4, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                               ls_cluster_molecular,&
                                               ls_mstruct_type,&
@@ -195,7 +195,7 @@ CONTAINS
          ls_blk_sizes => clustered_blk_sizes ! redirect pointer
 
          ! create new distribution
-         mp_env = dbcsr_distribution_mp(ls_dist)
+         CALL dbcsr_distribution_get(ls_dist, mp_env=mp_env)
          CALL dbcsr_distribution_release(ls_dist)
          CALL dbcsr_distribution_new(ls_dist, &
                                      mp_env=mp_env, &
