@@ -906,7 +906,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
      echo "Could not copy testing directory as hard links."
      echo "Using normal copy instead."
      sleep 10
-     cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
+     cp -R -p ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests
    )
    
    printf "done!\n"

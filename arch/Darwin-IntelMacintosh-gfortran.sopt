@@ -1,4 +1,7 @@
-CC       = cc
+#Using gcc49 package from MacPorts for gcc and fortran
+#port select --set gcc mp-gcc49
+
+CC       = gcc
 CPP      = 
 FC       = gfortran
 LD       = gfortran
