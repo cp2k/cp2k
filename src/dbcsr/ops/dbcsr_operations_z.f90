@@ -292,21 +292,42 @@
 ! **************************************************************************************************
   SUBROUTINE dbcsr_set_diag_z(matrix, diag)
     TYPE(dbcsr_type), INTENT(INOUT)            :: matrix
-    COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: diag
+    COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN)          :: diag
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag_z', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag'
 
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: diag_p
-    TYPE(dbcsr_data_obj)                     :: diag_a
+    INTEGER                                            :: icol, irow, row_offset, handle, i
+    LOGICAL                                            :: tr
+    TYPE(dbcsr_iterator)                               :: iter
+    COMPLEX(kind=real_8), DIMENSION(:,:), POINTER                   :: block
 
-    diag_p => diag
-    CALL dbcsr_data_init (diag_a)
-    CALL dbcsr_data_new (diag_a, dbcsr_get_data_type(matrix))
-    CALL dbcsr_data_set_pointer (diag_a, diag_p)
-    CALL dbcsr_set_diag(matrix, diag_a)
-    CALL dbcsr_data_clear_pointer (diag_a)
-    CALL dbcsr_data_release (diag_a)
+
+    CALL timeset(routineN, handle)
+
+    IF(dbcsr_get_data_type (matrix) /=  dbcsr_type_complex_8) &
+         CPABORT("Incompatible data types")
+
+    IF (dbcsr_nfullrows_total(matrix) /= SIZE(diag)) &
+         CPABORT("Diagonal has wrong size")
+
+    IF (.NOT. array_equality(dbcsr_row_block_offsets(matrix), dbcsr_row_block_offsets(matrix))) &
+        CPABORT("matrix not quadratic")
+
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, irow, icol, block, tr, row_offset=row_offset)
+       IF (irow /= icol) CYCLE
+
+       IF(sIZE(block, 1) /= sIZE(block, 2)) &
+          CPABORT("Diagonal block non-squared")
+
+       DO i = 1 , sIZE(block, 1)
+          block(i,i) = diag(row_offset+i-1)
+       END DO
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_set_diag_z
 
 ! **************************************************************************************************
@@ -315,23 +336,45 @@
 !> \param diag ...
 ! **************************************************************************************************
   SUBROUTINE dbcsr_get_diag_z(matrix, diag)
+    TYPE(dbcsr_type), INTENT(IN)               :: matrix
+    COMPLEX(kind=real_8), DIMENSION(:), INTENT(OUT)         :: diag
 
-    TYPE(dbcsr_type), INTENT(IN)                    :: matrix
-    COMPLEX(kind=real_8), DIMENSION(:), INTENT(INOUT), TARGET   :: diag
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag'
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag_z', &
-      routineP = moduleN//':'//routineN
+    INTEGER                                            :: icol, irow, row_offset, handle, i
+    LOGICAL                                            :: tr
+    TYPE(dbcsr_iterator)                               :: iter
+    COMPLEX(kind=real_8), DIMENSION(:,:), POINTER                   :: block
 
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: diag_p
-    TYPE(dbcsr_data_obj)                     :: diag_a
 
-    diag_p => diag
-    CALL dbcsr_data_init (diag_a)
-    CALL dbcsr_data_new (diag_a, dbcsr_get_data_type(matrix))
-    CALL dbcsr_data_set_pointer (diag_a, diag_p)
-    CALL dbcsr_get_diag(matrix, diag_a)
-    CALL dbcsr_data_clear_pointer (diag_a)
-    CALL dbcsr_data_release (diag_a)
+    CALL timeset(routineN, handle)
+
+    IF(dbcsr_get_data_type (matrix) /=  dbcsr_type_complex_8) &
+         CPABORT("Incompatible data types")
+
+    IF (dbcsr_nfullrows_total(matrix) /= SIZE(diag)) &
+         CPABORT("Diagonal has wrong size")
+
+    IF (.NOT. array_equality(dbcsr_row_block_offsets(matrix), dbcsr_row_block_offsets(matrix))) &
+        CPABORT("matrix not quadratic")
+
+    diag(:) = CMPLX(0.0, 0.0, real_8)
+
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, irow, icol, block, tr, row_offset=row_offset)
+       IF (irow /= icol) CYCLE
+
+       IF(sIZE(block, 1) /= sIZE(block, 2)) &
+          CPABORT("Diagonal block non-squared")
+
+       DO i = 1 , sIZE(block, 1)
+          diag(row_offset+i-1) = block(i,i)
+       END DO
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_get_diag_z
 
 ! **************************************************************************************************

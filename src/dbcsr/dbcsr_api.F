@@ -359,6 +359,16 @@ MODULE dbcsr_api
       MODULE PROCEDURE dbcsr_add_on_diag_c, dbcsr_add_on_diag_z
    END INTERFACE
 
+   INTERFACE dbcsr_get_diag
+      MODULE PROCEDURE dbcsr_get_diag_d, dbcsr_get_diag_s
+      MODULE PROCEDURE dbcsr_get_diag_c, dbcsr_get_diag_z
+   END INTERFACE
+
+   INTERFACE dbcsr_set_diag
+      MODULE PROCEDURE dbcsr_set_diag_d, dbcsr_set_diag_s
+      MODULE PROCEDURE dbcsr_set_diag_c, dbcsr_set_diag_z
+   END INTERFACE
+
    INTERFACE dbcsr_scale
       MODULE PROCEDURE dbcsr_scale_d, dbcsr_scale_s, dbcsr_scale_c, dbcsr_scale_z
    END INTERFACE
@@ -1373,31 +1383,6 @@ CONTAINS
                             method, use_absolute, filter_diag, &
                             quick=quick)
    END SUBROUTINE dbcsr_filter
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param diag ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_set_diag(matrix, diag)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      REAL(dp), DIMENSION(:), INTENT(IN)                 :: diag
-
-      CALL dbcsr_set_diag_prv(matrix%prv, diag)
-   END SUBROUTINE dbcsr_set_diag
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param diag ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_get_diag(matrix, diag)
-
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      REAL(dp), DIMENSION(:), INTENT(INOUT)              :: diag
-
-      CALL dbcsr_get_diag_prv(matrix%prv, diag)
-   END SUBROUTINE dbcsr_get_diag
 
 ! **************************************************************************************************
 !> \brief ...

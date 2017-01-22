@@ -4,50 +4,6 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Sets the diagonal of a square data block
-!> \param[out] block_data     sets the diagonal of this data block
-!> \param[in] diagonal        set diagonal of block_data to these values
-!> \param[in] d               dimension of block
-!> \par Off-diagonal values
-!>      Other values are untouched.
-! **************************************************************************************************
-  PURE SUBROUTINE set_block2d_diagonal_d (block_data, diagonal, d)
-    INTEGER, INTENT(IN)                    :: d
-    REAL(kind=real_8), DIMENSION(d,d), INTENT(INOUT) :: block_data
-    REAL(kind=real_8), DIMENSION(d), INTENT(IN)      :: diagonal
-
-    INTEGER                                :: i
-
-!   ---------------------------------------------------------------------------
-
-    DO i = 1 , d
-       block_data(i,i) = diagonal(i)
-    END DO
-  END SUBROUTINE set_block2d_diagonal_d
-
-
-! **************************************************************************************************
-!> \brief Gets the diagonal of a square data block
-!> \param[in] block_data      gets the diagonal of this data block
-!> \param[out] diagonal       values of the diagonal elements
-!> \param[in] d               dimension of block
-! **************************************************************************************************
-  PURE SUBROUTINE get_block2d_diagonal_d (block_data, diagonal, d)
-    INTEGER, INTENT(IN)                 :: d
-    REAL(kind=real_8), DIMENSION(d,d), INTENT(IN) :: block_data
-    REAL(kind=real_8), DIMENSION(d), INTENT(OUT)  :: diagonal
-
-    INTEGER                             :: i
-
-!   ---------------------------------------------------------------------------
-
-    DO i = 1 , d
-       diagonal(i) = block_data(i, i)
-    END DO
-  END SUBROUTINE get_block2d_diagonal_d
-
-
-! **************************************************************************************************
 !> \brief Copies a block subset
 !> \param dst ...
 !> \param dst_rs ...

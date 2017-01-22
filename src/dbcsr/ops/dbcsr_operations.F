@@ -26,9 +26,7 @@ MODULE dbcsr_operations
                                               dbcsr_block_partial_copy,&
                                               dbcsr_block_real_neg,&
                                               dbcsr_block_scale,&
-                                              dbcsr_data_clear,&
-                                              get_block2d_diagonal,&
-                                              set_block2d_diagonal
+                                              dbcsr_data_clear
    USE dbcsr_data_methods,              ONLY: &
         dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
         dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
@@ -164,12 +162,10 @@ MODULE dbcsr_operations
    END INTERFACE
 
    INTERFACE dbcsr_get_diag
-      MODULE PROCEDURE dbcsr_get_diag_anytype
       MODULE PROCEDURE dbcsr_get_diag_s, dbcsr_get_diag_d, dbcsr_get_diag_c, dbcsr_get_diag_z
    END INTERFACE
 
    INTERFACE dbcsr_set_diag
-      MODULE PROCEDURE dbcsr_set_diag_anytype
       MODULE PROCEDURE dbcsr_set_diag_s, dbcsr_set_diag_d, dbcsr_set_diag_c, dbcsr_set_diag_z
    END INTERFACE
 
@@ -1164,111 +1160,6 @@ CONTAINS
       CALL dbcsr_finalize(diag)
       CALL timestop(handle)
    END SUBROUTINE dbcsr_get_block_diag
-
-! **************************************************************************************************
-!> \brief get the diagonal of a dbcsr matrix
-!> \param[in] matrix    the matrix
-!> \param[inout] diag   diagonal
-!>
-! **************************************************************************************************
-   SUBROUTINE dbcsr_get_diag_anytype(matrix, diag)
-
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: diag
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag_anytype', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: blk, col, data_type, handle, row, &
-                                                            row_offset, row_size
-      LOGICAL                                            :: tr
-      TYPE(dbcsr_data_obj)                               :: data_a, diag_a
-      TYPE(dbcsr_iterator)                               :: iter
-
-!   ---------------------------------------------------------------------------
-
-      CALL timeset(routineN, handle)
-
-      IF (dbcsr_nfullrows_total(matrix) > dbcsr_data_get_size(diag)) &
-         CPABORT("Diagonal is too small")
-
-      CALL dbcsr_data_clear(diag)
-      data_type = dbcsr_get_data_type(matrix)
-
-      CALL dbcsr_data_init(data_a)
-      CALL dbcsr_data_new(data_a, &
-                          dbcsr_type_1d_to_2d(data_type))
-      CALL dbcsr_data_init(diag_a)
-      CALL dbcsr_data_new(diag_a, data_type)
-
-      CALL dbcsr_iterator_start(iter, matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_a, tr, blk, &
-                                        row_offset=row_offset, row_size=row_size)
-         IF (row .EQ. col) THEN
-            diag_a = pointer_view(diag_a, diag, offset=row_offset, len=row_size)
-            CALL get_block2d_diagonal(data_a, diag_a, row_size)
-         ENDIF
-      ENDDO
-      CALL dbcsr_iterator_stop(iter)
-
-      CALL dbcsr_data_clear_pointer(diag_a)
-      CALL dbcsr_data_release(diag_a)
-      CALL dbcsr_data_clear_pointer(data_a)
-      CALL dbcsr_data_release(data_a)
-      CALL timestop(handle)
-   END SUBROUTINE dbcsr_get_diag_anytype
-
-! **************************************************************************************************
-!> \brief set the diagonal of a dbcsr matrix
-!> \param[in] matrix    the matrix
-!> \param[inout] diag   diagonal
-!>
-! **************************************************************************************************
-   SUBROUTINE dbcsr_set_diag_anytype(matrix, diag)
-
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      TYPE(dbcsr_data_obj), INTENT(IN)                   :: diag
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag_anytype', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: blk, col, dt, handle, row, row_offset, &
-                                                            row_size
-      LOGICAL                                            :: tr
-      TYPE(dbcsr_data_obj)                               :: data_a, diag_a
-      TYPE(dbcsr_iterator)                               :: iter
-
-!   ---------------------------------------------------------------------------
-
-      CALL timeset(routineN, handle)
-
-      IF (dbcsr_nfullrows_total(matrix) > dbcsr_data_get_size(diag)) &
-         CPABORT("Diagonal too small")
-
-      dt = dbcsr_get_data_type(matrix)
-      CALL dbcsr_data_init(data_a)
-      CALL dbcsr_data_new(data_a, dbcsr_type_1d_to_2d(dt))
-      CALL dbcsr_data_init(diag_a)
-      CALL dbcsr_data_new(diag_a, dt)
-
-      CALL dbcsr_iterator_start(iter, matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_a, tr, blk, &
-                                        row_offset=row_offset, row_size=row_size)
-         IF (row .EQ. col) THEN
-            diag_a = pointer_view(diag_a, diag, offset=row_offset, len=row_size)
-            CALL set_block2d_diagonal(data_a, diag_a, row_size)
-         ENDIF
-      ENDDO
-      CALL dbcsr_iterator_stop(iter)
-
-      CALL dbcsr_data_clear_pointer(diag_a)
-      CALL dbcsr_data_release(diag_a)
-      CALL dbcsr_data_clear_pointer(data_a)
-      CALL dbcsr_data_release(data_a)
-      CALL timestop(handle)
-   END SUBROUTINE dbcsr_set_diag_anytype
 
 ! **************************************************************************************************
 !> \brief checks if matrix symmetry and data_type are consistent

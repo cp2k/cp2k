@@ -16,12 +16,13 @@ MODULE dbcsr_block_operations
 
    USE acc_devmem,                      ONLY: acc_devmem_allocated,&
                                               acc_devmem_setzero_bytes
-   USE dbcsr_data_methods_low,          ONLY: &
-        dbcsr_data_exists, dbcsr_data_get_size, dbcsr_data_get_size_referenced, &
-        dbcsr_data_get_type, dbcsr_data_verify_bounds, dbcsr_get_data_p_2d_c, &
-        dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_z, dbcsr_get_data_p_c, &
-        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, &
-        dbcsr_type_is_2d
+   USE dbcsr_data_methods_low,          ONLY: dbcsr_data_exists,&
+                                              dbcsr_data_get_size,&
+                                              dbcsr_data_get_size_referenced,&
+                                              dbcsr_data_get_type,&
+                                              dbcsr_data_verify_bounds,&
+                                              dbcsr_type_2d_to_1d,&
+                                              dbcsr_type_is_2d
    USE dbcsr_ptr_util,                  ONLY: memory_copy
    USE dbcsr_types,                     ONLY: &
         dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, dbcsr_type_complex_4, &
@@ -42,7 +43,6 @@ MODULE dbcsr_block_operations
    PUBLIC :: dbcsr_block_transpose, dbcsr_block_transpose_aa, dbcsr_data_set
    PUBLIC :: dbcsr_block_copy_aa, dbcsr_block_partial_copy
    PUBLIC :: dbcsr_data_clear
-   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
    PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
 
    PUBLIC :: dbcsr_data_copy
@@ -95,18 +95,6 @@ MODULE dbcsr_block_operations
    INTERFACE dbcsr_data_copy
       MODULE PROCEDURE dbcsr_data_copy_aa2, dbcsr_data_set_as, &
          dbcsr_data_set_ad, dbcsr_data_set_ac, dbcsr_data_set_az
-   END INTERFACE
-
-   INTERFACE get_block2d_diagonal
-      MODULE PROCEDURE get_block2d_diagonal_a
-      MODULE PROCEDURE get_block2d_diagonal_s, get_block2d_diagonal_d, &
-         get_block2d_diagonal_c, get_block2d_diagonal_z
-   END INTERFACE
-
-   INTERFACE set_block2d_diagonal
-      MODULE PROCEDURE set_block2d_diagonal_a
-      MODULE PROCEDURE set_block2d_diagonal_s, set_block2d_diagonal_d, &
-         set_block2d_diagonal_c, set_block2d_diagonal_z
    END INTERFACE
 
    INTERFACE block_add
@@ -1441,164 +1429,6 @@ CONTAINS
          CPABORT("Invalid data type.")
       END SELECT
    END SUBROUTINE dbcsr_block_partial_copy
-
-! **************************************************************************************************
-!> \brief Sets the diagonal of a square data block
-!> \param[in,out] block_data  sets the diagonal of this data block
-!> \param[in] diagonal        set diagonal of block_data to these values
-!> \param[in] d               block size
-!> \par Off-diagonal values
-!>      Other values are untouched.
-! **************************************************************************************************
-   SUBROUTINE set_block2d_diagonal_a(block_data, diagonal, d)
-      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: block_data
-      TYPE(dbcsr_data_obj), INTENT(IN)                   :: diagonal
-      INTEGER, INTENT(IN)                                :: d
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'set_block2d_diagonal_a', &
-         routineP = moduleN//':'//routineN
-
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: c2_dp
-      COMPLEX(kind=sp), DIMENSION(:, :), POINTER         :: c2_sp
-      INTEGER                                            :: dt_block, dt_diag
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: r2_dp
-      REAL(kind=sp), DIMENSION(:, :), POINTER            :: r2_sp
-
-!   ---------------------------------------------------------------------------
-
-      dt_block = dbcsr_data_get_type(block_data)
-      dt_diag = dbcsr_data_get_type(diagonal)
-      IF (.NOT. dbcsr_type_is_2d(dt_block)) &
-         CPABORT("Block must be 2-d")
-      IF (dbcsr_type_is_2d(dt_diag)) &
-         CPABORT("Diagonal can not be 2-d")
-      SELECT CASE (dt_diag)
-      CASE (dbcsr_type_real_4)
-         r2_sp => dbcsr_get_data_p_2d_s(block_data)
-         CALL set_block2d_diagonal(r2_sp, &
-                                   dbcsr_get_data_p_s(diagonal), d)
-      CASE (dbcsr_type_real_8)
-         r2_dp => dbcsr_get_data_p_2d_d(block_data)
-         CALL set_block2d_diagonal(r2_dp, &
-                                   dbcsr_get_data_p_d(diagonal), d)
-      CASE (dbcsr_type_complex_4)
-         c2_sp => dbcsr_get_data_p_2d_c(block_data)
-         CALL set_block2d_diagonal(c2_sp, &
-                                   dbcsr_get_data_p_c(diagonal), d)
-      CASE (dbcsr_type_complex_8)
-         c2_dp => dbcsr_get_data_p_2d_z(block_data)
-         CALL set_block2d_diagonal(c2_dp, &
-                                   dbcsr_get_data_p_z(diagonal), d)
-      CASE default
-         CPABORT("Invalid data type!")
-      END SELECT
-   END SUBROUTINE set_block2d_diagonal_a
-
-! **************************************************************************************************
-!> \brief Gets the diagonal of a square data block
-!> \param[in] block_data      gets the diagonal of this data block
-!> \param[out] diagonal       values of the diagonal elements
-!> \param[in] d               dimension of block
-! **************************************************************************************************
-   SUBROUTINE get_block2d_diagonal_a(block_data, diagonal, d)
-      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: block_data, diagonal
-      INTEGER, INTENT(IN)                                :: d
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'get_block2d_diagonal_a', &
-         routineP = moduleN//':'//routineN
-
-      COMPLEX(kind=dp), DIMENSION(:), POINTER            :: c_dp
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: c2_dp
-      COMPLEX(kind=sp), DIMENSION(:), POINTER            :: c_sp
-      COMPLEX(kind=sp), DIMENSION(:, :), POINTER         :: c2_sp
-      INTEGER                                            :: dt_block, dt_diag
-      REAL(kind=dp), DIMENSION(:), POINTER               :: r_dp
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: r2_dp
-      REAL(kind=sp), DIMENSION(:), POINTER               :: r_sp
-      REAL(kind=sp), DIMENSION(:, :), POINTER            :: r2_sp
-
-!   ---------------------------------------------------------------------------
-
-      dt_block = dbcsr_data_get_type(block_data)
-      dt_diag = dbcsr_data_get_type(diagonal)
-      IF (.NOT. dbcsr_type_is_2d(dt_block)) &
-         CPABORT("Block must be 2-d")
-      IF (dbcsr_type_is_2d(dt_diag)) &
-         CPABORT("Diagonal can not be 2-d")
-      SELECT CASE (dt_diag)
-      CASE (dbcsr_type_real_4)
-         r2_sp => dbcsr_get_data_p_2d_s(block_data)
-         r_sp => dbcsr_get_data_p_s(diagonal)
-         CALL get_block2d_diagonal_s(r2_sp, r_sp, d)
-      CASE (dbcsr_type_real_8)
-         r2_dp => dbcsr_get_data_p_2d_d(block_data)
-         r_dp => dbcsr_get_data_p_d(diagonal)
-         CALL get_block2d_diagonal_d(r2_dp, r_dp, d)
-      CASE (dbcsr_type_complex_4)
-         c2_sp => dbcsr_get_data_p_2d_c(block_data)
-         c_sp => dbcsr_get_data_p_c(diagonal)
-         CALL get_block2d_diagonal_c(c2_sp, c_sp, d)
-      CASE (dbcsr_type_complex_8)
-         c2_dp => dbcsr_get_data_p_2d_z(block_data)
-         c_dp => dbcsr_get_data_p_z(diagonal)
-         CALL get_block2d_diagonal_z(c2_dp, c_dp, d)
-      CASE default
-         CPABORT("Invalid data type!")
-      END SELECT
-   END SUBROUTINE get_block2d_diagonal_a
-
-! **************************************************************************************************
-!> \brief Adds a value to the diagonal of the block
-!> \param[in,out] block_a      Sets the diagonal of this block
-!> \param[in] alpha_scalar     Adds this value to the diagonal elements of the
-!>                             block
-!> \param[in] block_dimension  Dimension of the block
-!> \param imin ...
-!> \param imax ...
-! **************************************************************************************************
-   SUBROUTINE block_add_on_diag_anytype(block_a, alpha_scalar, block_dimension, &
-                                        imin, imax)
-      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: block_a
-      TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha_scalar
-      INTEGER, INTENT(IN)                                :: block_dimension
-      INTEGER, INTENT(in), OPTIONAL                      :: imin, imax
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_anytype', &
-         routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-      IF (dbcsr_type_2d_to_1d(dbcsr_data_get_type(block_a)) /= alpha_scalar%data_type) &
-         CPABORT("Mismatched data types.")
-      SELECT CASE (dbcsr_data_get_type (block_a))
-      CASE (dbcsr_type_real_4)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%r_sp, alpha_scalar%r_sp, imin, imax)
-      CASE (dbcsr_type_real_8)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%r_dp, alpha_scalar%r_dp, imin, imax)
-      CASE (dbcsr_type_complex_4)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%c_sp, alpha_scalar%c_sp, imin, imax)
-      CASE (dbcsr_type_complex_8)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%c_dp, alpha_scalar%c_dp, imin, imax)
-      CASE (dbcsr_type_real_4_2d)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%r2_sp, alpha_scalar%r_sp, imin, imax)
-      CASE (dbcsr_type_real_8_2d)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%r2_dp, alpha_scalar%r_dp, imin, imax)
-      CASE (dbcsr_type_complex_4_2d)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%c2_sp, alpha_scalar%c_sp, imin, imax)
-      CASE (dbcsr_type_complex_8_2d)
-         CALL block_add_on_diag( &
-            block_dimension, block_a%d%c2_dp, alpha_scalar%c_dp, imin, imax)
-      CASE default
-         CPABORT("Invalid data type!")
-      END SELECT
-   END SUBROUTINE block_add_on_diag_anytype
 
 ! **************************************************************************************************
 !> \brief Adds two blocks
