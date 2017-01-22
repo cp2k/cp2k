@@ -331,131 +331,100 @@ MODULE dbcsr_api
    END INTERFACE
 
    INTERFACE dbcsr_create
-      MODULE PROCEDURE dbcsr_create_new
-      MODULE PROCEDURE dbcsr_create_template
+      MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
    END INTERFACE
 
    INTERFACE dbcsr_conform_scalar
-      MODULE PROCEDURE make_conformant_scalar_d, &
-         make_conformant_scalar_s, &
-         make_conformant_scalar_c, &
-         make_conformant_scalar_z
+      MODULE PROCEDURE make_conformant_scalar_d, make_conformant_scalar_s
+      MODULE PROCEDURE make_conformant_scalar_c, make_conformant_scalar_z
    END INTERFACE
 
    INTERFACE dbcsr_trace
-      MODULE PROCEDURE dbcsr_trace_ab_d, &
-         dbcsr_trace_ab_s
-      MODULE PROCEDURE dbcsr_trace_a_d, &
-         dbcsr_trace_a_s
-      MODULE PROCEDURE dbcsr_trace_ab_z, &
-         dbcsr_trace_ab_c
-      MODULE PROCEDURE dbcsr_trace_a_z, &
-         dbcsr_trace_a_c
+      MODULE PROCEDURE dbcsr_trace_ab_d, dbcsr_trace_ab_s
+      MODULE PROCEDURE dbcsr_trace_a_d, dbcsr_trace_a_s
+      MODULE PROCEDURE dbcsr_trace_ab_z, dbcsr_trace_ab_c
+      MODULE PROCEDURE dbcsr_trace_a_z, dbcsr_trace_a_c
    END INTERFACE
 
    INTERFACE dbcsr_set
-      MODULE PROCEDURE dbcsr_set_d, &
-         dbcsr_set_s, &
-         dbcsr_set_c, &
-         dbcsr_set_z
+      MODULE PROCEDURE dbcsr_set_d, dbcsr_set_s, dbcsr_set_c, dbcsr_set_z
    END INTERFACE
 
    INTERFACE dbcsr_add
-      MODULE PROCEDURE dbcsr_add_d, &
-         dbcsr_add_s, &
-         dbcsr_add_c, &
-         dbcsr_add_z
+      MODULE PROCEDURE dbcsr_add_d, dbcsr_add_s, dbcsr_add_c, dbcsr_add_z
+   END INTERFACE
+
+   INTERFACE dbcsr_add_on_diag
+      MODULE PROCEDURE dbcsr_add_on_diag_d, dbcsr_add_on_diag_s
+      MODULE PROCEDURE dbcsr_add_on_diag_c, dbcsr_add_on_diag_z
    END INTERFACE
 
    INTERFACE dbcsr_scale
-      MODULE PROCEDURE dbcsr_scale_d, &
-         dbcsr_scale_s, &
-         dbcsr_scale_c, &
-         dbcsr_scale_z
+      MODULE PROCEDURE dbcsr_scale_d, dbcsr_scale_s, dbcsr_scale_c, dbcsr_scale_z
    END INTERFACE
 
    INTERFACE dbcsr_scale_by_vector
-      MODULE PROCEDURE dbcsr_scale_by_vector_d, &
-         dbcsr_scale_by_vector_s, &
-         dbcsr_scale_by_vector_c, &
-         dbcsr_scale_by_vector_z
+      MODULE PROCEDURE dbcsr_scale_by_vector_d, dbcsr_scale_by_vector_s
+      MODULE PROCEDURE dbcsr_scale_by_vector_c, dbcsr_scale_by_vector_z
    END INTERFACE
 
    INTERFACE dbcsr_multiply
-      MODULE PROCEDURE dbcsr_multiply_d, &
-         dbcsr_multiply_s, &
-         dbcsr_multiply_c, &
-         dbcsr_multiply_z
+      MODULE PROCEDURE dbcsr_multiply_d, dbcsr_multiply_s, dbcsr_multiply_c, dbcsr_multiply_z
    END INTERFACE
 
    INTERFACE dbcsr_get_block_p
-      MODULE PROCEDURE dbcsr_get_block_p_d, &
-         dbcsr_get_block_p_s, &
-         dbcsr_get_block_p_z, &
-         dbcsr_get_block_p_c
-      MODULE PROCEDURE dbcsr_get_2d_block_p_d, &
-         dbcsr_get_2d_block_p_s, &
-         dbcsr_get_2d_block_p_z, &
-         dbcsr_get_2d_block_p_c
+      MODULE PROCEDURE dbcsr_get_block_p_d, dbcsr_get_block_p_s
+      MODULE PROCEDURE dbcsr_get_block_p_z, dbcsr_get_block_p_c
+      MODULE PROCEDURE dbcsr_get_2d_block_p_d, dbcsr_get_2d_block_p_s
+      MODULE PROCEDURE dbcsr_get_2d_block_p_z, dbcsr_get_2d_block_p_c
    END INTERFACE
 
    INTERFACE dbcsr_put_block
-      MODULE PROCEDURE dbcsr_put_block_d, &
-         dbcsr_put_block_s, &
-         dbcsr_put_block_z, &
-         dbcsr_put_block_c
-      MODULE PROCEDURE dbcsr_put_block2d_d, &
-         dbcsr_put_block2d_s, &
-         dbcsr_put_block2d_z, &
-         dbcsr_put_block2d_c
+      MODULE PROCEDURE dbcsr_put_block_d, dbcsr_put_block_s, dbcsr_put_block_z, dbcsr_put_block_c
+      MODULE PROCEDURE dbcsr_put_block2d_d, dbcsr_put_block2d_s, dbcsr_put_block2d_z, dbcsr_put_block2d_c
    END INTERFACE
 
    INTERFACE dbcsr_iterator_next_block
       MODULE PROCEDURE dbcsr_iterator_next_block_index
-      MODULE PROCEDURE dbcsr_iterator_next_2d_block_d, &
-         dbcsr_iterator_next_2d_block_s, &
-         dbcsr_iterator_next_2d_block_c, &
-         dbcsr_iterator_next_2d_block_z
-      MODULE PROCEDURE dbcsr_iterator_next_1d_block_d, &
-         dbcsr_iterator_next_1d_block_s, &
-         dbcsr_iterator_next_1d_block_c, &
-         dbcsr_iterator_next_1d_block_z
+      MODULE PROCEDURE dbcsr_iterator_next_2d_block_d, dbcsr_iterator_next_2d_block_s
+      MODULE PROCEDURE dbcsr_iterator_next_2d_block_c, dbcsr_iterator_next_2d_block_z
+      MODULE PROCEDURE dbcsr_iterator_next_1d_block_d, dbcsr_iterator_next_1d_block_s
+      MODULE PROCEDURE dbcsr_iterator_next_1d_block_c, dbcsr_iterator_next_1d_block_z
    END INTERFACE
 
    INTERFACE dbcsr_reserve_block2d
-      MODULE PROCEDURE dbcsr_reserve_block2d_d, &
-         dbcsr_reserve_block2d_s, &
-         dbcsr_reserve_block2d_c, &
-         dbcsr_reserve_block2d_z
+      MODULE PROCEDURE dbcsr_reserve_block2d_d, dbcsr_reserve_block2d_s
+      MODULE PROCEDURE dbcsr_reserve_block2d_c, dbcsr_reserve_block2d_z
    END INTERFACE
 
    INTERFACE dbcsr_allocate_matrix_set
-      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d, allocate_dbcsr_matrix_set_3d
+      MODULE PROCEDURE allocate_dbcsr_matrix_set
+      MODULE PROCEDURE allocate_dbcsr_matrix_set_2d
+      MODULE PROCEDURE allocate_dbcsr_matrix_set_3d
    END INTERFACE
 
    INTERFACE dbcsr_deallocate_matrix_set
-      MODULE PROCEDURE deallocate_dbcsr_matrix_set, &
-         deallocate_dbcsr_matrix_set_2d, deallocate_dbcsr_matrix_set_3d
+      MODULE PROCEDURE deallocate_dbcsr_matrix_set
+      MODULE PROCEDURE deallocate_dbcsr_matrix_set_2d
+      MODULE PROCEDURE deallocate_dbcsr_matrix_set_3d
    END INTERFACE
 
    INTERFACE csr_create
-      MODULE PROCEDURE csr_create_new, &
-         csr_create_template
+      MODULE PROCEDURE csr_create_new, csr_create_template
    END INTERFACE
 
    INTERFACE dbcsr_get_wms_data_p
-      MODULE PROCEDURE dbcsr_get_wms_data_s, dbcsr_get_wms_data_c, &
-         dbcsr_get_wms_data_d, dbcsr_get_wms_data_z
+      MODULE PROCEDURE dbcsr_get_wms_data_s, dbcsr_get_wms_data_c
+      MODULE PROCEDURE dbcsr_get_wms_data_d, dbcsr_get_wms_data_z
    END INTERFACE
 
    INTERFACE dbcsr_get_data_p
-      MODULE PROCEDURE dbcsr_get_data_s, dbcsr_get_data_c, &
-         dbcsr_get_data_d, dbcsr_get_data_z
+      MODULE PROCEDURE dbcsr_get_data_s, dbcsr_get_data_c, dbcsr_get_data_d, dbcsr_get_data_z
    END INTERFACE
 
    INTERFACE dbcsr_matrix_colvec_multiply
-      MODULE PROCEDURE dbcsr_matrix_colvec_multiply_s, dbcsr_matrix_colvec_multiply_c, &
-         dbcsr_matrix_colvec_multiply_d, dbcsr_matrix_colvec_multiply_z
+      MODULE PROCEDURE dbcsr_matrix_colvec_multiply_s, dbcsr_matrix_colvec_multiply_c
+      MODULE PROCEDURE dbcsr_matrix_colvec_multiply_d, dbcsr_matrix_colvec_multiply_z
    END INTERFACE
 
    PRIVATE
@@ -1446,23 +1415,6 @@ CONTAINS
       CALL dbcsr_create(diag, "Diagonal of "//name, template=matrix)
       CALL dbcsr_get_block_diag_prv(matrix%prv, diag%prv)
    END SUBROUTINE dbcsr_get_block_diag
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param alpha_scalar ...
-!> \param first_row ...
-!> \param last_row ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_add_on_diag(matrix, alpha_scalar, first_row, last_row)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      REAL(KIND=dp), INTENT(IN)                          :: alpha_scalar
-      INTEGER, INTENT(in), OPTIONAL                      :: first_row, last_row
-
-      CALL dbcsr_add_on_diag_prv(matrix%prv, &
-                                 dbcsr_conform_scalar(alpha_scalar, matrix), &
-                                 first_row, last_row)
-   END SUBROUTINE dbcsr_add_on_diag
 
 ! **************************************************************************************************
 !> \brief ...

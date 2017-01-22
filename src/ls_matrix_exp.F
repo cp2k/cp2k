@@ -300,9 +300,9 @@ CONTAINS
 
       !Create the unit matrices
       CALL dbcsr_set(T1, zero)
-      CALL dbcsr_add_on_diag(T1, 1.0_dp)
+      CALL dbcsr_add_on_diag(T1, one)
       CALL dbcsr_set(Tres, zero)
-      CALL dbcsr_add_on_diag(Tres, 1.0_dp)
+      CALL dbcsr_add_on_diag(Tres, one)
 
       DO i = 1, ntaylor
          CALL dbcsr_scale(T1, one/CMPLX(i*1.0_dp, 0.0_dp, KIND=dp))

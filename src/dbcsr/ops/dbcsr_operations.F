@@ -15,14 +15,14 @@
 
 MODULE dbcsr_operations
    USE array_types,                     ONLY: array_data,&
+                                              array_equality,&
                                               array_get
    USE dbcsr_blas_operations,           ONLY: set_larnv_seed
    USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                               dbcsr_put_block,&
                                               dbcsr_remove_block,&
                                               dbcsr_reserve_blocks
-   USE dbcsr_block_operations,          ONLY: block_add_on_diag,&
-                                              dbcsr_block_conjg,&
+   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                               dbcsr_block_partial_copy,&
                                               dbcsr_block_real_neg,&
                                               dbcsr_block_scale,&
@@ -134,31 +134,27 @@ MODULE dbcsr_operations
 
    INTERFACE dbcsr_scale
       MODULE PROCEDURE dbcsr_scale_anytype
-      MODULE PROCEDURE dbcsr_scale_s, dbcsr_scale_d, &
-         dbcsr_scale_c, dbcsr_scale_z
+      MODULE PROCEDURE dbcsr_scale_s, dbcsr_scale_d, dbcsr_scale_c, dbcsr_scale_z
    END INTERFACE
 
    INTERFACE dbcsr_scale_by_vector
       MODULE PROCEDURE dbcsr_scale_by_vector_anytype
-      MODULE PROCEDURE dbcsr_scale_by_vector_s, dbcsr_scale_by_vector_d, &
-         dbcsr_scale_by_vector_c, dbcsr_scale_by_vector_z
+      MODULE PROCEDURE dbcsr_scale_by_vector_s, dbcsr_scale_by_vector_d
+      MODULE PROCEDURE dbcsr_scale_by_vector_c, dbcsr_scale_by_vector_z
    END INTERFACE
 
    INTERFACE dbcsr_set
-      MODULE PROCEDURE dbcsr_set_anytype
       MODULE PROCEDURE dbcsr_set_s, dbcsr_set_d, dbcsr_set_c, dbcsr_set_z
    END INTERFACE
 
    INTERFACE dbcsr_add
       MODULE PROCEDURE dbcsr_add_anytype
-      MODULE PROCEDURE dbcsr_add_s, dbcsr_add_d, &
-         dbcsr_add_c, dbcsr_add_z
+      MODULE PROCEDURE dbcsr_add_s, dbcsr_add_d, dbcsr_add_c, dbcsr_add_z
    END INTERFACE
 
    INTERFACE dbcsr_add_on_diag
-      MODULE PROCEDURE dbcsr_add_on_diag_anytype
-      MODULE PROCEDURE dbcsr_add_on_diag_s, dbcsr_add_on_diag_d, &
-         dbcsr_add_on_diag_c, dbcsr_add_on_diag_z
+      MODULE PROCEDURE dbcsr_add_on_diag_s, dbcsr_add_on_diag_ds
+      MODULE PROCEDURE dbcsr_add_on_diag_c, dbcsr_add_on_diag_z
    END INTERFACE
 
    INTERFACE dbcsr_filter
@@ -169,14 +165,12 @@ MODULE dbcsr_operations
 
    INTERFACE dbcsr_get_diag
       MODULE PROCEDURE dbcsr_get_diag_anytype
-      MODULE PROCEDURE dbcsr_get_diag_s, dbcsr_get_diag_d, &
-         dbcsr_get_diag_c, dbcsr_get_diag_z
+      MODULE PROCEDURE dbcsr_get_diag_s, dbcsr_get_diag_d, dbcsr_get_diag_c, dbcsr_get_diag_z
    END INTERFACE
 
    INTERFACE dbcsr_set_diag
       MODULE PROCEDURE dbcsr_set_diag_anytype
-      MODULE PROCEDURE dbcsr_set_diag_s, dbcsr_set_diag_d, &
-         dbcsr_set_diag_c, dbcsr_set_diag_z
+      MODULE PROCEDURE dbcsr_set_diag_s, dbcsr_set_diag_d, dbcsr_set_diag_c, dbcsr_set_diag_z
    END INTERFACE
 
    INTERFACE dbcsr_norm
@@ -528,42 +522,6 @@ CONTAINS
    END SUBROUTINE dbcsr_scale_by_vector_anytype
 
 ! **************************************************************************************************
-!> \brief Set a DBCSR matrix by alpha
-!> \param[inout] matrix       DBCSR matrix
-!> \param[in] alpha           a scalar
-!>
-! **************************************************************************************************
-   SUBROUTINE dbcsr_set_anytype(matrix, alpha)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_anytype', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: blk, col, handle, row
-      LOGICAL                                            :: tr
-      TYPE(dbcsr_data_obj)                               :: data_block
-      TYPE(dbcsr_iterator)                               :: iter
-
-!   ---------------------------------------------------------------------------
-!
-
-      CALL timeset(routineN, handle)
-      CALL dbcsr_data_init(data_block)
-      CALL dbcsr_data_new(data_block, dbcsr_get_data_type(matrix))
-      CALL dbcsr_iterator_start(iter, matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
-         CALL dbcsr_data_clear(data_block, value=alpha)
-      ENDDO
-      CALL dbcsr_iterator_stop(iter)
-      CALL dbcsr_data_clear_pointer(data_block)
-      CALL dbcsr_data_release(data_block)
-      CALL timestop(handle)
-      !
-   END SUBROUTINE dbcsr_set_anytype
-
-! **************************************************************************************************
 !> \brief add and scale matrices
 !>    A = alpha*A + beta*B or
 !> \param[in,out] matrix_a   DBCSR matrix
@@ -817,6 +775,22 @@ CONTAINS
    END SUBROUTINE dbcsr_add_c
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param alpha ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_add_on_diag_ds(matrix, alpha)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=real_8), INTENT(IN)                      :: alpha
+
+      IF (dbcsr_get_data_type(matrix) == dbcsr_type_real_4) THEN
+         CALL dbcsr_add_on_diag_s(matrix, REAL(alpha, kind=real_4))
+      ELSE
+         CALL dbcsr_add_on_diag_d(matrix, alpha)
+      ENDIF
+   END SUBROUTINE dbcsr_add_on_diag_ds
+
+! **************************************************************************************************
 !> \brief Computes varios functions (defined by func) of matrix elements
 !> \param[in] matrix_a        DBCSR matrix
 !> \param func ...
@@ -1020,7 +994,7 @@ CONTAINS
       CALL dbcsr_data_init(c_data)
       CALL dbcsr_data_new(c_data, data_type, &
                           data_size=dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_a))
-      CALL dbcsr_set(matrix_c, dbcsr_scalar_zero(data_type))
+      CALL dbcsr_zero(matrix_c)
       CALL dbcsr_data_init(a_data)
       CALL dbcsr_data_new(a_data, data_type)
       CALL dbcsr_data_init(b_data)
@@ -1080,96 +1054,6 @@ CONTAINS
       CALL dbcsr_data_release(b_data)
       CALL timestop(handle)
    END SUBROUTINE dbcsr_hadamard_product
-
-! **************************************************************************************************
-!> \brief add a constant to the diagonal of a matrix
-!> \param[inout] matrix       DBCSR matrix
-!> \param[in]    alpha_scalar scalar
-!> \param first_row ...
-!> \param last_row ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_add_on_diag_anytype(matrix, alpha_scalar, first_row, last_row)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      TYPE(dbcsr_scalar_type), INTENT(IN)                :: alpha_scalar
-      INTEGER, INTENT(in), OPTIONAL                      :: first_row, last_row
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag_anytype', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, hold, imax, imin, my_first_row, &
-                                                            my_last_row, mynode, offset_beg, &
-                                                            offset_end, row, row_size, stored_row
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_offsets
-      LOGICAL                                            :: found, tr
-      TYPE(dbcsr_data_obj)                               :: buff, data_a, small_buff
-
-!   ---------------------------------------------------------------------------
-
-      CALL timeset(routineN, handle)
-      IF (dbcsr_nblkrows_total(matrix) .NE. dbcsr_nblkcols_total(matrix) .OR. &
-          dbcsr_nfullrows_total(matrix) .NE. dbcsr_nfullrows_total(matrix)) &
-         CPABORT("matrices not consistent")
-
-      my_first_row = 1
-      my_last_row = dbcsr_nfullrows_total(matrix)
-      IF (PRESENT(first_row)) my_first_row = first_row
-      IF (PRESENT(last_row)) my_last_row = last_row
-
-      mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
-      row_blk_offsets => dbcsr_col_block_offsets(matrix)
-
-      CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
-      CALL dbcsr_data_init(buff)
-      CALL dbcsr_data_init(data_a)
-      CALL dbcsr_data_init(small_buff)
-      CALL dbcsr_data_new(data_a, &
-                          dbcsr_type_1d_to_2d(dbcsr_get_data_type(matrix)))
-      CALL dbcsr_data_new(buff, &
-                          dbcsr_type_1d_to_2d(dbcsr_get_data_type(matrix)), &
-                          dbcsr_max_row_size(matrix), dbcsr_max_col_size(matrix))
-      CALL dbcsr_data_new(small_buff, &
-                          dbcsr_type_1d_to_2d(dbcsr_get_data_type(matrix)))
-
-      DO row = 1, dbcsr_nblkrows_total(matrix)
-         tr = .FALSE.
-         stored_row = row
-         CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_row, hold)
-         IF (hold .EQ. mynode) THEN
-            CALL dbcsr_get_block_p(matrix, stored_row, stored_row, data_a, tr, &
-                                   found, row_size=row_size)
-            offset_beg = row_blk_offsets(row)
-            offset_end = row_blk_offsets(row+1)-1
-            IF (my_first_row .GT. offset_end .OR. my_last_row .LT. offset_beg) CYCLE
-            imin = 1
-            IF (my_first_row .GT. offset_beg) THEN
-               imin = my_first_row-offset_beg+1
-            ENDIF
-            imax = row_size
-            IF (my_last_row .LT. offset_end) THEN
-               imax = my_last_row-offset_end+row_size
-            ENDIF
-            IF (found) THEN
-               CALL block_add_on_diag(data_a, alpha_scalar, row_size, &
-                                      imin=imin, imax=imax)
-            ELSE
-               CALL dbcsr_data_set_pointer(small_buff, row_size, row_size, &
-                                           buff)
-               CALL dbcsr_data_clear(small_buff)
-               CALL block_add_on_diag(small_buff, alpha_scalar, row_size, &
-                                      imin=imin, imax=imax)
-               CALL dbcsr_put_block(matrix, stored_row, stored_row, small_buff)
-            ENDIF
-         ENDIF
-      ENDDO
-
-      CALL dbcsr_data_clear_pointer(data_a)
-      CALL dbcsr_data_clear_pointer(small_buff)
-      CALL dbcsr_data_release(small_buff)
-      CALL dbcsr_data_release(buff)
-      CALL dbcsr_data_release(data_a)
-      CALL dbcsr_finalize(matrix)
-      CALL timestop(handle)
-   END SUBROUTINE dbcsr_add_on_diag_anytype
 
 ! **************************************************************************************************
 !> \brief ... TODO : unify with other version which is generic in the data_type

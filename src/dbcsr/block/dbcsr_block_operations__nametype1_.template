@@ -571,64 +571,6 @@
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param m ...
-!> \param blk ...
-!> \param alpha ...
-!> \param imin ...
-!> \param imax ...
-! **************************************************************************************************
-  PURE SUBROUTINE block_2d_add_on_diag_[nametype1](m, blk, alpha, imin, imax)
-    INTEGER, INTENT(IN)                      :: m
-    [type1], INTENT(INOUT), DIMENSION(m,m)   :: blk
-    [type1], INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN), OPTIONAL            :: imin, imax
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_2d_add_on_diag_[nametype1]', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-
-!   ---------------------------------------------------------------------------
-
-    IF(PRESENT(imin).AND.PRESENT(imax)) THEN
-       DO i = MAX(1,imin),MIN(m,imax)
-         blk(i,i) = blk(i,i) + alpha
-       ENDDO
-    ELSE
-       DO i = 1,m
-          blk(i,i) = blk(i,i) + alpha
-       END DO
-    ENDIF
-  END SUBROUTINE block_2d_add_on_diag_[nametype1]
-
-! **************************************************************************************************
-!> \brief ...
-!> \param m ...
-!> \param blk ...
-!> \param alpha ...
-!> \param imin ...
-!> \param imax ...
-! **************************************************************************************************
-  PURE SUBROUTINE block_add_on_diag_[nametype1](m, blk, alpha, imin, imax)
-    INTEGER, INTENT(IN)                      :: m
-    [type1], INTENT(INOUT), DIMENSION(m*m)   :: blk
-    [type1], INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN), OPTIONAL            :: imin, imax
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_[nametype1]', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    IF(PRESENT(imin).AND.PRESENT(imax)) THEN
-       CALL block_2d_add_on_diag_[nametype1](m, blk, alpha, imin, imax)
-    ELSE
-       CALL block_2d_add_on_diag_[nametype1](m, blk, alpha, 1, m)
-    ENDIF
-  END SUBROUTINE block_add_on_diag_[nametype1]
-
-! **************************************************************************************************
-!> \brief ...
 !> \param block_a ...
 !> \param block_b ...
 !> \param len ...

@@ -49,8 +49,8 @@
           IF(a_col.ne.a_row) CYCLE
           ! We must skip non-local blocks in a replicated matrix.
           IF(matrix_a%replication_type .NE. dbcsr_repl_full) THEN
-             IF (mynode .NE. checker_square_proc (a_row, a_col, pgrid,&
-                  row_dist, col_dist)) CYCLE
+             IF (mynode .NE. checker_square_proc (a_row, a_col, pgrid, row_dist, col_dist)) &
+                CYCLE
           ENDIF
           a_col_size = col_blk_size(a_col)
           IF(a_row_size.NE.a_col_size)&
@@ -238,11 +238,32 @@
   SUBROUTINE dbcsr_set_z(matrix, alpha)
     TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
     COMPLEX(kind=real_8), INTENT(IN)                      :: alpha
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set'
+
+      INTEGER                                            :: col, handle, row
+      TYPE(dbcsr_iterator)                               :: iter
+      COMPLEX(kind=real_8), DIMENSION(:,:), POINTER                   :: block
+      LOGICAL                                            :: tr
+
+    CALL timeset(routineN, handle)
+
     IF (alpha==CMPLX(0.0, 0.0, real_8)) THEN
       CALL dbcsr_zero(matrix)
     ELSE
-      CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha))
+       IF(dbcsr_get_data_type (matrix) /=  dbcsr_type_complex_8) &
+         CPABORT("Incompatible data types")
+
+      !TODO: could be speedup by direct assigment to data_area, similar to dbcsr_zero()
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, block, tr)
+         block(:,:) = alpha
+      ENDDO
+      CALL dbcsr_iterator_stop(iter)
     ENDIF
+
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_set_z
 
 ! **************************************************************************************************
@@ -313,18 +334,55 @@
     CALL dbcsr_data_release (diag_a)
   END SUBROUTINE dbcsr_get_diag_z
 
-
 ! **************************************************************************************************
 !> \brief add a constant to the diagonal of a matrix
 !> \param[inout] matrix       DBCSR matrix
-!> \param[in]    alpha_scalar scalar
-!> \param first_row ...
-!> \param last_row ...
+!> \param[in]    alpha scalar
 ! **************************************************************************************************
-  SUBROUTINE dbcsr_add_on_diag_z(matrix, alpha_scalar, first_row, last_row)
-    TYPE(dbcsr_type), INTENT(INOUT)           :: matrix
-    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha_scalar
-    integer, intent(in), optional            :: first_row, last_row
+   SUBROUTINE dbcsr_add_on_diag_z(matrix, alpha)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      COMPLEX(kind=real_8), INTENT(IN)                                :: alpha
 
-    CALL dbcsr_add_on_diag(matrix, dbcsr_scalar(alpha_scalar), first_row, last_row)
-  END SUBROUTINE dbcsr_add_on_diag_z
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag'
+
+      INTEGER                                            :: handle, mynode, node, irow, i, row_size
+      LOGICAL                                            :: found, tr
+      COMPLEX(kind=real_8), DIMENSION(:,:), POINTER                   :: block
+
+      CALL timeset(routineN, handle)
+
+      IF(dbcsr_get_data_type (matrix) /=  dbcsr_type_complex_8) &
+         CPABORT("Incompatible data types")
+
+      IF (.NOT. array_equality(dbcsr_row_block_offsets(matrix), dbcsr_row_block_offsets(matrix))) &
+         CPABORT("matrix not quadratic")
+
+      mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
+
+      CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
+
+      DO irow = 1, dbcsr_nblkrows_total(matrix)
+         CALL dbcsr_get_stored_coordinates(matrix, irow, irow, node)
+         IF (node /= mynode) CYCLE
+
+         CALL dbcsr_get_block_p(matrix, irow, irow, block, tr, found, row_size=row_size)
+         IF (.NOT.found) THEN
+            ALLOCATE(block(row_size,row_size))
+            block(:,:) = CMPLX(0.0, 0.0, real_8)
+         ENDIF
+
+         DO i = 1, row_size
+             block(i,i) = block(i,i) + alpha
+         END DO
+
+         IF (.NOT.found) THEN
+            CALL dbcsr_put_block(matrix, irow, irow, block)
+            DEALLOCATE(block)
+         ENDIF
+      ENDDO
+
+      CALL dbcsr_finalize(matrix)
+      CALL timestop(handle)
+   END SUBROUTINE dbcsr_add_on_diag_z
+

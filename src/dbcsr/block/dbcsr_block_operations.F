@@ -46,7 +46,6 @@ MODULE dbcsr_block_operations
    PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
 
    PUBLIC :: dbcsr_data_copy
-   PUBLIC :: block_add_on_diag
 
    PUBLIC :: block_add
 
@@ -108,14 +107,6 @@ MODULE dbcsr_block_operations
       MODULE PROCEDURE set_block2d_diagonal_a
       MODULE PROCEDURE set_block2d_diagonal_s, set_block2d_diagonal_d, &
          set_block2d_diagonal_c, set_block2d_diagonal_z
-   END INTERFACE
-
-   INTERFACE block_add_on_diag
-      MODULE PROCEDURE block_add_on_diag_anytype
-      MODULE PROCEDURE block_2d_add_on_diag_d, block_2d_add_on_diag_s, &
-         block_2d_add_on_diag_z, block_2d_add_on_diag_c
-      MODULE PROCEDURE block_add_on_diag_d, block_add_on_diag_s, &
-         block_add_on_diag_z, block_add_on_diag_c
    END INTERFACE
 
    INTERFACE block_add
