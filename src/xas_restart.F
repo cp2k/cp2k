@@ -20,8 +20,10 @@ MODULE xas_restart
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type,&
@@ -447,7 +449,7 @@ CONTAINS
       NULLIFY (excvec_coeff, excvec_overlap, fm_work, mo_coeff)
       ! Some elements from the xas_env
       CALL get_xas_env(xas_env=xas_env, excvec_coeff=excvec_coeff, &
-                       excvec_overlap=excvec_overlap, fm_work=fm_work, nexc_search=nexc_search, &
+                       excvec_overlap=excvec_overlap, nexc_search=nexc_search, &
                        xas_estate=xas_estate, occ_estate=occ_estate)
       CPASSERT(ASSOCIATED(excvec_overlap))
 
@@ -459,6 +461,7 @@ CONTAINS
       vecbuffer2 = 0.0_dp
 
       ! ** use the maximum overlap criterion to find the index of the excited orbital
+      CALL cp_fm_create(fm_work, mo_coeff%matrix_struct)
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, fm_work, ncol=nmo)
       CALL cp_gemm("T", "N", 1, xas_env%nexc_search, nao, 1.0_dp, excvec_coeff, &
                    fm_work, 0.0_dp, excvec_overlap, b_first_col=1)
@@ -466,6 +469,7 @@ CONTAINS
                           nrow_global=m, ncol_global=n)
       CALL cp_fm_get_submatrix(excvec_overlap, vecbuffer2, 1, 1, &
                                1, nexc_search, transpose=.FALSE.)
+      CALL cp_fm_release(fm_work)
 
       b_max = 0.0_dp
       ic_max = xas_estate

@@ -539,7 +539,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: k_in, k_out, timing_handle, &
-                                                            timing_handle_mult
+                                                            timing_handle_mult,&
+                                                            a_ncol, a_nrow,  b_ncol, b_nrow, c_ncol, c_nrow
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, &
                                                             col_blk_size_right_out, row_blk_size,&
                                                             row_cluster_dist, col_cluster_dist,&
@@ -555,6 +556,14 @@ CONTAINS
       my_beta = 0.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
       IF (PRESENT(beta)) my_beta = beta
+
+      ! TODO
+      CALL cp_fm_get_info(fm_in,  ncol_global=b_ncol, nrow_global=b_nrow)
+      CALL cp_fm_get_info(fm_out, ncol_global=c_ncol, nrow_global=c_nrow)
+      CALL dbcsr_get_info(matrix, nfullrows_total=a_nrow, nfullcols_total=a_ncol)
+      !WRITE(*,*) "cp_dbcsr_sm_fm_multiply: A ", a_nrow, "x", a_ncol
+      !WRITE(*,*) "cp_dbcsr_sm_fm_multiply: B ", b_nrow, "x", b_ncol
+      !WRITE(*,*) "cp_dbcsr_sm_fm_multiply: C ", c_nrow, "x", c_ncol
 
       CALL cp_fm_get_info(fm_out, ncol_global=k_out)
 
@@ -596,7 +605,7 @@ CONTAINS
 
          CALL timeset(routineN//'_core', timing_handle_mult)
          CALL dbcsr_multiply("N", "N", my_alpha, matrix, in, my_beta, out, &
-                                last_column=ncol, match_matrix_sizes=.TRUE.)
+                                last_column=ncol)
          CALL timestop(timing_handle_mult)
 
          CALL copy_dbcsr_to_fm(out, fm_out)

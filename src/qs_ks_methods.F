@@ -33,7 +33,8 @@ MODULE qs_ks_methods
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_copy_columns_hack
    USE cp_ddapc,                        ONLY: qs_ks_ddapc
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale_and_add,&
@@ -57,8 +58,9 @@ MODULE qs_ks_methods
                                               cp_print_key_should_output
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_symmetric
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: efield_potential
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -1086,6 +1088,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit, mo_derivs_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
+      TYPE(dbcsr_type)                                   :: mo_derivs2_tmp1, mo_derivs2_tmp2
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array, mos_aux_fit
@@ -1140,13 +1143,31 @@ CONTAINS
             ! reconstruct things in ot, since we irreversibly sum
             CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
             CPASSERT(uniform_occupation)
-            CALL get_mo_set(mo_set=mo_array(2)%mo_set, &
-                            uniform_occupation=uniform_occupation)
+            CALL get_mo_set(mo_set=mo_array(2)%mo_set, uniform_occupation=uniform_occupation)
             CPASSERT(uniform_occupation)
 
+            ! The beta-spin might have fewer orbitals than alpa-spin...
+            ! create tempoary matrices with beta_nmo columns
             CALL get_mo_set(mo_set=mo_array(2)%mo_set, mo_coeff_b=mo_coeff_b)
-            CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(2)%matrix, mo_coeff_b, &
-                                1.0_dp, mo_derivs(1)%matrix, match_matrix_sizes=.TRUE.)
+            CALL dbcsr_create(mo_derivs2_tmp1, template=mo_coeff_b)
+
+            ! calculate beta derivatives
+            CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(2)%matrix, mo_coeff_b, 0.0_dp, mo_derivs2_tmp1)
+
+            ! create larger matrix with alpha_nmo columns
+            CALL dbcsr_create(mo_derivs2_tmp2, template=mo_derivs(1)%matrix)
+            CALL dbcsr_set(mo_derivs2_tmp2, 0.0_dp)
+
+            ! copy into larger matrix, fills the first beta_nmo columns
+            CALL dbcsr_copy_columns_hack(mo_derivs2_tmp2, mo_derivs2_tmp1, &
+                                         mo_array(2)%mo_set%nmo, 1, 1, &
+                                         para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env, &
+                                         blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context)
+
+            ! add beta contribution to alpa mo_derivs
+            CALL dbcsr_add(mo_derivs(1)%matrix, mo_derivs2_tmp2, 1.0_dp, 1.0_dp)
+            CALL dbcsr_release(mo_derivs2_tmp1)
+            CALL dbcsr_release(mo_derivs2_tmp2)
          ENDIF
 
       ENDDO

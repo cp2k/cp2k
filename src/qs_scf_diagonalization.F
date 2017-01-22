@@ -222,8 +222,7 @@ CONTAINS
             CALL eigensolver_dbcsr(matrix_ks=matrix_ks(ispin)%matrix, matrix_ks_fm=scf_env%scf_work1(ispin)%matrix, &
                                    mo_set=mos(ispin)%mo_set, &
                                    ortho_dbcsr=ortho_dbcsr, &
-                                   ksbuf1=scf_env%buf1_dbcsr, ksbuf2=scf_env%buf2_dbcsr, &
-                                   work=scf_env%scf_work2)
+                                   ksbuf1=scf_env%buf1_dbcsr, ksbuf2=scf_env%buf2_dbcsr)
          END DO
 
       ELSE IF (scf_env%cholesky_method > cholesky_off) THEN
@@ -592,8 +591,6 @@ CONTAINS
                                          extension=".scfLog")
 
       !Extra loop keeping mos unchanged and refining the subspace occupation
-      work => scf_env%scf_work2
-
       nspin = SIZE(mos)
       CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp)
 
@@ -679,8 +676,10 @@ CONTAINS
             evec => subspace_env%c_vec(ispin)%matrix
             c0 => subspace_env%c0(ispin)%matrix
             CALL cp_fm_to_fm(mo_coeff, c0)
+            CALL cp_fm_create(work, c0%matrix_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, c0, work, nmo)
             CALL cp_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
+            CALL cp_fm_release(work)
             !diagonalize C'HC
             CALL choose_eigv_solver(chc, evec, mo_eigenvalues)
 

@@ -63,7 +63,6 @@ MODULE xas_env_types
 !> \param groundstate_coeff temporary storage for the original mos coefficients
 !> \param ostrength_sm sin and cos integrals computed for the contracted GTO functions
 !> \param dip_fm_set fm for the sin and cos integrals to define the pos operator
-!> \param fm_work temporary fm
 !> \param qs_loc_env environment for the localization procedure
 !> \par History
 !>       created 05-2005
@@ -97,7 +96,6 @@ MODULE xas_env_types
       TYPE(cp_fm_type), POINTER :: excvec_overlap
       TYPE(cp_fm_type), POINTER :: unoccupied_orbs
       TYPE(cp_fm_type), POINTER :: all_vectors
-      TYPE(cp_fm_type), POINTER :: fm_work
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: ostrength_sm
       TYPE(qs_loc_env_new_type), POINTER :: qs_loc_env
       TYPE(qs_scf_env_type), POINTER                        :: scf_env
@@ -127,7 +125,6 @@ CONTAINS
 !> \param dip_fm_set ...
 !> \param excvec_coeff ...
 !> \param excvec_overlap ...
-!> \param fm_work ...
 !> \param unoccupied_orbs ...
 !> \param unoccupied_evals ...
 !> \param unoccupied_max_iter ...
@@ -148,7 +145,7 @@ CONTAINS
    SUBROUTINE get_xas_env(xas_env, iter_count, exc_state, nao, nvirtual, nvirtual2, &
                           centers_wfn, atom_of_state, exc_atoms, type_of_state, mykind_of_atom, mykind_of_kind, &
                           state_of_atom, spectrum, groundstate_coeff, ostrength_sm, &
-                          dip_fm_set, excvec_coeff, excvec_overlap, fm_work, &
+                          dip_fm_set, excvec_coeff, excvec_overlap, &
                           unoccupied_orbs, unoccupied_evals, unoccupied_max_iter, unoccupied_eps, &
                           all_vectors, all_evals, my_gto_basis, qs_loc_env, &
                           stogto_overlap, occ_estate, xas_nelectron, xas_estate, nexc_atoms, nexc_search, scf_env, scf_control)
@@ -167,7 +164,7 @@ CONTAINS
          POINTER                                         :: ostrength_sm
       TYPE(cp_fm_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: dip_fm_set
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: excvec_coeff, excvec_overlap, fm_work, &
+      TYPE(cp_fm_type), OPTIONAL, POINTER                :: excvec_coeff, excvec_overlap, &
                                                             unoccupied_orbs
       REAL(dp), DIMENSION(:), OPTIONAL, POINTER          :: unoccupied_evals
       INTEGER, INTENT(OUT), OPTIONAL                     :: unoccupied_max_iter
@@ -214,7 +211,6 @@ CONTAINS
       IF (PRESENT(ostrength_sm)) ostrength_sm => xas_env%ostrength_sm
       IF (PRESENT(excvec_overlap)) excvec_overlap => xas_env%excvec_overlap
       IF (PRESENT(unoccupied_orbs)) unoccupied_orbs => xas_env%unoccupied_orbs
-      IF (PRESENT(fm_work)) fm_work => xas_env%fm_work
       IF (PRESENT(all_vectors)) all_vectors => xas_env%all_vectors
       IF (PRESENT(dip_fm_set)) dip_fm_set => xas_env%dip_fm_set
       IF (PRESENT(qs_loc_env)) qs_loc_env => xas_env%qs_loc_env
@@ -313,7 +309,7 @@ CONTAINS
       NULLIFY (xas_env%excvec_coeff, xas_env%excvec_overlap)
       NULLIFY (xas_env%type_of_state, xas_env%mykind_of_atom)
       NULLIFY (xas_env%type_of_state, xas_env%mykind_of_kind)
-      NULLIFY (xas_env%fm_work, xas_env%groundstate_coeff, xas_env%dip_fm_set)
+      NULLIFY (xas_env%groundstate_coeff, xas_env%dip_fm_set)
       NULLIFY (xas_env%ostrength_sm, xas_env%qs_loc_env, xas_env%spectrum)
       NULLIFY (xas_env%all_evals, xas_env%all_vectors)
       NULLIFY (xas_env%unoccupied_evals, xas_env%unoccupied_orbs)
@@ -377,9 +373,6 @@ CONTAINS
             END IF
             IF (ASSOCIATED(xas_env%unoccupied_orbs)) THEN
                CALL cp_fm_release(xas_env%unoccupied_orbs)
-            END IF
-            IF (ASSOCIATED(xas_env%fm_work)) THEN
-               CALL cp_fm_release(xas_env%fm_work)
             END IF
             NULLIFY (xas_env%ao_mo_fm_pools)
             IF (ASSOCIATED(xas_env%all_vectors) .AND. xas_env%nvirtual .GT. 0) THEN

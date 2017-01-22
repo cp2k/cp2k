@@ -263,25 +263,23 @@ CONTAINS
 !> \param ortho_dbcsr ...
 !> \param ksbuf1 ...
 !> \param ksbuf2 ...
-!> \param work ...
 ! **************************************************************************************************
-   SUBROUTINE eigensolver_dbcsr(matrix_ks, matrix_ks_fm, mo_set, ortho_dbcsr, ksbuf1, ksbuf2, work)
+   SUBROUTINE eigensolver_dbcsr(matrix_ks, matrix_ks_fm, mo_set, ortho_dbcsr, ksbuf1, ksbuf2)
       TYPE(dbcsr_type), POINTER                          :: matrix_ks
       TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr, ksbuf1, ksbuf2
-      TYPE(cp_fm_type), POINTER                          :: work
 
       CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_dbcsr', &
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, nao, nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: all_evecs, mo_coeff, nmo_evecs
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (mo_coeff)
+      NULLIFY (mo_coeff, all_evecs, nmo_evecs)
       NULLIFY (mo_eigenvalues)
 
       CALL get_mo_set(mo_set=mo_set, &
@@ -297,11 +295,18 @@ CONTAINS
 
 !    Solve the eigenvalue problem
       CALL copy_dbcsr_to_fm(ksbuf2, matrix_ks_fm)
-      CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
+      CALL cp_fm_create(all_evecs, matrix_ks_fm%matrix_struct)
+      CALL choose_eigv_solver(matrix_ks_fm, all_evecs, mo_eigenvalues)
+
+      ! select first nmo eigenvectors
+      CALL cp_fm_create(nmo_evecs, mo_coeff%matrix_struct)
+      CALL cp_fm_to_fm(msource=all_evecs, mtarget=nmo_evecs, ncol=nmo)
+      CALL cp_fm_release(all_evecs)
 
 !    Restore the eigenvector of the general eig. problem
-      CALL cp_dbcsr_sm_fm_multiply(ortho_dbcsr, work, mo_coeff, nmo)
+      CALL cp_dbcsr_sm_fm_multiply(ortho_dbcsr, nmo_evecs, mo_coeff, nmo)
 
+      CALL cp_fm_release(nmo_evecs)
       CALL timestop(handle)
 
    END SUBROUTINE eigensolver_dbcsr

@@ -269,9 +269,7 @@
   SUBROUTINE dbcsr_multiply_s (transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, match_matrix_sizes, &
-       filter_eps,&
-       flop)
+       retain_sparsity, filter_eps, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(kind=real_4), INTENT(IN)                      :: alpha
     TYPE(dbcsr_type), INTENT(IN)             :: matrix_a, matrix_b
@@ -280,45 +278,26 @@
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_column, last_column, &
                                                 first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity, match_matrix_sizes
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(kind=real_8), INTENT(IN), OPTIONAL :: filter_eps
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_s', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
-                                                trans_b
-    LOGICAL                                  :: my_match_matrix_sizes
-    TYPE(dbcsr_type)                      :: new_a, new_b
+    CHARACTER(LEN=1)                         :: trans_a, trans_b
 
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
     CALL uppercase(trans_b)
-    shape_a='R'
-    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
-    shape_b='R'
-    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-
-    my_match_matrix_sizes=.FALSE.
-    IF(PRESENT(match_matrix_sizes)) my_match_matrix_sizes=match_matrix_sizes
-    IF(my_match_matrix_sizes)THEN
-       CALL matrix_match_sizes (matrix_c, matrix_a, transa, matrix_b, transb, new_a, new_b)
-    ELSE
-       CALL dbcsr_copy_prv(new_a%prv, matrix_a%prv, shallow_data=.TRUE.)
-       CALL dbcsr_copy_prv(new_b%prv, matrix_b%prv, shallow_data=.TRUE.)
-    END IF
 
     CALL dbcsr_multiply_prv(transa, transb,&
-         alpha, new_a%prv, new_b%prv, beta, matrix_c%prv,&
+         alpha, matrix_a%prv, matrix_b%prv, beta, matrix_c%prv,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, &
          filter_eps=filter_eps,&
          flop=flop)
-
-    CALL dbcsr_release (new_a)
-    CALL dbcsr_release (new_b)
 
   END SUBROUTINE dbcsr_multiply_s
 

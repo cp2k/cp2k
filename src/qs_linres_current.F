@@ -2526,7 +2526,6 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_p, psi1_rxp
-      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -2639,18 +2638,6 @@ CONTAINS
       !
       DEALLOCATE (row_blk_sizes)
       !
-      !
-      ! Allocate full matrices for only one vector
-      mo_coeff => psi0_order(1)%matrix
-      NULLIFY (tmp_fm_struct)
-      CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
-                               ncol_global=max_states, para_env=para_env, &
-                               context=mo_coeff%matrix_struct%context)
-      CALL cp_fm_create(buf, tmp_fm_struct)
-      CALL cp_fm_struct_release(tmp_fm_struct)
-      !
-      !
-      !
       ! recompute the linear momentum matrices
       CALL build_lin_mom_matrix(qs_env, op_p_ao)
       !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.)
@@ -2666,6 +2653,9 @@ CONTAINS
          nmo = nstates(ispin)
          mo_coeff => psi0_order(ispin)%matrix
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc)
+         !
+         ! Create buffer matrix
+         CALL cp_fm_create(buf, mo_coeff%matrix_struct)
          !
          ! Initialize the temporary vector chi
          chi = 0.0_dp
@@ -2821,13 +2811,13 @@ CONTAINS
             ENDIF
          ENDDO
          !
+         CALL cp_fm_release(buf)
       ENDDO ! ispin
       !
       ! deallocate the sparse matrices
       CALL dbcsr_deallocate_matrix_set(op_mom_ao)
       CALL dbcsr_deallocate_matrix_set(op_mom_der_ao)
       CALL dbcsr_deallocate_matrix_set(op_p_ao)
-      CALL cp_fm_release(buf)
 
       CALL timestop(handle)
 

@@ -331,15 +331,6 @@ CONTAINS
          CALL cp_fm_create(Ap(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
       ENDDO
       !
-      NULLIFY (tmp_fm_struct)
-      CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
-                               ncol_global=maxnmo, para_env=para_env, &
-                               context=psi1(1)%matrix%matrix_struct%context)
-      CALL cp_fm_create(buf, tmp_fm_struct)
-      CALL cp_fm_struct_release(tmp_fm_struct)
-      !
-      !
-      !
       ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
       ALLOCATE (chc(nspins), Sc(nspins))
       DO ispin = 1, nspins
@@ -357,9 +348,11 @@ CONTAINS
          !
          ! C0_order' * H * C0_order
          mo_coeff => psi0_order(ispin)%matrix
+         CALL cp_fm_create(buf, mo_coeff%matrix_struct)
          CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, ncol)
          CALL cp_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
+         CALL cp_fm_release(buf)
          !
          ! S * C0
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -377,7 +370,7 @@ CONTAINS
       ENDIF
       !
       ! orthogonalize x with respect to the psi0
-      CALL preortho(psi1, mo_coeff_array, Sc, buf)
+      CALL preortho(psi1, mo_coeff_array, Sc)
       !
       ! build the preconditioner
       IF (linres_control%preconditioner_type /= ot_precond_none) THEN
@@ -396,7 +389,7 @@ CONTAINS
       ! initalization of the linear solver
       !
       ! A * x0
-      CALL apply_op(qs_env, p_env, psi0_order, psi1, Ap, chc, buf)
+      CALL apply_op(qs_env, p_env, psi0_order, psi1, Ap, chc)
       !
       !
       ! r_0 = b - Ax0
@@ -406,7 +399,7 @@ CONTAINS
       ENDDO
       !
       ! proj r
-      CALL postortho(r, mo_coeff_array, Sc, buf)
+      CALL postortho(r, mo_coeff_array, Sc)
       !
       ! preconditioner
       linres_control%flag = ""
@@ -487,11 +480,11 @@ CONTAINS
          !
          !
          ! Apply the operators that do not depend on the perturbation
-         CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc, buf)
+         CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc)
          !
          !
 !       ! proj Ap onto the virtual subspace
-         CALL postortho(Ap, mo_coeff_array, Sc, buf)
+         CALL postortho(Ap, mo_coeff_array, Sc)
          !
          !
          DO ispin = 1, nspins
@@ -513,8 +506,8 @@ CONTAINS
                END IF
                linres_control%flag = "CG"
 
-               CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc, buf)
-               CALL postortho(Ap, mo_coeff_array, Sc, buf)
+               CALL apply_op(qs_env, p_env, psi0_order, p, Ap, chc)
+               CALL postortho(Ap, mo_coeff_array, Sc)
                CALL cp_fm_trace(Ap(ispin)%matrix, p(ispin)%matrix, tr_pAp(ispin))
                CPABORT("tr(Ap_j*p_j) < 0")
             END IF
@@ -536,7 +529,7 @@ CONTAINS
             !
             !
             ! r_j+1 = b - A * x_j+1
-            CALL apply_op(qs_env, p_env, psi0_order, psi1, Ap, chc, buf)
+            CALL apply_op(qs_env, p_env, psi0_order, psi1, Ap, chc)
             !
             !
             DO ispin = 1, nspins
@@ -544,12 +537,12 @@ CONTAINS
                CALL cp_fm_to_fm(h1_psi0(ispin)%matrix, r(ispin)%matrix)
                CALL cp_fm_scale_and_add(-1.0_dp, r(ispin)%matrix, -1.0_dp, Ap(ispin)%matrix)
             ENDDO
-            CALL postortho(r, mo_coeff_array, Sc, buf)
+            CALL postortho(r, mo_coeff_array, Sc)
             !
             restart = .TRUE.
          ELSE
 !       ! proj Ap onto the virtual subspace
-            CALL postortho(Ap, mo_coeff_array, Sc, buf)
+            CALL postortho(Ap, mo_coeff_array, Sc)
             !
             ! r_j+1 = r_j - alpha * Ap_j
             DO ispin = 1, nspins
@@ -605,7 +598,7 @@ CONTAINS
       ENDDO iteration
       !
       ! proj psi1
-      CALL preortho(psi1, mo_coeff_array, Sc, buf)
+      CALL preortho(psi1, mo_coeff_array, Sc)
       !
       ! clean up
       DO ispin = 1, nspins
@@ -617,7 +610,6 @@ CONTAINS
          CALL cp_fm_release(Sc(ispin)%matrix)
          CALL cp_fm_release(chc(ispin)%matrix)
       ENDDO
-      CALL cp_fm_release(buf)
       DEALLOCATE (alpha, beta, tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, "PRINT%PROGRAM_RUN_INFO")
@@ -635,14 +627,12 @@ CONTAINS
 !> \param v ...
 !> \param Av ...
 !> \param chc ...
-!> \param buf ...
 ! **************************************************************************************************
-   SUBROUTINE apply_op(qs_env, p_env, c0, v, Av, chc, buf)
+   SUBROUTINE apply_op(qs_env, p_env, c0, v, Av, chc)
       !
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
-      TYPE(cp_fm_type), POINTER                          :: buf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op', routineP = moduleN//':'//routineN
 
@@ -663,7 +653,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(v))
       CPASSERT(ASSOCIATED(Av))
       CPASSERT(ASSOCIATED(chc))
-      CPASSERT(ASSOCIATED(buf))
       !
       CALL get_qs_env(qs_env=qs_env, &
                       matrix_ks=matrix_ks, &
@@ -678,7 +667,7 @@ CONTAINS
       ! apply the uncoupled operator
       DO ispin = 1, nspins
          CALL apply_op_1(v(ispin)%matrix, Av(ispin)%matrix, matrix_ks(ispin)%matrix, &
-                         matrix_s(1)%matrix, chc(ispin)%matrix, buf)
+                         matrix_s(1)%matrix, chc(ispin)%matrix)
       ENDDO
 
       IF (linres_control%do_kernel) THEN !.AND.chksum.GT.1.0E-10_dp) THEN
@@ -711,7 +700,7 @@ CONTAINS
             !   first_time = .false.
             !endif
 
-            CALL apply_op_2(qs_env, p_env, c0, v, Av, chc, buf)
+            CALL apply_op_2(qs_env, p_env, c0, v, Av, chc)
 
             !CALL kpp1_calc_k_p_p1(p_env%kpp1_env, p_env, qs_env, p_env%kpp1, qs_env%rho, p_env%rho1, p_env%rho1_xc)
             !DO ispin = 1,nspins
@@ -779,17 +768,17 @@ CONTAINS
 !> \param matrix_ks ...
 !> \param matrix_s ...
 !> \param chc ...
-!> \param buf ...
 ! **************************************************************************************************
-   SUBROUTINE apply_op_1(v, Av, matrix_ks, matrix_s, chc, buf)
+   SUBROUTINE apply_op_1(v, Av, matrix_ks, matrix_s, chc)
       !
       TYPE(cp_fm_type), POINTER                          :: v, Av
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
-      TYPE(cp_fm_type), POINTER                          :: chc, buf
+      TYPE(cp_fm_type), POINTER                          :: chc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_op_1', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ncol, nrow
+      TYPE(cp_fm_type), POINTER                          :: buf
 
 !
 !
@@ -801,7 +790,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(matrix_ks))
       CPASSERT(ASSOCIATED(matrix_s))
       CPASSERT(ASSOCIATED(chc))
-      CPASSERT(ASSOCIATED(buf))
+      NULLIFY (buf)
+      !
+      CALL cp_fm_create(buf, v%matrix_struct)
       !
       CALL cp_fm_get_info(v, ncol_global=ncol, nrow_global=nrow)
       ! H * v
@@ -811,6 +802,8 @@ CONTAINS
       ! S * ve
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, buf, Av, ncol, alpha=1.0_dp, beta=1.0_dp)
       !Results is H*C1 - S*<iHj>*C1
+      !
+      CALL cp_fm_release(buf)
       !
       CALL timestop(handle)
       !
@@ -824,14 +817,12 @@ CONTAINS
 !> \param v ...
 !> \param Av ...
 !> \param chc ...
-!> \param buf ...
 ! **************************************************************************************************
-   SUBROUTINE apply_op_2(qs_env, p_env, c0, v, Av, chc, buf)
+   SUBROUTINE apply_op_2(qs_env, p_env, c0, v, Av, chc)
       !
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
-      TYPE(cp_fm_type), POINTER                          :: buf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2', routineP = moduleN//':'//routineN
 
@@ -872,7 +863,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(v))
       CPASSERT(ASSOCIATED(Av))
       CPASSERT(ASSOCIATED(chc))
-      CPASSERT(ASSOCIATED(buf))
 
       CPASSERT(ASSOCIATED(p_env%kpp1_env))
       CPASSERT(ASSOCIATED(p_env%kpp1))
@@ -1338,18 +1328,18 @@ CONTAINS
 !> \param v ...
 !> \param psi0 ...
 !> \param S_psi0 ...
-!> \param buf ...
 ! **************************************************************************************************
-   SUBROUTINE preortho(v, psi0, S_psi0, buf)
+   SUBROUTINE preortho(v, psi0, S_psi0)
       !v = (I-PS)v
       !
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: v, psi0, S_psi0
-      TYPE(cp_fm_type), POINTER                          :: buf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'preortho', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv
+      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), POINTER                          :: buf
 
 !
 !
@@ -1359,14 +1349,20 @@ CONTAINS
       CPASSERT(ASSOCIATED(v))
       CPASSERT(ASSOCIATED(S_psi0))
       CPASSERT(ASSOCIATED(psi0))
-      CPASSERT(ASSOCIATED(buf))
+      NULLIFY (buf, tmp_fm_struct)
       !
       nspins = SIZE(v, 1)
       !
       DO ispin = 1, nspins
-         !
          CALL cp_fm_get_info(v(ispin)%matrix, ncol_global=mv, nrow_global=nv)
          CALL cp_fm_get_info(psi0(ispin)%matrix, ncol_global=mp, nrow_global=np)
+         !
+         CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
+                                  para_env=v(ispin)%matrix%matrix_struct%para_env, &
+                                  context=v(ispin)%matrix%matrix_struct%context)
+         CALL cp_fm_create(buf, tmp_fm_struct)
+         CALL cp_fm_struct_release(tmp_fm_struct)
+         !
          CALL cp_fm_get_info(buf, ncol_global=mt, nrow_global=nt)
          CPASSERT(nv == np)
          CPASSERT(mt >= mv)
@@ -1378,6 +1374,7 @@ CONTAINS
          ! v = v - psi0 * buf'
          CALL cp_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
+         CALL cp_fm_release(buf)
       ENDDO
       !
       CALL timestop(handle)
@@ -1390,18 +1387,18 @@ CONTAINS
 !> \param v ...
 !> \param psi0 ...
 !> \param S_psi0 ...
-!> \param buf ...
 ! **************************************************************************************************
-   SUBROUTINE postortho(v, psi0, S_psi0, buf)
+   SUBROUTINE postortho(v, psi0, S_psi0)
       !v = (I-SP)v
       !
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: v, psi0, S_psi0
-      TYPE(cp_fm_type), POINTER                          :: buf
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'postortho', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv
+      TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
+      TYPE(cp_fm_type), POINTER                          :: buf
 
 !
 
@@ -1410,14 +1407,20 @@ CONTAINS
       CPASSERT(ASSOCIATED(v))
       CPASSERT(ASSOCIATED(S_psi0))
       CPASSERT(ASSOCIATED(psi0))
-      CPASSERT(ASSOCIATED(buf))
+      NULLIFY (buf, tmp_fm_struct)
       !
       nspins = SIZE(v, 1)
       !
       DO ispin = 1, nspins
-         !
          CALL cp_fm_get_info(v(ispin)%matrix, ncol_global=mv, nrow_global=nv)
          CALL cp_fm_get_info(psi0(ispin)%matrix, ncol_global=mp, nrow_global=np)
+         !
+         CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
+                                  para_env=v(ispin)%matrix%matrix_struct%para_env, &
+                                  context=v(ispin)%matrix%matrix_struct%context)
+         CALL cp_fm_create(buf, tmp_fm_struct)
+         CALL cp_fm_struct_release(tmp_fm_struct)
+         !
          CALL cp_fm_get_info(buf, ncol_global=mt, nrow_global=nt)
          CPASSERT(nv == np)
          CPASSERT(mt >= mv)
@@ -1429,6 +1432,7 @@ CONTAINS
          ! v = v - S_psi0 * buf'
          CALL cp_gemm('N', 'T', nv, mv, mp, -1.0_dp, S_psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
+         CALL cp_fm_release(buf)
       ENDDO
       !
       CALL timestop(handle)

@@ -634,7 +634,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ncol
-      TYPE(cp_fm_pool_type), POINTER                     :: maxao_maxmo_fm_pool
       TYPE(cp_fm_type), POINTER                          :: tmp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
@@ -657,8 +656,7 @@ CONTAINS
       CPASSERT(0 < spin)
       CPASSERT(spin <= dft_control%nspins)
 
-      CALL mpools_get(qs_env%mpools, maxao_maxmo_fm_pool=maxao_maxmo_fm_pool)
-      CALL fm_pool_create_fm(maxao_maxmo_fm_pool, tmp)
+      CALL cp_fm_create(tmp, v%matrix_struct)
 
       k_p => matrix_ks(spin)%matrix
       CALL cp_fm_get_info(v, ncol_global=ncol)
@@ -675,8 +673,8 @@ CONTAINS
                       p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp)
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tmp, &
                                    res, p_env%n_mo(spin), alpha=1.0_dp, beta=1.0_dp)
-      CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool, tmp); NULLIFY (tmp)
 
+      CALL cp_fm_release(tmp)
       CALL timestop(handle)
 
    END SUBROUTINE p_op_l1_spin

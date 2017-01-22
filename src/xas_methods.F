@@ -33,14 +33,9 @@ MODULE xas_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_element,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_p_type,&
-                                              cp_fm_set_all,&
-                                              cp_fm_set_submatrix,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_element, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -585,7 +580,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: name_sto
       INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, j, l, lfomo, n_mo(2), n_rep, nao, natom, &
          ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
-         nsgf_gto, nsgf_sto, nspins, nvirtual, nvirtual2, nwork
+         nsgf_gto, nsgf_sto, nspins, nvirtual, nvirtual2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_type_tmp, kind_z_tmp, &
                                                             last_sgf
       INTEGER, DIMENSION(4, 7)                           :: ne
@@ -783,12 +778,6 @@ CONTAINS
       ENDIF
 
       NULLIFY (tmp_fm_struct)
-      nwork = nvirtual
-      CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, ncol_global=nwork, &
-                               para_env=para_env, context=mo_coeff%matrix_struct%context)
-      CALL cp_fm_create(xas_env%fm_work, tmp_fm_struct)
-      CALL cp_fm_struct_release(tmp_fm_struct)
-
       ALLOCATE (xas_env%groundstate_coeff(nspins))
       DO ispin = 1, nspins
          NULLIFY (xas_env%groundstate_coeff(ispin)%matrix)
@@ -1021,7 +1010,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_ab, sp_em
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: dip_fm_set
-      TYPE(cp_fm_type), POINTER                          :: all_vectors, excvec_coeff, fm_work
+      TYPE(cp_fm_type), POINTER                          :: all_vectors, excvec_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_sm, ostrength_sm
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -1031,7 +1020,7 @@ CONTAINS
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
 
-      NULLIFY (fm_work, ostrength_sm, op_sm, dip_fm_set)
+      NULLIFY (ostrength_sm, op_sm, dip_fm_set)
       NULLIFY (all_evals, all_vectors, excvec_coeff)
       NULLIFY (mos, particle_set, sp_em, sp_ab)
       ALLOCATE (op_sm(3))
@@ -1042,7 +1031,7 @@ CONTAINS
       CALL get_mo_set(mos(1)%mo_set, homo=homo, lfomo=lfomo, nmo=nmo)
       CALL get_xas_env(xas_env=xas_env, all_vectors=all_vectors, xas_estate=xas_estate, &
                        all_evals=all_evals, dip_fm_set=dip_fm_set, excvec_coeff=excvec_coeff, &
-                       fm_work=fm_work, ostrength_sm=ostrength_sm, nvirtual=nvirtual)
+                       ostrength_sm=ostrength_sm, nvirtual=nvirtual)
 
       nabs = nvirtual-lfomo+1
       ALLOCATE (sp_em(6, homo))
@@ -1059,7 +1048,7 @@ CONTAINS
             END DO
             CALL rRc_xyz_ao(op_sm, qs_env, rc, order=1, minimum_image=.TRUE.)
             CALL spectrum_dip_vel(dip_fm_set, op_sm, mos, excvec_coeff, &
-                                  all_vectors, all_evals, fm_work, &
+                                  all_vectors, all_evals, &
                                   sp_em, sp_ab, xas_estate, nvirtual)
             DO i = 1, SIZE(ostrength_sm, 1)
                CALL dbcsr_set(ostrength_sm(i)%matrix, 0.0_dp)
@@ -1070,7 +1059,7 @@ CONTAINS
                op_sm(i)%matrix => ostrength_sm(i)%matrix
             END DO
             CALL spectrum_dip_vel(dip_fm_set, op_sm, mos, excvec_coeff, &
-                                  all_vectors, all_evals, fm_work, &
+                                  all_vectors, all_evals, &
                                   sp_em, sp_ab, xas_estate, nvirtual)
          END IF
       END IF
@@ -1295,7 +1284,6 @@ CONTAINS
 !> \param excvec coefficients of the excited orbital
 !> \param all_vectors ...
 !> \param all_evals ...
-!> \param fm_work work space
 !> \param sp_em ...
 !> \param sp_ab ...
 !> \param estate index of the excited state
@@ -1305,14 +1293,13 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE spectrum_dip_vel(fm_set, op_sm, mos, excvec, &
-                               all_vectors, all_evals, fm_work, sp_em, sp_ab, estate, nstate)
+                               all_vectors, all_evals, sp_em, sp_ab, estate, nstate)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_sm
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(cp_fm_type), POINTER                          :: excvec, all_vectors
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
-      TYPE(cp_fm_type), POINTER                          :: fm_work
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_em, sp_ab
       INTEGER, INTENT(IN)                                :: estate, nstate
 
@@ -1322,14 +1309,16 @@ CONTAINS
       INTEGER                                            :: homo, i, i_abs, istate, lfomo, nao, nmo
       REAL(dp)                                           :: dip(3), ene_f, ene_i
       REAL(dp), DIMENSION(:), POINTER                    :: eigenvalues, occupation_numbers
+      TYPE(cp_fm_type), POINTER                          :: fm_work
 
       CPASSERT(ASSOCIATED(fm_set))
       CPASSERT(ASSOCIATED(mos))
-      NULLIFY (eigenvalues, occupation_numbers)
+      NULLIFY (eigenvalues, occupation_numbers, fm_work)
 
       CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers, &
                       nao=nao, nmo=nmo, homo=homo, lfomo=lfomo)
 
+      CALL cp_fm_create(fm_work, all_vectors%matrix_struct)
       DO i = 1, SIZE(fm_set, 2)
          CPASSERT(ASSOCIATED(fm_set(1, i)%matrix))
          CALL cp_fm_set_all(fm_set(1, i)%matrix, 0.0_dp)
@@ -1338,6 +1327,7 @@ CONTAINS
          CALL cp_gemm("T", "N", 1, nstate, nao, 1.0_dp, excvec, &
                       fm_work, 0.0_dp, fm_set(1, i)%matrix, b_first_col=1)
       END DO
+      CALL cp_fm_release(fm_work)
 
       sp_em = 0.0_dp
       sp_ab = 0.0_dp
