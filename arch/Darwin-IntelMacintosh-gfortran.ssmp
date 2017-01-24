@@ -1,6 +1,4 @@
-#Using gcc49 package from MacPorts for gcc and fortran
-#port select --set gcc mp-gcc49
-
+# With GCC 4.9 or later, for gcc and gfortran
 CC       = gcc
 CPP      = 
 FC       = gfortran
@@ -10,6 +8,4 @@ RANLIB   = ranlib
 DFLAGS   = -D__NO_STATM_ACCESS
 FCFLAGS  = -fopenmp -ffast-math -funroll-loops -ftree-vectorize -ffree-form -O2 $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
-LIBS     = -Wl,-framework -Wl,Accelerate -Wl,-Y -Wl,10 -lgcc_eh
-
-
+LIBS     = -framework Accelerate

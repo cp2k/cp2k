@@ -1,12 +1,11 @@
-CC       = cc
+# With GCC 4.9 or later, for gcc and gfortran
+CC       = gcc
 CPP      = 
 FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 RANLIB   = ranlib
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__NO_STATM_ACCESS
-FCFLAGS  = -O0 -g -march=native -ffree-form $(DFLAGS)
+DFLAGS   = -D__NO_STATM_ACCESS
+FCFLAGS  = -O0 -g -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
-LIBS     = -Wl,-framework -Wl,Accelerate -Wl,-Y -Wl,10
-
-
+LIBS     = -framework Accelerate
