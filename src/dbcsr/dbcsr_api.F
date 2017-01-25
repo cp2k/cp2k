@@ -68,7 +68,8 @@ MODULE dbcsr_api
         dbcsr_release_prv                   => dbcsr_release, &
         dbcsr_setname_prv                   => dbcsr_setname, &
         dbcsr_valid_index_prv               => dbcsr_valid_index, dbcsr_wm_use_mutable
-   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
+   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_grid_setup_prv => dbcsr_mp_grid_setup,&
+                                              dbcsr_mp_group,&
                                               dbcsr_mp_new_prv => dbcsr_mp_new,&
                                               dbcsr_mp_release
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_prv => dbcsr_multiply
@@ -167,6 +168,7 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_get_default_config
    PUBLIC :: dbcsr_print_config
    PUBLIC :: dbcsr_reset_randmat_seed
+   PUBLIC :: dbcsr_mp_grid_setup
 
    ! create / release
    PUBLIC :: dbcsr_distribution_hold
@@ -430,6 +432,16 @@ MODULE dbcsr_api
    PRIVATE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dist ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_mp_grid_setup(dist)
+      TYPE(dbcsr_distribution_type), INTENT(INOUT)       :: dist
+
+      CALL dbcsr_mp_grid_setup_prv(dist%prv%d%mp_env)
+   END SUBROUTINE dbcsr_mp_grid_setup
 
 ! **************************************************************************************************
 !> \brief ...
@@ -866,12 +878,16 @@ CONTAINS
 !> \param myprow ...
 !> \param mypcol ...
 !> \param pgrid ...
+!> \param subgroups_defined ...
+!> \param prow_group ...
+!> \param pcol_group ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_get(dist, row_dist, col_dist, &
                                      row_cluster, col_cluster, &
                                      has_col_clusters, has_row_clusters, &
                                      nrows, ncols, has_threads, &
-                                     group, mynode, numnodes, nprows, npcols, myprow, mypcol, pgrid)
+                                     group, mynode, numnodes, nprows, npcols, myprow, mypcol, pgrid, &
+                                     subgroups_defined, prow_group, pcol_group)
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_dist, col_dist, row_cluster, &
                                                             col_cluster
@@ -881,6 +897,8 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: group, mynode, numnodes, nprows, npcols, &
                                                             myprow, mypcol
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: subgroups_defined
+      INTEGER, INTENT(OUT), OPTIONAL                     :: prow_group, pcol_group
 
       IF (PRESENT(row_dist)) row_dist => array_data(dist%prv%d%row_dist_block)
       IF (PRESENT(col_dist)) col_dist => array_data(dist%prv%d%col_dist_block)
@@ -899,7 +917,10 @@ CONTAINS
       IF (PRESENT(npcols)) npcols = SIZE(dist%prv%d%mp_env%mp%pgrid, 2)
       IF (PRESENT(myprow)) myprow = dist%prv%d%mp_env%mp%myprow
       IF (PRESENT(mypcol)) mypcol = dist%prv%d%mp_env%mp%mypcol
+      IF (PRESENT(prow_group)) prow_group = dist%prv%d%mp_env%mp%prow_group
+      IF (PRESENT(pcol_group)) pcol_group = dist%prv%d%mp_env%mp%pcol_group
       IF (PRESENT(pgrid)) pgrid => dist%prv%d%mp_env%mp%pgrid
+      IF (PRESENT(subgroups_defined)) subgroups_defined = dist%prv%d%mp_env%mp%subgroups_defined
 
    END SUBROUTINE dbcsr_distribution_get
 
