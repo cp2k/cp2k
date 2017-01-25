@@ -68,8 +68,7 @@ MODULE dbcsr_api
         dbcsr_release_prv                   => dbcsr_release, &
         dbcsr_setname_prv                   => dbcsr_setname, &
         dbcsr_valid_index_prv               => dbcsr_valid_index, dbcsr_wm_use_mutable
-   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_grid_setup,&
-                                              dbcsr_mp_group,&
+   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                               dbcsr_mp_new_prv => dbcsr_mp_new,&
                                               dbcsr_mp_release
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_prv => dbcsr_multiply
@@ -215,7 +214,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_distribution_get
 
    ! to remove:
-   PUBLIC :: dbcsr_mp_grid_setup
    PUBLIC :: dbcsr_setname
    PUBLIC :: dbcsr_get_matrix_type
    PUBLIC :: dbcsr_get_occupation
