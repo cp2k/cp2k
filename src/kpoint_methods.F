@@ -192,7 +192,7 @@ CONTAINS
             kpsym => kpoint%kp_sym(ik)%kpoint_sym
             IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid) THEN
                ! set up the symmetrization information
-               kpsym%nwght = crys_sym%wkpoint(ik)
+               kpsym%nwght = NINT(crys_sym%wkpoint(ik))
                ns = kpsym%nwght
                IF (ns > 1) THEN
                   kpsym%apply_symmetry = .TRUE.
