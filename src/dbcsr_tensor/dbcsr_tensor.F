@@ -16,8 +16,8 @@
 MODULE dbcsr_tensor
 
 #:include "dbcsr_tensor.fypp"
-#:setvar maxdim maxrank
-#:setvar ndims range(2,maxdim+1)
+#:set maxdim = maxrank
+#:set ndims = range(2,maxdim+1)
 
    USE allocate_wrap,                   ONLY: allocate_any
    USE array_list_methods,              ONLY: array_list,&

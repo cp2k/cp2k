@@ -11,7 +11,7 @@
 MODULE allocate_wrap
 
 #:include "dbcsr_tensor.fypp"
-#:setvar maxdim fortran_max_ndim
+#:set maxdim = fortran_max_ndim
 
    USE kinds, ONLY: ${uselist(dtype_float_prec)}$
 

@@ -11,7 +11,7 @@
 MODULE dbcsr_tensor_types
 
 #:include "dbcsr_tensor.fypp"
-#:setvar maxdim maxrank
+#:set maxdim = maxrank
 
    USE array_list_methods,              ONLY: array_list,&
                                               array_offsets,&

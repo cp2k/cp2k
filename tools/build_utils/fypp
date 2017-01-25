@@ -31,25 +31,11 @@
 #
 ################################################################################
 
-'''The functionality of the Fypp preprocessor is mainly realized by
-using following classes:
+'''For using the functionality of the Fypp preprocessor from within
+Python, one usually interacts with the following two classes:
 
-* `Parser`_: Reads a source file, does basic syntax checking and generates
-  events.
-
-* `Builder`_: Builds a tree representation of the source file by
-  receiving events. Does additional syntax checking.
-
-* `Renderer`_: Renders a tree built by the builder.
-
-* `Evaluator`_: Evaluates Python expressions in a designated environment. It is
-  used by `Renderer`_ when rendering eval directives.
-
-* `Processor`_: Connects `Parser`_, `Builder`_, `Renderer`_ and `Evaluator`_
-  with each other and returns for a given input the preprocessed output.
-
-* `Fypp`_: The actual Fypp preprocessor. It initializes and drives
-  `Processor`_.
+* `Fypp`_: The actual Fypp preprocessor. It returns for a given input
+  the preprocessed output.
 
 * `FyppOptions`_: Contains customizable settings controling the behaviour of
   `Fypp`_. Alternatively, the function `get_option_parser()`_ can be used to
@@ -63,12 +49,6 @@ subclasses of `FyppError`_ is raised:
 
 * FyppStopRequest: Stop was triggered by an explicit request in the input
   (by a stop- or an assert-directive).
-
-Additional to those above an additional class is used for fine tuning:
-
-* `FortranLineFolder`_: Folds overlong lines by using Fortran continuation
-  lines.
-
 '''
 
 from __future__ import print_function
@@ -85,8 +65,10 @@ if sys.version_info[0] >= 3:
 else:
     import __builtin__ as builtins
 
+# Prevent cluttering user directory with Python bytecode
+sys.dont_write_bytecode = True
 
-VERSION = '1.3-dev'
+VERSION = '2.0-dev'
 
 STDIN = '<stdin>'
 
@@ -98,70 +80,49 @@ ERROR_EXIT_CODE = 1
 
 USER_ERROR_EXIT_CODE = 2
 
-_LINE_DIRECTIVES_PATTERN = r'''
+_ALL_DIRECTIVES_PATTERN = r'''
 # comment block
-(?P<comment>(?:^[ \t]*\#!.*\n)+)
+(?:^[ \t]*\#!.*\n)+
 |
-# line control directive (with optional continuation lines)
-^[ \t]*\#:[ \t]*(?P<ldirective>[^ \t\n]+)
-(?:[ \t]+(?P<lparam>[^ \t\n].*?(?:&[ \t]*\n[ \t]*&.*?)*))?[ \t]*\n
+# line directive (with optional continuation lines)
+^[ \t]*(?P<ldirtype>[\#\$@]):[ \t]*
+(?P<ldir>.+?(?:&[ \t]*\n(?:[ \t]*&)?.*?)*)?[ \t]*\n
 |
-# line eval directive (with optional continuation lines)
-^[ \t]*\$:[ \t]*(?P<lexpr>.*?(?:&[ \t]*\n(?:[ \t]*&)?.*?)*)[ \t]*\n
-|
-# direct call directive (with optional continuation lines)
-^[ \t]*@:[ \t]*(?P<lcallexpr>.*?(?:&[ \t]*\n(?:[ \t]*&)?.*?)*)[ \t]*\n
-'''
-
-_INLINE_EVAL_PATTERN = r'''
 # inline eval directive
-\$\{[ \t]*(?P<iexpr>.*?)[ \t]*\}\$
+(?P<idirtype>[$\#@])\{[ \t]*(?P<idir>.+?)?[ \t]*\}(?P=idirtype)
 '''
-
-_INLINE_NON_EVAL_PATTERN = r'''
-# inline control directive
-\#\{[ \t]*(?P<idirective>[^ \t\n]+?)(?:[ \t]+(?P<param>[^ \t\n].*?))?[ \t]*\}\#
-|
-# inline direct call directive
-@\{[ \t]*(?P<icallexpr>.*?)[ \t]*\}@
-'''
-
-_INLINE_EVAL_REGEXP = re.compile(
-    _INLINE_EVAL_PATTERN, re.VERBOSE | re.MULTILINE)
-
-_ALL_DIRECTIVES_PATTERN = (_LINE_DIRECTIVES_PATTERN + '|' + _INLINE_EVAL_PATTERN
-                           + '|' + _INLINE_NON_EVAL_PATTERN)
 
 _ALL_DIRECTIVES_REGEXP = re.compile(
     _ALL_DIRECTIVES_PATTERN, re.VERBOSE | re.MULTILINE)
 
-_DIRECT_CALL_REGEXP = re.compile(r'''
-(?P<callname>\w+)
-(?P<callarg>
-  (?:[ \t]+(?P<freeparams>.+(?:&[ \t]*\n[ \t]*&.*?)*)?)
-|
-  (?:(?P<dcopen>\()
-  (?P<enclosedparams>.+(?:&[ \t]*\n[ \t]*&.*?)*)?
-  (?P<dcclose>\)))
-)?$
-''', re.VERBOSE)
+_CONTROL_DIR_REGEXP = re.compile(
+    r'(?P<dir>[a-zA-Z_]\w*)[ \t]*(?:[ \t]+(?P<param>[^ \t].*))?$')
+
+_DIRECT_CALL_REGEXP = re.compile(
+    r'(?P<callname>[a-zA-Z_][\w.]*)[ \t]*\((?P<callparams>.+?)?\)$')
+
+_DIRECT_CALL_KWARG_REGEXP = re.compile(
+    r'(?:(?P<kwname>[a-zA-Z_]\w*)\s*=(?=[^=]|$))?')
 
 _DEF_PARAM_REGEXP = re.compile(
-    r'^(?P<name>\w+)\(\s*(?P<args>.+)?\s*\)$')
+    r'^(?P<name>[a-zA-Z_]\w*)[ \t]*\(\s*(?P<args>.+)?\s*\)$')
 
-_SIMPLE_CALLABLE_REGEXP = re.compile(r'^(?P<name>\w+)\s*(?:\(.*\))?$')
+_SIMPLE_CALLABLE_REGEXP = re.compile(
+    r'^(?P<name>[a-zA-Z_][\w.]*)[ \t]*(?:\([ \t]*(?P<args>.*)[ \t]*\))?$')
 
-_CALLABLE_NAME_REGEXP = re.compile(r'^(?P<name>\w+)$')
+_IDENTIFIER_NAME_REGEXP = re.compile(r'^(?P<name>[a-zA-Z_]\w*)$')
+
+_PREFIXED_IDENTIFIER_NAME_REGEXP = re.compile(r'^(?P<name>[a-zA-Z_][\w.]*)$')
 
 _SET_PARAM_REGEXP = re.compile(
-    r'^(?P<name>(?:[(]\s*)?\w+(?:\s*,\s*\w+)*(?:\s*[)])?)'\
-    r'(?:(?:(?P<equal>\s*=\s*)|\s+)(?P<expr>.*))?$')
+    r'^(?P<name>(?:[(]\s*)?[a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*(?:\s*[)])?)\s*'\
+    r'(?:=\s*(?P<expr>.*))?$')
 
 _DEL_PARAM_REGEXP = re.compile(
-    r'^(?:[(]\s*)?\w+(?:\s*,\s*\w+)*(?:\s*[)])?$')
+    r'^(?:[(]\s*)?[a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*(?:\s*[)])?$')
 
 _FOR_PARAM_REGEXP = re.compile(
-    r'^(?P<loopexpr>\w+(\s*,\s*\w+)*)\s+in\s+(?P<iter>.+)$')
+    r'^(?P<loopexpr>[a-zA-Z_]\w*(\s*,\s*[a-zA-Z_]\w*)*)\s+in\s+(?P<iter>.+)$')
 
 _INCLUDE_PARAM_REGEXP = re.compile(r'^(\'|")(?P<fname>.*?)\1$')
 
@@ -173,27 +134,23 @@ _UNESCAPE_TEXT_REGEXP1 = re.compile(r'([$#@])\\(\\*)([{:])')
 
 _UNESCAPE_TEXT_REGEXP2 = re.compile(r'(\})\\(\\*)([$#@])')
 
-_UNESCAPE_FREE_ARG_REGEXP = re.compile(r'(@)\\(\\*)(@)')
-
 _INLINE_EVAL_REGION_REGEXP = re.compile(r'\${.*?}\$')
 
 _RESERVED_PREFIX = '__'
 
-_RESERVED_NAMES = set(['defined', 'setvar', 'getvar', 'delvar', '_LINE_',
-                       '_FILE_', '_THIS_FILE_', '_THIS_LINE_', '_TIME_',
-                       '_DATE_'])
+_RESERVED_NAMES = set(['defined', 'setvar', 'getvar', 'delvar', 'globalvar',
+                       '_LINE_', '_FILE_', '_THIS_FILE_', '_THIS_LINE_',
+                       '_TIME_', '_DATE_'])
 
 _LINENUM_NEW_FILE = 1
 
 _LINENUM_RETURN_TO_FILE = 2
 
-_OPENING_QUOTES_FORTRAN = '\'"'
+_QUOTES_FORTRAN = '\'"'
 
-_CLOSING_QUOTES_FORTRAN = '\'"'
+_OPENING_BRACKETS_FORTRAN = '{(['
 
-_OPENING_BRACES_FORTRAN = '{(['
-
-_CLOSING_BRACES_FORTRAN = '})]'
+_CLOSING_BRACKETS_FORTRAN = '})]'
 
 _ARGUMENT_SPLIT_CHAR_FORTRAN = ','
 
@@ -472,32 +429,31 @@ class Parser:
         self._log_event('endfor', span)
 
 
-    def handle_call(self, span, callexpr, name, directcall):
+    def handle_call(self, span, name, argexpr):
         '''Called when parser encounters a call directive.
 
         It is a dummy method and should be overriden for actual use.
 
         Args:
             span (tuple of int): Start and end line of the directive.
-            callexpr (str): Expression to evaluate and call.
-            name (str): Name of the callable (without any optional arguments)
-                which can be used in the corresponding endcall directive.
-            directcall (bool): Whether the call is a direct (one-liner) call.
-                Default: False
+            name (str): Name of the callable to call
+            argexpr (str or None): Argument expression containing additional
+                arguments for the call.
         '''
-        self._log_event('call', span, callexpr=callexpr, name=name,
-                        directcall=directcall)
+        self._log_event('call', span, name=name, argexpr=argexpr)
 
 
-    def handle_nextarg(self, span):
+    def handle_nextarg(self, span, name):
         '''Called when parser encounters a nextarg directive.
 
         It is a dummy method and should be overriden for actual use.
 
         Args:
             span (tuple of int): Start and end line of the directive.
+            name (str or None): Name of the argument following next or
+                None if it should be the next positional argument.
         '''
-        self._log_event('nextarg', span)
+        self._log_event('nextarg', span, name=name)
 
 
     def handle_endcall(self, span, name):
@@ -523,6 +479,18 @@ class Parser:
                 be evaluated.
         '''
         self._log_event('eval', span, expression=expr)
+
+
+    def handle_global(self, span, name):
+        '''Called when parser encounters a global directive.
+
+        It is a dummy method and should be overriden for actual use.
+
+        Args:
+            span (tuple of int): Start and end line of the directive.
+            name (str): Name of the variable which should be made global.
+        '''
+        self._log_event('global', span, name=name)
 
 
     def handle_text(self, span, txt):
@@ -601,43 +569,43 @@ class Parser:
         print()
 
 
-    def _parse(self, txt, linenr=0, restricted=False):
-        alldirs = not restricted
+    def _parse(self, txt, linenr=0, directcall=False):
         pos = 0
-        if alldirs:
-            regexp = _ALL_DIRECTIVES_REGEXP
-        else:
-            regexp = _INLINE_EVAL_REGEXP
-        for match in regexp.finditer(txt):
-            groups = match.groupdict()
+        for match in _ALL_DIRECTIVES_REGEXP.finditer(txt):
             start, end = match.span()
             if start > pos:
                 endlinenr = linenr + txt.count('\n', pos, start)
                 self._process_text(txt[pos:start], (linenr, endlinenr))
                 linenr = endlinenr
             endlinenr = linenr + txt.count('\n', start, end)
-            if groups['iexpr'] is not None:
-                self._process_iexpreval(groups['iexpr'], (linenr, endlinenr))
-            if alldirs:
-                if groups['lexpr'] is not None:
-                    self._process_lexpreval(
-                        groups['lexpr'], (linenr, endlinenr))
-                elif groups['lcallexpr'] is not None:
-                    self._process_directcall(
-                        groups['lcallexpr'], (linenr, endlinenr))
-                elif groups['icallexpr'] is not None:
-                    self._process_directcall(
-                        groups['icallexpr'], (linenr, endlinenr))
-                elif groups['ldirective'] is not None:
-                    self._process_directive(
-                        groups['ldirective'], groups['lparam'],
-                        (linenr, endlinenr))
-                elif groups['idirective'] is not None:
-                    self._process_directive(
-                        groups['idirective'], groups['param'],
-                        (linenr, endlinenr))
-                elif groups['comment'] is not None:
-                    self.handle_comment((linenr, endlinenr))
+            span = (linenr, endlinenr)
+            ldirtype, ldir, idirtype, idir = match.groups()
+            if directcall and (idirtype is None or idirtype != '$'):
+                msg = 'only inline eval directives allowed in direct calls'
+                raise FyppFatalError(msg, self._curfile, span)
+            elif idirtype is not None:
+                if idir is None:
+                    msg = 'missing inline directive content'
+                    raise FyppFatalError(msg, self._curfile, span)
+                dirtype = idirtype
+                content = idir
+            elif ldirtype is not None:
+                if ldir is None:
+                    msg = 'missing line directive content'
+                    raise FyppFatalError(msg, self._curfile, span)
+                dirtype = ldirtype
+                content = _CONTLINE_REGEXP.sub('', ldir)
+            else:
+                # Comment directive
+                dirtype = None
+            if dirtype == '$':
+                self.handle_eval(span, content)
+            elif dirtype == '#':
+                self._process_control_dir(content, span)
+            elif dirtype == '@':
+                self._process_direct_call(content, span)
+            else:
+                self.handle_comment(span)
             pos = end
             linenr = endlinenr
         if pos < len(txt):
@@ -650,9 +618,12 @@ class Parser:
         self.handle_text(span, escaped_txt)
 
 
-    def _process_directive(self, directive, param, span):
-        if param is not None:
-            param = _CONTLINE_REGEXP.sub('', param)
+    def _process_control_dir(self, content, span):
+        match = _CONTROL_DIR_REGEXP.match(content)
+        if not match:
+            msg = "invalid control directive content '{0}'".format(content)
+            raise FyppFatalError(msg, self._curfile, span)
+        directive, param = match.groups()
         if directive == 'if':
             self._check_param_presence(True, 'if', param, span)
             self.handle_if(span, param)
@@ -667,12 +638,10 @@ class Parser:
             self.handle_endif(span)
         elif directive == 'def':
             self._check_param_presence(True, 'def', param, span)
+            self._check_not_inline_directive('def', span)
             self._process_def(param, span)
         elif directive == 'enddef':
             self._process_enddef(param, span)
-        elif directive == 'setvar':
-            self._check_param_presence(True, 'setvar', param, span)
-            self._process_set(param, span, setvar=True)
         elif directive == 'set':
             self._check_param_presence(True, 'set', param, span)
             self._process_set(param, span)
@@ -689,8 +658,7 @@ class Parser:
             self._check_param_presence(True, 'call', param, span)
             self._process_call(param, span)
         elif directive == 'nextarg':
-            self._check_param_presence(False, 'nextcall', param, span)
-            self.handle_nextarg(span)
+            self._process_nextarg(param, span)
         elif directive == 'endcall':
             self._process_endcall(param, span)
         elif directive == 'include':
@@ -713,62 +681,44 @@ class Parser:
             self._check_param_presence(True, 'assert', param, span)
             self._check_not_inline_directive('assert', span)
             self.handle_assert(span, param)
+        elif directive == 'global':
+            self._check_param_presence(True, 'global', param, span)
+            self._process_global(param, span)
         else:
             msg = "unknown directive '{0}'".format(directive)
             raise FyppFatalError(msg, self._curfile, span)
 
 
-    def _process_lexpreval(self, expr, span):
-        expr = _CONTLINE_REGEXP.sub('', expr)
-        self.handle_eval(span, expr)
-
-
-    def _process_iexpreval(self, expr, span):
-        self.handle_eval(span, expr)
-
-
-    def _process_directcall(self, callexpr, span):
+    def _process_direct_call(self, callexpr, span):
         match = _DIRECT_CALL_REGEXP.match(callexpr)
         if not match:
             msg = "invalid direct call expression"
             raise FyppFatalError(msg, self._curfile, span)
         callname = match.group('callname')
-        if match.group('callarg') is None:
-            callparams = None
-            fortran_args = False
-        elif match.group('dcopen') is not None:
-            callparams = match.group('enclosedparams')
-            fortran_args = True
+        self.handle_call(span, callname, None)
+        callparams = match.group('callparams')
+        if callparams is None or not callparams.strip():
+            args = []
         else:
-            callparams = match.group('freeparams')
-            fortran_args = False
-        # Old style direct call is reported as normal call, as it empty
-        # argument convention works like in normal calls.
-        self.handle_call(span, callname, callname, fortran_args)
-        if callparams is None:
-            args = [] if fortran_args else ['']
-        else:
-            callparams = _CONTLINE_REGEXP.sub('', callparams)
-            if fortran_args:
-                if not callparams.split():
-                    args = []
-                else:
-                    args = [arg.strip()
-                            for arg in _argsplit_fortran(callparams)]
-            else:
-                args = [_UNESCAPE_FREE_ARG_REGEXP.sub(r'\1\2\3', arg.strip())
-                        for arg in callparams.split('@@')]
-        if args:
-            linenr = span[0]
-            self._parse(args[0], linenr=linenr, restricted=True)
-            for arg in args[1:]:
-                self.handle_nextarg(span)
-                self._parse(arg, linenr=linenr, restricted=True)
+            try:
+                args = [arg.strip() for arg in _argsplit_fortran(callparams)]
+            except Exception as exc:
+                msg = 'unable to parse direct call argument'
+                raise FyppFatalError(msg, self._curfile, span, exc)
+        for arg in args:
+            match = _DIRECT_CALL_KWARG_REGEXP.match(arg)
+            argval = arg[match.end():].strip()
+            # Remove enclosing braces if present
+            if argval.startswith('{'):
+                argval = argval[1:-1]
+            keyword = match.group('kwname')
+            self.handle_nextarg(span, keyword)
+            self._parse(argval, linenr=span[0], directcall=True)
         self.handle_endcall(span, callname)
 
 
     def _process_def(self, param, span):
-        match = _DEF_PARAM_REGEXP.search(param)
+        match = _DEF_PARAM_REGEXP.match(param)
         if not match:
             msg = "invalid macro definition '{0}'".format(param)
             raise FyppFatalError(msg, self._curfile, span)
@@ -779,7 +729,7 @@ class Parser:
 
     def _process_enddef(self, param, span):
         if param is not None:
-            match = _CALLABLE_NAME_REGEXP.search(param)
+            match = _IDENTIFIER_NAME_REGEXP.match(param)
             if not match:
                 msg = "invalid enddef parameter '{0}'".format(param)
                 raise FyppFatalError(msg, self._curfile, span)
@@ -787,24 +737,24 @@ class Parser:
         self.handle_enddef(span, param)
 
 
-    def _process_set(self, param, span, setvar=False):
-        match = _SET_PARAM_REGEXP.search(param)
+    def _process_set(self, param, span):
+        match = _SET_PARAM_REGEXP.match(param)
         if not match:
             msg = "invalid variable assignment '{0}'".format(param)
             raise FyppFatalError(msg, self._curfile, span)
-        else:
-            has_equal_sign = match.group('equal') is not None
-            if setvar == has_equal_sign:
-                if setvar:
-                    msg = 'superfluous equal sign in setvar directive'
-                else:
-                    msg = 'missing equal sign in set directive'
-                raise FyppFatalError(msg, self._curfile, span)
         self.handle_set(span, match.group('name'), match.group('expr'))
 
 
+    def _process_global(self, param, span):
+        match = _DEL_PARAM_REGEXP.match(param)
+        if not match:
+            msg = "invalid variable specification '{0}'".format(param)
+            raise FyppFatalError(msg, self._curfile, span)
+        self.handle_global(span, param)
+
+
     def _process_del(self, param, span):
-        match = _DEL_PARAM_REGEXP.search(param)
+        match = _DEL_PARAM_REGEXP.match(param)
         if not match:
             msg = "invalid variable specification '{0}'".format(param)
             raise FyppFatalError(msg, self._curfile, span)
@@ -812,7 +762,7 @@ class Parser:
 
 
     def _process_for(self, param, span):
-        match = _FOR_PARAM_REGEXP.search(param)
+        match = _FOR_PARAM_REGEXP.match(param)
         if not match:
             msg = "invalid for loop declaration '{0}'".format(param)
             raise FyppFatalError(msg, self._curfile, span)
@@ -822,17 +772,27 @@ class Parser:
 
 
     def _process_call(self, param, span):
-        match = _SIMPLE_CALLABLE_REGEXP.search(param)
-        if match:
-            name = match.group('name')
-        else:
-            name = None
-        self.handle_call(span, param, name, False)
+        match = _SIMPLE_CALLABLE_REGEXP.match(param)
+        if not match:
+            msg = "invalid callable expression '{}'".format(param)
+            raise FyppFatalError(msg, self._curfile, span)
+        name, args = match.groups()
+        self.handle_call(span, name, args)
+
+
+    def _process_nextarg(self, param, span):
+        if param is not None:
+            match = _IDENTIFIER_NAME_REGEXP.match(param)
+            if not match:
+                msg = "invalid nextarg parameter '{0}'".format(param)
+                raise FyppFatalError(msg, self._curfile, span)
+            param = match.group('name')
+        self.handle_nextarg(span, param)
 
 
     def _process_endcall(self, param, span):
         if param is not None:
-            match = _CALLABLE_NAME_REGEXP.search(param)
+            match = _PREFIXED_IDENTIFIER_NAME_REGEXP.match(param)
             if not match:
                 msg = "invalid endcall parameter '{0}'".format(param)
                 raise FyppFatalError(msg, self._curfile, span)
@@ -841,7 +801,7 @@ class Parser:
 
 
     def _process_include(self, param, span):
-        match = _INCLUDE_PARAM_REGEXP.search(param)
+        match = _INCLUDE_PARAM_REGEXP.match(param)
         if not match:
             msg = "invalid include file declaration '{0}'".format(param)
             raise FyppFatalError(msg, self._curfile, span)
@@ -1113,36 +1073,42 @@ class Builder:
         self._curnode.append(block)
 
 
-    def handle_call(self, span, callexpr, name, directcall):
+    def handle_call(self, span, name, argexpr):
         '''Should be called to signalize a call directive.
 
         Args:
             span (tuple of int): Start and end line of the directive.
-            callexpr (str): Expression, which after evaluation can be called.
-            name (str): Name of callable (the same name must appear in
-                the corresponding endcall directive).
-            directcall (bool): Whether the call is a direct (one-liner) call.
+            name (str): Name of the callable to call
+            argexpr (str or None): Argument expression containing additional
+                arguments for the call.
         '''
         self._path.append(self._curnode)
         self._curnode = []
-        self._open_blocks.append(('call', self._curfile, [span], callexpr, name,
-                                  directcall, []))
+        self._open_blocks.append(
+            ('call', self._curfile, [span, span], name, argexpr, [], []))
 
 
-    def handle_nextarg(self, span):
+    def handle_nextarg(self, span, name):
         '''Should be called to signalize a nextarg directive.
 
         Args:
             span (tuple of int): Start and end line of the directive.
+            name (str or None): Name of the argument following next or
+                None if it should be the next positional argument.
         '''
         self._check_for_open_block(span, 'nextarg')
         block = self._open_blocks[-1]
-        directive, _, spans = block[0:3]
+        directive, fname, spans = block[0:3]
         self._check_if_matches_last(
             directive, 'call', spans[-1], span, 'nextarg')
-        args = block[6]
+        args, argnames = block[5:7]
         args.append(self._curnode)
         spans.append(span)
+        if name is not None:
+            argnames.append(name)
+        elif argnames:
+            msg = 'non-keyword argument following keyword argument'
+            raise FyppFatalError(msg, fname, span)
         self._curnode = []
 
 
@@ -1157,22 +1123,24 @@ class Builder:
         self._check_for_open_block(span, 'endcall')
         block = self._open_blocks.pop(-1)
         directive, fname, spans = block[0:3]
-        self._check_if_matches_last(directive, 'call', spans[-1], span,
+        self._check_if_matches_last(directive, 'call', spans[0], span,
                                     'endcall')
-        callexpr, callname, directcall, args = block[3:7]
-        if name is not None and callname is None:
-            msg = 'name not allowed for this endcall directive'
-            raise FyppFatalError(msg, fname, span)
+        callname, callargexpr, args, argnames = block[3:7]
         if name is not None and name != callname:
             msg = "wrong name in endcall directive "\
                   "(expected '{0}', got '{1}')".format(callname, name)
             raise FyppFatalError(msg, fname, span)
         args.append(self._curnode)
-        # If first and only argument is empty, make a call without any arguments
-        if directcall and len(args) == 1 and not len(args[0]):
-            args = []
+        # If nextarg or endcall immediately followed call, then first argument
+        # is empty and should be removed (to allow for calls without arguments
+        # and named first argument in calls)
+        if len(args) and not len(args[0]):
+            if len(argnames) == len(args):
+                del argnames[0]
+            del args[0]
+            del spans[1]
         spans.append(span)
-        block = (directive, fname, spans, callexpr, args)
+        block = (directive, fname, spans, callname, callargexpr, args, argnames)
         self._curnode = self._path.pop(-1)
         self._curnode.append(block)
 
@@ -1187,6 +1155,16 @@ class Builder:
                 to the variable.
         '''
         self._curnode.append(('set', self._curfile, span, name, expr))
+
+
+    def handle_global(self, span, name):
+        '''Should be called to signalize a global directive.
+
+        Args:
+            span (tuple of int): Start and end line of the directive.
+            name (str): Name of the variable(s) to make global.
+        '''
+        self._curnode.append(('global', self._curfile, span, name))
 
 
     def handle_del(self, span, name):
@@ -1293,7 +1271,8 @@ class Builder:
     def _check_if_matches_last(self, lastdir, curdir, lastspan, curspan,
                                directive):
         if curdir != lastdir:
-            msg = 'mismatching {0} directive'.format(directive)
+            msg = "mismatching '{0}' directive (last block opened was '{1}')"\
+                .format(directive, lastdir)
             raise FyppFatalError(msg, self._curfile, curspan)
         inline_last = lastspan[0] == lastspan[1]
         inline_cur = curspan[0] == curspan[1]
@@ -1320,22 +1299,33 @@ class Renderer:
             defaults to False.
         contlinenums (bool, optional): Whether linenums for continuation
             should be generated, defaults to False.
+        linenumformat (str, optional): If set to "gfortran5", a workaround
+            for broken gfortran versions (version 5.1 and above) is applied when
+            emitting line numbering directives.
         linefolder (callable): Callable to use when folding a line.
     '''
 
     def __init__(self, evaluator=None, linenums=False, contlinenums=False,
-                 linefolder=None):
+                 linenumformat=None, linefolder=None):
         # Evaluator to use for Python expressions
         self._evaluator = Evaluator() if evaluator is None else evaluator
 
-        # Number of diversions, when > 0 we are within a macro call
-        self._diversions = 0
+        # Whether rendered output is diverted and will be processed
+        # further before output (if True: no line numbering and post processing)
+        self._diverted = False
+
+        # Whether file name and line numbers should be kept fixed and
+        # not updated (typically when rendering macro content)
+        self._fixedposition = False
 
         # Whether line numbering directives should be emitted
         self._linenums = linenums
 
         # Whether line numbering directives in continuation lines are needed.
         self._contlinenums = contlinenums
+
+        # Whether to use the fix for GFortran in the line numbering directives
+        self._linenum_gfortran5 = (linenumformat == 'gfortran5')
 
         # Callable to be used for folding lines
         if linefolder is None:
@@ -1344,19 +1334,31 @@ class Renderer:
             self._linefolder = linefolder
 
 
-    def render(self, tree):
+    def render(self, tree, divert=False, fixposition=False):
         '''Renders a tree.
 
         Args:
             tree (fypp-tree): Tree to render.
+            divert (bool): Whether output will be diverted and sent for further
+                processing, so that no line numbering directives and
+                postprocessing are needed at this stage. (Default: False)
+            fixposition (bool): Whether file name and line position (variables
+                _FILE_ and _LINE_) should be kept at their current values or
+                should be updated continuously. (Default: False).
 
-        Returns:
-            str: Rendered string.
+        Returns: str: Rendered string.
         '''
+        diverted = self._diverted
+        self._diverted = divert
+        fixedposition = self._fixedposition
+        self._fixedposition = fixposition
         output, eval_inds, eval_pos = self._render(tree)
-        if eval_inds:
+        if not self._diverted and eval_inds:
             self._postprocess_eval_lines(output, eval_inds, eval_pos)
+        self._diverted = diverted
+        self._fixedposition = fixedposition
         txt = ''.join(output)
+
         return txt
 
 
@@ -1392,7 +1394,7 @@ class Renderer:
                 eval_pos += peval
                 output += out
             elif cmd == 'call':
-                out, ieval, peval = self._get_called_content(*node[1:5])
+                out, ieval, peval = self._get_called_content(*node[1:7])
                 eval_inds += _shiftinds(ieval, len(output))
                 eval_pos += peval
                 output += out
@@ -1410,6 +1412,8 @@ class Renderer:
             elif cmd == 'assert':
                 result = self._handle_assert(*node[1:4])
                 output.append(result)
+            elif cmd == 'global':
+                self._add_global(*node[1:4])
             else:
                 msg = "internal error: unknown command '{0}'".format(cmd)
                 raise FyppFatalError(msg)
@@ -1427,7 +1431,7 @@ class Renderer:
         peval = []
         if result is not None:
             out.append(str(result))
-            if not self._diversions:
+            if not self._diverted:
                 ieval.append(0)
                 peval.append((span, fname))
         if span[0] != span[1]:
@@ -1448,14 +1452,14 @@ class Renderer:
                       .format(condition)
                 raise FyppFatalError(msg, fname, span, exc)
             if cond:
-                if self._linenums and not self._diversions and multiline:
+                if self._linenums and not self._diverted and multiline:
                     out.append(linenumdir(span[1], fname))
                 outcont, ievalcont, pevalcont = self._render(content)
                 ieval += _shiftinds(ievalcont, len(out))
                 peval += pevalcont
                 out += outcont
                 break
-        if self._linenums and not self._diversions and multiline:
+        if self._linenums and not self._diverted and multiline:
             out.append(linenumdir(spans[-1][1], fname))
         return out, ieval, peval
 
@@ -1477,38 +1481,27 @@ class Renderer:
             else:
                 for varname, value in zip(loopvars, var):
                     self._define(varname, value)
-            if self._linenums and not self._diversions and multiline:
+            if self._linenums and not self._diverted and multiline:
                 out.append(linenumdir(spans[0][1], fname))
             outcont, ievalcont, pevalcont = self._render(content)
             ieval += _shiftinds(ievalcont, len(out))
             peval += pevalcont
             out += outcont
-        if self._linenums and not self._diversions and multiline:
+        if self._linenums and not self._diverted and multiline:
             out.append(linenumdir(spans[1][1], fname))
         return out, ieval, peval
 
 
-    def _get_called_content(self, fname, spans, name, contents):
-        try:
-            callobj = self._evaluate(name, fname, spans[0][0])
-        except Exception as exc:
-            msg = "unable to obtain callable by evaluating '{0}'".format(name)
-            raise FyppFatalError(msg, fname, spans[0], exc)
-        self._divert()
-        args = []
-        for content in contents:
-            self._evaluator.openscope()
-            rendered = self.render(content)
-            self._evaluator.closescope()
-            if rendered.endswith('\n'):
-                rendered = rendered[:-1]
-            args.append(rendered)
-        self._undivert()
+    def _get_called_content(self, fname, spans, name, argexpr, contents,
+                            argnames):
+        posargs, kwargs = self._get_call_arguments(fname, spans, argexpr,
+                                                   contents, argnames)
         # Since callobj uses the evaluators scope, the globals must be updated
         # before calling it.
         self._update_globals(fname, spans[0][0])
         try:
-            result = callobj(*args)
+            callobj = self._evaluate(name, fname, spans[0][0])
+            result = callobj(*posargs, **kwargs)
         except Exception as exc:
             msg = "exception occured when calling '{0}'".format(name)
             raise FyppFatalError(msg, fname, spans[0], exc)
@@ -1518,7 +1511,7 @@ class Renderer:
         peval = []
         if result is not None:
             out = [str(result)]
-            if not self._diversions:
+            if not self._diverted:
                 ieval = [0]
                 peval = [(span, fname)]
         if span[0] != span[1]:
@@ -1526,14 +1519,61 @@ class Renderer:
         return out, ieval, peval
 
 
+    def _get_call_arguments(self, fname, spans, argexpr, contents, argnames):
+        if argexpr is None:
+            posargs = []
+            kwargs = {}
+        else:
+            # Parse and evaluate arguments passed in call header
+            self._evaluator.openscope()
+            try:
+                posargs, kwargs = self._evaluate(
+                    '__getargvalues(' + argexpr + ')', fname, spans[0][0])
+            except Exception as exc:
+                msg = "unable to parse argument expression '{0}'"\
+                    .format(argexpr)
+                raise FyppFatalError(msg, fname, spans[0], exc)
+            self._evaluator.closescope()
+
+        # Render arguments passed in call body
+        args = []
+        for content in contents:
+            self._evaluator.openscope()
+            rendered = self.render(content, divert=True)
+            self._evaluator.closescope()
+            if rendered.endswith('\n'):
+                rendered = rendered[:-1]
+            args.append(rendered)
+
+        # Separate arguments in call body into positional and keyword ones:
+        if argnames:
+            posargs += args[:len(args) - len(argnames)]
+            offset = len(args) - len(argnames)
+            for iargname, argname in enumerate(argnames):
+                ind = offset + iargname
+                if argname in kwargs:
+                    msg = "keyword argument '{0}' already defined"\
+                        .format(argname)
+                    raise FyppFatalError(msg, fname, spans[ind + 1])
+                kwargs[argname] = args[ind]
+        else:
+            posargs += args
+
+        return posargs, kwargs
+
+
     def _get_included_content(self, fname, spans, includefname, content):
+        includefile = spans[0] is not None
         out = []
-        if self._linenums and not self._diversions:
-            out += linenumdir(0, includefname, _LINENUM_NEW_FILE)
+        if self._linenums and not self._diverted:
+            if includefile or self._linenum_gfortran5:
+                out += linenumdir(0, includefname, _LINENUM_NEW_FILE)
+            else:
+                out += linenumdir(0, includefname)
         outcont, ieval, peval = self._render(content)
         ieval = _shiftinds(ieval, len(out))
         out += outcont
-        if self._linenums and not self._diversions and spans[0] is not None:
+        if self._linenums and not self._diverted and includefile:
             out += linenumdir(spans[0][1], fname, _LINENUM_RETURN_TO_FILE)
         return out, ieval, peval
 
@@ -1566,14 +1606,15 @@ class Renderer:
                     raise FyppFatalError(msg, fname, spans[0])
         result = ''
         try:
-            macro = _Macro(name, fname, spans, args, defaults, varargs,
-                           content, self, self._evaluator.localscope)
+            macro = _Macro(
+                name, fname, spans, args, defaults, varargs, content, self,
+                self._evaluator, self._evaluator.localscope)
             self._define(name, macro)
         except Exception as exc:
             msg = "exception occured when defining macro '{0}'"\
                 .format(name)
             raise FyppFatalError(msg, fname, spans[0], exc)
-        if self._linenums and not self._diversions:
+        if self._linenums and not self._diverted:
             result = linenumdir(spans[1][1], fname)
         return result
 
@@ -1583,11 +1624,11 @@ class Renderer:
         try:
             self._define(name, self._evaluate(valstr, fname, span[0]))
         except Exception as exc:
-            msg = "exception occured when setting variable(s) {0} to {1}"\
+            msg = "exception occured when setting variable(s) '{0}' to '{1}'"\
                 .format(name, valstr)
             raise FyppFatalError(msg, fname, span, exc)
         multiline = (span[0] != span[1])
-        if self._linenums and not self._diversions and multiline:
+        if self._linenums and not self._diverted and multiline:
             result = linenumdir(span[1], fname)
         return result
 
@@ -1597,16 +1638,31 @@ class Renderer:
         try:
             self._evaluator.undefine(name)
         except Exception as exc:
-            msg = "exception occured when deleting variable(s) {0}".format(name)
+            msg = "exception occured when deleting variable(s) '{0}'"\
+                  .format(name)
             raise FyppFatalError(msg, fname, span, exc)
         multiline = (span[0] != span[1])
-        if self._linenums and not self._diversions and multiline:
+        if self._linenums and not self._diverted and multiline:
+            result = linenumdir(span[1], fname)
+        return result
+
+
+    def _add_global(self, fname, span, name):
+        result = ''
+        try:
+            self._evaluator.addglobal(name)
+        except Exception as exc:
+            msg = "exception occured when making variable(s) '{0}' global"\
+                .format(name)
+            raise FyppFatalError(msg, fname, span, exc)
+        multiline = (span[0] != span[1])
+        if self._linenums and not self._diverted and multiline:
             result = linenumdir(span[1], fname)
         return result
 
 
     def _get_comment(self, fname, span):
-        if self._linenums and not self._diversions:
+        if self._linenums and not self._diverted:
             return linenumdir(span[1], fname)
         else:
             return ''
@@ -1614,7 +1670,7 @@ class Renderer:
 
     def _get_muted_content(self, fname, spans, content):
         self._render(content)
-        if self._linenums and not self._diversions:
+        if self._linenums and not self._diverted:
             return linenumdir(spans[-1][1], fname)
         else:
             return ''
@@ -1641,20 +1697,9 @@ class Renderer:
         if not cond:
             msg = "Assertion failed ('{0}')".format(expr)
             raise FyppStopRequest(msg, fname, span)
-        if self._linenums and not self._diversions:
+        if self._linenums and not self._diverted:
             result = linenumdir(span[1], fname)
         return result
-
-
-    def _divert(self):
-        self._diversions += 1
-
-
-    def _undivert(self):
-        self._diversions -= 1
-        if self._diversions < 0:
-            msg = "internal error: undivert without matching divert"
-            raise FyppFatalError(msg)
 
 
     def _evaluate(self, expr, fname, linenr):
@@ -1663,13 +1708,11 @@ class Renderer:
 
 
     def _update_globals(self, fname, linenr):
-        self._evaluator.updatescope(
-            globalscope=True, _DATE_=time.strftime('%Y-%m-%d'),
-            _TIME_=time.strftime('%H:%M:%S'), _THIS_FILE_=fname,
-            _THIS_LINE_=linenr + 1)
-        if not self._diversions:
-            self._evaluator.updatescope(
-                globalscope=True, _FILE_=fname, _LINE_=linenr + 1)
+        self._evaluator.updatelocals(
+            _DATE_=time.strftime('%Y-%m-%d'), _TIME_=time.strftime('%H:%M:%S'),
+            _THIS_FILE_=fname, _THIS_LINE_=linenr + 1)
+        if not self._fixedposition:
+            self._evaluator.updatelocals(_FILE_=fname, _LINE_=linenr + 1)
 
 
     def _define(self, var, value):
@@ -1786,21 +1829,13 @@ class Evaluator:
 
     '''Provides an isolated environment for evaluating Python expressions.
 
-    It can restrict the builtins which can be used within this environment
-    to a (hopefully safe) subset. Additionally it defines the functions
-    which are provided by the preprocessor for the eval directives.
-
-    Note, that the restricted environment does not allow importing Python
-    modules. If you need a restricted environment with modules loaded,
-    launch a non-restricted one, load the modules, export its environment
-    and launch a restricted one using that environment.
+    It restricts the builtins which can be used within this environment to a
+    (hopefully safe) subset. Additionally it defines the functions which are
+    provided by the preprocessor for the eval directives.
 
     Args:
         env (dict, optional): Initial definitions for the environment, defaults
             to None.
-        restrict_builtins (bool, optional): Whether restricted builtins
-            should be used. Otherwise all Python builtins are accessible.
-            Defaults to `True`.
     '''
 
     # Restricted builtins working in all supported Python verions. Version
@@ -1865,42 +1900,24 @@ class Evaluator:
         'zip': builtins.zip,
     }
 
-    def __init__(self, env=None, restrict_builtins=True):
+    def __init__(self, env=None):
 
         # Global scope
         self._globals = env if env is not None else {}
 
-        # Local scope
+        # Local scope(s)
         self._locals = None
+        self._locals_stack = []
 
-        # Stack for local environments to implement nested scopes
-        self._localstack = []
+        # Variables which are references to entries in global scope
+        self._globalrefs = None
+        self._globalrefs_stack = []
 
-        # Current scope
+        # Current scope (globals + locals in all embedding and in current scope)
         self._scope = self._globals
 
-        # Turn on restricted mode, if desired
-        self.restrict_builtins(restrict_builtins)
-
-
-    def restrict_builtins(self, restrict):
-        '''Sets whether restricted builtins should be used.
-
-        Args:
-            restricted (bool): Whether builtins should be restricted.
-        '''
-        if restrict:
-            builtindict = self._get_restricted_builtins()
-            builtindict['__import__'] = self._func_import
-        else:
-            builtindict = vars(builtins)
-        builtindict['defined'] = self._func_defined
-        builtindict['setvar'] = self._func_setvar
-        builtindict['getvar'] = self._func_getvar
-        builtindict['delvar'] = self._func_delvar
-
-        # Permitted builtins when evaluating expressions
-        self._globals['__builtins__'] = builtindict
+        # Turn on restricted mode
+        self._restrict_builtins()
 
 
     def evaluate(self, expr):
@@ -1912,17 +1929,31 @@ class Evaluator:
         Return:
             Python object: Result of the expression evaluation.
         '''
-        result = eval(expr, self._globals, self._locals)
+        result = eval(expr, self._scope)
         return result
 
 
-    def execute(self, code):
-        '''Run Python code using the `exec()` builtin.
+    def import_module(self, module):
+        '''Import a module into the evaluator.
+
+        Note: Import only trustworthy modules! Module imports are global,
+        therefore, importing a malicious module which manipulates other global
+        modules could affect code behaviour outside of the Evaluator as well.
 
         Args:
-            code (str): Python code to run.
+            module (str): Python module to import.
+
+        Raises:
+            FyppFatalError: If module could not be imported.
+
         '''
-        exec(code, self._globals, self._locals)
+        rootmod = module.split('.', 1)[0]
+        try:
+            imported = __import__(module, self._scope)
+            self.define(rootmod, imported)
+        except Exception as exc:
+            msg = "failed to import module '{0}'".format(module)
+            raise FyppFatalError(msg, cause=exc)
 
 
     def define(self, name, value):
@@ -1939,9 +1970,19 @@ class Evaluator:
         varnames = self._get_variable_names(name)
         if len(varnames) == 1:
             value = (value,)
-        for ind, varname in enumerate(varnames):
+        elif len(varnames) != len(value):
+            msg = 'value for tuple assignment has incompatible length'
+            raise FyppFatalError(msg)
+        for varname, varvalue in zip(varnames, value):
             self._check_variable_name(varname)
-            self._scope[varname] = value[ind]
+            if self._locals is None:
+                self._globals[varname] = varvalue
+            else:
+                if varname in self._globalrefs:
+                    self._globals[varname] = varvalue
+                else:
+                    self._locals[varname] = varvalue
+                self._scope[varname] = varvalue
 
 
     def undefine(self, name):
@@ -1957,23 +1998,63 @@ class Evaluator:
         varnames = self._get_variable_names(name)
         for varname in varnames:
             self._check_variable_name(varname)
-            if varname in self._scope:
-                del self._scope[varname]
+            deleted = False
+            if self._locals is None:
+                if varname in self._globals:
+                    del self._globals[varname]
+                    deleted = True
+            else:
+                if varname in self._locals:
+                    del self._locals[varname]
+                    del self._scope[varname]
+                    deleted = True
+                elif varname in self._globalrefs and varname in self._globals:
+                    del self._globals[varname]
+                    del self._scope[varname]
+                    deleted = True
+            if not deleted:
+                msg = "lookup for an erasable instance of '{0}' failed"\
+                      .format(varname)
+                raise FyppFatalError(msg)
 
 
-    def updatescope(self, globalscope=False, **vardict):
-        '''Update (or create) variables in the local or global scope.
+    def addglobal(self, name):
+        '''Define a given entity as global.
 
         Args:
-            globalscope: Whether the update should happen in the global scope
-                (default: False -- update happens in the active scope).
+            name (str): Name of the entity to make global.
+
+        Raises:
+            FyppFatalError: If entity name is invalid or if the current scope is
+                 a local scope and entity is already defined in it.
+        '''
+        varnames = self._get_variable_names(name)
+        for varname in varnames:
+            self._check_variable_name(varname)
+            if self._locals is not None:
+                if varname in self._locals:
+                    msg = "variable '{0}' already defined in local scope"\
+                          .format(varname)
+                    raise FyppFatalError(msg)
+                self._globalrefs.add(varname)
+
+
+    def updatelocals(self, **vardict):
+        '''Update variables in the local scope.
+
+        This is a shortcut function to inject variables in the local scope
+        without extensive checks (as in define()). Vardict must not contain any
+        entries which have been made global via addglobal() before. In order to
+        ensure this, updatelocals() should be called immediately after
+        openscope(), or with variable names, which are warrantedly not globlas
+        (e.g variables starting with forbidden prefix)
+
+        Args:
             **vardict: variable defintions.
         '''
-        if globalscope:
-            scope = self._globals
-        else:
-            scope = self._scope
-        scope.update(vardict)
+        self._scope.update(vardict)
+        if self._locals is not None:
+            self._locals.update(vardict)
 
 
     def openscope(self, customlocals=None):
@@ -1985,21 +2066,26 @@ class Evaluator:
                 behaviour a dictionary of customized locals can be passed,
                 and those locals will become the only visible ones.
         '''
-        self._localstack.append(self._locals)
+        self._locals_stack.append(self._locals)
+        self._globalrefs_stack.append(self._globalrefs)
         if customlocals is not None:
             self._locals = customlocals.copy()
         elif self._locals is not None:
             self._locals = self._locals.copy()
         else:
             self._locals = {}
-        self._scope = self._locals
+        self._globalrefs = set()
+        self._scope = self._globals.copy()
+        self._scope.update(self._locals)
 
 
     def closescope(self):
         '''Close scope and restore embedding scope.'''
-        self._locals = self._localstack.pop(-1)
+        self._locals = self._locals_stack.pop(-1)
+        self._globalrefs = self._globalrefs_stack.pop(-1)
         if self._locals is not None:
-            self._scope = self._locals
+            self._scope = self._globals.copy()
+            self._scope.update(self._locals)
         else:
             self._scope = self._globals
 
@@ -2016,9 +2102,21 @@ class Evaluator:
         return self._locals
 
 
+    def _restrict_builtins(self):
+        builtindict = self._get_restricted_builtins()
+        builtindict['__import__'] = self._func_import
+        builtindict['defined'] = self._func_defined
+        builtindict['setvar'] = self._func_setvar
+        builtindict['getvar'] = self._func_getvar
+        builtindict['delvar'] = self._func_delvar
+        builtindict['globalvar'] = self._func_globalvar
+        builtindict['__getargvalues'] = self._func_getargvalues
+        self._globals['__builtins__'] = builtindict
+
+
     @classmethod
     def _get_restricted_builtins(cls):
-        bidict = cls._RESTRICTED_BUILTINS
+        bidict = dict(cls._RESTRICTED_BUILTINS)
         major = sys.version_info[0]
         if major == 2:
             bidict['True'] = True
@@ -2053,14 +2151,12 @@ class Evaluator:
 
 
     def _func_defined(self, var):
-        defined = var in self._globals
-        if not defined and self._locals is not None:
-            defined = var in self._locals
+        defined = var in self._scope
         return defined
 
 
     def _func_import(self, name, *_, **__):
-        module = self._globals.get(name, None)
+        module = self._scope.get(name, None)
         if module is not None and isinstance(module, types.ModuleType):
             return module
         else:
@@ -2069,21 +2165,34 @@ class Evaluator:
             raise ImportError(msg)
 
 
-    def _func_setvar(self, name, value):
-        self.define(name, value)
+    def _func_setvar(self, *namesvalues):
+        if len(namesvalues) % 2:
+            msg = 'setvar function needs an even number of arguments'
+            raise FyppFatalError(msg)
+        for ind in range(0, len(namesvalues), 2):
+            self.define(namesvalues[ind], namesvalues[ind + 1])
 
 
-    def _func_getvar(self, name, defvalue):
-        if name in self._globals:
-            return self._globals[name]
-        elif self._locals is not None and name in self._locals:
-            return self._locals[name]
+    def _func_getvar(self, name, defvalue=None):
+        if name in self._scope:
+            return self._scope[name]
         else:
             return defvalue
 
 
-    def _func_delvar(self, name):
-        self.undefine(name)
+    def _func_delvar(self, *names):
+        for name in names:
+            self.undefine(name)
+
+
+    def _func_globalvar(self, *names):
+        for name in names:
+            self.addglobal(name)
+
+
+    @staticmethod
+    def _func_getargvalues(*args, **kwargs):
+        return list(args), kwargs
 
 
 
@@ -2108,7 +2217,7 @@ class _Macro:
     '''
 
     def __init__(self, name, fname, spans, argnames, defaults, varargs, content,
-                 renderer, localscope=None):
+                 renderer, evaluator, localscope=None):
         self._name = name
         self._fname = fname
         self._spans = spans
@@ -2117,18 +2226,17 @@ class _Macro:
         self._varargs = varargs
         self._content = content
         self._renderer = renderer
+        self._evaluator = evaluator
         self._localscope = localscope if localscope is not None else {}
 
 
     def __call__(self, *args, **keywords):
-        self._renderer._divert()
         argdict = self._process_arguments(args, keywords)
-        evaluator = self._renderer._evaluator
-        evaluator.openscope(customlocals=self._localscope)
-        evaluator.updatescope(**argdict)
-        output = self._renderer.render(self._content)
-        evaluator.closescope()
-        self._renderer._undivert()
+        self._evaluator.openscope(customlocals=self._localscope)
+        self._evaluator.updatelocals(**argdict)
+        output = self._renderer.render(self._content, divert=True,
+                                       fixposition=True)
+        self._evaluator.closescope()
         if output.endswith('\n'):
             return output[:-1]
         else:
@@ -2210,6 +2318,7 @@ class Processor:
         self._parser.handle_enddef = self._builder.handle_enddef
         self._parser.handle_set = self._builder.handle_set
         self._parser.handle_del = self._builder.handle_del
+        self._parser.handle_global = self._builder.handle_global
         self._parser.handle_for = self._builder.handle_for
         self._parser.handle_endfor = self._builder.handle_endfor
         self._parser.handle_call = self._builder.handle_call
@@ -2303,16 +2412,14 @@ class Fypp:
     '''
 
     def __init__(self, options=None):
+        syspath = self._get_syspath_without_scriptdir()
+        self._adjust_syspath(syspath)
         if options is None:
             options = FyppOptions()
-        evaluator = Evaluator(restrict_builtins=False)
-        syspath = self._get_syspath_without_scriptdir()
+        evaluator = Evaluator()
         if options.modules:
-            self._import_modules(options.modules, evaluator, syspath)
-        if options.inifiles:
-            self._exec_inifiles(options.inifiles, evaluator, syspath)
-        self._adjust_syspath(evaluator, syspath)
-        evaluator.restrict_builtins(True)
+            self._import_modules(options.modules, evaluator, syspath,
+                                 options.moduledirs)
         if options.defines:
             self._apply_definitions(options.defines, evaluator)
         parser = Parser(options.includes)
@@ -2335,7 +2442,7 @@ class Fypp:
         self._create_parent_folder = options.create_parent_folder
         renderer = Renderer(
             evaluator, linenums=linenums, contlinenums=contlinenums,
-            linefolder=linefolder)
+            linenumformat=options.line_marker_format, linefolder=linefolder)
         self._preprocessor = Processor(parser, builder, renderer)
 
 
@@ -2396,37 +2503,16 @@ class Fypp:
             evaluator.define(name, value)
 
 
-    def _import_modules(self, modules, evaluator, syspath):
-        curdir = os.path.abspath('.')
-        self._adjust_syspath(evaluator, [curdir] + syspath)
+    def _import_modules(self, modules, evaluator, syspath, moduledirs):
+        lookuppath = []
+        if moduledirs is not None:
+            lookuppath += [os.path.abspath(moddir) for moddir in moduledirs]
+        lookuppath.append(os.path.abspath('.'))
+        lookuppath += syspath
+        self._adjust_syspath(lookuppath)
         for module in modules:
-            try:
-                evaluator.execute('import ' + module)
-            except Exception as exc:
-                msg = "exception occured during import of module '{0}'"\
-                      .format(module)
-                raise FyppFatalError(msg, cause=exc)
-
-
-    def _exec_inifiles(self, inifiles, evaluator, syspath):
-        for inifile in inifiles:
-            try:
-                inifp = open(inifile, 'r')
-                source = inifp.read()
-                inifp.close()
-            except IOError as exc:
-                msg = "IO error occured at reading file '{0}'"\
-                    .format(inifile)
-                raise FyppFatalError(msg, cause=exc)
-            inifiledir = os.path.abspath(os.path.dirname(inifile))
-            self._adjust_syspath(evaluator, [inifiledir] + syspath)
-            try:
-                code = compile(source, inifile, 'exec', dont_inherit=-1)
-                evaluator.execute(code)
-            except Exception as exc:
-                msg = "exception occured when executing ini-file '{0}'"\
-                      .format(inifile)
-                raise FyppFatalError(msg, cause=exc)
+            evaluator.import_module(module)
+        self._adjust_syspath(syspath)
 
 
     @staticmethod
@@ -2440,15 +2526,8 @@ class Fypp:
 
 
     @staticmethod
-    def _adjust_syspath(evaluator, syspath):
-        try:
-            evaluator.execute('import sys')
-            evaluator.execute('sys.path = {0}'.format(repr(syspath)))
-            evaluator.execute('del sys')
-        except Exception as exc:
-            msg = 'failed to set up sys.path of the evaluator'
-            raise FyppFatalError(msg, cause=exc)
-
+    def _adjust_syspath(syspath):
+        sys.path = syspath
 
 
 class FyppOptions(optparse.Values):
@@ -2464,14 +2543,18 @@ class FyppOptions(optparse.Values):
             in the output. Default: False
         line_numbering_mode (str): Line numbering mode 'full' or 'nocontlines'.
             Default: 'full'.
+        line_marker_format (str): Line marker format. Currently 'cpp' and
+            'gfortran5' are supported. Later fixes the line marker handling bug
+            introduced in GFortran 5. Default: 'cpp'.
         line_length (int): Length of output lines. Default: 132.
         folding_mode (str): Folding mode 'smart', 'simple' or 'brute'. Default:
             'smart'.
         no_folding (bool): Whether folding should be suppresed. Default: False.
         indentation (int): Indentation in continuation lines. Default: 4.
         modules (list of str): Modules to import at initialization. Default: [].
-        inifiles (list of str): Python files to execute at initialization.
-            Default: []
+        moduledirs (list of str): Module lookup directories for importing user
+            specified modules. The specified paths are looked up *before* the
+            standard module locations in sys.path.
         fixed_format (bool): Whether input file is in fixed format.
             Default: False.
         create_parent_folder (bool): Whether the parent folder for the output
@@ -2484,12 +2567,13 @@ class FyppOptions(optparse.Values):
         self.includes = []
         self.line_numbering = False
         self.line_numbering_mode = 'full'
+        self.line_marker_format = 'cpp'
         self.line_length = 132
         self.folding_mode = 'smart'
         self.no_folding = False
         self.indentation = 4
         self.modules = []
-        self.inifiles = []
+        self.moduledirs = []
         self.fixed_format = False
         self.create_parent_folder = False
 
@@ -2622,6 +2706,7 @@ def get_option_parser():
         OptionParser: Parser which can create an optparse.Values object with
             Fypp settings based on command line arguments.
     '''
+    defs = FyppOptions()
     fypp_name = 'fypp'
     fypp_desc = 'Preprocesses source code with Fypp directives. The input is '\
                 'read from INFILE (default: \'-\', stdin) and written to '\
@@ -2634,49 +2719,61 @@ def get_option_parser():
           'Python expression (e.g \'-DDEBUG=1\' sets DEBUG to the ' \
           'integer 1) or set to None if ommitted'
     parser.add_option('-D', '--define', action='append', dest='defines',
-                      metavar='VAR[=VALUE]', help=msg)
+                      metavar='VAR[=VALUE]', default=defs.defines, help=msg)
     msg = 'add directory to the search paths for include files'
     parser.add_option('-I', '--include', action='append', dest='includes',
-                      metavar='INCDIR', help=msg)
-    msg = 'put line numbering directives to the output'
+                      metavar='INCDIR', default=defs.includes, help=msg)
+    msg = 'import a python module at startup (import only trustworthy modules '\
+          'as they have access to an **unrestricted** Python environment!)'
+    parser.add_option('-m', '--module', action='append', dest='modules',
+                      metavar='MOD', default=defs.modules, help=msg)
+    msg = 'directory to be searched for user imported modules before '\
+          'looking up standard locations in sys.path'
+    parser.add_option('-M', '--module-dir', action='append',
+                      dest='moduledirs', metavar='MODDIR',
+                      default=defs.moduledirs, help=msg)
+    msg = 'emit line numbering markers'
     parser.add_option('-n', '--line-numbering', action='store_true',
-                      default=False, help=msg)
+                      dest='line_numbering', default=defs.line_numbering,
+                      help=msg)
     msg = 'line numbering mode, \'full\' (default): line numbering '\
-          'directives generated whenever source and output lines are out '\
-          'of sync, \'nocontlines\': line numbering directives omitted '\
+          'markers generated whenever source and output lines are out '\
+          'of sync, \'nocontlines\': line numbering markers omitted '\
           'for continuation lines'
     parser.add_option('-N', '--line-numbering-mode', metavar='MODE',
-                      choices=['full', 'nocontlines'], default='full',
-                      help=msg)
+                      choices=['full', 'nocontlines'],
+                      default=defs.line_numbering_mode,
+                      dest='line_numbering_mode', help=msg)
+    msg = 'line numbering marker format, \'cpp\' (default): GNU cpp format, '\
+          '\'gfortran5\': modified markers to work around bug in GFortran 5 '\
+          'and above'
+    parser.add_option('--line-marker-format', metavar='FMT',
+                      choices=['cpp', 'gfortran5'], dest='line_marker_format',
+                      default=defs.line_marker_format, help=msg)
     msg = 'maximal line length (default: 132), lines modified by the '\
           'preprocessor are folded if becoming longer'
-    parser.add_option('-l', '--line-length', type=int, default=132,
-                      metavar='LEN', help=msg)
+    parser.add_option('-l', '--line-length', type=int, metavar='LEN',
+                      dest='line_length', default=defs.line_length, help=msg)
     msg = 'line folding mode, \'smart\' (default): indentation context '\
           'and whitespace aware, \'simple\': indentation context aware, '\
           '\'brute\': mechnical folding'
     parser.add_option('-f', '--folding-mode', metavar='MODE',
-                      choices=['smart', 'simple', 'brute'],
-                      default='smart', help=msg)
+                      choices=['smart', 'simple', 'brute'], dest='folding_mode',
+                      default=defs.folding_mode, help=msg)
     msg = 'suppress line folding'
     parser.add_option('-F', '--no-folding', action='store_true',
-                      dest='no_folding', default=False, help=msg)
+                      dest='no_folding', default=defs.no_folding, help=msg)
     msg = 'indentation to use for continuation lines (default 4)'
     parser.add_option('--indentation', type=int, metavar='IND',
-                      default=4, help=msg)
-    msg = 'import python module before starting the processing'
-    parser.add_option('-m', '--module', action='append', dest='modules',
-                      metavar='MOD', help=msg)
-    msg = 'execute python initialization script before starting processing'
-    parser.add_option('-i', '--ini-file', action='append',
-                      dest='inifiles', metavar='INI', help=msg)
+                      dest='indentation', default=defs.indentation, help=msg)
     msg = 'produce fixed format output (any settings for options '\
           '--line-length, --folding-method and --indentation are ignored)'
     parser.add_option('--fixed-format', action='store_true',
-                      default=False, help=msg)
+                      dest='fixed_format', default=defs.fixed_format, help=msg)
     msg = 'create parent folders of the output file if they do not exist'
     parser.add_option('-p', '--create-parents', action='store_true',
-                      default=False, dest='create_parent_folder', help=msg)
+                      dest='create_parent_folder',
+                      default=defs.create_parent_folder, help=msg)
     return parser
 
 
@@ -2798,38 +2895,39 @@ def _blank_match(match):
 
 def _argsplit_fortran(argtxt):
     txt = _INLINE_EVAL_REGION_REGEXP.sub(_blank_match, argtxt)
-    splitpos = []
-    closing_quote = ''
-    closing_braces = ''
+    splitpos = [-1]
+    quote = None
+    closing_brace_stack = []
+    closing_brace = None
     for ind, char in enumerate(txt):
-        if char == closing_quote:
-            closing_quote = ''
+        if quote:
+            if char == quote:
+                quote = None
             continue
-        if closing_quote:
+        if char in _QUOTES_FORTRAN:
+            quote = char
             continue
-        if closing_braces and char == closing_braces[-1]:
-            closing_braces = closing_braces[:-1]
+        if char in _OPENING_BRACKETS_FORTRAN:
+            closing_brace_stack.append(closing_brace)
+            ind = _OPENING_BRACKETS_FORTRAN.index(char)
+            closing_brace = _CLOSING_BRACKETS_FORTRAN[ind]
             continue
-        if closing_braces:
-            continue
-        pos = _OPENING_QUOTES_FORTRAN.find(char)
-        if pos != -1:
-            closing_quote = _CLOSING_QUOTES_FORTRAN[pos]
-            continue
-        pos = _OPENING_BRACES_FORTRAN.find(char)
-        if pos != -1:
-            closing_braces += _CLOSING_BRACES_FORTRAN[pos]
-            continue
-        if char == _ARGUMENT_SPLIT_CHAR_FORTRAN:
+        if char in _CLOSING_BRACKETS_FORTRAN:
+            if char == closing_brace:
+                closing_brace = closing_brace_stack.pop(-1)
+                continue
+            else:
+                msg = "unexpected closing delimiter '{0}' in expression '{1}' "\
+                      "at position {2}".format(char, argtxt, ind + 1)
+                raise FyppFatalError(msg)
+        if not closing_brace and char == _ARGUMENT_SPLIT_CHAR_FORTRAN:
             splitpos.append(ind)
-
-    if splitpos:
-        fragments = [argtxt[0:splitpos[0]]]
-        for ind in range(len(splitpos) - 1):
-            fragments.append(argtxt[splitpos[ind] + 1 : splitpos[ind + 1]])
-        fragments.append(argtxt[splitpos[-1] + 1:])
-    else:
-        fragments = [argtxt]
+    if quote or closing_brace:
+        msg = "open quotes or brackets in expression '{0}'".format(argtxt)
+        raise FyppFatalError(msg)
+    splitpos.append(len(txt))
+    fragments = [argtxt[start + 1 : end]
+                 for start, end in zip(splitpos, splitpos[1:])]
     return fragments
 
 

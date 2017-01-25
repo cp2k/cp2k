@@ -4,10 +4,8 @@
 #!-------------------------------------------------------------------------------------------------!
 #:mute
 
-#:def colloc_int_kloop(grad_val=None, FMG_INTEGRATE_FULL=False, FMG_INTEGRATE=False, FM_FLAT_GRID=False)
-
 #!--------------------------------------------------------------------------------------------------
-#:def kgrad_loop(body)
+#:def kgrad_loop(body, grad_val)
 #:if grad_val is None
 DO kgrad=1,grad_val
 $:  body
@@ -20,6 +18,7 @@ $:  body.replace('kgrad',str(i))
 #:enddef kgrad_loop
 #!--------------------------------------------------------------------------------------------------
 
+#:def colloc_int_kloop(grad_val=None, FMG_INTEGRATE_FULL=False, FMG_INTEGRATE=False, FM_FLAT_GRID=False)
 #:set postfix = "int" if FMG_INTEGRATE_FULL else "col"
 #:if grad_val is None
 ! **************************************************************************************************
@@ -89,14 +88,14 @@ $:  body.replace('kgrad',str(i))
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                 p_kk=p_kk*REAL(k,dp)
                 k_vals(kgrad)=k_vals(kgrad)+p_kk
 #:endcall kgrad_loop
 #:else
                 p_v=poly_k(0)
                 p_kk=REAL(k,dp)
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                 p_v=p_v+poly_k(kgrad)*p_kk
                 p_kk=p_kk*REAL(k,dp)
 #:endcall kgrad_loop
@@ -143,14 +142,14 @@ $:  body.replace('kgrad',str(i))
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                 p_kk=p_kk*REAL(k,dp)
                 k_vals(kgrad)=k_vals(kgrad)+p_kk
 #:endcall kgrad_loop
 #:else
                 p_v=poly_k(0)
                 p_kk=k
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                     p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*k
 #:endcall kgrad_loop
@@ -193,14 +192,14 @@ $:  body.replace('kgrad',str(i))
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                     p_kk=p_kk*REAL(k,dp)
                     k_vals(kgrad)=k_vals(kgrad)+p_kk
 #:endcall kgrad_loop
 #:else
                 p_v=poly_k(0)
                 p_kk=REAL(k,dp)
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                     p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*REAL(k,dp)
 #:endcall kgrad_loop
@@ -245,14 +244,14 @@ $:  body.replace('kgrad',str(i))
                 gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                     p_kk=p_kk*REAL(k,dp)
                     k_vals(kgrad)=k_vals(kgrad)+p_kk
 #:endcall kgrad_loop
 #:else
                 p_v=poly_k(0)
                 p_kk=k
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
                     p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*k
 #:endcall kgrad_loop
@@ -281,7 +280,7 @@ $:  body.replace('kgrad',str(i))
     DO ipoly=1,npoly
         p_v=0.0_dp
         p_v=p_v+poly_k(pShift)*k_vals(0)
-#:call kgrad_loop
+#:call kgrad_loop(grad_val=grad_val)
             p_v=p_v+poly_k(pShift+kgrad)*k_vals(kgrad)
 #:endcall kgrad_loop
         mres(ipoly)=mres(ipoly)+p_v

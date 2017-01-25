@@ -12,8 +12,8 @@
 MODULE array_list_methods
 
 #:include "dbcsr_tensor.fypp"
-#:setvar maxdim maxrank
-#:setvar ndims range(2,maxdim+1)
+#:set maxdim = maxrank
+#:set ndims = range(2,maxdim+1)
 
 #include "../base/base_uses.f90"
    IMPLICIT NONE

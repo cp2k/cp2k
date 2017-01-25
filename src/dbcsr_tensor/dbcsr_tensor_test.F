@@ -10,8 +10,8 @@
 MODULE dbcsr_tensor_test
 
 #:include "dbcsr_tensor.fypp"
-#:setvar maxdim maxrank
-#:setvar ndims range(2,maxdim+1)
+#:set maxdim = maxrank
+#:set ndims = range(2,maxdim+1)
 
    USE dbcsr_api,                       ONLY: ${uselist(dtype_float_param)}$
    USE dbcsr_tensor,                    ONLY: &

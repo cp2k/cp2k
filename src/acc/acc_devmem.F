@@ -483,11 +483,11 @@ CONTAINS
 #endif
 
 #:set instances = [ ('i4', 'int_4_size',    'INTEGER(kind=int_4)'), &
-                 &  ('i8', 'int_8_size',    'INTEGER(kind=int_8)'), &
-                 &  ('r4', 'real_4_size',   'REAL(kind=real_4)'), &
-                 &  ('r8', 'real_8_size',   'REAL(kind=real_8)'), &
-                 &  ('c4', '2*real_4_size', 'COMPLEX(kind=real_4)'), &
-                 &  ('c8', '2*real_8_size', 'COMPLEX(kind=real_8)') ]
+                    ('i8', 'int_8_size',    'INTEGER(kind=int_8)'), &
+                    ('r4', 'real_4_size',   'REAL(kind=real_4)'), &
+                    ('r8', 'real_8_size',   'REAL(kind=real_8)'), &
+                    ('c4', '2*real_4_size', 'COMPLEX(kind=real_4)'), &
+                    ('c8', '2*real_8_size', 'COMPLEX(kind=real_8)') ]
 
 #:for nametype, size, type in instances
 

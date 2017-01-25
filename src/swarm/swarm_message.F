@@ -868,14 +868,14 @@ CONTAINS
 
 
 #:set instances = {'str'   : 'CHARACTER(LEN=*)', &
-                &  'i4'    : 'INTEGER(KIND=int_4)', &
-                &  'i8'    : 'INTEGER(KIND=int_8)', &
-                &  'r4'    : 'REAL(KIND=real_4)', &
-                &  'r8'    : 'REAL(KIND=real_8)', &
-                &  '1d_i4' : 'INTEGER(KIND=int_4), DIMENSION(:)', &
-                &  '1d_i8' : 'INTEGER(KIND=int_8), DIMENSION(:)', &
-                &  '1d_r4' : 'REAL(KIND=real_4), DIMENSION(:)', &
-                &  '1d_r8' : 'REAL(KIND=real_8), DIMENSION(:)' }
+                   'i4'    : 'INTEGER(KIND=int_4)', &
+                   'i8'    : 'INTEGER(KIND=int_8)', &
+                   'r4'    : 'REAL(KIND=real_4)', &
+                   'r8'    : 'REAL(KIND=real_8)', &
+                   '1d_i4' : 'INTEGER(KIND=int_4), DIMENSION(:)', &
+                   '1d_i8' : 'INTEGER(KIND=int_8), DIMENSION(:)', &
+                   '1d_r4' : 'REAL(KIND=real_4), DIMENSION(:)', &
+                   '1d_r8' : 'REAL(KIND=real_8), DIMENSION(:)' }
 
 #:for label, type in instances.items()
 
