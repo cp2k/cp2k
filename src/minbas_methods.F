@@ -29,7 +29,7 @@ MODULE minbas_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_filter, dbcsr_iterator_blocks_left, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type, &
         dbcsr_type_no_symmetry
@@ -94,7 +94,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm1, fm2, fm3, fm4, fm5, fm6, fm_mos, &
                                                             fma, fmb, fmwork
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type)                                   :: smao, sortho

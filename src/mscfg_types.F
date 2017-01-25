@@ -12,11 +12,11 @@
 MODULE mscfg_types
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
+        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_obj, &
-        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nfullcols_total, &
+        dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_work_create
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -213,9 +213,8 @@ CONTAINS
          cluster_distr_new, col_cluster_new, col_distr_new, col_sizes_new, distr_new_array, &
          row_cluster_new, row_distr_new, row_sizes_new
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
-      TYPE(dbcsr_distribution_obj)                       :: dist_new, dist_qs
+      TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
       TYPE(dbcsr_type)                                   :: matrix_new
 
 ! obtain distribution of the submatrix
@@ -239,10 +238,10 @@ CONTAINS
          NULLIFY (cluster_distr_new)
 
          IF (dimen == 1) THEN !rows
-            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster_dist=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster=cluster_distr)
             CALL dbcsr_get_info(submatrix_in, row_blk_size=blk_sizes)
          ELSE !columns
-            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster_dist=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster=cluster_distr)
             CALL dbcsr_get_info(submatrix_in, col_blk_size=blk_sizes)
          ENDIF
          nblocks = SIZE(blk_sizes) ! number of blocks in the small matrix
@@ -286,10 +285,9 @@ CONTAINS
       ENDDO ! both rows and columns are done
 
       ! Create the distribution
-      CALL dbcsr_distribution_get(dist_qs, mp_env=mp_env)
-      CALL dbcsr_distribution_new(dist_new, &
-                                  mp_env, row_distr_new, col_distr_new, &
-                                  row_cluster_new, col_cluster_new, &
+      CALL dbcsr_distribution_new(dist_new, template=dist_qs, &
+                                  row_dist=row_distr_new, col_dist=col_distr_new, &
+                                  row_cluster=row_cluster_new, col_cluster=col_cluster_new, &
                                   reuse_arrays=.TRUE.)
 
       ! Create big the matrix

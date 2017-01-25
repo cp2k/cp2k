@@ -20,12 +20,15 @@ MODULE arnoldi_data_methods
         has_d_real, has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, &
         set_data_z
    USE dbcsr_api,                       ONLY: &
-        create_col_vec_from_matrix, dbcsr_distribution_obj, dbcsr_get_data_p, dbcsr_get_data_type, &
-        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, &
-        dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
-        dbcsr_type_real_8, dbcsr_type_symmetric
+        create_col_vec_from_matrix, dbcsr_distribution_get, dbcsr_distribution_type, &
+        dbcsr_get_data_p, dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
    USE kinds,                           ONLY: real_4,&
                                               real_8
+   USE message_passing,                 ONLY: mp_cart_create,&
+                                              mp_cart_sub,&
+                                              mp_comm_free
    USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
@@ -112,20 +115,28 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_arnoldi_control', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: mypcol, myprow, npcols, nprows, tmp_group
+      INTEGER, DIMENSION(2)                              :: dims, my_pos
       TYPE(arnoldi_control_type), POINTER                :: control
-      TYPE(dbcsr_distribution_obj)                       :: distri
+      TYPE(dbcsr_distribution_type)                      :: distri
 
       ALLOCATE (control)
 ! Fill the information which will later on control the behavior of the arnoldi method and allow synchronization
       CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
-      control%mp_group = distri%d%mp_env%mp%mp_group
-      control%myproc = distri%d%mp_env%mp%mynode
+      CALL dbcsr_distribution_get(distri, &
+                                  group=control%mp_group, &
+                                  mynode=control%myproc, &
+                                  nprows=nprows, npcols=npcols, &
+                                  myprow=myprow, mypcol=mypcol)
 
-      CALL dbcsr_mp_grid_setup(distri%d%mp_env)
-      IF (.NOT. distri%d%mp_env%mp%subgroups_defined) &
-         CPABORT("arnoldi only with subgroups")
-      control%pcol_group = distri%d%mp_env%mp%pcol_group
-      control%prow_group = distri%d%mp_env%mp%prow_group
+      ! create MPI subgroups for rows and columns
+      dims = (/nprows, npcols/)
+      CALL mp_cart_create(comm_old=control%mp_group, ndims=2, dims=dims, pos=my_pos, comm_cart=tmp_group)
+      IF (my_pos(1) /= myprow .OR. my_pos(2) /= mypcol) &
+         CPABORT("Got different MPI process grid")
+      CALL mp_cart_sub(tmp_group, rdim=(/.FALSE., .TRUE./), sub_comm=control%prow_group)
+      CALL mp_cart_sub(tmp_group, rdim=(/.TRUE., .FALSE./), sub_comm=control%pcol_group)
+      CALL mp_comm_free(tmp_group)
 
       control%symmetric = .FALSE.
 ! Will need a fix for complex because there it has to be hermitian

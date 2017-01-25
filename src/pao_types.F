@@ -8,8 +8,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_types
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
-                                              dbcsr_distribution_release,&
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_release,&
+                                              dbcsr_distribution_type,&
                                               dbcsr_release,&
                                               dbcsr_type
    USE kinds,                           ONLY: default_path_length,&
@@ -199,7 +199,7 @@ MODULE pao_types
       TYPE(training_matrix_type), ALLOCATABLE, &
          DIMENSION(:)                  :: ml_training_matrices
 
-      TYPE(dbcsr_distribution_obj)     :: diag_distribution
+      TYPE(dbcsr_distribution_type)     :: diag_distribution
    END TYPE
 
 CONTAINS

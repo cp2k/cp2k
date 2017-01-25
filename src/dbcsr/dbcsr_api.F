@@ -40,10 +40,9 @@ MODULE dbcsr_api
                                               dbcsr_scalar_set_type,&
                                               dbcsr_scalar_zero
    USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_get_num_images => dbcsr_distribution_get_num_images_1d,&
-                                              dbcsr_distribution_hold,&
-                                              dbcsr_distribution_mp,&
+                                              dbcsr_distribution_hold_prv => dbcsr_distribution_hold,&
                                               dbcsr_distribution_new_prv => dbcsr_distribution_new,&
-                                              dbcsr_distribution_release
+                                              dbcsr_distribution_release_prv => dbcsr_distribution_release
    USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates_prv => dbcsr_get_stored_coordinates
    USE dbcsr_io,                        ONLY: dbcsr_binary_read_prv            => dbcsr_binary_read,&
                                               dbcsr_binary_write_prv           => dbcsr_binary_write,&
@@ -57,7 +56,6 @@ MODULE dbcsr_api
                                               dbcsr_finalize_lib,&
                                               dbcsr_init_lib
    USE dbcsr_methods,                   ONLY: &
-        dbcsr_distribution_prv              => dbcsr_distribution, &
         dbcsr_get_data_size_prv             => dbcsr_get_data_size, &
         dbcsr_get_data_type_prv             => dbcsr_get_data_type, &
         dbcsr_get_matrix_type_prv           => dbcsr_get_matrix_type, &
@@ -70,10 +68,10 @@ MODULE dbcsr_api
         dbcsr_release_prv                   => dbcsr_release, &
         dbcsr_setname_prv                   => dbcsr_setname, &
         dbcsr_valid_index_prv               => dbcsr_valid_index, dbcsr_wm_use_mutable
-   USE dbcsr_mp_methods,                ONLY: &
-        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
-        dbcsr_mp_new_prv => dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-        dbcsr_mp_release
+   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_grid_setup,&
+                                              dbcsr_mp_group,&
+                                              dbcsr_mp_new_prv => dbcsr_mp_new,&
+                                              dbcsr_mp_release
    USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_prv => dbcsr_multiply
    USE dbcsr_operations,                ONLY: &
         dbcsr_add_on_diag_prv               => dbcsr_add_on_diag, &
@@ -110,12 +108,13 @@ MODULE dbcsr_api
                                               dbcsr_new_transposed_prv        => dbcsr_new_transposed,&
                                               dbcsr_replicate_all_prv         => dbcsr_replicate_all
    USE dbcsr_types,                     ONLY: &
-        dbcsr_distribution_obj, dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
-        dbcsr_func_tanh, dbcsr_iterator_prv => dbcsr_iterator, dbcsr_mp_obj, dbcsr_norm_column, &
-        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_prv_type => dbcsr_type, &
-        dbcsr_scalar_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-        dbcsr_type_real_default, dbcsr_type_symmetric
+        dbcsr_dist_prv_obj => dbcsr_distribution_obj, dbcsr_func_artanh, dbcsr_func_dtanh, &
+        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_iterator_prv => dbcsr_iterator, dbcsr_mp_obj, &
+        dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
+        dbcsr_prv_type => dbcsr_type, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_complex_default, &
+        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_real_default, &
+        dbcsr_type_symmetric
    USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                               convert_sizes_to_offsets,&
                                               dbcsr_checksum_prv      => dbcsr_checksum,&
@@ -158,8 +157,7 @@ MODULE dbcsr_api
    ! types
    PUBLIC :: dbcsr_type
    PUBLIC :: dbcsr_p_type
-   PUBLIC :: dbcsr_mp_obj
-   PUBLIC :: dbcsr_distribution_obj
+   PUBLIC :: dbcsr_distribution_type
    PUBLIC :: dbcsr_iterator_type
 
    ! lib init/finalize
@@ -172,9 +170,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_reset_randmat_seed
 
    ! create / release
-   PUBLIC :: dbcsr_mp_new
-   PUBLIC :: dbcsr_mp_release
-   PUBLIC :: dbcsr_mp_hold
    PUBLIC :: dbcsr_distribution_hold
    PUBLIC :: dbcsr_distribution_release
    PUBLIC :: dbcsr_distribution_new
@@ -220,7 +215,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_distribution_get
 
    ! to remove:
-   PUBLIC :: dbcsr_mp_get_process
    PUBLIC :: dbcsr_mp_grid_setup
    PUBLIC :: dbcsr_setname
    PUBLIC :: dbcsr_get_matrix_type
@@ -320,15 +314,13 @@ MODULE dbcsr_api
       TYPE(dbcsr_prv_type), PRIVATE        :: prv
    END TYPE dbcsr_type
 
+   TYPE dbcsr_distribution_type
+      TYPE(dbcsr_dist_prv_obj), PRIVATE        :: prv
+   END TYPE dbcsr_distribution_type
+
    TYPE dbcsr_iterator_type
       TYPE(dbcsr_iterator_prv), PRIVATE        :: prv
    END TYPE dbcsr_iterator_type
-
-   INTERFACE dbcsr_distribution_new
-      MODULE PROCEDURE dbcsr_distribution_new_noclusters
-      MODULE PROCEDURE dbcsr_distribution_new_clusters1
-      MODULE PROCEDURE dbcsr_distribution_new_clusters2
-   END INTERFACE
 
    INTERFACE dbcsr_create
       MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
@@ -440,67 +432,6 @@ MODULE dbcsr_api
    PRIVATE
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Creates a new dbcsr_mp_obj
-!> \param mp_env ...
-!> \param group ...
-!> \param pgrid Optional, if not provided group is assumed to be a 2D cartesian communicator
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE dbcsr_mp_new(mp_env, group, pgrid)
-      TYPE(dbcsr_mp_obj), INTENT(OUT)                    :: mp_env
-      INTEGER, INTENT(IN)                                :: group
-      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
-
-      INTEGER                                            :: mynode, mypcol, myprow, numnodes, pcol, &
-                                                            prow
-      INTEGER, DIMENSION(2)                              :: coord, mycoord, pdims
-      INTEGER, DIMENSION(:, :), POINTER                  :: mypgrid
-      LOGICAL, DIMENSION(2)                              :: periods
-
-      CALL mp_environ(numnodes, mynode, group)
-
-      IF (PRESENT(pgrid)) THEN
-         mypgrid => pgrid
-         CPASSERT(LBOUND(pgrid, 1) == 0 .AND. LBOUND(pgrid, 2) == 0)
-         pdims(1) = SIZE(pgrid, 1)
-         pdims(2) = SIZE(pgrid, 2)
-         myprow = -1; mypcol = -1
-         outer: &
-            DO prow = 0, pdims(1)-1
-            DO pcol = 0, pdims(2)-1
-               IF (pgrid(prow, pcol) == mynode) THEN
-                  myprow = prow
-                  mypcol = pcol
-                  EXIT outer
-               ENDIF
-            ENDDO
-         ENDDO outer
-
-      ELSE
-         CALL mp_environ(group, 2, pdims, mycoord, periods)
-         CPASSERT(pdims(1)*pdims(2) == numnodes)
-         myprow = mycoord(1)
-         mypcol = mycoord(2)
-         ALLOCATE (mypgrid(0:pdims(1)-1, 0:pdims(2)-1))
-         DO prow = 0, pdims(1)-1
-            DO pcol = 0, pdims(2)-1
-               coord = (/prow, pcol/)
-               CALL mp_cart_rank(group, coord, mypgrid(prow, pcol))
-            ENDDO
-         ENDDO
-      ENDIF
-
-      CPASSERT(mynode == mypgrid(myprow, mypcol))
-
-      ! create the new mp enviroment
-      CALL dbcsr_mp_new_prv(mp_env, pgrid=mypgrid, mp_group=group, &
-                            mynode=mynode, numnodes=numnodes, myprow=myprow, mypcol=mypcol)
-
-      IF (.NOT. PRESENT(pgrid)) DEALLOCATE (mypgrid)
-
-   END SUBROUTINE dbcsr_mp_new
 
 ! **************************************************************************************************
 !> \brief ...
@@ -781,18 +712,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param matrix ...
-!> \retval distribution ...
-! **************************************************************************************************
-   FUNCTION dbcsr_distribution(matrix) RESULT(distribution)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      TYPE(dbcsr_distribution_obj)                       :: distribution
-
-      distribution = dbcsr_distribution_prv(matrix%prv)
-   END FUNCTION dbcsr_distribution
-
-! **************************************************************************************************
-!> \brief ...
 !> \param iterator ...
 !> \retval blocks_left ...
 ! **************************************************************************************************
@@ -895,7 +814,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL, &
          POINTER                                         :: row_blk_size, col_blk_size, &
                                                             row_blk_offset, col_blk_offset
-      TYPE(dbcsr_distribution_obj), INTENT(OUT), &
+      TYPE(dbcsr_distribution_type), INTENT(OUT), &
          OPTIONAL                                        :: distribution
       CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
       CHARACTER, INTENT(OUT), OPTIONAL                   :: matrix_type
@@ -920,11 +839,11 @@ CONTAINS
                               col_blk_size=col_blk_size, &
                               row_blk_offset=row_blk_offset, &
                               col_blk_offset=col_blk_offset, &
-                              distribution=distribution, &
                               name=name, &
                               matrix_type=matrix_type, &
                               data_type=data_type)
 
+      IF (PRESENT(distribution)) distribution%prv = matrix%prv%dist
       IF (PRESENT(group)) group = dbcsr_mp_group(matrix%prv%dist%d%mp_env) ! a shortcut
 
    END SUBROUTINE dbcsr_get_info
@@ -934,55 +853,77 @@ CONTAINS
 !> \param dist ...
 !> \param row_dist ...
 !> \param col_dist ...
-!> \param row_cluster_dist ...
-!> \param col_cluster_dist ...
+!> \param row_cluster ...
+!> \param col_cluster ...
 !> \param has_col_clusters ...
 !> \param has_row_clusters ...
 !> \param nrows ...
 !> \param ncols ...
 !> \param has_threads ...
-!> \param mp_env ...
 !> \param group ...
 !> \param mynode ...
 !> \param numnodes ...
 !> \param nprows ...
 !> \param npcols ...
+!> \param myprow ...
+!> \param mypcol ...
 !> \param pgrid ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_get(dist, row_dist, col_dist, &
-                                     row_cluster_dist, col_cluster_dist, &
+                                     row_cluster, col_cluster, &
                                      has_col_clusters, has_row_clusters, &
                                      nrows, ncols, has_threads, &
-                                     mp_env, &
-                                     group, mynode, numnodes, nprows, npcols, pgrid)
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
-      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_dist, col_dist, row_cluster_dist, &
-                                                            col_cluster_dist
+                                     group, mynode, numnodes, nprows, npcols, myprow, mypcol, pgrid)
+      TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_dist, col_dist, row_cluster, &
+                                                            col_cluster
       LOGICAL, INTENT(OUT), OPTIONAL                     :: has_col_clusters, has_row_clusters
       INTEGER, INTENT(OUT), OPTIONAL                     :: nrows, ncols
       LOGICAL, INTENT(OUT), OPTIONAL                     :: has_threads
-      TYPE(dbcsr_mp_obj), INTENT(OUT), OPTIONAL          :: mp_env
-      INTEGER, INTENT(OUT), OPTIONAL                     :: group, mynode, numnodes, nprows, npcols
+      INTEGER, INTENT(OUT), OPTIONAL                     :: group, mynode, numnodes, nprows, npcols, &
+                                                            myprow, mypcol
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
 
-      IF (PRESENT(row_dist)) row_dist => array_data(dist%d%row_dist_block)
-      IF (PRESENT(col_dist)) col_dist => array_data(dist%d%col_dist_block)
-      IF (PRESENT(row_cluster_dist)) row_cluster_dist => array_data(dist%d%row_dist_cluster)
-      IF (PRESENT(col_cluster_dist)) col_cluster_dist => array_data(dist%d%col_dist_cluster)
-      IF (PRESENT(has_col_clusters)) has_col_clusters = array_exists(dist%d%col_dist_cluster)
-      IF (PRESENT(has_row_clusters)) has_row_clusters = array_exists(dist%d%row_dist_cluster)
-      IF (PRESENT(nrows)) nrows = array_size(dist%d%row_dist_block)
-      IF (PRESENT(ncols)) ncols = array_size(dist%d%col_dist_block)
-      IF (PRESENT(has_threads)) has_threads = dist%d%has_thread_dist
-      IF (PRESENT(mp_env)) mp_env = dist%d%mp_env
-      IF (PRESENT(group)) group = dbcsr_mp_group(dist%d%mp_env)
-      IF (PRESENT(mynode)) mynode = dbcsr_mp_mynode(dist%d%mp_env)
-      IF (PRESENT(numnodes)) numnodes = dbcsr_mp_numnodes(dist%d%mp_env)
-      IF (PRESENT(nprows)) nprows = dbcsr_mp_nprows(dist%d%mp_env)
-      IF (PRESENT(npcols)) npcols = dbcsr_mp_npcols(dist%d%mp_env)
-      IF (PRESENT(pgrid)) pgrid => dist%d%mp_env%mp%pgrid
+      IF (PRESENT(row_dist)) row_dist => array_data(dist%prv%d%row_dist_block)
+      IF (PRESENT(col_dist)) col_dist => array_data(dist%prv%d%col_dist_block)
+      IF (PRESENT(row_cluster)) row_cluster => array_data(dist%prv%d%row_dist_cluster)
+      IF (PRESENT(col_cluster)) col_cluster => array_data(dist%prv%d%col_dist_cluster)
+      IF (PRESENT(has_col_clusters)) has_col_clusters = array_exists(dist%prv%d%col_dist_cluster)
+      IF (PRESENT(has_row_clusters)) has_row_clusters = array_exists(dist%prv%d%row_dist_cluster)
+      IF (PRESENT(nrows)) nrows = array_size(dist%prv%d%row_dist_block)
+      IF (PRESENT(ncols)) ncols = array_size(dist%prv%d%col_dist_block)
+      IF (PRESENT(has_threads)) has_threads = dist%prv%d%has_thread_dist
+
+      IF (PRESENT(group)) group = dist%prv%d%mp_env%mp%mp_group
+      IF (PRESENT(mynode)) mynode = dist%prv%d%mp_env%mp%mynode
+      IF (PRESENT(numnodes)) numnodes = dist%prv%d%mp_env%mp%numnodes
+      IF (PRESENT(nprows)) nprows = SIZE(dist%prv%d%mp_env%mp%pgrid, 1)
+      IF (PRESENT(npcols)) npcols = SIZE(dist%prv%d%mp_env%mp%pgrid, 2)
+      IF (PRESENT(myprow)) myprow = dist%prv%d%mp_env%mp%myprow
+      IF (PRESENT(mypcol)) mypcol = dist%prv%d%mp_env%mp%mypcol
+      IF (PRESENT(pgrid)) pgrid => dist%prv%d%mp_env%mp%pgrid
 
    END SUBROUTINE dbcsr_distribution_get
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dist ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_distribution_hold(dist)
+      TYPE(dbcsr_distribution_type)                      :: dist
+
+      CALL dbcsr_distribution_hold_prv(dist%prv)
+   END SUBROUTINE dbcsr_distribution_hold
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dist ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_distribution_release(dist)
+      TYPE(dbcsr_distribution_type)                      :: dist
+
+      CALL dbcsr_distribution_release_prv(dist%prv)
+   END SUBROUTINE dbcsr_distribution_release
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1148,105 +1089,134 @@ CONTAINS
    END SUBROUTINE dbcsr_verify_matrix
 
 ! **************************************************************************************************
-!> \brief Creates new distribution from block and cluster distributions
-!> \param[out] dist           distribution
-!> \param[in] mp_env          multiprocessing environment
-!> \param row_dist_block ...
-!> \param col_dist_block ...
-!> \param row_dist_cluster ...
-!> \param col_dist_cluster ...
-!> \param reuse_arrays ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_distribution_new_clusters1(dist, mp_env, &
-                                               row_dist_block, col_dist_block, &
-                                               row_dist_cluster, col_dist_cluster, &
-                                               reuse_arrays)
-      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
-      TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_dist_block, col_dist_block, &
-                                                            row_dist_cluster, col_dist_cluster
-      LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribution_new_clusters1', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: timing_handle
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist_cluster2, row_dist_cluster2
-
-      CALL timeset(routineN, timing_handle)
-
-      row_dist_cluster2 => row_dist_cluster
-      col_dist_cluster2 => col_dist_cluster
-      IF (ASSOCIATED(row_dist_cluster2)) THEN
-         IF (ANY(row_dist_cluster2 .EQ. -1)) NULLIFY (row_dist_cluster2)
-      END IF
-      IF (ASSOCIATED(col_dist_cluster2)) THEN
-         IF (ANY(col_dist_cluster2 .EQ. -1)) NULLIFY (col_dist_cluster2)
-      END IF
-
-      CALL dbcsr_distribution_new_prv(dist, mp_env, row_dist_block, col_dist_block, &
-                                      row_dist_cluster=row_dist_cluster2, &
-                                      col_dist_cluster=col_dist_cluster2, &
-                                      reuse_arrays=reuse_arrays)
-
-      CALL timestop(timing_handle)
-
-   END SUBROUTINE dbcsr_distribution_new_clusters1
-
-! **************************************************************************************************
-!> \brief Creates new distribution from block and cluster distributions
-!> \param[out] dist           distribution
-!> \param[in] mp_env          multiprocessing environment
-!> \param row_dist row distribution
-!> \param col_dist column distribution
-!> \param reuse_arrays ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_distribution_new_clusters2(dist, mp_env, row_dist, col_dist, reuse_arrays)
-      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
-      TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
-      INTEGER, DIMENSION(:, :), INTENT(IN), POINTER      :: row_dist, col_dist
-      LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribution_new_clusters2', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist_block, col_dist_cluster, &
-                                                            row_dist_block, row_dist_cluster
-
-      row_dist_block => row_dist(:, 1)
-      col_dist_block => col_dist(:, 1)
-      row_dist_cluster => row_dist(:, 2)
-      col_dist_cluster => col_dist(:, 2)
-
-      CALL dbcsr_distribution_new_clusters1(dist, mp_env, &
-                                            row_dist_block, col_dist_block, &
-                                            row_dist_cluster, col_dist_cluster, &
-                                            reuse_arrays)
-
-   END SUBROUTINE dbcsr_distribution_new_clusters2
-
-! **************************************************************************************************
 !> \brief Creates new distribution from blockr distributions
 !> \param[out] dist           distribution
-!> \param[in] mp_env          multiprocessing environment
-!> \param row_dist_block ...
-!> \param col_dist_block ...
+!> \param template ...
+!> \param group ...
+!> \param pgrid ...
+!> \param row_dist ...
+!> \param col_dist ...
+!> \param row_cluster ...
+!> \param col_cluster ...
 !> \param reuse_arrays ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_distribution_new_noclusters(dist, mp_env, row_dist_block, col_dist_block, reuse_arrays)
-      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
-      TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_dist_block, col_dist_block
+   SUBROUTINE dbcsr_distribution_new(dist, template, group, pgrid, row_dist, col_dist, &
+                                     row_cluster, col_cluster, reuse_arrays)
+      TYPE(dbcsr_distribution_type), INTENT(OUT)         :: dist
+      TYPE(dbcsr_distribution_type), INTENT(IN), &
+         OPTIONAL                                        :: template
+      INTEGER, INTENT(IN), OPTIONAL                      :: group
+      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
+      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_dist, col_dist
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL, &
+         POINTER                                         :: row_cluster, col_cluster
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays
 
-      CALL dbcsr_distribution_new_clusters1(dist, mp_env, &
-                                            row_dist_block=row_dist_block, &
-                                            col_dist_block=col_dist_block, &
-                                            row_dist_cluster=Null(), &
-                                            col_dist_cluster=Null(), &
-                                            reuse_arrays=reuse_arrays)
+      INTEGER, DIMENSION(:), POINTER                     :: my_col_cluster, my_row_cluster
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
 
-   END SUBROUTINE dbcsr_distribution_new_noclusters
+      IF (PRESENT(pgrid) .AND. .NOT. PRESENT(group)) &
+         CPABORT("pgrid can only be supplied together with group")
+
+      IF (PRESENT(template)) THEN
+         mp_env = template%prv%d%mp_env
+         IF (PRESENT(group)) &
+            CPABORT("dbcsr_distribution_new called with template and group")
+         IF (PRESENT(pgrid)) &
+            CPABORT("dbcsr_distribution_new called with template and pgrid")
+      ELSE IF (PRESENT(group)) THEN
+         CALL dbcsr_mp_new(mp_env, group, pgrid)
+      ELSE
+         CPABORT("dbcsr_distribution_new: neigther template nor group supplied")
+      ENDIF
+
+      NULLIFY (my_row_cluster, my_col_cluster)
+      IF (PRESENT(row_cluster)) THEN
+         IF (ASSOCIATED(row_cluster)) THEN
+            IF (ALL(row_cluster > 0)) &
+               my_row_cluster => row_cluster
+         ENDIF
+      ENDIF
+
+      IF (PRESENT(col_cluster)) THEN
+         IF (ASSOCIATED(col_cluster)) THEN
+            IF (ALL(col_cluster > 0)) &
+               my_col_cluster => col_cluster
+         ENDIF
+      ENDIF
+
+      CALL dbcsr_distribution_new_prv(dist%prv, mp_env, &
+                                      row_dist_block=row_dist, &
+                                      col_dist_block=col_dist, &
+                                      row_dist_cluster=my_row_cluster, &
+                                      col_dist_cluster=my_col_cluster, &
+                                      reuse_arrays=reuse_arrays)
+
+      IF (.NOT. PRESENT(template)) &
+         CALL dbcsr_mp_release(mp_env)
+
+   END SUBROUTINE dbcsr_distribution_new
+
+! **************************************************************************************************
+!> \brief Creates a new dbcsr_mp_obj
+!> \param mp_env ...
+!> \param group ...
+!> \param pgrid Optional, if not provided group is assumed to be a 2D cartesian communicator
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE dbcsr_mp_new(mp_env, group, pgrid)
+      TYPE(dbcsr_mp_obj), INTENT(OUT)                    :: mp_env
+      INTEGER, INTENT(IN)                                :: group
+      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
+
+      INTEGER                                            :: mynode, mypcol, myprow, numnodes, pcol, &
+                                                            prow
+      INTEGER, DIMENSION(2)                              :: coord, mycoord, pdims
+      INTEGER, DIMENSION(:, :), POINTER                  :: mypgrid
+      LOGICAL, DIMENSION(2)                              :: periods
+
+      CALL mp_environ(numnodes, mynode, group)
+
+      IF (PRESENT(pgrid)) THEN
+         mypgrid => pgrid
+         CPASSERT(LBOUND(pgrid, 1) == 0 .AND. LBOUND(pgrid, 2) == 0)
+         pdims(1) = SIZE(pgrid, 1)
+         pdims(2) = SIZE(pgrid, 2)
+         myprow = -1; mypcol = -1
+         outer: &
+            DO prow = 0, pdims(1)-1
+            DO pcol = 0, pdims(2)-1
+               IF (pgrid(prow, pcol) == mynode) THEN
+                  myprow = prow
+                  mypcol = pcol
+                  EXIT outer
+               ENDIF
+            ENDDO
+         ENDDO outer
+
+      ELSE
+         CALL mp_environ(group, 2, pdims, mycoord, periods)
+         CPASSERT(pdims(1)*pdims(2) == numnodes)
+         myprow = mycoord(1)
+         mypcol = mycoord(2)
+         ALLOCATE (mypgrid(0:pdims(1)-1, 0:pdims(2)-1))
+         DO prow = 0, pdims(1)-1
+            DO pcol = 0, pdims(2)-1
+               coord = (/prow, pcol/)
+               CALL mp_cart_rank(group, coord, mypgrid(prow, pcol))
+            ENDDO
+         ENDDO
+      ENDIF
+
+      CPASSERT(mynode == mypgrid(myprow, mypcol))
+
+      ! create the new mp enviroment
+      CALL dbcsr_mp_new_prv(mp_env, pgrid=mypgrid, mp_group=group, &
+                            mynode=mynode, numnodes=numnodes, myprow=myprow, mypcol=mypcol)
+
+      IF (.NOT. PRESENT(pgrid)) DEALLOCATE (mypgrid)
+
+   END SUBROUTINE dbcsr_mp_new
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1296,14 +1266,14 @@ CONTAINS
                                reuse_arrays, mutable_work, replication_type)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(len=*), INTENT(IN)                       :: name
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
+      TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
       CHARACTER, INTENT(IN)                              :: matrix_type
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: row_blk_size, col_blk_size
       INTEGER, INTENT(IN), OPTIONAL                      :: nze, data_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse, reuse_arrays, mutable_work
       CHARACTER, INTENT(IN), OPTIONAL                    :: replication_type
 
-      CALL dbcsr_create_prv(matrix%prv, name, dist, &
+      CALL dbcsr_create_prv(matrix%prv, name, dist%prv, &
                             matrix_type, &
                             row_blk_size, col_blk_size, nze=nze, &
                             data_type=data_type, reuse=reuse, &
@@ -1334,7 +1304,8 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
       TYPE(dbcsr_type), INTENT(IN)                       :: template
-      TYPE(dbcsr_distribution_obj), INTENT(IN), OPTIONAL :: dist
+      TYPE(dbcsr_distribution_type), INTENT(IN), &
+         OPTIONAL                                        :: dist
       CHARACTER, INTENT(IN), OPTIONAL                    :: matrix_type
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL, &
          POINTER                                         :: row_blk_size, col_blk_size
@@ -1345,13 +1316,21 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_template', &
          routineP = moduleN//':'//routineN
 
-      CALL dbcsr_create_prv(matrix%prv, template%prv, &
-                            name=name, dist=dist, matrix_type=matrix_type, &
-                            row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
-                            nze=nze, data_type=data_type, &
-                            reuse_arrays=reuse_arrays, mutable_work=mutable_work, &
-                            replication_type=replication_type)
-
+      IF (PRESENT(dist)) THEN
+         CALL dbcsr_create_prv(matrix%prv, template%prv, &
+                               name=name, dist=dist%prv, matrix_type=matrix_type, &
+                               row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
+                               nze=nze, data_type=data_type, &
+                               reuse_arrays=reuse_arrays, mutable_work=mutable_work, &
+                               replication_type=replication_type)
+      ELSE
+         CALL dbcsr_create_prv(matrix%prv, template%prv, &
+                               name=name, matrix_type=matrix_type, &
+                               row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
+                               nze=nze, data_type=data_type, &
+                               reuse_arrays=reuse_arrays, mutable_work=mutable_work, &
+                               replication_type=replication_type)
+      ENDIF
    END SUBROUTINE dbcsr_create_template
 
 ! **************************************************************************************************
@@ -1422,11 +1401,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_binary_read(filepath, distribution, groupid, matrix_new)
       CHARACTER(len=*), INTENT(IN)                       :: filepath
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: distribution
+      TYPE(dbcsr_distribution_type), INTENT(IN)          :: distribution
       INTEGER, INTENT(IN), OPTIONAL                      :: groupid
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_new
 
-      CALL dbcsr_binary_read_prv(filepath, distribution, groupid, matrix_new%prv)
+      CALL dbcsr_binary_read_prv(filepath, distribution%prv, groupid, matrix_new%prv)
    END SUBROUTINE dbcsr_binary_read
 
 ! **************************************************************************************************
@@ -1492,22 +1471,23 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: normal
       LOGICAL, INTENT(IN), OPTIONAL                      :: shallow_data_copy, transpose_data, &
                                                             transpose_distribution
-      TYPE(dbcsr_distribution_obj), INTENT(IN), OPTIONAL :: use_distribution
+      TYPE(dbcsr_distribution_type), INTENT(IN), &
+         OPTIONAL                                        :: use_distribution
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_transposed', &
          routineP = moduleN//':'//routineN
 
       LOGICAL                                            :: myshallow_data_copy, &
                                                             mytranspose_distribution
-      TYPE(dbcsr_distribution_obj)                       :: myuse_distribution
+      TYPE(dbcsr_dist_prv_obj)                           :: myuse_distribution
 
 !   set some defaults to make usage a bit less painful (fschiff)
 
       myshallow_data_copy = .FALSE.
-      myuse_distribution = dbcsr_distribution(normal)
+      myuse_distribution = normal%prv%dist
       mytranspose_distribution = .FALSE.
       IF (PRESENT(shallow_data_copy)) myshallow_data_copy = shallow_data_copy
-      IF (PRESENT(use_distribution)) myuse_distribution = use_distribution
+      IF (PRESENT(use_distribution)) myuse_distribution = use_distribution%prv
       IF (PRESENT(transpose_distribution)) mytranspose_distribution = transpose_distribution
 
       CALL dbcsr_new_transposed_prv(transposed%prv, normal%prv, myshallow_data_copy, &
@@ -1811,8 +1791,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_add_block_node', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: c, ithread, p, r
+      INTEGER                                            :: c, ithread, mynode, p, r
       LOGICAL                                            :: dbg, existed, is_there, tr
+      TYPE(dbcsr_distribution_type)                      :: dist
 
 !   ---------------------------------------------------------------------------
 
@@ -1839,7 +1820,9 @@ CONTAINS
       IF (dbg) THEN
          r = block_row; c = block_col; tr = .FALSE.
          CALL dbcsr_get_stored_coordinates(matrix, r, c, p)
-         IF (p .NE. dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))) &
+         CALL dbcsr_get_info(matrix, distribution=dist)
+         CALL dbcsr_distribution_get(dist, mynode=mynode)
+         IF (p .NE. mynode) &
             CPWARN("Adding non-local element")
       ENDIF
       IF (existed) CPWARN("You should not add existing blocks according to old API.")

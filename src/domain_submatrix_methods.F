@@ -15,7 +15,7 @@ MODULE domain_submatrix_methods
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
@@ -873,7 +873,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: antifactor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
       REAL(KIND=dp), DIMENSION(:), POINTER               :: block_p
-      TYPE(dbcsr_distribution_obj)                       :: pattern_dist
+      TYPE(dbcsr_distribution_type)                      :: pattern_dist
 
 !INTEGER, PARAMETER                         :: select_row_col = 1
 !INTEGER, PARAMETER                         :: select_row = 2
@@ -1364,7 +1364,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_distribution_obj)                       :: pattern_dist
+      TYPE(dbcsr_distribution_type)                      :: pattern_dist
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)

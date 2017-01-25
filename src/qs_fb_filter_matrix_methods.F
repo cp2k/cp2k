@@ -9,7 +9,7 @@ MODULE qs_fb_filter_matrix_methods
                                               get_atomic_kind
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
-                                              dbcsr_distribution_obj,&
+                                              dbcsr_distribution_type,&
                                               dbcsr_finalize,&
                                               dbcsr_get_info,&
                                               dbcsr_get_stored_coordinates,&
@@ -121,7 +121,7 @@ CONTAINS
                                                             row_blk_size
       LOGICAL                                            :: send_data_only
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(fb_atomic_halo_obj)                           :: dummy_atomic_halo
       TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER    :: halos
 
@@ -282,7 +282,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, ntfns, row_blk_size
       LOGICAL                                            :: check_ok
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER    :: halos
       TYPE(fb_com_atom_pairs_obj)                        :: atmatrix_blks_recv, atmatrix_blks_send, &
                                                             filter_mat_blks_recv, &

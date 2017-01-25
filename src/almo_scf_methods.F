@@ -19,7 +19,7 @@ MODULE almo_scf_methods
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
         dbcsr_init_random, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
@@ -3601,7 +3601,7 @@ CONTAINS
                                                             ncpus, ndomains
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index0
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpu_load, domain_load
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
 
       CALL timeset(routineN, handle)
 

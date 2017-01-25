@@ -39,7 +39,7 @@ MODULE minbas_wfn_analysis
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_get_occupation, &
+        dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_occupation, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
@@ -124,7 +124,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_a, fm_struct_b, fm_struct_c
       TYPE(cp_fm_type), POINTER                          :: fm1, fm2, fm3, fm4, fm_mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef, pqmat, quambo, sqmat
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type)                                   :: psmat, sinv, smao, smaox, spmat

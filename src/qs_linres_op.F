@@ -44,7 +44,7 @@ MODULE qs_linres_op
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_checksum, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_distribution_type, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_no_symmetry
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -131,7 +131,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_work1, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control

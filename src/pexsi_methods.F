@@ -28,7 +28,7 @@ MODULE pexsi_methods
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, csr_create_from_dbcsr, &
         csr_destroy, csr_eqrow_floor_dist, csr_print_sparsity, dbcsr_allocate_matrix_set, &
         dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_get_info, dbcsr_has_symmetry, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, &
         dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_type_real_8
    USE dm_ls_scf_qs,                    ONLY: matrix_ls_to_qs
@@ -322,7 +322,7 @@ CONTAINS
          mu_min_out, nel_tol, nelectron_diff, nelectron_exact_pexsi, nelectron_out
       TYPE(arnoldi_data_type)                            :: my_arnoldi
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: arnoldi_matrices
 
       CALL timeset(routineN, handle)

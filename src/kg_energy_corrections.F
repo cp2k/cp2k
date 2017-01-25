@@ -40,7 +40,7 @@ MODULE kg_energy_corrections
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_filter, &
+        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, &
         dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -545,7 +545,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
-      TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
       TYPE(dbcsr_type)                                   :: cgmat
 

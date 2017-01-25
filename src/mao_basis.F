@@ -18,7 +18,7 @@ MODULE mao_basis
    USE dbcsr_api,                       ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix_set,&
-                                              dbcsr_distribution_obj,&
+                                              dbcsr_distribution_type,&
                                               dbcsr_p_type,&
                                               dbcsr_reserve_diag_blocks,&
                                               dbcsr_type_no_symmetry
@@ -89,7 +89,7 @@ CONTAINS
       LOGICAL                                            :: do_nmao_external, molecule
       REAL(KIND=dp)                                      :: electra(2), eps_filter, eps_fun, &
                                                             mao_eps_grad
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_q, matrix_smm, matrix_smo
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control

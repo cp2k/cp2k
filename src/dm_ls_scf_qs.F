@@ -22,8 +22,8 @@ MODULE dm_ls_scf_qs
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_hold, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_finalize, dbcsr_get_info, dbcsr_mp_obj, dbcsr_multiply, &
+        dbcsr_distribution_hold, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
         dbcsr_type_real_4, dbcsr_type_real_8
    USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
@@ -108,11 +108,10 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
                                                             clustered_blk_sizes, primus_of_mol
       INTEGER, DIMENSION(:), POINTER :: clustered_col_clusters, clustered_col_dist, &
-         clustered_row_clusters, clustered_row_dist, ls_blk_sizes, ls_col_cluster_dist, &
-         ls_col_dist, ls_row_cluster_dist, ls_row_dist
+         clustered_row_clusters, clustered_row_dist, ls_blk_sizes, ls_col_cluster, ls_col_dist, &
+         ls_row_cluster, ls_row_dist
       LOGICAL                                            :: ls_has_col_clusters, ls_has_row_clusters
-      TYPE(dbcsr_distribution_obj)                       :: ls_dist
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      TYPE(dbcsr_distribution_type)                      :: ls_dist, ls_dist_clustered
 
       CALL timeset(routineN, handle)
 
@@ -122,8 +121,8 @@ CONTAINS
       CALL dbcsr_distribution_get(ls_dist, &
                                   row_dist=ls_row_dist, &
                                   col_dist=ls_col_dist, &
-                                  row_cluster_dist=ls_row_cluster_dist, &
-                                  col_cluster_dist=ls_col_cluster_dist, &
+                                  row_cluster=ls_row_cluster, &
+                                  col_cluster=ls_col_cluster, &
                                   has_col_clusters=ls_has_col_clusters, &
                                   has_row_clusters=ls_has_row_clusters)
       ls_data_type = dbcsr_type_real_8
@@ -169,7 +168,7 @@ CONTAINS
          IF (ls_has_row_clusters) THEN
             ALLOCATE (clustered_row_clusters(nmol))
             DO imol = 1, nmol
-               clustered_row_clusters(imol) = ls_row_cluster_dist(primus_of_mol(imol))
+               clustered_row_clusters(imol) = ls_row_cluster(primus_of_mol(imol))
             ENDDO
          ENDIF
 
@@ -182,7 +181,7 @@ CONTAINS
          IF (ls_has_col_clusters) THEN
             ALLOCATE (clustered_col_clusters(nmol))
             DO imol = 1, nmol
-               clustered_col_clusters(imol) = ls_col_cluster_dist(primus_of_mol(imol))
+               clustered_col_clusters(imol) = ls_col_cluster(primus_of_mol(imol))
             ENDDO
          ENDIF
 
@@ -195,15 +194,16 @@ CONTAINS
          ls_blk_sizes => clustered_blk_sizes ! redirect pointer
 
          ! create new distribution
-         CALL dbcsr_distribution_get(ls_dist, mp_env=mp_env)
-         CALL dbcsr_distribution_release(ls_dist)
-         CALL dbcsr_distribution_new(ls_dist, &
-                                     mp_env=mp_env, &
-                                     row_dist_block=clustered_row_dist, &
-                                     col_dist_block=clustered_col_dist, &
-                                     row_dist_cluster=clustered_row_clusters, &
-                                     col_dist_cluster=clustered_col_clusters, &
+         CALL dbcsr_distribution_new(ls_dist_clustered, &
+                                     template=ls_dist, &
+                                     row_dist=clustered_row_dist, &
+                                     col_dist=clustered_col_dist, &
+                                     row_cluster=clustered_row_clusters, &
+                                     col_cluster=clustered_col_clusters, &
                                      reuse_arrays=.TRUE.)
+         CALL dbcsr_distribution_release(ls_dist)
+         ls_dist = ls_dist_clustered
+
       CASE DEFAULT
          CPABORT("Unkown LS cluster type")
       END SELECT

@@ -50,13 +50,13 @@ MODULE mp2_gpw
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_allocate_matrix_set, dbcsr_clear_mempools, dbcsr_copy, &
-        dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, &
-        dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_default, dbcsr_type_symmetric
+        dbcsr_create, dbcsr_deallocate_matrix_set, dbcsr_distribution_new, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
+        dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                               distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -2149,7 +2149,7 @@ CONTAINS
       REAL(kind=dp)                                      :: subcells
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub_1
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub_im_time_P
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist_sub
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist_sub
       TYPE(distribution_1d_type), POINTER                :: local_molecules_sub, local_particles_sub
       TYPE(distribution_2d_type), POINTER                :: distribution_2d_sub
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ri_aux
@@ -3013,7 +3013,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_mao_occ, blk_sizes_mao_virt
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: dm_for_maos_virt, rho_ao_kp, &
                                                             scaled_dm_for_maos_occ
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -3510,39 +3510,33 @@ CONTAINS
 
       INTEGER                                            :: col_size, handle, icol, irow, &
                                                             nblkcols_total, row_size
-      INTEGER, DIMENSION(:, :), POINTER                  :: col_dist_data, pgrid, row_dist_data
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, row_dist
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj)                       :: dist
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      TYPE(dbcsr_distribution_type)                      :: dist
 
       CALL timeset(routineN, handle)
 
       CALL get_blacs_info(blacs_env_sub_P, para_env=para_env, blacs2mpi=pgrid)
-      CALL dbcsr_mp_new(mp_env, group=para_env%group, pgrid=pgrid)
 
       ! just round robin for row_dist_data and col_dist_data
       row_size = SIZE(pgrid, 1)
       col_size = SIZE(pgrid, 2)
-      ALLOCATE (row_dist_data(nblkrows_total, 2))
-      row_dist_data(:, 2) = -1
-
       nblkcols_total = 1
-
-      ALLOCATE (col_dist_data(nblkcols_total, 2))
-      col_dist_data(:, 2) = -1
-
+      ALLOCATE (row_dist(nblkrows_total), col_dist(nblkcols_total))
       ALLOCATE (mepos_P_from_RI_row(nblkrows_total))
 
       DO irow = 1, nblkrows_total
-         row_dist_data(irow, 1) = MODULO(irow, row_size)
+         row_dist(irow) = MODULO(irow, row_size)
          mepos_P_from_RI_row(irow) = MODULO(irow, row_size)
       END DO
 
       DO icol = 1, nblkcols_total
-         col_dist_data(icol, 1) = MODULO(icol, col_size)
+         col_dist(icol) = MODULO(icol, col_size)
       END DO
 
-      CALL dbcsr_distribution_new(dist, mp_env, row_dist_data, col_dist_data)
+      CALL dbcsr_distribution_new(dist, group=para_env%group, pgrid=pgrid, &
+                                  row_dist=row_dist, col_dist=col_dist)
 
       NULLIFY (mat_M%matrix)
       ALLOCATE (mat_M%matrix)
@@ -3554,9 +3548,8 @@ CONTAINS
                         nze=0)
 
       CALL dbcsr_distribution_release(dist)
-      CALL dbcsr_mp_release(mp_env)
 
-      DEALLOCATE (row_dist_data, col_dist_data)
+      DEALLOCATE (row_dist, col_dist)
 
       CALL timestop(handle)
 

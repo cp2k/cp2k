@@ -46,7 +46,7 @@ MODULE qs_moments
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_p_type, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_p_type, &
         dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
@@ -754,7 +754,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set, basis_set_a, basis_set_b

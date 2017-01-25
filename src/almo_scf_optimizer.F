@@ -48,7 +48,7 @@ MODULE almo_scf_optimizer
                                               ct_step_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
         dbcsr_function_of_elements, dbcsr_get_diag, dbcsr_get_info, dbcsr_hadamard_product, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -766,7 +766,7 @@ CONTAINS
          t1, t2, t_norm, tau, time_step
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type) :: FTsiginv, fvo_0, grad, inv_eiv, m_tmp_nn_1, m_tmp_no_1, m_tmp_no_2, &
          m_tmp_no_3, m_tmp_oo_1, prec_oo, prec_oo_inv, prec_vv, prev_grad, prev_minus_prec_grad, &

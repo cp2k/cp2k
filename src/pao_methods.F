@@ -22,11 +22,11 @@ MODULE pao_methods
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_filter, dbcsr_get_block_p, &
+        dbcsr_distribution_new, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_mp_obj, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, &
-        dbcsr_set, dbcsr_trace, dbcsr_type
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
+        dbcsr_trace, dbcsr_type
    USE dm_ls_scf_methods,               ONLY: density_matrix_trs4,&
                                               ls_scf_init_matrix_S
    USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
@@ -320,9 +320,8 @@ CONTAINS
 
       INTEGER                                            :: handle, iatom, natoms, pgrid_cols, &
                                                             pgrid_rows
-      INTEGER, DIMENSION(:), POINTER                     :: diag_col_dist, diag_row_dist, no_clusters
-      TYPE(dbcsr_distribution_obj)                       :: main_dist
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      INTEGER, DIMENSION(:), POINTER                     :: diag_col_dist, diag_row_dist
+      TYPE(dbcsr_distribution_type)                      :: main_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       CALL timeset(routineN, handle)
@@ -331,7 +330,7 @@ CONTAINS
 
       ! get processor grid from matrix_s
       CALL dbcsr_get_info(matrix=matrix_s(1)%matrix, distribution=main_dist)
-      CALL dbcsr_distribution_get(main_dist, mp_env=mp_env, nprows=pgrid_rows, npcols=pgrid_cols)
+      CALL dbcsr_distribution_get(main_dist, nprows=pgrid_rows, npcols=pgrid_cols)
 
       ! create new mapping of matrix-grid to processor-grid
       ALLOCATE (diag_row_dist(natoms), diag_col_dist(natoms))
@@ -339,15 +338,10 @@ CONTAINS
          diag_row_dist(iatom) = MOD(iatom-1, pgrid_rows)
          diag_col_dist(iatom) = MOD((iatom-1)/pgrid_rows, pgrid_cols)
       ENDDO
-      NULLIFY (no_clusters)
 
       ! instanciate distribution object
-      CALL dbcsr_distribution_new(pao%diag_distribution, &
-                                  mp_env=mp_env, &
-                                  row_dist_block=diag_row_dist, &
-                                  col_dist_block=diag_col_dist, &
-                                  row_dist_cluster=no_clusters, &
-                                  col_dist_cluster=no_clusters)
+      CALL dbcsr_distribution_new(pao%diag_distribution, template=main_dist, &
+                                  row_dist=diag_row_dist, col_dist=diag_col_dist)
 
       DEALLOCATE (diag_row_dist, diag_col_dist)
 
@@ -570,7 +564,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin
       REAL(KIND=dp)                                      :: cs_pos
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
       TYPE(dbcsr_type)                                   :: matrix_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control

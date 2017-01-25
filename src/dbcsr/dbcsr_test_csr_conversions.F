@@ -13,10 +13,9 @@ PROGRAM dbcsr_test_csr_conversions
    USE dbcsr_api,                       ONLY: &
         convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, csr_destroy, &
         csr_eqrow_ceil_dist, csr_type, dbcsr_add, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
-        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_new, dbcsr_mp_obj, &
-        dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, &
+        dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_stored_coordinates, &
+        dbcsr_init_lib, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, &
         dbcsr_norm_maxabsnorm, dbcsr_put_block, dbcsr_release, dbcsr_to_csr_filter, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE kinds,                           ONLY: dp,&
@@ -42,7 +41,6 @@ PROGRAM dbcsr_test_csr_conversions
    INTEGER                      :: mp_comm, group, numnodes, mynode, io_unit
 
    INTEGER, DIMENSION(2)                    :: npdims, myploc
-   TYPE(dbcsr_mp_obj)           :: mp_env
 
    INTEGER                      :: max_blks_total, max_blk_size, k, seedsz
    INTEGER, ALLOCATABLE, DIMENSION(:)        ::seed
@@ -58,7 +56,6 @@ PROGRAM dbcsr_test_csr_conversions
    CALL mp_world_init(mp_comm)
    npdims(:) = 0
    CALL mp_cart_create(mp_comm, 2, npdims, myploc, group)
-   CALL dbcsr_mp_new(mp_env, group)
    CALL mp_environ(numnodes, mynode, group)
    CALL dbcsr_init_lib()
 
@@ -108,8 +105,7 @@ PROGRAM dbcsr_test_csr_conversions
       CALL RANDOM_NUMBER(rn_array)
       col_dist = FLOOR(rn_array(1:nblkcols_total)*npdims(2))
 
-      CALL make_random_dbcsr_matrix(matrix_a, mp_env, &
-                                    col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity)
+      CALL make_random_dbcsr_matrix(matrix_a, group, col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity)
 
       WRITE (UNIT=k_str, FMT='(I0)') k
       WRITE (UNIT=mynode_str, FMT='(I0)') mynode
@@ -132,7 +128,6 @@ PROGRAM dbcsr_test_csr_conversions
 
    DEALLOCATE (seed)
 
-   CALL dbcsr_mp_release(mp_env)
    CALL dbcsr_finalize_lib(mp_comm, io_unit)
    CALL mp_comm_free(group)
    CALL mp_world_finalize()
@@ -179,17 +174,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Create a DBCSR matrix with random values and random blocks
 !> \param matrix_a ...
-!> \param mp_env ...
+!> \param group ...
 !> \param col_blk_sizes ...
 !> \param row_blk_sizes ...
 !> \param col_dist ...
 !> \param row_dist ...
 !> \param sparsity ...
 ! **************************************************************************************************
-   SUBROUTINE make_random_dbcsr_matrix(matrix_a, mp_env, &
+   SUBROUTINE make_random_dbcsr_matrix(matrix_a, group, &
                                        col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity)
       TYPE(dbcsr_type), INTENT(OUT)                      :: matrix_a
-      TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
+      INTEGER, INTENT(IN)                                :: group
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes, col_dist, &
                                                             row_dist
       REAL(real_8), INTENT(IN)                           :: sparsity
@@ -200,9 +195,9 @@ CONTAINS
       LOGICAL                                            :: tr
       REAL(real_8)                                       :: rn
       REAL(real_8), ALLOCATABLE, DIMENSION(:)            :: values
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
 
-      CALL dbcsr_distribution_new(dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
+      CALL dbcsr_distribution_new(dist, group=group, row_dist=row_dist, col_dist=col_dist, reuse_arrays=.TRUE.)
 
       CALL dbcsr_create(matrix=matrix_a, &
                         name="this is my matrix a", &

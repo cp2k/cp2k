@@ -49,7 +49,7 @@ MODULE qs_linres_current
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_add_block_node, dbcsr_allocate_matrix_set, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, &
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_constants,                 ONLY: current_gauge_atom
@@ -195,7 +195,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, psi_a_iB, psi_buf
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix0, density_matrix_a, &
                                                             density_matrix_ii, density_matrix_iii
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -2106,7 +2106,7 @@ CONTAINS
                                                             psi_rxp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_mom_ao, op_p_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_mom_der_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -2529,7 +2529,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_mom_ao, op_p_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_mom_der_ao
       TYPE(dft_control_type), POINTER                    :: dft_control

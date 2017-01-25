@@ -12,10 +12,8 @@ MODULE qs_fb_distribution_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_distribution_get,&
-                                              dbcsr_distribution_obj,&
+                                              dbcsr_distribution_type,&
                                               dbcsr_get_info,&
-                                              dbcsr_mp_get_process,&
-                                              dbcsr_mp_obj,&
                                               dbcsr_nblkcols_total,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -463,9 +461,9 @@ CONTAINS
 
       INTEGER                                            :: icol, nprows, pcol, prow
       INTEGER, DIMENSION(:), POINTER                     :: col_dist
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: check_ok
-      TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
-      TYPE(dbcsr_mp_obj)                                 :: dbcsr_mp
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
 
       check_ok = natoms .LE. dbcsr_nblkcols_total(dbcsr_mat)
       CPASSERT(check_ok)
@@ -475,7 +473,7 @@ CONTAINS
       CPASSERT(check_ok)
 
       CALL dbcsr_get_info(dbcsr_mat, distribution=dbcsr_dist, proc_col_dist=col_dist)
-      CALL dbcsr_distribution_get(dbcsr_dist, mp_env=dbcsr_mp, nprows=nprows, npcols=n_common_sets)
+      CALL dbcsr_distribution_get(dbcsr_dist, pgrid=pgrid, nprows=nprows, npcols=n_common_sets)
 
       DO icol = 1, natoms
          IF (ASSOCIATED(preferred_procs_set(icol)%list)) THEN
@@ -486,8 +484,7 @@ CONTAINS
          ! dbcsr prow and pcol counts from 0
          DO prow = 0, nprows-1
             ! here, we count processes from 1, so +1 from mpirank
-            preferred_procs_set(icol)%list(prow+1) = &
-               dbcsr_mp_get_process(dbcsr_mp, prow, pcol)+1
+            preferred_procs_set(icol)%list(prow+1) = pgrid(prow, pcol)+1
          END DO
          preferred_procs_set(icol)%nprocs = nprows
       END DO

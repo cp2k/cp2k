@@ -13,7 +13,7 @@
 MODULE mao_optimizer
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix_set, dbcsr_distribution_obj, dbcsr_get_info, dbcsr_norm, &
+        dbcsr_deallocate_matrix_set, dbcsr_distribution_type, dbcsr_get_info, dbcsr_norm, &
         dbcsr_norm_maxabsnorm, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type, &
         dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
@@ -58,7 +58,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
       REAL(KIND=dp)                                      :: a1, a2, alpha, an, beta, eps_fun, fa1, &
                                                             fa2, fnnew, fnold, fval, grad_norm
-      TYPE(dbcsr_distribution_obj)                       :: dbcsr_dist
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_grad
       TYPE(dbcsr_type)                                   :: amat, binv, cgmat
 

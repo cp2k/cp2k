@@ -34,11 +34,11 @@ MODULE almo_scf_qs
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_complete_redistribute, dbcsr_copy, &
         dbcsr_copy_into_existing, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_filter, &
+        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_num_blocks, &
-        dbcsr_get_stored_coordinates, dbcsr_mp_obj, dbcsr_multiply, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+        dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_work_create
    USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
                                               almo_constraint_block_diagonal,&
                                               almo_constraint_distance,&
@@ -127,8 +127,7 @@ CONTAINS
          row_cluster_new, row_distr_new, row_sizes_new
       LOGICAL                                            :: active, tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
-      TYPE(dbcsr_distribution_obj)                       :: dist_new, dist_qs
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs
 
 ! dimension size: AO, MO, etc
 !                 almo_mat_dim_aobasis - no. of AOs,
@@ -164,9 +163,9 @@ CONTAINS
 
          ! distribution pattern is the same for all matrix types (ao, occ, virt)
          IF (dimen == 1) THEN !rows
-            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster_dist=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, row_dist=blk_distr, row_cluster=cluster_distr)
          ELSE !columns
-            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster_dist=cluster_distr)
+            CALL dbcsr_distribution_get(dist_qs, col_dist=blk_distr, col_cluster=cluster_distr)
          ENDIF
 
          NULLIFY (cluster_distr_new)
@@ -290,10 +289,9 @@ CONTAINS
       ENDDO ! both rows and columns are done
 
       ! Create the distribution
-      CALL dbcsr_distribution_get(dist_qs, mp_env=mp_env)
-      CALL dbcsr_distribution_new(dist_new, &
-                                  mp_env, row_distr_new, col_distr_new, &
-                                  row_cluster_new, col_cluster_new, &
+      CALL dbcsr_distribution_new(dist_new, template=dist_qs, &
+                                  row_dist=row_distr_new, col_dist=col_distr_new, &
+                                  row_cluster=row_cluster_new, col_cluster=col_cluster_new, &
                                   reuse_arrays=.TRUE.)
 
       ! Create the matrix
@@ -725,7 +723,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type)                                   :: matrix_s_sym
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set

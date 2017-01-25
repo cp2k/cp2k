@@ -22,10 +22,9 @@ MODULE dbcsr_tensor_types
                                               sum_of_arrays
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_new, dbcsr_distribution_obj, &
+        dbcsr_distribution_new, dbcsr_distribution_type, &
         dbcsr_distribution_release, dbcsr_distribution_get, dbcsr_finalize, &
-        dbcsr_mp_new, dbcsr_mp_obj, &
-        dbcsr_mp_release, dbcsr_get_info, dbcsr_type, dbcsr_release
+        dbcsr_get_info, dbcsr_type, dbcsr_release
    USE dbcsr_tensor_index,              ONLY: get_2d_indices,&
                                               get_nd_indices,&
                                               create_nd_to_2d_mapping,&
@@ -70,7 +69,7 @@ MODULE dbcsr_tensor_types
    END TYPE dbcsr_t_type
 
    TYPE dbcsr_t_distribution_type
-      TYPE(dbcsr_distribution_obj) :: dist
+      TYPE(dbcsr_distribution_type) :: dist
       INTEGER                      :: comm_nd
       TYPE(array_list)             :: nd_dist
    END TYPE
@@ -157,7 +156,6 @@ CONTAINS
       LOGICAL, DIMENSION(SIZE(map1_2d)+SIZE(map2_2d)) :: periods
       LOGICAL, DIMENSION(2)                           :: periods_2d
       TYPE(array_list)                                :: nd_dist
-      TYPE(dbcsr_mp_obj)                              :: mp_env
       TYPE(nd_to_2d_mapping)                          :: map_blks, map_grid
 
       ndims = SIZE(map1_2d)+SIZE(map2_2d)
@@ -184,9 +182,6 @@ CONTAINS
          CPABORT("inconsistent process grid dimensions")
       ENDIF
 
-      ! setup the mp enviroment
-      CALL dbcsr_mp_new(mp_env, comm_2d)
-
       ! create 2d distribution from nd distribution
       ALLOCATE (row_dist(bdims_2d(1)), col_dist(bdims_2d(2)))
       row_dist(:) = -1
@@ -207,11 +202,9 @@ CONTAINS
          ENDDO
       ENDDO
 
-      CALL dbcsr_distribution_new(dist%dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
+      CALL dbcsr_distribution_new(dist%dist, group=comm_2d, row_dist=row_dist, col_dist=col_dist, reuse_arrays=.TRUE.)
       dist%nd_dist = nd_dist
       dist%comm_nd = comm_nd
-
-      CALL dbcsr_mp_release(mp_env)
 
    END SUBROUTINE
 
@@ -357,7 +350,7 @@ CONTAINS
       CHARACTER(len=default_string_length)        :: name_in
       INTEGER, DIMENSION(2)                       :: order_in
       INTEGER                                     :: comm_nd, comm_2d, data_type
-      TYPE(dbcsr_distribution_obj)                :: matrix_dist
+      TYPE(dbcsr_distribution_type)                :: matrix_dist
       TYPE(dbcsr_t_distribution_type)             :: dist
       INTEGER, DIMENSION(:), POINTER              :: row_blk_size, col_blk_size
       INTEGER, DIMENSION(:), POINTER              :: col_dist, row_dist

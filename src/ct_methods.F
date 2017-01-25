@@ -19,7 +19,7 @@ MODULE ct_methods
    USE ct_types,                        ONLY: ct_step_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_obj, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_frobenius_norm, dbcsr_func_inverse, dbcsr_function_of_elements, dbcsr_get_diag, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -1205,7 +1205,7 @@ CONTAINS
       LOGICAL                                            :: tr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: p_diagonal, q_diagonal
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_type)                                   :: pp_diag, qq_diag, t1, t2, tmp
 
 !LOGICAL, INTENT(IN)                      :: use_virt_orbs

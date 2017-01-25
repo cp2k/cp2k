@@ -28,7 +28,7 @@ MODULE qs_overlap
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE dbcsr_api,                       ONLY: &
-        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_distribution_obj, dbcsr_filter, &
+        dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE kinds,                           ONLY: default_string_length,&
@@ -869,7 +869,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: mname, name
       INTEGER                                            :: i, maxs, natom
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -963,7 +963,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: mname, name
       INTEGER                                            :: i1, i2, natom
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 

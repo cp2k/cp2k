@@ -19,7 +19,7 @@ MODULE qs_ot
                                               cp_dbcsr_syevd
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution_obj, dbcsr_filter, &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution_type, dbcsr_filter, &
         dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_get_occupation, dbcsr_hadamard_product, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -120,7 +120,7 @@ CONTAINS
                                                             n, output_unit, p, row, row_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: DATA
       REAL(KIND=dp)                                      :: expfactor, f2, norm_fro, norm_gct, tmp
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type), POINTER                          :: C, Gp1, Gp2, GU, U
 
@@ -941,7 +941,7 @@ CONTAINS
       COMPLEX(dp), DIMENSION(:, :), POINTER :: data_z
       INTEGER::row, col, blk, row_offset, col_offset, row_size, col_size
       LOGICAL::found
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                       :: dist
 
       CALL timeset(routineN, handle)
 
@@ -1234,7 +1234,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, k, n
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
 
       CALL timeset(routineN, handle)
 
@@ -1311,7 +1311,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, k, n
       REAL(KIND=dp)                                      :: cosfactor, sinfactor
-      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_type), POINTER                          :: matrix_left, matrix_right
 
       CALL timeset(routineN, handle)

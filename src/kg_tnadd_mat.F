@@ -17,7 +17,7 @@ MODULE kg_tnadd_mat
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_allocate_matrix_set, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_set, &
         dbcsr_type_symmetric
    USE external_potential_types,        ONLY: get_potential,&
                                               local_potential_type
@@ -86,7 +86,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tnadd_mat', &
          routineP = moduleN//':'//routineN

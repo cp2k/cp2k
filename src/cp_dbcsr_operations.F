@@ -23,12 +23,12 @@ MODULE cp_dbcsr_operations
         dbcsr_desymmetrize, dbcsr_distribution_new, &
         dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
         dbcsr_iterator_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_new, dbcsr_mp_release, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, &
         dbcsr_multiply, dbcsr_norm, dbcsr_release, &
         dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, &
         dbcsr_valid_index, dbcsr_verify_matrix, &
-        dbcsr_distribution_obj, dbcsr_distribution_release, &
-        dbcsr_mp_hold, dbcsr_mp_obj, dbcsr_norm_frobenius, &
+        dbcsr_distribution_type, dbcsr_distribution_release, &
+        dbcsr_norm_frobenius, &
         dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
         dbcsr_type_symmetric
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -131,7 +131,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_col, first_row, last_col, last_row
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       ${type}$(KIND=dp), DIMENSION(:, :), POINTER        :: fm_block, dbcsr_block
-      TYPE(dbcsr_distribution_obj)                       :: bc_dist
+      TYPE(dbcsr_distribution_type)                       :: bc_dist
       TYPE(dbcsr_iterator_type)                          :: iter
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
 
@@ -200,7 +200,7 @@ CONTAINS
       INTEGER :: handle, ncol_block, nfullcols_total, &
          nfullrows_total, nrow_block
       TYPE(dbcsr_type)                                   :: bc_mat, matrix_nosym
-      TYPE(dbcsr_distribution_obj)                       :: dist, bc_dist
+      TYPE(dbcsr_distribution_type)                       :: dist, bc_dist
       CHARACTER(len=default_string_length)               :: name
       INTEGER                                            :: group
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
@@ -405,13 +405,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_dist2d_to_dist(dist2d, dist)
       TYPE(distribution_2d_type), INTENT(IN), TARGET     :: dist2d
-      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
+      TYPE(dbcsr_distribution_type), INTENT(OUT)          :: dist
 
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid, col_dist_data, row_dist_data
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
       TYPE(distribution_2d_type), POINTER                :: dist2d_p
+      INTEGER, DIMENSION(:),             POINTER         :: row_dist, col_dist, &
+                                                            row_cluster, col_cluster
+
 
       dist2d_p => dist2d
       CALL distribution_2d_get(dist2d_p, &
@@ -419,9 +421,20 @@ CONTAINS
                                col_distribution=col_dist_data, &
                                blacs_env=blacs_env)
       CALL get_blacs_info(blacs_env, para_env=para_env, blacs2mpi=pgrid)
-      CALL dbcsr_mp_new(mp_env, group=para_env%group, pgrid=pgrid)
-      CALL dbcsr_distribution_new(dist, mp_env, row_dist_data, col_dist_data)
-      CALL dbcsr_mp_release(mp_env)
+
+      ! map to 1D arrays
+      row_dist => row_dist_data(:, 1)
+      col_dist => col_dist_data(:, 1)
+      row_cluster => row_dist_data(:, 2)
+      col_cluster => col_dist_data(:, 2)
+
+      CALL dbcsr_distribution_new(dist, &
+                                  group=para_env%group, pgrid=pgrid, &
+                                  row_dist=row_dist, &
+                                  col_dist=col_dist, &
+                                  row_cluster=row_cluster, &
+                                  col_cluster=col_cluster)
+
    END SUBROUTINE cp_dbcsr_dist2d_to_dist
 
 ! **************************************************************************************************
@@ -543,12 +556,11 @@ CONTAINS
                                                             a_ncol, a_nrow,  b_ncol, b_nrow, c_ncol, c_nrow
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, &
                                                             col_blk_size_right_out, row_blk_size,&
-                                                            row_cluster_dist, col_cluster_dist,&
+                                                            row_cluster, col_cluster,&
                                                             row_dist, col_dist
       TYPE(dbcsr_type)                                   :: in, out
       REAL(dp)                                           :: my_alpha, my_beta
-      TYPE(dbcsr_distribution_obj)                       :: dist, dist_right_in, product_dist
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      TYPE(dbcsr_distribution_type)                       :: dist, dist_right_in, product_dist
 
       CALL timeset(routineN, timing_handle)
 
@@ -581,12 +593,11 @@ CONTAINS
          CALL dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
                               row_blk_size, col_blk_size_right_in, nze=0)
 
-         CALL dbcsr_distribution_get(dist, &
-                                    mp_env=mp_env, &
-                                    row_dist=row_dist, &
-                                    row_cluster_dist=row_cluster_dist)
-         CALL dbcsr_distribution_get(dist_right_in, col_dist=col_dist, col_cluster_dist=col_cluster_dist)
-         CALL dbcsr_distribution_new(product_dist, mp_env, row_dist, col_dist, row_cluster_dist, col_cluster_dist)
+         CALL dbcsr_distribution_get(dist, row_dist=row_dist, row_cluster=row_cluster)
+         CALL dbcsr_distribution_get(dist_right_in, col_dist=col_dist, col_cluster=col_cluster)
+         CALL dbcsr_distribution_new(product_dist, template=dist, &
+                                     row_dist=row_dist, col_dist=col_dist, &
+                                     row_cluster=row_cluster, col_cluster=col_cluster)
          ALLOCATE (col_blk_size_right_out(SIZE(col_blk_size_right_in)))
          col_blk_size_right_out = col_blk_size_right_in
          CALL match_col_sizes(col_blk_size_right_out, col_blk_size_right_in, k_out)
@@ -683,16 +694,15 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: npcols, k, nao, timing_handle, data_type
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_left, col_dist_cluster, &
-                                                            col_dist_left, row_blk_size, row_dist, row_cluster_dist
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_left, col_cluster, &
+                                                            col_dist_left, row_blk_size, row_dist, row_cluster
       LOGICAL                                            :: check_product, my_keep_sparsity
       REAL(KIND=dp)                                      :: my_alpha, norm
       TYPE(dbcsr_type)                                :: mat_g, mat_v, sparse_matrix2, &
                                                             sparse_matrix3
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_matrix
-      TYPE(dbcsr_distribution_obj)                       :: dist_left, sparse_dist
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      TYPE(dbcsr_distribution_type)                       :: dist_left, sparse_dist
 
       check_product = .FALSE.
 
@@ -710,11 +720,12 @@ CONTAINS
          CALL cp_fm_get_info(matrix_v, ncol_global=k)
          !WRITE(*,*)routineN//'truncated mult k, ncol',k,ncol,' PRESENT (matrix_g)',PRESENT (matrix_g)
          CALL dbcsr_get_info(sparse_matrix, distribution=sparse_dist)
-         CALL dbcsr_distribution_get(sparse_dist, mp_env=mp_env, npcols=npcols)
+         CALL dbcsr_distribution_get(sparse_dist, npcols=npcols, row_dist=row_dist, row_cluster=row_cluster)
          CALL create_bl_distribution(col_dist_left, col_blk_size_left, k, npcols)
-         NULLIFY (col_dist_cluster)
-         CALL dbcsr_distribution_get(sparse_dist, row_dist=row_dist, row_cluster_dist=row_cluster_dist)
-         CALL dbcsr_distribution_new(dist_left, mp_env, row_dist, col_dist_left, row_cluster_dist, col_dist_cluster)
+         NULLIFY (col_cluster)
+         CALL dbcsr_distribution_new(dist_left, template=sparse_dist, &
+                                     row_dist=row_dist, col_dist=col_dist_left, &
+                                     row_cluster=row_cluster, col_cluster=col_cluster)
          DEALLOCATE (col_dist_left)
          CALL dbcsr_get_info(sparse_matrix, row_blk_size=row_blk_size, data_type=data_type)
          CALL dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_no_symmetry, &
@@ -828,7 +839,7 @@ CONTAINS
 
       INTEGER                                            :: k_in, data_type
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, row_blk_size
-      TYPE(dbcsr_distribution_obj)                       :: tmpl_dist, dist_right_in
+      TYPE(dbcsr_distribution_type)                       :: tmpl_dist, dist_right_in
 
       CALL cp_fm_get_info(fm_in, ncol_global=k_in)
 
@@ -867,11 +878,10 @@ CONTAINS
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: my_data_type, nprows, npcols
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_cluster_dist, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_cluster, &
                                                             col_dist, row_blk_size, &
-                                                            row_cluster_dist, row_dist
-      TYPE(dbcsr_distribution_obj)                       :: tmpl_dist, dist_m_n
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+                                                            row_cluster, row_dist
+      TYPE(dbcsr_distribution_type)                       :: tmpl_dist, dist_m_n
 
       CALL dbcsr_get_info(template, &
                           matrix_type=mysym, &
@@ -883,14 +893,14 @@ CONTAINS
 
       NULLIFY (row_dist, col_dist)
       NULLIFY (row_blk_size, col_blk_size)
-      NULLIFY (row_cluster_dist, col_cluster_dist)
+      NULLIFY (row_cluster, col_cluster)
 
-      CALL dbcsr_distribution_get(tmpl_dist, mp_env=mp_env, nprows=nprows, npcols=npcols)
+      CALL dbcsr_distribution_get(tmpl_dist, nprows=nprows, npcols=npcols)
       CALL create_bl_distribution(row_dist, row_blk_size, m, nprows)
       CALL create_bl_distribution(col_dist, col_blk_size, n, npcols)
-      CALL dbcsr_distribution_new(dist_m_n, mp_env, &
-                                  row_dist, col_dist, &
-                                  row_cluster_dist, col_cluster_dist, &
+      CALL dbcsr_distribution_new(dist_m_n, template=tmpl_dist, &
+                                  row_dist=row_dist, col_dist=col_dist, &
+                                  row_cluster=row_cluster, col_cluster=col_cluster, &
                                   reuse_arrays=.TRUE.)
 
       CALL dbcsr_create(matrix, "m_n_template", dist_m_n, mysym, &
@@ -922,10 +932,9 @@ CONTAINS
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: my_data_type, npcols
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_cluster_dist, col_dist, row_blk_size, &
-                                                            row_cluster_dist, row_dist
-      TYPE(dbcsr_distribution_obj)                       :: dist_m_n, tmpl_dist
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_cluster, col_dist, row_blk_size, &
+                                                            row_cluster, row_dist
+      TYPE(dbcsr_distribution_type)                       :: dist_m_n, tmpl_dist
 
       mysym = dbcsr_get_matrix_type(template)
       IF (PRESENT(sym)) mysym = sym
@@ -934,15 +943,16 @@ CONTAINS
 
       CALL dbcsr_get_info(template, distribution=tmpl_dist)
       CALL dbcsr_distribution_get(tmpl_dist, &
-                                  mp_env=mp_env, &
                                   npcols=npcols, &
                                   row_dist=row_dist, &
-                                  row_cluster_dist=row_cluster_dist)
+                                  row_cluster=row_cluster)
 
       NULLIFY (col_dist, col_blk_size)
       CALL create_bl_distribution(col_dist, col_blk_size, n, npcols)
-      NULLIFY (col_cluster_dist)
-      CALL dbcsr_distribution_new(dist_m_n, mp_env, row_dist, col_dist, row_cluster_dist, col_cluster_dist)
+      NULLIFY (col_cluster)
+      CALL dbcsr_distribution_new(dist_m_n, template=tmpl_dist, &
+                                  row_dist=row_dist, col_dist=col_dist, &
+                                  row_cluster=row_cluster, col_cluster=col_cluster)
 
       CALL dbcsr_get_info(template, row_blk_size=row_blk_size)
       CALL dbcsr_create(matrix, "m_n_template", dist_m_n, mysym, &
@@ -1065,8 +1075,8 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE dbcsr_create_dist_r_unrot(dist_right, dist_left, ncolumns,&
        right_col_blk_sizes)
-      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist_right
-      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist_left
+      TYPE(dbcsr_distribution_type), INTENT(OUT)          :: dist_right
+      TYPE(dbcsr_distribution_type), INTENT(IN)           :: dist_left
       INTEGER, INTENT(IN)                                :: ncolumns
       INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: right_col_blk_sizes
 
@@ -1076,10 +1086,8 @@ CONTAINS
       INTEGER                                            :: multiplicity, nimages, ncols, nprows, npcols
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_images
       INTEGER, DIMENSION(:), POINTER                     :: right_col_dist, right_row_dist, old_col_dist, dummy
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
 
     CALL dbcsr_distribution_get(dist_left, &
-                                mp_env=mp_env, &
                                 ncols=ncols, &
                                 col_dist=old_col_dist, &
                                 nprows=nprows, &
@@ -1095,11 +1103,11 @@ CONTAINS
 
     NULLIFY(dummy)
     CALL dbcsr_distribution_new (dist_right,&
-                                 mp_env=mp_env,&
-                                 row_dist_block=right_row_dist,&
-                                 col_dist_block=right_col_dist,&
-                                 row_dist_cluster=dummy,&
-                                 col_dist_cluster=dummy,&
+                                 template=dist_left,&
+                                 row_dist=right_row_dist,&
+                                 col_dist=right_col_dist,&
+                                 row_cluster=dummy,&
+                                 col_cluster=dummy,&
                                  reuse_arrays=.TRUE.)
     DEALLOCATE(tmp_images)
   END SUBROUTINE dbcsr_create_dist_r_unrot
@@ -1189,7 +1197,7 @@ CONTAINS
 ! **************************************************************************************************
   SUBROUTINE dbcsr_create_dist_block_cyclic (dist, nrows, ncolumns,&
        nrow_block, ncol_block, group, pgrid, row_blk_sizes, col_blk_sizes)
-      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
+      TYPE(dbcsr_distribution_type), INTENT(OUT)          :: dist
       INTEGER, INTENT(IN)                                :: nrows, ncolumns, nrow_block, ncol_block
       INTEGER, INTENT(IN)                                :: group
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
@@ -1200,14 +1208,9 @@ CONTAINS
 
       INTEGER                                            :: nblkcols, nblkrows, npcols, nprows, &
                                                             pdim, sz
-      INTEGER, DIMENSION(:), POINTER                     :: cd_data, rd_data, dummy
-      TYPE(dbcsr_mp_obj)                                 :: mp_env
+      INTEGER, DIMENSION(:), POINTER                     :: cd_data, rd_data
 
-
-      CALL dbcsr_mp_new(mp_env, group=group, pgrid=pgrid)
-!   ---------------------------------------------------------------------------
-! Row sizes
-
+    ! Row sizes
     IF(nrow_block.EQ.0) THEN
        nblkrows = 0
        sz = 0
@@ -1257,17 +1260,12 @@ CONTAINS
             cd_data
     ENDIF
     !
-    NULLIFY(dummy)
     CALL dbcsr_distribution_new (dist,&
-                                 mp_env=mp_env,&
-                                 row_dist_block=rd_data,&
-                                 col_dist_block=cd_data,&
-                                 row_dist_cluster=dummy,&
-                                 col_dist_cluster=dummy,&
+                                 group=group, pgrid=pgrid,&
+                                 row_dist=rd_data,&
+                                 col_dist=cd_data,&
                                  reuse_arrays=.TRUE.)
 
-
-    CALL dbcsr_mp_release(mp_env)
 
   END SUBROUTINE dbcsr_create_dist_block_cyclic
 

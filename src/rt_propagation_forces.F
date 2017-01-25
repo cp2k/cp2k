@@ -24,8 +24,8 @@ MODULE rt_propagation_forces
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
@@ -95,7 +95,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
-      TYPE(dbcsr_distribution_obj)                       :: dist, SinvB_dist
+      TYPE(dbcsr_distribution_type)                      :: dist, SinvB_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, S_der, SinvB, SinvH
       TYPE(dbcsr_type)                                   :: db_mo_tmp1, db_mo_tmp2, db_mos_im, &
                                                             db_mos_re

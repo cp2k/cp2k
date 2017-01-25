@@ -50,7 +50,7 @@ MODULE mp2_ri_gpw
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_finalize, dbcsr_get_info, &
+        dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_release_p, dbcsr_reserve_blocks, &
@@ -7149,7 +7149,7 @@ CONTAINS
                                                             sphi_RI, zet_RI, zeta, zetb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_distribution_obj)                       :: dist_sub
+      TYPE(dbcsr_distribution_type)                      :: dist_sub
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_RI_tmp
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, basis_set_RI
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set

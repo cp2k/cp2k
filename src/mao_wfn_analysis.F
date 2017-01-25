@@ -24,7 +24,7 @@ MODULE mao_wfn_analysis
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix_set, &
-        dbcsr_desymmetrize, dbcsr_distribution_obj, dbcsr_get_block_diag, dbcsr_get_block_p, &
+        dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_get_block_diag, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_trace, &
@@ -108,7 +108,7 @@ CONTAINS
       TYPE(block_type), ALLOCATABLE, DIMENSION(:)        :: rowblock
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef, mao_dmat, mao_qmat, mao_smat, &
                                                             matrix_q, matrix_smm, matrix_smo

@@ -15,10 +15,9 @@
 ! **************************************************************************************************
 PROGRAM dbcsr_example_1
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_distribution_release, &
-        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_init_lib, dbcsr_mp_new, dbcsr_mp_obj, &
-        dbcsr_mp_release, dbcsr_print, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
+        dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
+        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_init_lib, dbcsr_print, dbcsr_release, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
                                               mp_comm_free,&
@@ -36,8 +35,7 @@ PROGRAM dbcsr_example_1
    INTEGER                                  :: mp_comm, group, numnodes, mynode, nblkrows_total, nblkcols_total, io_unit
    INTEGER, DIMENSION(2)                    :: npdims, myploc
    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
-   TYPE(dbcsr_distribution_obj)             :: dist
-   TYPE(dbcsr_mp_obj)                       :: mp_env
+   TYPE(dbcsr_distribution_type)             :: dist
 
    !***************************************************************************************
 
@@ -49,8 +47,6 @@ PROGRAM dbcsr_example_1
    ! setup the mp enviroment
    npdims(:) = 0
    CALL mp_cart_create(mp_comm, 2, npdims, myploc, group)
-   CALL dbcsr_mp_new(mp_env, group)
-
    CALL mp_environ(numnodes, mynode, group)
    WRITE (*, *) 'mynode ', mynode, ' numnodes', numnodes
 
@@ -82,7 +78,7 @@ PROGRAM dbcsr_example_1
 
    !
    ! set the dbcsr distribution object
-   CALL dbcsr_distribution_new(dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
+   CALL dbcsr_distribution_new(dist, group=group, row_dist=row_dist, col_dist=col_dist, reuse_arrays=.TRUE.)
 
    !
    ! create the dbcsr matrix, i.e. a double precision non symmetric matrix
@@ -113,10 +109,6 @@ PROGRAM dbcsr_example_1
    !
    ! release the distribution
    CALL dbcsr_distribution_release(dist)
-
-   !
-   ! release the message passing environement
-   CALL dbcsr_mp_release(mp_env)
 
    !***************************************************************************************
    !

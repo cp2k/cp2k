@@ -17,7 +17,7 @@ MODULE qs_environment_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_obj
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE distribution_methods,            ONLY: distribute_molecules_2d
@@ -98,7 +98,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set

@@ -48,7 +48,7 @@ MODULE xas_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         convert_offsets_to_sizes, dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution_obj, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
+        dbcsr_distribution_type, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
    USE input_constants,                 ONLY: &
         do_loc_none, state_loc_list, state_loc_range, xas_1s_type, xas_2p_type, xas_2s_type, &
         xas_dip_len, xas_dip_vel, xas_dscf, xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, &
@@ -594,7 +594,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set

@@ -28,8 +28,8 @@ MODULE qs_ks_types
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix_set,&
-                                              dbcsr_distribution_obj,&
                                               dbcsr_distribution_release,&
+                                              dbcsr_distribution_type,&
                                               dbcsr_p_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -207,7 +207,7 @@ MODULE qs_ks_types
       TYPE(kpoint_type), POINTER                            :: kpoints => Null()
       TYPE(qs_subsys_type), POINTER                         :: subsys => Null()
       TYPE(dft_control_type), POINTER                       :: dft_control => Null()
-      TYPE(dbcsr_distribution_obj), POINTER                 :: dbcsr_dist => Null()
+      TYPE(dbcsr_distribution_type), POINTER                 :: dbcsr_dist => Null()
       TYPE(distribution_2d_type), POINTER                   :: distribution_2d => Null()
       TYPE(pw_env_type), POINTER                            :: pw_env => Null()
       TYPE(cp_para_env_type), POINTER                       :: para_env => Null()
@@ -410,7 +410,7 @@ CONTAINS
       TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
       INTEGER, OPTIONAL                                  :: nkind, natom
       TYPE(dft_control_type), OPTIONAL, POINTER          :: dft_control
-      TYPE(dbcsr_distribution_obj), OPTIONAL, POINTER    :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: distribution_2d
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
@@ -631,7 +631,7 @@ CONTAINS
                                                             task_list_soft
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(dft_control_type), OPTIONAL, POINTER          :: dft_control
-      TYPE(dbcsr_distribution_obj), OPTIONAL, POINTER    :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: distribution_2d
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env

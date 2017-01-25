@@ -32,7 +32,7 @@ MODULE qs_environment_types
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
-   USE dbcsr_api,                       ONLY: dbcsr_distribution_obj,&
+   USE dbcsr_api,                       ONLY: dbcsr_distribution_type,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p
    USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -543,7 +543,7 @@ CONTAINS
       INTEGER, INTENT(out), OPTIONAL                     :: id_nr
       TYPE(distribution_1d_type), OPTIONAL, POINTER      :: local_particles, local_molecules
       TYPE(distribution_2d_type), OPTIONAL, POINTER      :: distribution_2d
-      TYPE(dbcsr_distribution_obj), OPTIONAL, POINTER    :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
       TYPE(molecule_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), OPTIONAL, &

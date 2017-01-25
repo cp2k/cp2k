@@ -15,11 +15,10 @@
 ! **************************************************************************************************
 PROGRAM dbcsr_example_2
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
-        dbcsr_get_stored_coordinates, dbcsr_init_lib, dbcsr_mp_new, dbcsr_mp_obj, &
-        dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, &
-        dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_stored_coordinates, &
+        dbcsr_init_lib, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, dbcsr_put_block, &
+        dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
    USE kinds,                           ONLY: real_8
    USE machine,                         ONLY: default_output_unit
    USE message_passing,                 ONLY: mp_cart_create,&
@@ -40,8 +39,7 @@ PROGRAM dbcsr_example_2
                                                row, col, row_s, col_s, io_unit, max_row_size, max_col_size
    INTEGER, DIMENSION(2)                    :: npdims, myploc
    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
-   TYPE(dbcsr_distribution_obj)             :: dist
-   TYPE(dbcsr_mp_obj)                       :: mp_env
+   TYPE(dbcsr_distribution_type)             :: dist
    REAL(real_8), DIMENSION(:), ALLOCATABLE  :: values
    LOGICAL                                  :: tr
 
@@ -55,8 +53,6 @@ PROGRAM dbcsr_example_2
    ! setup the mp enviroment
    npdims(:) = 0
    CALL mp_cart_create(mp_comm, 2, npdims, myploc, group)
-   CALL dbcsr_mp_new(mp_env, group)
-
    CALL mp_environ(numnodes, mynode, group)
    WRITE (*, *) 'mynode ', mynode, ' numnodes', numnodes
 
@@ -88,7 +84,7 @@ PROGRAM dbcsr_example_2
 
    !
    ! set the dbcsr distribution object
-   CALL dbcsr_distribution_new(dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
+   CALL dbcsr_distribution_new(dist, group=group, row_dist=row_dist, col_dist=col_dist, reuse_arrays=.TRUE.)
 
    !
    ! create the dbcsr matrix, i.e. a double precision non symmetric matrix
@@ -155,7 +151,6 @@ PROGRAM dbcsr_example_2
    CALL dbcsr_release(matrix_a)
 
    CALL dbcsr_distribution_release(dist)
-   CALL dbcsr_mp_release(mp_env)
    DEALLOCATE (row_blk_sizes, col_blk_sizes)
 
    !***************************************************************************************

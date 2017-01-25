@@ -62,8 +62,8 @@ MODULE qs_tddfpt2_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_allocate_matrix_set, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_obj, &
-        dbcsr_distribution_release, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release, &
+        dbcsr_deallocate_matrix_set, dbcsr_desymmetrize, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release, &
         dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -309,7 +309,7 @@ CONTAINS
                                                             work_fm_sub
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env_global, para_env_sub
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist_sub
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist_sub
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: dipole_op_xyz_sub, matrix_ks_global, &
          matrix_ks_sub, matrix_s_aux_fit_global, matrix_s_global, rho_ij_ao, rRc_xyz
       TYPE(dbcsr_type), POINTER                          :: matrix_s_aux_fit_sub, matrix_s_sub
@@ -1215,7 +1215,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_build_distribution_2d(distribution_2d, dbcsr_dist, blacs_env, qs_env)
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -1354,7 +1354,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_dbcsr_create_by_dist(matrix, template, dbcsr_dist, sab)
       TYPE(dbcsr_type), POINTER                          :: matrix, template
-      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
 
