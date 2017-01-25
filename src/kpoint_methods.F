@@ -12,7 +12,8 @@
 ! **************************************************************************************************
 MODULE kpoint_methods
    USE atomic_kind_types,               ONLY: get_atomic_kind
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              real_to_scaled
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -37,6 +38,13 @@ MODULE kpoint_methods
                                               cp_para_env_retain
    USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                               cp_para_env_type
+   USE cryssym,                         ONLY: apply_rotation_coord,&
+                                              crys_sym_gen,&
+                                              csym_type,&
+                                              kpoint_gen,&
+                                              print_crys_symmetry,&
+                                              print_kp_symmetry,&
+                                              release_csym_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_get, &
         dbcsr_distribution_obj, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
@@ -45,10 +53,6 @@ MODULE kpoint_methods
    USE fermi_utils,                     ONLY: fermikp,&
                                               fermikp2
    USE input_constants,                 ONLY: smear_fermi_dirac
-   USE k290,                            ONLY: csym_type,&
-                                              kp_sym_gen,&
-                                              print_crys_symmetry,&
-                                              release_csym_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_create,&
@@ -114,12 +118,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, i, ik, iounit, is, natom, ns
+      INTEGER                                            :: handle, i, ik, iounit, ir, is, natom, &
+                                                            nr, ns
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
       LOGICAL                                            :: inv, spez, symmo
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord
-      REAL(KIND=dp), DIMENSION(3)                        :: skp, xkp
-      TYPE(csym_type), POINTER                           :: crys_sym
+      REAL(KIND=dp)                                      :: wsum
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, scoord
+      TYPE(csym_type)                                    :: crys_sym
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
       CALL timeset(routineN, handle)
@@ -138,24 +143,24 @@ CONTAINS
          NULLIFY (kpoint%kp_sym(1)%kpoint_sym)
          CALL kpoint_sym_create(kpoint%kp_sym(1)%kpoint_sym)
       CASE ("MONKHORST-PACK", "MACDONALD")
-         NULLIFY (crys_sym)
 
          IF (kpoint%full_grid) THEN
             ! we set up a random molecule to avoid any possible symmetry
             natom = 10
-            ALLOCATE (coord(3, natom), atype(natom))
+            ALLOCATE (coord(3, natom), scoord(3, natom), atype(natom))
             DO i = 1, natom
                atype(i) = i
                coord(1, i) = SIN(i*0.12345_dp)
                coord(2, i) = COS(i*0.23456_dp)
                coord(3, i) = SIN(i*0.34567_dp)
+               CALL real_to_scaled(scoord(1:3, i), coord(1:3, i), cell)
             END DO
          ELSE
             natom = SIZE(particle_set)
-            ALLOCATE (coord(3, natom), atype(natom))
+            ALLOCATE (scoord(3, natom), atype(natom))
             DO i = 1, natom
                CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, kind_number=atype(i))
-               coord(1:3, i) = particle_set(i)%r(1:3)
+               CALL real_to_scaled(scoord(1:3, i), particle_set(i)%r(1:3), cell)
             END DO
          END IF
          IF (kpoint%verbose) THEN
@@ -164,57 +169,53 @@ CONTAINS
             iounit = -1
          END IF
 
-         CALL kp_sym_gen(crys_sym, coord, atype, cell%hmat, &
-                         nk=kpoint%nkp_grid, &
-                         shift=kpoint%kp_shift, &
-                         symm=kpoint%symmetry, &
-                         delta=kpoint%eps_geo, &
-                         iounit=iounit, &
-                         xkpoint=kpoint%xkp, &
-                         wkpoint=kpoint%wkp)
-         kpoint%nkp = SIZE(kpoint%wkp)
+         CALL crys_sym_gen(crys_sym, scoord, atype, cell%hmat, delta=kpoint%eps_geo, iounit=iounit)
+         CALL kpoint_gen(crys_sym, kpoint%nkp_grid, symm=kpoint%symmetry, shift=kpoint%kp_shift, &
+                         full_grid=kpoint%full_grid)
+         kpoint%nkp = crys_sym%nkpoint
+         ALLOCATE (kpoint%xkp(3, kpoint%nkp), kpoint%wkp(kpoint%nkp))
+         wsum = SUM(crys_sym%wkpoint)
+         DO ik = 1, kpoint%nkp
+            kpoint%xkp(1:3, ik) = crys_sym%xkpoint(1:3, ik)
+            kpoint%wkp(ik) = crys_sym%wkpoint(ik)/wsum
+         END DO
 
-         ! inversion symmetry
-         inv = (crys_sym%li > 0)
-         ! symmorphic group without special translation
-         symmo = (crys_sym%isy == 1)
          ! print output
          IF (kpoint%symmetry) CALL print_crys_symmetry(crys_sym)
+         IF (kpoint%symmetry) CALL print_kp_symmetry(crys_sym)
+
          ! transfer symmetry information
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO ik = 1, kpoint%nkp
             NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
             kpsym => kpoint%kp_sym(ik)%kpoint_sym
-            ns = crys_sym%lwght(ik)
-            IF (ns > 1) THEN
-               ! we need more than one (=identity) symmetry operation, to do symmetrization
-               IF (ns == 2 .AND. SUM(crys_sym%lrot(1:2, ik)) == 0) THEN
-                  ! we have only identity and inversion, no symmetrization needed
-               ELSE
-                  ! set up the symmetrization information
-                  natom = SIZE(particle_set)
+            IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid) THEN
+               ! set up the symmetrization information
+               kpsym%nwght = crys_sym%wkpoint(ik)
+               ns = kpsym%nwght
+               IF (ns > 1) THEN
                   kpsym%apply_symmetry = .TRUE.
-                  kpsym%nwght = ns
+                  natom = SIZE(particle_set)
                   ALLOCATE (kpsym%rot(3, 3, ns))
                   ALLOCATE (kpsym%xkp(3, ns))
                   ALLOCATE (kpsym%f0(natom, ns))
-                  skp(1:3) = MATMUL(TRANSPOSE(cell%hmat), kpoint%xkp(1:3, ik))
-                  DO is = 1, ns
-                     i = crys_sym%lrot(is, ik)
-                     kpsym%rot(1:3, 1:3, is) = crys_sym%r(1:3, 1:3, i)
-                     kpsym%f0(1:natom, is) = crys_sym%f0(is, 1:natom)
-                     xkp(1:3) = MATMUL(crys_sym%r(1:3, 1:3, i), skp(1:3))+crys_sym%v(1:3, i)
-                     kpsym%xkp(1:3, is) = xkp(1)*cell%h_inv(1:3, 1)+ &
-                                          xkp(2)*cell%h_inv(1:3, 2)+ &
-                                          xkp(3)*cell%h_inv(1:3, 3)
+                  nr = 0
+                  DO is = 1, SIZE(crys_sym%kplink, 2)
+                     IF (crys_sym%kplink(2, is) == ik) THEN
+                        nr = nr+1
+                        ir = crys_sym%kpop(is)
+                        kpsym%rot(1:3, 1:3, nr) = crys_sym%rotations(1:3, 1:3, ir)
+                        kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+                        CALL apply_rotation_coord(kpsym%f0(1:natom, nr), crys_sym, ir)
+                     END IF
                   END DO
                END IF
             END IF
          END DO
 
          CALL release_csym_type(crys_sym)
-         DEALLOCATE (coord, atype)
+         DEALLOCATE (scoord, atype)
 
       CASE ("GENERAL")
          ! default: no symmetry settings

@@ -91,9 +91,9 @@ MODULE kpoint_types
    TYPE kpoint_sym_type
       LOGICAL                                           :: apply_symmetry
       INTEGER                                           :: nwght
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER          :: rot
-      INTEGER, DIMENSION(:, :), POINTER                  :: f0
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: xkp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER        :: rot
+      INTEGER, DIMENSION(:, :), POINTER                 :: f0
    END TYPE kpoint_sym_type
 
    TYPE kpoint_sym_p_type
