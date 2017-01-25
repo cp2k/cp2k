@@ -197,6 +197,11 @@ Note that the code can only be built for one of these libraries at a time.
 
 See https://cp2k.org/howto:install_with_plumed for full instructions.
 
+==== 2p. spglib (optional, crystal symmetries tools) ====
+A library for finding and handling crystal symmetries
+  * The spglib can be downloaded from https://github.com/atztogo/spglib
+  * For building CP2K with the spglib add -D__SPGLIB to DFLAGS
+
 ===== 3. Compile =====
 
 ==== 3a. ARCH files ====

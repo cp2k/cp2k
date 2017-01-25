@@ -269,6 +269,9 @@ CONTAINS
 #if defined __NO_ABORT
       flags = TRIM(flags)//" no_abort"
 #endif
+#if defined __SPGLIB
+      flags = TRIM(flags)//" spglib"
+#endif
 
    END FUNCTION cp2k_flags
 
