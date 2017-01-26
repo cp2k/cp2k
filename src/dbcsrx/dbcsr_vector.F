@@ -10,50 +10,41 @@
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-MODULE dbcsr_vector_operations
-   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
-                                              dbcsr_scalar_fill_all
-   USE dbcsr_types,                     ONLY: dbcsr_scalar_type,&
-                                              dbcsr_type,&
-                                              dbcsr_type_complex_4,&
-                                              dbcsr_type_complex_8,&
-                                              dbcsr_type_real_4,&
-                                              dbcsr_type_real_8
-   USE kinds,                           ONLY: real_4,&
-                                              real_8
-   USE dbcsr_block_access,              ONLY: dbcsr_reserve_all_blocks
-   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_clusters,&
-                                              dbcsr_distribution_col_dist,&
-                                              dbcsr_distribution_mp,&
+MODULE dbcsr_vector
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_distribution_get,&
                                               dbcsr_distribution_new,&
                                               dbcsr_distribution_release,&
-                                              dbcsr_distribution_row_clusters,&
-                                              dbcsr_distribution_row_dist
-   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                              dbcsr_distribution_type,&
+                                              dbcsr_get_info,&
+                                              dbcsr_iterator_blocks_left,&
                                               dbcsr_iterator_next_block,&
                                               dbcsr_iterator_start,&
-                                              dbcsr_iterator_stop
-   USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
-                                              dbcsr_distribution,&
-                                              dbcsr_get_matrix_type,&
+                                              dbcsr_iterator_stop,&
+                                              dbcsr_iterator_type,&
                                               dbcsr_release,&
-                                              dbcsr_row_block_sizes
-   USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                              dbcsr_get_info,&
-                                              dbcsr_set
-   USE dbcsr_types,                     ONLY: &
-        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_scalar_type, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
-   USE dbcsr_work_operations,           ONLY: dbcsr_create
+                                              dbcsr_reserve_all_blocks,&
+                                              dbcsr_set,dbcsr_get_data_p,&
+                                              dbcsr_type,&
+                                              dbcsr_type_antisymmetric,&
+                                              dbcsr_type_complex_4,&
+                                              dbcsr_type_complex_4,&
+                                              dbcsr_type_complex_8,&
+                                              dbcsr_type_complex_8,&
+                                              dbcsr_type_no_symmetry,&
+                                              dbcsr_type_real_4,&
+                                              dbcsr_type_real_4,&
+                                              dbcsr_type_real_8,&
+                                              dbcsr_type_real_8,&
+                                              dbcsr_type_symmetric
    USE kinds,                           ONLY: real_4,&
                                               real_8
    USE message_passing,                 ONLY: mp_bcast,&
                                               mp_sum
 
 
-#include "../../base/base_uses.f90"
+#include "../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -63,8 +54,8 @@ MODULE dbcsr_vector_operations
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_vector_operations'
 
-   ! the following types provide fast access to distributed dbcsr vectors
-#include "../base/hash_table_types.f90"
+!    ! the following types provide fast access to distributed dbcsr vectors
+#include "hash_table_types.f90"
 
    TYPE block_ptr_d
       REAL(real_8), DIMENSION(:, :), POINTER          :: ptr => NULL()
@@ -105,7 +96,7 @@ MODULE dbcsr_vector_operations
    END INTERFACE
 
 CONTAINS
-   
+
 ! **************************************************************************************************
 !> \brief creates a dbcsr col vector like object which lives on proc_col 0
 !>        and has the same row dist as the template matrix
@@ -119,34 +110,31 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
       INTEGER                                            :: ncol
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_col_vec_from_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_col_vec_from_matrix'
 
-      INTEGER                                            :: handle, npcol
-      INTEGER, DIMENSION(:), POINTER                     :: col_sizes, dist_col
-      TYPE(dbcsr_distribution_obj)                       :: dist_col_vec, distri
+      INTEGER                                            :: handle, npcols, data_type
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size, col_blk_size, row_dist, col_dist
+      TYPE(dbcsr_distribution_type)                      :: dist_col_vec, dist
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix=matrix, distribution=distri)
-      npcol = SIZE(distri%d%mp_env%mp%pgrid, 2)
-      ALLOCATE (dist_col(1)); ALLOCATE (col_sizes(1))
-      dist_col = 0; col_sizes = ncol
+      CALL dbcsr_get_info(matrix, data_type=data_type, row_blk_size=row_blk_size, distribution=dist)
+      CALL dbcsr_distribution_get(dist, npcols=npcols, row_dist=row_dist)
 
-      CALL dbcsr_distribution_new(dist_col_vec, &
-                                  dbcsr_distribution_mp(dbcsr_distribution(matrix)), &
-                                  dbcsr_distribution_row_dist(dbcsr_distribution(matrix)), &
-                                  dist_col, &
-                                  row_dist_cluster=dbcsr_distribution_row_clusters(dbcsr_distribution(matrix)))
-      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
-                        dbcsr_row_block_sizes(matrix), col_sizes, &
-                        nze=0, data_type=matrix%data_type)
+      ALLOCATE (col_dist(1), col_blk_size(1))
+      col_dist(1) = 0
+      col_blk_size(1) = ncol
+      CALL dbcsr_distribution_new(dist_col_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
+      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec,&
+                        matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_size,&
+                        col_blk_size=col_blk_size, &
+                        nze=0, data_type=data_type)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_col_vec)
-      DEALLOCATE (dist_col, col_sizes)
-
+      DEALLOCATE (col_dist, col_blk_size)
       CALL timestop(handle)
 
    END SUBROUTINE create_col_vec_from_matrix
@@ -160,42 +148,39 @@ CONTAINS
 !> \param matrix a dbcsr matrix used as template
 !> \param nrow number of vectors in the dbcsr_typeect (1 for vector, n for skinny matrix)
 ! **************************************************************************************************
-   SUBROUTINE create_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
+SUBROUTINE create_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
       TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
       INTEGER                                            :: nrow
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_row_vec_from_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_row_vec_from_matrix'
 
-      INTEGER                                            :: handle, nprow
-      INTEGER, DIMENSION(:), POINTER                     :: dist_row, row_sizes
-      TYPE(dbcsr_distribution_obj)                       :: dist_row_vec, distri
+      INTEGER                                            :: handle, nprows, data_type
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size, col_blk_size, row_dist, col_dist
+      TYPE(dbcsr_distribution_type)                      :: dist_row_vec, dist
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix=matrix, distribution=distri)
-      nprow = SIZE(distri%d%mp_env%mp%pgrid, 1)
-      ALLOCATE (dist_row(1)); ALLOCATE (row_sizes(1))
-      dist_row = 0; row_sizes = nrow
+      CALL dbcsr_get_info(matrix, data_type=data_type, col_blk_size=col_blk_size, distribution=dist)
+      CALL dbcsr_distribution_get(dist, nprows=nprows, col_dist=col_dist)
 
-      CALL dbcsr_distribution_new(dist_row_vec, &
-                                  dbcsr_distribution_mp(dbcsr_distribution(matrix)), &
-                                  dist_row, &
-                                  dbcsr_distribution_col_dist(dbcsr_distribution(matrix)), &
-                                  col_dist_cluster=dbcsr_distribution_col_clusters(dbcsr_distribution(matrix)))
+      ALLOCATE (row_dist(1), row_blk_size(1))
+      row_dist(1) = 0
+      row_blk_size(1) = nrow
+      CALL dbcsr_distribution_new(dist_row_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
-      CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
-                        row_sizes, dbcsr_col_block_sizes(matrix), &
-                        nze=0, data_type=matrix%data_type)
-
+      CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec,&
+                        matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_size,&
+                        col_blk_size=col_blk_size, &
+                        nze=0, data_type=data_type)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_row_vec)
-      DEALLOCATE (dist_row, row_sizes)
-
+      DEALLOCATE (row_dist, row_blk_size)
       CALL timestop(handle)
 
    END SUBROUTINE create_row_vec_from_matrix
+
 
 ! **************************************************************************************************
 !> \brief creates a col vector like object whose blocks can be replicated
@@ -210,38 +195,32 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
       INTEGER                                            :: ncol
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_col_vec_from_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_col_vec_from_matrix'
 
-      INTEGER                                            :: handle, i, npcol
-      INTEGER, DIMENSION(:), POINTER                     :: col_sizes, dist_col
-      TYPE(dbcsr_distribution_obj)                       :: dist_col_vec, distri
-
+      INTEGER                                            :: handle, npcols, data_type, i
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size, col_blk_size, row_dist, col_dist
+      TYPE(dbcsr_distribution_type)                      :: dist_col_vec, dist
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix=matrix, distribution=distri)
-      npcol = SIZE(distri%d%mp_env%mp%pgrid, 2)
-      ALLOCATE (dist_col(npcol)); ALLOCATE (col_sizes(npcol))
-      col_sizes = ncol
-      DO i = 0, npcol-1
-         dist_col(i+1) = i
+      CALL dbcsr_get_info(matrix, data_type=data_type, row_blk_size=row_blk_size, distribution=dist)
+      CALL dbcsr_distribution_get(dist, npcols=npcols, row_dist=row_dist)
+
+      ALLOCATE (col_dist(npcols), col_blk_size(npcols))
+      col_blk_size(:) = ncol
+      DO i = 0, npcols-1
+         col_dist(i+1) = i
       END DO
+      CALL dbcsr_distribution_new(dist_col_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
-      CALL dbcsr_distribution_new(dist_col_vec, &
-                                  dbcsr_distribution_mp(dbcsr_distribution(matrix)), &
-                                  dbcsr_distribution_row_dist(dbcsr_distribution(matrix)), &
-                                  dist_col, &
-                                  row_dist_cluster=dbcsr_distribution_row_clusters(dbcsr_distribution(matrix)))
-
-      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
-                        dbcsr_row_block_sizes(matrix), col_sizes, &
-                        nze=0, data_type=matrix%data_type)
-
+      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, &
+                        matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_size,&
+                        col_blk_size=col_blk_size, &
+                        nze=0, data_type=data_type)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_col_vec)
-      DEALLOCATE (dist_col, col_sizes)
-
+      DEALLOCATE (col_dist, col_blk_size)
       CALL timestop(handle)
 
    END SUBROUTINE create_replicated_col_vec_from_matrix
@@ -260,38 +239,31 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix
       INTEGER                                            :: nrow
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_row_vec_from_matrix', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_row_vec_from_matrix'
 
-      INTEGER                                            :: handle, i, nprow
-      INTEGER, DIMENSION(:), POINTER                     :: dist_row, row_sizes
-      TYPE(dbcsr_distribution_obj)                       :: dist_row_vec, distri
+      INTEGER                                            :: handle, i, nprows, data_type
+      INTEGER, DIMENSION(:), POINTER                     :: row_dist, col_dist, row_blk_size, col_blk_size
+      TYPE(dbcsr_distribution_type)                      :: dist_row_vec, dist
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix=matrix, distribution=distri)
-      nprow = SIZE(distri%d%mp_env%mp%pgrid, 1)
-      ALLOCATE (dist_row(nprow)); ALLOCATE (row_sizes(nprow))
-      row_sizes = nrow
-      DO i = 0, nprow-1
-         dist_row(i+1) = i
-      END DO
+      CALL dbcsr_get_info(matrix, distribution=dist, col_blk_size=col_blk_size, data_type=data_type)
+      CALL dbcsr_distribution_get(dist, nprows=nprows, col_dist=col_dist)
 
-      CALL dbcsr_distribution_new(dist_row_vec, &
-                                  dbcsr_distribution_mp(dbcsr_distribution(matrix)), &
-                                  dist_row, &
-                                  dbcsr_distribution_col_dist(dbcsr_distribution(matrix)), &
-                                  col_dist_cluster=dbcsr_distribution_col_clusters(dbcsr_distribution(matrix)))
+      ALLOCATE (row_dist(nprows), row_blk_size(nprows))
+      row_blk_size(:) = nrow
+      DO i = 0, nprows-1
+         row_dist(i+1) = i
+      END DO
+      CALL dbcsr_distribution_new(dist_row_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
       CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
-                        row_sizes, dbcsr_col_block_sizes(matrix), &
-                        nze=0, data_type=matrix%data_type)
-
+                        row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
+                        nze=0, data_type=data_type)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_row_vec)
-      DEALLOCATE (dist_row, row_sizes)
-
+      DEALLOCATE (row_dist, row_blk_Size)
       CALL timestop(handle)
 
    END SUBROUTINE create_replicated_row_vec_from_matrix
@@ -305,14 +277,15 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: vec
       TYPE(fast_vec_access_type)                         :: fast_vec_access
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, data_type
 
       CALL timeset(routineN, handle)
 
-      SELECT CASE (vec%data_type)
+      CALL dbcsr_get_info(vec, data_type=data_type)
+
+      SELECT CASE (data_type)
       CASE (dbcsr_type_real_8)
          CALL create_fast_col_vec_access_d(vec, fast_vec_access)
       CASE (dbcsr_type_real_4)
@@ -336,14 +309,15 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: vec
       TYPE(fast_vec_access_type)                         :: fast_vec_access
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, data_type
 
       CALL timeset(routineN, handle)
 
-      SELECT CASE (vec%data_type)
+      CALL dbcsr_get_info(vec, data_type=data_type)
+
+      SELECT CASE (data_type)
       CASE (dbcsr_type_real_8)
          CALL create_fast_row_vec_access_d(vec, fast_vec_access)
       CASE (dbcsr_type_real_4)
@@ -365,8 +339,7 @@ CONTAINS
    SUBROUTINE release_fast_vec_access(fast_vec_access)
       TYPE(fast_vec_access_type)                         :: fast_vec_access
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_fast_vec_access', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_fast_vec_access'
 
       INTEGER                                            :: handle
 
@@ -382,7 +355,7 @@ CONTAINS
 
    END SUBROUTINE release_fast_vec_access
 
-#include "../base/hash_table.f90"
+#include "hash_table.f90"
 
 #:set instances = [ ('s', 'REAL(kind=real_4)',    '0.0_real_4'), &
                     ('d', 'REAL(kind=real_8)',    '0.0_real_8'), &
@@ -411,7 +384,8 @@ CONTAINS
 
     CHARACTER                                :: matrix_type
 
-    matrix_type=dbcsr_get_matrix_type(matrix)
+    CALL dbcsr_get_info(matrix, matrix_type=matrix_type)
+
     SELECT CASE(matrix_type)
     CASE(dbcsr_type_no_symmetry)
        CALL dbcsr_matrix_vector_mult_${nametype}$(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
@@ -441,19 +415,17 @@ CONTAINS
     ${type}$                                  :: alpha, beta
     TYPE(dbcsr_type)                          :: work_row, work_col
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult'
 
     INTEGER                                  :: col, mypcol, &
                                                 myprow, &
                                                 ncols, pcol_group, nrows, &
                                                 prow_group, row, &
                                                 handle, handle1, ithread 
-    LOGICAL                                  :: transposed
     ${type}$, DIMENSION(:), POINTER          :: data_vec
     ${type}$, DIMENSION(:, :), POINTER       :: data_d, vec_res
-    TYPE(dbcsr_distribution_obj)             :: distri
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_distribution_type)            :: dist
+    TYPE(dbcsr_iterator_type)                :: iter
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col
     INTEGER                                  :: prow, pcol
 
@@ -461,11 +433,8 @@ CONTAINS
     ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
-    CALL dbcsr_get_info(matrix=matrix, distribution=distri)
-    prow_group=distri%d%mp_env%mp%prow_group 
-    pcol_group=distri%d%mp_env%mp%pcol_group 
-    mypcol=distri%d%mp_env%mp%mypcol
-    myprow=distri%d%mp_env%mp%myprow
+    CALL dbcsr_get_info(matrix, distribution=dist)
+    CALL dbcsr_distribution_get(dist, prow_group=prow_group, pcol_group=pcol_group, myprow=myprow, mypcol=mypcol)
 
     CALL create_fast_row_vec_access(work_row, fast_vec_row)
     CALL create_fast_col_vec_access(work_col, fast_vec_col)
@@ -480,12 +449,12 @@ CONTAINS
 ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
     CALL timeset(routineN//"_local_mm", handle1)
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,transposed,ithread,pcol,prow) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,ithread,pcol,prow) &
 !$OMP          SHARED(matrix,fast_vec_col,fast_vec_row)
     !$ ithread = omp_get_thread_num ()
     CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d)
        prow=hash_table_get(fast_vec_col%hash_table,row)
        IF(fast_vec_col%blk_map_${nametype}$(prow)%assigned_thread .NE. ithread ) CYCLE
        pcol=hash_table_get(fast_vec_row%hash_table,col)
@@ -498,7 +467,7 @@ CONTAINS
     CALL timestop(handle1)
 
 ! sum all the data onto the first processor col where the original vector is stored
-    data_vec => dbcsr_get_data_p (work_col%data_area, select_data_type=${zero}$)
+    data_vec => dbcsr_get_data_p(work_col, select_data_type=${zero}$)
     CALL dbcsr_get_info(matrix=work_col, nfullrows_local=nrows, nfullcols_local=ncols)
     CALL mp_sum(data_vec(1:nrows*ncols), prow_group)
 
@@ -506,7 +475,7 @@ CONTAINS
 ! from the replicated to the original vector. Let's play it safe and use the iterator
     CALL dbcsr_iterator_start(iter, vec_out)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_res, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_res)
        prow=hash_table_get(fast_vec_col%hash_table,row)
        IF(ASSOCIATED(fast_vec_col%blk_map_${nametype}$(prow)%ptr)) THEN
           vec_res(:, :)= beta*vec_res(:, :)+alpha*fast_vec_col%blk_map_${nametype}$(prow)%ptr(:,:)
@@ -540,19 +509,17 @@ CONTAINS
     TYPE(dbcsr_type)                          :: work_row, work_col
     LOGICAL                                   :: skip_diag
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult'
 
     INTEGER                                  :: col, col_size, mypcol, &
                                                 myprow, &
                                                 ncols, pcol_group, nrows, &
                                                 prow_group, row, row_size, &
                                                 handle, handle1, ithread
-    LOGICAL                                  :: transposed
     ${type}$, DIMENSION(:), POINTER          :: data_vec
     ${type}$, DIMENSION(:, :), POINTER       :: data_d, vec_bl, vec_res
-    TYPE(dbcsr_distribution_obj)             :: distri
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_distribution_type)            :: dist
+    TYPE(dbcsr_iterator_type)                :: iter
 
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col
     INTEGER                                  :: prow, pcol
@@ -561,9 +528,8 @@ CONTAINS
     ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
-    CALL dbcsr_get_info(matrix=matrix, distribution=distri)
-    prow_group=distri%d%mp_env%mp%prow_group; pcol_group=distri%d%mp_env%mp%pcol_group
-    mypcol=distri%d%mp_env%mp%mypcol; myprow=distri%d%mp_env%mp%myprow
+    CALL dbcsr_get_info(matrix, distribution=dist)
+    CALL dbcsr_distribution_get(dist, prow_group=prow_group, pcol_group=pcol_group, myprow=myprow, mypcol=mypcol)
 
     CALL create_fast_row_vec_access(work_row, fast_vec_row)
     CALL create_fast_col_vec_access(work_col, fast_vec_col)
@@ -574,24 +540,24 @@ CONTAINS
 ! Transfer the correct parts of the input vector to the replicated vector on proc_col 0
     CALL dbcsr_iterator_start(iter, vec_in)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_bl, transposed, row_size=row_size, col_size=col_size)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_bl, row_size=row_size, col_size=col_size)
        prow=hash_table_get(fast_vec_col%hash_table,row)
        fast_vec_col%blk_map_${nametype}$(prow)%ptr(1:row_size, 1:col_size)= vec_bl(1:row_size, 1:col_size)
     END DO
     CALL dbcsr_iterator_stop(iter)
 ! Replicate the data on all processore in the row
-    data_vec => dbcsr_get_data_p (work_col%data_area, select_data_type=${zero}$)
+    data_vec => dbcsr_get_data_p(work_col, select_data_type=${zero}$)
     CALL mp_bcast(data_vec, 0, prow_group)
 
 ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
     CALL timeset(routineN//"local_mm", handle1)
     CALL dbcsr_get_info(matrix=work_col, nfullcols_local=ncols)
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread,prow,pcol) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,ithread,prow,pcol) &
 !$OMP          SHARED(matrix,fast_vec_row,fast_vec_col,skip_diag,ncols)
     !$ ithread = omp_get_thread_num ()
     CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed, row_size=row_size, col_size=col_size)
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_size=row_size, col_size=col_size)
        IF(skip_diag.AND.col==row)CYCLE
        prow=hash_table_get(fast_vec_col%hash_table,row)
        pcol=hash_table_get(fast_vec_row%hash_table,col)
@@ -614,7 +580,7 @@ CONTAINS
     CALL timestop(handle1)
 
 ! sum all the data within a processor column to obtain the replicated result
-    data_vec => dbcsr_get_data_p (work_row%data_area, select_data_type=${zero}$)
+    data_vec => dbcsr_get_data_p(work_row, select_data_type=${zero}$)
 ! we use the replicated vector but the final answer is only summed to proc_col 0 for efficiency
     CALL dbcsr_get_info(matrix=work_row, nfullrows_local=nrows, nfullcols_local=ncols)
     CALL mp_sum(data_vec(1:nrows*ncols), pcol_group)
@@ -625,7 +591,7 @@ CONTAINS
 ! Create_the final vector by summing it to the result vector which lives on proc_col 0
     CALL dbcsr_iterator_start(iter, vec_out)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_res, transposed, row_size=row_size)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_res, row_size=row_size)
        prow=hash_table_get(fast_vec_col%hash_table,row)
        IF(ASSOCIATED(fast_vec_col%blk_map_${nametype}$(prow)%ptr)) THEN
           vec_res(:, :)= beta*vec_res(:, :)+alpha*fast_vec_col%blk_map_${nametype}$(prow)%ptr(:,:)
@@ -651,35 +617,35 @@ CONTAINS
                                                 rep_row_vec
     TYPE(fast_vec_access_type), INTENT(IN)   :: fast_vec_col
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_col_vec_to_rep_row', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_col_vec_to_rep_row'
 
     INTEGER                                  :: col, mypcol, myprow, ncols, &
                                                 nrows, pcol_group, &
                                                 prow_group, row, handle
     INTEGER, DIMENSION(:), POINTER           :: local_cols, row_dist
-    LOGICAL                                  :: transposed
     ${type}$, DIMENSION(:), POINTER          :: data_vec, data_vec_rep
     ${type}$, DIMENSION(:, :), POINTER       :: vec_row
-    TYPE(dbcsr_distribution_obj)             :: distri
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_distribution_type)            :: dist_in, dist_rep_col
+    TYPE(dbcsr_iterator_type)                :: iter
 
     CALL timeset(routineN, handle)
 
 ! get information about the parallel environment
-    CALL dbcsr_get_info(matrix=vec_in, distribution=distri)
-    prow_group=distri%d%mp_env%mp%prow_group
-    pcol_group=distri%d%mp_env%mp%pcol_group
-    mypcol=distri%d%mp_env%mp%mypcol
-    myprow=distri%d%mp_env%mp%myprow
+    CALL dbcsr_get_info(vec_in, distribution=dist_in)
+    CALL dbcsr_distribution_get(dist_in, &
+                                prow_group=prow_group, &
+                                pcol_group=pcol_group, &
+                                myprow=myprow, &
+                                mypcol=mypcol)
 
 ! Get the vector which tells us which blocks are local to which processor row in the col vec
-    row_dist=> dbcsr_distribution_row_dist (dbcsr_distribution(rep_col_vec))
+    CALL dbcsr_get_info(rep_col_vec, distribution=dist_rep_col)
+    CALL dbcsr_distribution_get(dist_rep_col, row_dist=row_dist)
 
 ! Copy the local vector to the replicated on the first processor column (this is where vec_in lives)
     CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-    data_vec_rep => dbcsr_get_data_p (rep_col_vec%data_area, select_data_type=${zero}$)
-    data_vec => dbcsr_get_data_p (vec_in%data_area, select_data_type=${zero}$)
+    data_vec_rep => dbcsr_get_data_p(rep_col_vec, select_data_type=${zero}$)
+    data_vec => dbcsr_get_data_p(vec_in, select_data_type=${zero}$)
     IF(mypcol==0)data_vec_rep(1:nrows*ncols)=data_vec(1:nrows*ncols)
 ! Replicate the data along the row
     CALL mp_bcast(data_vec_rep(1:nrows*ncols), 0, prow_group)
@@ -695,14 +661,14 @@ CONTAINS
     CALL dbcsr_get_info(matrix=rep_row_vec, nfullrows_local=nrows, local_cols=local_cols, nfullcols_local=ncols)
     CALL dbcsr_iterator_start(iter, rep_row_vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_row, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_row)
        IF(row_dist(col)==myprow)THEN
           vec_row=TRANSPOSE(fast_vec_col%blk_map_${nametype}$(hash_table_get(fast_vec_col%hash_table,col))%ptr)
        END IF
     END DO
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_get_info(matrix=rep_row_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-    data_vec_rep => dbcsr_get_data_p (rep_row_vec%data_area, select_data_type=${zero}$)
+    data_vec_rep => dbcsr_get_data_p(rep_row_vec, select_data_type=${zero}$)
     CALL mp_sum(data_vec_rep(1:ncols*nrows), pcol_group)
 
     CALL timestop(handle)
@@ -721,35 +687,37 @@ CONTAINS
     TYPE(fast_vec_access_type), OPTIONAL     :: fast_vec_col_add
     TYPE(fast_vec_access_type)               :: fast_vec_row
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_rep_row_to_rep_col_vec', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_rep_row_to_rep_col_vec'
 
     INTEGER                                  :: col, mypcol, myprow, ncols, &
                                                 nrows, pcol_group, &
                                                 prow_group, row, handle
     INTEGER, DIMENSION(:), POINTER           :: col_dist
-    LOGICAL                                  :: transposed
     ${type}$, DIMENSION(:), POINTER          :: data_vec_rep
     ${type}$, DIMENSION(:, :), POINTER       :: vec_col
-    TYPE(dbcsr_distribution_obj)             :: distri
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_distribution_type)            :: dist_rep_row, dist_rep_col
+    TYPE(dbcsr_iterator_type)                :: iter
 
     CALL timeset(routineN, handle)
 
 ! get information about the parallel environment
-    CALL dbcsr_get_info(matrix=rep_col_vec, distribution=distri)
-    prow_group=distri%d%mp_env%mp%prow_group
-    pcol_group=distri%d%mp_env%mp%pcol_group
-    mypcol=distri%d%mp_env%mp%mypcol
-    myprow=distri%d%mp_env%mp%myprow
+    CALL dbcsr_get_info(matrix=rep_col_vec, distribution=dist_rep_col)
+    CALL dbcsr_distribution_get(dist_rep_col, &
+                                prow_group=prow_group, &
+                                pcol_group=pcol_group, &
+                                myprow=myprow, &
+                                mypcol=mypcol)
+
 ! Get the vector which tells us which blocks are local to which processor col in the row vec
-    col_dist=> dbcsr_distribution_col_dist (dbcsr_distribution(rep_row_vec))
+    CALL dbcsr_get_info(matrix=rep_row_vec, distribution=dist_rep_row)
+    CALL dbcsr_distribution_get(dist_rep_row, col_dist=col_dist)
+
 
 ! The same trick as described above with opposite direction
     CALL dbcsr_set(rep_col_vec, ${zero}$)
     CALL dbcsr_iterator_start(iter, rep_col_vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_col, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_col)
        IF(col_dist(row)==mypcol)THEN
           vec_col=TRANSPOSE(fast_vec_row%blk_map_${nametype}$(hash_table_get(fast_vec_row%hash_table,row))%ptr)
        END IF
@@ -760,7 +728,7 @@ CONTAINS
     END DO
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-    data_vec_rep => dbcsr_get_data_p (rep_col_vec%data_area, select_data_type=${zero}$)
+    data_vec_rep => dbcsr_get_data_p(rep_col_vec, select_data_type=${zero}$)
     CALL mp_sum(data_vec_rep(1:nrows*ncols), prow_group)
 
     CALL timestop(handle)
@@ -777,14 +745,12 @@ CONTAINS
     TYPE(dbcsr_type)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access_${nametype}$', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access_${nametype}$'
 
     INTEGER                                  :: handle, nblk_local
     INTEGER                                  :: col, row, iblock, nthreads
-    LOGICAL                                  :: transposed
     ${type}$, DIMENSION(:, :), POINTER       :: vec_bl
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_iterator_type)                :: iter
 
     CALL timeset(routineN, handle)
 
@@ -809,7 +775,7 @@ CONTAINS
     iblock=0
     CALL dbcsr_iterator_start(iter, vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_bl, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_bl)
        iblock=iblock+1
        CALL hash_table_add(fast_vec_access%hash_table,row,iblock)
        fast_vec_access%blk_map_${nametype}$(iblock)%ptr=>vec_bl
@@ -830,14 +796,12 @@ CONTAINS
     TYPE(dbcsr_type)                          :: vec
     TYPE(fast_vec_access_type)                :: fast_vec_access
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access_${nametype}$', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access_${nametype}$'
 
     INTEGER                                  :: handle, nblk_local
     INTEGER                                  :: col, row, iblock, nthreads
-    LOGICAL                                  :: transposed
     ${type}$, DIMENSION(:, :), POINTER       :: vec_bl
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_iterator_type)                :: iter
 
     CALL timeset(routineN, handle)
 
@@ -863,7 +827,7 @@ CONTAINS
     iblock=0
     CALL dbcsr_iterator_start(iter, vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_bl, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_bl)
        iblock=iblock+1
        CALL hash_table_add(fast_vec_access%hash_table,col,iblock)
        fast_vec_access%blk_map_${nametype}$(iblock)%ptr=>vec_bl
@@ -890,20 +854,18 @@ CONTAINS
     ${type}$                                  :: alpha, beta
     TYPE(dbcsr_type)                          :: work_row, work_col
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sym_m_v_mult', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sym_m_v_mult'
 
     INTEGER                                  :: col, mypcol, &
                                                 myprow, &
                                                 pcol_group, nrows, ncols,&
                                                 prow_group, row, &
                                                 handle, handle1, ithread, vec_dim
-    LOGICAL                                  :: transposed
     ${type}$, DIMENSION(:), POINTER          :: data_vec
     ${type}$, DIMENSION(:, :), POINTER       :: data_d, vec_res
-    TYPE(dbcsr_distribution_obj)             :: distri
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_type)                          :: result_row, result_col
+    TYPE(dbcsr_distribution_type)            :: dist
+    TYPE(dbcsr_iterator_type)                :: iter
+    TYPE(dbcsr_type)                         :: result_row, result_col
 
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col, res_fast_vec_row, res_fast_vec_col
     INTEGER                                  :: prow, pcol, rprow, rpcol
@@ -919,9 +881,8 @@ CONTAINS
     CALL dbcsr_copy(result_row, work_row)
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
-    CALL dbcsr_get_info(matrix=matrix, distribution=distri)
-    prow_group=distri%d%mp_env%mp%prow_group; pcol_group=distri%d%mp_env%mp%pcol_group
-    mypcol=distri%d%mp_env%mp%mypcol; myprow=distri%d%mp_env%mp%myprow
+    CALL dbcsr_get_info(matrix=matrix, distribution=dist)
+    CALL dbcsr_distribution_get(dist, prow_group=prow_group, pcol_group=pcol_group, myprow=myprow, mypcol=mypcol)
 
     CALL create_fast_row_vec_access(work_row, fast_vec_row)
     CALL create_fast_col_vec_access(work_col, fast_vec_col)
@@ -939,12 +900,12 @@ CONTAINS
 
 !------ perform the multiplication, we have to take car to take the correct blocks ----------
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,transposed,ithread,pcol,prow,rpcol,rprow) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,ithread,pcol,prow,rpcol,rprow) &
 !$OMP          SHARED(matrix,fast_vec_row,res_fast_vec_col,res_fast_vec_row,fast_vec_col)
     !$ ithread = omp_get_thread_num ()
     CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d)
        pcol=hash_table_get(fast_vec_row%hash_table,col)
        rprow=hash_table_get(res_fast_vec_col%hash_table,row)
        IF(ASSOCIATED(fast_vec_row%blk_map_${nametype}$(pcol)%ptr) .AND.&
@@ -980,7 +941,7 @@ CONTAINS
     CALL timestop(handle1)
 
     ! sum all the data within a processor column to obtain the replicated result from lower
-    data_vec => dbcsr_get_data_p (result_row%data_area, select_data_type=${zero}$)
+    data_vec => dbcsr_get_data_p(result_row, select_data_type=${zero}$)
     CALL dbcsr_get_info(matrix=result_row, nfullrows_local=nrows, nfullcols_local=ncols)
 
     CALL mp_sum(data_vec(1:nrows*ncols), pcol_group)
@@ -994,7 +955,7 @@ CONTAINS
 !    ! Create_the final vector by summing it to the result vector which lives on proc_col 0 lower
     CALL dbcsr_iterator_start(iter, vec_out)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_res, transposed)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_res)
        prow=hash_table_get(fast_vec_col%hash_table,row)
        IF(ASSOCIATED(fast_vec_col%blk_map_${nametype}$(prow)%ptr))THEN
           vec_res(:, :)= beta*vec_res(:, :)+alpha*(fast_vec_col%blk_map_${nametype}$(prow)%ptr(:, :)) 
@@ -1017,4 +978,4 @@ CONTAINS
 
 #:endfor
 
-END MODULE dbcsr_vector_operations
+END MODULE dbcsr_vector

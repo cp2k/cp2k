@@ -20,10 +20,11 @@ MODULE arnoldi_data_methods
         has_d_real, has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, set_data_s, &
         set_data_z
    USE dbcsr_api,                       ONLY: &
-        create_col_vec_from_matrix, dbcsr_distribution_get, dbcsr_distribution_type, &
-        dbcsr_get_data_p, dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_complex_4, &
-        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
+        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_data_type, &
+        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_mp_grid_setup, dbcsr_p_type, dbcsr_release, &
+        dbcsr_type, dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
+        dbcsr_type_real_8, dbcsr_type_symmetric
+   USE dbcsr_vector,                    ONLY: create_col_vec_from_matrix
    USE kinds,                           ONLY: real_4,&
                                               real_8
    USE util,                            ONLY: sort

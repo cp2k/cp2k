@@ -1,5 +1,0 @@
-{
-"description": "Matrix vector multiplication",
-"archive": "libdbcsrvec",
-"requires": ["../../mpiwrap", "../../base", "../data", "../base", "../dist", "../block", "../ops"],
-}

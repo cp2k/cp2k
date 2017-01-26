@@ -31,11 +31,13 @@ MODULE arnoldi_api
                                               get_control,&
                                               m_x_v_vectors_type
    USE dbcsr_api,                       ONLY: &
-        create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
-        create_replicated_row_vec_from_matrix, dbcsr_add, dbcsr_copy, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_matrix_colvec_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
+   USE dbcsr_vector,                    ONLY: create_col_vec_from_matrix,&
+                                              create_replicated_col_vec_from_matrix,&
+                                              create_replicated_row_vec_from_matrix,&
+                                              dbcsr_matrix_colvec_multiply
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
 #include "../base/base_uses.f90"

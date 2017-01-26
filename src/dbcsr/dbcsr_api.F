@@ -119,11 +119,6 @@ MODULE dbcsr_api
                                               convert_sizes_to_offsets,&
                                               dbcsr_checksum_prv      => dbcsr_checksum,&
                                               dbcsr_verify_matrix_prv => dbcsr_verify_matrix
-   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix_prv            => create_col_vec_from_matrix,&
-                                              create_replicated_col_vec_from_matrix_prv => create_replicated_col_vec_from_matrix,&
-                                              create_replicated_row_vec_from_matrix_prv => create_replicated_row_vec_from_matrix,&
-                                              create_row_vec_from_matrix_prv            => create_row_vec_from_matrix,&
-                                              dbcsr_matrix_colvec_multiply_prv          => dbcsr_matrix_colvec_multiply
    USE dbcsr_work_operations,           ONLY: add_work_coordinate_prv => add_work_coordinate,&
                                               dbcsr_create_prv        => dbcsr_create,&
                                               dbcsr_finalize_prv      => dbcsr_finalize,&
@@ -296,13 +291,6 @@ MODULE dbcsr_api
    PUBLIC :: dbcsr_binary_read
    PUBLIC :: dbcsr_test_binary_io
 
-   ! matrix vector multiplication
-   PUBLIC :: dbcsr_matrix_colvec_multiply
-   PUBLIC :: create_col_vec_from_matrix
-   PUBLIC :: create_row_vec_from_matrix
-   PUBLIC :: create_replicated_col_vec_from_matrix
-   PUBLIC :: create_replicated_row_vec_from_matrix
-
    ! -----------------------------------------------------------------------------------------------
    TYPE dbcsr_p_type
       TYPE(dbcsr_type), POINTER :: matrix => Null()
@@ -422,11 +410,6 @@ MODULE dbcsr_api
 
    INTERFACE dbcsr_get_data_p
       MODULE PROCEDURE dbcsr_get_data_s, dbcsr_get_data_c, dbcsr_get_data_d, dbcsr_get_data_z
-   END INTERFACE
-
-   INTERFACE dbcsr_matrix_colvec_multiply
-      MODULE PROCEDURE dbcsr_matrix_colvec_multiply_s, dbcsr_matrix_colvec_multiply_c
-      MODULE PROCEDURE dbcsr_matrix_colvec_multiply_d, dbcsr_matrix_colvec_multiply_z
    END INTERFACE
 
    PRIVATE
@@ -1847,58 +1830,6 @@ CONTAINS
       IF (existed) CPWARN("You should not add existing blocks according to old API.")
       IF (.NOT. is_there) block(:, :) = 0.0_dp
    END SUBROUTINE dbcsr_add_block_node
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_vec ...
-!> \param matrix ...
-!> \param ncol ...
-! **************************************************************************************************
-   SUBROUTINE create_col_vec_from_matrix(dbcsr_vec, matrix, ncol)
-      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
-      INTEGER                                            :: ncol
-
-      CALL create_col_vec_from_matrix_prv(dbcsr_vec%prv, matrix%prv, ncol)
-   END SUBROUTINE create_col_vec_from_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_vec ...
-!> \param matrix ...
-!> \param nrow ...
-! **************************************************************************************************
-   SUBROUTINE create_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
-      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
-      INTEGER                                            :: nrow
-
-      CALL create_row_vec_from_matrix_prv(dbcsr_vec%prv, matrix%prv, nrow)
-   END SUBROUTINE create_row_vec_from_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_vec ...
-!> \param matrix ...
-!> \param ncol ...
-! **************************************************************************************************
-   SUBROUTINE create_replicated_col_vec_from_matrix(dbcsr_vec, matrix, ncol)
-      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
-      INTEGER                                            :: ncol
-
-      CALL create_replicated_col_vec_from_matrix_prv(dbcsr_vec%prv, matrix%prv, ncol)
-   END SUBROUTINE create_replicated_col_vec_from_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dbcsr_vec ...
-!> \param matrix ...
-!> \param nrow ...
-! **************************************************************************************************
-   SUBROUTINE create_replicated_row_vec_from_matrix(dbcsr_vec, matrix, nrow)
-      TYPE(dbcsr_type)                                   :: dbcsr_vec, matrix
-      INTEGER                                            :: nrow
-
-      CALL create_replicated_row_vec_from_matrix_prv(dbcsr_vec%prv, matrix%prv, nrow)
-   END SUBROUTINE create_replicated_row_vec_from_matrix
 
 #include "dbcsr_api_s.f90"
 #include "dbcsr_api_d.f90"
