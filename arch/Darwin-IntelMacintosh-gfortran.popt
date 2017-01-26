@@ -6,7 +6,7 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 RANLIB   = ranlib
-DFLAGS   = -D__MPI_VERSION=3 -D__parallel -D__SCALAPACK -D__NO_STATM_ACCESS
+DFLAGS   = -D__MPI_VERSION=3 -D__parallel -D__SCALAPACK -D__NO_STATM_ACCESS -D__ACCELERATE
 FCFLAGS  = -O2 -ffast-math -funroll-loops -ftree-vectorize -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -framework Accelerate -lscalapack

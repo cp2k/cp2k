@@ -58,6 +58,10 @@ MKL with multiple OpenMP threads in CP2K requires that CP2K was compiled
 with the Intel compiler (and -D__INTEL_COMPILER is defined if explicit
 pre-processing is performed using cpp instead of the compiler).
 
+On the Mac, BLAS and LAPACK may be provided by Apple's Accelerate framework.
+If using this framework, -D__ACCELERATE must be defined to account for some
+interface incompatibilities between Accelerate and reference BLAS/LAPACK.
+
 ==== 2e. MPI and SCALAPACK (optional, required for MPI parallel builds) ====
 MPI (version 2) and SCALAPACK are needed for parallel code.
 (Use the latest versions available and download all patches!).

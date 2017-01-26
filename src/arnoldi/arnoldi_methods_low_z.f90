@@ -295,7 +295,7 @@
        CALL Gram_Schmidt_ortho_z(h_vec, ar_data%f_vec, s_vec, w_vec, nrow_local, j+1, &
                                ar_data%local_history, ar_data%local_history, control%local_comp, control%pcol_group)
 
-       ! A bit more expensive but simpliy always top up with a DGKS correction, otherwise numerics
+       ! A bit more expensive but simply always top up with a DGKS correction, otherwise numerics
        ! can become a problem later on, there is probably a good check whether it's necessary, but we don't perform it
        CALL DGKS_ortho_z(h_vec, ar_data%f_vec, s_vec, nrow_local, j+1, ar_data%local_history, &
                                    ar_data%local_history, control%local_comp, control%pcol_group)

@@ -398,7 +398,11 @@ CONTAINS
 
       LOGICAL                                            :: valid
       REAL(real_4), ALLOCATABLE, DIMENSION(:)            :: work_sp
+#if defined (__ACCELERATE)
+      REAL(real_8), EXTERNAL                             :: clange, slamch, slange
+#else
       REAL(real_4), EXTERNAL                             :: clange, slamch, slange
+#endif
       REAL(real_8)                                       :: a_norm_dbcsr, a_norm_in, a_norm_out, &
                                                             b_norm, eps, residual
       REAL(real_8), ALLOCATABLE, DIMENSION(:)            :: work
@@ -427,7 +431,7 @@ CONTAINS
       CASE (dbcsr_type_real_8_2d)
          ALLOCATE (work(lwork), STAT=istat)
          IF (istat /= 0) &
-            CPABORT("allocattion problem")
+            CPABORT("allocation problem")
          eps = dlamch('eps')
          a_norm_in = dlange(norm, row_size, col_size, dense_a%d%r2_dp(1, 1), ld, work)
          b_norm = dlange(norm, row_size, col_size, dense_b%d%r2_dp(1, 1), ld, work)
@@ -450,7 +454,7 @@ CONTAINS
       CASE (dbcsr_type_real_4_2d)
          ALLOCATE (work_sp(lwork), STAT=istat)
          IF (istat /= 0) &
-            CPABORT("allocattion problem")
+            CPABORT("allocation problem")
          eps = slamch('eps')
          a_norm_in = slange(norm, row_size, col_size, dense_a%d%r2_sp(1, 1), ld, work_sp)
          b_norm = slange(norm, row_size, col_size, dense_b%d%r2_sp(1, 1), ld, work_sp)
@@ -473,7 +477,7 @@ CONTAINS
       CASE (dbcsr_type_complex_8_2d)
          ALLOCATE (work(lwork), STAT=istat)
          IF (istat /= 0) &
-            CPABORT("allocattion problem")
+            CPABORT("allocation problem")
          eps = dlamch('eps')
          a_norm_in = zlange(norm, row_size, col_size, dense_a%d%c2_dp(1, 1), ld, work)
          b_norm = zlange(norm, row_size, col_size, dense_b%d%c2_dp(1, 1), ld, work)
@@ -496,7 +500,7 @@ CONTAINS
       CASE (dbcsr_type_complex_4_2d)
          ALLOCATE (work_sp(lwork), STAT=istat)
          IF (istat /= 0) &
-            CPABORT("allocattion problem")
+            CPABORT("allocation problem")
          eps = REAL(slamch('eps'), real_8)
          a_norm_in = clange(norm, row_size, col_size, dense_a%d%c2_sp(1, 1), ld, work_sp)
          b_norm = clange(norm, row_size, col_size, dense_b%d%c2_sp(1, 1), ld, work_sp)

@@ -51,7 +51,12 @@ MODULE cp_fm_basic_linalg
              cp_fm_solve ! solves the equation  A*B=C A and C are input
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
+#if defined (__ACCELERATE)
+   REAL(KIND=dp), EXTERNAL :: slange
+   REAL(KIND=sp), EXTERNAL :: pslange, pslatra
+#else
    REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra
+#endif
 
 CONTAINS
 

@@ -5,7 +5,7 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 RANLIB   = ranlib
-DFLAGS   = -D__NO_STATM_ACCESS
-FCFLAGS  = -O0 -g -ffree-form $(DFLAGS)
+DFLAGS   = -D__NO_STATM_ACCESS -D__ACCELERATE
+FCFLAGS  = -O0 -g -fcheck=all -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = -framework Accelerate

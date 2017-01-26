@@ -569,7 +569,11 @@ CONTAINS
 
       LOGICAL                                            :: valid
       REAL(real_4), ALLOCATABLE, DIMENSION(:)            :: work_sp
+#if defined (__ACCELERATE)
+      REAL(real_8), EXTERNAL                             :: clange, slamch, slange
+#else
       REAL(real_4), EXTERNAL                             :: clange, slamch, slange
+#endif
       REAL(real_8)                                       :: a_norm, b_norm, c_norm_dbcsr, c_norm_in, &
                                                             c_norm_out, eps, residual
       REAL(real_8), ALLOCATABLE, DIMENSION(:)            :: work

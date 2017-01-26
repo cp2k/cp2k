@@ -94,7 +94,11 @@
                                                 b_col_blk_size, b_row_blk_size
     REAL(kind=real_8)                                  :: sym_fac, fac
     LOGICAL                                  :: found, matrix_a_symm, matrix_b_symm
+#if defined (__ACCELERATE)
+    REAL(real_8), EXTERNAL                   :: SDOT
+#else
     REAL(real_4), EXTERNAL                   :: SDOT
+#endif
     REAL(real_8), EXTERNAL                   :: DDOT
     COMPLEX(real_4), EXTERNAL                :: CDOTU
     COMPLEX(real_8), EXTERNAL                :: ZDOTU

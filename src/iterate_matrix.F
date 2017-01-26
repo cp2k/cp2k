@@ -15,7 +15,6 @@ MODULE iterate_matrix
                                               deallocate_arnoldi_data,&
                                               get_selected_ritz_val,&
                                               setup_arnoldi_data
-!cp_dbcsr_arnoldi_ev, cp_dbcsr_arnoldi_extremal, dbcsr_arnoldi_data,
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
