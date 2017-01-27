@@ -47,9 +47,19 @@ def check_warnings(fn):
     loc = loc_short = ""
     for i, line in enumerate(lines):
         if(len(line)==0): continue
+
+        # line directives issues by gcc directly
+        # we ignore non-absolut paths, because they point to indermediate fypp output
         if(line[0]=="/" and line[-1]==":"):
             loc = line.rsplit(":")[0].strip()
             loc_short = path.basename(loc)
+            continue
+
+        # fypp line directives that leaked through as part of warning messages
+        if(line.startswith(' # 1 "')):
+            loc = line[6:-1]
+            loc_short = path.basename(loc)
+            continue
 
         if(loc.endswith("include/fftw3.f")): continue # an external file
 
