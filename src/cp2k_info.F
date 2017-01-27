@@ -272,6 +272,9 @@ CONTAINS
 #if defined __SPGLIB
       flags = TRIM(flags)//" spglib"
 #endif
+#if defined __ACCELERATE
+      flags = TRIM(flags)//" accelerate"
+#endif
 
    END FUNCTION cp2k_flags
 
