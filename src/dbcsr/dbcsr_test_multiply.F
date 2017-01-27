@@ -562,9 +562,9 @@ CONTAINS
       LOGICAL, INTENT(out)                               :: success
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_multiply', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
       INTEGER :: a_col, a_m, a_n, a_row, b_col, b_m, b_n, b_row, c_col, c_col_size, c_row, &
-         c_row_size, handle, i, istat, j, k, lda, ldb, ldc, lwork, m, mynode, n, numnodes
+                 c_row_size, handle, i, istat, j, k, lda, ldb, ldc, lwork, m, mynode, n, numnodes
       CHARACTER, PARAMETER                               :: norm = 'I'
 
       LOGICAL                                            :: valid

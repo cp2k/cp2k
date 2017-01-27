@@ -390,7 +390,7 @@ CONTAINS
       LOGICAL, INTENT(out)                               :: success
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_add', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
       INTEGER                                            :: col, col_size, handle, i, istat, j, ld, &
                                                             lwork, m, mynode, n, numnodes, row, &
                                                             row_size

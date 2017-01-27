@@ -1921,7 +1921,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: use_absolute, filter_diag, quick
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_filter_anytype', &
-         routineP = moduleN//':'//routineN
+                                     routineP = moduleN//':'//routineN
 
       COMPLEX(KIND=real_4), DIMENSION(:), POINTER        :: data_c
       COMPLEX(KIND=real_8), DIMENSION(:), POINTER        :: data_z
