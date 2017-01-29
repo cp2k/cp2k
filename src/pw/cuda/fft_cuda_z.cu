@@ -70,7 +70,7 @@ void fftcu_plan3d_z(      cufftHandle  &plan,
   if (CHECK) cufft_error_check(cErr, __LINE__);
   cErr = cufftSetStream(plan, cuda_stream);
   if (CHECK) cufft_error_check(cErr, __LINE__);
-#if (__CUDACC_VER_MAJOR__<8) || ( defined(__CUDA_ARCH__) && (__CUDA_ARCH__<600) )
+#if (__CUDACC_VER_MAJOR__<8)
   cErr = cufftSetCompatibilityMode(plan, FFT_ALIGNMENT);
   if (CHECK) cufft_error_check(cErr, __LINE__);
 #endif
@@ -141,7 +141,7 @@ void fftcu_plan2dm_z(      cufftHandle  &plan,
   if (CHECK) cufft_error_check(cErr, __LINE__);
   cErr = cufftSetStream(plan, cuda_stream);
   if (CHECK) cufft_error_check(cErr, __LINE__);
-#if (__CUDACC_VER_MAJOR__<8) || ( defined(__CUDA_ARCH__) && (__CUDA_ARCH__<600) )
+#if (__CUDACC_VER_MAJOR__<8)
   cErr = cufftSetCompatibilityMode(plan, FFT_ALIGNMENT);
   if (CHECK) cufft_error_check(cErr, __LINE__);
 #endif
@@ -211,7 +211,7 @@ void fftcu_plan1dm_z(      cufftHandle  &plan,
   if (CHECK) cufft_error_check(cErr, __LINE__);
   cErr = cufftSetStream(plan, cuda_stream);
   if (CHECK) cufft_error_check(cErr, __LINE__);
-#if (__CUDACC_VER_MAJOR__<8) || ( defined(__CUDA_ARCH__) && (__CUDA_ARCH__<600) )
+#if (__CUDACC_VER_MAJOR__<8)
   cErr = cufftSetCompatibilityMode(plan, FFT_ALIGNMENT);
   if (CHECK) cufft_error_check(cErr, __LINE__);
 #endif
