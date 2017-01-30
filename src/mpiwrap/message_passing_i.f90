@@ -3170,6 +3170,68 @@
   END SUBROUTINE mp_isend_im3
 
 ! *****************************************************************************
+!> \brief Non-blocking send of rank-4 data
+!> \param msgin the input message
+!> \param dest the destination processor
+!> \param comm the communicator object
+!> \param request the communication request id
+!> \param tag the message tag
+!> \par History
+!>      2.2016 added _im4 subroutine [Nico Holmberg]
+!> \author fawzi
+!> \note see mp_isend_iv 
+!> \note
+!>     arrays can be pointers or assumed shape, but they must be contiguous!
+! *****************************************************************************
+  SUBROUTINE mp_isend_im4(msgin,dest,comm,request,tag)
+    INTEGER(KIND=int_4), DIMENSION(:, :, :, :)           :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_im4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen, my_tag
+    INTEGER(KIND=int_4)                                  :: foo(1)
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    msglen = SIZE(msgin,1)*SIZE(msgin,2)*SIZE(msgin,3)*SIZE(msgin,4)
+    IF (msglen>0) THEN
+       CALL mpi_isend(msgin(1,1,1,1),msglen,MPI_INTEGER,dest,my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_isend(foo,msglen,MPI_INTEGER,dest,my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+#else
+    MARK_USED(msgin)
+    MARK_USED(dest)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
+    ierr=1
+    request=0
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_isend_im4
+
+! *****************************************************************************
 !> \brief Non-blocking receive of vector data
 !> \param msgout ...
 !> \param source ...
@@ -3355,6 +3417,67 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_im3
+
+! *****************************************************************************
+!> \brief Non-blocking receive of rank-4 data
+!> \param msgout the output message
+!> \param source the source processor
+!> \param comm the communicator object
+!> \param request the communication request id
+!> \param tag the message tag
+!> \par History
+!>      2.2016 added _im4 subroutine [Nico Holmberg]
+!> \author fawzi
+!> \note see mp_irecv_iv 
+!> \note
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
+! *****************************************************************************
+  SUBROUTINE mp_irecv_im4(msgout,source,comm,request,tag)
+    INTEGER(KIND=int_4), DIMENSION(:, :, :, :)           :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_im4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen, my_tag
+    INTEGER(KIND=int_4)                                  :: foo(1)
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    msglen = SIZE(msgout,1)*SIZE(msgout,2)*SIZE(msgout,3)*SIZE(msgout,4)
+    IF (msglen>0) THEN
+       CALL mpi_irecv(msgout(1,1,1,1),msglen,MPI_INTEGER,source, my_tag,&
+            comm,request,ierr)
+    ELSE
+       CALL mpi_irecv(foo,msglen,MPI_INTEGER,source, my_tag,&
+            comm,request,ierr)
+    END IF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ "//routineN )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+#else
+    MARK_USED(msgout)
+    MARK_USED(source)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
+    request=0
+    CPABORT("mp_irecv called in non parallel case")
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_irecv_im4  
 
 ! *****************************************************************************
 !> \brief Window initialization function for vector data

@@ -28,6 +28,7 @@ MODULE qs_ks_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: becke_restraint_type,&
+                                              cdft_control_type,&
                                               dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -66,7 +67,12 @@ MODULE qs_ks_methods
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix
-   USE input_constants,                 ONLY: do_ppl_grid
+   USE input_constants,                 ONLY: cdft_combined_acceptor,&
+                                              cdft_combined_all,&
+                                              cdft_combined_constraint,&
+                                              cdft_combined_donor,&
+                                              do_ppl_grid,&
+                                              outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -120,6 +126,7 @@ MODULE qs_ks_methods
                                               integrate_v_core_rspace,&
                                               integrate_v_rspace_one_center
    USE qs_ks_apply_restraints,          ONLY: qs_ks_becke_restraint,&
+                                              qs_ks_cdft_constraint,&
                                               qs_ks_mulliken_restraint,&
                                               qs_ks_s2_restraint
    USE qs_ks_atom,                      ONLY: update_ks_atom
@@ -216,7 +223,8 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, img, ispin, nimages, ns, nspins
+      INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
+                                                            nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, just_energy_xc, my_print, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
@@ -224,6 +232,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(becke_restraint_type), POINTER                :: becke
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -458,6 +467,9 @@ CONTAINS
       ! Check if becke potential is needed to constrain charges
       CALL qs_ks_becke_restraint(qs_env, auxbas_pw_pool, calculate_forces, matrix_s, becke)
 
+      ! Check if CDFT constraint is needed
+      CALL qs_ks_cdft_constraint(qs_env, auxbas_pw_pool, calculate_forces, cdft_control)
+
       ! Adds the External Potential if requested
       IF (dft_control%apply_external_potential) THEN
          ! Compute the energy due to the external potential
@@ -653,7 +665,7 @@ CONTAINS
          CALL sum_up_and_integrate(qs_env, ks_matrix, rho, my_rho, vppl_rspace, &
                                    v_rspace_new, v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
                                    v_efield_rspace, v_sic_rspace, v_spin_ddapc_rest_r, v_sccs_rspace, becke, &
-                                   calculate_forces)
+                                   cdft_control, calculate_forces)
 
          IF (dft_control%qs_control%do_kg) THEN
             CPASSERT(nimages == 1)
@@ -676,6 +688,41 @@ CONTAINS
 
       IF (calculate_forces .AND. dft_control%qs_control%becke_restraint) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%becke_pot%pw)
+         IF (dft_control%qs_control%becke_control%atomic_charges) THEN
+            DO iatom = 1, dft_control%qs_control%becke_control%natoms
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                         dft_control%qs_control%becke_control%charge(iatom)%pw)
+            END DO
+         END IF
+         IF (dft_control%qs_control%becke_control%cavity_confine) THEN
+            IF (.NOT. ASSOCIATED(becke%cavity_mat)) THEN
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, becke%cavity%pw)
+            ELSE
+               DEALLOCATE (becke%cavity_mat)
+            END IF
+         END IF
+         IF (ASSOCIATED(dft_control%qs_control%becke_control%charges_fragment)) &
+            DEALLOCATE (dft_control%qs_control%becke_control%charges_fragment)
+         IF (dft_control%qs_control%becke_control%constraint_type == cdft_combined_constraint) THEN
+            SELECT CASE (dft_control%qs_control%becke_control%combined_type)
+            CASE (cdft_combined_all)
+               ! Do nothing
+            CASE (cdft_combined_acceptor, cdft_combined_donor)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, &
+                                         dft_control%qs_control%becke_control%combined_weight%pw)
+            END SELECT
+         END IF
+         dft_control%qs_control%becke_control%save_pot = .FALSE.
+         dft_control%qs_control%becke_control%need_pot = .TRUE.
+         dft_control%qs_control%becke_control%external_control = .FALSE.
+      END IF
+
+      IF (calculate_forces .AND. dft_control%qs_control%cdft) THEN
+         IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%weight%pw)
+            cdft_control%save_pot = .FALSE.
+            cdft_control%need_pot = .TRUE.
+         END IF
       END IF
 
       IF (dft_control%do_sccs) THEN
@@ -780,7 +827,7 @@ CONTAINS
                      energy%becke+energy%dft_plus_u+energy%kTS+ &
                      energy%efield+energy%efield_core+energy%ee+ &
                      energy%ee_core+energy%exc_aux_fit+energy%image_charge+ &
-                     energy%sccs_pol+energy%sccs_mpc
+                     energy%sccs_pol+energy%sccs_mpc+energy%cdft
 
       IF (abnormal_value(energy%total)) &
          CPABORT("KS energy is an abnormal value (NaN/Inf).")

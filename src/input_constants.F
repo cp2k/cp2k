@@ -583,6 +583,11 @@ MODULE input_constants
                                                shape_function_density = 2
    INTEGER, PARAMETER, PUBLIC               :: ref_charge_atomic = 100, &
                                                ref_charge_mulliken = 200
+   INTEGER, PARAMETER, PUBLIC               :: radius_covalent = 10, &
+                                               radius_user = 11, &
+                                               radius_single = 12, &
+                                               radius_vdw = 13, &
+                                               radius_default = 14
 
    ! MAO
    INTEGER, PARAMETER, PUBLIC               :: mao_basis_orb = 2000, &
@@ -632,17 +637,53 @@ MODULE input_constants
                                                outer_scf_s2_constraint = 124, &
                                                outer_scf_becke_constraint = 125, &
                                                outer_scf_none = 126, &
-                                               outer_scf_basis_center_opt = 127
+                                               outer_scf_basis_center_opt = 127, &
+                                               outer_scf_cdft_constraint = 128, &
+                                               outer_scf_hirshfeld_constraint = 129
 
    ! outer scf optimizers
    INTEGER, PARAMETER, PUBLIC               :: outer_scf_optimizer_sd = 1001, &
                                                outer_scf_optimizer_diis = 1002, &
                                                outer_scf_optimizer_none = 1003, &
-                                               outer_scf_optimizer_bisect = 1004
+                                               outer_scf_optimizer_bisect = 1004, &
+                                               outer_scf_optimizer_broyden = 1005, &
+                                               outer_scf_optimizer_newton = 1006
+
+   ! outer scf broyden optimizer types
+   INTEGER, PARAMETER, PUBLIC               :: broyden_type_1 = 1101, &
+                                               broyden_type_2 = 1102, &
+                                               broyden_type_3 = 1103, &
+                                               broyden_type_4 = 1104
+
+   ! finite difference types for calculation of inverse jacobian
+   INTEGER, PARAMETER, PUBLIC               :: jacobian_fd1 = 1, &
+                                               jacobian_fd1_backward = 2, &
+                                               jacobian_fd2 = 3, &
+                                               jacobian_fd2_backward = 4, &
+                                               jacobian_fd1_central = 5
 
    ! s2 restraint forms
    INTEGER, PARAMETER, PUBLIC               :: do_s2_restraint = 872, &
                                                do_s2_constraint = 873
+
+   ! Becke cutoff and confinement methods
+   INTEGER, PARAMETER, PUBLIC               :: becke_none_conf = 776, &
+                                               becke_static_conf = 777, &
+                                               becke_dynamic_conf = 778, &
+                                               becke_cavity_conf = 779, &
+                                               becke_mixed_conf = 780, &
+                                               becke_cutoff_global = 790, &
+                                               becke_cutoff_element = 791
+
+   ! CDFT constraint and control types
+   INTEGER, PARAMETER, PUBLIC               :: cdft_density_constraint = 1, &
+                                               cdft_magnetization_constraint = 2, &
+                                               cdft_combined_constraint = 3, &
+                                               cdft_combined_all = 10, &
+                                               cdft_combined_donor = 11, &
+                                               cdft_combined_acceptor = 12, &
+                                               ot2cdft = 101, &
+                                               cdft2ot = 102
 
    ! ROKS schemes
    INTEGER, PARAMETER, PUBLIC               :: general_roks = 1, &

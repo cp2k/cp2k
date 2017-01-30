@@ -31,7 +31,8 @@ MODULE qs_force
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
    USE efield_utils,                    ONLY: calculate_ecore_efield
-   USE input_constants,                 ONLY: do_admm_purify_none
+   USE input_constants,                 ONLY: do_admm_purify_none,&
+                                              outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -179,10 +180,11 @@ CONTAINS
                                atom_of_kind=atom_of_kind, &
                                kind_of=kind_of)
 
-      NULLIFY (force, subsys)
+      NULLIFY (force, subsys, dft_control)
       CALL get_qs_env(qs_env, &
                       force=force, &
-                      subsys=subsys)
+                      subsys=subsys, &
+                      dft_control=dft_control)
       IF (.NOT. ASSOCIATED(force)) THEN
          !   *** Allocate the force data structure ***
          nkind = SIZE(atomic_kind_set)
@@ -195,15 +197,23 @@ CONTAINS
       END IF
       CALL zero_qs_force(force)
 
+      ! Check if Becke potential is needed and save it until forces have been calculated
+      IF (dft_control%qs_control%becke_restraint) &
+         dft_control%qs_control%becke_control%save_pot = .TRUE.
+
+      IF (dft_control%qs_control%cdft) THEN
+         IF (dft_control%qs_control%cdft_control%type == outer_scf_hirshfeld_constraint) &
+            dft_control%qs_control%cdft_control%save_pot = .TRUE.
+      END IF
+
       ! Set parameter for P screening with MP2
       IF (ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%not_last_hfx = .TRUE.
 
       ! recalculate energy with forces
       CALL qs_energies(qs_env, calc_forces=.TRUE.)
 
-      NULLIFY (dft_control, para_env)
+      NULLIFY (para_env)
       CALL get_qs_env(qs_env, &
-                      dft_control=dft_control, &
                       para_env=para_env)
 
       ! Now we handle some special cases

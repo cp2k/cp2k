@@ -480,8 +480,9 @@ CONTAINS
          outer_loop_converged = .FALSE.
 
          CALL outer_loop_gradient(qs_env, scf_env)
-         outer_loop_eps = SQRT(SUM(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count)**2))/ &
-                          SIZE(scf_env%outer_scf%gradient, 1)
+         ! Multiple constraints: get largest deviation
+         outer_loop_eps = SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count)**2))
+
          IF (outer_loop_eps < scf_control%outer_scf%eps_scf) outer_loop_converged = .TRUE.
       END IF
 

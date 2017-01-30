@@ -17,11 +17,17 @@ MODULE hirshfeld_methods
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE cube_utils,                      ONLY: cube_info_type
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
                                               hirshfeld_type,&
                                               set_hirshfeld_info
-   USE input_constants,                 ONLY: shape_function_density,&
+   USE input_constants,                 ONLY: radius_covalent,&
+                                              radius_default,&
+                                              radius_single,&
+                                              radius_user,&
+                                              radius_vdw,&
+                                              shape_function_density,&
                                               shape_function_gaussian
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -126,15 +132,19 @@ CONTAINS
    END SUBROUTINE write_hirshfeld_charges
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param hirshfeld_env ...
-!> \param qs_kind_set ...
-!> \param atomic_kind_set ...
+!> \brief creates kind specific shape functions for Hirshfeld charges
+!> \param hirshfeld_env the env that holds information about Hirshfeld
+!> \param qs_kind_set the qs_kind_set
+!> \param atomic_kind_set the atomic_kind_set
+!> \param radius optional radius parameter to use for all atomic kinds
+!> \param radii_list optional list of radii to use for different atomic kinds
 ! **************************************************************************************************
-   SUBROUTINE create_shape_function(hirshfeld_env, qs_kind_set, atomic_kind_set)
+   SUBROUTINE create_shape_function(hirshfeld_env, qs_kind_set, atomic_kind_set, radius, radii_list)
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      REAL(KIND=dp), OPTIONAL                            :: radius
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: radii_list
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_shape_function', &
          routineP = moduleN//':'//routineN
@@ -161,8 +171,36 @@ CONTAINS
             ALLOCATE (hirshfeld_env%kind_shape_fn(ikind)%coef(1))
             CALL get_qs_kind(qs_kind_set(ikind), element_symbol=esym)
             rco = 2.0_dp
-            CALL get_ptable_info(symbol=esym, covalent_radius=rco, found=found)
-            rco = MAX(rco, 1.0_dp)
+            SELECT CASE (hirshfeld_env%radius_type)
+            CASE (radius_default)
+               CALL get_ptable_info(symbol=esym, covalent_radius=rco, found=found)
+               rco = MAX(rco, 1.0_dp)
+            CASE (radius_user)
+               CPASSERT(PRESENT(radii_list))
+               CPASSERT(ASSOCIATED(radii_list))
+               CPASSERT(SIZE(radii_list) == nkind)
+               ! Note we assume that radii_list is correctly ordered
+               rco = radii_list(ikind)
+            CASE (radius_vdw)
+               CALL get_ptable_info(symbol=esym, vdw_radius=rco, found=found)
+               IF (.NOT. found) THEN
+                  rco = MAX(rco, 1.0_dp)
+               ELSE
+                  IF (hirshfeld_env%use_bohr) &
+                     rco = cp_unit_to_cp2k(rco, "angstrom")
+               END IF
+            CASE (radius_covalent)
+               CALL get_ptable_info(symbol=esym, covalent_radius=rco, found=found)
+               IF (.NOT. found) THEN
+                  rco = MAX(rco, 1.0_dp)
+               ELSE
+                  IF (hirshfeld_env%use_bohr) &
+                     rco = cp_unit_to_cp2k(rco, "angstrom")
+               END IF
+            CASE (radius_single)
+               CPASSERT(PRESENT(radius))
+               rco = radius
+            END SELECT
             al = 0.5_dp/rco**2
             hirshfeld_env%kind_shape_fn(ikind)%zet(1) = al
             hirshfeld_env%kind_shape_fn(ikind)%coef(1) = (al/pi)**1.5_dp

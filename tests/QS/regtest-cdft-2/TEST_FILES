@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# 
+HeH-noconstraint.inp                                   1      1e-13              -2.92909797857414
+He+-noconstraint.inp                                   1      1e-13              -1.97024649506553
+H-noconstraint.inp                                     1      1e-13              -0.45619409564056
+# These tests use different constraint formalisms so their value differs (see outputted charges)
+HeH-cdft-1.inp                                        71      1e-12               1.200259777690
+HeH-cdft-2.inp                                        71      1e-12               1.599346939652
+HeH-cdft-3.inp                                        71      1e-12               1.415422840116
+HeH-cdft-4.inp                                        71      1e-12               1.706928470865
+# These tests give identical value of atomic forces (there is some numerical noise when the number of mpiranks is varied)
+HeH-cdft-5.inp                                        72      7e-12               0.0968896882177
+HeH-cdft-6.inp                                        72      6e-12               0.0968896882177 
+HeH-cdft-7.inp                                        72      6e-12               0.0968896882177 
+#EOF

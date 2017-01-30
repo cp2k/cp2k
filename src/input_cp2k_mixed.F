@@ -10,6 +10,9 @@
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! **************************************************************************************************
 MODULE input_cp2k_mixed
+   USE bibliography,                    ONLY: Holmberg2017,&
+                                              Mavros2015,&
+                                              Migliore2009
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               low_print_level,&
@@ -30,6 +33,7 @@ MODULE input_cp2k_mixed
    USE input_val_types,                 ONLY: char_t,&
                                               integer_t,&
                                               lchar_t,&
+                                              logical_t,&
                                               real_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
@@ -106,15 +110,108 @@ CONTAINS
       ! Double force_eval
       CALL section_create(subsection, name="LINEAR", &
                           description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=0, repeats=.FALSE.)
+
       CALL keyword_create(keyword, name="LAMBDA", &
                           description="Specify the mixing parameter lambda in the formula.", &
                           usage="lambda <REAL>", type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIXED_CDFT", &
+                          description="Controls the activation of a mixed CDFT calculation. "// &
+                          "The two force_evals determine"// &
+                          " the involved CDFT states (requires the corresponding sections).", &
+                          usage="MIXED_CDFT", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., citations=(/Holmberg2017/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIXED_CDFT_COUPLING", &
+                          description="Parameter determining how often the CDFT electronic coupling element "// &
+                          " is calculated. Use a negative number to disable and 0 means every step.", &
+                          usage="MIXED_CDFT_COUPLING <INT>", &
+                          default_i_val=-1, &
+                          type_of_var=integer_t, n_var=1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIXED_CDFT_DLB", &
+                          description="Controls the activation of dynamic load balancing during a mixed CDFT calculation."// &
+                          " Requires Gaussian cavity confinement.", &
+                          usage="MIXED_CDFT_DLB", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIXED_CDFT_METRIC", &
+                          description="Compute reliability metric for the CDFT electronic coupling element by diagonalizing"// &
+                          " the difference density matrix.", &
+                          usage="MIXED_CDFT_METRIC", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+                          citations=(/Mavros2015/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MIXED_CDFT_WFN_OVERLAP", &
+                          description="Compute CDFT electronic coupling element using the wavefunction overlap "// &
+                          " method in addition to the standard orthogonalization procedure "// &
+                          " (MIXED_CDFT_COUPLING). In this method, the unconstrained KS ground state"// &
+                          " wavefunction (WFN_RESTART_FILE_NAME) is represented as a linear combination"// &
+                          " of the two CDFT states.", &
+                          usage="MIXED_CDFT_WFN_OVERLAP", type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+                          citations=(/Migliore2009/))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME", &
+                          description="Name of the wavefunction restart file that defines the unconstrained "// &
+                          " KS ground state, which is used to compute the electronic coupling with"// &
+                          " the wavefunction overlap method. May include a path.", &
+                          usage="WFN_RESTART_FILE_NAME <FILENAME>", &
+                          type_of_var=lchar_t)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="EPS_SVD", &
+                          description="Determines the matrix inversion solver needed by the orthogonalization procedure. "// &
+                          " Default value implies LU decomposition, while values between 0.0 and 1.0 "// &
+                          "imply SVD decomposition. For SVD, the value acts as a threshold"// &
+                          " for screening singular values so that only values above it are included"// &
+                          " in the matrix pseudoinverse.", &
+                          usage="EPS_SVD <REAL>", type_of_var=real_t, &
+                          default_r_val=0.0_dp, repeats=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="LOAD_SCALE", &
+                          description="Control parameter for dynamic load balancing during a mixed CDFT calculation."// &
+                          " See code for details.", &
+                          usage="LOAD_SCALE <REAL>", type_of_var=real_t, &
+                          default_r_val=2.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="MORE_WORK", &
+                          description="Control parameter for dynamic load balancing during a mixed CDFT calculation."// &
+                          " See code for details.", &
+                          usage="MORE_WORK <INT>", type_of_var=integer_t, &
+                          default_i_val=0, repeats=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, name="VERY_OVERLOADED", &
+                          description="Control parameter for dynamic load balancing during a mixed CDFT calculation."// &
+                          " See code for details.", &
+                          usage="VERY_OVERLOADED <REAL>", type_of_var=real_t, &
+                          default_r_val=0.0_dp, repeats=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-
+      !
       CALL section_create(subsection, name="COUPLING", &
                           description="Coupling between two force_eval: E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)

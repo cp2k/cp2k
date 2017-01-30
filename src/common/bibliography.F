@@ -78,7 +78,8 @@ MODULE bibliography
                             Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978, &
                             Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, &
                             Kapil2016, Heinzmann1976, Ehrhardt1985, Rybkin2016, West2006, &
-                            Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004
+                            Bates2013, Andermatt2016, Zhu2016, Schuett2016, Lu2004, &
+                            Becke1988b, Migliore2009, Mavros2015, Holmberg2017
 
 CONTAINS
 
@@ -3574,6 +3575,52 @@ CONTAINS
                          "EP 2637", &
                          "PY 2004"), &
                          DOI="10.1063/1.1638731")
+      CALL add_reference(key=Migliore2009, ISI_record=s2a( &
+                         "AU Migliore, A", &
+                         "TI Full-electron calculation of effective electronic couplings and", &
+                         " excitation energies of charge transfer states: Application to hole", &
+                         " transfer in DNA pi-stacks", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2009", &
+                         "VL 131", &
+                         "IS 11", &
+                         "ER"), &
+                         DOI="10.1063/1.3232007")
+
+      CALL add_reference(key=Mavros2015, ISI_record=s2a( &
+                         "AU Mavros, MG", &
+                         "    Van Voorhis, T", &
+                         "TI Communication: CDFT-CI couplings can be unreliable when there is fractional charge transfer", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2015", &
+                         "VL 143", &
+                         "IS 23", &
+                         "ER"), &
+                         DOI="10.1063/1.4938103")
+
+      CALL add_reference(key=Becke1988b, ISI_record=s2a( &
+                         "AU Becke, AD", &
+                         "TI A multicenter numerical integration scheme for polyatomic molecules", &
+                         "SO JOURNAL OF CHEMICAL PHYSICS", &
+                         "PY 1988", &
+                         "BP 2547", &
+                         "EP 2553", &
+                         "VL 88", &
+                         "IS 4", &
+                         "ER"), &
+                         DOI="10.1063/1.454033")
+
+      CALL add_reference(key=Holmberg2017, ISI_record=s2a( &
+                         "AU Holmberg, N", &
+                         "   Laasonen, K", &
+                         "TI Efficient Constrained Density Functional Theory Implementation for Simulation of", &
+                         "   Condensed Phase Electron Transfer Reactions", &
+                         "SO Journal of Chemical Theory and Computation", &
+                         "PY 2017", &
+                         "VL 0", &
+                         "IS 0", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.6b01085")
 
    END SUBROUTINE add_all_references
 

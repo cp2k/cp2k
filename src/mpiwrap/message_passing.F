@@ -140,7 +140,7 @@ MODULE message_passing
    PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
    PUBLIC :: mp_isend, mp_irecv, mp_ibcast
    PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
-   PUBLIC :: mp_testall, mp_iscatter
+   PUBLIC :: mp_testall, mp_iscatter, mp_test
    PUBLIC :: mp_gatherv
    PUBLIC :: mp_send, mp_recv
 
@@ -185,7 +185,11 @@ MODULE message_passing
    END INTERFACE
 
    INTERFACE mp_testall
-      MODULE PROCEDURE mp_testall_t2
+      MODULE PROCEDURE mp_testall_tv
+   END INTERFACE
+
+   INTERFACE mp_test
+      MODULE PROCEDURE mp_test_1
    END INTERFACE
 
    INTERFACE mp_testany
@@ -474,22 +478,24 @@ MODULE message_passing
    END INTERFACE
 
    INTERFACE mp_isend
-      MODULE PROCEDURE mp_isend_iv, mp_isend_im2, mp_isend_im3, &
-         mp_isend_lv, mp_isend_lm2, mp_isend_lm3, &
-         mp_isend_rv, mp_isend_rm2, mp_isend_rm3, &
-         mp_isend_dv, mp_isend_dm2, mp_isend_dm3, &
-         mp_isend_cv, mp_isend_cm2, mp_isend_cm3, &
-         mp_isend_zv, mp_isend_zm2, mp_isend_zm3
+      MODULE PROCEDURE mp_isend_iv, mp_isend_im2, mp_isend_im3, mp_isend_im4, &
+         mp_isend_lv, mp_isend_lm2, mp_isend_lm3, mp_isend_lm4, &
+         mp_isend_rv, mp_isend_rm2, mp_isend_rm3, mp_isend_rm4, &
+         mp_isend_dv, mp_isend_dm2, mp_isend_dm3, mp_isend_dm4, &
+         mp_isend_cv, mp_isend_cm2, mp_isend_cm3, mp_isend_cm4, &
+         mp_isend_zv, mp_isend_zm2, mp_isend_zm3, mp_isend_zm4
+      MODULE PROCEDURE mp_isend_bv, mp_isend_bm3
       MODULE PROCEDURE mp_isend_custom
    END INTERFACE
 
    INTERFACE mp_irecv
-      MODULE PROCEDURE mp_irecv_iv, mp_irecv_im2, mp_irecv_im3, &
-         mp_irecv_lv, mp_irecv_lm2, mp_irecv_lm3, &
-         mp_irecv_rv, mp_irecv_rm2, mp_irecv_rm3, &
-         mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3, &
-         mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3, &
-         mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3
+      MODULE PROCEDURE mp_irecv_iv, mp_irecv_im2, mp_irecv_im3, mp_irecv_im4, &
+         mp_irecv_lv, mp_irecv_lm2, mp_irecv_lm3, mp_irecv_lm4, &
+         mp_irecv_rv, mp_irecv_rm2, mp_irecv_rm3, mp_irecv_rm4, &
+         mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3, mp_irecv_dm4, &
+         mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3, mp_irecv_cm4, &
+         mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3, mp_irecv_zm4
+      MODULE PROCEDURE mp_irecv_bv, mp_irecv_bm3
       MODULE PROCEDURE mp_irecv_custom
    END INTERFACE
 
@@ -1731,37 +1737,60 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Tests for completion of the given requests.
 !> \brief We use mpi_test so that we can use a single status.
-!> \param requests ...
-!> \retval flag ...
+!> \param requests the list of requests to test
+!> \retval flag logical which determines if requests are complete
 !> \par History
-!>      24.2016 created
+!>      3.2016 adapted to any shape [Nico Holmberg]
 !> \author Alfio Lazzaro
 ! **************************************************************************************************
-   FUNCTION mp_testall_t2(requests) RESULT(flag)
-      INTEGER, DIMENSION(2), INTENT(inout)  :: requests
+   FUNCTION mp_testall_tv(requests) RESULT(flag)
+      INTEGER, DIMENSION(:)                 :: requests
       LOGICAL                               :: flag
 
       INTEGER                               :: ierr
 
 #if defined(__parallel)
-      LOGICAL                               :: flag1
+      INTEGER                               :: i
+      LOGICAL, DIMENSION(:), POINTER        :: flags
 #endif
 
       ierr = 0
       flag = .TRUE.
 
 #if defined(__parallel)
-      CALL mpi_test(requests(1), flag, MPI_STATUS_IGNORE, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_testall @ mp_testall_t2")
-      !
-      CALL mpi_test(requests(2), flag1, MPI_STATUS_IGNORE, ierr)
-      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_testall @ mp_testall_t2")
-      !
-      flag = flag .AND. flag1
+      ALLOCATE (flags(SIZE(requests)))
+      DO i = 1, SIZE(requests)
+         CALL mpi_test(requests(i), flags(i), MPI_STATUS_IGNORE, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_testall @ mp_testall_tv")
+         flag = flag .AND. flags(i)
+      END DO
+      DEALLOCATE (flags)
 #else
       requests = mp_request_null
 #endif
-   END FUNCTION mp_testall_t2
+   END FUNCTION mp_testall_tv
+
+! **************************************************************************************************
+!> \brief Tests for completion of the given request.
+!> \param request the request
+!> \param flag logical which determines if the request is completed
+!> \par History
+!>      3.2016 created
+!> \author Nico Holmberg
+! **************************************************************************************************
+   SUBROUTINE mp_test_1(request, flag)
+      INTEGER, INTENT(inout)                             :: request
+      LOGICAL, INTENT(out)                               :: flag
+
+      INTEGER                                            :: ierr
+
+      ierr = 0
+
+#if defined(__parallel)
+      CALL mpi_test(request, flag, MPI_STATUS_IGNORE, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_test @ mp_test_1")
+#endif
+   END SUBROUTINE mp_test_1
 
 ! **************************************************************************************************
 !> \brief tests for completion of the given requests
@@ -2159,6 +2188,250 @@ CONTAINS
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_bcast_bv
+
+! **************************************************************************************************
+!> \brief Non-blocking send of logical vector data
+!> \param msgin the input message
+!> \param dest the destination processor
+!> \param comm  the communicator object
+!> \param request communication request index
+!> \param tag message tag
+!> \par History
+!>      3.2016 added _bv subroutine [Nico Holmberg]
+!> \author fawzi
+!> \note see mp_irecv_iv
+!> \note
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
+! **************************************************************************************************
+   SUBROUTINE mp_isend_bv(msgin, dest, comm, request, tag)
+      LOGICAL, DIMENSION(:)                    :: msgin
+      INTEGER, INTENT(IN)                      :: dest, comm
+      INTEGER, INTENT(out)                     :: request
+      INTEGER, INTENT(in), OPTIONAL            :: tag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bv', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: msglen, my_tag
+      LOGICAL                                  :: foo(1)
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      t_start = m_walltime()
+      my_tag = 0
+      IF (PRESENT(tag)) my_tag = tag
+
+      msglen = SIZE(msgin, 1)
+      IF (msglen > 0) THEN
+         CALL mpi_isend(msgin(1), msglen, MPI_LOGICAL, dest, my_tag, &
+                        comm, request, ierr)
+      ELSE
+         CALL mpi_isend(foo, msglen, MPI_LOGICAL, dest, my_tag, &
+                        comm, request, ierr)
+      END IF
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
+
+      t_end = m_walltime()
+      CALL add_perf(perf_id=11, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+#else
+      CPABORT("mp_isend called in non parallel case")
+      MARK_USED(msgin)
+      MARK_USED(dest)
+      MARK_USED(comm)
+      MARK_USED(request)
+      MARK_USED(tag)
+      request = 0
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_isend_bv
+
+! **************************************************************************************************
+!> \brief Non-blocking recieve of logical vector data
+!> \param msgout the received message
+!> \param source the source processor
+!> \param comm  the communicator object
+!> \param request communication request index
+!> \param tag message tag
+!> \par History
+!>      3.2016 added _bv subroutine [Nico Holmberg]
+!> \author fawzi
+!> \note see mp_irecv_iv
+!> \note
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
+! **************************************************************************************************
+   SUBROUTINE mp_irecv_bv(msgout, source, comm, request, tag)
+      LOGICAL, DIMENSION(:)                    :: msgout
+      INTEGER, INTENT(IN)                      :: source, comm
+      INTEGER, INTENT(out)                     :: request
+      INTEGER, INTENT(in), OPTIONAL            :: tag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bv', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: msglen, my_tag
+      LOGICAL                                  :: foo(1)
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      t_start = m_walltime()
+      my_tag = 0
+      IF (PRESENT(tag)) my_tag = tag
+
+      msglen = SIZE(msgout, 1)
+      IF (msglen > 0) THEN
+         CALL mpi_irecv(msgout(1), msglen, MPI_LOGICAL, source, my_tag, &
+                        comm, request, ierr)
+      ELSE
+         CALL mpi_irecv(foo, msglen, MPI_LOGICAL, source, my_tag, &
+                        comm, request, ierr)
+      END IF
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ircv @ "//routineN)
+
+      t_end = m_walltime()
+      CALL add_perf(perf_id=12, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+#else
+      CPABORT("mp_irecv called in non parallel case")
+      MARK_USED(msgout)
+      MARK_USED(source)
+      MARK_USED(comm)
+      MARK_USED(request)
+      MARK_USED(tag)
+      request = 0
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_irecv_bv
+
+! **************************************************************************************************
+!> \brief Non-blocking send of rank-3 logical data
+!> \param msgin the input message
+!> \param dest the destination processor
+!> \param comm  the communicator object
+!> \param request communication request index
+!> \param tag message tag
+!> \par History
+!>      2.2016 added _bm3 subroutine [Nico Holmberg]
+!> \author fawzi
+!> \note see mp_irecv_iv
+!> \note
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
+! **************************************************************************************************
+   SUBROUTINE mp_isend_bm3(msgin, dest, comm, request, tag)
+      LOGICAL, DIMENSION(:, :, :)              :: msgin
+      INTEGER, INTENT(IN)                      :: dest, comm
+      INTEGER, INTENT(out)                     :: request
+      INTEGER, INTENT(in), OPTIONAL            :: tag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_bm3', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: msglen, my_tag
+      LOGICAL                                  :: foo(1)
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      t_start = m_walltime()
+      my_tag = 0
+      IF (PRESENT(tag)) my_tag = tag
+
+      msglen = SIZE(msgin, 1)*SIZE(msgin, 2)*SIZE(msgin, 3)
+      IF (msglen > 0) THEN
+         CALL mpi_isend(msgin(1, 1, 1), msglen, MPI_LOGICAL, dest, my_tag, &
+                        comm, request, ierr)
+      ELSE
+         CALL mpi_isend(foo, msglen, MPI_LOGICAL, dest, my_tag, &
+                        comm, request, ierr)
+      END IF
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
+
+      t_end = m_walltime()
+      CALL add_perf(perf_id=11, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+#else
+      CPABORT("mp_isend called in non parallel case")
+      MARK_USED(msgin)
+      MARK_USED(dest)
+      MARK_USED(comm)
+      MARK_USED(request)
+      MARK_USED(tag)
+      request = 0
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_isend_bm3
+
+! **************************************************************************************************
+!> \brief Non-blocking receive of rank-3 logical data
+!> \param msgout the received message
+!> \param source the source processor
+!> \param comm  the communicator object
+!> \param request communication request index
+!> \param tag message tag
+!> \par History
+!>      2.2016 added _bm3 subroutine [Nico Holmberg]
+!> \author fawzi
+!> \note see mp_irecv_iv
+!> \note
+!>      arrays can be pointers or assumed shape, but they must be contiguous!
+! **************************************************************************************************
+   SUBROUTINE mp_irecv_bm3(msgout, source, comm, request, tag)
+      LOGICAL, DIMENSION(:, :, :)              :: msgout
+      INTEGER, INTENT(IN)                      :: source, comm
+      INTEGER, INTENT(out)                     :: request
+      INTEGER, INTENT(in), OPTIONAL            :: tag
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_bm3', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+      INTEGER                                  :: msglen, my_tag
+      LOGICAL                                  :: foo(1)
+#endif
+
+      ierr = 0
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      t_start = m_walltime()
+      my_tag = 0
+      IF (PRESENT(tag)) my_tag = tag
+
+      msglen = SIZE(msgout, 1)*SIZE(msgout, 2)*SIZE(msgout, 3)
+      IF (msglen > 0) THEN
+         CALL mpi_irecv(msgout(1, 1, 1), msglen, MPI_LOGICAL, source, my_tag, &
+                        comm, request, ierr)
+      ELSE
+         CALL mpi_irecv(foo, msglen, MPI_LOGICAL, source, my_tag, &
+                        comm, request, ierr)
+      END IF
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_ircv @ "//routineN)
+
+      t_end = m_walltime()
+      CALL add_perf(perf_id=12, count=1, time=t_end-t_start, msg_size=msglen*loglen)
+#else
+      CPABORT("mp_irecv called in non parallel case")
+      MARK_USED(msgout)
+      MARK_USED(source)
+      MARK_USED(comm)
+      MARK_USED(request)
+      MARK_USED(tag)
+      request = 0
+#endif
+      CALL mp_timestop(handle)
+   END SUBROUTINE mp_irecv_bm3
 
 ! **************************************************************************************************
 !> \brief ...

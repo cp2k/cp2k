@@ -26,13 +26,14 @@ MODULE input_cp2k_properties_dft
    USE input_constants,                 ONLY: &
         current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
         current_orb_center_atom, current_orb_center_box, current_orb_center_common, &
-        current_orb_center_wannier, do_ddapc_constraint, do_ddapc_restraint, do_et_becke, &
-        do_et_ddapc, do_full_density, do_no_et, do_spin_density, ot_precond_full_all, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse, use_mom_ref_coac, use_mom_ref_com, &
-        use_mom_ref_user, use_mom_ref_zero, xas_dip_len, xas_dip_vel
+        current_orb_center_wannier, do_et_becke, do_et_ddapc, do_full_density, do_no_et, &
+        do_spin_density, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, use_mom_ref_coac, &
+        use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, xas_dip_len, xas_dip_vel
    USE input_cp2k_atprop,               ONLY: create_atprop_section
-   USE input_cp2k_dft,                  ONLY: create_interp_section,&
+   USE input_cp2k_dft,                  ONLY: create_becke_restraint_section,&
+                                              create_ddapc_restraint_section,&
+                                              create_interp_section,&
                                               create_localize_section,&
                                               create_mgrid_section
    USE input_cp2k_resp,                 ONLY: create_resp_section
@@ -930,22 +931,22 @@ CONTAINS
                           n_keywords=1, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (subsection)
-      CALL create_restraint_A(subsection, "DDAPC_RESTRAINT_A")
+      CALL create_ddapc_restraint_section(subsection, "DDAPC_RESTRAINT_A")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL create_restraint_A(subsection, "DDAPC_RESTRAINT_B")
+      CALL create_ddapc_restraint_section(subsection, "DDAPC_RESTRAINT_B")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL create_restraint_A(subsection, "BECKE_RESTRAINT_A")
+      CALL create_becke_restraint_section(subsection, "BECKE_RESTRAINT_A")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       NULLIFY (subsection)
-      CALL create_restraint_A(subsection, "BECKE_RESTRAINT_B")
+      CALL create_becke_restraint_section(subsection, "BECKE_RESTRAINT_B")
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -954,7 +955,7 @@ CONTAINS
                           usage="TYPE_OF_CONSTRAINT DDAPC", &
                           enum_c_vals=s2a("NONE", "DDAPC", "BECKE"), &
                           enum_i_vals=(/do_no_et, do_et_ddapc, do_et_becke/), &
-                          enum_desc=s2a("NONE", "ddapc_restraint", "Sperical potential"), &
+                          enum_desc=s2a("NONE", "DDAPC Constraint", "Becke constraint"), &
                           default_i_val=do_no_et)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -967,83 +968,6 @@ CONTAINS
       CALL section_release(print_key)
 
    END SUBROUTINE create_et_coupling_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param section ...
-!> \param section_name ...
-! **************************************************************************************************
-   SUBROUTINE create_restraint_A(section, section_name)
-      TYPE(section_type), POINTER                        :: section
-      CHARACTER(len=*), INTENT(in)                       :: section_name
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'create_restraint_A', &
-         routineP = moduleN//':'//routineN
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key
-
-      NULLIFY (keyword, print_key)
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, TRIM(ADJUSTL(section_name)), &
-                          description="Use DDAPC charges in a restraint (check code for details),"// &
-                          " section can be repeated, but only one constraint is possible at the moment.", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
-
-      CALL keyword_create(keyword, name="STRENGTH", &
-                          description="force constant of the restraint", &
-                          usage="STRENGTH {real} ", default_r_val=0.1_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="TYPE_OF_DENSITY", &
-                          description="Specifies the type of density used for the fitting", &
-                          usage="TYPE_OF_DENSITY (FULL|SPIN)", &
-                          enum_c_vals=s2a("FULL", "SPIN"), &
-                          enum_i_vals=(/do_full_density, do_spin_density/), &
-                          enum_desc=s2a("Full density", "Spin density"), &
-                          default_i_val=do_full_density)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="TARGET", &
-                          description="target value of the restraint", &
-                          usage="TARGET {real} ", default_r_val=1._dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="ATOMS", &
-                          description="Specifies the list of atoms that is summed in the restraint", &
-                          usage="ATOMS {integer} {integer} .. {integer}", &
-                          n_var=-1, type_of_var=integer_t)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, name="COEFF", &
-         description="Defines the the coefficient of the atom in the atom list (default is one), currently DDAPC only ", &
-         usage="COEFF 1.0 -1.0", &
-         type_of_var=real_t, n_var=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, name="FUNCTIONAL_FORM", &
-                          description="Specifies the functional form of the term added", &
-                          usage="FUNCTIONAL_FORM RESTRAINT", &
-                          enum_c_vals=s2a("RESTRAINT", "CONSTRAINT"), &
-                          enum_i_vals=(/do_ddapc_restraint, do_ddapc_constraint/), &
-                          enum_desc=s2a("Harmonic potential: s*(q-t)**2", "Constraint form: s*(q-t)"), &
-                          default_i_val=do_ddapc_restraint)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL cp_print_key_section_create(print_key, "program_run_info", &
-                                       description="Controls the printing basic info about the method", &
-                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL section_add_subsection(section, print_key)
-      CALL section_release(print_key)
-
-   END SUBROUTINE create_restraint_A
 
 ! **************************************************************************************************
 !> \brief creates an input section for tddfpt calculation

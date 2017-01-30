@@ -74,6 +74,8 @@ MODULE qs_scf_post_gpw
                                               do_loc_homo,&
                                               do_loc_lumo,&
                                               ot_precond_full_all,&
+                                              radius_covalent,&
+                                              radius_user,&
                                               ref_charge_atomic,&
                                               ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
@@ -2819,10 +2821,10 @@ CONTAINS
    END SUBROUTINE write_mo_free_results
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param input_section ...
-!> \param unit_nr ...
+!> \brief Calculates Hirshfeld charges
+!> \param qs_env the qs_env where to calculate the charges
+!> \param input_section the input section for Hirshfeld charges
+!> \param unit_nr the output unit number
 ! **************************************************************************************************
    SUBROUTINE hirshfeld_charges(qs_env, input_section, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -2833,10 +2835,11 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: i, iat, ikind, natom, nkind, nspin, &
-                                                            refc, shapef
+                                                            radius_type, refc, shapef
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: do_sc, paw_atom
+      LOGICAL                                            :: do_radius, do_sc, paw_atom
       REAL(KIND=dp)                                      :: zeff
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: radii
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -2851,19 +2854,33 @@ CONTAINS
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
 
       NULLIFY (hirshfeld_env)
+      NULLIFY (radii)
       CALL create_hirshfeld_type(hirshfeld_env)
       !
       CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
       ALLOCATE (hirshfeld_env%charges(natom))
       ! input options
       CALL section_vals_val_get(input_section, "SELF_CONSISTENT", l_val=do_sc)
+      CALL section_vals_val_get(input_section, "USER_RADIUS", l_val=do_radius)
       CALL section_vals_val_get(input_section, "SHAPE_FUNCTION", i_val=shapef)
       CALL section_vals_val_get(input_section, "REFERENCE_CHARGE", i_val=refc)
+      IF (do_radius) THEN
+         radius_type = radius_user
+         CALL section_vals_val_get(input_section, "ATOMIC_RADII", r_vals=radii)
+         IF (.NOT. SIZE(radii) == nkind) &
+            CALL cp_abort(__LOCATION__, &
+                          "Length of keyword HIRSHFELD\ATOMIC_RADII does not "// &
+                          "match number of atomic kinds in the input coordinate file.")
+      ELSE
+         radius_type = radius_covalent
+      END IF
       CALL set_hirshfeld_info(hirshfeld_env, shape_function_type=shapef, &
-                              iterative=do_sc, ref_charge=refc)
+                              iterative=do_sc, ref_charge=refc, &
+                              radius_type=radius_type)
       ! shape function
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set)
-      CALL create_shape_function(hirshfeld_env, qs_kind_set, atomic_kind_set)
+      CALL create_shape_function(hirshfeld_env, qs_kind_set, atomic_kind_set, &
+                                 radii_list=radii)
       ! reference charges
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)

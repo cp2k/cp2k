@@ -78,6 +78,7 @@ MODULE qs_scf_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: energy
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: variables
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: inv_jacobian
       INTEGER, DIMENSION(:), POINTER :: count
    END TYPE qs_outer_scf_type
 
@@ -171,6 +172,7 @@ CONTAINS
       NULLIFY (scf_env%outer_scf%gradient)
       NULLIFY (scf_env%outer_scf%energy)
       NULLIFY (scf_env%outer_scf%count)
+      NULLIFY (scf_env%outer_scf%inv_jacobian)
       NULLIFY (scf_env%scf_work1)
       NULLIFY (scf_env%scf_work2)
       NULLIFY (scf_env%ortho)
@@ -328,6 +330,9 @@ CONTAINS
             END IF
             IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
                DEALLOCATE (scf_env%outer_scf%gradient)
+            END IF
+            IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
+               DEALLOCATE (scf_env%outer_scf%inv_jacobian)
             END IF
             IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
                DEALLOCATE (scf_env%outer_scf%energy)

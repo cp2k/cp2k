@@ -12,7 +12,8 @@
 ! **************************************************************************************************
 MODULE hirshfeld_types
 
-   USE input_constants,                 ONLY: shape_function_gaussian
+   USE input_constants,                 ONLY: radius_default,&
+                                              shape_function_gaussian
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type,&
                                               pw_release
@@ -28,13 +29,15 @@ MODULE hirshfeld_types
    PUBLIC :: get_hirshfeld_info, set_hirshfeld_info
 
 ! **************************************************************************************************
-!> \brief quantities needed for a Hischfeld based partitioning of real space
+!> \brief quantities needed for a Hirshfeld based partitioning of real space
 !> \author JGH
 ! **************************************************************************************************
    TYPE hirshfeld_type
-      LOGICAL                       :: iterative
+      LOGICAL                       :: iterative, &
+                                       use_bohr
       INTEGER                       :: shape_function_type
-      INTEGER                       :: ref_charge
+      INTEGER                       :: ref_charge, &
+                                       radius_type
       TYPE(shape_fn), DIMENSION(:), &
          POINTER                    :: kind_shape_fn
       REAL(KIND=dp), DIMENSION(:), &
@@ -71,7 +74,9 @@ CONTAINS
       ALLOCATE (hirshfeld_env)
 
       hirshfeld_env%iterative = .FALSE.
+      hirshfeld_env%use_bohr = .FALSE.
       hirshfeld_env%shape_function_type = shape_function_gaussian
+      hirshfeld_env%radius_type = radius_default
       NULLIFY (hirshfeld_env%kind_shape_fn)
       NULLIFY (hirshfeld_env%charges)
       NULLIFY (hirshfeld_env%fnorm)
@@ -122,20 +127,25 @@ CONTAINS
    END SUBROUTINE release_hirshfeld_type
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param hirshfeld_env ...
-!> \param shape_function_type ...
-!> \param iterative ...
-!> \param ref_charge ...
-!> \param fnorm ...
+!> \brief Get information from a Hirshfeld env
+!> \param hirshfeld_env the env that holds the information
+!> \param shape_function_type the type of shape function used
+!> \param iterative logical which determins if iterative Hirshfeld charges should be computed
+!> \param ref_charge the reference charge type (core charge or mulliken)
+!> \param fnorm normalization of the shape function
+!> \param radius_type the type of radius used for building the shape functions
+!> \param use_bohr logical which determines if angstrom or bohr units are used to build the
+!>                 shape functions
 ! **************************************************************************************************
    SUBROUTINE get_hirshfeld_info(hirshfeld_env, shape_function_type, iterative, &
-                                 ref_charge, fnorm)
+                                 ref_charge, fnorm, radius_type, use_bohr)
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       INTEGER, INTENT(OUT), OPTIONAL                     :: shape_function_type
       LOGICAL, INTENT(OUT), OPTIONAL                     :: iterative
       INTEGER, INTENT(OUT), OPTIONAL                     :: ref_charge
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: fnorm
+      INTEGER, INTENT(OUT), OPTIONAL                     :: radius_type
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: use_bohr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_hirshfeld_info', &
          routineP = moduleN//':'//routineN
@@ -148,6 +158,12 @@ CONTAINS
       IF (PRESENT(iterative)) THEN
          iterative = hirshfeld_env%iterative
       END IF
+      IF (PRESENT(use_bohr)) THEN
+         use_bohr = hirshfeld_env%use_bohr
+      END IF
+      IF (PRESENT(radius_type)) THEN
+         radius_type = hirshfeld_env%radius_type
+      END IF
       IF (PRESENT(ref_charge)) THEN
          ref_charge = hirshfeld_env%ref_charge
       END IF
@@ -158,20 +174,25 @@ CONTAINS
    END SUBROUTINE get_hirshfeld_info
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param hirshfeld_env ...
-!> \param shape_function_type ...
-!> \param iterative ...
-!> \param ref_charge ...
-!> \param fnorm ...
+!> \brief Set values of a Hirshfeld env
+!> \param hirshfeld_env the env that holds the information
+!> \param shape_function_type the type of shape function used
+!> \param iterative logical which determins if iterative Hirshfeld charges should be computed
+!> \param ref_charge the reference charge type (core charge or mulliken)
+!> \param fnorm normalization of the shape function
+!> \param radius_type the type of radius used for building the shape functions
+!> \param use_bohr logical which determines if angstrom or bohr units are used to build the
+!>                 shape functions
 ! **************************************************************************************************
    SUBROUTINE set_hirshfeld_info(hirshfeld_env, shape_function_type, iterative, &
-                                 ref_charge, fnorm)
+                                 ref_charge, fnorm, radius_type, use_bohr)
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       INTEGER, INTENT(IN), OPTIONAL                      :: shape_function_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: iterative
       INTEGER, INTENT(IN), OPTIONAL                      :: ref_charge
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: fnorm
+      INTEGER, INTENT(IN), OPTIONAL                      :: radius_type
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_bohr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'set_hirshfeld_info', &
          routineP = moduleN//':'//routineN
@@ -183,6 +204,12 @@ CONTAINS
       END IF
       IF (PRESENT(iterative)) THEN
          hirshfeld_env%iterative = iterative
+      END IF
+      IF (PRESENT(use_bohr)) THEN
+         hirshfeld_env%use_bohr = use_bohr
+      END IF
+      IF (PRESENT(radius_type)) THEN
+         hirshfeld_env%radius_type = radius_type
       END IF
       IF (PRESENT(ref_charge)) THEN
          hirshfeld_env%ref_charge = ref_charge

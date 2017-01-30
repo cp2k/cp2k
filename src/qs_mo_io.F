@@ -494,9 +494,11 @@ CONTAINS
 !> \param multiplicity ...
 !> \param dft_section ...
 !> \param natom_mismatch ...
+!> \param cdft ...
 ! **************************************************************************************************
    SUBROUTINE read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, &
-                                       para_env, id_nr, multiplicity, dft_section, natom_mismatch)
+                                       para_env, id_nr, multiplicity, dft_section, natom_mismatch, &
+                                       cdft)
 
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -506,6 +508,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: id_nr, multiplicity
       TYPE(section_vals_type), POINTER                   :: dft_section
       LOGICAL, INTENT(OUT), OPTIONAL                     :: natom_mismatch
+      LOGICAL, INTENT(IN), OPTIONAL                      :: cdft
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
          routineP = moduleN//':'//routineN
@@ -513,11 +516,13 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER                                            :: group, handle, ispin, natom, nspin, &
                                                             restart_unit, source
-      LOGICAL                                            :: exist
+      LOGICAL                                            :: exist, my_cdft
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
+      my_cdft = .FALSE.
+      IF (PRESENT(cdft)) my_cdft = cdft
 
       nspin = SIZE(mo_array)
       restart_unit = -1
@@ -558,10 +563,13 @@ CONTAINS
       ! Close restart file
       IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
-      DO ispin = 1, nspin
-         CALL write_mo_set(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
-                           particle_set, 4, dft_section)
-      END DO
+      ! CDFT has no real dft_section and does not need to print
+      IF (.NOT. my_cdft) THEN
+         DO ispin = 1, nspin
+            CALL write_mo_set(mo_array(ispin)%mo_set, atomic_kind_set, qs_kind_set, &
+                              particle_set, 4, dft_section)
+         END DO
+      END IF
 
       CALL timestop(handle)
 

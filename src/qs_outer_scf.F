@@ -11,16 +11,20 @@
 ! **************************************************************************************************
 MODULE qs_outer_scf
    USE cp_control_types,                ONLY: becke_restraint_type,&
+                                              cdft_control_type,&
                                               ddapc_restraint_type,&
                                               dft_control_type,&
                                               s2_restraint_type
    USE input_constants,                 ONLY: &
-        do_ddapc_constraint, do_s2_constraint, outer_scf_basis_center_opt, &
-        outer_scf_becke_constraint, outer_scf_ddapc_constraint, outer_scf_none, &
-        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, outer_scf_optimizer_none, &
+        cdft2ot, cdft_combined_constraint, cdft_density_constraint, cdft_magnetization_constraint, &
+        do_ddapc_constraint, do_s2_constraint, ot2cdft, outer_scf_basis_center_opt, &
+        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_none, &
         outer_scf_optimizer_sd, outer_scf_s2_constraint
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: diamat_all
+   USE mathlib,                         ONLY: diamat_all,&
+                                              invert_matrix
    USE qs_basis_gradient,               ONLY: qs_basis_center_gradient,&
                                               qs_update_basis_center_pos,&
                                               return_basis_center_gradient_norm
@@ -43,19 +47,24 @@ MODULE qs_outer_scf
 ! *** Public subroutines ***
 
    PUBLIC :: outer_loop_gradient, outer_loop_optimize, outer_loop_update_qs_env, &
-             outer_loop_variables_count, outer_loop_extrapolate
+             outer_loop_variables_count, outer_loop_extrapolate, &
+             outer_loop_switch, outer_loop_purge_history
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief returns the number of variables that is employed in the outer loop
-!> \param scf_control ...
-!> \retval res ...
+!> \brief returns the number of variables that is employed in the outer loop. with a CDFT constraint
+!>        this value is returned by the cdft_control type
+!> \param scf_control the outer loop control type
+!> \param cdft_control the cdft loop control type
+!> \retval res the number of variables
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
-   FUNCTION outer_loop_variables_count(scf_control) RESULT(res)
+   FUNCTION outer_loop_variables_count(scf_control, cdft_control) RESULT(res)
       TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(cdft_control_type), INTENT(IN), OPTIONAL, &
+         POINTER                                         :: cdft_control
       INTEGER                                            :: res
 
       SELECT CASE (scf_control%outer_scf%type)
@@ -63,8 +72,17 @@ CONTAINS
          res = 1
       CASE (outer_scf_s2_constraint)
          res = 1
-      CASE (outer_scf_becke_constraint)
-         res = 1
+      CASE (outer_scf_becke_constraint, outer_scf_cdft_constraint)
+         IF (PRESENT(cdft_control)) THEN
+            SELECT CASE (cdft_control%constraint_type)
+            CASE (cdft_density_constraint, cdft_magnetization_constraint)
+               res = 1
+            CASE (cdft_combined_constraint)
+               res = 2
+            END SELECT
+         ELSE
+            res = 1
+         END IF
       CASE (outer_scf_basis_center_opt)
          res = 1
       CASE (outer_scf_none) ! just needed to communicate the gradient criterium
@@ -89,9 +107,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_gradient', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, ihistory, n
+      INTEGER                                            :: handle, ihistory, ivar, n
       LOGICAL                                            :: is_constraint
       TYPE(becke_restraint_type), POINTER                :: becke_control
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -139,9 +158,19 @@ CONTAINS
       CASE (outer_scf_becke_constraint)
          CPASSERT(dft_control%qs_control%becke_restraint)
          becke_control => dft_control%qs_control%becke_control
-         scf_env%outer_scf%variables(:, ihistory) = becke_control%strength
-         scf_env%outer_scf%gradient(:, ihistory) = becke_control%becke_order_p- &
-                                                   becke_control%target
+         DO ivar = 1, SIZE(scf_env%outer_scf%gradient, 1)
+            scf_env%outer_scf%variables(ivar, ihistory) = becke_control%strength(ivar)
+            scf_env%outer_scf%gradient(ivar, ihistory) = becke_control%becke_order_p(ivar)- &
+                                                         becke_control%target(ivar)
+         END DO
+      CASE (outer_scf_cdft_constraint)
+         CPASSERT(dft_control%qs_control%cdft)
+         cdft_control => dft_control%qs_control%cdft_control
+         DO ivar = 1, SIZE(scf_env%outer_scf%gradient, 1)
+            scf_env%outer_scf%variables(ivar, ihistory) = cdft_control%strength(ivar)
+            scf_env%outer_scf%gradient(ivar, ihistory) = cdft_control%value(ivar)- &
+                                                         cdft_control%target(ivar)
+         END DO
       CASE (outer_scf_basis_center_opt)
          CALL qs_basis_center_gradient(qs_env)
          scf_env%outer_scf%gradient(:, ihistory) = return_basis_center_gradient_norm(qs_env)
@@ -157,10 +186,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief optimizes the parameters of the outer_scf
-!> \param scf_env ...
-!> \param scf_control ...
+!> \param scf_env the scf_env where to optimize the parameters
+!> \param scf_control control parameters for the optimization
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
+!>      01.2017 added Broyden and Newton optimizers [Nico Holmberg]
 !> \note
 !>       ought to be general, and independent of the actual kind of variables
 ! **************************************************************************************************
@@ -172,16 +202,17 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, i, ibuf, ihigh, ihistory, ilow, &
-                                                            j, jbuf, nb, optimizer_type
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ipivot
-      REAL(KIND=dp)                                      :: interval, tmp
+                                                            j, jbuf, nb, nvar, optimizer_type
+      REAL(KIND=dp)                                      :: interval, inv_error, scale, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ev
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: a, b
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: a, b, f, jacobian, x
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: inv_jacobian
 
       CALL timeset(routineN, handle)
 
       ihistory = scf_env%outer_scf%iter_count
       optimizer_type = scf_control%outer_scf%optimizer
+      NULLIFY (inv_jacobian)
 
       IF (scf_control%outer_scf%type == outer_scf_basis_center_opt) THEN
          scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)
@@ -237,7 +268,7 @@ CONTAINS
                   optimizer_type = outer_scf_optimizer_sd
                   CYCLE
                ELSE
-                  ALLOCATE (b(nb+1, nb+1), a(nb+1, nb+1), ev(nb+1), ipivot(nb+1))
+                  ALLOCATE (b(nb+1, nb+1), a(nb+1, nb+1), ev(nb+1))
                   DO I = 1, nb
                      DO J = I, nb
                         ibuf = ihistory-nb+i
@@ -268,8 +299,69 @@ CONTAINS
                      scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory+1)+ &
                                                                   ev(i)*scf_env%outer_scf%variables(:, ibuf)
                   ENDDO
-                  DEALLOCATE (b, ev)
+                  DEALLOCATE (a, b, ev)
                ENDIF
+            CASE (outer_scf_optimizer_broyden)
+               CPASSERT(SIZE(scf_env%outer_scf%gradient, 2) >= 3)
+               nvar = SIZE(scf_env%outer_scf%gradient, 1)
+               IF (ihistory < 2) THEN
+                  ! Need two history values to use Broyden, switch to sd
+                  optimizer_type = outer_scf_optimizer_sd
+                  CYCLE
+               END IF
+               IF (nvar == 1) THEN
+                  ! 1D case secant method
+                  scf_env%outer_scf%variables(1, ihistory+1) = scf_env%outer_scf%variables(1, ihistory)- &
+                                                               (scf_env%outer_scf%variables(1, ihistory)- &
+                                                                scf_env%outer_scf%variables(1, ihistory-1))/ &
+                                                               (scf_env%outer_scf%gradient(1, ihistory)- &
+                                                                scf_env%outer_scf%gradient(1, ihistory-1))* &
+                                                               scf_env%outer_scf%gradient(1, ihistory)
+               ELSE
+                  ALLOCATE (f(nvar, 1), x(nvar, 1))
+                  DO i = 1, nvar
+                     f(i, 1) = scf_env%outer_scf%gradient(i, ihistory)-scf_env%outer_scf%gradient(i, ihistory-1)
+                     x(i, 1) = scf_env%outer_scf%variables(i, ihistory)-scf_env%outer_scf%variables(i, ihistory-1)
+                  END DO
+                  ! Use finite difference Jacobian as initial guess
+                  ! TODO: Add possibility to restart Jacobian
+                  IF (ihistory == 2) THEN
+                     IF (.NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) &
+                        ALLOCATE (scf_env%outer_scf%inv_jacobian(nvar, nvar))
+                     inv_jacobian => scf_env%outer_scf%inv_jacobian
+                     ALLOCATE (jacobian(nvar, nvar))
+                     jacobian = 0.0_dp
+                     DO i = 1, nvar
+                        jacobian(i, i) = f(i, 1)/x(i, 1)
+                     END DO
+                     CALL invert_matrix(jacobian, inv_jacobian, inv_error)
+                     scale = SUM(MATMUL(TRANSPOSE(x), MATMUL(inv_jacobian, f)))
+                     DEALLOCATE (jacobian)
+                  ELSE
+                     SELECT CASE (scf_control%outer_scf%jacobian_type)
+                     CASE DEFAULT
+                        ! Broyden's 1st method
+                        ! Update inverse Jacobian: dx_n = \delta x_n; df_n = \delta f_n
+                        ! J_(n+1)^(-1) = J_n^(-1) + (dx_n - J_n^(-1)*df_n)*(dx_n^T * J_n^(-1))/(dx_n^T * J_n^(-1) * df_n)
+                        inv_jacobian => scf_env%outer_scf%inv_jacobian
+                        scale = SUM(MATMUL(TRANSPOSE(x), MATMUL(inv_jacobian, f)))
+                        scale = 1.0_dp/scale
+                        IF (scale < 1.0E-12_dp) scale = 1.0E-12_dp
+                        inv_jacobian = inv_jacobian+scale*MATMUL((x-MATMUL(inv_jacobian, f)), &
+                                                                 MATMUL(TRANSPOSE(x), inv_jacobian))
+                     END SELECT
+                  END IF
+                  ! Broyden update: x_(n+1) = x_n - J^(-1)*f(x_n)
+                  scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
+                                                               MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
+                  ! Clean up
+                  DEALLOCATE (f, x)
+               END IF
+            CASE (outer_scf_optimizer_newton)
+               CPASSERT(ASSOCIATED(scf_env%outer_scf%inv_jacobian))
+               inv_jacobian => scf_env%outer_scf%inv_jacobian
+               scf_env%outer_scf%variables(:, ihistory+1) = scf_env%outer_scf%variables(:, ihistory)- &
+                                                            MATMUL(inv_jacobian, scf_env%outer_scf%gradient(:, ihistory))
             CASE DEFAULT
                CPABORT("")
             END SELECT
@@ -299,6 +391,7 @@ CONTAINS
       INTEGER                                            :: handle, ihistory, n
       LOGICAL                                            :: is_constraint
       TYPE(becke_restraint_type), POINTER                :: becke_control
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(s2_restraint_type), POINTER                   :: s2_restraint_control
@@ -325,7 +418,12 @@ CONTAINS
          s2_restraint_control%strength = scf_env%outer_scf%variables(1, ihistory+1)
       CASE (outer_scf_becke_constraint)
          becke_control => dft_control%qs_control%becke_control
-         becke_control%strength = scf_env%outer_scf%variables(1, ihistory+1)
+         becke_control%strength(:) = scf_env%outer_scf%variables(:, ihistory+1)
+         IF (dft_control%qs_control%cdft) &
+            dft_control%qs_control%cdft_control%strength(:) = becke_control%strength(:)
+      CASE (outer_scf_cdft_constraint)
+         cdft_control => dft_control%qs_control%cdft_control
+         cdft_control%strength(:) = scf_env%outer_scf%variables(:, ihistory+1)
       CASE (outer_scf_basis_center_opt)
          CALL qs_update_basis_center_pos(qs_env)
       CASE DEFAULT
@@ -339,7 +437,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief uses the outer_scf_history to extrapolate new values for the variables
 !>       and updates their value in qs_env accordingly
-!> \param qs_env ...
+!> \param qs_env the qs_environment_type where to update the variables
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 !> \note
@@ -392,8 +490,11 @@ CONTAINS
          outer_scf_history(1, ivec) = &
             dft_control%qs_control%s2_restraint_control%strength
       CASE (outer_scf_becke_constraint)
-         outer_scf_history(1, ivec) = &
-            dft_control%qs_control%becke_control%strength
+         outer_scf_history(:, ivec) = &
+            dft_control%qs_control%becke_control%strength(:)
+      CASE (outer_scf_cdft_constraint)
+         outer_scf_history(:, ivec) = &
+            dft_control%qs_control%cdft_control%strength(:)
       CASE (outer_scf_basis_center_opt)
          outer_scf_history(1, ivec) = 0.0_dp
       CASE DEFAULT
@@ -421,7 +522,11 @@ CONTAINS
       CASE (outer_scf_s2_constraint)
          dft_control%qs_control%s2_restraint_control%strength = extrapolation(1)
       CASE (outer_scf_becke_constraint)
-         dft_control%qs_control%becke_control%strength = extrapolation(1)
+         dft_control%qs_control%becke_control%strength(:) = extrapolation(:)
+         IF (dft_control%qs_control%cdft) &
+            dft_control%qs_control%cdft_control%strength(:) = dft_control%qs_control%becke_control%strength(:)
+      CASE (outer_scf_cdft_constraint)
+         dft_control%qs_control%cdft_control%strength(:) = extrapolation(:)
       CASE (outer_scf_basis_center_opt)
          ! nothing to do
       CASE DEFAULT
@@ -433,5 +538,125 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE outer_loop_extrapolate
+
+! **************************************************************************************************
+!> \brief switch between two outer_scf envs stored in cdft_control
+!> \param scf_env the scf_env where values need to be updated using cdft_control
+!> \param scf_control the scf_control where values need to be updated using cdft_control
+!> \param cdft_control container for the second outer_scf env
+!> \param dir determines what switching operation to perform
+!> \par History
+!>      12.2015 created [Nico Holmberg]
+! **************************************************************************************************
+
+   SUBROUTINE outer_loop_switch(scf_env, scf_control, cdft_control, dir)
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(cdft_control_type), POINTER                   :: cdft_control
+      INTEGER, INTENT(IN)                                :: dir
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'outer_loop_switch', &
+         routineP = moduleN//':'//routineN
+
+      SELECT CASE (dir)
+         ! Constraint -> OT
+      CASE (cdft2ot)
+         ! Switch data in scf_control
+         scf_control%outer_scf%have_scf = cdft_control%ot_control%have_scf
+         scf_control%outer_scf%max_scf = cdft_control%ot_control%max_scf
+         scf_control%outer_scf%eps_scf = cdft_control%ot_control%eps_scf
+         scf_control%outer_scf%step_size = cdft_control%ot_control%step_size
+         scf_control%outer_scf%type = cdft_control%ot_control%type
+         scf_control%outer_scf%optimizer = cdft_control%ot_control%optimizer
+         scf_control%outer_scf%diis_buffer_length = cdft_control%ot_control%diis_buffer_length
+         scf_control%outer_scf%bisect_trust_count = cdft_control%ot_control%bisect_trust_count
+         scf_control%outer_scf%jacobian_type = cdft_control%ot_control%jacobian_type
+         ! Switch data in scf_env: first save current values for constraint
+         cdft_control%constraint%iter_count = scf_env%outer_scf%iter_count
+         cdft_control%constraint%energy = scf_env%outer_scf%energy
+         cdft_control%constraint%variables = scf_env%outer_scf%variables
+         cdft_control%constraint%gradient = scf_env%outer_scf%gradient
+         cdft_control%constraint%count = scf_env%outer_scf%count
+         ! Now switch
+         IF (ASSOCIATED(scf_env%outer_scf%energy)) &
+            DEALLOCATE (scf_env%outer_scf%energy)
+         ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%energy = 0.0_dp
+         IF (ASSOCIATED(scf_env%outer_scf%variables)) &
+            DEALLOCATE (scf_env%outer_scf%variables)
+         ALLOCATE (scf_env%outer_scf%variables(1, scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%variables = 0.0_dp
+         IF (ASSOCIATED(scf_env%outer_scf%gradient)) &
+            DEALLOCATE (scf_env%outer_scf%gradient)
+         ALLOCATE (scf_env%outer_scf%gradient(1, scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%gradient = 0.0_dp
+         IF (ASSOCIATED(scf_env%outer_scf%count)) &
+            DEALLOCATE (scf_env%outer_scf%count)
+         ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%count = 0
+         ! OT -> constraint
+      CASE (ot2cdft)
+         scf_control%outer_scf%have_scf = cdft_control%constraint_control%have_scf
+         scf_control%outer_scf%max_scf = cdft_control%constraint_control%max_scf
+         scf_control%outer_scf%eps_scf = cdft_control%constraint_control%eps_scf
+         scf_control%outer_scf%step_size = cdft_control%constraint_control%step_size
+         scf_control%outer_scf%type = cdft_control%constraint_control%type
+         scf_control%outer_scf%optimizer = cdft_control%constraint_control%optimizer
+         scf_control%outer_scf%diis_buffer_length = cdft_control%constraint_control%diis_buffer_length
+         scf_control%outer_scf%bisect_trust_count = cdft_control%constraint_control%bisect_trust_count
+         scf_control%outer_scf%jacobian_type = cdft_control%constraint_control%jacobian_type
+         IF (ASSOCIATED(scf_env%outer_scf%energy)) &
+            DEALLOCATE (scf_env%outer_scf%energy)
+         ALLOCATE (scf_env%outer_scf%energy(scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%energy = cdft_control%constraint%energy
+         IF (ASSOCIATED(scf_env%outer_scf%variables)) &
+            DEALLOCATE (scf_env%outer_scf%variables)
+         ALLOCATE (scf_env%outer_scf%variables(SIZE(cdft_control%constraint%variables, 1), &
+                                               scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%variables = cdft_control%constraint%variables
+         IF (ASSOCIATED(scf_env%outer_scf%gradient)) &
+            DEALLOCATE (scf_env%outer_scf%gradient)
+         ALLOCATE (scf_env%outer_scf%gradient(SIZE(cdft_control%constraint%gradient, 1), &
+                                              scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%gradient = cdft_control%constraint%gradient
+         IF (ASSOCIATED(scf_env%outer_scf%count)) &
+            DEALLOCATE (scf_env%outer_scf%count)
+         ALLOCATE (scf_env%outer_scf%count(scf_control%outer_scf%max_scf+1))
+         scf_env%outer_scf%count = cdft_control%constraint%count
+         scf_env%outer_scf%iter_count = cdft_control%constraint%iter_count
+      CASE DEFAULT
+         CPABORT("")
+      END SELECT
+
+   END SUBROUTINE outer_loop_switch
+
+! **************************************************************************************************
+!> \brief purges outer_scf_history zeroing everything except
+!>        the latest value of the outer_scf variable stored in qs_control
+!> \param qs_env the qs_environment_type where to purge
+!> \par History
+!>      05.2016 created [Nico Holmberg]
+! **************************************************************************************************
+   SUBROUTINE outer_loop_purge_history(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'outer_loop_purge_history', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, outer_scf_ihistory
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: outer_scf_history
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, outer_scf_history=outer_scf_history, &
+                      outer_scf_ihistory=outer_scf_ihistory)
+      CPASSERT(SIZE(outer_scf_history, 2) > 0)
+      outer_scf_ihistory = 0
+      outer_scf_history = 0.0_dp
+      CALL set_qs_env(qs_env, outer_scf_ihistory=outer_scf_ihistory)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE outer_loop_purge_history
 
 END MODULE qs_outer_scf

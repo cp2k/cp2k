@@ -58,6 +58,8 @@ MODULE qs_environment_types
                                               set_hartree_local
    USE hfx_types,                       ONLY: hfx_release,&
                                               hfx_type
+   USE input_constants,                 ONLY: energy_force_run,&
+                                              energy_run
    USE input_section_types,             ONLY: section_vals_release,&
                                               section_vals_retain,&
                                               section_vals_type
@@ -219,6 +221,7 @@ MODULE qs_environment_types
       LOGICAL :: linres_run
       LOGICAL :: calc_image_preconditioner
       LOGICAL :: do_transport
+      LOGICAL :: single_point_run
       REAL(KIND=dp)                                         :: sim_time
       REAL(KIND=dp) :: start_time, target_time
       REAL(KIND=dp), DIMENSION(:, :), POINTER               :: image_matrix
@@ -871,6 +874,7 @@ CONTAINS
       qs_env%id_nr = last_qs_env_id_nr
       qs_env%run_rtp = .FALSE.
       qs_env%linres_run = .FALSE.
+      qs_env%single_point_run = .FALSE.
       qs_env%qmmm = .FALSE.
       qs_env%qmmm_periodic = .FALSE.
       qs_env%requires_mo_derivs = .FALSE.
@@ -881,6 +885,8 @@ CONTAINS
       IF (PRESENT(globenv)) THEN
          qs_env%target_time = globenv%cp2k_target_time
          qs_env%start_time = globenv%cp2k_start_time
+         qs_env%single_point_run = (globenv%run_type_id == energy_run .OR. &
+                                    globenv%run_type_id == energy_force_run)
       ELSE
          qs_env%target_time = 0.0_dp
          qs_env%start_time = 0.0_dp

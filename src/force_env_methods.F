@@ -24,6 +24,7 @@ MODULE force_env_methods
                                               scaled_to_real
    USE constraint_fxd,                  ONLY: fix_atom_control
    USE constraint_vsite,                ONLY: vsite_force_control
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_iter_types,                   ONLY: cp_iteration_info_copy_iter
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_get_default_logger,&
@@ -81,7 +82,8 @@ MODULE force_env_methods
                                               mix_restrained,&
                                               use_bazant_eip,&
                                               use_lenosky_eip
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_retain,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -95,6 +97,9 @@ MODULE force_env_methods
                                               mp_sync
    USE metadynamics_types,              ONLY: meta_env_retain,&
                                               meta_env_type
+   USE mixed_cdft_methods,              ONLY: mixed_cdft_build_weight,&
+                                              mixed_cdft_calculate_coupling,&
+                                              mixed_cdft_init
    USE mixed_energy_types,              ONLY: mixed_energy_type,&
                                               mixed_force_type
    USE mixed_environment_types,         ONLY: get_mixed_env,&
@@ -108,10 +113,12 @@ MODULE force_env_methods
    USE qmmm_force,                      ONLY: qmmm_calc_energy_force
    USE qmmm_types,                      ONLY: qmmm_env_retain,&
                                               qmmm_env_type
+   USE qmmm_util,                       ONLY: apply_qmmm_translate
    USE qmmmx_force,                     ONLY: qmmmx_calc_energy_force
    USE qmmmx_types,                     ONLY: qmmmx_env_retain,&
                                               qmmmx_env_type
-   USE qs_environment_types,            ONLY: qs_env_retain,&
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_retain,&
                                               qs_environment_type
    USE qs_force,                        ONLY: qs_calc_energy_force
    USE restraint,                       ONLY: restraint_control
@@ -747,14 +754,15 @@ CONTAINS
 !> \brief ****f* force_env_methods/mixed_energy_forces  [1.0]
 !>
 !>     Computes energy and forces for a mixed force_env type
-!> \param force_env ...
-!> \param calculate_forces ...
+!> \param force_env the force_env that holds the mixed_env type
+!> \param calculate_forces decides if forces should be calculated
 !> \par History
 !>       11.06  created [fschiff]
 !>       04.07  generalization to an illimited number of force_eval [tlaino]
 !>       04.07  further generalization to force_eval with different geometrical
 !>              structures [tlaino]
 !>       04.08  reorganizing the genmix structure (collecting common code)
+!>       01.16  added CDFT [Nico Holmberg]
 !> \author Florian Schiffmann
 ! **************************************************************************************************
    SUBROUTINE mixed_energy_forces(force_env, calculate_forces)
@@ -767,11 +775,11 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: coupling_function
       CHARACTER(LEN=default_string_length)               :: def_error, description, this_error
-      INTEGER                                            :: iforce_eval, iparticle, jparticle, &
-                                                            mixing_type, my_group, natom, &
-                                                            nforce_eval, source, unit_nr
+      INTEGER                                            :: et_freq, iforce_eval, iparticle, &
+                                                            jparticle, mixing_type, my_group, &
+                                                            natom, nforce_eval, source, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: glob_natoms, map_index
-      LOGICAL                                            :: dip_exists
+      LOGICAL                                            :: dip_exists, do_mixed_cdft, explicit
       REAL(KIND=dp)                                      :: coupling_parameter, dedf, der_1, der_2, &
                                                             dx, energy, err, lambda, lerr, &
                                                             restraint_strength, restraint_target, &
@@ -784,10 +792,12 @@ CONTAINS
       TYPE(cp_result_type), POINTER                      :: loc_results, results_mix
       TYPE(cp_subsys_p_type), DIMENSION(:), POINTER      :: subsystems
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mixed_energy_type), POINTER                   :: mixed_energy
       TYPE(mixed_force_type), DIMENSION(:), POINTER      :: global_forces
       TYPE(particle_list_p_type), DIMENSION(:), POINTER  :: particles
       TYPE(particle_list_type), POINTER                  :: particles_mix
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: force_env_section, gen_section, &
                                                             mapping_section, mixed_section, &
                                                             root_section
@@ -806,7 +816,7 @@ CONTAINS
                          particles=particles_mix, &
                          virial=virial_mix, &
                          results=results_mix)
-      NULLIFY (map_index, glob_natoms, global_forces)
+      NULLIFY (map_index, glob_natoms, global_forces, qs_env, dft_control)
 
       nforce_eval = SIZE(force_env%sub_force_env)
       mixed_section => section_vals_get_subs_vals(force_env_section, "MIXED")
@@ -822,66 +832,189 @@ CONTAINS
       ALLOCATE (results(nforce_eval))
       energies = 0.0_dp
       glob_natoms = 0
-      DO iforce_eval = 1, nforce_eval
-         NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
-         NULLIFY (results(iforce_eval)%results, virials(iforce_eval)%virial)
-         CALL virial_create(virials(iforce_eval)%virial)
-         CALL cp_result_create(results(iforce_eval)%results)
-         IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
-         ! From this point on the error is the sub_error
-         my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
-         my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
-         ! Copy iterations info (they are updated only in the main mixed_env)
-         CALL cp_iteration_info_copy_iter(logger%iter_info, my_logger%iter_info)
-         CALL cp_add_default_logger(my_logger)
+      ! Check if mixed CDFT calculation is requested and initialize
+      CALL section_vals_val_get(mixed_section, "MIXING_TYPE", i_val=mixing_type)
+      IF (mixing_type == mix_linear_combination .AND. &
+          .NOT. ASSOCIATED(force_env%mixed_env%cdft_control)) THEN
+         CALL section_vals_val_get(mixed_section, "LINEAR%MIXED_CDFT", l_val=do_mixed_cdft)
+         force_env%mixed_env%do_mixed_cdft = do_mixed_cdft
+         IF (force_env%mixed_env%do_mixed_cdft) THEN
+            ! Enforce some limitations
+            CPASSERT(force_env%mixed_env%ngroups == 2)
+            CPASSERT(nforce_eval == 2)
+            CALL section_vals_get(mapping_section, explicit=explicit)
+            ! The sub_force_envs must share the same geometrical structure
+            CPASSERT(.NOT. explicit)
+            CALL section_vals_val_get(mixed_section, "LINEAR%MIXED_CDFT_COUPLING", i_val=et_freq)
+            IF (et_freq .LT. 0) THEN
+               force_env%mixed_env%do_mixed_et = .FALSE.
+            ELSE
+               force_env%mixed_env%do_mixed_et = .TRUE.
+               IF (et_freq == 0) THEN
+                  force_env%mixed_env%et_freq = 1
+               ELSE
+                  force_env%mixed_env%et_freq = et_freq
+               END IF
+            END IF
+            CALL mixed_cdft_init(force_env, calculate_forces)
+         END IF
+      END IF
+      IF (.NOT. force_env%mixed_env%do_mixed_cdft) THEN
+         DO iforce_eval = 1, nforce_eval
+            NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
+            NULLIFY (results(iforce_eval)%results, virials(iforce_eval)%virial)
+            CALL virial_create(virials(iforce_eval)%virial)
+            CALL cp_result_create(results(iforce_eval)%results)
+            IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+            ! From this point on the error is the sub_error
+            my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
+            my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
+            ! Copy iterations info (they are updated only in the main mixed_env)
+            CALL cp_iteration_info_copy_iter(logger%iter_info, my_logger%iter_info)
+            CALL cp_add_default_logger(my_logger)
 
-         ! Get all available subsys
-         CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env, &
-                            subsys=subsystems(iforce_eval)%subsys)
+            ! Get all available subsys
+            CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env, &
+                               subsys=subsystems(iforce_eval)%subsys)
 
-         ! all force_env share the same cell
-         CALL cp_subsys_set(subsystems(iforce_eval)%subsys, cell=cell_mix)
+            ! all force_env share the same cell
+            CALL cp_subsys_set(subsystems(iforce_eval)%subsys, cell=cell_mix)
 
-         ! Get available particles
-         CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys, &
-                            particles=particles(iforce_eval)%list)
+            ! Get available particles
+            CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys, &
+                               particles=particles(iforce_eval)%list)
 
-         ! Get Mapping index array
-         natom = SIZE(particles(iforce_eval)%list%els)
-         CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
-                                   map_index)
+            ! Get Mapping index array
+            natom = SIZE(particles(iforce_eval)%list%els)
 
-         ! Mapping particles from iforce_eval environment to the mixed env
-         DO iparticle = 1, natom
-            jparticle = map_index(iparticle)
-            particles(iforce_eval)%list%els(iparticle)%r = particles_mix%els(jparticle)%r
+            CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
+                                      map_index)
+
+            ! Mapping particles from iforce_eval environment to the mixed env
+            DO iparticle = 1, natom
+               jparticle = map_index(iparticle)
+               particles(iforce_eval)%list%els(iparticle)%r = particles_mix%els(jparticle)%r
+            END DO
+
+            ! Calculate energy and forces for each sub_force_env
+            CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env, &
+                                             calc_force=calculate_forces, &
+                                             skip_external_control=.TRUE.)
+            ! Only the rank 0 process collect info for each computation
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
+                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+               CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, &
+                                  potential_energy=energy)
+               CALL cp_subsys_get(subsystems(iforce_eval)%subsys, &
+                                  virial=loc_virial, results=loc_results)
+               energies(iforce_eval) = energy
+               glob_natoms(iforce_eval) = natom
+               CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
+               CALL cp_result_copy(loc_results, results(iforce_eval)%results)
+            END IF
+            ! Deallocate map_index array
+            IF (ASSOCIATED(map_index)) THEN
+               DEALLOCATE (map_index)
+            END IF
+            CALL cp_rm_default_logger()
+         END DO
+      ELSE
+         DO iforce_eval = 1, nforce_eval
+            NULLIFY (subsystems(iforce_eval)%subsys, particles(iforce_eval)%list)
+            NULLIFY (results(iforce_eval)%results, virials(iforce_eval)%virial)
+            CALL virial_create(virials(iforce_eval)%virial)
+            CALL cp_result_create(results(iforce_eval)%results)
+            IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+            ! From this point on the error is the sub_error
+            my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
+            my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
+            ! Copy iterations info (they are updated only in the main mixed_env)
+            CALL cp_iteration_info_copy_iter(logger%iter_info, my_logger%iter_info)
+
+            ! Get all available subsys
+            CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env, &
+                               subsys=subsystems(iforce_eval)%subsys)
+
+            ! all force_env share the same cell
+            CALL cp_subsys_set(subsystems(iforce_eval)%subsys, cell=cell_mix)
+
+            ! Get available particles
+            CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys, &
+                               particles=particles(iforce_eval)%list)
+
+            ! Get Mapping index array
+            natom = SIZE(particles(iforce_eval)%list%els)
+
+            CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
+                                      map_index)
+
+            ! Mapping particles from iforce_eval environment to the mixed env
+            DO iparticle = 1, natom
+               jparticle = map_index(iparticle)
+               particles(iforce_eval)%list%els(iparticle)%r = particles_mix%els(jparticle)%r
+            END DO
+            ! Mixed CDFT + QMMM: Need to translate now
+            IF (force_env%mixed_env%do_mixed_qmmm_cdft) &
+               CALL apply_qmmm_translate(force_env%sub_force_env(iforce_eval)%force_env%qmmm_env)
          END DO
 
-         ! Calculate energy and forces for each sub_force_env
-         CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env, &
-                                          calc_force=calculate_forces, &
-                                          skip_external_control=.TRUE.)
-         ! Only the rank 0 process collect info for each computation
-         IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
-             force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
-            CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, &
-                               potential_energy=energy)
-            CALL cp_subsys_get(subsystems(iforce_eval)%subsys, &
-                               virial=loc_virial, results=loc_results)
-            energies(iforce_eval) = energy
-            glob_natoms(iforce_eval) = natom
-            CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
-            CALL cp_result_copy(loc_results, results(iforce_eval)%results)
+         ! For mixed CDFT, build weight and gradient on all processors before splitting into groups and
+         ! starting energy calculation
+         IF (force_env%mixed_env%do_mixed_cdft) THEN
+            CALL mixed_cdft_build_weight(force_env, calculate_forces)
          END IF
-         ! Deallocate map_index array
-         IF (ASSOCIATED(map_index)) THEN
-            DEALLOCATE (map_index)
-         END IF
-         CALL cp_rm_default_logger()
-      END DO
-
+         DO iforce_eval = 1, nforce_eval
+            IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+            CALL cp_add_default_logger(my_logger)
+            ! Calculate energy and forces for each sub_force_env
+            CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env, &
+                                             calc_force=calculate_forces, &
+                                             skip_external_control=.TRUE.)
+            ! Only the rank 0 process collect info for each computation
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
+                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
+               CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, &
+                                  potential_energy=energy)
+               CALL cp_subsys_get(subsystems(iforce_eval)%subsys, &
+                                  virial=loc_virial, results=loc_results)
+               energies(iforce_eval) = energy
+               glob_natoms(iforce_eval) = natom
+               CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
+               CALL cp_result_copy(loc_results, results(iforce_eval)%results)
+            END IF
+            ! Deallocate map_index array
+            IF (ASSOCIATED(map_index)) THEN
+               DEALLOCATE (map_index)
+            END IF
+            CALL cp_rm_default_logger()
+         END DO
+      END IF
       ! Handling Parallel execution
       CALL mp_sync(force_env%para_env%group)
+      ! Transfer cdft strengths for writing restart
+      IF (force_env%mixed_env%do_mixed_cdft) THEN
+         IF (.NOT. ASSOCIATED(force_env%mixed_env%strength)) &
+            ALLOCATE (force_env%mixed_env%strength(2))
+         force_env%mixed_env%strength = 0.0_dp
+         DO iforce_eval = 1, nforce_eval
+            IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
+            IF (force_env%mixed_env%do_mixed_qmmm_cdft) THEN
+               qs_env => force_env%sub_force_env(iforce_eval)%force_env%qmmm_env%qs_env
+            ELSE
+               CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env, qs_env=qs_env)
+            END IF
+            CALL get_qs_env(qs_env, dft_control=dft_control)
+            IF (force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos == &
+                force_env%sub_force_env(iforce_eval)%force_env%para_env%source) &
+               force_env%mixed_env%strength(iforce_eval) = dft_control%qs_control%cdft_control%strength(1)
+         END DO
+         CALL mp_sum(force_env%mixed_env%strength, force_env%para_env%group)
+      END IF
+      ! Mixed CDFT: calculate ET coupling
+      IF (force_env%mixed_env%do_mixed_et) THEN
+         IF (MODULO(force_env%mixed_env%cdft_control%sim_step, force_env%mixed_env%et_freq) == 0) &
+            CALL mixed_cdft_calculate_coupling(force_env)
+      END IF
       ! Let's transfer energy, natom, forces, virials
       CALL mp_sum(energies, force_env%para_env%group)
       CALL mp_sum(glob_natoms, force_env%para_env%group)

@@ -8,10 +8,10 @@
 ! **************************************************************************************************
 MODULE cp_control_utils
    USE bibliography,                    ONLY: &
-        Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Hu2007, Krack2000, &
-        Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-        Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, VandeVondele2005a, &
-        VandeVondele2005b, Zhechkov2005, cite_reference
+        Andreussi2012, Becke1988b, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, Holmberg2017, &
+        Hu2007, Krack2000, Lippert1997, Lippert1999, Porezag1995, Repasky2002, Rocha2006, &
+        Schenter2008, Seifert1996, Souza2002, Stengel2009, Stewart1989, Stewart2007, Thiel1992, &
+        Umari2002, VandeVondele2005a, VandeVondele2005b, Zhechkov2005, cite_reference
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, qs_control_type, sccs_control_create, &
@@ -24,21 +24,28 @@ MODULE cp_control_utils
                                               cp_print_key_unit_nr
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
+   USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
+                                              set_hirshfeld_info
    USE input_constants,                 ONLY: &
-        constant_env, custom_env, do_admm_basis_projection, do_admm_blocked_projection, &
-        do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
-        do_admm_exch_scaling_merlot, do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
-        do_admm_purify_mo_no_diag, do_admm_purify_none, do_admm_purify_none_dm, &
-        do_ddapc_constraint, do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
-        do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-        do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-        do_method_rm1, do_method_scptb, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
-        do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
-        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
-        gaussian_env, numerical, ramp_env, real_time_propagation, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_excitations, use_mom_ref_user, xas_dip_len
+        becke_cavity_conf, becke_cutoff_element, becke_cutoff_global, becke_dynamic_conf, &
+        becke_mixed_conf, becke_none_conf, becke_static_conf, cdft_combined_constraint, &
+        cdft_density_constraint, cdft_magnetization_constraint, constant_env, custom_env, &
+        do_admm_basis_projection, do_admm_blocked_projection, do_admm_blocking_purify_full, &
+        do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
+        do_admm_purify_mcweeny, do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+        do_admm_purify_none, do_admm_purify_none_dm, do_ddapc_constraint, do_ddapc_restraint, &
+        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
+        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
+        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
+        do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, &
+        do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, gaussian_env, numerical, &
+        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_none, radius_covalent, radius_user, ramp_env, real_time_propagation, &
+        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+        sccs_derivative_fft, sccs_fattebert_gygi, shape_function_gaussian, sic_ad, sic_eo, &
+        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        tddfpt_excitations, use_mom_ref_user, xas_dip_len
    USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                               create_qs_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -557,14 +564,16 @@ CONTAINS
       TYPE(enumeration_type), POINTER                    :: enum
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
-      TYPE(section_vals_type), POINTER :: becke_restraint_section, ddapc_restraint_section, &
-         dftb_parameter, dftb_section, lri_optbas_section, mull_section, s2_restraint_section, &
-         scptb_section, se_section
+      TYPE(section_vals_type), POINTER :: becke_restraint_section, cdft_control_section, &
+         ddapc_restraint_section, dftb_parameter, dftb_section, lri_optbas_section, mull_section, &
+         s2_restraint_section, scptb_section, se_section
 
       CALL timeset(routineN, handle)
 
       was_present = .FALSE.
-      NULLIFY (mull_section, se_section, dftb_section, scptb_section, lri_optbas_section)
+      NULLIFY (mull_section, ddapc_restraint_section, s2_restraint_section, becke_restraint_section, &
+               se_section, dftb_section, dftb_parameter, scptb_section, lri_optbas_section, &
+               cdft_control_section)
 
       mull_section => section_vals_get_subs_vals(qs_section, "MULLIKEN_RESTRAINT")
       ddapc_restraint_section => section_vals_get_subs_vals(qs_section, "DDAPC_RESTRAINT")
@@ -575,6 +584,7 @@ CONTAINS
       dftb_parameter => section_vals_get_subs_vals(dftb_section, "PARAMETER")
       scptb_section => section_vals_get_subs_vals(qs_section, "SCPTB")
       lri_optbas_section => section_vals_get_subs_vals(qs_section, "OPTIMIZE_LRI_BASIS")
+      cdft_control_section => section_vals_get_subs_vals(qs_section, "CDFT")
 
       ! Setup all defaults values and overwrite input parameters
       ! EPS_DEFAULT should set the target accuracy in the total energy (~per electron) or a closely related value
@@ -807,6 +817,11 @@ CONTAINS
 
       IF (qs_control%becke_restraint) THEN
          CALL read_becke_section(qs_control, becke_restraint_section)
+      ENDIF
+
+      CALL section_vals_get(cdft_control_section, explicit=qs_control%cdft)
+      IF (qs_control%cdft) THEN
+         CALL read_cdft_control_section(qs_control, cdft_control_section)
       ENDIF
 
       ! Semi-empirical code
@@ -1697,8 +1712,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief reads the input parameters needed for evaluating a becke weight population constraint
-!> \param qs_control ...
-!> \param becke_section ...
+!> \param qs_control the qs_control which holds the Becke control type
+!> \param becke_section the input section containing Becke constraint information
 !> \author fschiff
 ! **************************************************************************************************
    SUBROUTINE read_becke_section(qs_control, becke_section)
@@ -1709,16 +1724,97 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'read_becke_section', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: j, jj, k, n_rep
+      INTEGER                                            :: j, jj, k, n_rep, nvar
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
+      LOGICAL                                            :: exists
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
 
-      CALL section_vals_val_get(becke_section, "STRENGTH", &
-                                r_val=qs_control%becke_control%strength)
-      CALL section_vals_val_get(becke_section, "TARGET", &
-                                r_val=qs_control%becke_control%target)
-      CALL section_vals_val_get(becke_section, "TYPE_OF_DENSITY", &
-                                i_val=qs_control%becke_control%density_type)
+      NULLIFY (tmplist, rtmplist)
+      CALL section_vals_val_get(becke_section, "CONSTRAINT_TYPE", &
+                                i_val=qs_control%becke_control%constraint_type)
+
+      SELECT CASE (qs_control%becke_control%constraint_type)
+      CASE (cdft_density_constraint, cdft_magnetization_constraint)
+         nvar = 1
+      CASE (cdft_combined_constraint)
+         nvar = 2
+         CALL section_vals_val_get(becke_section, "COMBINED_TYPE", &
+                                   i_val=qs_control%becke_control%combined_type)
+      END SELECT
+
+      ALLOCATE (qs_control%becke_control%strength(nvar))
+      ALLOCATE (qs_control%becke_control%becke_order_p(nvar))
+      ALLOCATE (qs_control%becke_control%target(nvar))
+      CALL section_vals_val_get(becke_section, "STRENGTH", r_vals=rtmplist)
+      DO j = 1, nvar
+         qs_control%becke_control%strength(j) = rtmplist(j)
+      END DO
+      CALL section_vals_val_get(becke_section, "TARGET", r_vals=rtmplist)
+      DO j = 1, nvar
+         qs_control%becke_control%target(j) = rtmplist(j)
+      END DO
+
+      CALL section_vals_val_get(becke_section, "ADJUST_SIZE", &
+                                l_val=qs_control%becke_control%adjust)
+
+      IF (qs_control%becke_control%adjust) THEN
+         CALL section_vals_val_get(becke_section, "ATOMIC_RADII", explicit=exists)
+         IF (.NOT. exists) CPABORT("Keyword ATOMIC_RADII is missing.")
+         CALL section_vals_val_get(becke_section, "ATOMIC_RADII", r_vals=rtmplist)
+         CPASSERT(SIZE(rtmplist) > 0)
+         ALLOCATE (qs_control%becke_control%radii_tmp(SIZE(rtmplist)))
+         DO j = 1, SIZE(rtmplist)
+            qs_control%becke_control%radii_tmp(j) = rtmplist(j)
+         END DO
+      END IF
+
+      CALL section_vals_val_get(becke_section, "ATOMIC_CHARGES", &
+                                l_val=qs_control%becke_control%atomic_charges)
+      CALL section_vals_val_get(becke_section, "SHOULD_SKIP", &
+                                l_val=qs_control%becke_control%should_skip)
+      CALL section_vals_val_get(becke_section, "CONFINE", &
+                                i_val=qs_control%becke_control%confine_method)
+      CALL section_vals_val_get(becke_section, "CUTOFF_TYPE", &
+                                i_val=qs_control%becke_control%cutoff_type)
+
+      SELECT CASE (qs_control%becke_control%cutoff_type)
+      CASE (becke_cutoff_global)
+         CALL section_vals_val_get(becke_section, "GLOBAL_CUTOFF", &
+                                   r_val=qs_control%becke_control%rglobal)
+      CASE (becke_cutoff_element)
+         CALL section_vals_val_get(becke_section, "ELEMENT_CUTOFF", r_vals=rtmplist)
+         CPASSERT(SIZE(rtmplist) > 0)
+         ALLOCATE (qs_control%becke_control%cutoffs_tmp(SIZE(rtmplist)))
+         DO j = 1, SIZE(rtmplist)
+            qs_control%becke_control%cutoffs_tmp(j) = rtmplist(j)
+         END DO
+      END SELECT
+
+      SELECT CASE (qs_control%becke_control%confine_method)
+      CASE (becke_none_conf)
+         qs_control%becke_control%confine = .FALSE.
+         qs_control%becke_control%dynamic_confine = .FALSE.
+         qs_control%becke_control%cavity_confine = .FALSE.
+      CASE (becke_static_conf)
+         qs_control%becke_control%confine = .TRUE.
+         qs_control%becke_control%dynamic_confine = .FALSE.
+         qs_control%becke_control%cavity_confine = .FALSE.
+      CASE (becke_dynamic_conf)
+         qs_control%becke_control%confine = .FALSE.
+         qs_control%becke_control%dynamic_confine = .TRUE.
+         qs_control%becke_control%cavity_confine = .FALSE.
+      CASE (becke_cavity_conf)
+         qs_control%becke_control%confine = .FALSE.
+         qs_control%becke_control%dynamic_confine = .FALSE.
+         qs_control%becke_control%cavity_confine = .TRUE.
+      CASE (becke_mixed_conf)
+         qs_control%becke_control%confine = .FALSE.
+         qs_control%becke_control%dynamic_confine = .TRUE.
+         qs_control%becke_control%cavity_confine = .TRUE.
+      END SELECT
+
+      CALL section_vals_val_get(becke_section, "IN_MEMORY", &
+                                l_val=qs_control%becke_control%in_memory)
       CALL section_vals_val_get(becke_section, "ATOMS", &
                                 n_rep_val=n_rep)
       jj = 0
@@ -1728,7 +1824,8 @@ CONTAINS
             jj = jj+1
          END DO
       END DO
-      IF (jj < 1) CPABORT("Need at least 1 atom to use ddapc contraints.")
+      IF (jj < 1) CPABORT("Need at least 1 atom to use Becke constraints.")
+
       qs_control%becke_control%natoms = jj
       IF (ASSOCIATED(qs_control%becke_control%atoms)) DEALLOCATE (qs_control%becke_control%atoms)
       ALLOCATE (qs_control%becke_control%atoms(qs_control%becke_control%natoms))
@@ -1746,8 +1843,52 @@ CONTAINS
       ALLOCATE (qs_control%becke_control%coeff(qs_control%becke_control%natoms))
       qs_control%becke_control%coeff = 1.0_dp
 
-      CALL section_vals_val_get(becke_section, "COEFF", &
-                                n_rep_val=n_rep)
+      IF (qs_control%becke_control%atomic_charges) THEN
+         IF (ASSOCIATED(qs_control%becke_control%charge)) &
+            DEALLOCATE (qs_control%becke_control%charge)
+         ALLOCATE (qs_control%becke_control%charge(qs_control%becke_control%natoms))
+      END IF
+
+      IF (qs_control%becke_control%confine) THEN
+         CALL section_vals_val_get(becke_section, "CONFINE_DIR", &
+                                   i_val=qs_control%becke_control%confine_dir)
+         jj = 0
+         CALL section_vals_val_get(becke_section, "CONFINE_BOUNDS", r_vals=rtmplist)
+         DO j = 1, SIZE(rtmplist)
+            jj = jj+1
+            IF (jj .GT. 2) CPABORT("Need exactly two values to define confinement.")
+            qs_control%becke_control%confine_bounds(jj) = rtmplist(j)
+         END DO
+         IF (jj .LT. 2) CPABORT("Need exactly two values to define confinement.")
+      END IF
+
+      IF (qs_control%becke_control%dynamic_confine) THEN
+         CALL section_vals_val_get(becke_section, "CONFINE_DIR", &
+                                   i_val=qs_control%becke_control%confine_dir)
+         jj = 0
+         CALL section_vals_val_get(becke_section, "DYNAMIC_RADIUS", &
+                                   r_val=qs_control%becke_control%dynamic_radius)
+      END IF
+
+      IF (qs_control%becke_control%cavity_confine) THEN
+         CALL section_vals_val_get(becke_section, "CAVITY_SHAPE", &
+                                   i_val=qs_control%becke_control%cavity_shape)
+         CALL section_vals_val_get(becke_section, "CAVITY_RADIUS", &
+                                   r_val=qs_control%becke_control%rcavity)
+         CALL section_vals_val_get(becke_section, "EPS_CAVITY", &
+                                   r_val=qs_control%becke_control%eps_cavity)
+         CALL section_vals_val_get(becke_section, "CAVITY_PRINT", &
+                                   l_val=qs_control%becke_control%print_cavity)
+         CALL section_vals_val_get(becke_section, "CAVITY_USE_BOHR", &
+                                   l_val=qs_control%becke_control%use_bohr)
+         CALL create_hirshfeld_type(qs_control%becke_control%cavity_env)
+         CALL set_hirshfeld_info(qs_control%becke_control%cavity_env, &
+                                 shape_function_type=shape_function_gaussian, iterative=.FALSE., &
+                                 radius_type=qs_control%becke_control%cavity_shape, &
+                                 use_bohr=qs_control%becke_control%use_bohr)
+      END IF
+
+      CALL section_vals_val_get(becke_section, "COEFF", n_rep_val=n_rep)
       jj = 0
       DO k = 1, n_rep
          CALL section_vals_val_get(becke_section, "COEFF", i_rep_val=k, r_vals=rtmplist)
@@ -1760,7 +1901,221 @@ CONTAINS
       END DO
       IF (jj < qs_control%becke_control%natoms .AND. jj .NE. 0) &
          CPABORT("Need no or the same number of coeff as there are atoms.")
+
+      IF (qs_control%becke_control%confine) THEN
+         IF (qs_control%becke_control%confine_bounds(1) /= qs_control%becke_control%confine_bounds(2)) &
+            CPABORT("Static confinement was requested but the bounds were not defined.")
+      END IF
+
+      CALL section_vals_val_get(becke_section, "FRAGMENT_DENSITIES", &
+                                l_val=qs_control%becke_control%fragment_density)
+
+      IF (qs_control%becke_control%fragment_density) THEN
+         CALL section_vals_val_get(becke_section, "FRAGMENT_A_FILE_NAME", &
+                                   c_val=qs_control%becke_control%fragment_a_fname)
+         CALL section_vals_val_get(becke_section, "FRAGMENT_B_FILE_NAME", &
+                                   c_val=qs_control%becke_control%fragment_b_fname)
+      END IF
+
+      CALL cite_reference(Becke1988b)
+
    END SUBROUTINE read_becke_section
+
+! **************************************************************************************************
+!> \brief reads the input parameters needed for CDFT with OT
+!> \param qs_control the qs_control which holds the CDFT control type
+!> \param cdft_control_section the input section for CDFT
+!> \author Nico Holmberg [12.2015]
+! **************************************************************************************************
+   SUBROUTINE read_cdft_control_section(qs_control, cdft_control_section)
+      TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
+      TYPE(section_vals_type), POINTER                   :: cdft_control_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_cdft_control_section', &
+         routineP = moduleN//':'//routineN
+
+      LOGICAL                                            :: exists
+      TYPE(section_vals_type), POINTER                   :: hirshfeld_constraint_section, &
+                                                            outer_scf_section
+
+      NULLIFY (outer_scf_section, hirshfeld_constraint_section)
+      CALL section_vals_val_get(cdft_control_section, "TYPE_OF_CONSTRAINT", &
+                                i_val=qs_control%cdft_control%type)
+      IF (qs_control%cdft_control%type /= outer_scf_none) THEN
+         CALL section_vals_val_get(cdft_control_section, "REUSE_PRECOND", &
+                                   l_val=qs_control%cdft_control%reuse_precond)
+         CALL section_vals_val_get(cdft_control_section, "PRECOND_FREQ", &
+                                   i_val=qs_control%cdft_control%precond_freq)
+         CALL section_vals_val_get(cdft_control_section, "MAX_REUSE", &
+                                   i_val=qs_control%cdft_control%max_reuse)
+         CALL section_vals_val_get(cdft_control_section, "PURGE_HISTORY", &
+                                   l_val=qs_control%cdft_control%purge_history)
+         CALL section_vals_val_get(cdft_control_section, "PURGE_FREQ", &
+                                   i_val=qs_control%cdft_control%purge_freq)
+         CALL section_vals_val_get(cdft_control_section, "PURGE_OFFSET", &
+                                   i_val=qs_control%cdft_control%purge_offset)
+         outer_scf_section => section_vals_get_subs_vals(cdft_control_section, "OUTER_SCF")
+         CALL section_vals_val_get(outer_scf_section, "_SECTION_PARAMETERS_", &
+                                   l_val=qs_control%cdft_control%constraint_control%have_scf)
+         IF (qs_control%cdft_control%constraint_control%have_scf) THEN
+            CALL section_vals_val_get(outer_scf_section, "TYPE", &
+                                      i_val=qs_control%cdft_control%constraint_control%type)
+
+            IF (qs_control%cdft_control%constraint_control%type /= outer_scf_becke_constraint .AND. &
+                qs_control%cdft_control%constraint_control%type /= outer_scf_cdft_constraint) &
+               CPABORT("Unsupported CDFT constraint.")
+
+            CALL section_vals_val_get(outer_scf_section, "EPS_SCF", &
+                                      r_val=qs_control%cdft_control%constraint_control%eps_scf)
+            CALL section_vals_val_get(outer_scf_section, "STEP_SIZE", &
+                                      r_val=qs_control%cdft_control%constraint_control%step_size)
+            CALL section_vals_val_get(outer_scf_section, "DIIS_BUFFER_LENGTH", &
+                                      i_val=qs_control%cdft_control%constraint_control%diis_buffer_length)
+            CALL section_vals_val_get(outer_scf_section, "BISECT_TRUST_COUNT", &
+                                      i_val=qs_control%cdft_control%constraint_control%bisect_trust_count)
+            CALL section_vals_val_get(outer_scf_section, "OPTIMIZER", &
+                                      i_val=qs_control%cdft_control%constraint_control%optimizer)
+            CALL section_vals_val_get(outer_scf_section, "MAX_SCF", &
+                                      i_val=qs_control%cdft_control%constraint_control%max_scf)
+            CALL section_vals_val_get(outer_scf_section, "EXTRAPOLATION_ORDER", &
+                                      i_val=qs_control%cdft_control%constraint_control%extrapolation_order)
+            CALL section_vals_val_get(outer_scf_section, "JACOBIAN_TYPE", &
+                                      i_val=qs_control%cdft_control%constraint_control%jacobian_type)
+            CALL section_vals_val_get(outer_scf_section, "JACOBIAN_STEP", &
+                                      r_val=qs_control%cdft_control%constraint_control%jacobian_step)
+            SELECT CASE (qs_control%cdft_control%type)
+            CASE (outer_scf_hirshfeld_constraint)
+               IF (qs_control%cdft_control%constraint_control%type == outer_scf_cdft_constraint) THEN
+                  hirshfeld_constraint_section => section_vals_get_subs_vals(cdft_control_section, "HIRSHFELD_CONSTRAINT")
+                  CALL section_vals_get(hirshfeld_constraint_section, explicit=exists)
+                  IF (exists) THEN
+                     CALL read_hirshfeld_constraint_section(qs_control, hirshfeld_constraint_section)
+                     qs_control%cdft_control%constraint_type = qs_control%cdft_control%hirshfeld_control%constraint_type
+                     qs_control%cdft_control%combined_type = qs_control%cdft_control%hirshfeld_control%combined_type
+                  ELSE
+                     CPABORT("HIRSHFELD_CONSTRAINT section is missing.")
+                  END IF
+               ELSE
+                  CPABORT("Mismatch in defining constraint.")
+               END IF
+            CASE (outer_scf_becke_constraint)
+               ! Do nothing, yet. For now, constraint is defined QS%BECKE_RESTRAINT
+            END SELECT
+
+            CALL cite_reference(Holmberg2017)
+         ELSE
+            qs_control%cdft = .FALSE.
+         END IF
+      ELSE
+         qs_control%cdft = .FALSE.
+      END IF
+
+   END SUBROUTINE read_cdft_control_section
+
+! **************************************************************************************************
+!> \brief reads the input parameters needed for Hirshfeld constraint
+!> \param qs_control the qs_control which holds the Hirshfeld constraint
+!> \param hirshfeld_constraint_section the input section for a Hirshfeld constraint
+!> \author Nico Holmberg [12.2015]
+! **************************************************************************************************
+   SUBROUTINE read_hirshfeld_constraint_section(qs_control, hirshfeld_constraint_section)
+      TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
+      TYPE(section_vals_type), POINTER                   :: hirshfeld_constraint_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_hirshfeld_constraint_section', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: j, jj, k, n_rep, nvar, radius_type, &
+                                                            refc, shapef
+      INTEGER, DIMENSION(:), POINTER                     :: tmplist
+      LOGICAL                                            :: do_radius, do_sc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rtmplist
+
+      NULLIFY (tmplist, rtmplist)
+      CPASSERT(.NOT. ASSOCIATED(qs_control%cdft_control%hirshfeld_control))
+      ALLOCATE (qs_control%cdft_control%hirshfeld_control)
+
+      CALL section_vals_val_get(hirshfeld_constraint_section, "ATOMS", n_rep_val=n_rep)
+      jj = 0
+      DO k = 1, n_rep
+         CALL section_vals_val_get(hirshfeld_constraint_section, "ATOMS", i_rep_val=k, i_vals=tmplist)
+         DO j = 1, SIZE(tmplist)
+            jj = jj+1
+         END DO
+      END DO
+      IF (jj < 1) CPABORT("Need at least 1 atom to use Hirshfeld constraints.")
+      qs_control%cdft_control%hirshfeld_control%natoms = jj
+      ALLOCATE (qs_control%cdft_control%hirshfeld_control%atoms( &
+                qs_control%cdft_control%hirshfeld_control%natoms))
+      jj = 0
+      DO k = 1, n_rep
+         CALL section_vals_val_get(hirshfeld_constraint_section, "ATOMS", i_rep_val=k, i_vals=tmplist)
+         DO j = 1, SIZE(tmplist)
+            jj = jj+1
+            qs_control%cdft_control%hirshfeld_control%atoms(jj) = tmplist(j)
+         END DO
+      END DO
+
+      ALLOCATE (qs_control%cdft_control%hirshfeld_control%coeff(qs_control%cdft_control%hirshfeld_control%natoms))
+      qs_control%cdft_control%hirshfeld_control%coeff = 1.0_dp
+
+      CALL section_vals_val_get(hirshfeld_constraint_section, "COEFF", n_rep_val=n_rep)
+      jj = 0
+      DO k = 1, n_rep
+         CALL section_vals_val_get(hirshfeld_constraint_section, "COEFF", i_rep_val=k, r_vals=rtmplist)
+         DO j = 1, SIZE(rtmplist)
+            jj = jj+1
+            IF (jj > qs_control%cdft_control%hirshfeld_control%natoms) &
+               CPABORT("Need the same number of coeff as there are atoms.")
+            qs_control%cdft_control%hirshfeld_control%coeff(jj) = rtmplist(j)
+            IF (ABS(rtmplist(j)) /= 1.0_dp) &
+               CPABORT("Illegal coefficient. Only -1.0 or 1.0 allowed.")
+         END DO
+      END DO
+      IF (jj < qs_control%cdft_control%hirshfeld_control%natoms .AND. jj .NE. 0) &
+         CPABORT("Need no or the same number of coeff as there are atoms.")
+
+      CALL section_vals_val_get(hirshfeld_constraint_section, "CONSTRAINT_TYPE", &
+                                i_val=qs_control%cdft_control%hirshfeld_control%constraint_type)
+      SELECT CASE (qs_control%cdft_control%hirshfeld_control%constraint_type)
+      CASE (cdft_density_constraint, cdft_magnetization_constraint)
+         nvar = 1
+      CASE (cdft_combined_constraint)
+         nvar = 1
+         CALL section_vals_val_get(hirshfeld_constraint_section, "COMBINED_TYPE", &
+                                   i_val=qs_control%cdft_control%hirshfeld_control%constraint_type)
+      END SELECT
+
+      IF (qs_control%cdft_control%hirshfeld_control%constraint_type /= cdft_density_constraint) &
+         CPABORT("Hirshfeld magnetization density/combined constraint NYI.")
+
+      ALLOCATE (qs_control%cdft_control%target(nvar))
+      ALLOCATE (qs_control%cdft_control%strength(nvar))
+      ALLOCATE (qs_control%cdft_control%value(nvar))
+      CALL section_vals_val_get(hirshfeld_constraint_section, "STRENGTH", r_vals=rtmplist)
+      DO j = 1, nvar
+         qs_control%cdft_control%strength(j) = rtmplist(j)
+      END DO
+      CALL section_vals_val_get(hirshfeld_constraint_section, "TARGET", r_vals=rtmplist)
+      DO j = 1, nvar
+         qs_control%cdft_control%target(j) = rtmplist(j)
+      END DO
+
+      NULLIFY (qs_control%cdft_control%hirshfeld_control%hirshfeld_env)
+      CALL create_hirshfeld_type(qs_control%cdft_control%hirshfeld_control%hirshfeld_env)
+      CALL section_vals_val_get(hirshfeld_constraint_section, "SELF_CONSISTENT", l_val=do_sc)
+      CALL section_vals_val_get(hirshfeld_constraint_section, "USER_RADIUS", l_val=do_radius)
+      CALL section_vals_val_get(hirshfeld_constraint_section, "SHAPE_FUNCTION", i_val=shapef)
+      CALL section_vals_val_get(hirshfeld_constraint_section, "REFERENCE_CHARGE", i_val=refc)
+      IF (do_radius) THEN
+         radius_type = radius_user
+      ELSE
+         radius_type = radius_covalent
+      END IF
+      CALL set_hirshfeld_info(qs_control%cdft_control%hirshfeld_control%hirshfeld_env, &
+                              shape_function_type=shapef, iterative=do_sc, ref_charge=refc, radius_type=radius_type)
+
+   END SUBROUTINE read_hirshfeld_constraint_section
 
 ! **************************************************************************************************
 !> \brief ...

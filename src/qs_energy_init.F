@@ -19,7 +19,8 @@ MODULE qs_energy_init
                                               dbcsr_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
-                                              kg_tnadd_embed
+                                              kg_tnadd_embed,&
+                                              outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_type
    USE kg_environment,                  ONLY: kg_build_neighborlist,&
                                               kg_build_subsets
@@ -251,7 +252,12 @@ CONTAINS
          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control)
       ENDIF
 
-      dft_control%qs_control%becke_control%need_pot = .TRUE.
+      IF (.NOT. dft_control%qs_control%becke_control%external_control) &
+         dft_control%qs_control%becke_control%need_pot = .TRUE.
+      IF (dft_control%qs_control%cdft) THEN
+         IF (dft_control%qs_control%cdft_control%type == outer_scf_hirshfeld_constraint) &
+            dft_control%qs_control%cdft_control%need_pot = .TRUE.
+      END IF
 
       ! Calculate the overlap and the core Hamiltonian integral matrix
       IF (dft_control%qs_control%semi_empirical) THEN

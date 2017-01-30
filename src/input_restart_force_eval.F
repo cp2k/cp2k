@@ -92,9 +92,9 @@ CONTAINS
       LOGICAL                                            :: multiple_subsys, skip_vel_section
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
-      TYPE(section_vals_type), POINTER                   :: cell_section, force_env_sections, &
-                                                            qmmm_section, rng_section, &
-                                                            subsys_section
+      TYPE(section_vals_type), POINTER                   :: cell_section, dft_section, &
+                                                            force_env_sections, qmmm_section, &
+                                                            rng_section, subsys_section
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (rng_section, subsys_section, cell_section, virial, subsys, cell)
@@ -149,6 +149,17 @@ CONTAINS
                cell_section => section_vals_get_subs_vals(subsys_section, "CELL")
                CALL update_cell_section(cell, cell_section)
             END DO
+         END IF
+         ! With mixed CDFT, update value of constraint Lagrangian
+         IF (ASSOCIATED(force_env%mixed_env)) THEN
+            IF (force_env%mixed_env%do_mixed_cdft) THEN
+               DO iforce_eval = 2, nforce_eval
+                  dft_section => section_vals_get_subs_vals3(force_env_sections, "DFT", &
+                                                             i_rep_section=i_force_eval(iforce_eval))
+                  CALL section_vals_val_set(dft_section, "QS%BECKE_RESTRAINT%STRENGTH", &
+                                            r_val=force_env%mixed_env%strength(iforce_eval-1))
+               END DO
+            END IF
          END IF
       END IF
 

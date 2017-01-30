@@ -17,7 +17,9 @@
         TARGET     0.2000
         ATOMS      1 2
         COEFF      1 -1
-        FUNCTIONAL_FORM CONSTRAINT
+        CUTOFF_TYPE     GLOBAL
+        ! 6.0 bohr
+        GLOBAL_CUTOFF   3.1750632515399997
       &END
     &END QS
     &SCF
