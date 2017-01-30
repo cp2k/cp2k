@@ -1789,6 +1789,9 @@ CONTAINS
 #if defined(__parallel)
       CALL mpi_test(request, flag, MPI_STATUS_IGNORE, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_test @ mp_test_1")
+#else
+      MARK_USED(request)
+      flag = .TRUE.
 #endif
    END SUBROUTINE mp_test_1
 
