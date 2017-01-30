@@ -224,8 +224,8 @@ CONTAINS
       CALL keyword_create(keyword, name="PARAMETER_SET", &
                           description="Which version of the parameters should be used", &
                           usage="PARAMETER_SET 407", &
-                          enum_c_vals=(/"93 ", "120", "147", "407"/), &
-                          enum_i_vals=(/93, 120, 147, 407/), &
+                          enum_c_vals=(/"93 ", "120", "147", "407", "HLE"/), &
+                          enum_i_vals=(/93, 120, 147, 407, 408/), &
                           default_i_val=120)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

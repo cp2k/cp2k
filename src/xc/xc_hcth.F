@@ -82,6 +82,14 @@ CONTAINS
          IF (PRESENT(shortform)) THEN
             shortform = "HCTH/407 xc energy functional (LDA)"
          END IF
+      CASE (408)
+         IF (PRESENT(reference)) THEN
+            reference = "P. Verma and D. G. Truhlar, J. Phys. Chem. Lett. 8, 380 (2016);"// &
+                        "HLE16 xc functional {LDA version}"
+         END IF
+         IF (PRESENT(shortform)) THEN
+            shortform = "HLE16 xc energy functional (LDA)"
+         END IF
       CASE default
          CPABORT("Invalid HCTH parameter set requested ("//cp_to_string(iparset)//")")
       END SELECT
@@ -269,6 +277,24 @@ CONTAINS
          cxss(4) = 0.228855E+01_dp
          ccss(4) = 0.624798E+01_dp
          ccab(4) = -0.420052E+02_dp
+!           DMB all-in-one HLE16 and applying 5/4 scaling
+!           to all exchange terms and 1/2 to all correlation terms
+      CASE (408)
+         cxss(0) = 0.108184E+01_dp*1.25_dp
+         ccss(0) = 0.118777E+01_dp*0.5_dp
+         ccab(0) = 0.589076E+00_dp*0.5_dp
+         cxss(1) = -0.518339E+00_dp*1.25_dp
+         ccss(1) = -0.240292E+01_dp*0.5_dp
+         ccab(1) = 0.442374E+01_dp*0.5_dp
+         cxss(2) = 0.342562E+01_dp*1.25_dp
+         ccss(2) = 0.561741E+01_dp*0.5_dp
+         ccab(2) = -0.192218E+02_dp*0.5_dp
+         cxss(3) = -0.262901E+01_dp*1.25_dp
+         ccss(3) = -0.917923E+01_dp*0.5_dp
+         ccab(3) = 0.425721E+02_dp*0.5_dp
+         cxss(4) = 0.228855E+01_dp*1.25_dp
+         ccss(4) = 0.624798E+01_dp*0.5_dp
+         ccab(4) = -0.420052E+02_dp*0.5_dp
       CASE DEFAULT
          CPABORT("Invalid HCTH parameter set requested ("//cp_to_string(iparset)//")")
       END SELECT
