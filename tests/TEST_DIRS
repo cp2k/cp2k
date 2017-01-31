@@ -26,6 +26,8 @@ QS/regtest-pao-2
 QS/regtest-tddfpt-2                                         libint
 QS/regtest-ps-implicit-2-1
 Pimd
+QS/regtest-mom-1
+QS/regtest-mom-2                                            libint
 QS/regtest-mp2-stress                                       libint 
 QS/regtest-hfx                                              libint 
 QS/regtest-admm-qps                                         libint 
@@ -105,6 +107,8 @@ QS/regtest-hybrid-3                                         libint
 QS/regtest-almo-1
 QS/regtest-pexsi                                            pexsi 
 QS/regtest-hfx-stress                                       libint 
+QS/regtest-almo-md
+QS/regtest-almo-eda
 Fist/regtest-6
 ATOM/regtest-1
 SE/regtest
@@ -171,8 +175,6 @@ Fist/regtest-8
 Fist/regtest-10
 QS/regtest-rtp-1
 QS/regtest-nmr-3
-QS/regtest-mom-1
-QS/regtest-mom-2                                            libint
 QMMM/QS/regtest-2-swave
 FE/regtest-1
 TMC/regtest                                                 parallel mpiranks>1 
@@ -207,3 +209,4 @@ QS/regtest-elpa                                             elpa mpiranks==1||mp
 optimize_input/regtest-1
 FE/regtest-2
 Fist/regtest-quip                                           quip 
+
