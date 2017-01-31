@@ -2292,7 +2292,7 @@ CONTAINS
 
          CALL cp_fm_get_info(fm_mat_L_transposed, context=blacs_env)
 
-         CALL cp_fm_copy_general(fm_matrix_L_RI_metric, fm_mat_L_transposed, blacs_env%group)
+         CALL cp_fm_copy_general(fm_matrix_L_RI_metric, fm_mat_L_transposed, blacs_env%para_env)
 
          CALL cp_fm_transpose(fm_mat_L_transposed, fm_mat_L)
 
@@ -2305,7 +2305,6 @@ CONTAINS
          CALL copy_fm_to_dbcsr(fm_mat_L, mat_L%matrix)
 
          CALL timestop(handle4)
-
       END IF
 
       IF (do_minimax_quad) THEN

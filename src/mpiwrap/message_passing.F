@@ -81,11 +81,14 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = MPI_REQUEST_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = MPI_WIN_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
+   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = MPI_PROC_NULL
+
 #if __MPI_VERSION > 2
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = MPI_MAX_LIBRARY_VERSION_STRING
 #else
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
 #endif
+
    INTEGER, PARAMETER, PUBLIC :: file_offset = MPI_OFFSET_KIND
    INTEGER, PARAMETER, PUBLIC :: file_amode_create = MPI_MODE_CREATE
    INTEGER, PARAMETER, PUBLIC :: file_amode_rdonly = MPI_MODE_RDONLY
@@ -102,6 +105,7 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = -4
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = -5
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = -6
+   INTEGER, PARAMETER, PUBLIC :: mp_proc_null = -7
    INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
 
    INTEGER, PARAMETER, PUBLIC :: file_offset = int_8

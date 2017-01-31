@@ -1015,15 +1015,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: bcntxt, handle, ic, ik, ikk, is, ispin, &
-                                                            nc, nimg, nkp, nspin
+      INTEGER                                            :: handle, ic, ik, ikk, is, ispin, nc, &
+                                                            nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_kpgrp, real_only
       REAL(KIND=dp)                                      :: wkpx
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_fm_type), POINTER                          :: fmdummy
-      TYPE(cp_para_env_type), POINTER                    :: para_env_inter_kp
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
       TYPE(dbcsr_type), POINTER                          :: cpmat, rpmat, scpmat, srpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
@@ -1055,7 +1055,8 @@ CONTAINS
       nc = SIZE(kp%mos, 1)
       nimg = SIZE(denmat, 2)
       real_only = (nc == 1)
-      bcntxt = kpoint%blacs_env_all%group
+
+      para_env => kpoint%blacs_env_all%para_env
       NULLIFY (fmdummy)
       DO ispin = 1, nspin
          DO ic = 1, nimg
@@ -1076,12 +1077,12 @@ CONTAINS
                IF (my_kpgrp) THEN
                   ! choose density matrix
                   IF (wtype) THEN
-                     CALL cp_fm_copy_general(kp%wmat(ic, ispin)%matrix, fmwork(ic)%matrix, bcntxt)
+                     CALL cp_fm_copy_general(kp%wmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env)
                   ELSE
-                     CALL cp_fm_copy_general(kp%pmat(ic, ispin)%matrix, fmwork(ic)%matrix, bcntxt)
+                     CALL cp_fm_copy_general(kp%pmat(ic, ispin)%matrix, fmwork(ic)%matrix, para_env)
                   END IF
                ELSE
-                  CALL cp_fm_copy_general(fmdummy, fmwork(ic)%matrix, bcntxt)
+                  CALL cp_fm_copy_general(fmdummy, fmwork(ic)%matrix, para_env)
                END IF
             END DO
             ! reduce to dbcsr storage

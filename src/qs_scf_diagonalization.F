@@ -342,8 +342,8 @@ CONTAINS
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
-      INTEGER                                            :: bcntxt, handle, ik, ikp, ikpgr, ispin, &
-                                                            kplocal, nkp, nkp_groups, nspin
+      INTEGER                                            :: handle, ik, ikp, ikpgr, ispin, kplocal, &
+                                                            nkp, nkp_groups, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -356,6 +356,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type), POINTER                          :: fmdummy, fmlocal, imos, mo_coeff, &
                                                             rksmat, rmos, rsmat
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -404,8 +405,7 @@ CONTAINS
          CALL cp_cfm_create(cmos, mo_struct)
       END IF
 
-      ! global blacs context (=groupid)
-      bcntxt = kpoints%blacs_env_all%group
+      para_env => kpoints%blacs_env_all%para_env
 
       nspin = SIZE(matrix_ks, 1)
       DO ikpgr = 1, kplocal
@@ -453,27 +453,27 @@ CONTAINS
                ! fmwork -> fmlocal -> rsmat/csmat
                IF (use_real_wfn) THEN
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, rksmat, bcntxt)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, rsmat, bcntxt)
+                     CALL cp_fm_copy_general(fmwork(1)%matrix, rksmat, para_env)
+                     CALL cp_fm_copy_general(fmwork(3)%matrix, rsmat, para_env)
                   ELSE
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmdummy, bcntxt)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmdummy, bcntxt)
+                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmdummy, para_env)
+                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmdummy, para_env)
                   END IF
                ELSE
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmlocal, bcntxt)
+                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmlocal, para_env)
                      CALL cp_cfm_add_fm(czero, cksmat, cone, fmlocal)
-                     CALL cp_fm_copy_general(fmwork(2)%matrix, fmlocal, bcntxt)
+                     CALL cp_fm_copy_general(fmwork(2)%matrix, fmlocal, para_env)
                      CALL cp_cfm_add_fm(cone, cksmat, ione, fmlocal)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmlocal, bcntxt)
+                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmlocal, para_env)
                      CALL cp_cfm_add_fm(czero, csmat, cone, fmlocal)
-                     CALL cp_fm_copy_general(fmwork(4)%matrix, fmlocal, bcntxt)
+                     CALL cp_fm_copy_general(fmwork(4)%matrix, fmlocal, para_env)
                      CALL cp_cfm_add_fm(cone, csmat, ione, fmlocal)
                   ELSE
-                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmdummy, bcntxt)
-                     CALL cp_fm_copy_general(fmwork(2)%matrix, fmdummy, bcntxt)
-                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmdummy, bcntxt)
-                     CALL cp_fm_copy_general(fmwork(4)%matrix, fmdummy, bcntxt)
+                     CALL cp_fm_copy_general(fmwork(1)%matrix, fmdummy, para_env)
+                     CALL cp_fm_copy_general(fmwork(2)%matrix, fmdummy, para_env)
+                     CALL cp_fm_copy_general(fmwork(3)%matrix, fmdummy, para_env)
+                     CALL cp_fm_copy_general(fmwork(4)%matrix, fmdummy, para_env)
                   END IF
                END IF
             END DO

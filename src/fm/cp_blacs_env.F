@@ -50,9 +50,9 @@ MODULE cp_blacs_env
 !>        deallocated
 !> \param my_pid process id of the actual processor
 !> \param n_pid number of process ids
-!> \param the para env associated (and compatible) with this blacs_env
-!> \param blacs 2mpi: maps mepos(1)-mepos(2) of blacs to its mpi rank
-!> \param mpi 2blacs(i,rank): maps the mpi rank to the mepos(i)
+!> \param the para_env associated (and compatible) with this blacs_env
+!> \param blacs2mpi: maps mepos(1)-mepos(2) of blacs to its mpi rank
+!> \param mpi2blacs(i,rank): maps the mpi rank to the mepos(i)
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

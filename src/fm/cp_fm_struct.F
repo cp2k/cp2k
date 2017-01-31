@@ -49,10 +49,10 @@ MODULE cp_fm_struct
 
 ! **************************************************************************************************
 !> \brief keeps the information about the structure of a full matrix
-!> \param para_env the parallel environment of the matrixes with this structure
+!> \param para_env the parallel environment of the matrices with this structure
 !> \param context the blacs context (parallel environment for scalapack),
-!>        should be compatible wih para_env
-!> \param descriptor the scalapack descriptor of the matrixes, when using
+!>        should be compatible with para_env
+!> \param descriptor the scalapack descriptor of the matrices, when using
 !>        scalapack (ncol_block=descriptor(6), ncol_global=descriptor(4),
 !>        nrow_block=descriptor(5), nrow_global=descriptor(3))
 !> \param ncol_block number of columns of a scalapack block
@@ -60,9 +60,9 @@ MODULE cp_fm_struct
 !> \param nrow_global number of rows of the matrix
 !> \param ncol_global number of rows
 !> \param first_p_pos position of the first processor (for scalapack)
-!> \param row_indices real (global) indexes of the rows (defined only for
+!> \param row_indices real (global) indices of the rows (defined only for
 !>        the local rows really used)
-!> \param col_indices real (global) indexes of the cols (defined only for
+!> \param col_indices real (global) indices of the cols (defined only for
 !>        the local cols really used)
 !> \param nrow_locals nrow_locals(i) number of local rows of the matrix really
 !>        used on the processors with context%mepos(1)==i
@@ -149,7 +149,7 @@ CONTAINS
       LOGICAL :: my_square_blocks, my_force_block
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
-      CPABORT("full matrixes need scalapack for parallel runs ")
+      CPABORT("full matrices need scalapack for parallel runs ")
 #endif
 
       ALLOCATE (fmstruct)
@@ -461,15 +461,12 @@ CONTAINS
          row_indices => fmstruct%row_indices
          IF (.NOT. ASSOCIATED(row_indices)) THEN
             ! the max should go away
-            ALLOCATE (fmstruct%row_indices &
-                      (MAX(fmstruct%nrow_locals(myprow), 1)))
+            ALLOCATE (fmstruct%row_indices(MAX(fmstruct%nrow_locals(myprow), 1)))
             row_indices => fmstruct%row_indices
 #ifdef __SCALAPACK
             DO i = 1, SIZE(row_indices)
-               ! the max should go away
-               fmstruct%row_indices(i) = &
-                  indxl2g(i, fmstruct%nrow_block, myprow, &
-                          fmstruct%first_p_pos(1), nprow)
+               row_indices(i) = &
+                  indxl2g(i, fmstruct%nrow_block, myprow, fmstruct%first_p_pos(1), nprow)
             ENDDO
 #else
             DO i = 1, SIZE(row_indices)
@@ -482,14 +479,12 @@ CONTAINS
       IF (PRESENT(col_indices)) THEN
          col_indices => fmstruct%col_indices
          IF (.NOT. ASSOCIATED(col_indices)) THEN
-            ALLOCATE (fmstruct%col_indices &
-                      (MAX(fmstruct%ncol_locals(mypcol), 1)))
+            ALLOCATE (fmstruct%col_indices(MAX(fmstruct%ncol_locals(mypcol), 1)))
             col_indices => fmstruct%col_indices
 #ifdef __SCALAPACK
             DO i = 1, SIZE(col_indices)
                col_indices(i) = &
-                  indxl2g(i, fmstruct%ncol_block, mypcol, &
-                          fmstruct%first_p_pos(2), npcol)
+                  indxl2g(i, fmstruct%ncol_block, mypcol, fmstruct%first_p_pos(2), npcol)
             ENDDO
 #else
             DO i = 1, SIZE(col_indices)

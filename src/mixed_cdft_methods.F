@@ -1506,7 +1506,7 @@ CONTAINS
                               //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
             CALL cp_fm_copy_general(mo_coeff_tmp(iforce_eval, ispin)%matrix, &
                                     mixed_mo_coeff(iforce_eval, ispin)%matrix, &
-                                    global_context=mixed_cdft%blacs_env%group)
+                                    mixed_cdft%blacs_env%para_env)
             CALL cp_fm_release(mo_coeff_tmp(iforce_eval, ispin)%matrix)
             CALL cp_fm_struct_release(fm_struct_mo)
          END DO
@@ -1517,7 +1517,7 @@ CONTAINS
                            name="WEIGHT_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_MATRIX")
          CALL cp_fm_copy_general(wmat_tmp(iforce_eval)%matrix, &
                                  mixed_wmat_tmp(iforce_eval)%matrix, &
-                                 global_context=mixed_cdft%blacs_env%group)
+                                 mixed_cdft%blacs_env%para_env)
          CALL cp_fm_release(wmat_tmp(iforce_eval)%matrix)
          ! (fm -> dbcsr)
          IF (iforce_eval == 1) THEN
@@ -1538,7 +1538,7 @@ CONTAINS
                                  //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
                CALL cp_fm_copy_general(matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                        mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
-                                       global_context=mixed_cdft%blacs_env%group)
+                                       mixed_cdft%blacs_env%para_env)
                CALL cp_fm_release(matrix_p_tmp(iforce_eval, ispin)%matrix)
                CALL copy_fm_to_dbcsr_bc(mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                         density_matrix(iforce_eval, ispin)%matrix)
@@ -1561,7 +1561,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_overlap)
       CALL cp_fm_copy_general(matrix_s_tmp%matrix, &
                               mixed_matrix_s_tmp%matrix, &
-                              global_context=mixed_cdft%blacs_env%group)
+                              mixed_cdft%blacs_env%para_env)
       CALL cp_fm_release(matrix_s_tmp%matrix)
       CALL copy_fm_to_dbcsr_bc(mixed_matrix_s_tmp%matrix, mixed_matrix_s)
       CALL cp_fm_release(mixed_matrix_s_tmp%matrix)

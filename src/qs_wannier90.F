@@ -161,8 +161,8 @@ CONTAINS
       CHARACTER(len=20), ALLOCATABLE, DIMENSION(:)       :: atom_symbols
       CHARACTER(LEN=256)                                 :: datx
       CHARACTER(len=default_string_length)               :: filename, seed_name
-      INTEGER :: bcntxt, i, i_rep, ib, ib1, ib2, ibs, ic, ik, ik2, ikk, ikpgr, ispin, iunit, ix, &
-         iy, iz, k, n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, num_bands, &
+      INTEGER :: i, i_rep, ib, ib1, ib2, ibs, ic, ik, ik2, ikk, ikpgr, ispin, iunit, ix, iy, iz, &
+         k, n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, num_bands, &
          num_bands_tot, num_kpts, num_wann
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exclude_bands
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
@@ -469,7 +469,6 @@ CONTAINS
       !
       CALL get_kpoint_info(kpoint=kpoint, cell_to_index=cell_to_index)
       nspins = dft_control%nspins
-      bcntxt = kpoint%blacs_env_all%group
       DO ispin = 1, nspins
          ! loop over all k-points
          DO ik = 1, num_kpts
@@ -481,12 +480,12 @@ CONTAINS
                CPASSERT(SIZE(kp%mos, 1) == 2)
                fmr => kp%mos(1, ispin)%mo_set%mo_coeff
                fmi => kp%mos(2, ispin)%mo_set%mo_coeff
-               CALL cp_fm_copy_general(fmr, fmk1(1)%matrix, bcntxt)
-               CALL cp_fm_copy_general(fmi, fmk1(2)%matrix, bcntxt)
+               CALL cp_fm_copy_general(fmr, fmk1(1)%matrix, para_env)
+               CALL cp_fm_copy_general(fmi, fmk1(2)%matrix, para_env)
             ELSE
                NULLIFY (fmr, fmi, kp, fmdummy)
-               CALL cp_fm_copy_general(fmdummy, fmk1(1)%matrix, bcntxt)
-               CALL cp_fm_copy_general(fmdummy, fmk1(2)%matrix, bcntxt)
+               CALL cp_fm_copy_general(fmdummy, fmk1(1)%matrix, para_env)
+               CALL cp_fm_copy_general(fmdummy, fmk1(2)%matrix, para_env)
             END IF
             ! loop over all connected neighbors
             DO i = 1, nntot
@@ -499,12 +498,12 @@ CONTAINS
                   CPASSERT(SIZE(kp%mos, 1) == 2)
                   fmr => kp%mos(1, ispin)%mo_set%mo_coeff
                   fmi => kp%mos(2, ispin)%mo_set%mo_coeff
-                  CALL cp_fm_copy_general(fmr, fmk2(1)%matrix, bcntxt)
-                  CALL cp_fm_copy_general(fmi, fmk2(2)%matrix, bcntxt)
+                  CALL cp_fm_copy_general(fmr, fmk2(1)%matrix, para_env)
+                  CALL cp_fm_copy_general(fmi, fmk2(2)%matrix, para_env)
                ELSE
                   NULLIFY (fmr, fmi, kp, fmdummy)
-                  CALL cp_fm_copy_general(fmdummy, fmk2(1)%matrix, bcntxt)
-                  CALL cp_fm_copy_general(fmdummy, fmk2(2)%matrix, bcntxt)
+                  CALL cp_fm_copy_general(fmdummy, fmk2(1)%matrix, para_env)
+                  CALL cp_fm_copy_general(fmdummy, fmk2(2)%matrix, para_env)
                END IF
                !
                ! transfer realspace overlaps to connected k-point
