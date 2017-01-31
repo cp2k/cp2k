@@ -11,7 +11,7 @@ HeH-cdft-2.inp                                        71      1e-12             
 HeH-cdft-3.inp                                        71      1e-12               1.415422840116
 HeH-cdft-4.inp                                        71      1e-12               1.706928470865
 # These tests give identical value of atomic forces (there is some numerical noise when the number of mpiranks is varied)
-HeH-cdft-5.inp                                        72      7e-12               0.0968896882177
-HeH-cdft-6.inp                                        72      6e-12               0.0968896882177 
-HeH-cdft-7.inp                                        72      6e-12               0.0968896882177 
+HeH-cdft-5.inp                                        72      2e-11               0.0968896882177
+HeH-cdft-6.inp                                        72      2e-11               0.0968896882177 
+HeH-cdft-7.inp                                        72      2e-11               0.0968896882177 
 #EOF
