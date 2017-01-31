@@ -1233,7 +1233,7 @@ CONTAINS
       REAL(KIND=dp)                            :: determinant, my_eps_svd
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       TYPE(cp_fm_type), POINTER                :: matrix_lu
-                                                 
+
 #if defined(__SCALAPACK)
       TYPE(cp_fm_type), POINTER                :: u, vt, sigma, inv_sigma_ut
       INTEGER                                  :: i, info, liwork, lwork, group, exponent_of_minus_one
