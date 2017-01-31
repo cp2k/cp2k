@@ -111,7 +111,7 @@ MODULE dbcsr_mm_3d
         mp_allgather, mp_alltoall, mp_bcast, mp_comm_free, mp_comm_null, mp_comm_split_direct, &
         mp_gather, mp_gatherv, mp_iallgather, mp_ibcast, mp_iscatter, mp_isendrecv, mp_isum, &
         mp_request_null, mp_rget, mp_sendrecv, mp_testall, mp_wait, mp_waitall, mp_win_create, &
-        mp_win_flush_all, mp_win_free, mp_win_lock_all, mp_win_unlock_all
+        mp_win_free, mp_win_lock_all, mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
@@ -3120,8 +3120,6 @@ CONTAINS
       buffer%offset(imeta, 2) = refs_meta_size(layer3D, recv_vunmerged)
       !
       meta_get => buffer%meta(1:refs_meta_size(layer3D, recv_vunmerged))
-      ! Workaround for OpenMPI RMA bug
-      meta_get(dbcsr_slot_size) = -999
       CALL mp_rget(meta_get, recv_punmerged, &
                    meta_win, &
                    buffer_orig%meta, &
@@ -4580,8 +4578,6 @@ CONTAINS
                   buffer%nrequests = buffer%nrequests+1
                   buffer%get_requests_map(2, buffer%nrequests) = v_ki+1
                   meta_get => buffer%meta(meta_offset+1:meta_size)
-                  ! Workaround for OpenMPI RMA bug
-                  meta_get(dbcsr_slot_size) = -999
                   buffer%get_requests(:, buffer%nrequests) = mp_request_null
                   CALL mp_rget(meta_get, recv_punmerged, &
                                meta_win, &
@@ -5686,22 +5682,6 @@ CONTAINS
             ioffset_first(ui+1) = ioffset_first(ui)+1
          ENDIF
       ENDDO
-      ! Workaround for OpenMPI RMA bug
-      ioffset = ioffset_first(my_uf)+1
-      IF (offset_images(idata, ioffset) .LT. offset_images(idata, ioffset+1)) THEN
-         IF (meta_buffer(offset_images(imeta, ioffset)+dbcsr_slot_size) .EQ. -999) THEN
-            CALL cp_warn(__LOCATION__, "MPI_rget operation didn't complete! "// &
-                         "Probably you are using a buggy OpenMPI (version<1.10.4 or 2.0.1). "// &
-                         "Try to enforce communication with window flush.")
-            IF (do_merge_rows) THEN
-               CALL mp_win_flush_all(buffers_orig%left%data_win)
-               CALL mp_win_flush_all(buffers_orig%left%meta_win)
-            ELSE
-               CALL mp_win_flush_all(buffers_orig%right%data_win)
-               CALL mp_win_flush_all(buffers_orig%right%meta_win)
-            ENDIF
-         ENDIF
-      ENDIF
       !
       IF (PRESENT(ncommons_unmerged)) ncommons_unmerged = 0
       !

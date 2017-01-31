@@ -22,6 +22,7 @@ MODULE dbcsr_mm
                                               array_nullify,&
                                               array_release
    USE dbcsr_config,                    ONLY: dbcsr_cfg,&
+                                              dbcsr_set_config,&
                                               default_resize_factor,&
                                               has_acc
    USE dbcsr_data_methods,              ONLY: dbcsr_data_set_size_referenced,&
@@ -95,7 +96,9 @@ MODULE dbcsr_mm
                                               int_8,&
                                               real_8
    USE machine,                         ONLY: default_output_unit
-   USE message_passing,                 ONLY: mp_max,&
+   USE message_passing,                 ONLY: mp_get_library_version,&
+                                              mp_max,&
+                                              mp_max_library_version_string,&
                                               mp_min,&
                                               mp_sum
 #include "../../base/base_uses.f90"
@@ -412,6 +415,9 @@ CONTAINS
       CALL array_nullify(dense_k_sizes)
       CALL array_nullify(dense_col_sizes)
       CALL array_nullify(dense_row_sizes)
+
+      ! Check if RMA is used with buggy OpenMPI (version<1.10.4 or 2.0.1)
+      CALL check_openmpi_rma()
 
       ithread = 0
 !$    ithread = OMP_GET_THREAD_NUM()
@@ -996,5 +1002,49 @@ CONTAINS
       num_multiplications = num_multiplications+1
       CALL timestop(handle)
    END SUBROUTINE dbcsr_multiply_generic
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
+   SUBROUTINE check_openmpi_rma()
+      CHARACTER(LEN=mp_max_library_version_string)       :: mpi_library_version
+      INTEGER                                            :: ipos, jpos, major, minor, patch, &
+                                                            resultlen
+
+      IF (.NOT. dbcsr_cfg%use_mpi_exp) RETURN
+      ! Check if RMA is used with buggy OpenMPI (version<1.10.4 or 2.0.1)
+      CALL mp_get_library_version(mpi_library_version, resultlen)
+      IF (resultlen .EQ. 0) RETURN
+      ipos = INDEX(mpi_library_version(1:resultlen), "Open MPI v")
+      IF (ipos .EQ. 0) RETURN
+      ! Read major version
+      major = 0
+      ipos = ipos+10
+      jpos = INDEX(mpi_library_version(ipos:resultlen), ".")
+      jpos = ipos+jpos-2
+      READ (mpi_library_version(ipos:jpos), *) major
+      ! Read minor version
+      minor = 0
+      ipos = jpos+2
+      jpos = INDEX(mpi_library_version(ipos:resultlen), ".")
+      jpos = ipos+jpos-2
+      READ (mpi_library_version(ipos:jpos), *) minor
+      ! Read patch version
+      patch = 0
+      ipos = jpos+2
+      jpos = INDEX(mpi_library_version(ipos:resultlen), ",")
+      jpos = ipos+jpos-2
+      READ (mpi_library_version(ipos:jpos), *) patch
+
+      IF ((major .LT. 2 .AND. (minor .LT. 10 .OR. (minor .EQ. 10 .AND. patch .LT. 4))) .OR. &
+          (major .EQ. 2 .AND. minor .EQ. 0 .AND. patch .EQ. 0)) THEN
+         CALL cp_warn(__LOCATION__, "You are using an OpenMPI version with buggy RMA: --- "// &
+                      mpi_library_version(1:resultlen)// &
+                      " --- We disable RMA to prevent errors. "// &
+                      "Please install a new OpenMPI version (>=1.10.4 or 2.0.1). ")
+         CALL dbcsr_set_config(use_mpi_exp=.FALSE.)
+      ENDIF
+
+   END SUBROUTINE check_openmpi_rma
 
 END MODULE dbcsr_mm

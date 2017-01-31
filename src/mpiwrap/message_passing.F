@@ -81,6 +81,7 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = MPI_REQUEST_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = MPI_WIN_NULL
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = MPI_STATUS_SIZE
+   INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = MPI_MAX_LIBRARY_VERSION_STRING
 
    INTEGER, PARAMETER, PUBLIC :: file_offset = MPI_OFFSET_KIND
    INTEGER, PARAMETER, PUBLIC :: file_amode_create = MPI_MODE_CREATE
@@ -98,6 +99,7 @@ MODULE message_passing
    INTEGER, PARAMETER, PUBLIC :: mp_request_null = -4
    INTEGER, PARAMETER, PUBLIC :: mp_win_null = -5
    INTEGER, PARAMETER, PUBLIC :: mp_status_size = -6
+   INTEGER, PARAMETER, PUBLIC :: mp_max_library_version_string = 1
 
    INTEGER, PARAMETER, PUBLIC :: file_offset = int_8
    INTEGER, PARAMETER, PUBLIC :: file_amode_create = 1
@@ -171,6 +173,8 @@ MODULE message_passing
    ! vector types
    PUBLIC :: mp_type_indexed_make_r, mp_type_indexed_make_d, &
              mp_type_indexed_make_c, mp_type_indexed_make_z
+
+   PUBLIC :: mp_get_library_version
 
    ! assumed to be private
 
@@ -3032,6 +3036,38 @@ CONTAINS
 #endif
       CALL mp_timestop(handle)
    END SUBROUTINE mp_isum_bv
+
+! **************************************************************************************************
+!> \brief Get Version of the MPI Library (MPI 3)
+!> \param[out] version        Version of the library,
+!>                            declared as CHARACTER(LEN=mp_max_library_version_string)
+!> \param[out] resultlen      Length (in printable characters) of
+!>                            the result returned in version (integer)
+! **************************************************************************************************
+   SUBROUTINE mp_get_library_version(version, resultlen)
+      CHARACTER(len=*), INTENT(OUT)                      :: version
+      INTEGER, INTENT(OUT)                               :: resultlen
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_get_library_version', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ierr
+
+      ierr = 0
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+      CALL mpi_get_library_version(version, resultlen, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_get_library_version @ "//routineN)
+#else
+      MARK_USED(version)
+      MARK_USED(resultlen)
+      CPABORT("mp_get_library_version requires MPI-3 standard")
+#endif
+#else
+      MARK_USED(version)
+      resultlen = 0
+#endif
+   END SUBROUTINE mp_get_library_version
 
 ! **************************************************************************************************
 !> \brief Opens a file
