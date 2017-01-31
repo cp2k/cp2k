@@ -2174,8 +2174,6 @@ CONTAINS
                DO iex = 1, numexp
                   alpha = hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
                   coef = hirshfeld_env%kind_shape_fn(ikind)%coef(iex)
-                  IF (debug_this_module) &
-                     PRINT*, 'Atomic kind and exp', ikind, iex, alpha, coef
                   npme = 0
                   cores = 0
                   DO iatom = 1, natom
@@ -2203,8 +2201,6 @@ CONTAINS
                                                        rs_rho_all, cell, cube_info, eps_rho_rspace, &
                                                        ga_gb_function=FUNC_AB, ithread=ithread, use_subpatch=.TRUE., &
                                                        subpatch_pattern=subpatch_pattern, lmax_global=0)
-                     IF (debug_this_module .AND. is_constraint(atom_a)) &
-                        PRINT*, 'Integrating', iatom, atom_a, coefficients(atom_a)
                      IF (is_constraint(atom_a)) &
                         CALL collocate_pgf_product_rspace(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coefficients(atom_a), &
@@ -2249,7 +2245,6 @@ CONTAINS
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp%pw)
             CALL rs_grid_release(rs_rho_all)
             tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw)
-            IF (debug_this_module) PRINT*, tnfun, tnfun2, SUM(hirshfeld_env%charges)
          END IF
 
          dE = 0.0_dp
@@ -2509,10 +2504,6 @@ CONTAINS
                i = atom_of_kind(iatom)
                force(ikind)%rho_elec(:, i) = &
                   force(ikind)%rho_elec(:, i)+fderiv(:, iatom)*cdft_control%strength
-               IF (debug_this_module) THEN
-                  PRINT*, 'Force due to constraint', iatom, fderiv(:, iatom)*cdft_control%strength
-                  PRINT*, '"charge" on atom', iatom, fval(:, iatom)
-               END IF
             END DO
          END IF
          DEALLOCATE (fderiv)

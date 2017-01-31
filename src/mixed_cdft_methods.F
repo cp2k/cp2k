@@ -2466,7 +2466,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: should_deallocate = 7000, &
                                                             uninitialized = -7000
 
-      INTEGER :: actually_sent, exhausted_work, handle, i, ind, ispecial, j, max_targets, &
+      INTEGER :: actually_sent, exhausted_work, handle, i, ind, iounit, ispecial, j, max_targets, &
          more_work, my_pos, my_req(2), my_special_work, my_target, no_overloaded, no_underloaded, &
          nsend, nsend_limit, nsend_max, offset, offset_proc, offset_special, req(4), send_total, &
          tags(2)
@@ -2480,6 +2480,7 @@ CONTAINS
                                                             very_overloaded, work_factor
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cavity
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: force_env_section, print_section
 
       TYPE buffers
          LOGICAL, POINTER, DIMENSION(:)        :: bv
@@ -2495,7 +2496,11 @@ CONTAINS
       NULLIFY (expected_work, work_index, load_imbalance, work_size, &
                cumulative_work, sendbuffer, buffsize, req_recv, req_total, &
                tmp, nrecv, nsend_proc, targets, tmp_bo, touched, &
-               mask_recv, mask_send, cavity, recvbuffer, sbuff)
+               mask_recv, mask_send, cavity, recvbuffer, sbuff, force_env_section, &
+               print_section)
+      CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       ! These numerical values control data redistribution and are system sensitive
       ! Currently they are not refined during run time which may cause crashes
       ! However, using too many processors or a confinement cavity that is too large relative to the
@@ -2729,14 +2734,7 @@ CONTAINS
       ! check that there is one-to-one mapping between over- and underloaded processors
       IF (force_env%para_env%mepos == force_env%para_env%source) THEN
          consistent = .TRUE.
-         IF (debug_this_module) THEN
-            PRINT*, 'no_underloaded', no_underloaded
-            PRINT*, 'Work size', work_size
-            PRINT*, 'Load imbalance', load_imbalance
-            PRINT*, 'targets', work_index(force_env%para_env%num_pe), targets(:, force_env%para_env%num_pe)
-         END IF
          DO i = force_env%para_env%num_pe-1, force_env%para_env%num_pe-no_overloaded+1, -1
-            IF (debug_this_module) PRINT*, 'targets', work_index(i), targets(1, i), targets(2, i)
             IF (targets(1, i) .GT. no_underloaded) consistent = .FALSE.
             IF (targets(1, i) .GT. targets(2, i+1)) THEN
                CYCLE
@@ -2744,12 +2742,20 @@ CONTAINS
                consistent = .FALSE.
             END IF
          END DO
-         IF (.NOT. consistent) &
+         IF (.NOT. consistent) THEN
+            IF (debug_this_module .AND. iounit > 0) THEN
+               DO i = force_env%para_env%num_pe-1, force_env%para_env%num_pe-no_overloaded+1, -1
+                  WRITE (iounit, '(A,I8,I8,I8,I8,I8)') &
+                     'load balancing info', load_imbalance(i), work_index(i), &
+                     work_size(i), targets(1, i), targets(2, i)
+               END DO
+            END IF
             CALL cp_abort(__LOCATION__, &
                           "Load balancing error: too much data to redistribute."// &
                           " Increase LOAD_SCALE or change the number of processors."// &
                           " If the confinement cavity occupies a large volume relative"// &
                           " to the total system volume, it might be worth disabling DLB.")
+         END IF
       END IF
       ! Tell the target processors which grid points they should compute
       IF (my_pos .LE. no_underloaded) THEN
@@ -3188,6 +3194,8 @@ CONTAINS
          END IF
       END IF
       DEALLOCATE (sbuff)
+      CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
+                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
    END SUBROUTINE mixed_becke_constraint_dlb
@@ -3228,9 +3236,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_low', &
          routineP = moduleN//':'//routineN
 
-      INTEGER :: dir, handle, i, iatom, icomm, iforce_eval, ind(3), index, ip, ispecial, iwork, j, &
-         jatom, jcomm, k, lb_index, my_special_work, my_work, natom, nbuffs, nforce_eval, np(3), &
-         nsent_total, nskipped, nwork, offset, offset_repl, ub_index
+      INTEGER :: dir, handle, i, iatom, icomm, iforce_eval, ind(3), index, iounit, ip, ispecial, &
+         iwork, j, jatom, jcomm, k, lb_index, my_special_work, my_work, natom, nbuffs, &
+         nforce_eval, np(3), nsent_total, nskipped, nwork, offset, offset_repl, ub_index
       INTEGER, DIMENSION(:), POINTER                     :: req_recv, work, work_dlb
       INTEGER, DIMENSION(:, :), POINTER                  :: nsent, req_send
       LOGICAL                                            :: completed_recv, should_communicate
@@ -3257,13 +3265,18 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(section_vals_type), POINTER                   :: force_env_section, print_section
 
       logger => cp_get_default_logger()
       NULLIFY (work, req_recv, req_send, work_dlb, nsent, cutoffs, cavity, &
                weight, gradients, cell, subsys_mix, force_env_qs, &
-               particle_set, particles, auxbas_pw_pool)
+               particle_set, particles, auxbas_pw_pool, force_env_section, &
+               print_section)
       CALL timeset(routineN, handle)
       nforce_eval = SIZE(force_env%sub_force_env)
+      CALL force_env_get(force_env=force_env, force_env_section=force_env_section)
+      print_section => section_vals_get_subs_vals(force_env_section, "MIXED%PRINT%PROGRAM_RUN_INFO")
+      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.mixedLog')
       IF (.NOT. force_env%mixed_env%do_mixed_qmmm_cdft) THEN
          CALL force_env_get(force_env=force_env, &
                             subsys=subsys_mix, &
@@ -3887,13 +3900,11 @@ CONTAINS
          IF (.NOT. ASSOCIATED(mixed_cdft%dlb_control%prediction_error)) &
             ALLOCATE (mixed_cdft%dlb_control%prediction_error(force_env%para_env%num_pe))
          mixed_cdft%dlb_control%prediction_error = mixed_cdft%dlb_control%expected_work-work
-         IF (debug_this_module) THEN
-            IF (force_env%para_env%mepos == force_env%para_env%source) THEN
-               PRINT*, 'Actual work', work
-               PRINT*, 'Actual work with redistribution', work_dlb
-               PRINT*, 'Expected work', mixed_cdft%dlb_control%expected_work
-               PRINT*, 'prediction_error', mixed_cdft%dlb_control%prediction_error
-            END IF
+         IF (debug_this_module .AND. iounit > 0) THEN
+            DO i = 1, SIZE(work, 1)
+               WRITE (iounit, '(A,I10,I10,I10)') &
+                  'Work', work(i), work_dlb(i), mixed_cdft%dlb_control%expected_work(i)
+            END DO
          END IF
          DEALLOCATE (work, work_dlb, mixed_cdft%dlb_control%expected_work)
       END IF
@@ -3932,6 +3943,8 @@ CONTAINS
          DEALLOCATE (req_send)
       IF (ASSOCIATED(req_recv)) &
          DEALLOCATE (req_recv)
+      CALL cp_print_key_finished_output(iounit, logger, force_env_section, &
+                                        "MIXED%PRINT%PROGRAM_RUN_INFO")
       CALL timestop(handle)
 
    END SUBROUTINE mixed_becke_constraint_low

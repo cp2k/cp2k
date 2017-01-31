@@ -718,8 +718,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_cdft_initial_info', &
          routineP = moduleN//':'//routineN
-
-      CHARACTER, DIMENSION(3)                            :: dir = (/"x", "y", "z"/)
+      CHARACTER, DIMENSION(3), PARAMETER                 :: dir = (/"x", "y", "z"/)
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(/,A)') &

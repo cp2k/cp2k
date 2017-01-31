@@ -1741,7 +1741,14 @@ CONTAINS
          CALL section_vals_val_get(becke_section, "COMBINED_TYPE", &
                                    i_val=qs_control%becke_control%combined_type)
       END SELECT
-
+      ! Need to deallocate first in case ET_COUPLING calculation (in qs_energy_utils)
+      IF (ASSOCIATED(qs_control%becke_control%strength)) &
+         DEALLOCATE (qs_control%becke_control%strength)
+      IF (ASSOCIATED(qs_control%becke_control%becke_order_p)) &
+         DEALLOCATE (qs_control%becke_control%becke_order_p)
+      IF (ASSOCIATED(qs_control%becke_control%target)) &
+         DEALLOCATE (qs_control%becke_control%target)
+      !
       ALLOCATE (qs_control%becke_control%strength(nvar))
       ALLOCATE (qs_control%becke_control%becke_order_p(nvar))
       ALLOCATE (qs_control%becke_control%target(nvar))
