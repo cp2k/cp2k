@@ -131,14 +131,9 @@ MODULE qs_environment
                                               write_pgf_orb_radii,&
                                               write_ppl_radii,&
                                               write_ppnl_radii
-   USE qs_kind_types,                   ONLY: check_qs_kind_set,&
-                                              get_qs_kind_set,&
-                                              init_gapw_basis_set,&
-                                              init_qs_kind_set,&
-                                              qs_kind_type,&
-                                              set_qs_kind,&
-                                              write_gto_basis_sets,&
-                                              write_qs_kind_set
+   USE qs_kind_types,                   ONLY: &
+        check_qs_kind_set, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, init_qs_kind_set, &
+        qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
    USE qs_ks_types,                     ONLY: qs_ks_env_create,&
                                               qs_ks_env_type,&
                                               qs_ks_release,&
@@ -677,7 +672,6 @@ CONTAINS
       IF (dft_control%qs_control%method == "GAPW" .OR. &
           dft_control%qs_control%method == "GAPW_XC") THEN
          qs_control => dft_control%qs_control
-         gapw_control => dft_control%qs_control%gapw_control
          CALL init_gapw_basis_set(qs_kind_set, qs_control, qs_env%input)
       ENDIF
 
@@ -781,6 +775,7 @@ CONTAINS
       IF (dft_control%qs_control%method_id == do_method_gapw .OR. &
           dft_control%qs_control%method_id == do_method_gapw_xc) THEN
          !     *** Allocate and initialize the set of atomic densities ***
+         gapw_control => dft_control%qs_control%gapw_control
          CALL init_rho_atom(qs_env, gapw_control)
          IF (dft_control%qs_control%method_id /= do_method_gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, natom=natom)
@@ -789,6 +784,8 @@ CONTAINS
             !       *** Allocate and Initialize the local coulomb term ***
             CALL init_coulomb_local(qs_env%hartree_local, natom)
          END IF
+         ! NLCC
+         CALL init_gapw_nlcc(qs_kind_set)
       ELSE IF (dft_control%qs_control%method_id == do_method_lrigpw) THEN
          ! allocate local ri environment
       ELSE IF (dft_control%qs_control%semi_empirical) THEN

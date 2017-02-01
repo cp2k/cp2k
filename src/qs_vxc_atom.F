@@ -34,6 +34,7 @@ MODULE qs_vxc_atom
    USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                               harmonics_atom_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              has_nlcc,&
                                               qs_kind_type
    USE qs_linres_types,                 ONLY: nablavks_atom_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -93,10 +94,12 @@ CONTAINS
                                                             natom, nr, nspins, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: epr_xc, gradient_f, lsd, paw_atom, tau_f
+      LOGICAL                                            :: donlcc, epr_xc, gradient_f, lsd, nlcc, &
+                                                            paw_atom, tau_f
       REAL(dp)                                           :: density_cut, exc_h, exc_s, gradient_cut, &
                                                             my_adiabatic_rescale_factor, tau_cut
-      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_h, rho_s, tau_h, tau_s, weight
+      REAL(dp), DIMENSION(:, :), POINTER                 :: rho_h, rho_nlcc, rho_s, tau_h, tau_s, &
+                                                            weight
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vtau_h, vtau_s, vxc_h, vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho_h, drho_s, vxg_h, vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -154,6 +157,8 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       input=input, &
                       rho_atom_set=rho_atom_set)
+
+      nlcc = has_nlcc(qs_kind_set)
 
       IF (epr_xc) THEN
          xc_section => section_vals_get_subs_vals(input, &
@@ -251,6 +256,14 @@ CONTAINS
                CALL reallocate(vtau_s, 1, na, 1, nr, 1, nspins)
             END IF
 
+            ! NLCC: prepare rho and drho of the core charge for this KIND
+            donlcc = .FALSE.
+            IF (nlcc) THEN
+               NULLIFY (rho_nlcc)
+               rho_nlcc => qs_kind_set(ikind)%nlcc_pot
+               IF (ASSOCIATED(rho_nlcc)) donlcc = .TRUE.
+            END IF
+
             ! Distribute the atoms of this kind
 
             num_pe = para_env%num_pe
@@ -288,6 +301,10 @@ CONTAINS
                   IF (tau_f) THEN
                      CALL calc_tau_angular(grid_atom, harmonics, nspins, ir, &
                                            trho_h, trho_s, tau_h, tau_s)
+                  END IF
+                  IF (donlcc) THEN
+                     CALL calc_rho_nlcc(grid_atom, nspins, gradient_f, &
+                                        ir, rho_nlcc(:, 1), rho_h, rho_s, rho_nlcc(:, 2), drho_h, drho_s)
                   END IF
                   CALL fill_rho_set(rho_set_h, lsd, nspins, needs, rho_h, drho_h, tau_h, na, ir)
                   CALL fill_rho_set(rho_set_s, lsd, nspins, needs, rho_s, drho_s, tau_s, na, ir)
@@ -876,6 +893,89 @@ CONTAINS
       END DO ! ispin
 
    END SUBROUTINE calc_tau_angular
+! **************************************************************************************************
+!> \brief ...
+!> \param grid_atom ...
+!> \param nspins ...
+!> \param grad_func ...
+!> \param ir ...
+!> \param rho_nlcc ...
+!> \param rho_h ...
+!> \param rho_s ...
+!> \param drho_nlcc ...
+!> \param drho_h ...
+!> \param drho_s ...
+! **************************************************************************************************
+   SUBROUTINE calc_rho_nlcc(grid_atom, nspins, grad_func, &
+                            ir, rho_nlcc, rho_h, rho_s, drho_nlcc, drho_h, drho_s)
+
+      TYPE(grid_atom_type), POINTER                      :: grid_atom
+      INTEGER, INTENT(IN)                                :: nspins
+      LOGICAL, INTENT(IN)                                :: grad_func
+      INTEGER, INTENT(IN)                                :: ir
+      REAL(KIND=dp), DIMENSION(:)                        :: rho_nlcc
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho_h, rho_s
+      REAL(KIND=dp), DIMENSION(:)                        :: drho_nlcc
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rho_nlcc', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ia, ispin, na
+      REAL(KIND=dp)                                      :: drho, dx, dy, dz, rad, rho, urad, xsp
+
+      CPASSERT(ASSOCIATED(rho_h))
+      CPASSERT(ASSOCIATED(rho_s))
+      IF (grad_func) THEN
+         CPASSERT(ASSOCIATED(drho_h))
+         CPASSERT(ASSOCIATED(drho_s))
+      END IF
+
+      na = grid_atom%ng_sphere
+      rad = grid_atom%rad(ir)
+      urad = grid_atom%oorad2l(ir, 1)
+
+      xsp = REAL(nspins)
+      rho = rho_nlcc(ir)/xsp
+      DO ispin = 1, nspins
+         rho_h(1:na, ispin) = rho_h(1:na, ispin)+rho
+         rho_s(1:na, ispin) = rho_s(1:na, ispin)+rho
+      END DO ! ispin
+
+      IF (grad_func) THEN
+         drho = drho_nlcc(ir)/xsp
+         DO ispin = 1, nspins
+            DO ia = 1, na
+               IF (grid_atom%azi(ia) == 0.0_dp) THEN
+                  dx = 0.0_dp
+                  dy = 0.0_dp
+               ELSE
+                  dx = grid_atom%sin_pol(ia)*grid_atom%sin_azi(ia)
+                  dy = grid_atom%sin_pol(ia)*grid_atom%cos_azi(ia)
+               END IF
+               dz = grid_atom%cos_pol(ia)
+               ! components of the gradient of rho1 hard
+               drho_h(1, ia, ir, ispin) = drho_h(1, ia, ir, ispin)+drho*dx
+               drho_h(2, ia, ir, ispin) = drho_h(2, ia, ir, ispin)+drho*dy
+               drho_h(3, ia, ir, ispin) = drho_h(3, ia, ir, ispin)+drho*dz
+               ! components of the gradient of rho1 soft
+               drho_s(1, ia, ir, ispin) = drho_s(1, ia, ir, ispin)+drho*dx
+               drho_s(2, ia, ir, ispin) = drho_s(2, ia, ir, ispin)+drho*dy
+               drho_s(3, ia, ir, ispin) = drho_s(3, ia, ir, ispin)+drho*dz
+               ! norm of gradient
+               drho_h(4, ia, ir, ispin) = SQRT( &
+                                          drho_h(1, ia, ir, ispin)*drho_h(1, ia, ir, ispin)+ &
+                                          drho_h(2, ia, ir, ispin)*drho_h(2, ia, ir, ispin)+ &
+                                          drho_h(3, ia, ir, ispin)*drho_h(3, ia, ir, ispin))
+
+               drho_s(4, ia, ir, ispin) = SQRT( &
+                                          drho_s(1, ia, ir, ispin)*drho_s(1, ia, ir, ispin)+ &
+                                          drho_s(2, ia, ir, ispin)*drho_s(2, ia, ir, ispin)+ &
+                                          drho_s(3, ia, ir, ispin)*drho_s(3, ia, ir, ispin))
+            END DO ! ia
+         END DO ! ispin
+      END IF
+
+   END SUBROUTINE calc_rho_nlcc
 
 ! **************************************************************************************************
 !> \brief ...

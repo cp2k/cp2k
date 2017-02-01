@@ -24,8 +24,6 @@ MODULE qs_environment_methods
    USE ewald_environment_types,         ONLY: ewald_environment_type
    USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
    USE ewald_pw_types,                  ONLY: ewald_pw_type
-   USE external_potential_types,        ONLY: get_potential,&
-                                              gth_potential_type
    USE input_constants,                 ONLY: do_ppl_grid
    USE kinds,                           ONLY: dp
    USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -51,8 +49,8 @@ MODULE qs_environment_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
+   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              has_nlcc,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
@@ -215,6 +213,7 @@ CONTAINS
                                                             vppl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
 
@@ -327,12 +326,9 @@ CONTAINS
          END IF
 
          ! reallocate rho_nlcc
-         CALL has_nlcc(nlcc, qs_env)
+         CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+         nlcc = has_nlcc(qs_kind_set)
          IF (nlcc) THEN
-            ! right now, not working with gapw/gapw_xc, needs implementation in the GAPW XC routines
-            IF (dft_control%qs_control%gapw_xc .OR. dft_control%qs_control%gapw) THEN
-               CPABORT("Non linear core correction for GAPW not implemented")
-            ENDIF
             ! the realspace version
             NULLIFY (rho_nlcc)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_nlcc=rho_nlcc)
@@ -407,34 +403,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_env_rebuild_pw_env
-
-! **************************************************************************************************
-!> \brief finds if a given qs run needs to use nlcc
-!> \param nlcc ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE has_nlcc(nlcc, qs_env)
-
-      LOGICAL                                            :: nlcc
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'has_nlcc', routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: ikind
-      LOGICAL                                            :: nlcc_present
-      TYPE(gth_potential_type), POINTER                  :: gth_potential
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      nlcc = .FALSE.
-
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
-      DO ikind = 1, SIZE(qs_kind_set)
-         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
-         IF (.NOT. ASSOCIATED(gth_potential)) CYCLE
-         CALL get_potential(potential=gth_potential, nlcc_present=nlcc_present)
-         nlcc = nlcc .OR. nlcc_present
-      ENDDO
-
-   END SUBROUTINE has_nlcc
 
 END MODULE qs_environment_methods

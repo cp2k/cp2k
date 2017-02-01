@@ -612,7 +612,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(rho_nlcc) .AND. calculate_forces) THEN
-         CPASSERT(.NOT. (gapw .OR. gapw_xc))
          DO ispin = 1, nspins
             CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
             IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)

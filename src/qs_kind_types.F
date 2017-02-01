@@ -147,9 +147,9 @@ MODULE qs_kind_types
       TYPE(gto_basis_set_type), POINTER      :: hard_basis_set => Null()
       !
       TYPE(basis_set_container_type), &
-         DIMENSION(20)                        :: basis_sets
+         DIMENSION(20)                       :: basis_sets
       !
-      TYPE(paw_proj_set_type), POINTER      :: paw_proj_set => Null()
+      TYPE(paw_proj_set_type), POINTER       :: paw_proj_set => Null()
       !
       REAL(dp)                               :: hard_radius = 0.8_dp*bohr ! for hard and soft exp
       REAL(dp)                               :: hard0_radius = 0.8_dp*bohr ! for hard exp of rho0
@@ -159,10 +159,10 @@ MODULE qs_kind_types
       LOGICAL                                :: ghost = .FALSE.
       LOGICAL                                :: floating = .FALSE.
       INTEGER                                :: lmax_dftb = -1
-      REAL(KIND=dp)                        :: dudq_dftb3 = 0.0_dp
-      INTEGER, DIMENSION(:, :), POINTER       :: addel => Null()
-      INTEGER, DIMENSION(:, :), POINTER       :: laddel => Null()
-      INTEGER, DIMENSION(:, :), POINTER       :: naddel => Null()
+      REAL(KIND=dp)                          :: dudq_dftb3 = 0.0_dp
+      INTEGER, DIMENSION(:, :), POINTER      :: addel => Null()
+      INTEGER, DIMENSION(:, :), POINTER      :: laddel => Null()
+      INTEGER, DIMENSION(:, :), POINTER      :: naddel => Null()
       TYPE(harmonics_atom_type), POINTER     :: harmonics => Null()
       TYPE(grid_atom_type), POINTER          :: grid_atom => Null()
       INTEGER                                :: ngrid_rad = 50
@@ -173,6 +173,8 @@ MODULE qs_kind_types
       LOGICAL                                :: bs_occupation = .FALSE.
       TYPE(dft_plus_u_type), POINTER         :: dft_plus_u => Null()
       LOGICAL                                :: no_optimize = .TRUE.
+      !
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: nlcc_pot => Null()
       !
       TYPE(qs_atom_dispersion_type), POINTER :: dispersion => Null()
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: reltmat => Null()
@@ -194,8 +196,10 @@ MODULE qs_kind_types
              deallocate_qs_kind_set, &
              get_qs_kind, &
              get_qs_kind_set, &
+             has_nlcc, &
              init_qs_kind_set, &
              init_gapw_basis_set, &
+             init_gapw_nlcc, &
              create_qs_kind_set, &
              set_qs_kind, &
              write_qs_kind_set, &
@@ -271,6 +275,10 @@ CONTAINS
                   DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%orbitals)
                END IF
                DEALLOCATE (qs_kind_set(ikind)%dft_plus_u)
+            END IF
+
+            IF (ASSOCIATED(qs_kind_set(ikind)%nlcc_pot)) THEN
+               DEALLOCATE (qs_kind_set(ikind)%nlcc_pot)
             END IF
 
             IF (ASSOCIATED(qs_kind_set(ikind)%dispersion)) THEN
@@ -1140,6 +1148,7 @@ CONTAINS
             NULLIFY (qs_kind%grid_atom, qs_kind%harmonics)
             CALL allocate_grid_atom(qs_kind%grid_atom)
             CALL allocate_harmonics_atom(qs_kind%harmonics)
+
          END DO
 
          IF (qs_control%gapw_control%non_paw_atoms) THEN
@@ -1152,6 +1161,71 @@ CONTAINS
       END IF
 
    END SUBROUTINE init_gapw_basis_set
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_kind_set ...
+! **************************************************************************************************
+   SUBROUTINE init_gapw_nlcc(qs_kind_set)
+
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_nlcc', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: i, ic, ikind, nc, nexp_nlcc, nkind, nr
+      INTEGER, DIMENSION(:), POINTER                     :: nct_nlcc
+      LOGICAL                                            :: nlcc, nlcc_type, paw_atom
+      REAL(dp)                                           :: alpha, coa, cval
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_nlcc, fe, rc, rr
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_nlcc, den
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+
+      IF (ASSOCIATED(qs_kind_set)) THEN
+         nlcc = has_nlcc(qs_kind_set)
+         IF (nlcc) THEN
+            nkind = SIZE(qs_kind_set)
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               CALL get_qs_kind(qs_kind, paw_atom=paw_atom)
+               IF (paw_atom) THEN
+                  CALL get_qs_kind(qs_kind, gth_potential=gth_potential)
+                  IF (ASSOCIATED(gth_potential)) THEN
+                     CALL get_potential(potential=gth_potential, nlcc_present=nlcc_type, &
+                                        nexp_nlcc=nexp_nlcc, alpha_nlcc=alpha_nlcc, nct_nlcc=nct_nlcc, cval_nlcc=cval_nlcc)
+                     IF (nlcc_type) THEN
+                        nr = qs_kind%grid_atom%nr
+                        rr => qs_kind%grid_atom%rad
+                        ALLOCATE (qs_kind%nlcc_pot(nr, 2), rc(nr), fe(nr))
+                        den => qs_kind%nlcc_pot
+                        den = 0.0_dp
+                        DO i = 1, nexp_nlcc
+                           alpha = alpha_nlcc(i)
+                           rc(:) = rr(:)/alpha
+                           fe(:) = EXP(-0.5_dp*rc(:)*rc(:))
+                           nc = nct_nlcc(i)
+                           DO ic = 1, nc
+                              cval = cval_nlcc(ic, i)
+                              coa = cval/alpha
+                              den(:, 1) = den(:, 1)+fe(:)*rc**(2*ic-2)*cval
+                              den(:, 2) = den(:, 2)-fe(:)*rc**(2*ic-1)*coa
+                              IF (ic > 1) THEN
+                                 den(:, 2) = den(:, 2)+REAL(2*ic-2, dp)*fe(:)*rc**(2*ic-3)*coa
+                              END IF
+                           END DO
+                        END DO
+                        DEALLOCATE (rc, fe)
+                     END IF
+                  ELSE
+                     ! skip
+                  END IF
+               END IF
+            END DO
+         END IF
+      ELSE
+         CPABORT("The pointer qs_kind_set is not associated")
+      END IF
+
+   END SUBROUTINE init_gapw_nlcc
 
 ! **************************************************************************************************
 !> \brief Read an atomic kind data set from the input file.
@@ -2546,6 +2620,33 @@ CONTAINS
       END IF
 
    END SUBROUTINE set_gth_state
+
+! **************************************************************************************************
+!> \brief finds if a given qs run needs to use nlcc
+!> \param qs_kind_set ...
+!> \retval nlcc ...
+! **************************************************************************************************
+   FUNCTION has_nlcc(qs_kind_set) RESULT(nlcc)
+
+      TYPE(qs_kind_type), DIMENSION(:)                   :: qs_kind_set
+      LOGICAL                                            :: nlcc
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'has_nlcc', routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: ikind
+      LOGICAL                                            :: nlcc_present
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+
+      nlcc = .FALSE.
+
+      DO ikind = 1, SIZE(qs_kind_set)
+         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
+         IF (.NOT. ASSOCIATED(gth_potential)) CYCLE
+         CALL get_potential(potential=gth_potential, nlcc_present=nlcc_present)
+         nlcc = nlcc .OR. nlcc_present
+      ENDDO
+
+   END FUNCTION has_nlcc
 
 ! **************************************************************************************************
 
