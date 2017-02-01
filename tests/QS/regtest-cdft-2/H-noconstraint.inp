@@ -1,4 +1,4 @@
-@SET RESTART_WFN          TRUE
+@SET RESTART_WFN          FALSE
 @SET WFN_FILE             HeH-noconstraint-1_0.wfn
 @SET PROJECT_NAME         H-noconstraint
 @SET WRITE_WFN            0
