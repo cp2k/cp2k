@@ -122,6 +122,21 @@ MODULE cp_fm_types
       TYPE(cp_fm_type), POINTER :: matrix
    END TYPE cp_fm_p_type
 
+! **************************************************************************************************
+!> \brief Stores the state of a copy between cp_fm_start_copy_general
+!>        and cp_fm_finish_copy_general
+!> \par History
+!>      Jan 2017  [Mark T]
+! **************************************************************************************************
+   TYPE copy_info_type
+      INTEGER :: send_size
+      INTEGER, DIMENSION(2) :: nlocal_recv, nblock_src, src_num_pe ! 1->row  2->col
+      INTEGER, DIMENSION(:), POINTER       :: send_request, recv_request, recv_disp
+      INTEGER, DIMENSION(:), POINTER       :: recv_col_indices, recv_row_indices
+      INTEGER, DIMENSION(:, :), POINTER    :: src_blacs2mpi
+      REAL(KIND=dp), DIMENSION(:), POINTER :: recv_buf, send_buf
+   END TYPE copy_info_type
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -1369,19 +1384,48 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_copy_general', &
          routineP = moduleN//':'//routineN
 
+      INTEGER                                            :: handle
+      TYPE(copy_info_type)                               :: info
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_start_copy_general(source, destination, para_env, info)
+      CALL cp_fm_finish_copy_general(source, destination, info)
+
+      CALL timestop(handle)
+   END SUBROUTINE cp_fm_copy_general
+
+! **************************************************************************************************
+!> \brief Initiates the copy operation: get distribution data, post MPI isend and irecvs
+!> \param source input fm matrix
+!> \param destination output fm matrix
+!> \param para_env parallel environment corresponding to the BLACS env that covers all parts
+!>                        of the input and output matrices
+!> \param info all of the data that will be needed to complete the copy operation
+! **************************************************************************************************
+   SUBROUTINE cp_fm_start_copy_general(source, destination, para_env, info)
+      TYPE(cp_fm_type), POINTER                          :: source, destination
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(copy_info_type), INTENT(OUT)                  :: info
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_start_copy_general', &
+         routineP = moduleN//':'//routineN
+
       INTEGER :: dest_p_i, dest_q_j, global_comm, global_rank, global_size, handle, i, j, k, &
          mpi_rank, ncol_block_dest, ncol_block_src, ncol_local_recv, ncol_local_send, ncols, &
          nrow_block_dest, nrow_block_src, nrow_local_recv, nrow_local_send, nrows, p, q, &
-         recv_rank, recv_size, send_rank, send_size, src_p_i, src_q_j
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: all_ranks, dest2global, dest_p, dest_q, recv_count, &
-         recv_disp, recv_request, send_count, send_disp, send_request, source2global, src_p, src_q
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: dest_blacs2mpi, src_blacs2mpi
+         recv_rank, recv_size, send_rank, send_size
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_ranks, dest2global, dest_p, dest_q, &
+                                                            recv_count, send_count, send_disp, &
+                                                            source2global, src_p, src_q
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: dest_blacs2mpi
       INTEGER, DIMENSION(2)                              :: dest_block, dest_block_tmp, dest_num_pe, &
                                                             src_block, src_block_tmp, src_num_pe
       INTEGER, DIMENSION(6)                              :: recv_req, send_req
-      INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_row_indices, &
-                                                            send_col_indices, send_row_indices
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf, send_buf
+      INTEGER, DIMENSION(:), POINTER :: recv_col_indices, recv_disp, recv_request, &
+         recv_row_indices, send_col_indices, send_request, send_row_indices
+      INTEGER, DIMENSION(:, :), POINTER                  :: src_blacs2mpi
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buf, send_buf
       TYPE(cp_fm_struct_type), POINTER                   :: recv_dist, send_dist
 
       CALL timeset(routineN, handle)
@@ -1427,7 +1471,6 @@ CONTAINS
          ALLOCATE (all_ranks(0:global_size-1))
 
          CALL mp_allgather(send_rank, all_ranks, global_comm)
-
          IF (ASSOCIATED(destination)) THEN
             ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null)-1))
             DO i = 0, global_size-1
@@ -1435,7 +1478,7 @@ CONTAINS
                   source2global(all_ranks(i)) = i
                END IF
             END DO
-         ENDIF
+         END IF
 
          CALL mp_allgather(recv_rank, all_ranks, global_comm)
          IF (ASSOCIATED(source)) THEN
@@ -1446,13 +1489,12 @@ CONTAINS
                END IF
             END DO
          END IF
-
          DEALLOCATE (all_ranks)
 
          ! Some data from the two decompositions will be needed by all processes in the global group :
          ! process grid shape, block size, and the BLACS-to-MPI mapping
 
-         ! the global root process will receive the data (from the root process in each decomposition)
+         ! The global root process will receive the data (from the root process in each decomposition)
          send_req(:) = mp_request_null
          IF (global_rank == 0) THEN
             recv_req(:) = mp_request_null
@@ -1464,7 +1506,7 @@ CONTAINS
 
          IF (ASSOCIATED(source)) THEN
             IF ((send_rank .EQ. 0)) THEN
-               ! need to use separate buffers here in case this is actually global rank 0!!
+               ! need to use separate buffers here in case this is actually global rank 0
                src_block_tmp = (/send_dist%nrow_block, send_dist%ncol_block/)
                CALL mp_isend(src_block_tmp, 0, global_comm, send_req(1), tag=src_tag)
                CALL mp_isend(send_dist%context%num_pe, 0, global_comm, send_req(2), tag=src_tag)
@@ -1510,6 +1552,8 @@ CONTAINS
          CALL mp_bcast(dest_block, 0, global_comm)
          CALL mp_bcast(src_num_pe, 0, global_comm)
          CALL mp_bcast(dest_num_pe, 0, global_comm)
+         info%src_num_pe(1:2) = src_num_pe(1:2)
+         info%nblock_src(1:2) = src_block(1:2)
          IF (global_rank .NE. 0) THEN
             ALLOCATE (src_blacs2mpi(0:src_num_pe(1)-1, 0:src_num_pe(2)-1), &
                       dest_blacs2mpi(0:dest_num_pe(1)-1, 0:dest_num_pe(2)-1) &
@@ -1517,14 +1561,14 @@ CONTAINS
          END IF
          CALL mp_bcast(src_blacs2mpi, 0, global_comm)
          CALL mp_bcast(dest_blacs2mpi, 0, global_comm)
+         info%src_blacs2mpi => src_blacs2mpi
 
          recv_size = dest_num_pe(1)*dest_num_pe(2)
          send_size = src_num_pe(1)*src_num_pe(2)
-
+         info%send_size = send_size
          CALL mp_waitall(send_req(:))
 
          ! Setup is now complete, we can start the actual communication here.
-
          ! The order implemented here is:
          !  DEST_1
          !      compute recv sizes
@@ -1543,6 +1587,8 @@ CONTAINS
             CALL cp_fm_struct_get(recv_dist, row_indices=recv_row_indices, &
                                   col_indices=recv_col_indices &
                                   )
+            info%recv_col_indices => recv_col_indices
+            info%recv_row_indices => recv_row_indices
             nrow_block_src = src_block(1)
             ncol_block_src = src_block(2)
             ALLOCATE (recv_count(0:send_size-1), recv_disp(0:send_size-1), recv_request(0:send_size-1))
@@ -1550,6 +1596,8 @@ CONTAINS
             ! Determine the recv counts, allocate the receive buffers, call mpi_irecv for all the non-zero sized receives
             nrow_local_recv = recv_dist%nrow_locals(recv_dist%context%mepos(1))
             ncol_local_recv = recv_dist%ncol_locals(recv_dist%context%mepos(2))
+            info%nlocal_recv(1) = nrow_local_recv
+            info%nlocal_recv(2) = ncol_local_recv
             ! Initialise src_p, src_q arrays (sized using number of rows/cols in the receiving distribution)
             ALLOCATE (src_p(nrow_local_recv), src_q(ncol_local_recv))
             DO i = 1, nrow_local_recv
@@ -1574,12 +1622,14 @@ CONTAINS
             DEALLOCATE (src_p, src_q)
 
             ! Use one long buffer (and displacements into that buffer)
-            ! this prevents the need for a rectangular array where not all elements will be populated
+            !     this prevents the need for a rectangular array where not all elements will be populated
             ALLOCATE (recv_buf(SUM(recv_count(:))))
+            info%recv_buf => recv_buf
             recv_disp(0) = 0
             DO i = 1, send_size-1
                recv_disp(i) = recv_disp(i-1)+recv_count(i-1)
             END DO
+            info%recv_disp => recv_disp
 
             ! Issue receive calls on ranks which expect data
             DO k = 0, send_size-1
@@ -1590,6 +1640,7 @@ CONTAINS
                   recv_request(k) = mp_request_null
                END IF
             END DO
+            info%recv_request => recv_request
             DEALLOCATE (source2global)
          END IF ! ASSOCIATED(destination)
 
@@ -1607,7 +1658,7 @@ CONTAINS
             ncol_local_send = send_dist%ncol_locals(send_dist%context%mepos(2))
 
             ! Initialise dest_p, dest_q arrays (sized nrow_local, ncol_local)
-            ! i.e. number of rows,cols in the sending distribution
+            !   i.e. number of rows,cols in the sending distribution
             ALLOCATE (dest_p(nrow_local_send), dest_q(ncol_local_send))
 
             DO i = 1, nrow_local_send
@@ -1617,7 +1668,7 @@ CONTAINS
             DO j = 1, ncol_local_send
                dest_q(j) = MOD(((send_col_indices(j)-1)/ncol_block_dest), dest_num_pe(2))
             END DO
-            ! dest_p / q contain the process row/column ID that will receive data from that row/column
+            ! dest_p/q now contain the process row/column ID that will receive data from that row/column
 
             DO q = 0, dest_num_pe(2)-1
                ncols = COUNT(dest_q .EQ. q)
@@ -1647,6 +1698,7 @@ CONTAINS
                   send_buf(send_disp(mpi_rank)+send_count(mpi_rank)) = source%local_data(i, j)
                END DO
             END DO
+            info%send_buf => send_buf
 
             ! For each non-zero send_count, call mpi_isend
             DO k = 0, recv_size-1
@@ -1657,43 +1709,101 @@ CONTAINS
                   send_request(k) = mp_request_null
                END IF
             END DO
+            info%send_request => send_request
             DEALLOCATE (send_count, send_disp, dest2global)
          END IF ! ASSOCIATED(source)
          DEALLOCATE (dest_blacs2mpi)
 
+      END IF !IF (.NOT. cp2k_is_parallel)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_start_copy_general
+
+! **************************************************************************************************
+!> \brief Completes the copy operation: wait for comms, unpack, clean up MPI state
+!> \param source input fm matrix
+!> \param destination output fm matrix
+!> \param info all of the data that will be needed to complete the copy operation
+! **************************************************************************************************
+   SUBROUTINE cp_fm_finish_copy_general(source, destination, info)
+      TYPE(cp_fm_type), POINTER                          :: source, destination
+      TYPE(copy_info_type), INTENT(INOUT)                :: info
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_finish_copy_general', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle, i, j, mpi_rank, send_size, &
+                                                            src_p_i, src_q_j
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: recv_count
+      INTEGER, DIMENSION(2)                              :: nblock_src, nlocal_recv, src_num_pe
+      INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_disp, &
+                                                            recv_request, recv_row_indices, &
+                                                            send_request
+      INTEGER, DIMENSION(:, :), POINTER                  :: src_blacs2mpi
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buf, send_buf
+
+      CALL timeset(routineN, handle)
+
+      IF (.NOT. cp2k_is_parallel) THEN
+         ! Don't do anything - the work for the serial case was done in cp_fm_start_copy_general
+      ELSE
+         ! Set up local variables ...
+         send_size = info%send_size
+         nlocal_recv(1:2) = info%nlocal_recv(:)
+         nblock_src(1:2) = info%nblock_src(:)
+         src_num_pe(1:2) = info%src_num_pe(:)
+         recv_col_indices => info%recv_col_indices
+         recv_row_indices => info%recv_row_indices
+         src_blacs2mpi => info%src_blacs2mpi
+         recv_request => info%recv_request
+         recv_buf => info%recv_buf
+         recv_disp => info%recv_disp
+         send_request => info%send_request
+         send_buf => info%send_buf
+
+         ! ... use the local variables to do the work
          ! DEST_2
          IF (ASSOCIATED(destination)) THEN
             CALL mp_waitall(recv_request(:))
-            !  Loop over the rmat, filling it in with data from the recv buffers
+            ALLOCATE (recv_count(0:send_size-1))
+            ! Loop over the rmat, filling it in with data from the recv buffers
             ! (here the block sizes, num_pes refer to the distribution of the source matrix)
             recv_count(:) = 0
-            DO j = 1, ncol_local_recv
-               src_q_j = MOD(((recv_col_indices(j)-1)/ncol_block_src), src_num_pe(2))
-               DO i = 1, nrow_local_recv
-                  src_p_i = MOD(((recv_row_indices(i)-1)/nrow_block_src), src_num_pe(1))
+            DO j = 1, nlocal_recv(2)
+               src_q_j = MOD(((recv_col_indices(j)-1)/nblock_src(2)), src_num_pe(2))
+               DO i = 1, nlocal_recv(1)
+                  src_p_i = MOD(((recv_row_indices(i)-1)/nblock_src(1)), src_num_pe(1))
                   mpi_rank = src_blacs2mpi(src_p_i, src_q_j)
                   recv_count(mpi_rank) = recv_count(mpi_rank)+1
                   destination%local_data(i, j) = recv_buf(recv_disp(mpi_rank)+recv_count(mpi_rank))
                END DO
             END DO
             DEALLOCATE (recv_count, recv_disp, recv_request, recv_buf, src_blacs2mpi)
+            NULLIFY (info%recv_col_indices, &
+                     info%recv_row_indices, &
+                     info%recv_buf, &
+                     info%recv_disp, &
+                     info%recv_request, &
+                     info%src_blacs2mpi)
          END IF ! ASSOCIATED(destination)
 
          ! SRC_2
          IF (ASSOCIATED(source)) THEN
             CALL mp_waitall(send_request(:))
             DEALLOCATE (send_request, send_buf)
+            NULLIFY (info%send_request, &
+                     info%send_buf)
          END IF
 
       END IF !IF (.NOT. cp2k_is_parallel)
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_copy_general
+   END SUBROUTINE cp_fm_finish_copy_general
 
 ! **************************************************************************************************
-!> \brief General copy of a submatrix of fm matrix to
-!>        a submatrix of another fm matrix.
+!> \brief General copy of a submatrix of fm matrix to  a submatrix of another fm matrix.
 !>        The two matrices can have different contexts.
 !>
 !>        Summary of distribution routines for dense matrices
