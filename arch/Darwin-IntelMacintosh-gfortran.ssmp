@@ -1,11 +1,15 @@
 # With GCC 4.9 or later, for gcc and gfortran
+# libxc, libint are installed in /opt/local
 CC       = gcc
 CPP      = 
 FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 RANLIB   = ranlib
-DFLAGS   = -D__NO_STATM_ACCESS -D__ACCELERATE
-FCFLAGS  = -fopenmp -ffast-math -funroll-loops -ftree-vectorize -ffree-form -O2 $(DFLAGS)
+DFLAGS   = -D__NO_STATM_ACCESS -D__ACCELERATE -D__LIBXC -D__LIBINT
+FCFLAGS  = -I /opt/local/include -fopenmp -ffast-math -funroll-loops -ftree-vectorize -ffree-form -O2 $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) 
-LIBS     = -framework Accelerate
+LIBS     = -framework Accelerate \
+           -L/opt/local/lib \
+           -lxcf90 -lxc \
+           -lderiv -lint
