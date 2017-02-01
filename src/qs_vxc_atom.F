@@ -934,7 +934,7 @@ CONTAINS
       rad = grid_atom%rad(ir)
       urad = grid_atom%oorad2l(ir, 1)
 
-      xsp = REAL(nspins)
+      xsp = REAL(nspins,KIND=dp)
       rho = rho_nlcc(ir)/xsp
       DO ispin = 1, nspins
          rho_h(1:na, ispin) = rho_h(1:na, ispin)+rho
