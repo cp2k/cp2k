@@ -949,7 +949,7 @@ CONTAINS
                            name="CSR sparsity matrix", &
                            data_type=dbcsr_type_real_8)
          CALL dbcsr_copy(csr_sparsity_nosym, dbcsr_mat_nosym)
-         CALL dbcsr_set(csr_sparsity_nosym, 1.0_sp)
+         CALL dbcsr_set(csr_sparsity_nosym, 1.0_dp)
       ENDIF
 
       IF (.NOT. dbcsr_has_same_block_structure(dbcsr_mat_nosym, csr_sparsity_nosym)) &
@@ -1576,7 +1576,7 @@ CONTAINS
                cs = NINT(i*chunk_size)-NINT((i-1)*chunk_size)
                end_ind = start_ind-1+cs
                rdist(start_ind:end_ind) = row_index
-               start_ind = end_ind+1; 
+               start_ind = end_ind+1
                row_index = row_index+1
             END DO
          END IF
