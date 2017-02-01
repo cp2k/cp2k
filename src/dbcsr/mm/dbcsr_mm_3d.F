@@ -1984,12 +1984,6 @@ CONTAINS
       CALL win_setup(buffers_orig%left, do_win_create_left, request_win_create(1))
       CALL win_setup(buffers_orig%right, do_win_create_right, request_win_create(2))
       !
-      ! Lock RMA windows
-      CALL mp_win_lock_all(buffers_orig%left%data_win)
-      CALL mp_win_lock_all(buffers_orig%left%meta_win)
-      CALL mp_win_lock_all(buffers_orig%right%data_win)
-      CALL mp_win_lock_all(buffers_orig%right%meta_win)
-      !
       ! Count the maximum possible multiplies per row for on-the-fly filtering
       ALLOCATE (product_matrix_epss_size(nrows3D), product_matrix_epss_displ(nrows3D))
       IF (otf_filtering) THEN
@@ -2866,12 +2860,6 @@ CONTAINS
       DEALLOCATE (right_displ_vunmerged, left_displ_vunmerged)
       DEALLOCATE (right_no_empty_images_displ, left_no_empty_images_displ)
       !
-      ! clean-up wins
-      CALL mp_win_unlock_all(buffers_orig%right%data_win)
-      CALL mp_win_unlock_all(buffers_orig%right%meta_win)
-      CALL mp_win_unlock_all(buffers_orig%left%data_win)
-      CALL mp_win_unlock_all(buffers_orig%left%meta_win)
-      !
       ! Deallocate 3D layers
       IF (do_layers3D) THEN
          DO icol3D = 1, ncols3D
@@ -2959,8 +2947,14 @@ CONTAINS
          CALL timeset(routineN//"_win_check", handle)
          CALL mp_wait(request)
          CALL timestop(handle)
-         IF (do_win_create(1)) CALL mp_win_free(buffer%data_win)
-         IF (do_win_create(2)) CALL mp_win_free(buffer%meta_win)
+         IF (do_win_create(1)) THEN
+            CALL mp_win_unlock_all(buffer%data_win)
+            CALL mp_win_free(buffer%data_win)
+         ENDIF
+         IF (do_win_create(2)) THEN
+            CALL mp_win_unlock_all(buffer%meta_win)
+            CALL mp_win_free(buffer%meta_win)
+         ENDIF
       ENDIF
       CALL dbcsr_data_release(buffer%data_resize)
       IF (ASSOCIATED(buffer%meta_resize)) THEN
@@ -2968,8 +2962,14 @@ CONTAINS
          NULLIFY (buffer%meta_resize)
       ENDIF
       !
-      IF (do_win_create(1)) CALL dbcsr_win_create_any(buffer%data(1), buffer%subgrp, buffer%data_win)
-      IF (do_win_create(2)) CALL mp_win_create(buffer%meta, buffer%subgrp, buffer%meta_win)
+      IF (do_win_create(1)) THEN
+         CALL dbcsr_win_create_any(buffer%data(1), buffer%subgrp, buffer%data_win)
+         CALL mp_win_lock_all(buffer%data_win)
+      ENDIF
+      IF (do_win_create(2)) THEN
+         CALL mp_win_create(buffer%meta, buffer%subgrp, buffer%meta_win)
+         CALL mp_win_lock_all(buffer%meta_win)
+      ENDIF
       !
       buffer%has_rma_win = .TRUE.
    END SUBROUTINE win_setup
@@ -3548,12 +3548,6 @@ CONTAINS
       ! Check RMA windows creation for original data
       CALL win_setup(buffers_orig%left, do_win_create_left, request_win_create(1))
       CALL win_setup(buffers_orig%right, do_win_create_right, request_win_create(2))
-      !
-      ! Lock RMA windows
-      CALL mp_win_lock_all(buffers_orig%left%data_win)
-      CALL mp_win_lock_all(buffers_orig%left%meta_win)
-      CALL mp_win_lock_all(buffers_orig%right%data_win)
-      CALL mp_win_lock_all(buffers_orig%right%meta_win)
       !
       ALLOCATE (multrec(0:nthreads-1))
       !
@@ -4250,12 +4244,6 @@ CONTAINS
          DEALLOCATE (row_blk_sizes2enum, enum2row_blk_sizes)
          DEALLOCATE (col_blk_sizes2enum, enum2col_blk_sizes)
       ENDIF
-      !
-      ! clean-up wins
-      CALL mp_win_unlock_all(buffers_orig%right%data_win)
-      CALL mp_win_unlock_all(buffers_orig%right%meta_win)
-      CALL mp_win_unlock_all(buffers_orig%left%data_win)
-      CALL mp_win_unlock_all(buffers_orig%left%meta_win)
       !
       ! Gather data
       IF (do_scatter .OR. do_diagonal) THEN
@@ -5505,7 +5493,9 @@ CONTAINS
       INTEGER                                            :: idata
 
       IF (buffer%has_rma_win) THEN
+         CALL mp_win_unlock_all(buffer%data_win)
          CALL mp_win_free(buffer%data_win)
+         CALL mp_win_unlock_all(buffer%meta_win)
          CALL mp_win_free(buffer%meta_win)
          buffer%has_rma_win = .FALSE.
          buffer%grp = mp_comm_null
