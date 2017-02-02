@@ -1,5 +1,5 @@
 ! **************************************************************************************************
-!> \brief Calculates max norms of each cluster with minimal overhead.
+!> \brief Calculates max norms of each image with minimal overhead.
 !> \param meta ...
 !> \param data ...
 !> \param refs ...
@@ -38,12 +38,12 @@
 
   INTEGER, DIMENSION(:), POINTER    :: meta_p, row, col, bps
   REAL(kind=real_8), DIMENSION(:), POINTER    :: data_p
-  INTEGER                           :: nblks, blk, bpe, icluster
+  INTEGER                           :: nblks, blk, bpe, iimage
   INTEGER, TARGET                   :: mi, ui
   INTEGER, POINTER                  :: rowi, coli
   REAL(kind=sp)                     :: max_norm
 
-  icluster = 1
+  iimage = 1
   max_norms(:) = 0.0_sp
   !
   !$omp parallel default(none) &
@@ -51,7 +51,7 @@
   !$omp                   rowi, coli, max_norm, meta_p, data_p) &
   !$omp          shared (max_norms, data, meta, refs_size, img_offset,&
   !$omp                  img_map, refs_displ, slot_coo_l,&
-  !$omp                  row_blk_size, col_blk_size, icluster,&
+  !$omp                  row_blk_size, col_blk_size, iimage,&
   !$omp                  local_row, local_col, is_left, off_diagonal,&
   !$omp                  data_diag, meta_diag)
   IF (is_left) THEN
@@ -99,11 +99,17 @@
            ENDDO
            !$omp end do
            !$omp critical(cannon_max_norm)
-           max_norms(icluster) = MAX(max_norms(icluster),max_norm)
+           max_norms(iimage) = MAX(max_norms(iimage),max_norm)
            !$omp end critical(cannon_max_norm)
            !$omp barrier
            !$omp master
-           icluster = icluster + 1
+           iimage = iimage + 1
+           !$omp end master
+        ELSE IF (SIZE(refs_size,1) .EQ. 1) THEN
+           !$omp barrier
+           !$omp master
+           max_norms(iimage) = 0.0_sp
+           iimage = iimage + 1
            !$omp end master
         ENDIF
      ENDDO
@@ -112,7 +118,7 @@
 END SUBROUTINE calc_max_image_norms_d
 
 ! **************************************************************************************************
-!> \brief Calculates norms of each cluster with minimal overhead.
+!> \brief Calculates norms of each image with minimal overhead.
 !> \param buffer ...
 !> \param norms ...
 ! **************************************************************************************************

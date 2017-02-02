@@ -372,6 +372,9 @@ MODULE message_passing
          mp_iallgather_i, mp_iallgather_l, &
          mp_iallgather_r, mp_iallgather_d, &
          mp_iallgather_c, mp_iallgather_z, &
+         mp_iallgather_i11, mp_iallgather_l11, &
+         mp_iallgather_r11, mp_iallgather_d11, &
+         mp_iallgather_c11, mp_iallgather_z11, &
          mp_iallgather_i12, mp_iallgather_l12, &
          mp_iallgather_r12, mp_iallgather_d12, &
          mp_iallgather_c12, mp_iallgather_z12, &
